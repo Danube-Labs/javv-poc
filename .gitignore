@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node / frontend
+node_modules/
+.vite/
+frontend/dist/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Scanner artifacts
+*.dead-letter.jsonl
+trivy-cache/
+grype-cache/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
