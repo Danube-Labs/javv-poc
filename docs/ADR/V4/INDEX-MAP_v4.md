@@ -1,0 +1,330 @@
+# JAVV — Index map & mappings (v4)
+
+> **The single source of truth for every OpenSearch index**: name, partition key, rollover/retention, and
+> pinned mapping. Supersedes the scattered field tables in `PLAN_v4` §5.x. Captured 2026-06-21. All indexes:
+> `dynamic: false`. Enum/casing fields use the shared `lc` lowercase normalizer (verbatim in `_source`,
+> normalized for aggs/filters — D16). Companion: `FLOW-EXAMPLE_v4.md` (worked example). Diagrams: Mermaid.
+
+## Summary — rolls over or not?
+
+| Index | Shelf | Partition | Rollover | Retention |
+|---|---|---|---|---|
+| `javv-finding-occurrences-<cluster_id>-*` | append (history) | cluster | **yes** (ISM size/age/docs) | per-cluster drop-whole-index; **bounds how far back time-travel goes** |
+| `javv-scan-events-<cluster_id>-*` | append (trends + **commit catalog**) | cluster (scanner = field, D38) | **yes** | per-cluster drop-whole-index |
+| `javv-images-<cluster_id>-*` | append (inventory snapshots, per `inventory_run_id`) | cluster | **yes** | per-cluster drop-whole-index |
+| `javv-inventory-runs-<cluster_id>-*` | append (**inventory commit manifest**, 1/run) | cluster | **yes** | per-cluster drop-whole-index |
+| `system-audit-log-*` | append (human-state timeline + trail) | time | **yes** | **keep long** (compliance, Contributors, time-travel of triage) |
+| `javv-metrics-*` *(v1.1)* | append (downsample rollup) | cluster | **yes** | keep long (tiny) |
+| `findings` | mutable current-state ("now" cache) | none (field `cluster_id`) | **no** | `stale`/`present` are **flags**; `delete_by_query` only after a **long** window (D37/M12) |
+| `javv-scan-watermarks` | mutable (per-digest commit pointer) | none (field `cluster_id`) | **no** | bounded by live fleet; prune with `findings` |
+| `system-decisions` | mutable (source of truth) | none | **no** | none (lifecycle-stamped; kept for time-travel/audit) |
+| `system-users` | mutable | none | **no** | none |
+| `system-roles` | mutable (capability bundles) | none | **no** | none |
+| `system-tokens` | mutable | none | **no** | manual revoke |
+| `system-sessions` | mutable | none | **no** | TTL expiry |
+| `system-config` | mutable | none | **no** | none |
+| `system-tags` | mutable | none | **no** | none |
+| `system-saved-views` | mutable | none | **no** | none |
+| `system-notifications` | mutable | none | **no** | bounded delete (old/read) |
+| `system-reports` | mutable | none | **no** | short bounded delete |
+
+**Time-travel horizon = per-cluster, "as far back as the data in OpenSearch allows"** — i.e. the oldest
+retained `javv-finding-occurrences-<cluster_id>-*` / `javv-images-<cluster_id>-*` window, paired with
+`system-audit-log` (kept long) for the human-state dimension. Each cluster's reach is set by its own
+retention.
+
+---
+
+## Append shelf (time-partitioned · roll over · drop-whole-index)
+
+### `javv-finding-occurrences-<cluster_id>-*` — full per-scan snapshots (point-in-time scanner facts)
+1 immutable row per finding per scan. `_id = hash(scan_run_id + finding_key)` (idempotent). Settings: 1
+primary shard, monthly rollover.
+```
+@timestamp        date          scan time (one value per scan_run_id); display only — not the ordering key (D40)
+scan_run_id       keyword       the snapshot's run (valid only if a scan-events commit doc exists)
+scan_order        long          scanner-assigned monotonic per (cluster,scanner); ordering key (D40/C-r3)
+commit_key        keyword       = scan-events commit_key; exact-tuple membership for the symmetric query (D39)
+cluster_id        keyword       tenant + routing
+scanner           keyword
+image_digest      keyword       reconstruction identity (content-addressed)
+namespace         keyword
+vuln_id           keyword       CVE pivot (= cve_id elsewhere)
+package_name      keyword
+package_version   keyword       (= findings.installed_version)
+finding_key       keyword       per-row identity
+severity          keyword/lc    as-of-then (verbatim in _source)
+cvss              float         as-of-then
+fixable           boolean
+fixed_version     keyword
+schema_version    short
+```
+*(No `severity_rank` here — OE-5/D38; as-of-T severity sort uses a fixed order map
+`crit>high>med>low>negligible>unknown`. No `status` field — absence in a later snapshot = resolved.)*
+**Read via the catalog (R-CATALOG, D37/D40):** never `sort @timestamp desc, size 1` on occurrences — resolve
+the **max-`scan_order`** committed `scan_run_id` from `javv-scan-events` first (order by `scan_order`, not
+`@timestamp` — D40/C-r3), then read occurrences for **that exact run** (zero rows = clean image; a clean
+rescan writes no rows here). **Symmetric "which images had CVE-Y at T" (D39):** Step 1 pages the
+`javv-scan-events` catalog for the **max-`scan_order`** committed `commit_key` per digest ≤ T; Step 2 =
+`commit_key IN {…} AND vuln_id=Y` here — **not** a composite "latest snapshot per digest" over occurrences.
+
+### `javv-scan-events-<cluster_id>-*` — receipts + severity-count trends + **commit catalog**
+1 immutable doc per (image, scanner, scan). **`scanner` is a field, not in the index name** (D38/M15).
+**Authoritative commit catalog** (F1/R-CATALOG, D37): an occurrences snapshot is "latest" only if a matching
+doc exists for its full `commit_key` 4-tuple; the point-in-time read resolves the latest committed
+`scan_run_id` **here first**, then reads occurrences for that run. A **clean scan still writes a doc**
+(`total:0`). `_id = hash(scan_run_id + image_digest + scanner)`. 1 primary shard, monthly rollover.
+```
+@timestamp        date          display only — NOT the ordering key (D40)
+scan_run_id       keyword
+scan_order        long          scanner-assigned monotonic per (cluster,scanner); the catalog ordering key (D40/C-r3)
+commit_key        keyword       hash(cluster_id + scanner + image_digest + scan_run_id) — 4-tuple commit identity (D37/H3)
+cluster_id        keyword
+scanner           keyword
+namespace         keyword
+image_repo        keyword
+image_digest      keyword
+tag               keyword
+app               keyword
+crit high med low negligible unknown total fixable   integer   (total = sum of buckets — invariant-checked; clean scan = all 0)
+schema_version    short
+```
+
+### `javv-images-<cluster_id>-*` — inventory snapshots ("running images")
+1 immutable doc per (image, scan); each cycle shares one **`inventory_run_id`**, certified complete by a
+manifest in `javv-inventory-runs-*` (below). **"Running images now / at T" = the images of the latest
+`status=committed` `inventory_run_id` ≤ T** (R-CATALOG, D37/D39) — *not* latest-doc-per-digest, and never an
+uncommitted/partial run; an undeployed image is absent from the next committed run and disappears at that run
+(no sweep). `_id = hash(scan_run_id + image_digest)`. 1 primary shard, monthly rollover.
+```
+@timestamp        date
+scan_run_id       keyword
+inventory_run_id  keyword       the complete inventory run; "running now" = images in the latest one (D37/H5)
+cluster_id        keyword
+image_digest      keyword
+image_repo        keyword
+tag               keyword
+namespace         keyword
+app               keyword
+scanners          keyword[]     scanners that reported this image this run
+crit high med low negligible unknown total fixable   integer
+trivy_count grype_count count_delta                  integer   count-disagreement pair (D5b)
+replicas          integer       observed at scan time
+schema_version    short
+```
+
+### `javv-inventory-runs-<cluster_id>-*` — inventory commit manifest (D39/H4-r2)
+1 immutable doc per inventory run — the **catalog for inventory completeness** (the images analog of
+scan-events). Written **last**, after the `javv-images` bulk for that run succeeds. "Running images now / at T"
+reads only `status=committed` runs **ordered by `inventory_order`** (not `@timestamp` — D40/F-r3), so a partial
+or zero-image run is never mistaken for the live inventory (a partial run falls back to the prior committed run
++ the staleness banner). `_id = inventory_run_id`. 1 primary shard, monthly rollover.
+```
+@timestamp        date          run completion time (display)
+inventory_run_id  keyword       = the run's id
+inventory_order   long          scanner-assigned monotonic per cluster; the "running at T" ordering key (D40/F-r3)
+cluster_id        keyword       tenant + routing
+started_at        date
+completed_at      date
+expected_count    integer       images discovered this run
+written_count     integer       image docs successfully appended (== expected_count when committed)
+status            keyword        committed | partial | failed   (only committed is read)
+schema_version    short
+```
+
+### `system-audit-log-*` — structured human-state timeline + trail (SND-2; required for time-travel)
+1 immutable, **structured** row per field change (not prose). Source for reconstructing human state at any T
+(replay ≤ T in deterministic order, latest-entry-per-field wins) and for Contributors/compliance. Append-only
+via a **create-only role** (SEC-1). Time-rollover, **kept long**. Schema enriched for faithful replay (D38/H8).
+```
+@timestamp        date
+event_id          keyword       unique per event; tiebreak for UNRELATED events — same-(entity,field) order by `revision` (D40/H-r3); no monotonic counter (D39/H6-r2)
+actor             keyword       user_id (or "system")
+action            keyword       enum: assign|note|acknowledge|risk_accept|not_affected|resolve|reopen|
+                                login|logout|pwd_change|role_change|token_mint|token_revoke|decision_revoke|...
+entity_type       keyword       finding|decision|user|token|session|... (what kind of thing changed)
+entity_id         keyword       the entity's id (finding_key for findings, decision_id for decisions, ...)
+finding_key       keyword       convenience target for finding actions (= entity_id when entity_type=finding)
+target_ids        keyword[]     bulk actions: the FROZEN set of affected ids (not a selector, not a count — H8)
+target_selector   object        {cve_id, scope} kept for provenance; replay uses target_ids
+result_hash       keyword       hash of the affected-set (audit integrity for very large bulk actions)
+result_count      integer       size of the affected set
+cluster_id        keyword
+field             keyword       e.g. state|assignee|notes
+field_type        keyword       scalar|text|json — how to interpret old/new value
+revision          long          the finding's resulting version (CAS write); replay orders same-(entity,field) by this, not event_id (D40/H-r3)
+old_value         keyword       scalar/text values
+new_value         keyword
+old_value_json    object        non-scalar before-image (when field_type=json)
+new_value_json    object        non-scalar after-image
+decision_id       keyword       links to system-decisions when relevant
+schema_version    short
+```
+
+### `javv-metrics-*` *(v1.1, deferred)* — downsample rollup (cheap multi-year trends, lossy counts).
+
+---
+
+## Mutable shelf (single index · no rollover)
+
+### `findings` — current-state "now" cache (the fast grid)
+1 doc per `finding_key`. Scanner fields **partial-merged** each scan (a partial-doc `_update` of scanner
+fields only — merge semantics leave human fields untouched; **no preserve script**). Human fields are a
+**projected cache** of `system-decisions` + `system-audit-log`. **Reconcile-on-commit** (D37/C2): a committed
+scan for `(digest, scanner)` runs `update_by_query` setting `present=false`/`resolved_at` on findings whose
+`last_scan_run_id` ≠ the new run, so resolved CVEs leave the "now" grid immediately. **`stale`/`present` are
+flags, not deletes** (D37/M12): `delete_by_query` runs only after a **long** retention window (or once gone
+from inventory that long), never on the freshness timer. Both create and update are **newer-scan-wins**: a run
+skips the cache when its `scan_order ≤ doc.last_scan_order` **or `< the per-digest `javv-scan-watermarks`
+watermark** (D40/C-r3 — the watermark also guards *creates*, which per-doc state can't), runs **after** the
+commit doc lands (D39/H3-r2), and the reconcile `update_by_query` **retries scoped until zero conflicts**
+(D40/E-r3). A crash before the merge self-heals via the scanner-cache rebuild (D40/D-r3).
+**Presence ⟂ state (D39/M10-r2):** `present`/`resolved_at` (scan-presence) is orthogonal to `state` (human
+lifecycle + system `stale`) — `present=true` = on the latest committed scan; `present=false` + healthy scanner
+= resolved-by-scan (fixed); `state=stale` = scanner silent. Every "now" query **must** filter on both
+(`present=true` + the screen's `state`) and carry `cluster_id`+`scanner`. Settings: `lc` normalizer; start at 1
+primary shard (route/shard by `cluster_id` only if it ever grows large — it scales with live fleet, not time).
+```
+finding_key       keyword       _id = hash(cluster_id+image_digest+scanner+cve_id+package_name+installed_version)
+cluster_id        keyword
+scanner           keyword
+image_digest      keyword
+image_repo        keyword
+tag               keyword
+namespace         keyword
+app               keyword
+cve_id            keyword
+package_name      keyword
+installed_version keyword
+severity          keyword/lc    verbatim in _source
+severity_rank     byte          5..0 — sort/range key (findings only — OE-5)
+cvss              float
+fixable           boolean
+fixed_version     keyword
+epss              float          grype only (null for trivy)
+kev               boolean        grype only
+disagree          boolean        precomputed severity disagreement (D5a)
+first_seen_at     date           full precision (not day-grain — D37/M13)
+last_seen_at      date           full precision; freshness/stale timer reads this
+last_scan_run_id  keyword        the run that last reported this finding (D37/C2)
+last_scan_order   long           newer-scan-wins guard key: create/update no-op if scan_order ≤ this OR < digest watermark (D40/C-r3)
+last_scan_at      date           committed run @timestamp (display)
+present           boolean        false once a later committed scan for its (digest,scanner) omits it (D37/C2)
+resolved_at       date           when reconcile-on-commit flipped present→false (nullable)
+state             keyword        human cache: open|acknowledged|not_affected|risk_accepted|resolved|stale
+vex_justification keyword        CISA five (required iff not_affected)
+assignee          keyword
+notes             text
+pre_stale_status  keyword        prior state, for revert on re-push
+schema_version    short
+```
+
+### `javv-scan-watermarks` — per-digest committed-scan watermark (D40/keystone)
+The serialization point that makes newer-scan-wins safe **including creates** (per-doc `findings` state can't
+guard a finding that doesn't exist yet). 1 doc per `(cluster, scanner, image_digest)`. At commit the backend
+**CAS-bumps** `max_committed_scan_order = max(current, my_scan_order)`; if `my_scan_order < max_committed_scan_order`
+the run is stale → **skip all cache writes** (history is immutable/idempotent and ordered by `scan_order`, so
+stale history is harmless). `_id = hash(cluster_id + scanner + image_digest)`. Mutable, no rollover; bounded by
+live fleet (prune alongside `findings`).
+```
+cluster_id              keyword   tenant filter
+scanner                 keyword
+image_digest            keyword
+max_committed_scan_order long     the watermark — guards both create and update of findings (D40/C-r3)
+max_committed_scan_at    date     committed run @timestamp (display)
+schema_version          short
+```
+
+### `system-decisions` — scoped human decisions (source of truth; lifecycle-stamped for time-travel)
+1 doc per decision. **Immutable except `revoked_at`** (D39/H5-r2) — a scope/justification **or `expiry`** edit
+is **revoke + create-new**, never an in-place rewrite (mutating `expiry` would rewrite past-T reconstruction).
+`revoked_at` is the only post-hoc stamp and is forward-correct, so the role is not "create-only" but allows
+only that one update, and time-travel stays correct. "Active at T" = `created_at ≤ T AND (revoked_at is null OR
+revoked_at > T) AND (expiry is null OR expiry > T)`.
+```
+decision_id       keyword
+type              keyword       risk_accepted|ignore_rule|not_affected
+cve_id            keyword
+scope             object        { namespaces: keyword[], images: keyword[] }  (empty = cluster-wide)
+apply_both_scanners boolean     semantics pinned (D22)
+vex_justification keyword
+justification     text
+created_by        keyword       the accepting user (gated by can_accept_audit_final — SEC-2)
+created_at        date          = effective_at for a create
+expiry            date          nullable; IMMUTABLE after creation — change = revoke+create-new (D39/H5-r2)
+revoked_at        date          nullable; the only post-hoc stamp (revocation is a forward event → time-travelable)
+effective_at      date          edit (revoke+create) shares ONE effective_at: revoked_at(old)=created_at(new)=effective_at (D40/G-r3)
+operation_id      keyword       ties the revoke+create pair; projection runs only after both land (D40/G-r3)
+cluster_id        keyword
+schema_version    short
+```
+
+### `system-users` / `system-roles` — identity + capability RBAC
+```
+# system-users
+username          keyword
+password_hash     keyword       argon2id (never logged)
+role              keyword       → resolves to a capability bundle in system-roles
+capabilities      keyword[]     effective capabilities (denormalized for fast checks)
+must_change       boolean       server-enforced first-login password change (SEC-6)
+disabled          boolean
+created_at        date
+# system-roles  (capability bundles — SEC-9)
+role              keyword       e.g. viewer|triager|security_lead|admin
+capabilities      keyword[]     e.g. can_triage, can_accept_audit_final, can_manage_users,
+                                can_manage_retention, can_restore_snapshot, can_drop_index, can_rebuild_state
+```
+*(Capability `can_accept_audit_final` gates risk-accept — SEC-2. Admin always holds all. Destructive caps
+Admin-only + journaled.)*
+
+### `system-tokens` — per-(cluster,scanner) ingest tokens (lifecycle + revocable)
+```
+token_hash        keyword       peppered SHA-256 of a 256-bit random token (compare_digest) — D38/M14
+cluster_id        keyword       payload must match token scope (authz binding, SEC-3)
+scanner           keyword       payload must match token scope (authz binding, SEC-3)
+scope             keyword       "push:findings"
+created_by        keyword
+created_at        date
+expiry            date          nullable
+disabled          boolean
+last_ingest_at    date          scanner-down guard
+```
+
+### `system-sessions` — server-side sessions (Auth & Session bolt — SEC-5)
+```
+session_id        keyword       httpOnly+Secure+SameSite cookie value (hashed)
+user_id           keyword
+created_at        date
+expires_at        date          TTL
+revoked           boolean       revoke-on-role-change / logout-all
+```
+
+### `system-config` · `system-tags` · `system-saved-views` · `system-notifications` · `system-reports`
+```
+# system-config        : SLA policy, rollover/retention/staleness knobs, snapshot-repo ref (creds in OS keystore, not here)
+# system-tags          : { tag, kind: team|app|org, ... }
+# system-saved-views   : { user_id, name, filters }   (per-user)
+# system-notifications : { user_id, type: sla_breach|assignment|report_ready, ref, created_at, read }
+# system-reports       : { report_id, status: pending|running|done|failed, params, requested_by,
+#                          run_mode: now|offpeak, scheduled_for, result_location, cluster_id,
+#                          heartbeat_at, lease_expires_at, retry_count, attempt_id }   job claim = optimistic
+#                          concurrency (pending→running via seq_no/primary_term CAS) so replicas/retries can't
+#                          double-run (D38/M17); attempt_id = fencing token — heartbeat + done CAS on it, and
+#                          the result object path includes it (object metadata too), so an expired-then-
+#                          reclaimed slow worker can't double-publish (the bell reads only the done doc's
+#                          result_location); orphan objects from failed/stale attempts are TTL-swept (D40/I-r3);
+#                          per-tenant prefix + signed short-lived URL — SEC-10
+```
+
+---
+
+## Notes
+- **Naming:** ISM rollover creates numbered backing indices behind a write-alias; the `-*` denotes the
+  rolled series. Route append series on **immutable `cluster_id`**, never `cluster_name`.
+- **Every read carries a `cluster_id` filter** via one tenant-scoping repository helper (SEC-4) — including
+  both steps of the point-in-time symmetric query and the export drain. **MVP tenant model (D38/H9):** all
+  clusters are visible to any authenticated user — `cluster_id` is a **data filter applied on every
+  read/agg/export** (guards accidental cross-cluster bleed), **not** a per-user auth boundary; per-user/role
+  `allowed_cluster_ids` grants are **post-MVP** (would slot onto `system-users`/`system-roles`).
+- **Snapshot/restore** (NFR-6) covers all of these; snapshot the small audit/decisions indices more often
+  than the bulky append ones (DR RPO note).
