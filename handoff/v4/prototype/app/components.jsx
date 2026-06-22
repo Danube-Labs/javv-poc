@@ -1,7 +1,7 @@
-/* JAVV shared UI — exported to window for cross-file use. */
+/* JAVV shared UI - exported to window for cross-file use. */
 const { useState, useEffect, useRef, useMemo } = React;
 
-/* ---------- severity palette (DATA only — firewalled from brand coral) ---------- */
+/* ---------- severity palette (DATA only - firewalled from brand coral) ---------- */
 const SEV_COLOR = {
   CRITICAL: { fg: "#B5231A", bg: "#FBE7E4", line: "#E7C0bb", solid: "#C0271D" },
   HIGH:     { fg: "#C2540D", bg: "#FCEBDD", line: "#EDD0B6", solid: "#E2640F" },
@@ -10,7 +10,7 @@ const SEV_COLOR = {
   UNKNOWN:  { fg: "#5B6770", bg: "#ECEDEE", line: "#D8DCDF", solid: "#74808A" },
 };
 const CHART_SEV = { CRITICAL: "#C0271D", HIGH: "#E2640F", MEDIUM: "#C68A12", LOW: "#3D7DA6", UNKNOWN: "#9AA3AA" };
-const fmt = (n) => (n == null ? "—" : n.toLocaleString("en-US"));
+const fmt = (n) => (n == null ? "-" : n.toLocaleString("en-US"));
 
 /* ---------- brand mark (inline, from approved icon.svg) ---------- */
 function BrandIcon({ size = 28 }) {
@@ -51,11 +51,11 @@ function Sev({ level, solid = false, dot = true }) {
 
 /* ---------- KEV / EPSS / state pills ---------- */
 function Kev({ on }) {
-  if (!on) return <span className="muted-dash">—</span>;
+  if (!on) return <span className="muted-dash">-</span>;
   return <span className="kev-tag">KEV</span>;
 }
 function Epss({ v }) {
-  if (v == null) return <span className="muted-dash">—</span>;
+  if (v == null) return <span className="muted-dash">-</span>;
   const pct = Math.round(v * 100);
   const hot = v >= 0.7, warm = v >= 0.3;
   return (
@@ -185,7 +185,7 @@ function MiniBar({ crit, high, med, low }) {
   );
 }
 
-/* bar + readable per-severity counts — use in tables instead of hover-only MiniBar */
+/* bar + readable per-severity counts - use in tables instead of hover-only MiniBar */
 function MixBar({ crit, high, med, low }) {
   return (
     <div className="mix-cell">
@@ -214,7 +214,7 @@ function ScannerFilter({ value, onChange }) {
 }
 const SCANNER_FACTOR = { "All scanners": 1, Trivy: 0.53, Grype: 0.47 };
 
-/* first-run empty state — shown when a cluster's first sweep hasn't landed yet */
+/* first-run empty state - shown when a cluster's first sweep hasn't landed yet */
 function FirstRun({ go, clusterName, what = "findings" }) {
   return (
     <div className="screen">
@@ -272,7 +272,7 @@ function Icon({ name, size = 16 }) {
   );
 }
 
-/* ---------- v4: capability gating (UX only — server re-checks) ---------- */
+/* ---------- v4: capability gating (UX only - server re-checks) ---------- */
 function can(cap) { return (JAVV.currentUser && JAVV.currentUser.caps || []).includes(cap); }
 // Gate: render children only if cap held; otherwise hide, or disable-with-tooltip when `disable`.
 function Gate({ cap, disable, reason, children }) {
@@ -290,7 +290,7 @@ function HistoryBanner({ atTLabel, onBack }) {
   return (
     <div className="history-banner" role="status">
       <Icon name="rewind" size={15} />
-      <span className="hb-text">Viewing history — <b>as scanned at {atTLabel}</b>. Past views reflect the last scan ≤ this moment, not live deployment state.</span>
+      <span className="hb-text">Viewing history - <b>as scanned at {atTLabel}</b>. Past views reflect the last scan ≤ this moment, not live deployment state.</span>
       <button className="hb-back" onClick={onBack}><Icon name="clock" size={13} />Back to now</button>
     </div>
   );
@@ -335,7 +335,7 @@ function ExportDialog({ scope, rows, onClose }) {
               <b>Schedule off-peak</b><span>Runs throttled in the background so it never starves ingest. You'll get a bell notification with a download link.</span>
             </button>
           </div>
-          {big && mode === "now" && <p className="exp-warn"><Icon name="alert" size={12} />Large export — off-peak is recommended so it doesn't contend with live scanning.</p>}
+          {big && mode === "now" && <p className="exp-warn"><Icon name="alert" size={12} />Large export - off-peak is recommended so it doesn't contend with live scanning.</p>}
           <div className="modal-actions">
             <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
             <button className="btn btn-primary" onClick={() => setDone(true)}>{mode === "now" ? "Run now" : "Schedule"}</button>
@@ -346,7 +346,7 @@ function ExportDialog({ scope, rows, onClose }) {
           <span className="exp-done-icon"><Icon name="check" size={20} /></span>
           {mode === "now"
             ? <p><b>Export started.</b> Your download will begin automatically when the file is ready.</p>
-            : <p><b>Scheduled off-peak.</b> Job <span className="mono-cell">EXP-3121</span> is queued — the bell will notify you with a download link when it's ready.</p>}
+            : <p><b>Scheduled off-peak.</b> Job <span className="mono-cell">EXP-3121</span> is queued - the bell will notify you with a download link when it's ready.</p>}
           <button className="btn btn-primary btn-block" onClick={onClose}>Done</button>
         </div>
       )}
@@ -360,7 +360,7 @@ function CountDisagree({ trivy, grype, delta }) {
     return <span className="cd-agree" title="Trivy and Grype report the same count">{fmt(trivy)}</span>;
   }
   return (
-    <span className="cd-split" title={`Trivy ${trivy} vs Grype ${grype} · Δ${delta > 0 ? "+" : ""}${delta} — never summed`}>
+    <span className="cd-split" title={`Trivy ${trivy} vs Grype ${grype} · Δ${delta > 0 ? "+" : ""}${delta} - never summed`}>
       <span className="cd-t"><i>T</i>{fmt(trivy)}</span>
       <span className="cd-g"><i>G</i>{fmt(grype)}</span>
       <span className="cd-delta">Δ{delta > 0 ? "+" : ""}{delta}</span>

@@ -1,4 +1,4 @@
-/* JAVV — Settings / scanner & app configuration */
+/* JAVV - Settings / scanner & app configuration */
 function Toggle({ on, onChange }) {
   return <button className={"switch " + (on ? "switch-on" : "")} onClick={() => onChange(!on)} role="switch" aria-checked={on}><i /></button>;
 }
@@ -39,7 +39,7 @@ function Check({ on, onChange, children }) {
   );
 }
 
-/* Reusable save/discard footer — appended to the end of every settings category. */
+/* Reusable save/discard footer - appended to the end of every settings category. */
 function SaveBar({ dirty, onSave, onDiscard }) {
   return (
     <div className={"save-bar " + (dirty ? "save-bar-on" : "")}>
@@ -106,7 +106,7 @@ function Settings({ go }) {
           ) : null; })()}
           {sec === "scope" && (
             <Card title="Scan scope" subtitle="what the scanner module discovers and scans">
-              <Row label="Running workloads only" hint="Discover live images from the k8s API, digest-deduped — not a registry crawl.">
+              <Row label="Running workloads only" hint="Discover live images from the k8s API, digest-deduped - not a registry crawl.">
                 <Toggle on={s.scanScope.runningOnly} onChange={(v) => set("scanScope.runningOnly", v)} />
               </Row>
               <Row label="Namespace include list" hint="When active, only namespaces in the list below are scanned.">
@@ -149,7 +149,7 @@ function Settings({ go }) {
 
           {sec === "scanners" && (
             <div className="stack">
-              <div className="scanner-banner"><Icon name="layers" size={14} />Both scanners run from day one, each with its own settings below. Results are kept <b>per-scanner</b> and never merged — dashboards facet by scanner to avoid double-counting.</div>
+              <div className="scanner-banner"><Icon name="layers" size={14} />Both scanners run from day one, each with its own settings below. Results are kept <b>per-scanner</b> and never merged - dashboards facet by scanner to avoid double-counting.</div>
 
               <Card title={<span className="set-card-title"><ScannerTag name="Trivy" /> Trivy</span>} subtitle="Aqua Security · OS + language packages">
                 <Row label="Enabled"><Toggle on={s.trivy.enabled} onChange={(v) => set("trivy.enabled", v)} /></Row>
@@ -163,7 +163,7 @@ function Settings({ go }) {
                     {SEVS.map((sv) => <Check key={sv} on={s.trivy.severities.includes(sv)} onChange={() => set("trivy.severities", toggleIn(s.trivy.severities, sv))}><Sev level={sv} dot={false} /></Check>)}
                   </div>
                 </Row>
-                <Row label="Ignore unfixed" hint="Hides CVEs with no fix. Use with a patching plan — it can mask real risk.">
+                <Row label="Ignore unfixed" hint="Hides CVEs with no fix. Use with a patching plan - it can mask real risk.">
                   <Toggle on={s.trivy.ignoreUnfixed} onChange={(v) => set("trivy.ignoreUnfixed", v)} />
                 </Row>
                 <Row label="Package types" stack hint="--pkg-types">
@@ -219,7 +219,7 @@ function Settings({ go }) {
           )}
 
           {sec === "sla" && (
-            <Card title="SLA policy" subtitle="remediation deadlines per severity — drives the SLA column and overdue flags">
+            <Card title="SLA policy" subtitle="remediation deadlines per severity - drives the SLA column and overdue flags">
               {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((sv) => (
                 <Row key={sv} label={<Sev level={sv} />} hint={sv === "CRITICAL" ? "Clock starts when the finding first appears in a sweep." : null}>
                   <div className="sla-input">
@@ -240,7 +240,7 @@ function Settings({ go }) {
 
           {sec === "users" && (
             <div className="stack">
-              <Card title="Users" subtitle="role is granted per user — enforced on every API call, not just hidden in the UI"
+              <Card title="Users" subtitle="role is granted per user - enforced on every API call, not just hidden in the UI"
                 action={<button className="btn btn-mini"><Icon name="plus" size={13} />Invite user</button>}>
                 <table className="tbl">
                   <thead><tr><th>User</th><th>Role</th><th>Last active</th><th></th></tr></thead>
@@ -268,13 +268,13 @@ function Settings({ go }) {
                       <tr key={p.perm}>
                         <td>{p.perm}</td>
                         {p.grants.map((g, i) => (
-                          <td key={i} className="c">{g ? <span className="perm-yes"><Icon name="check" size={13} /></span> : <span className="perm-no">—</span>}</td>
+                          <td key={i} className="c">{g ? <span className="perm-yes"><Icon name="check" size={13} /></span> : <span className="perm-no">-</span>}</td>
                         ))}
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <p className="evidence-note">Roles map to identity-provider groups at login — e.g. an Auditor sees only the audit log and read-only dashboards.</p>
+                <p className="evidence-note">Roles map to identity-provider groups at login - e.g. an Auditor sees only the audit log and read-only dashboards.</p>
               </Card>
             </div>
           )}
@@ -355,11 +355,11 @@ function Settings({ go }) {
 
           {sec === "access" && (
             <Card title="Access & registries" subtitle="ingest auth and private registry credentials">
-              <div className="scanner-banner"><Icon name="shield" size={14} />Every scanner type pushes over <b>HTTPS only</b>, authenticated by a scoped API access token — no other credentials touch the ingest endpoint.</div>
+              <div className="scanner-banner"><Icon name="shield" size={14} />Every scanner type pushes over <b>HTTPS only</b>, authenticated by a scoped API access token - no other credentials touch the ingest endpoint.</div>
               <Row label="Transport" hint="TLS termination at the ingest endpoint. Plain HTTP is rejected." stack>
                 <div className="token-row"><div className="fld fld-static mono-cell" style={{ flex: 1 }}>https:// · TLS 1.2+ enforced</div><span className="lock-tag">immutable</span></div>
               </Row>
-              <Row label="Push tokens" stack hint="One scoped token per scanner. Any scanner type that holds a valid token can push — nothing else is required.">
+              <Row label="Push tokens" stack hint="One scoped token per scanner. Any scanner type that holds a valid token can push - nothing else is required.">
                 <table className="tbl tbl-bordered">
                   <thead><tr><th>Scanner</th><th>Token</th><th>Scope</th><th>Created</th><th>Last used</th><th></th></tr></thead>
                   <tbody>
@@ -390,7 +390,7 @@ function Settings({ go }) {
 
           {sec === "cluster" && (
             <Card title="Cluster" subtitle="identity & ingest contract">
-              <Row label="cluster_id" stack hint="Derived from the kube-system namespace UID — immutable.">
+              <Row label="cluster_id" stack hint="Derived from the kube-system namespace UID - immutable.">
                 <div className="token-row"><div className="fld fld-static mono-cell" style={{ flex: 1 }}>{JAVV.clusters[0].id}</div><span className="lock-tag">immutable</span></div>
               </Row>
               <Row label="cluster_name" stack hint="Relabelable display name. Multi-cluster is keyed on cluster_id.">

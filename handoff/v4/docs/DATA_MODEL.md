@@ -1,9 +1,9 @@
-# Data Model — javv
+# Data Model - javv
 
 The prototype fabricates everything on `window.JAVV` in `prototype/app/data.js` (deterministic, seeded).
 In production each of these is an **OpenSearch-backed API response**. Shapes below are the contract
 the UI expects; field names match the prototype so you can cross-reference. All identifiers in the
-prototype are lorem/placeholder — **no real customer data**.
+prototype are lorem/placeholder - **no real customer data**.
 
 > **Counts are server-computed.** Wherever the UI shows a number (KPIs, facet counts, severity
 > totals, "X of Y"), that comes from an OpenSearch aggregation, not from counting a client array.
@@ -31,14 +31,14 @@ in Settings → SLA policy).
 ---
 
 ## Finding  (`JAVV.findings[]`)
-The central entity — one row per (vulnerability × component × scanner).
+The central entity - one row per (vulnerability × component × scanner).
 
 ```ts
 {
   id: number,
   cve: string,            // "CVE-2024-10042" or "ADV-2025-0019" (advisory)
   severity: Severity,
-  epss: number,           // 0..1 exploit-prediction score. GRYPE-PROVIDED — null/absent for Trivy-only rows
+  epss: number,           // 0..1 exploit-prediction score. GRYPE-PROVIDED - null/absent for Trivy-only rows
   kev: boolean,           // on CISA Known-Exploited-Vulnerabilities list
   component: string,      // running component name, e.g. "lorem-api"
   pkg: string,            // vulnerable package, e.g. "liblorem"
@@ -61,7 +61,7 @@ The central entity — one row per (vulnerability × component × scanner).
 **Finding detail** (`JAVV.focusFinding`) adds: `title`, `epssPct` (percentile), `cvss` (number) +
 `cvssVector` (string), `cwe`, `published`, `discovered`, `description`, `refs[]`,
 `affected[]` ( `{ comp, ns, current, fixed, images }` ), and
-`scannerEvidence[]` ( `{ scanner, severity, source, fixed, vector, status, db }` ) — the
+`scannerEvidence[]` ( `{ scanner, severity, source, fixed, vector, status, db }` ) - the
 **per-scanner evidence table** that proves "no black box, no merge".
 
 ---
@@ -84,7 +84,7 @@ continuously watch pods).
 }
 ```
 
-`JAVV.affectedImages[]` — vuln→image rows: `{ vuln, pkg, ptype, sev, fixed, image, ns }`.
+`JAVV.affectedImages[]` - vuln→image rows: `{ vuln, pkg, ptype, sev, fixed, image, ns }`.
 
 ---
 
@@ -94,8 +94,8 @@ Multi-cluster is keyed on `cluster_id` (immutable, derived from the kube-system 
 
 ```ts
 {
-  id: string,                 // "id-lorem-9c2e" — immutable cluster_id
-  name: string,               // "lorem-prod" — editable
+  id: string,                 // "id-lorem-9c2e" - immutable cluster_id
+  name: string,               // "lorem-prod" - editable
   current: boolean,
   crit, high, med, low: number,
   images: number, replicas: number,
@@ -122,21 +122,21 @@ topComponents[]  : { name, avg, min, max, last }
 severitySeries   : { days[], CRITICAL[], HIGH[], MEDIUM[], LOW[] }  // 30-pt time series
 publishedSeries  : number[]          // newly-published CVEs/day
 ```
-`days[]` is 30 `"MM-DD"` strings — the x-axis shared by every time series. In production these are
+`days[]` is 30 `"MM-DD"` strings - the x-axis shared by every time series. In production these are
 OpenSearch date-histogram + terms aggregations, scoped by the global time-range picker.
 
 ---
 
 ## Triage / audit entities
 
-**Approval list** (`JAVV.approvals[]`) — exceptions:
+**Approval list** (`JAVV.approvals[]`) - exceptions:
 ```ts
 { id: cve, sev: Severity, status: State,
   justification: string, impact: string, action: string,
-  approver: string | "—", task: string, when: string, whenRel: string }
+  approver: string | "-", task: string, when: string, whenRel: string }
 ```
 
-**Audit log** (`JAVV.auditLog[]`) — immutable event stream:
+**Audit log** (`JAVV.auditLog[]`) - immutable event stream:
 ```ts
 { user, initials, tone, action: AuditAction,
   target: string,      // CVE/advisory id, or "Settings · Schedule", "Findings CSV", "Push token · Grype"
@@ -200,7 +200,7 @@ config.access = {
   autoResolveSecrets: bool, registries: string[],
 }
 ```
-Note Trivy and Grype have **different DB distribution models** — Trivy pulls an OCI artifact
+Note Trivy and Grype have **different DB distribution models** - Trivy pulls an OCI artifact
 (`--db-repository`); Grype fetches a `listing.json` over HTTP (`GRYPE_DB_UPDATE_URL` + CA cert +
 max-built-age staleness). The Settings → Vuln DB section presents them as two sub-tabs under one
 section, not two separate nav items.

@@ -1,4 +1,4 @@
-# Architecture — javv (prototype → production)
+# Architecture - javv (prototype → production)
 
 How the React-via-CDN prototype maps onto the agreed **Vue 3 + PrimeVue + vue-echarts + OpenSearch**
 stack. The prototype is client-only with a fabricated dataset; production moves all data + counting
@@ -10,7 +10,7 @@ server-side.
 
 ```
 JAVV Prototype.html      shell: fonts, full CSS (:root tokens + all classes), CDN scripts, mount
-app/data.js              window.JAVV — fabricated deterministic dataset (→ becomes the API layer)
+app/data.js              window.JAVV - fabricated deterministic dataset (→ becomes the API layer)
 app/components.jsx        shared presentational components (chips, cards, Chart, Avatar, Pager, RelTime, Icon)
 app/filters.jsx           useFilters + FacetRail + FilterBar + ColumnsMenu  ← the reusable filter module
 app/main.jsx              App shell, hash-less in-memory router (route = {name, data}), sidebar, topbar, search, bell
@@ -19,7 +19,7 @@ app/screens-*.jsx         one file per screen
 
 Cross-file sharing is via `Object.assign(window, {...})` at the bottom of each file (a prototype
 hack because each `<script type="text/babel">` is isolated). **In Vue this becomes normal ES module
-imports** — drop the window globals entirely.
+imports** - drop the window globals entirely.
 
 Routing in the prototype is a `useState({name, data})` switch in `App`; `go(name, data)` navigates
 and `data` carries the `preset` for deep-links. Replace with **Vue Router** (one route per screen;
@@ -38,12 +38,12 @@ and `data` carries the `preset` for deep-links. Replace with **Vue Router** (one
 | `Card`, `Sev`, `StateTag`, `ScannerTag`, `Kev`, `Sla` | PrimeVue `Card`/`Tag`/`Chip`, themed to tokens |
 | `Chart` (ECharts SVG wrapper) | **vue-echarts** `<v-chart :option=… autoresize />` |
 | `Pager` | PrimeVue `Paginator` (rowsPerPageOptions [10,25,50]) |
-| Findings/Images/Approvals/Audit tables | PrimeVue `DataTable` **lazy mode** (server-side sort/filter/page) — or the deferred dedicated grid engine; see `UI-tools.md`, decide before M5 |
+| Findings/Images/Approvals/Audit tables | PrimeVue `DataTable` **lazy mode** (server-side sort/filter/page) - or the deferred dedicated grid engine; see `UI-tools.md`, decide before M5 |
 | `Icon` inline set | PrimeIcons or lucide-vue |
 | `data.js` arrays | API client → backend → OpenSearch |
 | sticky save bar | per-section component bound to a dirty-state ref |
 
-Keep the **`fields` config object** pattern verbatim — it's what guarantees the facet rail and the
+Keep the **`fields` config object** pattern verbatim - it's what guarantees the facet rail and the
 filter bar can never diverge. Each screen declares its fields once and passes the same array to both
 `FacetRail` and `FilterBar`.
 
@@ -77,12 +77,12 @@ RBAC enforcement (the API must re-check permissions; client gating is UX only).
 
 ## 4. State management (Pinia stores, suggested)
 
-- **session** — current user + role (drives RBAC gating), avatar.
-- **cluster** — active `cluster_id`, cluster list.
-- **timeRange** — global picker value (quick/interval/single-day) → injected into every query.
+- **session** - current user + role (drives RBAC gating), avatar.
+- **cluster** - active `cluster_id`, cluster list.
+- **timeRange** - global picker value (quick/interval/single-day) → injected into every query.
 - **per-screen filter state** via `useFilters` (local), seeded from route query for deep-links.
-- **savedViews** — CRUD of named filter sets (maps to a backend collection; in prototype it's static).
-- **notifications** — current user's SLA breaches + assignments (poll or push).
+- **savedViews** - CRUD of named filter sets (maps to a backend collection; in prototype it's static).
+- **notifications** - current user's SLA breaches + assignments (poll or push).
 
 Deep-link contract: `go(screen, { filters, q })` → route with query params; target screen seeds
 `useFilters` from them. Saved views and Overview/All-clusters drill-downs use the same path.
@@ -95,7 +95,7 @@ Scanners (Trivy, Grype) run in-cluster and **push** results to a per-cluster HTT
 authenticated by a scoped `push:findings` API token (no other creds). Push is **idempotent** with
 **retry + backoff + jitter**; permanent failures go to a **dead-letter** queue (surfaced on Scanner
 status). Findings carry `cluster_id` + `schema_version`. Daily **sweep** recomputes staleness.
-Vuln DBs refresh on a schedule into a persistent cache (not per-scan) to dodge registry rate limits —
+Vuln DBs refresh on a schedule into a persistent cache (not per-scan) to dodge registry rate limits -
 Trivy via OCI artifact, Grype via `listing.json` (see Settings → Vuln DB).
 
 ---
@@ -121,6 +121,6 @@ Trivy via OCI artifact, Grype via `listing.json` (see Settings → Vuln DB).
 - **MixBar consistency.** The labeled severity-mix bar must look identical on All-clusters and
   Running images.
 - **RelTime everywhere**, deadlines absolute.
-- **EPSS is Grype-provided** — don't show it for Trivy-only rows.
+- **EPSS is Grype-provided** - don't show it for Trivy-only rows.
 - Fonts: Space Grotesk (UI) + Space Mono (all data/IDs/numbers). Keep mono for CVEs, versions,
   namespaces, image refs, counts, timestamps, tokens.

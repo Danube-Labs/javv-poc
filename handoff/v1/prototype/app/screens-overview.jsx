@@ -1,4 +1,4 @@
-/* JAVV — Overview dashboard */
+/* JAVV - Overview dashboard */
 function KpiStrip({ go, S }) {
   const t = JAVV.severityTotals, n = JAVV.new30d;
   const order = ["CRITICAL", "HIGH", "MEDIUM", "LOW"];

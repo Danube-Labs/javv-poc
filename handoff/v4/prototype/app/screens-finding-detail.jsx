@@ -1,4 +1,4 @@
-/* JAVV — Finding detail + triage / audit workflow (v4 VEX model) */
+/* JAVV - Finding detail + triage / audit workflow (v4 VEX model) */
 function RiskAcceptDialog({ cve, onClose }) {
   const nsList = JAVV.namespaces.map((n) => n.ns);
   const imgList = JAVV.images.map((i) => i.name + ":" + i.tag);
@@ -11,13 +11,13 @@ function RiskAcceptDialog({ cve, onClose }) {
   return (
     <Modal title="Risk-accept this CVE" subtitle={cve} onClose={onClose} width={560}>
       <div className="ra-anchor"><span className="mono-cell strong">{cve}</span><span className="ra-anchor-note">A decision is anchored on the CVE + scope, so a package bump auto-inherits it.</span></div>
-      <label className="fld-label">Scope — namespaces</label>
+      <label className="fld-label">Scope - namespaces</label>
       <div className="ra-chips">
         {nsList.slice(0, 6).map((ns) => (
           <button key={ns} className={"ra-chip " + (nsSel.has(ns) ? "ra-chip-on" : "")} onClick={() => tog(nsSel, setNsSel)(ns)}>{ns}</button>
         ))}
       </div>
-      <label className="fld-label">Scope — images</label>
+      <label className="fld-label">Scope - images</label>
       <div className="ra-chips">
         {imgList.slice(0, 6).map((im) => (
           <button key={im} className={"ra-chip mono-cell " + (imgSel.has(im) ? "ra-chip-on" : "")} onClick={() => tog(imgSel, setImgSel)(im)}>{im}</button>
@@ -25,7 +25,7 @@ function RiskAcceptDialog({ cve, onClose }) {
       </div>
       <div className="ra-blast">
         <Icon name="layers" size={14} />
-        <span>Blast radius: <b>{cluster ? "cluster-wide — all " + JAVV.images.length + " images" : "~" + imgCount + " images"}</b>
+        <span>Blast radius: <b>{cluster ? "cluster-wide - all " + JAVV.images.length + " images" : "~" + imgCount + " images"}</b>
         {cluster || nsSel.size > 0 ? <em> · namespace/cluster scope auto-applies to NEW matching findings</em> : <em> · image scope does not cascade to new images</em>}</span>
       </div>
       <div className="fld-2">
@@ -34,7 +34,7 @@ function RiskAcceptDialog({ cve, onClose }) {
       </div>
       <label className="fld-label">Justification</label>
       <textarea className="fld" rows={3} placeholder="Why is this risk acceptable, and for how long?" />
-      <p className="ra-note"><Icon name="info" size={12} />Decisions are immutable. Editing later <b>revokes and re-creates</b> — the old one stays in history, struck through.</p>
+      <p className="ra-note"><Icon name="info" size={12} />Decisions are immutable. Editing later <b>revokes and re-creates</b> - the old one stays in history, struck through.</p>
       <div className="modal-actions">
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" onClick={onClose}>Create decision</button>
@@ -97,7 +97,7 @@ function FindingDetail({ go, finding }) {
             </div>
           </Card>
 
-          <Card title="Per-scanner evidence" subtitle="raw results — no black box" action={<span className="card-tag">no cross-scanner merge</span>}>
+          <Card title="Per-scanner evidence" subtitle="raw results - no black box" action={<span className="card-tag">no cross-scanner merge</span>}>
             <table className="tbl tbl-bordered">
               <thead><tr><th>Scanner</th><th>Severity</th><th>Source</th><th>Fixed in</th><th>Match status</th><th>Vuln DB</th></tr></thead>
               <tbody>
@@ -134,14 +134,14 @@ function FindingDetail({ go, finding }) {
           </Card>
         </div>
 
-        {/* TRIAGE / AUDIT PANEL — the differentiator (v4 VEX) */}
+        {/* TRIAGE / AUDIT PANEL - the differentiator (v4 VEX) */}
         <aside className="triage">
           <div className="triage-head">
             <Icon name="shield" size={16} /><span>Triage</span>
             <StateTag state={state} />
           </div>
           <div className="triage-body">
-            {triageLocked && <div className="triage-locked"><Icon name="key" size={13} />Read-only — you don't hold <b>can_triage</b>. Ask an Operator or Security Lead.</div>}
+            {triageLocked && <div className="triage-locked"><Icon name="key" size={13} />Read-only - you don't hold <b>can_triage</b>. Ask an Operator or Security Lead.</div>}
 
             <label className="fld-label">Assigned to</label>
             <div className="assignee-field">
@@ -178,22 +178,22 @@ function FindingDetail({ go, finding }) {
             {state === "risk_accepted" && (
               <div className="ro-state ro-risk">
                 <Icon name="shield" size={13} />
-                <div><b>Set by a scoped decision</b><span>Risk-accept isn't toggled here — it comes from a decision (scope + approver + expiry). Manage it below.</span></div>
+                <div><b>Set by a scoped decision</b><span>Risk-accept isn't toggled here - it comes from a decision (scope + approver + expiry). Manage it below.</span></div>
               </div>
             )}
             {state === "stale" && (
               <div className="ro-state ro-stale">
                 <Icon name="clock" size={13} />
-                <div><b>System-set · scanner went silent</b><span>The scanner stopped reporting this finding — data may be old. <button className="link-btn" disabled={triageLocked}>re-scan to refresh</button></span></div>
+                <div><b>System-set · scanner went silent</b><span>The scanner stopped reporting this finding - data may be old. <button className="link-btn" disabled={triageLocked}>re-scan to refresh</button></span></div>
               </div>
             )}
 
             <div className="presence-note">
-              <span className="pn-row"><i className="pn-dot pn-fixed" /><b>Fixed</b> — absent from the latest scan → drops off the “now” grid immediately (resolved/gone).</span>
-              <span className="pn-row"><i className="pn-dot pn-stale" /><b>Stale</b> — scanner silent → still shown, flagged; presence unknown.</span>
+              <span className="pn-row"><i className="pn-dot pn-fixed" /><b>Fixed</b> - absent from the latest scan → drops off the “now” grid immediately (resolved/gone).</span>
+              <span className="pn-row"><i className="pn-dot pn-stale" /><b>Stale</b> - scanner silent → still shown, flagged; presence unknown.</span>
             </div>
 
-            <label className="fld-label">Note <span className="fld-opt">(escaped — never rendered as HTML)</span></label>
+            <label className="fld-label">Note <span className="fld-opt">(escaped - never rendered as HTML)</span></label>
             <textarea className="fld" rows={3} placeholder="Add context for the audit trail…" value={note} onChange={(e) => setNote(e.target.value)} disabled={triageLocked} />
 
             <Gate cap="can_accept_audit_final" disable reason="Risk-accept needs the can_accept_audit_final capability">
@@ -206,7 +206,7 @@ function FindingDetail({ go, finding }) {
       </div>
 
       {/* Decisions touching this CVE (active / revoked / expired) */}
-      <Card title="Decisions on this CVE" subtitle="scoped risk-accepts &amp; not-affected calls — immutable; edits revoke + re-create" className="mt16"
+      <Card title="Decisions on this CVE" subtitle="scoped risk-accepts &amp; not-affected calls - immutable; edits revoke + re-create" className="mt16"
         action={<Gate cap="can_accept_audit_final"><button className="btn btn-mini" onClick={() => setRaOpen(true)}><Icon name="plus" size={13} />New decision</button></Gate>}>
         <table className="tbl tbl-bordered">
           <thead><tr><th>ID</th><th>Type</th><th>Scope</th><th>Blast radius</th><th>Approver</th><th>Expiry</th><th>Status</th><th></th></tr></thead>

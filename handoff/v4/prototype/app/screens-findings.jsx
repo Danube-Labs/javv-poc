@@ -1,4 +1,4 @@
-/* JAVV — Findings grid. Filtering UI comes from app/filters.jsx (useFilters/FacetRail/FilterBar/ColumnsMenu). */
+/* JAVV - Findings grid. Filtering UI comes from app/filters.jsx (useFilters/FacetRail/FilterBar/ColumnsMenu). */
 function Findings({ go, preset, cluster }) {
   const all = JAVV.findings;
 
@@ -147,7 +147,7 @@ function Findings({ go, preset, cluster }) {
                     </td>
                     <td className="mono-cell strong">{f.cve}</td>
                     <td><Sev level={f.severity} /></td>
-                    {show("epss") && <td className="r">{f.scanner === "Grype" ? <Epss v={f.epss} /> : <span className="muted-dash" title="EPSS enrichment arrives with Grype results only">—</span>}</td>}
+                    {show("epss") && <td className="r">{f.scanner === "Grype" ? <Epss v={f.epss} /> : <span className="muted-dash" title="EPSS enrichment arrives with Grype results only">-</span>}</td>}
                     {show("kev") && <td className="c"><Kev on={f.kev} /></td>}
                     {show("component") && <td className="mono-cell">{f.component}</td>}
                     {show("pkg") && <td><span className="pkg">{f.pkg}<i className="pkg-type">{f.ptype}</i></span></td>}

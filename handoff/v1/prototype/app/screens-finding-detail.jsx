@@ -1,4 +1,4 @@
-/* JAVV — Finding detail + triage / audit workflow */
+/* JAVV - Finding detail + triage / audit workflow */
 function FindingDetail({ go, finding }) {
   const f = JAVV.focusFinding;
   // merge in the row the user clicked (for cve/severity continuity) but keep the rich record
@@ -49,7 +49,7 @@ function FindingDetail({ go, finding }) {
             </div>
           </Card>
 
-          <Card title="Per-scanner evidence" subtitle="raw results — no black box" action={<span className="card-tag">no cross-scanner merge</span>}>
+          <Card title="Per-scanner evidence" subtitle="raw results - no black box" action={<span className="card-tag">no cross-scanner merge</span>}>
             <table className="tbl tbl-bordered">
               <thead><tr><th>Scanner</th><th>Severity</th><th>Source</th><th>Fixed in</th><th>Match status</th><th>Vuln DB</th></tr></thead>
               <tbody>
@@ -86,7 +86,7 @@ function FindingDetail({ go, finding }) {
           </Card>
         </div>
 
-        {/* TRIAGE / AUDIT PANEL — the differentiator */}
+        {/* TRIAGE / AUDIT PANEL - the differentiator */}
         <aside className="triage">
           <div className="triage-head">
             <Icon name="shield" size={16} /><span>Triage</span>
@@ -107,7 +107,7 @@ function FindingDetail({ go, finding }) {
                 <button key={k} className={"state-opt " + (state === k ? "state-opt-on " + STATE_STYLE[k].cls : "")} onClick={() => setState(k)}>{lbl}</button>
               ))}
             </div>
-            <p className="triage-hint"><Icon name="clock" size={12} />Staleness is automatic — findings not re-pushed within the cadence window flip to <b>stale</b> on the daily sweep. <b>resolved</b> is manual only.</p>
+            <p className="triage-hint"><Icon name="clock" size={12} />Staleness is automatic - findings not re-pushed within the cadence window flip to <b>stale</b> on the daily sweep. <b>resolved</b> is manual only.</p>
 
             <label className="fld-label">Justification</label>
             <textarea className="fld" rows={3} placeholder="Why is this being acknowledged / resolved?" value={just} onChange={(e) => setJust(e.target.value)} />

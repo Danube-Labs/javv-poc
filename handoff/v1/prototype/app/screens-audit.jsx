@@ -1,4 +1,4 @@
-/* JAVV — User audit log: who did what, when. Built on the shared filters module. */
+/* JAVV - User audit log: who did what, when. Built on the shared filters module. */
 function ActionTag({ action }) {
   const M = {
     resolved: ["Resolved", "act-resolved"],
@@ -45,7 +45,7 @@ function AuditLog({ go }) {
       <div className="screen-head">
         <div>
           <h1>Audit log</h1>
-          <p className="screen-sub"><b>{fmt(list.length)}</b> of {all.length} events · every state change, assignment, config edit &amp; export — immutable, per user</p>
+          <p className="screen-sub"><b>{fmt(list.length)}</b> of {all.length} events · every state change, assignment, config edit &amp; export - immutable, per user</p>
         </div>
         <div className="screen-head-actions">
           <button className="btn btn-ghost" onClick={() => go("heroes")}><Icon name="award" size={14} />Contributors</button>
@@ -82,7 +82,7 @@ function AuditLog({ go }) {
                       </span>
                     </td>
                     <td className="wrap-cell muted">{e.detail}</td>
-                    <td className="mono-cell sm">{e.task ? <span className="task-link">{e.task}</span> : <span className="muted-dash">—</span>}</td>
+                    <td className="mono-cell sm">{e.task ? <span className="task-link">{e.task}</span> : <span className="muted-dash">-</span>}</td>
                   </tr>
                 ))}
                 {rows.length === 0 && (

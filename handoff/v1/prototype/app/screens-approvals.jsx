@@ -1,11 +1,11 @@
-/* JAVV — Approval list / audit trail */
+/* JAVV - Approval list / audit trail */
 function Approvals({ go }) {
   const all = JAVV.approvals;
   const approvers = [...new Set(all.map((r) => r.approver))];
   const FIELDS = [
     { key: "sev", label: "Severity", values: [...new Set(all.map((r) => r.sev))], render: (k) => <Sev level={k} />, valLabel: (k) => k },
     { key: "status", label: "Status", values: [...new Set(all.map((r) => r.status))], render: (k) => <StateTag state={k} />, valLabel: (k) => k },
-    { key: "approver", label: "Approver", values: approvers, render: (k) => <span className={k === "—" ? "muted" : ""}>{k === "—" ? "Pending" : k}</span>, valLabel: (k) => k === "—" ? "Pending" : k },
+    { key: "approver", label: "Approver", values: approvers, render: (k) => <span className={k === "-" ? "muted" : ""}>{k === "-" ? "Pending" : k}</span>, valLabel: (k) => k === "-" ? "Pending" : k },
   ];
   const { sel, toggle, clearField, clearAll } = useFilters(FIELDS);
   const [q, setQ] = useState("");

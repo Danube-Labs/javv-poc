@@ -1,19 +1,19 @@
-# JAVV — Just Another Vulnerability Viewer · MVP Plan (v2, audits folded in)
+# JAVV - Just Another Vulnerability Viewer · MVP Plan (v2, audits folded in)
 
 > **Status: revision 2 (2026-06-10).** Supersedes `deprecated/PLAN.md`; folds in both audits
 > (`deprecated/AUDIT-FINDINGS.md`, `deprecated/extra_audit.md`) and the decisions of 2026-06-09/10 as
 > verifiable milestone gates. Working root: `D:\Github\Claude\projects\javv`. Vendor: **Danube Labs**.
 > Source notes: `original_notes_for_app.md` (read-only). Process: **specs.md FIRE flow, autonomy level 1
-> (Confirm)** — run `npx specsmd@latest install` when we start building, then drive via
+> (Confirm)** - run `npx specsmd@latest install` when we start building, then drive via
 > `/fire-orchestrator → /fire-planner → /fire-builder`.
 
 ---
 
 ## 1. Identity / Brand (for logo generation)
 
-- **Name:** JAVV — *Just Another Vulnerability Viewer*. The self-deprecating "just another…" tone is
+- **Name:** JAVV - *Just Another Vulnerability Viewer*. The self-deprecating "just another…" tone is
   intentional: approachable, no-hype, engineer-first practical tooling.
-- **Vendor:** **Danube Labs** — named for the Danube (the developer's birth city sits on the river);
+- **Vendor:** **Danube Labs** - named for the Danube (the developer's birth city sits on the river);
   evokes steady, flowing, Central/Eastern-European engineering heritage.
 - **Personality:** lightweight, pragmatic, transparent (shows raw per-scanner results, no black box).
 - **Visual direction:** lens/reticle over a stylized container cube, subtle Danube wave; teal/cyan +
@@ -42,11 +42,11 @@ Trivy-dashboard or a DefectDojo clone. Honest risk: DefectDojo Pro is closing th
   `kubernetes` Python client to discover namespaces/workloads/running images, reads the `kube-system`
   namespace UID as a stable **`cluster_id`**, digest-dedupes, scans, and pushes results to JAVV.
   **Direct image scans** (each tool scans the image filesystem); SBOM-first (Syft → both tools)
-  rejected for now — accept double analysis for simplicity (2026-06-09).
+  rejected for now - accept double analysis for simplicity (2026-06-09).
 - **Ingest:** scanner → **private network** endpoint, authenticated with a **per-cluster token**.
   Push **per-image (gzipped, retried with backoff + jitter, dead-letter on permanent failure)**; ingest
   is idempotent. Versioned API contract (`/v1` + `schema_version`) is the backbone. Every push carries a
-  lightweight **`scan_run_id`** — observability only (coverage reporting, debugging), no completion
+  lightweight **`scan_run_id`** - observability only (coverage reporting, debugging), no completion
   protocol (2026-06-10).
 - **Backend:** **FastAPI** (+ Pydantic, auto OpenAPI at `/docs`); no cluster access. **`AsyncOpenSearch`**
   client + **PIT + `search_after`** from the first commit (sync client / `from+size` rejected).
@@ -55,19 +55,19 @@ Trivy-dashboard or a DefectDojo clone. Honest risk: DefectDojo Pro is closing th
   hatch for a later SQLite/Postgres swap of just that slice (2026-06-09).
 - **Staleness lifecycle replaces auto-resolve (2026-06-10):** findings not pushed again within a
   cadence-relative window go **`stale`** via a daily sweep (see §5); `resolved` is manual-only.
-- **EPSS/KEV: capture now (2026-06-10)** — explicit mapped fields from Grype; free under static
+- **EPSS/KEV: capture now (2026-06-10)** - explicit mapped fields from Grype; free under static
   mappings, avoids a re-ingest later.
 - **Findings are kept per-scanner** (no cross-scanner merge). An image view offers a **scanner dropdown**
-  (e.g. "nginx — Trivy" vs "nginx — Grype"). Dashboards must **facet by scanner** to avoid double-counting.
+  (e.g. "nginx - Trivy" vs "nginx - Grype"). Dashboards must **facet by scanner** to avoid double-counting.
 - **State:** **current-state only** for the MVP (no historical scan series yet → trend charts & the
   "most vulns solved" hero are a later bolt).
 - **Multi-cluster:** supported via `cluster_id` (immutable) + `cluster_name` (relabelable display).
-- **Private registries:** supported from day one — scanner resolves `imagePullSecrets` →
+- **Private registries:** supported from day one - scanner resolves `imagePullSecrets` →
   dockerconfigjson → passes creds to the scanner (held in memory only, never logged).
 - **Vuln DB:** mirror/cache with scheduled refresh (not per-scan) to dodge GHCR rate limits;
   `--db-repository` override stays exposed. Scanner uses a **persistent cache volume**.
 - **Frontend:** Vue 3 + PrimeVue (chrome) + vue-echarts. All pagination/sort/filter/facet/KPI
-  **server-side** via OpenSearch aggregations — never ship raw findings to compute counts. **No embedded
+  **server-side** via OpenSearch aggregations - never ship raw findings to compute counts. **No embedded
   OpenSearch Dashboards** as the main UI. Table engine for dense grids: **deferred** (`UI-tools.md`),
   decide before M5.
 - **Out of MVP (deferred):** Kibana-style dashboard *builder* (the scope trap), Jira, LDAP/OIDC,
@@ -82,7 +82,7 @@ flowchart LR
     end
     subgraph JAVV["JAVV (runs elsewhere)"]
         API["JAVV API (FastAPI, AsyncOpenSearch)<br/>ingest + no-op dedup · staleness sweep<br/>triage/lifecycle · dashboards/aggs/CSV · auth/RBAC"]
-        OS[("OpenSearch — single store<br/>findings · images · occurrences (ISM)<br/>tags · users · roles · config · audit-log (ISM)")]
+        OS[("OpenSearch - single store<br/>findings · images · occurrences (ISM)<br/>tags · users · roles · config · audit-log (ISM)")]
         API -->|"_bulk upsert by _id · detect_noop<br/>optimistic concurrency"| OS
     end
     SC -->|"POST /api/v1/ingest/scan<br/>private net · per-cluster token<br/>gzipped · per-image · retried · scan_run_id"| API
@@ -105,20 +105,20 @@ package_name + installed_version)` → idempotent upsert; re-ingest preserves tr
 | fix_state | `Status` | `fix.state` |
 | severity | `Severity` | `vulnerability.severity` (has extra `Negligible`) |
 | cvss | `CVSS` (**vendor-keyed map → reshape!**) | `vulnerability.cvss[]` |
-| epss / kev | *absent* | `vulnerability.epss[]`, `kev` — **captured (2026-06-10)** |
+| epss / kev | *absent* | `vulnerability.epss[]`, `kev` - **captured (2026-06-10)** |
 
 > **DB/index design is a deliberate focus area.** Full field-level **explicit mappings**
 > (`dynamic:false`, `keyword` IDs/enums, reshaped vendor-keyed CVSS, EPSS/KEV fields, `total_fields`
-> safety net) are designed in M1 before any real ingest — see §7 and `SPEC.md` NFR-1.
+> safety net) are designed in M1 before any real ingest - see §7 and `SPEC.md` NFR-1.
 
 **Index naming convention:**
-- **System indexes** — prefix **`system_`**, named **`system_<entity>`** (concrete plural noun,
+- **System indexes** - prefix **`system_`**, named **`system_<entity>`** (concrete plural noun,
   snake_case): `system_users` (accounts), `system_roles` (RBAC), `system_tokens` (per-cluster ingest
   tokens), `system_config` (app settings), `system_audit_log` (append-only, **ISM rollover/retention**),
-  `system_tags` (tag definitions). Avoid vague catch-alls like `system_user_data` — name by concrete
+  `system_tags` (tag definitions). Avoid vague catch-alls like `system_user_data` - name by concrete
   entity (same rule as the lean-helpers principle). All `system_*` access goes through a **repository
   interface** (later SQLite/Postgres swap stays localized).
-- **Data indexes** — scan output: `findings`, `images`, `occurrences` (**ISM rollover/retention** —
+- **Data indexes** - scan output: `findings`, `images`, `occurrences` (**ISM rollover/retention** -
   grows unbounded otherwise; `findings`/`images` stay fixed). Applied tags are denormalized onto
   `findings`/`images`.
 
@@ -128,7 +128,7 @@ aggregations filter/facet by scanner cheaply.
 
 **`findings` (the heart):** status ∈ {open, triaged, risk_accepted, false_positive, resolved, **stale**}
 (`resolved` manual-only, `stale` sweep-only), **`pre_stale_status`** (for comeback), triage notes,
-audited_by/at, first/last seen (**`last_seen` day-granularity** — critical: per-push timestamps would
+audited_by/at, first/last seen (**`last_seen` day-granularity** - critical: per-push timestamps would
 defeat `detect_noop`), `scan_run_id`, `scanner`, `cluster_id`/`cluster_name`, plus denormalized image +
 occurrence + tag fields for single-query filter/aggregation/CSV.
 
@@ -139,7 +139,7 @@ everything re-ingest must never overwrite (triage state, notes, tags, `pre_stale
 
 **Staleness sweep (replaces auto-resolve):** daily job, `status != stale AND last_seen < now − N` →
 `stale` via `_bulk`, where **N ≈ 3× the cluster's scan cadence** (per-cluster config). **Scanner-down
-guard:** skip clusters whose `last_ingest_at` (tracked per token) is older than the window — alert
+guard:** skip clusters whose `last_ingest_at` (tracked per token) is older than the window - alert
 "scanner silent" instead of mass-staling. Comeback: re-pushed stale finding reverts to `pre_stale_status`.
 
 **Concurrency/integrity (no relational DB):** `_id` enforces uniqueness; **optimistic concurrency**
@@ -147,35 +147,35 @@ guard:** skip clusters whose `last_ingest_at` (tracked per token) is older than 
 `refresh=wait_for` on **triage writes only** (data indexes run `refresh_interval: 30s`); referential
 integrity in app code. Bulk/sweep jobs use `conflicts=proceed` + retry and report skipped docs.
 
-## 6. First build — the scanner modules (build these first)
+## 6. First build - the scanner modules (build these first)
 
 Per the milestone reorder (§8): **scanners → backend → rest.** Build the two Python scanners as one
-well-structured package — per-tool **adapters that share one pipeline**, not two copy-pasted scripts.
+well-structured package - per-tool **adapters that share one pipeline**, not two copy-pasted scripts.
 
 **Structure (`scanner/`):**
-- `scanners/base.py` — `Scanner` interface (ABC/Protocol): `scan(image) -> list[NormalizedFinding]`.
-- `scanners/trivy.py`, `scanners/grype.py` — one adapter per tool: invoke the binary, parse its JSON,
+- `scanners/base.py` - `Scanner` interface (ABC/Protocol): `scan(image) -> list[NormalizedFinding]`.
+- `scanners/trivy.py`, `scanners/grype.py` - one adapter per tool: invoke the binary, parse its JSON,
   normalize into the shared model (incl. EPSS/KEV for Grype); each stamps `scanner = "trivy"|"grype"`.
-- `model.py` — normalized finding (Pydantic/dataclass) from §5's mapping table.
-- `discovery.py` — k8s workload/image discovery (shared).
-- `credentials.py` — `imagePullSecret` → dockerconfigjson resolution (shared).
-- `dedup.py` — digest dedup + **skip-unchanged** (`digest + scanner + vuln-DB version` already scanned →
+- `model.py` - normalized finding (Pydantic/dataclass) from §5's mapping table.
+- `discovery.py` - k8s workload/image discovery (shared).
+- `credentials.py` - `imagePullSecret` → dockerconfigjson resolution (shared).
+- `dedup.py` - digest dedup + **skip-unchanged** (`digest + scanner + vuln-DB version` already scanned →
   skip; rescans only matter when the DB updates).
-- `push.py` — gzipped POST to the ingest API: **backoff + jitter** (`tenacity`), **dead-letter file** on
+- `push.py` - gzipped POST to the ingest API: **backoff + jitter** (`tenacity`), **dead-letter file** on
   permanent failure, bounded `asyncio.Semaphore`, stamps `scan_run_id`; until the backend exists, writes
   normalized JSON to a file/stub so scanners are testable standalone.
-- `config.py` — env/config loading (`pydantic-settings`).
-- `helper_functions.py` — small cross-cutting helpers only; keep lean. Real logic lives in the named
+- `config.py` - env/config loading (`pydantic-settings`).
+- `helper_functions.py` - small cross-cutting helpers only; keep lean. Real logic lives in the named
   modules above (discovery/credentials/dedup/normalize) so it never rots into a catch-all god module.
-- `log_config.py` — thin layer on stdlib `logging` with two formatters (**JSON** vs **human-readable
+- `log_config.py` - thin layer on stdlib `logging` with two formatters (**JSON** vs **human-readable
   multiline**) chosen by the **`LOG_FORMAT`** env var. Named `log_config.py` **not** `logging.py` (the
   latter shadows the stdlib `import logging`).
-- `cli.py` / `__main__.py` — entrypoint.
-- `tests/fixtures/` — frozen golden Trivy/Grype JSON for deterministic unit tests (§7).
+- `cli.py` / `__main__.py` - entrypoint.
+- `tests/fixtures/` - frozen golden Trivy/Grype JSON for deterministic unit tests (§7).
 
 **Runtime (k8s):** Job/CronJob with `concurrencyPolicy: Forbid`, `activeDeadlineSeconds`, **PVC cache
 volume** for trivy/grype DBs + layer cache (emptyDir re-downloads the DB every run and hammers GHCR),
-bounded scan parallelism (the binaries can take 1 GB+ RAM each on large images — size memory
+bounded scan parallelism (the binaries can take 1 GB+ RAM each on large images - size memory
 accordingly), fail-fast per image (one bad image must not kill the run).
 
 **M0 deliverable:** run locally against an image, scan with either tool, emit normalized findings
@@ -217,41 +217,41 @@ From inception research plus both audits (full detail + sources: `deprecated/AUD
   pytest-asyncio + httpx + **testcontainers(OpenSearch)**; Pydantic API models decoupled from index docs
   (`to_os_doc()`/`from_os_hit()`); OpenTelemetry deferred until k8s.
 
-## 8. Milestones (FIRE bolts) — hardening gates folded in
+## 8. Milestones (FIRE bolts) - hardening gates folded in
 
 Each ends on a **verifiable check + Confirm gate** (CLAUDE.md #4). Order: **scanners → backend → rest.**
-The audit checklists are no longer a side list — they are acceptance criteria below.
+The audit checklists are no longer a side list - they are acceptance criteria below.
 
-1. **M0 — Scanner modules (Trivy + Grype).** The `scanner/` package per §6.
+1. **M0 - Scanner modules (Trivy + Grype).** The `scanner/` package per §6.
    **Gates:** scan an image with either tool → normalized findings (incl. EPSS/KEV from Grype) → green
    unit tests vs golden fixtures; push envelope carries `scan_run_id` + `schema_version`;
    backoff + jitter + dead-letter exercised in tests; skip-unchanged works; `last_seen` day-granularity.
-2. **M1 — Backend skeleton + indexes + ingest.** `backend/` (FastAPI) + `deploy/` compose (OpenSearch +
+2. **M1 - Backend skeleton + indexes + ingest.** `backend/` (FastAPI) + `deploy/` compose (OpenSearch +
    API). **Gates:** explicit mappings/templates for **`system_` + data** indexes (`dynamic:false`,
    `keyword` IDs, reshaped CVSS, EPSS/KEV fields) + versioned bootstrap; ISM policies on `occurrences` +
    `system_audit_log`; `POST /api/v1/ingest/scan` with per-cluster token, **size caps (compressed +
    decompressed + findings count)**; **`AsyncOpenSearch`** via lifespan + `_bulk` writes;
    `refresh_interval: 30s`; snapshot repo configured; wire the scanner's real push.
-3. **M2 — Ingest dedup/identity + staleness (highest risk).** **Gates:** upsert by `finding_key` with
+3. **M2 - Ingest dedup/identity + staleness (highest risk).** **Gates:** upsert by `finding_key` with
    content-hash `detect_noop` (unchanged rescan = **zero doc writes**, asserted in tests); one shared
    preserved-fields script (triage + tags + `pre_stale_status` survive re-ingest); staleness sweep with
    cadence-relative window + scanner-down guard + comeback-to-`pre_stale_status`; optimistic concurrency.
    Test hardest.
-4. **M3 — Triage API + RBAC + auth.** **Gates:** state transitions incl. `stale` rules
+4. **M3 - Triage API + RBAC + auth.** **Gates:** state transitions incl. `stale` rules
    (`resolved` manual-only); bulk actions via `_bulk` (202 + async job for large sets); audit log =
    **one entry per bulk action**; tag CRUD with image-level application + async rate-limited retag jobs;
    `get_current_principal()` dependency (ingest-token auth separate); per-request IDOR checks; tenant
    filter in the query layer; `refresh=wait_for` on triage writes.
-5. **M4 — Read/reporting API.** **Gates:** filtered search (tag/app/team/org/severity/timestamp/
+5. **M4 - Read/reporting API.** **Gates:** filtered search (tag/app/team/org/severity/timestamp/
    **scanner**) via PIT + `search_after`; aggregation endpoints faceted by scanner, capped/composite
    (no nested high-cardinality terms); **streaming sanitized CSV** (constant memory, async job for very
    large exports); rate-limit search/export.
-6. **M5 — Frontend.** Barebones first-flow (discover → scanner dropdown → scan → table) → then the
+6. **M5 - Frontend.** Barebones first-flow (discover → scanner dropdown → scan → table) → then the
    Kibana-like dashboard per `UI-GUIDELINES.md` (KPI tiles, donut, trend charts, dense severity-colored
    tables, per-image report, scanner dropdown, one-click CSV). **Gates:** all grids server-side lazy
    (table engine decision from `UI-tools.md` lands here); ECharts canvas renderer; no client-side
    aggregation anywhere.
-7. **M6 — Polish & deploy.** **Gates:** Helm chart (PVC cache volume, CronJob hygiene, scanner RBAC
+7. **M6 - Polish & deploy.** **Gates:** Helm chart (PVC cache volume, CronJob hygiene, scanner RBAC
    manifests, snapshot config); docs incl. **OpenSearch sizing minimums**; vuln-DB mirror how-to;
    snapshot **restore tested**; Trivy/Grype attribution.
 
@@ -271,6 +271,6 @@ The audit checklists are no longer a side list — they are acceptance criteria 
 ## 10. Open items
 
 - Logo: generate from `LOGO-PROMPT.md` + reference images; pick final assets.
-- Table engine for dense grids — deferred; decide before M5 (`UI-tools.md`).
+- Table engine for dense grids - deferred; decide before M5 (`UI-tools.md`).
 - GitHub repo setup (precedes M0).
 - Which project-specific Claude Code skills to author (scan-fixture ingest helper, "run the JAVV stack").

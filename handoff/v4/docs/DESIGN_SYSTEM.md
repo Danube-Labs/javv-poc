@@ -1,14 +1,14 @@
-# Design System — javv
+# Design System - javv
 
 All values are taken directly from the prototype (`prototype/JAVV Prototype.html` `:root` block and
-`app/components.jsx`). Recreate these as theme tokens / PrimeVue design tokens. **Fidelity is high —
+`app/components.jsx`). Recreate these as theme tokens / PrimeVue design tokens. **Fidelity is high -
 match these exactly.**
 
 ---
 
 ## 1. Brand
 
-**javv** (lowercase wordmark) *— just another vulnerability viewer*, by **Danube Labs**.
+**javv** (lowercase wordmark) *- just another vulnerability viewer*, by **Danube Labs**.
 The mark is a **magnifying glass over a river at dusk** (the "viewer" looking at the Danube).
 Warm dusk palette on deep slate. See `brand/BRAND.md` and the SVGs in `brand/`.
 
@@ -35,8 +35,8 @@ size). Use `brand/icon.svg` / `brand/lockup.svg` / `brand/wordmark.svg` in the r
 | `--ink` | `#1B2935` | Primary text |
 | `--soft` | `#64727C` | Secondary text |
 | `--muted` | `#9AA3AA` | Tertiary / disabled text |
-| `--coral` | `#EC7E54` | **Brand primary** — buttons, active nav, focus ring, links |
-| `--amber` | `#F4A368` | Brand secondary — mark, highlights |
+| `--coral` | `#EC7E54` | **Brand primary** - buttons, active nav, focus ring, links |
+| `--amber` | `#F4A368` | Brand secondary - mark, highlights |
 | `--coral-d` | `#D96A41` | Coral hover/pressed |
 | `--teal` | `#1F8E84` | Info / "server-side" notes / system accents (NOT severity) |
 | `--r` | `12px` | Card radius |
@@ -46,7 +46,7 @@ size). Use `brand/icon.svg` / `brand/lockup.svg` / `brand/wordmark.svg` in the r
 > **Rule:** coral/amber are **brand**. They must never encode severity. Teal is for neutral
 > system/info messaging only.
 
-### Severity palette (DATA ONLY — `SEV_COLOR` in components.jsx)
+### Severity palette (DATA ONLY - `SEV_COLOR` in components.jsx)
 
 Each severity has `fg` (text), `bg` (chip fill), `line` (chip border), `solid` (dot/bar/chart).
 
@@ -69,12 +69,12 @@ LOW `#3D7DA6`, UNKNOWN `#9AA3AA`.
 | State: stale | `#7A7468` | `#EDEAE4` | `#DED9CF` |
 | State: acknowledged | `#2F6E96` | `#E4F0F6` | `#C5DDE9` |
 | State: resolved | `#2E7D4F` | `#E3F1E7` | `#C3E2CC` |
-| KEV tag | `#FFFFFF` | `#8B1E16` | — |
-| Health ok / sweep healthy | `#2E7D4F` / dot `#3FB37F` | `#E3F1E7` | — |
-| Health degraded | `#9A6B05` | `#FBF1D6` | — |
-| Health down / error | `#B5231A` | `#FBE7E4` | — |
-| Scanner: Trivy tag | `#1C7A70` | `#E7F0EF` | — |
-| Scanner: Grype tag | `#5A4F9E` | `#EAEAF3` | — |
+| KEV tag | `#FFFFFF` | `#8B1E16` | - |
+| Health ok / sweep healthy | `#2E7D4F` / dot `#3FB37F` | `#E3F1E7` | - |
+| Health degraded | `#9A6B05` | `#FBF1D6` | - |
+| Health down / error | `#B5231A` | `#FBE7E4` | - |
+| Scanner: Trivy tag | `#1C7A70` | `#E7F0EF` | - |
+| Scanner: Grype tag | `#5A4F9E` | `#EAEAF3` | - |
 
 Avatar tones (per-person, deterministic): `#C0271D #1F8E84 #3D7DA6 #7A5BA8 #C2540D #5C6B77 #9A6B05`.
 
@@ -84,8 +84,8 @@ Avatar tones (per-person, deterministic): `#C0271D #1F8E84 #3D7DA6 #7A5BA8 #C254
 
 Two families, loaded from Google Fonts:
 
-- **Space Grotesk** (400/500/600/700) — all UI text, headings, body.
-- **Space Mono** (400/700) — code-like data: CVE IDs, versions, namespaces, image refs, counts,
+- **Space Grotesk** (400/500/600/700) - all UI text, headings, body.
+- **Space Mono** (400/700) - code-like data: CVE IDs, versions, namespaces, image refs, counts,
   timestamps, table-header labels, metric numbers, IDs, tokens.
 
 | Role | Family | Size | Weight | Notes |
@@ -98,7 +98,7 @@ Two families, loaded from Google Fonts:
 | Detail CVE `h1` | Mono | 26px | 700 | finding detail header |
 | Table header | Mono | 10.5px | 600/700 | UPPERCASE, `letter-spacing:.05em`, `--soft` |
 | Facet/section label | Mono | 9.5–10px | 700 | UPPERCASE, `letter-spacing:.06–.14em` |
-| Small / `.sm` | — | 11px | — | |
+| Small / `.sm` | - | 11px | - | |
 | Mono data cell | Mono | 11–12.5px | 400 | CVEs, versions, namespaces |
 
 ---
@@ -127,7 +127,7 @@ These live in `app/components.jsx` and `app/filters.jsx`. Map each to a Vue/Prim
 | `BrandIcon` | `size` | Inline SVG logo. |
 | `Sev` | `level, solid, dot` | Severity chip. `solid` = filled bar variant. → PrimeVue `Tag` themed. |
 | `Kev` | `on` | Red "KEV" tag or em-dash. |
-| `Epss` | `v` (0–1) | Mini bar + percentage. Hot ≥.7 red, warm ≥.3 orange, else grey. **EPSS is a Grype-provided signal** — only render where the row's scanner provides it. |
+| `Epss` | `v` (0–1) | Mini bar + percentage. Hot ≥.7 red, warm ≥.3 orange, else grey. **EPSS is a Grype-provided signal** - only render where the row's scanner provides it. |
 | `StateTag` | `state` | open/stale/acknowledged/resolved pill. |
 | `ScannerTag` | `name` | Trivy/Grype colored tag. |
 | `Sla` | `days, overdue` | Mono SLA chip; `overdue` = red fill. |
@@ -135,13 +135,13 @@ These live in `app/components.jsx` and `app/filters.jsx`. Map each to a Vue/Prim
 | `Chart` | `option, height` | ECharts (SVG renderer) wrapper w/ ResizeObserver. → **vue-echarts**. |
 | `Spark` | `data, color` | Inline sparkline (SVG polyline). |
 | `Avatar` | `initials, tone, size` | Round initials chip. |
-| `MiniBar` / `MixBar` | `crit, high, med, low` | Stacked severity proportion bar. The labeled variant (counts visible, not hover-only) is used on Running images & cluster rows — keep them consistent. |
+| `MiniBar` / `MixBar` | `crit, high, med, low` | Stacked severity proportion bar. The labeled variant (counts visible, not hover-only) is used on Running images & cluster rows - keep them consistent. |
 | `RelTime` | `rel, abs` | Relative text + absolute in `title` tooltip. **All timestamps use this pattern**; deadlines stay absolute. |
 | `Pager` | `total, page, setPage, per, setPer, sizes` | Pagination + rows-per-page (10/25/50). → PrimeVue `Paginator`. |
 | `Icon` | `name, size` | Inline stroke-icon set (grid, list, cube, shield, check, clock, search, chevron, download, filter, external, bell, alert, bookmark, columns, layers, gear, plus, trash, arrowback). → PrimeIcons or lucide. |
 | `Pill` | `children, active, count` | Toggle pill. |
 
-### From `filters.jsx` — **the reusable filtering module**
+### From `filters.jsx` - **the reusable filtering module**
 One `FIELDS` config per screen drives **both** the left facet rail and the Kibana-style filter bar,
 so they can never drift apart. This is the single most important architectural pattern to preserve.
 
@@ -168,7 +168,7 @@ A **field config** looks like:
 - Transitions are short and functional: nav `color .12s`, cards/rows `border-color/transform .12s`,
   switch `.15s`. No decorative animation.
 - Hover: rows tint `#FBF7F0`; cards lift `translateY(-1px)` + coral border on clickable cards.
-- **Focus-visible**: `2px solid var(--coral)` outline, `1px` offset — on all interactive elements.
+- **Focus-visible**: `2px solid var(--coral)` outline, `1px` offset - on all interactive elements.
 - Dropdowns (filter bar, columns, cluster switcher, search, bell) close on outside-click and Esc.
 - Sticky **save bar** in Settings: appears per section, flips "All changes saved" ↔ "You have unsaved
   changes" with Discard / Save. (It's a small shared component appended to each settings section.)

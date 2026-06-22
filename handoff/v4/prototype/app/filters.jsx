@@ -1,4 +1,4 @@
-/* JAVV — shared filtering module.
+/* JAVV - shared filtering module.
    One FIELDS config per screen drives BOTH the facet rail and the filter bar.
    Exports: useFilters (state), FacetGroup, FacetRail, FilterBar, ColumnsMenu. */
 

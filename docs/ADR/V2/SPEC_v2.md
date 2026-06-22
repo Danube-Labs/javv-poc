@@ -1,4 +1,4 @@
-# JAVV — Spec (v2, audits folded in)
+# JAVV - Spec (v2, audits folded in)
 
 > **specs.md / FIRE-style draft, revision 2 (2026-06-10).** Supersedes `deprecated/SPEC.md`; folds in
 > both audits (`deprecated/AUDIT-FINDINGS.md`, `deprecated/extra_audit.md`) and the decisions taken on
@@ -22,9 +22,9 @@ Kibana-style dashboard *builder*; historical trends / "most vulns solved"; Jira;
 cross-scanner finding merge; dashboard theming. (See `PLAN.md` §3.)
 
 ## Actors
-- **Triager** (security engineer) — reviews, filters, triages findings, exports reports.
-- **Admin** — manages users/roles, tags, per-cluster ingest tokens.
-- **Scanner module** — automated client; discovers + scans + pushes results.
+- **Triager** (security engineer) - reviews, filters, triages findings, exports reports.
+- **Admin** - manages users/roles, tags, per-cluster ingest tokens.
+- **Scanner module** - automated client; discovers + scans + pushes results.
 
 ## Functional requirements
 - **FR-1 Discovery:** scanner enumerates namespaces/workloads/running images via the k8s API;
@@ -35,7 +35,7 @@ cross-scanner finding merge; dashboard theming. (See `PLAN.md` §3.)
 - **FR-3 Ingest:** the **scanner normalizes** Trivy/Grype JSON into the shared shape (per-tool adapters)
   and pushes per-image, gzipped, retried (backoff + jitter, dead-letter on permanent failure) to
   `POST /api/v1/ingest/scan` over a private network with a **per-cluster token**. The endpoint
-  **validates** the versioned envelope (`/v1` + `schema_version`) — it does not parse raw scanner JSON.
+  **validates** the versioned envelope (`/v1` + `schema_version`) - it does not parse raw scanner JSON.
   Every push carries a **`scan_run_id`** (observability: coverage reporting, debugging).
 - **FR-4 Dedup/identity:** upsert by `_id = finding_key = hash(cluster_id + image_digest + scanner +
   cve_id + package_name + installed_version)`; re-ingest **preserves triage state and tags** (one shared
@@ -44,11 +44,11 @@ cross-scanner finding merge; dashboard theming. (See `PLAN.md` §3.)
 - **FR-5 Staleness lifecycle (replaces auto-resolve):** a finding not pushed again within a
   **cadence-relative window** (~3× the cluster's expected scan interval, per-cluster configurable) is
   marked **`stale`** by a daily background sweep. The sweep **skips clusters with no recent successful
-  ingest** (scanner-down guard — alert "scanner silent" instead of mass-staling). A stale finding pushed
+  ingest** (scanner-down guard - alert "scanner silent" instead of mass-staling). A stale finding pushed
   again reverts to its **pre-stale status** (stored on the doc); triage state survives the round-trip.
 - **FR-6 Triage:** finding status ∈ {open, triaged, risk_accepted, false_positive, resolved, **stale**}
   (`resolved` = manual only; `stale` = sweep only); notes; bulk actions (`_bulk`, async with progress for
-  large sets); every change written to an append-only audit log — **one entry per bulk action**
+  large sets); every change written to an append-only audit log - **one entry per bulk action**
   (criteria, actor, count, capped ID sample), not per finding; concurrent edits use optimistic concurrency.
 - **FR-7 Tagging:** post-ingestion team/application/organization tags on findings/images. Tags apply at
   the **image level** where possible; retags run as **async jobs** (`update_by_query`, `slices=auto`,
@@ -63,7 +63,7 @@ cross-scanner finding merge; dashboard theming. (See `PLAN.md` §3.)
   dependency (OIDC-swappable later); ingest-token auth in a **separate** dependency. Per-request
   entitlement checks on every finding/image fetch **and export** (IDOR); tenant isolation enforced in the
   **query layer**, never UI-only.
-- **FR-12 Risk metadata:** capture **EPSS/KEV** from Grype now (decision 2026-06-10) — explicit mapped
+- **FR-12 Risk metadata:** capture **EPSS/KEV** from Grype now (decision 2026-06-10) - explicit mapped
   fields; absent for Trivy. Forward-compat for later prioritization features without re-ingest.
 
 ## Non-functional requirements
@@ -83,7 +83,7 @@ cross-scanner finding merge; dashboard theming. (See `PLAN.md` §3.)
 - **NFR-8** Vuln-DB mirror/cache with scheduled refresh; scanner uses a **persistent cache volume**
   (never re-downloads DBs per run).
 
-## First working flow (barebones — acceptance target)
+## First working flow (barebones - acceptance target)
 
 ```mermaid
 sequenceDiagram
@@ -110,21 +110,21 @@ then discovered images are scanned (digest-deduped), findings are ingested witho
 simple table renders the results. Re-running preserves any triage state and produces **no doc writes for
 unchanged findings**.
 
-## Work-item decomposition (→ `PLAN.md` milestones) — scanners → backend → rest
+## Work-item decomposition (→ `PLAN.md` milestones) - scanners → backend → rest
 Each WI's hardening gates are spelled out in `PLAN.md` §8 (audit checklists folded into acceptance criteria).
 - **WI-0** Scanner modules: Trivy + Grype adapters on a shared pipeline (discovery, credentials,
   digest-dedup + skip-unchanged, normalize incl. EPSS/KEV, `log_config` JSON|multiline, push-with-stub
-  with `scan_run_id` + backoff/jitter + dead-letter) + golden-fixture tests — *M0*
+  with `scan_run_id` + backoff/jitter + dead-letter) + golden-fixture tests - *M0*
 - **WI-1** Backend skeleton + compose + OpenSearch **`system_` + data** index mappings (`dynamic:false`)
-  + bootstrap + ingest API (per-cluster token, size caps, `AsyncOpenSearch` + `_bulk`) — *M1*
+  + bootstrap + ingest API (per-cluster token, size caps, `AsyncOpenSearch` + `_bulk`) - *M1*
 - **WI-2** Ingest dedup/identity + no-op upsert + triage/tag-state preservation + staleness sweep
-  (highest risk) — *M2*
-- **WI-3** Triage API + RBAC + auth + `system_audit_log` (bulk-action entries) — *M3*
-- **WI-4** Search/aggregation API (scanner-faceted, composite aggs) + streaming sanitized CSV — *M4*
-- **WI-5** Barebones first-flow UI → Kibana-like dashboard (`UI-GUIDELINES.md`) — *M5*
-- **WI-6** Helm chart (PVC cache, snapshots) + docs (OpenSearch sizing) + scanner attribution — *M6*
+  (highest risk) - *M2*
+- **WI-3** Triage API + RBAC + auth + `system_audit_log` (bulk-action entries) - *M3*
+- **WI-4** Search/aggregation API (scanner-faceted, composite aggs) + streaming sanitized CSV - *M4*
+- **WI-5** Barebones first-flow UI → Kibana-like dashboard (`UI-GUIDELINES.md`) - *M5*
+- **WI-6** Helm chart (PVC cache, snapshots) + docs (OpenSearch sizing) + scanner attribution - *M6*
 
 ## Open questions
-- Brand/logo final assets — design prompt ready (`LOGO-PROMPT.md`); generate + pick.
-- Table engine for dense grids (PrimeVue vs AG Grid/TanStack) — deferred, decide before M5 (`UI-tools.md`).
+- Brand/logo final assets - design prompt ready (`LOGO-PROMPT.md`); generate + pick.
+- Table engine for dense grids (PrimeVue vs AG Grid/TanStack) - deferred, decide before M5 (`UI-tools.md`).
 - Which project-specific Claude Code skills to author (scan-fixture ingest helper; "run the JAVV stack")?

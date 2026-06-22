@@ -1,4 +1,4 @@
-# JAVV — Architecture (current, v2 2026-06-10)
+# JAVV - Architecture (current, v2 2026-06-10)
 
 > Verbose end-to-end view of the locked design: the drop-in dual-scanner module in each cluster, the
 > private/token ingest hop, the central FastAPI backend, the OpenSearch single store (data + `system_*`
@@ -12,15 +12,15 @@ flowchart TB
     Admin["Admin"]
 
     %% ================= Cluster (one per monitored cluster) =================
-    subgraph CLUSTER["k8s cluster — any number; each runs the drop-in scanner"]
+    subgraph CLUSTER["k8s cluster - any number; each runs the drop-in scanner"]
         direction TB
         K8SAPI["kube-apiserver"]
         REG["Private container registry"]
         TBIN["trivy binary"]
         GBIN["grype binary"]
-        VDB["Vuln DBs — mirror/cache, scheduled refresh<br/>trivy-db / grype-db on PVC cache volume"]
+        VDB["Vuln DBs - mirror/cache, scheduled refresh<br/>trivy-db / grype-db on PVC cache volume"]
 
-        subgraph SCAN["Scanner module — Python package, CronJob (Forbid, deadline, PVC cache)"]
+        subgraph SCAN["Scanner module - Python package, CronJob (Forbid, deadline, PVC cache)"]
             direction TB
             CLI["cli.py / __main__<br/>entrypoint"]
             CFG["config.py<br/>env config (pydantic-settings)"]
@@ -38,10 +38,10 @@ flowchart TB
     end
 
     %% ================= JAVV (central) =================
-    subgraph JAVV["JAVV — runs centrally, no cluster access"]
+    subgraph JAVV["JAVV - runs centrally, no cluster access"]
         direction TB
 
-        subgraph API["Backend — FastAPI · AsyncOpenSearch · OpenAPI at /docs"]
+        subgraph API["Backend - FastAPI · AsyncOpenSearch · OpenAPI at /docs"]
             direction TB
             INGEST["Ingest endpoint<br/>per-cluster token auth<br/>validates versioned envelope (schema_version)<br/>size caps: gzip + decompressed + count"]
             UPSERT["Dedup / upsert (_bulk)<br/>_id = finding_key · content-hash detect_noop<br/>shared preserved-fields script:<br/>triage · tags · pre_stale_status"]
@@ -54,26 +54,26 @@ flowchart TB
             BOOT["Index bootstrap<br/>explicit mappings · dynamic:false<br/>ISM policies · snapshot repo"]
         end
 
-        subgraph OS["OpenSearch — single store (refresh_interval 30s, snapshots to S3/MinIO)"]
+        subgraph OS["OpenSearch - single store (refresh_interval 30s, snapshots to S3/MinIO)"]
             direction TB
             subgraph DATA["Data indexes"]
                 direction TB
                 F[("findings")]
                 I[("images")]
-                O[("occurrences — ISM rollover")]
+                O[("occurrences - ISM rollover")]
             end
-            subgraph SYS["System indexes — system_* (repository interface)"]
+            subgraph SYS["System indexes - system_* (repository interface)"]
                 direction TB
                 SU[("system_users")]
                 SR[("system_roles")]
                 ST[("system_tokens<br/>+ last_ingest_at")]
                 SC[("system_config")]
-                SA[("system_audit_log — ISM rollover")]
+                SA[("system_audit_log - ISM rollover")]
                 SG[("system_tags")]
             end
         end
 
-        subgraph FE["Frontend — Vue 3 · PrimeVue · vue-echarts (all server-side data)"]
+        subgraph FE["Frontend - Vue 3 · PrimeVue · vue-echarts (all server-side data)"]
             direction TB
             FLOW["Barebones first-flow<br/>discover → scanner dropdown → scan → table"]
             DASH["Kibana-like dashboard<br/>KPI tiles · donut · trends · dense tables"]
@@ -150,22 +150,22 @@ flowchart TB
 ```
 
 ## How to read it (data flow)
-1. **Discovery** — the scanner's `discovery.py` calls the kube-apiserver to list namespaces/workloads/
+1. **Discovery** - the scanner's `discovery.py` calls the kube-apiserver to list namespaces/workloads/
    running images and reads the `kube-system` UID as the immutable `cluster_id`; `dedup.py` collapses to
    unique image **digests** and skips digests already scanned with the current scanner + vuln-DB version.
-2. **Scan** — for the selected tool, the `trivy`/`grype` adapter invokes its binary (bounded
+2. **Scan** - for the selected tool, the `trivy`/`grype` adapter invokes its binary (bounded
    parallelism), which pulls the image from the (private) registry using creds resolved by
    `credentials.py`, and the matching vuln DB from the **PVC cache** (mirror-refreshed on a schedule).
-3. **Normalize** — each adapter maps its raw JSON into the shared `NormalizedFinding` (Grype adds
+3. **Normalize** - each adapter maps its raw JSON into the shared `NormalizedFinding` (Grype adds
    EPSS/KEV), stamping `scanner = trivy|grype`.
-4. **Push** — `push.py` POSTs per-image, gzipped, with backoff + jitter and a dead-letter file, over the
+4. **Push** - `push.py` POSTs per-image, gzipped, with backoff + jitter and a dead-letter file, over the
    **private network** with a **per-cluster token**, stamping **`scan_run_id`** (observability).
-5. **Ingest** — the backend authenticates the token, validates the versioned envelope and size caps,
+5. **Ingest** - the backend authenticates the token, validates the versioned envelope and size caps,
    then `_bulk`-upserts by `_id = finding_key` with **content-hash `detect_noop`** (unchanged rescans
    write nothing) via the shared preserved-fields script (triage state, tags, `pre_stale_status` survive).
-6. **Staleness** — a daily sweep marks findings not seen within ~3× the cluster's cadence as `stale`
+6. **Staleness** - a daily sweep marks findings not seen within ~3× the cluster's cadence as `stale`
    (skipping silent-scanner clusters; re-pushed findings revert to their pre-stale status).
-7. **Operate** — triage/tagging/search/CSV act over OpenSearch through PIT + `search_after` and
+7. **Operate** - triage/tagging/search/CSV act over OpenSearch through PIT + `search_after` and
    capped/composite aggregations; auth/RBAC and audit use the **`system_*`** indexes (repository
    interface); the frontend (barebones first-flow → Kibana-like dashboard) reads through the backend APIs.
 

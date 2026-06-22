@@ -1,4 +1,4 @@
-/* JAVV — Saved views: named filter sets, Kibana-dashboards style */
+/* JAVV - Saved views: named filter sets, Kibana-dashboards style */
 function SavedViews({ go }) {
   const FIELD_LABEL = { severity: "Severity", scanner: "Scanner", ns: "Namespace", ptype: "Package type", state: "State", attr: "Attribute", assignee: "Assignee" };
   const ATTR_LABEL = { kev: "KEV", hasfix: "Fix available", disagree: "Scanners disagree" };

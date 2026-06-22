@@ -1,4 +1,4 @@
-# Engineering spec — pointer (NOT a copy)
+# Engineering spec - pointer (NOT a copy)
 
 The canonical engineering specification for JAVV v4 lives **only** here:
 
@@ -13,6 +13,6 @@ projects/javv/docs/ADR/V4/
 ```
 
 This folder used to hold byte-for-byte copies of those files. They were removed because
-two "canonical" copies inevitably drift. **Read `docs/ADR/V4/` directly** — it is the single
+two "canonical" copies inevitably drift. **Read `docs/ADR/V4/` directly** - it is the single
 source of truth. The handoff bundle (`docs/` + `prototype/` in this directory) is the UI
 reference; where the UI reference and the spec disagree, **the spec wins**.

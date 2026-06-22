@@ -1,4 +1,4 @@
-/* JAVV — app shell: sidebar, topbar (working search + notifications), cluster switcher, router */
+/* JAVV - app shell: sidebar, topbar (working search + notifications), cluster switcher, router */
 function Sidebar({ route, go }) {
   const groups = [
     { label: "Monitor", items: [["allclusters", "All clusters", "layers"], ["overview", "Overview", "grid"], ["findings", "Findings", "list"], ["views", "Saved views", "bookmark"], ["scanstatus", "Scanner status", "pulse"]] },
@@ -187,7 +187,7 @@ function TimePicker({ value, onChange }) {
             <input className="text-input mono-cell" type="date" value={fromD} onChange={(e) => setFromD(e.target.value)} />
             <button className="btn btn-mini time-apply" onClick={() => rewind(fmtD(fromD), "as scanned " + fmtD(fromD))}>Jump to date</button>
           </div>
-          <div className="tt-note">At a past moment every screen shows <b>as-scanned</b> state — reach is bounded by each cluster's retained data.</div>
+          <div className="tt-note">At a past moment every screen shows <b>as-scanned</b> state - reach is bounded by each cluster's retained data.</div>
           <div className="dd-head">Trend window (dashboards)</div>
           <div className="time-rel">
             <span className="time-rel-label">Last</span>
@@ -210,7 +210,7 @@ function TimePicker({ value, onChange }) {
             <input className="text-input mono-cell" type="date" value={toD} onChange={(e) => setToD(e.target.value)} />
             <button className="btn btn-mini time-apply" onClick={() => apply(fromD === toD ? fmtD(fromD) : fmtD(fromD) + " → " + fmtD(toD), absDays())}>Apply</button>
           </div>
-          <div className="time-note">Drives the OpenSearch query window — all counts and charts follow it.</div>
+          <div className="time-note">Drives the OpenSearch query window - all counts and charts follow it.</div>
         </div>
       )}
     </div>
@@ -259,7 +259,7 @@ function Login({ go }) {
       <div className="login-stage">
         <div className="login-card">
           <div className="login-brand"><BrandIcon size={44} /><div className="side-word"><b>javv</b><span>by Danube Labs</span></div></div>
-          <div className="boot-banner"><Icon name="key" size={14} />First sign-in for the bootstrap admin — set a new password to continue.</div>
+          <div className="boot-banner"><Icon name="key" size={14} />First sign-in for the bootstrap admin - set a new password to continue.</div>
           <label className="fld-label">New password</label>
           <input className="fld" type="password" placeholder="••••••••••••" />
           <label className="fld-label">Confirm password</label>

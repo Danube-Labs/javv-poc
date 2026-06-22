@@ -1,4 +1,4 @@
-/* JAVV — Running images inventory + image detail (Trivy/Grype scanner dropdown) */
+/* JAVV - Running images inventory + image detail (Trivy/Grype scanner dropdown) */
 function Images({ go, cluster, atT, atTLabel }) {
   const imgs = JAVV.images;
   const [q, setQ] = useState("");
@@ -53,11 +53,11 @@ function Images({ go, cluster, atT, atTLabel }) {
       </div>
 
       {atT ? (
-        <div className="notlive-banner nlb-hist"><Icon name="rewind" size={14} /><span>Inventory <b>as scanned at {atTLabel}</b> — from the latest complete inventory run ≤ that moment. Not live deployment state.</span></div>
+        <div className="notlive-banner nlb-hist"><Icon name="rewind" size={14} /><span>Inventory <b>as scanned at {atTLabel}</b> - from the latest complete inventory run ≤ that moment. Not live deployment state.</span></div>
       ) : incomplete ? (
-        <div className="notlive-banner nlb-warn"><Icon name="alert" size={14} /><span>Showing the <b>last complete inventory</b> ({cluster.sweepAbs}); the most recent run didn't finish — partial results are never shown as live.</span></div>
+        <div className="notlive-banner nlb-warn"><Icon name="alert" size={14} /><span>Showing the <b>last complete inventory</b> ({cluster.sweepAbs}); the most recent run didn't finish - partial results are never shown as live.</span></div>
       ) : scannerSilent ? (
-        <div className="notlive-banner nlb-warn"><Icon name="clock" size={14} /><span>Inventory as of <b>{cluster.sweepAbs}</b>; scanner silent since then — this is the last known snapshot, not live state.</span></div>
+        <div className="notlive-banner nlb-warn"><Icon name="clock" size={14} /><span>Inventory as of <b>{cluster.sweepAbs}</b>; scanner silent since then - this is the last known snapshot, not live state.</span></div>
       ) : null}
 
       <div className="findings-layout">
@@ -137,7 +137,7 @@ function ImageDetail({ go, image, atT, atTLabel }) {
           <div>
             <h1>{im.name}<span className="img-tag-badge">{im.tag}</span></h1>
             <p className="mono-cell sm muted">{im.registry}/{im.name}:{im.tag}</p>
-            <p className="digest-line mono-cell sm"><Icon name="key" size={11} />{hist.digests[0].digest}<i className="digest-note">identity is the content digest — repo:tag is just a handle</i></p>
+            <p className="digest-line mono-cell sm"><Icon name="key" size={11} />{hist.digests[0].digest}<i className="digest-note">identity is the content digest - repo:tag is just a handle</i></p>
             <div className="img-detail-meta">
               <span className="mono-cell sm"><b>{im.replicas}</b> replicas at last sweep</span>
               <span className="mono-cell sm">{im.ns}</span>
@@ -157,7 +157,7 @@ function ImageDetail({ go, image, atT, atTLabel }) {
               <div className="dd-menu">
                 {im.scanners.map((s) => (
                   <button key={s} className={"dd-item " + (s === scanner ? "dd-item-on" : "")} onClick={() => { setScanner(s); setOpen(false); }}>
-                    <ScannerTag name={s} /><span className="dd-img">{im.name} — {s}</span>
+                    <ScannerTag name={s} /><span className="dd-img">{im.name} - {s}</span>
                   </button>
                 ))}
               </div>
@@ -181,7 +181,7 @@ function ImageDetail({ go, image, atT, atTLabel }) {
       </div>
 
       {/* per-digest build sub-timeline */}
-      <Card title="Build history" subtitle="a rebuilt tag is a NEW digest — sub-timelines, never a silent gap" className="mt0">
+      <Card title="Build history" subtitle="a rebuilt tag is a NEW digest - sub-timelines, never a silent gap" className="mt0">
         <div className="digest-tl">
           {hist.digests.map((d, i) => (
             <div key={d.digest} className={"digest-row " + (d.running ? "digest-running" : "")}>
@@ -209,7 +209,7 @@ function ImageDetail({ go, image, atT, atTLabel }) {
         <div className="sev-sum sev-sum-total"><span className="sev-sum-num">{fmt(im.total)}</span><span className="sev-sum-label">TOTAL · {scanner}</span></div>
       </div>
 
-      <Card title={`Findings — ${im.name} · ${scanner}`} subtitle="this scanner's view only" pad={false}
+      <Card title={`Findings - ${im.name} · ${scanner}`} subtitle="this scanner's view only" pad={false}
         action={<button className="btn btn-mini"><Icon name="download" size={13} />CSV</button>}>
         <table className="tbl tbl-dense tbl-hover">
           <thead><tr><th>Vulnerability</th><th>Severity<span className="th-note">verbatim {scanner} word</span></th><th className="r">EPSS<span className="th-note">via Grype</span></th><th className="c">KEV</th><th>Package</th><th>Current</th><th>Fixed</th><th>State</th></tr></thead>
@@ -218,7 +218,7 @@ function ImageDetail({ go, image, atT, atTLabel }) {
               <tr key={f.id} onClick={() => go("finding", f)}>
                 <td className="mono-cell strong">{f.cve}</td>
                 <td><Sev level={f.severity} /></td>
-                <td className="r">{scanner === "Grype" ? <Epss v={f.epss} /> : <span className="muted-dash" title="EPSS enrichment arrives with Grype results only">—</span>}</td>
+                <td className="r">{scanner === "Grype" ? <Epss v={f.epss} /> : <span className="muted-dash" title="EPSS enrichment arrives with Grype results only">-</span>}</td>
                 <td className="c"><Kev on={f.kev} /></td>
                 <td><span className="pkg">{f.pkg}<i className="pkg-type">{f.ptype}</i></span></td>
                 <td className="mono-cell sm"><span className="ver-cur">{f.current}</span></td>

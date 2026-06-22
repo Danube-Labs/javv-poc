@@ -1,4 +1,4 @@
-/* JAVV — app shell: sidebar, topbar (working search + notifications), cluster switcher, router */
+/* JAVV - app shell: sidebar, topbar (working search + notifications), cluster switcher, router */
 function Sidebar({ route, go }) {
   const groups = [
     { label: "Monitor", items: [["allclusters", "All clusters", "layers"], ["overview", "Overview", "grid"], ["findings", "Findings", "list"], ["views", "Saved views", "bookmark"], ["scanstatus", "Scanner status", "pulse"]] },
@@ -196,7 +196,7 @@ function TimePicker({ value, onChange }) {
             <input className="text-input mono-cell" type="date" value={toD} onChange={(e) => setToD(e.target.value)} />
             <button className="btn btn-mini time-apply" onClick={() => apply(fromD === toD ? fmtD(fromD) : fmtD(fromD) + " → " + fmtD(toD), absDays())}>Apply</button>
           </div>
-          <div className="time-note">Drives the OpenSearch query window — all counts and charts follow it.</div>
+          <div className="time-note">Drives the OpenSearch query window - all counts and charts follow it.</div>
         </div>
       )}
     </div>

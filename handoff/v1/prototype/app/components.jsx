@@ -1,7 +1,7 @@
-/* JAVV shared UI — exported to window for cross-file use. */
+/* JAVV shared UI - exported to window for cross-file use. */
 const { useState, useEffect, useRef, useMemo } = React;
 
-/* ---------- severity palette (DATA only — firewalled from brand coral) ---------- */
+/* ---------- severity palette (DATA only - firewalled from brand coral) ---------- */
 const SEV_COLOR = {
   CRITICAL: { fg: "#B5231A", bg: "#FBE7E4", line: "#E7C0bb", solid: "#C0271D" },
   HIGH:     { fg: "#C2540D", bg: "#FCEBDD", line: "#EDD0B6", solid: "#E2640F" },
@@ -10,7 +10,7 @@ const SEV_COLOR = {
   UNKNOWN:  { fg: "#5B6770", bg: "#ECEDEE", line: "#D8DCDF", solid: "#74808A" },
 };
 const CHART_SEV = { CRITICAL: "#C0271D", HIGH: "#E2640F", MEDIUM: "#C68A12", LOW: "#3D7DA6", UNKNOWN: "#9AA3AA" };
-const fmt = (n) => (n == null ? "—" : n.toLocaleString("en-US"));
+const fmt = (n) => (n == null ? "-" : n.toLocaleString("en-US"));
 
 /* ---------- brand mark (inline, from approved icon.svg) ---------- */
 function BrandIcon({ size = 28 }) {
@@ -51,11 +51,11 @@ function Sev({ level, solid = false, dot = true }) {
 
 /* ---------- KEV / EPSS / state pills ---------- */
 function Kev({ on }) {
-  if (!on) return <span className="muted-dash">—</span>;
+  if (!on) return <span className="muted-dash">-</span>;
   return <span className="kev-tag">KEV</span>;
 }
 function Epss({ v }) {
-  if (v == null) return <span className="muted-dash">—</span>;
+  if (v == null) return <span className="muted-dash">-</span>;
   const pct = Math.round(v * 100);
   const hot = v >= 0.7, warm = v >= 0.3;
   return (
@@ -183,7 +183,7 @@ function MiniBar({ crit, high, med, low }) {
   );
 }
 
-/* bar + readable per-severity counts — use in tables instead of hover-only MiniBar */
+/* bar + readable per-severity counts - use in tables instead of hover-only MiniBar */
 function MixBar({ crit, high, med, low }) {
   return (
     <div className="mix-cell">
@@ -212,7 +212,7 @@ function ScannerFilter({ value, onChange }) {
 }
 const SCANNER_FACTOR = { "All scanners": 1, Trivy: 0.53, Grype: 0.47 };
 
-/* first-run empty state — shown when a cluster's first sweep hasn't landed yet */
+/* first-run empty state - shown when a cluster's first sweep hasn't landed yet */
 function FirstRun({ go, clusterName, what = "findings" }) {
   return (
     <div className="screen">

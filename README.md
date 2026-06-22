@@ -1,11 +1,11 @@
-# JAVV — Just Another Vulnerability Viewer
+# JAVV - Just Another Vulnerability Viewer
 
 A lightweight, k8s-runtime-native container-vulnerability tool by **Danube Labs**: discovers what's
 actually running in your clusters, scans it with **Trivy and Grype**, and gives you a **triage
-lifecycle** plus **Kibana-grade dashboards and one-click CSV** — without the weight of a full ASPM
+lifecycle** plus **Kibana-grade dashboards and one-click CSV** - without the weight of a full ASPM
 platform.
 
-> Status: pre-MVP, design phase (v4). Canonical design lives in [docs/ADR/V4/](docs/ADR/V4/) — start
+> Status: pre-MVP, design phase (v4). Canonical design lives in [docs/ADR/V4/](docs/ADR/V4/) - start
 > with [PLAN_v4.md](docs/ADR/V4/PLAN_v4.md) and [SPEC_v4.md](docs/ADR/V4/SPEC_v4.md).
 
 ## Why
@@ -16,7 +16,7 @@ JAVV fills the seam between them.
 
 ## Design docs
 
-**Canonical engineering set — [docs/ADR/V4/](docs/ADR/V4/):**
+**Canonical engineering set - [docs/ADR/V4/](docs/ADR/V4/):**
 
 | Doc | What |
 |---|---|
@@ -46,7 +46,7 @@ OpenSearch single store → Vue 3 frontend. Apache-2.0 components throughout.
 
 JAVV is **source-available** under the [Business Source License 1.1](LICENSE):
 
-- **Free to use, modify, and self-host** — including in production, for any team or company.
+- **Free to use, modify, and self-host** - including in production, for any team or company.
 - **What you may not do:** offer JAVV itself to third parties as a hosted/managed service
   (i.e. sell JAVV-as-a-service).
 - **Time-delayed open source:** on the Change Date (**2030-06-10**) this version automatically

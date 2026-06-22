@@ -1,8 +1,8 @@
-# Handoff: javv — *just another vulnerability viewer*
+# Handoff: javv - *just another vulnerability viewer*
 
-> **javv** by **Danube Labs** — a Kubernetes-runtime container vulnerability viewer.
+> **javv** by **Danube Labs** - a Kubernetes-runtime container vulnerability viewer.
 > A purpose-built UI over Trivy + Grype scan results, served from OpenSearch.
-> **Not** embedded OpenSearch Dashboards / Kibana — a real product around the same data.
+> **Not** embedded OpenSearch Dashboards / Kibana - a real product around the same data.
 
 ---
 
@@ -13,7 +13,7 @@ This bundle is a **design reference**, not production code. Everything in `proto
 interaction model. It is deliberately a single-page, client-rendered mock with a **fabricated
 in-memory dataset** (`app/data.js`) so reviewers can click through every screen offline.
 
-Your job is to **recreate these screens in the real target stack** using its established patterns —
+Your job is to **recreate these screens in the real target stack** using its established patterns -
 **not** to ship this HTML. The agreed production stack (from the brief) is:
 
 | Layer | Choice |
@@ -21,7 +21,7 @@ Your job is to **recreate these screens in the real target stack** using its est
 | Framework | **Vue 3** |
 | UI / chrome | **PrimeVue** |
 | Charts | **vue-echarts** (Apache ECharts) |
-| Data | **OpenSearch** — all pagination, sort, filter, facet, KPI counts done **server-side via OpenSearch aggregations**. Never ship raw findings to the client to compute counts. |
+| Data | **OpenSearch** - all pagination, sort, filter, facet, KPI counts done **server-side via OpenSearch aggregations**. Never ship raw findings to the client to compute counts. |
 | Dense-grid table engine | **Decided (PLAN D27):** PrimeVue `DataTable` in lazy server-side mode is the default; AG-Grid-Community is the escape-hatch only if a screen needs spreadsheet density. The prototype's plain HTML tables + column-visibility/density toggle were the probe that informed this. |
 
 The prototype is written in **React** only because that's the prototyping tool's native mode.
@@ -39,17 +39,17 @@ accepting the stock look.
 ## 2. What this product is
 
 A security engineer / platform owner / security lead logs in to see **what vulnerabilities are
-actually running in their Kubernetes clusters** — derived from the live k8s API (what's deployed),
+actually running in their Kubernetes clusters** - derived from the live k8s API (what's deployed),
 not a registry crawl. Two scanners (Trivy and Grype) push results independently; **javv keeps them
-per-scanner and never merges them** — that transparency is a core product pillar (it surfaces
+per-scanner and never merges them** - that transparency is a core product pillar (it surfaces
 scanner disagreement instead of hiding it).
 
 Core loops:
-1. **Monitor** — fleet & per-cluster overviews, KPI trends.
-2. **Triage** — filter the findings grid, open a finding, set state + justification, assign an owner.
-3. **Audit** — every action is logged; exceptions (ignore rules / acknowledgements) carry a
+1. **Monitor** - fleet & per-cluster overviews, KPI trends.
+2. **Triage** - filter the findings grid, open a finding, set state + justification, assign an owner.
+3. **Audit** - every action is logged; exceptions (ignore rules / acknowledgements) carry a
    justification, approver, and expiry.
-4. **Configure** — scan scope, scanners, schedule, SLA policy, vuln-DB sources, access tokens, users.
+4. **Configure** - scan scope, scanners, schedule, SLA policy, vuln-DB sources, access tokens, users.
 
 See **`SCREENS.md`** for a screen-by-screen spec, **`DATA_MODEL.md`** for entity shapes,
 **`DESIGN_SYSTEM.md`** for tokens/components, **`ARCHITECTURE.md`** for the suggested Vue mapping
@@ -102,19 +102,19 @@ Top bar (persistent): **cluster switcher** (keyed on `cluster_id`), **global tim
 | 12 | Settings | `settings` | `app/screens-config.jsx` |
 
 Shared building blocks: `app/components.jsx` (chips, KPI cards, charts wrapper, avatar, pager,
-relative-time), `app/filters.jsx` (the reusable filtering module — **read this; it's the most
+relative-time), `app/filters.jsx` (the reusable filtering module - **read this; it's the most
 important shared piece**), `app/main.jsx` (shell, router, topbar, search, bell).
 
 ---
 
 ## 5. How to run the prototype
 
-- `prototype/JAVV Prototype.html` — open in a browser. Loads React/Babel/ECharts from CDN, so it
+- `prototype/JAVV Prototype.html` - open in a browser. Loads React/Babel/ECharts from CDN, so it
   needs network on first load. Source is split across `app/*.jsx` for readability.
-- `standalone/JAVV Prototype (standalone).html` — everything inlined; **works fully offline**.
-  Use this for stakeholder review. Do not edit it — it's compiled output.
+- `standalone/JAVV Prototype (standalone).html` - everything inlined; **works fully offline**.
+  Use this for stakeholder review. Do not edit it - it's compiled output.
 
-There is **no build step** and **no backend** — `app/data.js` fabricates a deterministic dataset on
+There is **no build step** and **no backend** - `app/data.js` fabricates a deterministic dataset on
 `window.JAVV`. In production every one of those arrays becomes an OpenSearch-backed API call.
 
 ---
@@ -129,7 +129,7 @@ There is **no build step** and **no backend** — `app/data.js` fabricates a det
 3. **Severity colors are data, not brand.** Red/orange/yellow/blue are reserved for
    CRITICAL/HIGH/MEDIUM/LOW. The brand coral (`#EC7E54`) is **never** used to mean severity.
 4. **Runtime, not registry.** Inventory = what the k8s API says is deployed. "Replicas" = observed
-   at the last sweep (javv does **not** continuously watch pods — there is no live "running" flag).
+   at the last sweep (javv does **not** continuously watch pods - there is no live "running" flag).
 5. **Staleness is automatic, resolve is manual.** Findings not re-pushed within the staleness window
    flip to `stale` on the daily sweep. `resolved` is only ever set by a person.
 6. **Exceptions are accountable.** Ignore rules and acknowledgements require a justification and an
@@ -139,7 +139,7 @@ There is **no build step** and **no backend** — `app/data.js` fabricates a det
    Operator can acknowledge/assign/resolve; Security Lead approves exceptions & edits SLA; Admin
    manages scanners, users, tokens.
 8. **Scanners authenticate with an HTTPS API token only.** Any scanner type that holds a scoped
-   `push:findings` token can push over TLS — nothing else is required or accepted.
+   `push:findings` token can push over TLS - nothing else is required or accepted.
 
 ---
 
@@ -170,8 +170,8 @@ handoff/v4/
 
 1. **Shell + routing + design tokens** (sidebar, topbar, cluster switcher, theme PrimeVue).
 2. **Filtering module** (`useFilters` composable + `FacetRail` / `FilterBar` / `ColumnsMenu`
-   components) — Findings, Running images, Approvals, and Audit log all depend on it.
-3. **Findings grid + Finding detail/triage** — the core loop; wire to OpenSearch aggregations.
+   components) - Findings, Running images, Approvals, and Audit log all depend on it.
+3. **Findings grid + Finding detail/triage** - the core loop; wire to OpenSearch aggregations.
 4. **Overview + All clusters** (vue-echarts) and **Running images / Image detail**.
 5. **Audit, Approvals, Contributors, Scanner status** (reuse the table + filter shells).
 6. **Settings** (scope, scanners, schedule, SLA, ignore rules, vuln DB, access, RBAC users).

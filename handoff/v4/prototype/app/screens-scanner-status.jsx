@@ -1,4 +1,4 @@
-/* JAVV — Scanner status: ingest pipeline health, per scanner */
+/* JAVV - Scanner status: ingest pipeline health, per scanner */
 function ingestChartOption() {
   const s = JAVV.ingestSeries, f = JAVV.failedSeries;
   return {

@@ -1,4 +1,4 @@
-/* JAVV — All clusters: fleet-level rollup, one row per cluster */
+/* JAVV - All clusters: fleet-level rollup, one row per cluster */
 function HealthTag({ health }) {
   const M = { healthy: ["Healthy", "health-ok"], degraded: ["Degraded", "health-deg"], stale: ["Sweep stale", "health-stale"], pending: ["First sweep pending", "health-pending"], ok: ["ok", "health-ok"], failing: ["failing", "health-deg"] };
   const [label, cls] = M[health] || [health, "health-stale"];
@@ -54,7 +54,7 @@ function AllClusters({ go, setCluster }) {
                   </div>
                 </td>
                 <td><HealthTag health={c.health} /></td>
-                <td>{c.images ? <MixBar crit={S(c.crit)} high={S(c.high)} med={S(c.med)} low={S(c.low)} /> : <span className="muted-dash">—</span>}</td>
+                <td>{c.images ? <MixBar crit={S(c.crit)} high={S(c.high)} med={S(c.med)} low={S(c.low)} /> : <span className="muted-dash">-</span>}</td>
                 <td className="r">{c.images}</td>
                 <td>
                   {Object.keys(c.scannerHealth).length ? (
@@ -65,7 +65,7 @@ function AllClusters({ go, setCluster }) {
                         </span>
                       ))}
                     </span>
-                  ) : <span className="muted-dash">—</span>}
+                  ) : <span className="muted-dash">-</span>}
                 </td>
                 <td><RelTime rel={c.sweepRel} abs={c.sweepAbs} className={c.health === "stale" ? "sweep-stale" : ""} /></td>
               </tr>
@@ -73,7 +73,7 @@ function AllClusters({ go, setCluster }) {
           </tbody>
         </table>
       </Card>
-      <p className="fleet-note"><Icon name="layers" size={13} />Each cluster's scanner module pushes independently over HTTPS with its own API token — a cluster going quiet shows up here, not as missing data downstream.</p>
+      <p className="fleet-note"><Icon name="layers" size={13} />Each cluster's scanner module pushes independently over HTTPS with its own API token - a cluster going quiet shows up here, not as missing data downstream.</p>
     </div>
   );
 }

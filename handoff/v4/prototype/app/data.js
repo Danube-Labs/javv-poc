@@ -1,4 +1,4 @@
-/* JAVV — placeholder demo dataset (lorem / boilerplate, no real identifiers). window.JAVV */
+/* JAVV - placeholder demo dataset (lorem / boilerplate, no real identifiers). window.JAVV */
 (function () {
   const SEV = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "UNKNOWN"];
 
@@ -209,7 +209,7 @@
     { id: "CVE-2024-20051", sev: "MEDIUM", status: "acknowledged", justification: L1 + " " + L3, impact: "Lorem ipsum dolor sit amet, internal network only.", action: "Monitor for upstream fix; re-evaluate next quarter.", approver: "Amet Consectetur", task: "TASK-1042", when: "May 28, 2026", whenRel: "15d ago" },
     { id: "ADV-2025-0019", sev: "HIGH", status: "resolved", justification: "Lorem ipsum patched in base image rebuild.", impact: L2, action: "Fixed in image rebuild #4412.", approver: "Lorem Ipsum", task: "TASK-1090", when: "May 30, 2026", whenRel: "13d ago" },
     { id: "CVE-2024-10042", sev: "CRITICAL", status: "resolved", justification: "Lorem ipsum upgraded fleet-wide.", impact: L1, action: "Mitigated; scan confirms clean on next sweep.", approver: "Lorem Ipsum", task: "TASK-1001", when: "May 22, 2026", whenRel: "21d ago" },
-    { id: "ADV-2026-0007", sev: "CRITICAL", status: "open", justification: "—", impact: "Lorem ipsum cert validation — patch staged.", action: "Awaiting base-image bump to 3.7.10-7.ph4.", approver: "—", task: "TASK-1200", when: "Jun 2, 2026", whenRel: "10d ago" },
+    { id: "ADV-2026-0007", sev: "CRITICAL", status: "open", justification: "-", impact: "Lorem ipsum cert validation - patch staged.", action: "Awaiting base-image bump to 3.7.10-7.ph4.", approver: "-", task: "TASK-1200", when: "Jun 2, 2026", whenRel: "10d ago" },
     { id: "CVE-2026-30058", sev: "CRITICAL", status: "acknowledged", justification: L2 + " Runtime path not invoked.", impact: "Local path; cluster RBAC mitigates.", action: "Accept risk for 30d, revisit on next sweep.", approver: "Amet Consectetur", task: "TASK-1211", when: "Jun 1, 2026", whenRel: "11d ago" },
   ];
 
@@ -289,7 +289,7 @@
     schedule: { interval: "6h", sweepTime: "07:00", staleWindow: "1.5x", backoff: true },
     sla: { CRITICAL: 2, HIGH: 7, MEDIUM: 30, LOW: 90, kevOverride: true, kevHours: 24 },
     ignoreRules: [
-      { id: "CVE-2024-20051", scope: "liblorem", reason: "Lorem ipsum, no fix available — mitigated by network policy.", by: "Amet Consectetur", expires: "2026-09-15" },
+      { id: "CVE-2024-20051", scope: "liblorem", reason: "Lorem ipsum, no fix available - mitigated by network policy.", by: "Amet Consectetur", expires: "2026-09-15" },
       { id: "CVE-2024-10310", scope: "all images", reason: "False positive, not exploitable in our configuration.", by: "Lorem Ipsum", expires: "2026-07-30" },
       { id: "ADV-2025-0019", scope: "dolor-svc", reason: "Tracked in TASK-1090, fix scheduled next release.", by: "Dolor Sit", expires: "2026-08-01" },
     ],
@@ -330,18 +330,18 @@
 
   // ---- Notifications (assigned + SLA breaches for current user) ----
   const notifications = [
-    { type: "sla", cve: "CVE-2024-10042", sev: "CRITICAL", msg: "SLA overdue — assigned to you", rel: "2h ago", abs: "Jun 12, 10:04" },
+    { type: "sla", cve: "CVE-2024-10042", sev: "CRITICAL", msg: "SLA overdue - assigned to you", rel: "2h ago", abs: "Jun 12, 10:04" },
     { type: "assigned", cve: "ADV-2026-0007", sev: "CRITICAL", msg: "Dolor Sit assigned this to you", rel: "6h ago", abs: "Jun 12, 06:31" },
     { type: "assigned", cve: "CVE-2025-20119", sev: "HIGH", msg: "New finding assigned to you", rel: "1d ago", abs: "Jun 11, 09:12" },
   ];
 
   // ---- Saved views (named filter sets) ----
   const savedViews = [
-    { name: "KEV criticals", desc: "Known-exploited criticals — patch first", owner: "Lorem Ipsum", filters: { severity: ["CRITICAL"], attr: ["kev"] } },
+    { name: "KEV criticals", desc: "Known-exploited criticals - patch first", owner: "Lorem Ipsum", filters: { severity: ["CRITICAL"], attr: ["kev"] } },
     { name: "Unassigned highs", desc: "High severity with no owner yet", owner: "Dolor Sit", filters: { severity: ["HIGH"], assignee: ["Unassigned"] } },
     { name: "Scanner disagreements", desc: "Trivy and Grype rate these differently", owner: "Amet Consectetur", filters: { attr: ["disagree"] } },
     { name: "Gone stale", desc: "Findings that stopped arriving from the sweep", owner: "Lorem Ipsum", filters: { state: ["stale"] } },
-    { name: "Fixable criticals", desc: "Critical + fix available — quick wins", owner: "Sed Eiusmod", filters: { severity: ["CRITICAL"], attr: ["hasfix"] } },
+    { name: "Fixable criticals", desc: "Critical + fix available - quick wins", owner: "Sed Eiusmod", filters: { severity: ["CRITICAL"], attr: ["hasfix"] } },
   ];
 
   // ---- User audit log (who did what) ----
@@ -380,11 +380,11 @@
   };
   const failedIngest = [
     { rel: "4h ago", abs: "Jun 12, 08:02", scanner: "Grype", image: "registry.example.com/group/lorem-api:v1.4.0", stage: "parse", error: "schema_version mismatch (2 ≠ 3)", retries: 3, status: "dead-letter" },
-    { rel: "5h ago", abs: "Jun 12, 07:04", scanner: "Grype", image: "registry.example.com/group/ipsum-web:v4.8.1", stage: "push", error: "401 — API token expired", retries: 5, status: "retrying" },
+    { rel: "5h ago", abs: "Jun 12, 07:04", scanner: "Grype", image: "registry.example.com/group/ipsum-web:v4.8.1", stage: "push", error: "401 - API token expired", retries: 5, status: "retrying" },
     { rel: "5h ago", abs: "Jun 12, 07:02", scanner: "Trivy", image: "registry.example.com/group/sit-worker:v1.1.2", stage: "scan", error: "timeout after 10m", retries: 1, status: "retrying" },
-    { rel: "11h ago", abs: "Jun 12, 01:11", scanner: "Grype", image: "oci.example.io/team/elit-cache:v1.28.1", stage: "push", error: "413 — payload exceeds 25MB cap", retries: 4, status: "dead-letter" },
-    { rel: "1d ago", abs: "Jun 11, 07:01", scanner: "Grype", image: "harbor.example.com/library/consectetur-edge:v7.0.15", stage: "pull", error: "manifest unknown — tag deleted upstream", retries: 2, status: "dead-letter" },
-    { rel: "1d ago", abs: "Jun 11, 06:58", scanner: "Trivy", image: "registry.example.net/lib/aliqua-auth:v2.9.0", stage: "scan", error: "vuln DB corrupt — cache evicted, refetching", retries: 1, status: "resolved" },
+    { rel: "11h ago", abs: "Jun 12, 01:11", scanner: "Grype", image: "oci.example.io/team/elit-cache:v1.28.1", stage: "push", error: "413 - payload exceeds 25MB cap", retries: 4, status: "dead-letter" },
+    { rel: "1d ago", abs: "Jun 11, 07:01", scanner: "Grype", image: "harbor.example.com/library/consectetur-edge:v7.0.15", stage: "pull", error: "manifest unknown - tag deleted upstream", retries: 2, status: "dead-letter" },
+    { rel: "1d ago", abs: "Jun 11, 06:58", scanner: "Trivy", image: "registry.example.net/lib/aliqua-auth:v2.9.0", stage: "scan", error: "vuln DB corrupt - cache evicted, refetching", retries: 1, status: "resolved" },
   ];
 
   // ---- RBAC ----
@@ -444,8 +444,8 @@
   // ---- v4: scoped risk-accept / not-affected decisions (system-decisions) ----
   const decisions = [
     { id: "DEC-2041", cve: "CVE-2024-10042", type: "risk_accepted", scope: { namespaces: ["lorem-ipsum"], images: [] }, blastRadius: "9 images · namespace lorem-ipsum", applyBoth: true, justification: "Internal-only namespace behind mTLS; exploit needs external network. Accept until base image bump lands.", approver: "Lorem Ipsum", expiry: "Sep 15, 2026", created: "Jun 12, 2026", status: "active", cascades: true },
-    { id: "DEC-2038", cve: "CVE-2024-10310", type: "not_affected", scope: { namespaces: [], images: ["dolor-svc:v1.0.0"] }, blastRadius: "1 image", applyBoth: false, scanner: "Trivy", vexJust: "vulnerable_code_not_present", justification: "Patched function stripped in our multi-stage build; Trivy matches on package metadata only.", approver: "Amet Consectetur", expiry: "—", created: "Jun 10, 2026", status: "active", cascades: false },
-    { id: "DEC-2009", cve: "CVE-2024-10042", type: "risk_accepted", scope: { namespaces: ["dolor-sit-amet"], images: [] }, blastRadius: "4 images · namespace dolor-sit-amet", applyBoth: true, justification: "Superseded — re-scoped after the namespace split.", approver: "Lorem Ipsum", expiry: "Jul 1, 2026", created: "May 28, 2026", status: "revoked", revokedAt: "Jun 12, 2026", cascades: true },
+    { id: "DEC-2038", cve: "CVE-2024-10310", type: "not_affected", scope: { namespaces: [], images: ["dolor-svc:v1.0.0"] }, blastRadius: "1 image", applyBoth: false, scanner: "Trivy", vexJust: "vulnerable_code_not_present", justification: "Patched function stripped in our multi-stage build; Trivy matches on package metadata only.", approver: "Amet Consectetur", expiry: "-", created: "Jun 10, 2026", status: "active", cascades: false },
+    { id: "DEC-2009", cve: "CVE-2024-10042", type: "risk_accepted", scope: { namespaces: ["dolor-sit-amet"], images: [] }, blastRadius: "4 images · namespace dolor-sit-amet", applyBoth: true, justification: "Superseded - re-scoped after the namespace split.", approver: "Lorem Ipsum", expiry: "Jul 1, 2026", created: "May 28, 2026", status: "revoked", revokedAt: "Jun 12, 2026", cascades: true },
     { id: "DEC-1990", cve: "CVE-2024-10042", type: "risk_accepted", scope: { namespaces: [], images: ["amet-gateway:v8.3.0"] }, blastRadius: "1 image", applyBoth: false, scanner: "Grype", justification: "30-day acceptance during the Q1 freeze.", approver: "Dolor Sit", expiry: "Mar 31, 2026", created: "Mar 1, 2026", status: "expired", cascades: false },
   ];
 
@@ -453,7 +453,7 @@
   const exportJobs = [
     { id: "EXP-3120", scope: "Findings · severity ≥ HIGH", rows: 1204, mode: "offpeak", status: "ready", requested: "2h ago", ready: "1h ago", by: "Lorem Ipsum" },
     { id: "EXP-3118", scope: "Running images · all", rows: 13, mode: "now", status: "ready", requested: "3h ago", ready: "3h ago", by: "Dolor Sit" },
-    { id: "EXP-3115", scope: "Findings · namespace lorem-ipsum", rows: 4187, mode: "offpeak", status: "running", requested: "10m ago", ready: "—", by: "Lorem Ipsum" },
+    { id: "EXP-3115", scope: "Findings · namespace lorem-ipsum", rows: 4187, mode: "offpeak", status: "running", requested: "10m ago", ready: "-", by: "Lorem Ipsum" },
   ];
 
   // ---- v4: per-digest build history for an image (point-in-time identity = digest) ----
@@ -461,8 +461,8 @@
     name: "lorem-api", tag: "v1.4.0",
     digests: [
       { digest: "sha256:9c2e…a1f3", from: "Jun 8, 2026", to: "now", running: true, crit: 8, high: 612, scannedRel: "5h ago", note: "current build" },
-      { digest: "sha256:44ad…7b1c", from: "May 22, 2026", to: "Jun 8, 2026", running: false, crit: 11, high: 640, scannedRel: "—", note: "image build changed here" },
-      { digest: "sha256:71bb…0d9e", from: "May 2, 2026", to: "May 22, 2026", running: false, crit: 14, high: 661, scannedRel: "—", note: "image build changed here" },
+      { digest: "sha256:44ad…7b1c", from: "May 22, 2026", to: "Jun 8, 2026", running: false, crit: 11, high: 640, scannedRel: "-", note: "image build changed here" },
+      { digest: "sha256:71bb…0d9e", from: "May 2, 2026", to: "May 22, 2026", running: false, crit: 14, high: 661, scannedRel: "-", note: "image build changed here" },
     ],
   };
 
@@ -474,7 +474,7 @@
     staleness: { freshnessDays: 3, scannerDownDays: 7 },
   };
 
-  // ---- v4: per-image scanner count disagreement (D5b) — attach to a few images ----
+  // ---- v4: per-image scanner count disagreement (D5b) - attach to a few images ----
   images.forEach((im, i) => {
     if (im.scanners.length === 2) {
       const t = im.total, delta = [0, 0, 3, 0, -2, 0, 5, 0, 0, -1, 0, 0, 4][i % 13] || 0;

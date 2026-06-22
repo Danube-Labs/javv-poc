@@ -1,4 +1,4 @@
-/* JAVV — Running images inventory + image detail (Trivy/Grype scanner dropdown) */
+/* JAVV - Running images inventory + image detail (Trivy/Grype scanner dropdown) */
 function Images({ go, cluster }) {
   const imgs = JAVV.images;
   const [q, setQ] = useState("");
@@ -141,7 +141,7 @@ function ImageDetail({ go, image }) {
               <div className="dd-menu">
                 {im.scanners.map((s) => (
                   <button key={s} className={"dd-item " + (s === scanner ? "dd-item-on" : "")} onClick={() => { setScanner(s); setOpen(false); }}>
-                    <ScannerTag name={s} /><span className="dd-img">{im.name} — {s}</span>
+                    <ScannerTag name={s} /><span className="dd-img">{im.name} - {s}</span>
                   </button>
                 ))}
               </div>
@@ -160,7 +160,7 @@ function ImageDetail({ go, image }) {
         <div className="sev-sum sev-sum-total"><span className="sev-sum-num">{fmt(im.total)}</span><span className="sev-sum-label">TOTAL · {scanner}</span></div>
       </div>
 
-      <Card title={`Findings — ${im.name} · ${scanner}`} subtitle="this scanner's view only" pad={false}
+      <Card title={`Findings - ${im.name} · ${scanner}`} subtitle="this scanner's view only" pad={false}
         action={<button className="btn btn-mini"><Icon name="download" size={13} />CSV</button>}>
         <table className="tbl tbl-dense tbl-hover">
           <thead><tr><th>Vulnerability</th><th>Severity</th><th className="r">EPSS<span className="th-note">via Grype</span></th><th className="c">KEV</th><th>Package</th><th>Current</th><th>Fixed</th><th>State</th></tr></thead>
@@ -169,7 +169,7 @@ function ImageDetail({ go, image }) {
               <tr key={f.id} onClick={() => go("finding", f)}>
                 <td className="mono-cell strong">{f.cve}</td>
                 <td><Sev level={f.severity} /></td>
-                <td className="r">{scanner === "Grype" ? <Epss v={f.epss} /> : <span className="muted-dash" title="EPSS enrichment arrives with Grype results only">—</span>}</td>
+                <td className="r">{scanner === "Grype" ? <Epss v={f.epss} /> : <span className="muted-dash" title="EPSS enrichment arrives with Grype results only">-</span>}</td>
                 <td className="c"><Kev on={f.kev} /></td>
                 <td><span className="pkg">{f.pkg}<i className="pkg-type">{f.ptype}</i></span></td>
                 <td className="mono-cell sm"><span className="ver-cur">{f.current}</span></td>

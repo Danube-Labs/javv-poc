@@ -1,4 +1,4 @@
-/* JAVV — Heroes / activity (most vulns solved, leaderboard, audit feed) */
+/* JAVV - Heroes / activity (most vulns solved, leaderboard, audit feed) */
 function resolvedOverTimeOption(dayCount) {
   const s = JAVV.resolvedSeries;
   const n = Math.min(s.days.length, Math.max(1, Math.ceil(dayCount || 30)));
@@ -75,7 +75,7 @@ function Heroes({ go, timeRange }) {
 
       <div className="hero-note">
         <Icon name="layers" size={13} />
-        Derived from the audit trail. Trend depth lands with historical scan series — current-state MVP counts decisions, not scan-over-scan deltas.
+        Derived from the audit trail. Trend depth lands with historical scan series - current-state MVP counts decisions, not scan-over-scan deltas.
       </div>
 
       <div className="hero-kpis">
