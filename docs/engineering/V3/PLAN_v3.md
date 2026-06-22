@@ -1,6 +1,6 @@
 # JAVV - Just Another Vulnerability Viewer · MVP Plan (v3)
 
-> **Status: revision 3 (2026-06-20).** Supersedes `docs/ADR/PLAN.md` (v2). Folds in the v3 design
+> **Status: revision 3 (2026-06-20).** Supersedes `docs/engineering/PLAN.md` (v2). Folds in the v3 design
 > dialogue: the VEX two-field state model, the **hybrid data model** (mutable current-state + append-only
 > logs), scoped exceptions/risk-acceptance with precedence, scanner-disagreement, SLA/overdue, per-cluster
 > retention, first-class observability, and ingest hardening. Companion: `SPEC_v3.md` (requirements),
@@ -16,8 +16,8 @@
   prototype. v3 targets it **as closely as the backend/data constraints allow**; the design is a
   *reference point, not a frozen 1:1 contract* - it is expected to evolve, so divergences are noted, not
   silently taken.
-- **`docs/ADR/V3/` (this set)** - the canonical engineering plan/spec/architecture.
-- **`docs/ADR/` (v2) + `docs/deprecated/` (v1)** - superseded; kept for history (incl. the two scale audits).
+- **`docs/engineering/V3/` (this set)** - the canonical engineering plan/spec/architecture.
+- **`docs/engineering/` (v2) + `docs/deprecated/` (v1)** - superseded; kept for history (incl. the two scale audits).
 
 ## 1. Identity / Brand
 

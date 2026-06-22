@@ -21,7 +21,7 @@ javv_v4/
 │   ├── DESIGN_SYSTEM.md            tokens, type, component inventory
 │   ├── ARCHITECTURE.md             prototype→Vue mapping, OpenSearch query contract
 │   └── DOMAIN_GLOSSARY.md          CVE/EPSS/KEV/VEX/Trivy/Grype…
-├── spec/                           pointer only → canonical spec lives in ../../docs/ADR/V4/ (see spec/README.md)
+├── spec/                           pointer only → canonical spec lives in ../../docs/engineering/V4/ (see spec/README.md)
 └── brand/                          approved brand assets + guide (BRAND.md, icon/lockup/wordmark SVGs)
 ```
 
@@ -32,7 +32,7 @@ javv_v4/
    per-scanner-never-merged, verbatim severity, data safety), the new/changed screens, and the
    **conflicts to reconcile** against the spec.
 3. **Build it:** `docs/` here is the UI handoff; the **canonical engineering contract is
-   `../../docs/ADR/V4/`** (this bundle's `spec/` is just a pointer to it). Where the UI handoff and
+   `../../docs/engineering/V4/`** (this bundle's `spec/` is just a pointer to it). Where the UI handoff and
    the spec differ, **the spec wins** - the prototype is reference, not a 1:1 contract.
 
 ## The non-negotiables (v4)

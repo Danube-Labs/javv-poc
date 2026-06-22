@@ -1,6 +1,6 @@
 # JAVV - Architecture (v3)
 
-> **Revision 3 (2026-06-20).** Supersedes `docs/ADR/ARCHITECTURE.md` (v2). The end-to-end design with the
+> **Revision 3 (2026-06-20).** Supersedes `docs/engineering/ARCHITECTURE.md` (v2). The end-to-end design with the
 > v3 **hybrid data model** (mutable current-state + append-only logs + human-decision layer), the
 > projection mechanism, per-cluster retention, and first-class observability. Source of decisions:
 > `PLAN_v3.md` / `SPEC_v3.md`. UI reference: `design_handoff_javv/`. Diagrams: Mermaid.

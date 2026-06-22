@@ -1,6 +1,6 @@
 # JAVV - Spec (v3)
 
-> **Revision 3 (2026-06-20).** Supersedes `docs/ADR/SPEC.md` (v2). Requirements reflecting the v3 design
+> **Revision 3 (2026-06-20).** Supersedes `docs/engineering/SPEC.md` (v2). Requirements reflecting the v3 design
 > dialogue. Companions: `PLAN_v3.md` (decisions/data-model/milestones), `ARCHITECTURE_v3.md` (flows),
 > `design_handoff_javv/` (UI reference - *reference point, not a frozen 1:1 contract*). Diagrams: Mermaid.
 

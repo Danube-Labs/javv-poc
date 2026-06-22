@@ -1,6 +1,6 @@
 # JAVV - Architecture (v4)
 
-> **Revision 4 (2026-06-21).** Supersedes `docs/ADR/V3/ARCHITECTURE_v3.md` (frozen). End-to-end design with
+> **Revision 4 (2026-06-21).** Supersedes `docs/engineering/V3/ARCHITECTURE_v3.md` (frozen). End-to-end design with
 > the hybrid data model + the v4 refinements: `system-exceptions`→`system-decisions`, raw-fidelity keyword
 > normalizer, rebuildable triage state (partial-merge + rebuild job), idempotent appends, full-snapshot
 > point-in-time (no close events), scheduled/throttled export, and an explicit HA/multi-pod section. Source of

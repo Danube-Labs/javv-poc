@@ -2,7 +2,7 @@
 
 > Project-scoped guidance for building JAVV (this folder). The repo of record is **`javv-poc`**
 > (`git@github.com:Danube-Labs/javv-poc.git`); this `javv/` folder is the working copy. Canonical design
-> lives in **`docs/ADR/V4/`** (PLAN_v4 · SPEC_v4 · ARCHITECTURE_v4); V3 and earlier are frozen for the
+> lives in **`docs/engineering/V4/`** (PLAN_v4 · SPEC_v4 · ARCHITECTURE_v4); V3 and earlier are frozen for the
 > evolution trail. UI reference: `handoff/v4/` (a *reference point, not a 1:1 contract*). Research
 > backing the v4 revision: `docs/research/`.
 
@@ -76,7 +76,7 @@ The independent audit was worked through in full; rulings are folded into V4:
   digest-dedup, no skip-unchanged (D30)**; **partial-doc merge replaces the preserve script (D31)**;
   **structured `system-audit-log` (D32)**; **capability-based RBAC + `can_accept_audit_final` (D33)**;
   security hardening bundle (D34); MVP simplifications (D35); verification pins (D36).
-- **External-audit fixes (D37/D38 - `docs/ADR/V4/AUDIT-RESPONSE_v4.md`):** **R-CATALOG** - read "latest state"
+- **External-audit fixes (D37/D38 - `docs/engineering/V4/AUDIT-RESPONSE_v4.md`):** **R-CATALOG** - read "latest state"
   through the commit catalog (latest committed run from `javv-scan-events`, *then* `occurrences` for that run;
   inventory = latest complete `inventory_run_id`), never "latest doc per key" (kills the clean-rescan
   resurrection bug); **`commit_key`** = `(cluster_id, scanner, image_digest, scan_run_id)` 4-tuple;
@@ -106,8 +106,8 @@ The independent audit was worked through in full; rulings are folded into V4:
   **`effective_at`+`operation_id`** (revoke+create atomic); audit records **`revision`** for same-field causal
   replay; report **orphan-object TTL sweep**. NFR-9/D23 reworded: history no race, **cache = guarded RMW**.
 
-**`docs/ADR/V4/INDEX-MAP_v4.md` is the source of truth for every index + mapping + rollover/retention** -
-read it before touching any index. Second audit + resolutions: `docs/ADR/V4/AUDIT_v4.md`.
+**`docs/engineering/V4/INDEX-MAP_v4.md` is the source of truth for every index + mapping + rollover/retention** -
+read it before touching any index. Second audit + resolutions: `docs/engineering/V4/AUDIT_v4.md`.
 
 Data-model decisions are settled (PLAN_v4 §10). Remaining open: project-specific skills + the GitHub/CI
 workflow on the Ubuntu VM.
