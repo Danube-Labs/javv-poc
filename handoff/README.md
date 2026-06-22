@@ -1,7 +1,7 @@
 # JAVV - design handoff bundles
 
 UI/product reference for JAVV. These are **reference points, not 1:1 contracts** - the
-canonical engineering spec is `../docs/ADR/V4/` and **wins on any disagreement**.
+canonical engineering spec is `../docs/engineering/V4/` and **wins on any disagreement**.
 
 | Folder | What it is | Status |
 |--------|-----------|--------|
@@ -16,7 +16,7 @@ canonical engineering spec is `../docs/ADR/V4/` and **wins on any disagreement**
 4. `v4/prototype/` - open `JAVV Prototype.html` in a browser (fabricated dataset).
 
 ## Canonical hierarchy (when sources disagree)
-`docs/ADR/V4/` (engineering spec)  >  `v4/docs/` (UI handoff)  >  `v4/prototype/` (reference)
+`docs/engineering/V4/` (engineering spec)  >  `v4/docs/` (UI handoff)  >  `v4/prototype/` (reference)
 
 Brand assets in `v4/brand/` are an embedded **copy** so the bundle stays self-contained/zippable.
 The brand **source** of record is `../design/brand/`.

@@ -31,10 +31,10 @@ sequenceDiagram
     API->>API: validate envelope · size/rate caps · auth
 
     rect rgb(236,254,255)
-    Note over API,SE: one ingest request, ORDERED PHASES (idempotent, deterministic _id) - D39/D40
+    Note over API,SE: one ingest request, ORDERED PHASES (idempotent, deterministic _id, D39/D40)
     API->>OCC: (a) append SNAPSHOT R1 (2 rows, scan_order=1)<br/>[AAA,CVE-1,HIGH] [AAA,CVE-2,CRIT] @Mar 1
     API->>SE: (b) after bulk OK: append R1 commit doc + CAS watermark[AAA]=1<br/>← this doc = "R1 committed"
-    API->>F: (c) THEN partial-merge findings + reconcile<br/>(newer-scan-wins vs watermark; scanner fields only)
+    API->>F: (c) THEN partial-merge findings + reconcile<br/>(newer-scan-wins vs watermark, scanner fields only)
     end
 
     API->>API: project decisions → state (new findings only)

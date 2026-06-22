@@ -1,6 +1,6 @@
 # JAVV - Spec (v4)
 
-> **Revision 4 (2026-06-21).** Supersedes `docs/ADR/V3/SPEC_v3.md` (frozen). Reflects the post-v3 audit
+> **Revision 4 (2026-06-21).** Supersedes `docs/engineering/V3/SPEC_v3.md` (frozen). Reflects the post-v3 audit
 > dialogue. Companions: `PLAN_v4.md` (decisions/data-model/milestones), `ARCHITECTURE_v4.md` (flows),
 > `handoff/v4/` (UI reference - *reference point, not a 1:1 contract*). Diagrams: Mermaid.
 > Key v4 changes: `system-exceptions`→`system-decisions`; raw-fidelity via keyword normalizer; rebuildable
@@ -242,7 +242,7 @@ sequenceDiagram
     API->>OS: partial-merge findings (detect_noop, scanner fields only) + append occurrences/images snapshots + scan-events commit (idempotent _id, last)
     API->>OS: reconcile-on-commit: present=false on findings the run omitted (D37)
     API->>API: project decisions → state (new findings only)
-    Note over OS: occurrences = full per-scan snapshot (no close events); scan-events doc = commit catalog (read latest run here, then occurrences)
+    Note over OS: occurrences = full per-scan snapshot (no close events). scan-events doc = commit catalog (read latest run here, then occurrences)
     UI->>API: Fetch findings
     API-->>UI: findings (+ state, disagree)
     UI-->>U: results table
