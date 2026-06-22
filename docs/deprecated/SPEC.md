@@ -1,4 +1,4 @@
-# JAVV — Spec (initial draft)
+# JAVV - Spec (initial draft)
 
 > **Initial specs.md / FIRE-style draft.** Hand-authored starting point; to be formalized via
 > `/fire-planner` after `npx specsmd@latest install`. Companion docs: `PLAN.md` (architecture +
@@ -21,9 +21,9 @@ Kibana-style dashboard *builder*; historical trends / "most vulns solved"; Jira;
 cross-scanner finding merge; dashboard theming. (See `PLAN.md` §3.)
 
 ## Actors
-- **Triager** (security engineer) — reviews, filters, triages findings, exports reports.
-- **Admin** — manages users/roles, tags, per-cluster ingest tokens.
-- **Scanner module** — automated client; discovers + scans + pushes results.
+- **Triager** (security engineer) - reviews, filters, triages findings, exports reports.
+- **Admin** - manages users/roles, tags, per-cluster ingest tokens.
+- **Scanner module** - automated client; discovers + scans + pushes results.
 
 ## Functional requirements
 - **FR-1 Discovery:** scanner enumerates namespaces/workloads/running images via the k8s API;
@@ -51,7 +51,7 @@ cross-scanner finding merge; dashboard theming. (See `PLAN.md` §3.)
 - **NFR-4** Deterministic tests via frozen golden scanner JSON; one count-tolerant live scan test.
 - **NFR-5** Credentials in memory only, never logged.
 
-## First working flow (barebones — acceptance target)
+## First working flow (barebones - acceptance target)
 
 ```mermaid
 sequenceDiagram
@@ -77,16 +77,16 @@ sequenceDiagram
 then discovered images are scanned (digest-deduped), findings are ingested without duplicates, and a
 simple table renders the results. Re-running preserves any triage state.
 
-## Work-item decomposition (→ `PLAN.md` milestones) — scanners → backend → rest
+## Work-item decomposition (→ `PLAN.md` milestones) - scanners → backend → rest
 - **WI-0** Scanner modules: Trivy + Grype adapters on a shared pipeline (discovery, credentials,
-  digest-dedup, normalize, `log_config` JSON|multiline, push-with-stub) + golden-fixture tests — *M0*
+  digest-dedup, normalize, `log_config` JSON|multiline, push-with-stub) + golden-fixture tests - *M0*
 - **WI-1** Backend skeleton + compose + OpenSearch **`system_` + data** index mappings (`dynamic:false`)
-  + bootstrap + ingest API (per-cluster token) — *M1*
-- **WI-2** Ingest dedup/identity + triage-state preservation (highest risk) — *M2*
-- **WI-3** Triage API + RBAC + auth + `system_audit_log` — *M3*
-- **WI-4** Search/aggregation API (scanner-faceted) + streaming sanitized CSV — *M4*
-- **WI-5** Barebones first-flow UI → Kibana-like dashboard (`UI-GUIDELINES.md`) — *M5*
-- **WI-6** Helm chart + docs + scanner attribution — *M6*
+  + bootstrap + ingest API (per-cluster token) - *M1*
+- **WI-2** Ingest dedup/identity + triage-state preservation (highest risk) - *M2*
+- **WI-3** Triage API + RBAC + auth + `system_audit_log` - *M3*
+- **WI-4** Search/aggregation API (scanner-faceted) + streaming sanitized CSV - *M4*
+- **WI-5** Barebones first-flow UI → Kibana-like dashboard (`UI-GUIDELINES.md`) - *M5*
+- **WI-6** Helm chart + docs + scanner attribution - *M6*
 
 ## Open questions
 - Capture EPSS/KEV (Grype) now for forward-compat, despite current-state-only MVP?

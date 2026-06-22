@@ -1,4 +1,4 @@
-# JAVV — Stack good-practices (Python/FastAPI · OpenSearch · Vue 3)
+# JAVV - Stack good-practices (Python/FastAPI · OpenSearch · Vue 3)
 
 > Curated, opinionated practices to adopt, tuned to JAVV's hard constraints: **no broker** (k8s
 > CronJobs + OpenSearch-only coordination), **server-side everything**, **multi-tenant by `cluster_id`**.
@@ -13,7 +13,7 @@
   Lint blocking calls with ruff's `ASYNC` rules.
 - **One `AsyncOpenSearch` client, lifespan-scoped, injected via `Depends`.** Create it in the `lifespan`
   context manager, stash on `app.state`, expose through a dependency. **`await client.close()` on
-  shutdown** (the async client owns an aiohttp session — not closing leaks connectors). Tune
+  shutdown** (the async client owns an aiohttp session - not closing leaks connectors). Tune
   `pool_maxsize` to expected concurrency.
 - **Pydantic v2 discipline.** `model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)` on
   **request** models (typo'd fields are a real bug class); `extra="ignore"` on models parsing OpenSearch
@@ -29,10 +29,10 @@
   is correlatable. Query bodies at DEBUG only.
 - **Testing async.** `pytest-asyncio` (`asyncio_mode=auto`); drive the app with
   `httpx.AsyncClient(transport=ASGITransport(app=app))`; run a **real containerized single-node
-  OpenSearch** for integration (mocking the client hides mapping/agg bugs — exactly the bugs you'll have).
+  OpenSearch** for integration (mocking the client hides mapping/agg bugs - exactly the bugs you'll have).
 - **Layout.** `routers/` (HTTP) · `services/` (logic, takes client as param, no FastAPI imports) ·
   `repositories/` (raw query bodies) · `models/` (Pydantic) · `core/` (settings/logging/lifespan) ·
-  `jobs/` (CronJob entrypoints reusing services — must **not** import FastAPI).
+  `jobs/` (CronJob entrypoints reusing services - must **not** import FastAPI).
 
 **Top 5 day-one:** async-only client paths (lint blocking calls) · single lifespan client `await`-closed ·
 `extra="forbid"` on requests + edge-validate `cluster_id` · `pydantic-settings`+`lru_cache` · test via
@@ -47,14 +47,14 @@ httpx ASGITransport against real OpenSearch.
   you also aggregate). **Never aggregate on `text`** (fielddata = memory landmine). Runtime fields only
   for rare late-derived values; never aggregate hot paths on them.
 - **`_bulk`: size by bytes (5–15 MB), always inspect per-item errors.** `_bulk` returns **HTTP 200 even
-  when items fail** — walk `response["errors"]` + `items[]` status. Retry `429 (es_rejected_execution)` /
+  when items fail** - walk `response["errors"]` + `items[]` status. Retry `429 (es_rejected_execution)` /
   503 with exponential backoff (that's your only flow control without a broker); log 4xx mapping errors,
   don't retry. Prefer `helpers.async_streaming_bulk`.
-- **Upsert with `detect_noop`** (keep on — skips writes/segment churn when unchanged). Conditional
+- **Upsert with `detect_noop`** (keep on - skips writes/segment churn when unchanged). Conditional
   newer-wins updates via a small Painless script comparing `@timestamp` so a late older scan can't clobber.
 - **PIT + `search_after`, not `scroll`.** Sort on a tiebreaker (`[@timestamp, _id]`); **delete the PIT in
   `finally:`**. UI DataTables: `from`/`size` within `max_result_window` (10k); beyond → PIT+`search_after`.
-- **Aggregation safety.** `max_buckets` (65 535) will abort big terms aggs — design around it.
+- **Aggregation safety.** `max_buckets` (65 535) will abort big terms aggs - design around it.
   **Composite aggs** with `after_key` paging for unbounded cardinality (CVE × image × ns over time).
   **`collapse` + `inner_hits`** for "latest doc per group" (cheaper than top-hits). Cap `terms` `size`.
 - **ISM / templates / aliases.** Time-series: **monthly rollover, 1 primary shard, partition by immutable
@@ -64,7 +64,7 @@ httpx ASGITransport against real OpenSearch.
   (component templates + per-series template). Watch total shard count.
 - **Refresh.** Never `refresh=true` in bulk ingest (forces flush, tanks throughput). `refresh="wait_for"`
   only on triage writes that must be visible to the same user's next read (blocks for next scheduled
-  refresh — cheaper than forcing one).
+  refresh - cheaper than forcing one).
 - **Shard sizing.** 10–50 GB/shard; default 1 primary per time index; scale by splitting on time, not
   adding shards. Over-sharding (tiny shards from per-tenant × daily) is the #1 self-inflicted perf problem.
 - **Injection safety.** Structured dict bodies only; user input goes into `term`/`terms`/`range` as
@@ -92,7 +92,7 @@ every tenant query carries an explicit `cluster_id` filter, structured bodies on
   → backend `from/size/sort/term` + `cluster_id`. `totalRecords` from `hits.total.value`. Debounce filter
   input ~300 ms. Beyond 10k offset → backend PIT+`search_after` cursor.
 - **vue-echarts performance.** Import ECharts **modules manually** (`use([BarChart, GridComponent,
-  CanvasRenderer, ...])`) — biggest bundle win. Wrap large `option` in **`shallowRef`** (deep reactivity
+  CanvasRenderer, ...])`) - biggest bundle win. Wrap large `option` in **`shallowRef`** (deep reactivity
   on big nested options = jank). `:autoresize="true"`. `markRaw()` any instance stored in reactive state.
   Large series → `large:true` / `sampling:'lttb'` + canvas renderer.
 - **Reactivity pitfalls.** `shallowRef`/`shallowReactive` for big server payloads swapped wholesale;
@@ -100,13 +100,13 @@ every tenant query carries an explicit `cluster_id` filter, structured bodies on
 - **TypeScript everywhere.** Generate FE types from FastAPI's OpenAPI (`openapi-typescript` / hey-api) so
   Pydantic ↔ TS can't drift. Brand `ClusterId`/`ImageDigest` as opaque types.
 - **Accessibility.** icon-only buttons get `aria-label`; ECharts `<canvas>` is invisible to screen
-  readers — pair each chart with an accessible data summary / offscreen table; **severity must carry
+  readers - pair each chart with an accessible data summary / offscreen table; **severity must carry
   text/shape, not color alone**; respect `prefers-reduced-motion`.
 - **Build.** Vite `manualChunks` (split PrimeVue/ECharts vendor); lazy-load route components + heavy chart
   views.
 - **Testing.** Vitest + `@testing-library/vue` (jsdom). Test behavior, mock the API layer (run real
   stores), assert the **emitted query params** on page/sort/filter (where bugs live). Don't snapshot
-  canvas — unit-test the pure option-builder function instead.
+  canvas - unit-test the pure option-builder function instead.
 
 **Top 5 day-one:** `<script setup lang="ts">` + composables · lazy server-side DataTable · `shallowRef` +
 `markRaw` + manual ECharts imports · generate FE types from backend OpenAPI · test option-builder +
@@ -114,8 +114,8 @@ emitted query params as pure units (mock API, real stores).
 
 ## Two flagged follow-ups
 1. The **no-broker backpressure story rests entirely on handling OpenSearch `429` correctly** in bulk /
-   CronJob paths — make the retry/backoff helper a shared, well-tested utility.
+   CronJob paths - make the retry/backoff helper a shared, well-tested utility.
 2. The **user-action ↔ vuln correlation** (scoped risk-acceptance without touching scanner indices) wants
-   its own mutable "decisions" index keyed by `(cluster_id, cve, scope)`, joined at query time — design it
+   its own mutable "decisions" index keyed by `(cluster_id, cve, scope)`, joined at query time - design it
    explicitly (this is exactly `system_exceptions` in [[PLAN_v3]] §5.7; the agent independently arrived at
-   the same shape — good signal).
+   the same shape - good signal).

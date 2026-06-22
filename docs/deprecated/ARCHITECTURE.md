@@ -1,4 +1,4 @@
-# JAVV — Architecture (current)
+# JAVV - Architecture (current)
 
 > Verbose end-to-end view of the locked design: the drop-in dual-scanner module in each cluster, the
 > private/token ingest hop, the central FastAPI backend, the OpenSearch single store (data + `system_*`
@@ -11,15 +11,15 @@ flowchart TB
     Admin["Admin"]
 
     %% ================= Cluster (one per monitored cluster) =================
-    subgraph CLUSTER["k8s cluster — any number; each runs the drop-in scanner"]
+    subgraph CLUSTER["k8s cluster - any number; each runs the drop-in scanner"]
         direction TB
         K8SAPI["kube-apiserver"]
         REG["Private container registry"]
         TBIN["trivy binary"]
         GBIN["grype binary"]
-        VDB["Vuln DBs — GHCR upstream<br/>trivy-db / grype-db"]
+        VDB["Vuln DBs - GHCR upstream<br/>trivy-db / grype-db"]
 
-        subgraph SCAN["Scanner module — Python package, runs as Job/CronJob"]
+        subgraph SCAN["Scanner module - Python package, runs as Job/CronJob"]
             direction TB
             CLI["cli.py / __main__<br/>entrypoint"]
             CFG["config.py<br/>env config"]
@@ -37,10 +37,10 @@ flowchart TB
     end
 
     %% ================= JAVV (central) =================
-    subgraph JAVV["JAVV — runs centrally, no cluster access"]
+    subgraph JAVV["JAVV - runs centrally, no cluster access"]
         direction TB
 
-        subgraph API["Backend — FastAPI, OpenAPI at /docs"]
+        subgraph API["Backend - FastAPI, OpenAPI at /docs"]
             direction TB
             INGEST["Ingest endpoint<br/>per-cluster token auth<br/>normalize envelope"]
             UPSERT["Dedup / upsert<br/>_id = finding_key<br/>preserve triage state · auto-resolve"]
@@ -52,7 +52,7 @@ flowchart TB
             BOOT["Index bootstrap<br/>explicit mappings · dynamic:false"]
         end
 
-        subgraph OS["OpenSearch — single store"]
+        subgraph OS["OpenSearch - single store"]
             direction TB
             subgraph DATA["Data indexes"]
                 direction TB
@@ -60,7 +60,7 @@ flowchart TB
                 I[("images")]
                 O[("occurrences")]
             end
-            subgraph SYS["System indexes — system_*"]
+            subgraph SYS["System indexes - system_*"]
                 direction TB
                 SU[("system_users")]
                 SR[("system_roles")]
@@ -71,7 +71,7 @@ flowchart TB
             end
         end
 
-        subgraph FE["Frontend — Vue 3 · PrimeVue · vue-echarts"]
+        subgraph FE["Frontend - Vue 3 · PrimeVue · vue-echarts"]
             direction TB
             FLOW["Barebones first-flow<br/>discover → scanner dropdown → scan → table"]
             DASH["Kibana-like dashboard<br/>KPI tiles · donut · trends · dense tables"]
@@ -146,18 +146,18 @@ flowchart TB
 ```
 
 ## How to read it (data flow)
-1. **Discovery** — the scanner's `discovery.py` calls the kube-apiserver to list namespaces/workloads/
+1. **Discovery** - the scanner's `discovery.py` calls the kube-apiserver to list namespaces/workloads/
    running images and reads the `kube-system` UID as the immutable `cluster_id`; `dedup.py` collapses to
    unique image **digests**.
-2. **Scan** — for the selected tool, the `trivy`/`grype` adapter invokes its binary, which pulls the image
+2. **Scan** - for the selected tool, the `trivy`/`grype` adapter invokes its binary, which pulls the image
    from the (private) registry using creds resolved by `credentials.py`, and the matching vuln DB.
-3. **Normalize** — each adapter maps its raw JSON into the shared `NormalizedFinding`, stamping
+3. **Normalize** - each adapter maps its raw JSON into the shared `NormalizedFinding`, stamping
    `scanner = trivy|grype`.
-4. **Push** — `push.py` POSTs per-image, gzipped and retried, over the **private network** with a
+4. **Push** - `push.py` POSTs per-image, gzipped and retried, over the **private network** with a
    **per-cluster token** to the ingest endpoint.
-5. **Ingest** — the backend authenticates the token, upserts by `_id = finding_key` (preserving triage
+5. **Ingest** - the backend authenticates the token, upserts by `_id = finding_key` (preserving triage
    state, auto-resolving absent CVEs) into the **data indexes** (`findings`/`images`/`occurrences`).
-6. **Operate** — triage/tagging/search/CSV act over OpenSearch; auth/RBAC and audit use the **`system_*`
+6. **Operate** - triage/tagging/search/CSV act over OpenSearch; auth/RBAC and audit use the **`system_*`
    indexes**; the frontend (barebones first-flow → Kibana-like dashboard) reads through the backend APIs.
 
 > Diagram per the working agreement: **Mermaid, not ASCII.** Keep this file updated as the architecture

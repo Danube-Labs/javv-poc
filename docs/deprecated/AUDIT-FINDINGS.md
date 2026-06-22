@@ -1,4 +1,4 @@
-# JAVV — Audit Findings (2026-06-09)
+# JAVV - Audit Findings (2026-06-09)
 
 > External-research audit by 4 parallel research agents (data architecture, ingest pipeline, backend
 > stack, frontend + domain). Scope: **does JAVV scale over time with lots of ingested data, what are the
@@ -7,7 +7,7 @@
 > unchanged for now (fold in later when you choose).
 
 ## Headline verdict
-**JAVV scales for the MVP and well beyond — *if* three cheap-now / expensive-later items are fixed.**
+**JAVV scales for the MVP and well beyond - *if* three cheap-now / expensive-later items are fixed.**
 The core design (OpenSearch-only data plane, FastAPI, decoupled dual-scanner, Vue 3 + ECharts) is sound;
 nothing invalidates the thesis. But two stated assumptions are wrong and one core mechanism is a latent
 anti-pattern (below).
@@ -23,8 +23,8 @@ anti-pattern (below).
 | 5 | **App-sec gaps** (we're a security product) | CSV/formula injection, IDOR, cross-tenant leaks are doubly damaging here | Escape CSV cells; per-request authz on every fetch **and export**; tenant isolation in the **query layer**, never UI-only | Low–Med |
 
 ## 1. Data architecture (OpenSearch single store)
-**Verdict: keep OpenSearch as the single store for the data plane — it's the right fit.** Risks & config:
-- **Upsert churn** (risk #1) — the dominant scale cost; fix with no-op detection + merge tuning
+**Verdict: keep OpenSearch as the single store for the data plane - it's the right fit.** Risks & config:
+- **Upsert churn** (risk #1) - the dominant scale cost; fix with no-op detection + merge tuning
   (`reclaim_deletes_weight` > 2.0, `max_merged_segment` ~1 GB, periodic `only_expunge_deletes=true`).
 - **Shard/mapping discipline:** primaries **10–30 GB** (search) up to ~50 GB (write-heavy); never >50 GB;
   ≤20–25 shards/GB heap. **Explicit static mappings, `dynamic:false`**; `keyword` for IDs/enums; reshape
@@ -36,7 +36,7 @@ anti-pattern (below).
   **Decision:** stay OpenSearch-only, but isolate `system_*` behind a **repository interface** so a later
   SQLite/Postgres swap for just that slice is localized. No new dependency now.
 - **Alternative datastores:** ClickHouse wins on aggregation-at-scale but fights our mutable-triage upsert
-  pattern and lacks Kibana-like UX — credible **migration target only if** we later add historical series.
+  pattern and lacks Kibana-like UX - credible **migration target only if** we later add historical series.
   OpenSearch is the right pragmatic choice now.
 
 ## 2. Ingest pipeline
@@ -53,7 +53,7 @@ degrades.** Scale-threshold guide:
 - **Vuln-DB caching (important even pre-scale):** mirror/cache trivy-db & grype-db; refresh on a schedule,
   not per-scan, to avoid GHCR rate limits across the fleet.
 - **Lightweight libs:** `httpx.AsyncClient` + **`tenacity`** (jittered retry); bounded `asyncio.Semaphore`
-  for in-cluster backpressure; a k8s `Job` with `parallelism` is enough — no Airflow/Celery.
+  for in-cluster backpressure; a k8s `Job` with `parallelism` is enough - no Airflow/Celery.
 
 ## 3. Backend / stack
 **Verdict: keep FastAPI** (Litestar's edge is serialization speed, irrelevant when OpenSearch I/O is the
@@ -75,7 +75,7 @@ bottleneck; DRF/Flask/Starlette are worse fits). **Do-from-day-one or pay a rewr
 rows reported). Keep PrimeVue for chrome (tiles/filters/dialogs/facets); drive big grids **server-side lazy**,
 or move the core grids to **AG Grid / TanStack Table** (see `UI-tools.md` for the comparison + your decision).
 - **Push everything server-side:** pagination/sort/filter/facet (incl. Trivy/Grype facet) + KPI/donut/trend
-  via OpenSearch **aggregations** (`terms`, `date_histogram`) — never ship raw findings to compute counts.
+  via OpenSearch **aggregations** (`terms`, `date_histogram`) - never ship raw findings to compute counts.
 - **CSV export server-side + streamed**; async job for very large exports.
 - **ECharts:** canvas renderer, `manual-update` for big/frequent series; downsample server-side.
 - **Do NOT embed OpenSearch Dashboards as the main UI** (double-auth, fragile multi-tenancy = data-leak risk,
@@ -83,26 +83,26 @@ or move the core grids to **AG Grid / TanStack Table** (see `UI-tools.md` for th
 
 ## 5. Domain lessons (DefectDojo / Dependency-Track scars)
 - **Dedup must be batch + alias-aware.** DefectDojo's per-finding dedup made 1k findings take minutes (fixed
-  by batching). Trivy vs Grype report the same CVE under different advisory IDs (CVE/GHSA) — our
+  by batching). Trivy vs Grype report the same CVE under different advisory IDs (CVE/GHSA) - our
   **scanner-faceting already prevents cross-scanner double-counting**.
-- **Preserve triage state across rescans** (FP / risk-accepted must survive) — covered by `finding_key` +
+- **Preserve triage state across rescans** (FP / risk-accepted must survive) - covered by `finding_key` +
   no-op upsert. Add **risk-acceptance with expiry**.
 - **Cap/roll up duplicates**; don't persist every re-scan occurrence forever (ties to ISM on `occurrences`).
 - **Recompute metrics async**, never synchronously on dashboard load (DT's crawl was metric recompute).
-- Both tools hit a wall at 10k–100k findings when list/aggregate isn't fully server-side/indexed — JAVV's
+- Both tools hit a wall at 10k–100k findings when list/aggregate isn't fully server-side/indexed - JAVV's
   OpenSearch design avoids their Postgres bottleneck **if** we keep all list/agg server-side.
 
 ## 6. App-security must-dos
-1. **CSV/formula injection** — prefix cells starting with `= + - @`/tab/CR with `'` (known ✅).
-2. **IDOR** — re-check the caller's entitlement on **every** finding/image fetch *and* export; never trust a client ID.
-3. **Tenant isolation in the OpenSearch query layer** (per-tenant index/alias filter or document-level security) — one missing filter = cross-tenant spill.
-4. **Query-DSL injection** — parameterize; never string-concat user input into queries. Rate-limit search/export.
+1. **CSV/formula injection** - prefix cells starting with `= + - @`/tab/CR with `'` (known ✅).
+2. **IDOR** - re-check the caller's entitlement on **every** finding/image fetch *and* export; never trust a client ID.
+3. **Tenant isolation in the OpenSearch query layer** (per-tenant index/alias filter or document-level security) - one missing filter = cross-tenant spill.
+4. **Query-DSL injection** - parameterize; never string-concat user input into queries. Rate-limit search/export.
 
 ## Decisions taken (2026-06-09)
 - **Scanner:** **keep direct image scans** (each tool scans the image filesystem). SBOM-first (Syft → both
-  tools) **rejected** for now — accept double analysis for simplicity. (Revisit if scan time hurts at scale.)
+  tools) **rejected** for now - accept double analysis for simplicity. (Revisit if scan time hurts at scale.)
 - **`system_*`:** OpenSearch-only retained; access isolated behind a **repository interface** (escape hatch).
-- **Table engine:** pending your decision — see `UI-tools.md`.
+- **Table engine:** pending your decision - see `UI-tools.md`.
 
 ## Do-now hardening checklist (cheap, regardless of scale)
 - [ ] No-op upsert (content hash + `detect_noop`)

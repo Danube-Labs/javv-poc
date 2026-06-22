@@ -1,22 +1,22 @@
-# JAVV — Spec (v3)
+# JAVV - Spec (v3)
 
 > **Revision 3 (2026-06-20).** Supersedes `docs/ADR/SPEC.md` (v2). Requirements reflecting the v3 design
 > dialogue. Companions: `PLAN_v3.md` (decisions/data-model/milestones), `ARCHITECTURE_v3.md` (flows),
-> `design_handoff_javv/` (UI reference — *reference point, not a frozen 1:1 contract*). Diagrams: Mermaid.
+> `design_handoff_javv/` (UI reference - *reference point, not a frozen 1:1 contract*). Diagrams: Mermaid.
 
 ## Intent
 A lightweight, k8s-runtime-native tool that ingests **Trivy AND Grype** results, lets teams **audit and
 triage** findings with a durable, **VEX-aligned** lifecycle, and gives **Kibana-grade dashboards + trends +
-one-click CSV** over what's *actually running* — the seam between view-only scanner-dashboards (no triage)
+one-click CSV** over what's *actually running* - the seam between view-only scanner-dashboards (no triage)
 and rigid triage tools (no flexible reporting).
 
 ## Actors
-- **Triager** (Operator+) — reviews, filters, triages, exports.
-- **Security Lead** — approves exceptions, edits SLA.
-- **Admin** — users/roles, tags, per-(cluster,scanner) tokens, **retention policy**, scanner config.
-- **Scanner module** — automated client: discover → scan → push.
+- **Triager** (Operator+) - reviews, filters, triages, exports.
+- **Security Lead** - approves exceptions, edits SLA.
+- **Admin** - users/roles, tags, per-(cluster,scanner) tokens, **retention policy**, scanner config.
+- **Scanner module** - automated client: discover → scan → push.
 
-(RBAC matrix: Viewer < Auditor < Operator < Security Lead < Admin — see `design_handoff_javv/DATA_MODEL.md`.)
+(RBAC matrix: Viewer < Auditor < Operator < Security Lead < Admin - see `design_handoff_javv/DATA_MODEL.md`.)
 
 ## Functional requirements
 
@@ -27,13 +27,13 @@ and rigid triage tools (no flexible reporting).
 - **FR-3 Ingest.** Scanner **normalizes** Trivy/Grype JSON into the shared shape and pushes per-image,
   gzipped, retried (backoff+jitter, dead-letter), to `POST /api/v1/ingest/scan` over a private network with
   a per-`(cluster,scanner)` token. The endpoint **validates** the versioned envelope (`/v1` +
-  `schema_version`) and is **hardened** (NFR-7) — it never parses raw scanner JSON. Each push carries
+  `schema_version`) and is **hardened** (NFR-7) - it never parses raw scanner JSON. Each push carries
   `scan_run_id` (observability).
 - **FR-4 Dedup/identity.** Upsert `findings` by `_id = finding_key = hash(cluster_id + image_digest +
   scanner + cve_id + package_name + installed_version)`. **No-op for unchanged findings** (content-hash +
   `detect_noop`); `last_seen` day-granularity; re-ingest **preserves all human-owned fields** (one shared
   preserved-fields script). Per-scanner rows, **never merged**.
-- **FR-5 Logs / trends.** On every ingest, append an **immutable** event to `javv-scan-events-*` — one doc
+- **FR-5 Logs / trends.** On every ingest, append an **immutable** event to `javv-scan-events-*` - one doc
   per **(image, scanner, scan)** carrying severity *counts* + image/namespace dimensions + `@timestamp`.
   The trends source. Partitioned per `cluster_id`; lifecycle per FR-19.
 - **FR-5b Per-finding history (point-in-time).** On every ingest, also append immutable **per-finding**
@@ -42,8 +42,8 @@ and rigid triage tools (no flexible reporting).
   (rides skip-unchanged) **+ close-events**: when a finding disappears from a **successfully scanned** image
   (per-image diff at ingest, guarded by `scan_run_id`/scan-success so failed scans never false-close),
   append a `status: closed` event. Enables exact reconstruction of *"image X's CVE list (+ as-of-then
-  severities) at time T"* and the symmetric *"which images had CVE-Y at T"* — the **same query, filter
-  swapped** (collapse on `finding_key`, latest `@timestamp ≤ T`, drop `closed`). **NON-downsampled** —
+  severities) at time T"* and the symmetric *"which images had CVE-Y at T"* - the **same query, filter
+  swapped** (collapse on `finding_key`, latest `@timestamp ≤ T`, drop `closed`). **NON-downsampled** -
   accurate-history horizon = its raw `retention_days`.
 - **FR-6 Staleness lifecycle.** A finding not re-pushed within a **cadence-relative window** (~3× cluster
   cadence, per-cluster) → `stale` (daily sweep). Sweep **skips clusters with no recent successful ingest**
@@ -80,7 +80,7 @@ and rigid triage tools (no flexible reporting).
   state (exact CVE list + as-of-then severities) reconstructed from `javv-finding-occurrences-*` (FR-5b),
   within the raw retention horizon; "didn't exist then" when there is no occurrence ≤ T.
 - **FR-15 Contributors / trends (MVP).** Resolved-over-time, median TTR (`resolved_at − first_seen`),
-  SLA-hit %, leaderboard — all from `system_audit_log` + `findings`; scoped by the global time-range picker.
+  SLA-hit %, leaderboard - all from `system_audit_log` + `findings`; scoped by the global time-range picker.
 - **FR-16 Notifications (MVP, per-user).** `system_notifications` populated with the user's SLA breaches +
   new assignments; bell badge; polling (no broker).
 - **FR-17 Saved views (MVP, per-user).** `system_saved_views` named filter sets; cards deep-link into
@@ -98,7 +98,7 @@ and rigid triage tools (no flexible reporting).
 - **FR-21 Risk metadata.** Capture **EPSS/KEV** from Grype (explicit mapped fields; absent for Trivy).
 - **FR-22 VEX import/export (MVP).** **Export** (M4): serialize `state`/`vex_justification` → OpenVEX/
   CycloneDX (consumable by Trivy/Grype `--vex`). **Import** (M4–M5): a VEX `not_affected` statement becomes
-  a `system_exceptions` record routed through the existing projection engine (FR-8) — **not** a separate
+  a `system_exceptions` record routed through the existing projection engine (FR-8) - **not** a separate
   VEX subsystem. The two-field model (FR-7) is what makes both additive rather than a rewrite.
 
 ## Non-functional requirements
@@ -114,23 +114,23 @@ and rigid triage tools (no flexible reporting).
 - **NFR-5 Credentials in memory only, never logged.**
 - **NFR-6 Backups/availability + retention horizons.** Scheduled snapshots to S3/MinIO with **tested
   restore**; single-node prod only with snapshots. **Independent retention per purpose:**
-  `javv-finding-occurrences-*` (per-cluster — sets the accurate-history horizon, the main cost lever, kept
-  NON-downsampled); `javv-scan-events-*` (per-cluster — trends); `system_audit_log` (small → keep long,
+  `javv-finding-occurrences-*` (per-cluster - sets the accurate-history horizon, the main cost lever, kept
+  NON-downsampled); `javv-scan-events-*` (per-cluster - trends); `system_audit_log` (small → keep long,
   compliance-aware → bounds Contributors/audit history); current-state has no time-retention. HA is **not
-  JAVV-built** — OpenSearch multi-node + replica shards + stateless app `replicas`; single-node is a SPOF
+  JAVV-built** - OpenSearch multi-node + replica shards + stateless app `replicas`; single-node is a SPOF
   by design.
 - **NFR-7 Ingest hardening.** `AsyncOpenSearch` + `_bulk`; `refresh_interval: 30s` on data indexes with
   `refresh=wait_for` on **triage writes only**; per-token rate-limit (`slowapi`, in-proc) → 429+Retry-After;
   bounded `asyncio.Semaphore` (ingest + bulk) → 503; **max compressed (~5 MB) + streamed decompressed
   (~50 MB) caps** → 413 (gzip-bomb guard, never one-shot decompress); Pydantic v2 `extra="forbid"` +
   per-field `max_length` + bounded arrays; **structured OpenSearch query bodies, never string-concat**
-  (query-DSL-injection guard); **do not sanitize field values** (UTF-8/emoji safe — risk is field-names/
+  (query-DSL-injection guard); **do not sanitize field values** (UTF-8/emoji safe - risk is field-names/
   `query_string`/`script`); bearer tokens SHA-256-hashed at rest, `hmac.compare_digest`, rotatable.
-- **NFR-8 Observability first** (FR-20) — M1, not M6.
+- **NFR-8 Observability first** (FR-20) - M1, not M6.
 - **NFR-9 No extra infrastructure.** **No Redis, Kafka, RabbitMQ, or broker** (hard constraint). Jobs are
   k8s CronJobs (`concurrencyPolicy: Forbid`); coordination via OpenSearch. Multi-replica rate-limiting is
   per-replica (accepted approximation).
-- **NFR-10 Idempotent/resumable jobs** (no durable-execution engine) — condition-based sweep +
+- **NFR-10 Idempotent/resumable jobs** (no durable-execution engine) - condition-based sweep +
   deterministic-`_id` rollup over immutable sources.
 - **NFR-11 Vuln-DB** mirror/cache, scheduled refresh, PVC cache volume (never re-download per run).
 
@@ -165,8 +165,8 @@ preserves triage; staleness/exception projection behave per FR-6/FR-8.
 - **Promoted to MVP (this revision):** per-finding occurrence history + point-in-time (FR-5b/FR-14); VEX
   export + import-via-exceptions (FR-22).
 - **v1.1 fast-follow (high-prio post-MVP):** Jira ticket push; dashboard **builder** (power-user add-on
-  only — saved views stay the default).
+  only - saved views stay the default).
 - **Deferred:** `javv-metrics-*` downsample tier; CEL/expression policies; LDAP/OIDC.
-- **HA:** OpenSearch-native (multi-node + replicas) + stateless app replicas — not JAVV-built.
+- **HA:** OpenSearch-native (multi-node + replicas) + stateless app replicas - not JAVV-built.
 - **Explicit non-goals:** supply-chain hash-integrity checking; **cross-scanner merge** (disagreement flags
-  only — never an averaged row).
+  only - never an averaged row).
