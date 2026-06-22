@@ -6,7 +6,7 @@
 > projection-on-new-only, two-timer staleness, vuln-age-at-read, pinned `apply_both` semantics, an explicit
 > HA/multi-pod section, scheduled/throttled export, envelope-versioning policy, an Admin "Data & OpenSearch"
 > panel, and a **re-sequenced, more granular milestone set**. Companions: `SPEC_v4.md`, `ARCHITECTURE_v4.md`.
-> UI reference: `design_handoff_javv/`. Working root: `D:\Github\Claude\projects\javv`. Repo: `javv-poc`
+> UI reference: `handoff/v4/`. Working root: `D:\Github\Claude\projects\javv`. Repo: `javv-poc`
 > (`git@github.com:Danube-Labs/javv-poc.git`). Vendor: **Danube Labs**. License: **BUSL 1.1** (→ Apache-2.0
 > on 2030-06-10). Process: **specs.md FIRE flow, autonomy level 1 (Confirm)**. *Milestone = bolt.*
 
@@ -14,7 +14,7 @@
 
 ## 0. How to read this set
 
-- **`design_handoff_javv/`** — UI/product reference (12 screens, tokens, React prototype). v4 targets it as
+- **`handoff/v4/`** — UI/product reference (12 screens, tokens, React prototype). v4 targets it as
   closely as backend constraints allow; **divergences are expected and noted, not silently taken** — see the
   "UI extends beyond handoff" list in §8 (M9).
 - **`docs/ADR/V4/` (this set)** — canonical engineering plan/spec/architecture.
@@ -38,7 +38,7 @@
 
 ## 1. Identity / Brand
 Unchanged from v3. Lens-over-Danube-dusk mark; teal/slate; **severity-color firewall** (coral/amber are
-brand; the red→blue severity ramp is *data*). Full guide: `design_handoff_javv/brand/BRAND.md`.
+brand; the red→blue severity ramp is *data*). Full guide: `handoff/v4/brand/BRAND.md`.
 
 ## 2. Context & market fit
 Unchanged. The seam JAVV fills: **audit/triage workflow + flexible reporting, k8s-runtime-native,
@@ -671,7 +671,7 @@ Each ends on a verifiable check + Confirm gate.
      image-set-for-CVE-at-T resolved via the catalog (**not** "latest snapshot per digest"); **a digest that
      dropped CVE-Y by T does NOT appear** (false-positive guard); a failed scan never makes a vuln look fixed;
      results labelled **as-scanned** with `repo:tag`→digest navigation (F3/F4).
-10. **M9 — Frontend (reusable-first; per `design_handoff_javv`, reference not 1:1):**
+10. **M9 — Frontend (reusable-first; per `handoff/v4`, reference not 1:1):**
     - **M9a — Shell + tokens + reusable filter module** (the `fields`-config driving FacetRail + FilterBar).
     - **M9b — Findings grid + detail/triage (core loop). Gate** before the long tail.
     - **M9c — Overview / all-clusters / images** (incl. **point-in-time image view** via the time picker).

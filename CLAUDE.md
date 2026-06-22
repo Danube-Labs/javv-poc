@@ -3,7 +3,7 @@
 > Project-scoped guidance for building JAVV (this folder). The repo of record is **`javv-poc`**
 > (`git@github.com:Danube-Labs/javv-poc.git`); this `javv/` folder is the working copy. Canonical design
 > lives in **`docs/ADR/V4/`** (PLAN_v4 · SPEC_v4 · ARCHITECTURE_v4); V3 and earlier are frozen for the
-> evolution trail. UI reference: `design_handoff_javv/` (a *reference point, not a 1:1 contract*). Research
+> evolution trail. UI reference: `handoff/v4/` (a *reference point, not a 1:1 contract*). Research
 > backing the v4 revision: `docs/research/`.
 
 ## Stack (fixed)

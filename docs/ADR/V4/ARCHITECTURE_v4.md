@@ -4,7 +4,7 @@
 > the hybrid data model + the v4 refinements: `system-exceptions`→`system-decisions`, raw-fidelity keyword
 > normalizer, rebuildable triage state (partial-merge + rebuild job), idempotent appends, full-snapshot
 > point-in-time (no close events), scheduled/throttled export, and an explicit HA/multi-pod section. Source of
-> decisions: `PLAN_v4.md` / `SPEC_v4.md`. UI reference: `design_handoff_javv/`. Diagrams: Mermaid.
+> decisions: `PLAN_v4.md` / `SPEC_v4.md`. UI reference: `handoff/v4/`. Diagrams: Mermaid.
 
 ## 1. System diagram
 
@@ -321,7 +321,7 @@ OpenSearch nodes / a coordinating node. Never a second datastore (D11).
 - **Diagrams are Mermaid** (working agreement). Keep this file current as the architecture evolves.
 - **Tenant isolation** enforced in the query layer (`cluster_id` filter on every read/export), never UI-only.
   **RBAC** gates mutations client- and server-side; **every** triage action is journaled.
-- The frontend recreates `design_handoff_javv/` in Vue 3 — keep the `fields`-config pattern verbatim; treat
+- The frontend recreates `handoff/v4/` in Vue 3 — keep the `fields`-config pattern verbatim; treat
   the JSX prototype as executable spec. Expected UI extensions beyond the handoff: `not_affected`+
   justification pickers, the scoped risk-accept dialog, the inventory staleness banner, the export
   now/off-peak dialog (see `PLAN_v4` M9).

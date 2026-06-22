@@ -2,7 +2,7 @@
 
 > **Revision 4 (2026-06-21).** Supersedes `docs/ADR/V3/SPEC_v3.md` (frozen). Reflects the post-v3 audit
 > dialogue. Companions: `PLAN_v4.md` (decisions/data-model/milestones), `ARCHITECTURE_v4.md` (flows),
-> `design_handoff_javv/` (UI reference — *reference point, not a 1:1 contract*). Diagrams: Mermaid.
+> `handoff/v4/` (UI reference — *reference point, not a 1:1 contract*). Diagrams: Mermaid.
 > Key v4 changes: `system-exceptions`→`system-decisions`; raw-fidelity via keyword normalizer; rebuildable
 > triage state; idempotent appends; projection-on-new-only; two-timer staleness; VEX **import → v1.1**
 > (export stays); scheduled/throttled export; envelope-versioning policy; Admin Data & OpenSearch panel.

@@ -1,6 +1,6 @@
 # JAVV — UI update brief for Claude Design (v4)
 
-> **Purpose.** Bring the existing UI prototype (`design_handoff_javv/`) up to the v4 design. This is a
+> **Purpose.** Bring the existing UI prototype (`handoff/v4/`) up to the v4 design. This is a
 > **delta brief** — *extend the handoff, don't rebuild it.* The 12-screen prototype, the `fields`-config
 > filter pattern, the brand, and the design tokens all stay; this lists what's **new or changed** in v4 and
 > the rules that apply everywhere. Canonical engineering source: `PLAN_v4.md` / `SPEC_v4.md` /
@@ -11,7 +11,7 @@
 A lightweight, Kubernetes-runtime container-vulnerability **triage** tool. Trivy + Grype scan running images
 and push to a FastAPI + OpenSearch backend; the UI lets teams **audit and triage** findings with a
 VEX-aligned lifecycle, **Kibana-grade dashboards + trends**, **one-click CSV**, and — new in v4 —
-**whole-app time-travel**. Per-scanner data is **never merged**. Brand + tokens: `design_handoff_javv/brand/`
+**whole-app time-travel**. Per-scanner data is **never merged**. Brand + tokens: `handoff/v4/brand/`
 (severity color **firewall**: coral/amber are brand; the red→blue ramp is *data*, never brand).
 
 ---
@@ -150,6 +150,6 @@ Cross-scanner merge; live pod state / real-time running indicator; VEX *import* 
 dashboard *builder* (saved views are the default); anything implying live historical deployment state.
 
 ## 5. Deliverables
-Update `design_handoff_javv/` (SCREENS + prototype) to cover §2, with the §1 global rules woven through every
+Update `handoff/v4/` (SCREENS + prototype) to cover §2, with the §1 global rules woven through every
 screen. Keep the `fields`-config filter pattern and the existing tokens/brand. Flag any place the new
 requirements conflict with the old prototype so engineering can reconcile.
