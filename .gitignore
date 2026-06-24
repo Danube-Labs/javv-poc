@@ -33,3 +33,6 @@ grype-cache/
 Thumbs.db
 .idea/
 .vscode/
+
+# Claude Code — personal local settings (team config lives in .claude/settings.json)
+.claude/settings.local.json
