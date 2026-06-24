@@ -12,6 +12,7 @@ own goal, deliverables, and bolt-specific gates, and links here for everything s
 | [definition-of-done.md](definition-of-done.md) | The uniform gate **every** bolt must pass before it's "done" |
 | [testing.md](testing.md) | Test taxonomy (unit / integration / golden fixtures) + conventions |
 | [git-workflow.md](git-workflow.md) | Branch naming, commits, PR checklist, merge rules |
+| [releases.md](releases.md) | Versioning + release automation (release-please) + dependency updates (Renovate) |
 | [bolt-readme-template.md](bolt-readme-template.md) | Copy this when starting a new bolt README |
 
 ## Don't duplicate - point
