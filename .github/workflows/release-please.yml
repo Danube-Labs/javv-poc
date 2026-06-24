@@ -1,0 +1,25 @@
+name: release-please
+
+# Maintains a standing "release PR" that accumulates conventional-commit changelog
+# entries + the next SemVer bump. Merging that PR cuts the tag, GitHub Release, and
+# CHANGELOG. See development/standards/releases.md.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          # Manifest mode: reads release-please-config.json + .release-please-manifest.json.
+          # Uses the default GITHUB_TOKEN. NOTE: PRs opened with GITHUB_TOKEN do not
+          # trigger other workflows (e.g. CI) — switch to a PAT/App token if the release
+          # PR needs CI to run on it.
+          token: ${{ secrets.GITHUB_TOKEN }}
