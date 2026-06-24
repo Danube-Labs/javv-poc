@@ -25,3 +25,4 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 ## main
 - Protected. No direct pushes; PR + green CI + review to merge.
 - Tag releases when the deploy bolt (M10) produces something shippable.
+- Versioning + release/dependency automation (release-please, Renovate): see [releases.md](releases.md).
