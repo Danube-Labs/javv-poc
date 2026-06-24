@@ -1,0 +1,37 @@
+<!--
+Copy this file to development/bolts/M<n>-<slug>/README.md and fill it in.
+Keep it THIN: link to the canonical design for the "what/why"; this file is the EXECUTION layer only.
+Do NOT restate index mappings, requirements, or decisions - link to them. Restating = drift.
+Code does NOT live in this folder - it lands in backend/ / frontend/ / scanner/ / deploy/.
+-->
+
+# M<n> - <Title>
+
+**Status:** `not-started` | `in-progress` | `blocked` | `done`
+
+## Goal
+1-2 sentences. What this bolt delivers and why it exists.
+
+**Canonical refs:** [`PLAN_v4 §8 M<n>`](../../../docs/engineering/V4/PLAN_v4.md) ·
+`SPEC_v4 FR-<…>` · [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (indices touched) · decisions `D<…>`
+
+## Depends on
+- M<…> (why). "None" if it's a leaf with no prerequisites.
+
+## Deliverables
+The actual files/modules this bolt creates - **in the layered tree, not here**:
+- `backend/…` / `scanner/…` / `frontend/…` / `deploy/…`
+
+## Definition of Done
+Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**:
+- <bolt-specific gate 1 - usually the PLAN "Gate" check, as an automated test>
+- <bolt-specific gate 2>
+
+## Tests to write
+See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:
+- **Unit:** …
+- **Integration (real OpenSearch):** …
+- **Golden fixtures:** …
+
+## Out of scope (defer)
+- <thing> → deferred to M<…>.
