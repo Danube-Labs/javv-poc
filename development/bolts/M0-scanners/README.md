@@ -25,6 +25,10 @@ A standalone Python package (runs in-cluster as a Job/CronJob, `Forbid` concurre
   monotonic `scan_order`, full-precision `last_seen_at`, `schema_version`.
 - `scanner/push.py` - POST to `/ingest/scan`: gzip, **backoff + jitter**, **dead-letter** on permanent failure,
   idempotent (deterministic content so a retried push double-counts nothing).
+- **`Dockerfile.trivy` + `Dockerfile.grype`** - **one self-built image per scanner**, each with a **pinned
+  scanner version** + the JAVV scanner entrypoint. JAVV owns these images for full control over scanner
+  version / flags / supply chain. **Never the Trivy Operator / Starboard or any third-party operator.**
+  (Helm/CronJob wiring → M10.)
 
 > No backend yet - M0's push target is a fixture/mock; the real round-trip is M1's gate.
 

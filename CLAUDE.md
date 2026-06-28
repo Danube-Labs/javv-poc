@@ -19,6 +19,9 @@ single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scann
   filter (enforced in the query layer, never UI-only). Route indices on `cluster_id`, never the
   relabelable `cluster_name`.
 - **Per-scanner is sacred** - never dedupe/merge a CVE across scanners; disagreement flags only.
+- **Scanners are self-built images** - one JAVV-built Dockerfile per scanner (`Dockerfile.trivy`,
+  `Dockerfile.grype`, pinned scanner version + our entrypoint), run as CronJobs. **Never the Trivy
+  Operator / Starboard or any third-party scanner operator** - own the images for version/supply-chain control.
 - **Diagrams are Mermaid** (working-agreement). `docs/deprecated/original_notes_for_app.md` is read-only.
 
 ## Use these skills (when the work matches)
