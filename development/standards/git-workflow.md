@@ -13,7 +13,9 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 - Imperative, present tense, lower-case subject. Body explains *why* when non-obvious.
 - Reference the bolt where useful: `feat(M1): hardened POST /ingest/scan`.
 - Footer on AI-assisted commits: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
-- **Never** `--no-verify` / skip hooks. If a hook fails, fix the cause.
+- **Never** `--no-verify` / skip hooks. If a hook fails, fix the cause. Hooks are wired by
+  [`.pre-commit-config.yaml`](../../.pre-commit-config.yaml) (ruff + the conventional-commit check, same
+  6 types as CI commitlint); `setup-dev.sh` installs them.
 
 ## Pull requests
 - Target `main`; keep them reviewable (small > big).

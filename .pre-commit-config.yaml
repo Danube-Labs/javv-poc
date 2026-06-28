@@ -1,0 +1,33 @@
+# Local quality hooks (AUDIT.md N2) — surface lint/format/commit-message problems before they
+# reach CI. setup-dev.sh installs this for you; never bypass with --no-verify (git-workflow.md).
+#   uv tool install pre-commit && pre-commit install && pre-commit install --hook-type commit-msg
+minimum_pre_commit_version: "3.5.0"
+default_install_hook_types: [pre-commit, commit-msg]
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.20            # keep in sync with RUFF_VERSION in development/setup-dev.sh
+    hooks:
+      - id: ruff             # lint (with --fix)
+        args: [--fix]
+      - id: ruff-format      # format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+
+  - repo: local
+    hooks:
+      - id: conventional-commit
+        name: conventional commit message
+        # Same 6 types as commitlint in CI + development/standards/git-workflow.md.
+        entry: development/hooks/conventional-commit.sh
+        language: script
+        stages: [commit-msg]

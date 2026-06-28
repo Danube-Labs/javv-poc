@@ -8,35 +8,35 @@ in [`../standards/`](../standards/).
 > (M3 edits the same `services/` M1 created). Code lands in the layered tree: `backend/` · `frontend/` ·
 > `scanner/` · `deploy/`. A bolt folder just says *what done looks like* and links to the code it produces.
 
-**Authoring policy:** full detail for the **next 1-2 bolts**; the rest are **stubs** (goal + depends-on +
-PLAN link) until you reach them - expand from [`../standards/bolt-readme-template.md`](../standards/bolt-readme-template.md)
-when you pick one up. Writing M9f's test plan before M0 exists just guarantees it goes stale.
+**Authoring policy:** every bolt now carries a full brief (goal · deliverables · DoD · tests). Keep each
+bolt's README current as you build it; start any future bolt from
+[`../standards/bolt-readme-template.md`](../standards/bolt-readme-template.md).
 
-## Order & status
+## Order & dependencies
 Order: **scanners → backend core → durability → identity/triage → read → history → frontend → deploy.**
 
-| Bolt | Title | Depends on | Status | Detail |
-|------|-------|-----------|--------|--------|
-| **M0** | Scanner modules | - | not-started | ✅ full |
-| **M1** | Backend skeleton + indexes + ingest + observability | M0 | not-started | ✅ full |
-| **M2** | Snapshot/restore (durability early) | M1 | not-started | stub |
-| **M3** | Dedup/identity + staleness + projection *(highest risk)* | M1 | not-started | stub |
-| **M4** | Logs layer (scan-events) + retention | M1, M3 | not-started | stub |
-| **M5a** | Auth & Session *(prereq for all mutations)* | M1 | not-started | stub |
-| **M5b** | VEX two-field state machine | M5a | not-started | stub |
-| **M5c** | Decisions & projection | M5a, M3 | not-started | stub |
-| **M5d** | SLA/overdue + bulk | M5b, M5c | not-started | stub |
-| **M6** | Read/reporting + VEX export + as-of-T | M3, M4, M5c | not-started | stub |
-| **M7** | Scheduled / throttled export | M6 | not-started | stub |
-| **M8a** | Per-scan snapshot append | M3, M4 | not-started | stub |
-| **M8b** | Point-in-time query API | M8a | not-started | stub |
-| **M9a** | Shell + tokens + filter module | M6 | not-started | stub |
-| **M9b** | Findings grid + detail/triage *(core loop gate)* | M9a, M5b | not-started | stub |
-| **M9c** | Overview / all-clusters / images | M9b, M8b | not-started | stub |
-| **M9d** | Audit / approvals / contributors / scanner-status | M9b, M5d | not-started | stub |
-| **M9e** | Settings: Data & OpenSearch + Scanning | M9a, M2, M4 | not-started | stub |
-| **M9f** | Cross-cutting (search, bell, saved views, RBAC, empty states) | M9b | not-started | stub |
-| **M10** | Polish & deploy | all | not-started | stub |
+> **Status is per-bolt** — each bolt README's own `Status:` field is the **single source of truth** (AUDIT.md
+> N8). This table is the dependency/order map only and carries **no** status column, so the two can't drift.
 
-Keep this table's **Status** column current as bolts move - it's the at-a-glance tracker until/if GitHub
-Issues take over the live tracking.
+| Bolt | Title | Depends on |
+|------|-------|-----------|
+| **M0** | Scanner modules | - |
+| **M1** | Backend skeleton + indexes + ingest + observability | M0 |
+| **M2** | Snapshot/restore (durability early) | M1 |
+| **M3** | Dedup/identity + staleness + projection *(highest risk)* | M1 |
+| **M4** | Logs layer (scan-events) + retention | M1, M3 |
+| **M5a** | Auth & Session *(prereq for all mutations)* | M1 |
+| **M5b** | VEX two-field state machine | M5a |
+| **M5c** | Decisions & projection | M5a, M3 |
+| **M5d** | SLA/overdue + bulk | M5b, M5c |
+| **M6** | Read/reporting + VEX export + as-of-T | M3, M4, M5c |
+| **M7** | Scheduled / throttled export | M6 |
+| **M8a** | Per-scan snapshot append | M3, M4 |
+| **M8b** | Point-in-time query API | M8a |
+| **M9a** | Shell + tokens + filter module | M6 |
+| **M9b** | Findings grid + detail/triage *(core loop gate)* | M9a, M5b |
+| **M9c** | Overview / all-clusters / images | M9b, M8b |
+| **M9d** | Audit / approvals / contributors / scanner-status | M9b, M5d |
+| **M9e** | Settings: Data & OpenSearch + Scanning | M9a, M2, M4 |
+| **M9f** | Cross-cutting (search, bell, saved views, RBAC, empty states) | M9b |
+| **M10** | Polish & deploy | all |
