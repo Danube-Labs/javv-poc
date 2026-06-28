@@ -1,6 +1,6 @@
 # M8a - Per-scan snapshot append (occurrences + inventory manifest)
 
-**Status:** `not-started`
+**Status:** tracked in [#33](https://github.com/Danube-Labs/javv-poc/issues/33) — live status on the GitHub issue/board
 
 ## Goal
 On every **successful** scan, append a full immutable snapshot to

@@ -1,6 +1,6 @@
 # M3 - Dedup/identity + staleness + projection
 
-**Status:** `not-started`
+**Status:** tracked in [#25](https://github.com/Danube-Labs/javv-poc/issues/25) — live status on the GitHub issue/board
 
 ## Goal
 Highest-risk bolt. Turn idempotent appends into correct current-state: partial-doc merge

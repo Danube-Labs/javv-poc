@@ -7,7 +7,7 @@ Code does NOT live in this folder - it lands in backend/ / frontend/ / scanner/ 
 
 # M<n> - <Title>
 
-**Status:** `not-started` | `in-progress` | `blocked` | `done`
+**Status:** tracked in #<issue> — live status on the GitHub issue/board (label `bolt`)
 
 ## Goal
 1-2 sentences. What this bolt delivers and why it exists.

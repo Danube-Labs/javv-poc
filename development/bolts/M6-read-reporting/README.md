@@ -1,6 +1,6 @@
 # M6 - Read/reporting + VEX export + as-of-T
 
-**Status:** `not-started`
+**Status:** tracked in [#31](https://github.com/Danube-Labs/javv-poc/issues/31) — live status on the GitHub issue/board
 
 ## Goal
 PIT+search_after search (faceted by scanner, composite aggs); trend endpoints over scan-events; expanded Contributors; streaming sanitized CSV; VEX export (OpenVEX/CycloneDX); the as-of-T read path — T=now short-circuits to materialized current-state. (T<now historical reconstruction is delivered by M8b's `as_of_t` composition; M6 delegates to it, and the full whole-app time-travel UI is gated on M8b.)

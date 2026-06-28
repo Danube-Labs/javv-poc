@@ -1,6 +1,6 @@
 # M9e - Settings: Data & OpenSearch + Scanning
 
-**Status:** `not-started`
+**Status:** tracked in [#39](https://github.com/Danube-Labs/javv-poc/issues/39) — live status on the GitHub issue/board
 
 ## Goal
 The Admin **Data & OpenSearch** panel (per-`cluster_id` retention, rollover knobs, snapshot
