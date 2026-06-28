@@ -1,15 +1,78 @@
 # M4 - Logs layer (scan-events) + retention
 
-**Status:** `not-started`  ·  **stub** - expand from [the template](../../standards/bolt-readme-template.md) before starting.
+**Status:** `not-started`
 
 ## Goal
-Append javv-scan-events-* on ingest with idempotent _id; per-cluster_id partition + ISM rollover (doc/age/size) + retention_days delete; scanner-disagreement flags.
+Append an immutable `javv-scan-events-<cluster_id>-*` doc on every ingest - one per
+`(image, scanner, scan)` - carrying severity-count trends, the scanner-assigned `scan_order`
+ordering key and the `commit_key` 4-tuple, with an idempotent `_id`; own the index mapping +
+ISM (rollover + per-cluster `retention_days` delete); and precompute the scanner-disagreement
+flags consumed downstream.
 
-**Canonical refs:** [`PLAN_v4 §8 M4`](../../../docs/engineering/V4/PLAN_v4.md) · `SPEC_v4` (FRs for M4) · [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (indices touched).
+**Canonical refs:** [`PLAN_v4 §8 M4`](../../../docs/engineering/V4/PLAN_v4.md) ·
+`SPEC_v4` FR-5 (logs/trends), FR-11 (scanner disagreement), FR-19 (lifecycle/retention) ·
+[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`javv-scan-events-<cluster_id>-*`
+**[OWNS mapping + ISM]**) · decisions D5a/D5b (disagreement), D18 (idempotent `_id`),
+D26 (configurable rollover/retention), D38 (`scanner` is a field, not the index name),
+D40 (`scan_order`, never `@timestamp`).
 
 ## Depends on
-M1, M3
+- M1 (index bootstrap + ingest skeleton - the request path this appends from).
+- M3 (scanner-assigned `scan_order` source - `backend/app/ingest/scan_order.py` - and `commit_key`
+  construction; M4 stamps both onto the scan-events doc).
 
-## Before you start
-Expand this stub into the full brief (Deliverables · Definition of Done · Tests) using
-[`standards/bolt-readme-template.md`](../../standards/bolt-readme-template.md). Baseline gate: [`definition-of-done.md`](../../standards/definition-of-done.md).
+## Deliverables
+The actual files/modules this bolt creates - **in the layered tree, not here** (paths proposed):
+- `backend/app/logs/scan_events.py` - build + append the scan-events doc per `(image, scanner, scan)`;
+  idempotent `_id = hash(scan_run_id + image_digest + scanner)` (D18); stamps `scan_order` (D40) +
+  `commit_key = hash(cluster_id + scanner + image_digest + scan_run_id)` (D37). A **clean scan still
+  writes a doc** with `total:0`.
+- `backend/app/logs/severity_counts.py` - per-scan severity bucket counts
+  (`crit/high/med/low/negligible/unknown/total/fixable`); enforces the **`total = Σ buckets`** invariant.
+- `backend/app/logs/disagreement.py` - precompute (a) per-finding **severity** disagreement flag and
+  (b) per-image **count** disagreement (`trivy_count` / `grype_count` / `count_delta`); per-scanner,
+  **never summed/merged** (D5a/D5b, FR-11). *(Computed here; consumed by M9b/M9d - cross-link N10.)*
+- `backend/app/indices/scan_events_template.py` - **owns** the `javv-scan-events-<cluster_id>-*`
+  index template: `dynamic:false`, explicit `keyword`/`integer`/`date`/`short` mappings per INDEX-MAP,
+  1 primary shard, monthly rollover. (Resolves AUDIT **I1** - this index's mapping ownership.)
+- `backend/app/indices/scan_events_ism.py` - **owns** the ISM policy: rollover on doc-count/age/size
+  (D26 configurable knobs surfaced in settings) + per-cluster `retention_days` **drop-whole-index**
+  delete (never `delete_by_query`).
+- `backend/jobs/scan_events_retention.py` - CronJob entrypoint that applies the retention sweep
+  (drop expired rolled indices per `cluster_id`).
+
+## Definition of Done
+Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**
+(each an automated test, not a promise):
+- Every ingest appends exactly one scan-events doc per `(image, scanner, scan)`; re-ingesting the
+  same scan is idempotent (same `_id` → no duplicate) (FR-5/D18).
+- A **clean scan** writes a doc with all buckets `0` and `total:0` (so the commit catalog is complete).
+- The `total = Σ severity buckets` invariant holds on every emitted doc (invariant-checked).
+- Each doc carries the M3-supplied `scan_order` and the correct `commit_key` 4-tuple; ordering reads
+  sort by `scan_order`, **never `@timestamp`** (D40).
+- The created index template matches INDEX-MAP exactly (`dynamic:false`, field types) - fails on drift
+  (AUDIT I1/I9).
+- ISM rollover fires on the configured doc/age/size knobs; `retention_days` drops a whole expired index
+  per `cluster_id` and never touches live ones (no `delete_by_query`).
+- Severity-disagreement and count-disagreement (`count_delta`) flags are computed per-scanner and never
+  summed across scanners (FR-11/D5b).
+
+## Tests to write
+See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:
+- **Unit:** severity-bucket counter + `total = Σ buckets` invariant; `commit_key` construction (exact
+  4-tuple hash); `disagreement.py` flag logic (severity mismatch; `count_delta` sign/magnitude;
+  single-scanner = no flag); the scan-events doc builder body (assert emitted `_source` + `_id`).
+- **Integration (real OpenSearch):** ingest → one scan-events doc appears per `(image, scanner, scan)`;
+  re-ingest is idempotent (no dup `_id`); template applied is `dynamic:false` and matches INDEX-MAP;
+  ISM rollover triggers on the configured knob; `retention_days` drops a whole expired index and
+  leaves current indices intact.
+- **Golden fixtures:** real Trivy + Grype envelopes for the same image → expected scan-events docs
+  (severity counts, `count_delta`, both disagreement flags) - per-scanner, never merged; a **clean
+  envelope** → a `total:0` doc.
+
+## Out of scope (defer)
+- Full per-scan finding snapshots + the commit-catalog *read* (R-CATALOG) → M8a/M8b. (M4 writes the
+  catalog *doc*; M8a writes the occurrence rows it certifies and M8b reads it.)
+- Trend/aggregation read endpoints over scan-events → M6.
+- Surfacing disagreement flags in the UI → M9b/M9d (consumer; N10 cross-link).
+- VEX export over the logs → M6.

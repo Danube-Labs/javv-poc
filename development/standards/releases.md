@@ -3,9 +3,9 @@
 How JAVV versions, releases, and keeps dependencies current. Conventional-commit
 discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all of this.
 
-> **Status: decided, not yet implemented** (2026-06-24). This file records the chosen
-> approach so commit history stays correct *before* the tooling lands. Update the status
-> and add the config paths once each piece is wired up.
+> **Status: implemented** (2026-06-27). release-please and Renovate are wired up:
+> `.github/workflows/release-please.yml`, `release-please-config.json`,
+> `.release-please-manifest.json`, `renovate.json`. Remaining gap below.
 
 ## Versioning
 - **SemVer** (`MAJOR.MINOR.PATCH`), derived from conventional-commit types, never bumped by hand.
@@ -42,7 +42,7 @@ release-please later turns into releases.
 **uv/pip, npm, Docker base images, Helm charts, and GitHub Actions** — with grouping and
 scheduling. Dependabot is simpler and GitHub-native but weaker on Helm/Docker and grouping.
 
-## Open items before this is real
-- Add the release-please GitHub Action + config; decide single-version vs. per-component manifest.
-- Add `renovate.json` (enable the GitHub App or self-hosted action); set schedule + grouping.
-- Wire both into the CI gates described in [git-workflow.md](git-workflow.md) and the deploy bolt (M10).
+## Remaining gap
+- Release PRs are opened with `GITHUB_TOKEN`, which does **not** trigger the CI workflow
+  (a release would merge unverified). Switch to a PAT or GitHub App token once CI (AUDIT C1) lands.
+- Activate Renovate by enabling its GitHub App on the repo.
