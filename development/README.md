@@ -70,38 +70,37 @@ kernel - fine for functional wiring, **not** for benchmarking scan throughput.
 
 ### Scanning the cluster (Trivy / Grype)
 
-> JAVV ingests **scanner JSON** (per-scanner, **never merged**). The **CLI path** below is what produces that
-> JSON for the M0 scanners bolt; the operator is an optional cluster-native convenience, not the ingest path.
+> **Packaging decision (hard rule):** JAVV ships **two scanner images it builds itself** - one Dockerfile
+> for Trivy, one for Grype (pinned scanner version + JAVV entrypoint), run in-cluster as **CronJobs**.
+> We do **NOT** use the **Trivy Operator** / Starboard or any third-party operator. Own Dockerfiles = full
+> control over scanner version, flags, and supply chain, and clean **per-scanner** isolation. Ingest is
+> **scanner JSON, per-scanner, never merged.**
 
-First give the scanners something to find - deploy an intentionally old image:
+For **local dev** you don't need the images yet - just the CLIs, to produce the JSON the backend ingests.
+First give the scanners something to find:
 
 ```bash
 kubectl --context k3d-alpha create deployment vuln --image=python:3.4-slim   # EOL → many CVEs
 ```
 
 ```bash
-# Trivy — primary; emits the JSON JAVV ingests (scanner=trivy)
+# Trivy — emits the JSON JAVV ingests (scanner=trivy)
 trivy image -f json -o trivy-python.json python:3.4-slim     # one image → JSON
 trivy k8s --context k3d-alpha --report summary cluster        # scan everything running in the cluster
 
-# Grype — the second per-scanner stream (scanner=grype); run per-image, no mature operator
+# Grype — the second per-scanner stream (scanner=grype)
 grype python:3.4-slim -o json > grype-python.json
 syft python:3.4-slim -o json | grype --output json            # SBOM → grype (optional)
-
-# Trivy Operator — OPTIONAL in-cluster auto-scan → VulnerabilityReport CRDs (not the ingest path)
-helm repo add aqua https://aquasecurity.github.io/helm-charts/ && helm repo update
-helm install trivy-operator aqua/trivy-operator --namespace trivy-system --create-namespace
-kubectl --context k3d-alpha get vulnerabilityreports -A
 ```
 
 | Tool | What it is | Role for JAVV |
 |---|---|---|
-| `trivy image` / `trivy k8s` | CLI scanner, JSON out | **Primary** — produces the ingest envelope (`scanner=trivy`) |
-| `grype` (+ `syft` for SBOM) | CLI scanner, JSON out | **Primary** — the second per-scanner stream (`scanner=grype`) |
-| **Trivy Operator** | Helm-installed operator, `VulnerabilityReport` CRDs | Optional — cluster-native auto-scan demo only |
+| `trivy` CLI | scanner binary, JSON out | Baked into **`Dockerfile.trivy`** (JAVV-built); `scanner=trivy` |
+| `grype` CLI (+ `syft` SBOM) | scanner binary, JSON out | Baked into **`Dockerfile.grype`** (JAVV-built); `scanner=grype` |
+| ~~Trivy Operator~~ | third-party in-cluster operator | **Not used** — JAVV owns the scanner images |
 
-No widely-used Grype *operator* exists - run Grype as a CLI (or a k8s Job/CronJob). Keep the two scanners
-**separate**: never merge a CVE across Trivy and Grype (per-scanner is sacred).
+Keep the two scanners **separate**: never merge a CVE across Trivy and Grype (per-scanner is sacred).
+The two Dockerfiles are produced in **M0**; their Helm/CronJob wiring lands in **M10**.
 
 ---
 
