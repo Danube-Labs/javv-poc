@@ -11,7 +11,14 @@
 #
 set -euo pipefail
 
+# Gate-tool version pins (AUDIT.md I14) — these decide lint/type results, so they MUST
+# match CI to keep local == CI. Bump here in one place. Scanners + k8s tooling intentionally
+# track latest (security DBs / cluster compat are more defensible at HEAD). Once
+# backend/pyproject.toml exists, prefer sourcing these from there / pre-commit pinned revs.
 NODE_MAJOR=22
+UV_VERSION=0.11.25
+RUFF_VERSION=0.15.20
+PYRIGHT_VERSION=1.1.411
 
 # --- helpers ----------------------------------------------------------------
 if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
@@ -43,8 +50,8 @@ install_build_floor() {
 # --- 2. Python toolchain: uv (+ uvx) and ruff -------------------------------
 install_uv() {
   if have uv; then skip uv "$(uv --version)"; return; fi
-  log "Installing uv (Astral)"
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+  log "Installing uv ${UV_VERSION} (Astral)"
+  curl -LsSf "https://astral.sh/uv/${UV_VERSION}/install.sh" | sh
   # uv installs to ~/.local/bin (or $CARGO_HOME); surface it for the rest of this run
   export PATH="$HOME/.local/bin:$PATH"
   have uv || { echo "ERROR: uv install did not land on PATH ($HOME/.local/bin)" >&2; exit 1; }
@@ -52,8 +59,8 @@ install_uv() {
 
 install_ruff() {
   if have ruff; then skip ruff "$(ruff --version)"; return; fi
-  log "Installing ruff (uv tool install)"
-  uv tool install ruff
+  log "Installing ruff ${RUFF_VERSION} (uv tool install)"
+  uv tool install "ruff==${RUFF_VERSION}"
 }
 
 # --- 3. Node.js 22 LTS (+ npm/npx) and pyright ------------------------------
@@ -66,8 +73,8 @@ install_node() {
 
 install_pyright() {
   if have pyright; then skip pyright "$(pyright --version)"; return; fi
-  log "Installing pyright (npm global)"
-  $SUDO npm install -g pyright
+  log "Installing pyright ${PYRIGHT_VERSION} (npm global)"
+  $SUDO npm install -g "pyright@${PYRIGHT_VERSION}"
 }
 
 # --- 4. Kubernetes tooling: kubectl, helm, k3d ------------------------------

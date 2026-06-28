@@ -29,6 +29,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  commitlint:
+    # AUDIT.md I12: conventional-commit types are load-bearing for release-please.
+    # Validate every commit in the PR against commitlint.config.mjs. PR-only (commits on
+    # main are already merged); merge commits are ignored by the action.
+    name: Commitlint
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: read   # the action lists the PR's commits via the API
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Lint PR commits
+        uses: wagoid/commitlint-github-action@v6
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
