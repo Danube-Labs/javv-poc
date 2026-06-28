@@ -13,11 +13,14 @@ decisions **D9** (observability), **D16** (normalizer), **D25/D35** (current-env
 
 ## Depends on
 - **M0** - produces the envelope this bolt ingests.
+- **Local environment:** run [`development/preflight.sh`](../../preflight.sh) first - it verifies the Docker
+  daemon, the k3d cluster, OpenSearch reachability, and required tool versions before this bolt can run.
 
 ## Deliverables
 The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/research/STACK-BEST-PRACTICES.md)):
 - `backend/core/` - settings, structlog config, **lifespan** holding the single `AsyncOpenSearch` client
-  (injected via `Depends`, `await`-closed on shutdown).
+  (injected via `Depends`, `await`-closed on shutdown); **fail-fast at startup** with a clear error if
+  OpenSearch is unreachable, rather than booting blind.
 - `backend/core/bootstrap.py` - **versioned index bootstrap**: `dynamic:false` mappings for current-state
   (`findings`, `images`) + `system-*`, with keyword ids, the **severity normalizer**, reshaped CVSS, EPSS/KEV.
 - `backend/models/` - Pydantic v2 schemas; **request models `extra="forbid"`**; `cluster_id` shape validated.
@@ -34,7 +37,8 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   normalized severity bucketed**. Automated.
 - Ingest rejects: oversized/over-compressed bodies, an envelope with extra fields (`extra="forbid"`), a bad/missing
   token, and a non-current envelope.
-- `/healthz` + `/readyz` reflect real OpenSearch reachability; `/metrics` emits ingest counters.
+- `/healthz` + `/readyz` reflect real OpenSearch reachability; the app **fails fast** (clear error, non-zero
+  exit) when OpenSearch is unreachable at startup; `/metrics` emits ingest counters.
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
