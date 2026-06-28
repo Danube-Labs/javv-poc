@@ -22,7 +22,7 @@ single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scann
 - **Scanners are self-built images** - one JAVV-built Dockerfile per scanner (`Dockerfile.trivy`,
   `Dockerfile.grype`, pinned scanner version + our entrypoint), run as CronJobs. **Never the Trivy
   Operator / Starboard or any third-party scanner operator** - own the images for version/supply-chain control.
-- **Diagrams are Mermaid** (working-agreement). `docs/deprecated/original_notes_for_app.md` is read-only.
+- **Diagrams are Mermaid** (working-agreement). `.deprecated/docs/deprecated/original_notes_for_app.md` is read-only.
 
 ## Use these skills (when the work matches)
 Invoke the matching skill before starting that kind of work:

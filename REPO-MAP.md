@@ -28,6 +28,7 @@
 | `design/` | Brand source of record (logos, tokens, brand guide) | binding for brand |
 | `.github/` | CI + release automation workflows | — |
 | `.claude/` | Repo-scoped Claude settings (team allowlist) | — |
+| `.deprecated/` | Frozen archive — superseded V1/V2/V3 docs + the original UI handoff (`handoff/v1`) | history only |
 | root configs | `commitlint.config.mjs`, `renovate.json`, `release-please-config.json`, `.release-please-manifest.json` | — |
 
 ## `docs/` - design & research
@@ -36,7 +37,7 @@
 |---|---|
 | **`docs/engineering/V4/`** | **CANONICAL design.** `PLAN_v4` (decisions D1-D40, data model, M0-M10) · `SPEC_v4` (FR/NFR) · `ARCHITECTURE_v4` (layers, Mermaid) · `INDEX-MAP_v4` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE_v4` (worked ingest/query/time-travel) · `AUDIT-RESPONSE_v4` (external-audit fixes, rounds 1-4) · `AUDIT_v4` (2nd audit + resolutions) · `DESIGN-BRIEF_v4` |
 | `docs/engineering/UI-GUIDELINES.md`, `UI-tools.md` | Dashboard UI target + tooling |
-| `docs/engineering/deprecated/` | Frozen V2/V3 + original notes (evolution trail; `original_notes_for_app.md` is **read-only**) |
+| `.deprecated/` | Frozen V1/V2/V3 docs + original notes (evolution trail; `.deprecated/docs/deprecated/original_notes_for_app.md` is **read-only**) |
 | **`docs/research/`** | Backing research. `STACK-BEST-PRACTICES` (day-one engineering rules) · `TOOLING-AND-MCP` (MCP servers + install) · `K8S-DEV-CLUSTER` (k3d/remote options) · `INDEPENDENT-AUDIT-v3` · `SNAPSHOT-MODEL-VALIDATION` |
 
 ## `development/` - how to build it
@@ -69,7 +70,7 @@ Each bolt README is a self-contained brief (Goal · Canonical refs · Depends on
 | **M10** | Polish + deploy (Helm→k3s, scanner CronJobs, vuln-DB cache) |
 
 ## `handoff/` - UI reference (NOT a contract)
-`handoff/v4/` (current) and `handoff/v1/` (older): `prototype/` (React mockup), `docs/` (SCREENS, DATA_MODEL, DOMAIN_GLOSSARY, DESIGN_SYSTEM), `spec/`, `standalone/`. A *reference point* for the Vue build, not a 1:1 spec.
+`handoff/v4/` (current): `prototype/` (React mockup), `docs/` (SCREENS, DATA_MODEL, DOMAIN_GLOSSARY, DESIGN_SYSTEM), `spec/`, `standalone/`. A *reference point* for the Vue build, not a 1:1 spec. (The older `v1` bundle is archived under `.deprecated/handoff/v1/`.)
 
 ## `design/` - brand source of record
 `design/brand/`: `BRAND.md`, logos/wordmarks/icons (SVG, light+dark), `favicon.svg`, `github/`. Plus `LOGO-PROMPT.md`.

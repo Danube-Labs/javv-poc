@@ -1,6 +1,6 @@
 # JAVV - Just Another Vulnerability Viewer · MVP Plan (v4)
 
-> **Status: revision 4 (2026-06-21).** Supersedes `docs/engineering/V3/PLAN_v3.md` (kept frozen for the evolution
+> **Status: revision 4 (2026-06-21).** Supersedes `.deprecated/docs/engineering/deprecated/V3/PLAN_v3.md` (kept frozen for the evolution
 > trail). Folds in the post-v3 audit dialogue: index rename (`system-exceptions`→`system-decisions`),
 > raw-fidelity via keyword normalizer (no duplicate fields), rebuildable triage state, idempotent appends,
 > projection-on-new-only, two-timer staleness, vuln-age-at-read, pinned `apply_both` semantics, an explicit
@@ -18,7 +18,7 @@
   closely as backend constraints allow; **divergences are expected and noted, not silently taken** - see the
   "UI extends beyond handoff" list in §8 (M9).
 - **`docs/engineering/V4/` (this set)** - canonical engineering plan/spec/architecture.
-- **`docs/engineering/V3/`, `docs/engineering/` (v2), `docs/deprecated/` (v1)** - superseded; kept for history + the audits.
+- **`.deprecated/docs/engineering/deprecated/V3/`, `.deprecated/docs/engineering/deprecated/` (v2), `.deprecated/docs/deprecated/` (v1)** - superseded; kept for history + the audits.
 - **`docs/research/`** - the audit + best-practices + tooling + k8s research backing this revision.
 
 ### What changed from v3 (orientation map)
