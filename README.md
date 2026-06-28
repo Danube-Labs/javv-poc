@@ -14,6 +14,8 @@ Vulnerability tooling splits into two worlds: triage tools (DefectDojo, Dependen
 reporting, and dashboard tools (Kibana/OpenSearch Dashboards) with no concept of auditing a finding.
 JAVV fills the seam between them.
 
+> New to the repo? **[REPO-MAP.md](REPO-MAP.md)** maps every folder and what's in it.
+
 ## Design docs
 
 **Canonical engineering set - [docs/engineering/V4/](docs/engineering/V4/):**
