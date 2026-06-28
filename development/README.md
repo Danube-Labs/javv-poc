@@ -48,25 +48,60 @@ The script is **idempotent** - re-run it any time; it skips tools already presen
 ## 2. Local Kubernetes dev cluster
 
 Per [`docs/research/K8S-DEV-CLUSTER.md`](../docs/research/K8S-DEV-CLUSTER.md), **k3d** (k3s-in-Docker) is the primary
-local driver - no nested virtualisation, and 2-3 isolated clusters spin up in seconds, each with a distinct
-`kube-system` UID (= JAVV's immutable `cluster_id`). Stand up the multi-cluster story:
+local driver - no nested virtualisation, clusters spin up in seconds, each with a distinct `kube-system`
+UID (= JAVV's immutable `cluster_id`). **One cluster is enough for day-to-day dev** - spin up a single one:
 
 ```bash
-k3d cluster create alpha   --servers 1 --agents 0 -p "8081:80@loadbalancer"
-k3d cluster create bravo   --servers 1 --agents 0 -p "8082:80@loadbalancer"
-k3d cluster create charlie --servers 1 --agents 0 -p "8083:80@loadbalancer"
+k3d cluster create alpha --servers 1 --agents 0 -p "8081:80@loadbalancer"
 
-# the three distinct cluster_id values (validates per-cluster index routing never collides)
-for c in alpha bravo charlie; do
-  echo -n "$c -> "; kubectl --context k3d-$c get namespace kube-system -o jsonpath='{.metadata.uid}'; echo
-done
+# its cluster_id — JAVV routes indices on this kube-system namespace UID
+kubectl --context k3d-alpha get namespace kube-system -o jsonpath='{.metadata.uid}'; echo
 
 # teardown
-k3d cluster delete alpha bravo charlie
+k3d cluster delete alpha
 ```
 
+> **Need the multi-cluster story?** Only when you're validating per-`cluster_id` index routing (that two
+> clusters never collide). Add `bravo`/`charlie` on ports `8082`/`8083` then - see
+> [`K8S-DEV-CLUSTER.md`](../docs/research/K8S-DEV-CLUSTER.md). Don't run three by default; one keeps the VM light.
+
 Give the VM ≥2 vCPU / ≥4 GB / ~30 GB disk (image layers + scanner DBs). k3d clusters share the host
-kernel - fine for functional multi-cluster wiring, **not** for benchmarking scan throughput.
+kernel - fine for functional wiring, **not** for benchmarking scan throughput.
+
+### Scanning the cluster (Trivy / Grype)
+
+> JAVV ingests **scanner JSON** (per-scanner, **never merged**). The **CLI path** below is what produces that
+> JSON for the M0 scanners bolt; the operator is an optional cluster-native convenience, not the ingest path.
+
+First give the scanners something to find - deploy an intentionally old image:
+
+```bash
+kubectl --context k3d-alpha create deployment vuln --image=python:3.4-slim   # EOL → many CVEs
+```
+
+```bash
+# Trivy — primary; emits the JSON JAVV ingests (scanner=trivy)
+trivy image -f json -o trivy-python.json python:3.4-slim     # one image → JSON
+trivy k8s --context k3d-alpha --report summary cluster        # scan everything running in the cluster
+
+# Grype — the second per-scanner stream (scanner=grype); run per-image, no mature operator
+grype python:3.4-slim -o json > grype-python.json
+syft python:3.4-slim -o json | grype --output json            # SBOM → grype (optional)
+
+# Trivy Operator — OPTIONAL in-cluster auto-scan → VulnerabilityReport CRDs (not the ingest path)
+helm repo add aqua https://aquasecurity.github.io/helm-charts/ && helm repo update
+helm install trivy-operator aqua/trivy-operator --namespace trivy-system --create-namespace
+kubectl --context k3d-alpha get vulnerabilityreports -A
+```
+
+| Tool | What it is | Role for JAVV |
+|---|---|---|
+| `trivy image` / `trivy k8s` | CLI scanner, JSON out | **Primary** — produces the ingest envelope (`scanner=trivy`) |
+| `grype` (+ `syft` for SBOM) | CLI scanner, JSON out | **Primary** — the second per-scanner stream (`scanner=grype`) |
+| **Trivy Operator** | Helm-installed operator, `VulnerabilityReport` CRDs | Optional — cluster-native auto-scan demo only |
+
+No widely-used Grype *operator* exists - run Grype as a CLI (or a k8s Job/CronJob). Keep the two scanners
+**separate**: never merge a CVE across Trivy and Grype (per-scanner is sacred).
 
 ---
 

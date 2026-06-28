@@ -141,12 +141,23 @@ check_docker() {
 }
 
 # --- summary ----------------------------------------------------------------
+# Not every tool accepts `--version` (helm/k3d/grype/kubectl use their own form).
+tool_version() {
+  case "$1" in
+    helm)    helm version --short 2>/dev/null ;;
+    k3d)     k3d version 2>/dev/null | head -1 ;;
+    grype)   grype version 2>/dev/null | head -1 ;;
+    kubectl) kubectl version --client 2>/dev/null | head -1 ;;
+    *)       "$1" --version 2>/dev/null | head -1 ;;
+  esac
+}
+
 summary() {
   log "Installed versions"
   export PATH="$HOME/.local/bin:$PATH"
   for t in docker uv ruff node npm pyright kubectl helm k3d trivy grype gh; do
     if have "$t"; then
-      printf '  %-9s %s\n' "$t" "$("$t" --version 2>&1 | head -1)"
+      printf '  %-9s %s\n' "$t" "$(tool_version "$t")"
     else
       printf '  %-9s MISSING\n' "$t"
     fi
