@@ -9,6 +9,11 @@
 # Does NOT install: MCP servers (see docs/research/TOOLING-AND-MCP.md) or OpenSearch
 # (runs as a container in the dev cluster). See development/README.md.
 #
+# SUPPLY-CHAIN NOTE (AUDIT.md N7): several tools below install via `curl … | sh` from upstream
+# (uv, helm, k3d, trivy, grype). That's an unpinned remote-script surface — acceptable for a
+# local dev VM, NOT for CI. If any of these ever run in CI, switch to checksum-pinned downloads
+# or distro packages. Pinned tool *versions* (gate tools) are set just below.
+#
 set -euo pipefail
 
 # Gate-tool version pins (AUDIT.md I14) — these decide lint/type results, so they MUST
@@ -19,6 +24,7 @@ NODE_MAJOR=22
 UV_VERSION=0.11.25
 RUFF_VERSION=0.15.20
 PYRIGHT_VERSION=1.1.411
+PRE_COMMIT_VERSION=4.6.0
 
 # --- helpers ----------------------------------------------------------------
 if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
@@ -61,6 +67,24 @@ install_ruff() {
   if have ruff; then skip ruff "$(ruff --version)"; return; fi
   log "Installing ruff ${RUFF_VERSION} (uv tool install)"
   uv tool install "ruff==${RUFF_VERSION}"
+}
+
+# pre-commit (AUDIT.md N2): the local quality hooks. Installs the tool, then — if run from the
+# repo root — wires the git hooks (pre-commit + commit-msg). Idempotent.
+install_precommit() {
+  if ! have pre-commit; then
+    log "Installing pre-commit ${PRE_COMMIT_VERSION} (uv tool install)"
+    uv tool install "pre-commit==${PRE_COMMIT_VERSION}"
+  else
+    skip pre-commit "$(pre-commit --version)"
+  fi
+  if [ -f .pre-commit-config.yaml ]; then
+    log "Wiring git hooks (pre-commit + commit-msg)"
+    pre-commit install --install-hooks >/dev/null
+    pre-commit install --hook-type commit-msg >/dev/null
+  else
+    echo "  (run from the repo root to auto-install the git hooks: 'pre-commit install')" >&2
+  fi
 }
 
 # --- 3. Node.js 22 LTS (+ npm/npx) and pyright ------------------------------
@@ -155,7 +179,7 @@ tool_version() {
 summary() {
   log "Installed versions"
   export PATH="$HOME/.local/bin:$PATH"
-  for t in docker uv ruff node npm pyright kubectl helm k3d trivy grype gh; do
+  for t in docker uv ruff pre-commit node npm pyright kubectl helm k3d trivy grype gh; do
     if have "$t"; then
       printf '  %-9s %s\n' "$t" "$(tool_version "$t")"
     else
@@ -178,6 +202,7 @@ main() {
   install_build_floor
   install_uv
   install_ruff
+  install_precommit
   install_node
   install_pyright
   install_kubectl
