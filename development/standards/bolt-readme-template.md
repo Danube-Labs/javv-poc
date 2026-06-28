@@ -35,3 +35,8 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 
 ## Out of scope (defer)
 - <thing> → deferred to M<…>.
+
+## Updates
+<!-- Append-only log. Don't rewrite the brief above — record changes/progress here, newest last.
+     Format: ### YYYY-MM-DD — <what changed / why>. Delete this comment in real bolts. -->
+- _none yet_

@@ -8,9 +8,14 @@ in [`../standards/`](../standards/).
 > (M3 edits the same `services/` M1 created). Code lands in the layered tree: `backend/` · `frontend/` ·
 > `scanner/` · `deploy/`. A bolt folder just says *what done looks like* and links to the code it produces.
 
-**Authoring policy:** every bolt now carries a full brief (goal · deliverables · DoD · tests). Keep each
-bolt's README current as you build it; start any future bolt from
-[`../standards/bolt-readme-template.md`](../standards/bolt-readme-template.md).
+**Authoring policy:** every bolt now carries a full brief (goal · deliverables · DoD · tests). Start any
+future bolt from [`../standards/bolt-readme-template.md`](../standards/bolt-readme-template.md).
+
+**Don't rewrite a bolt's brief once it's written** — treat the Goal/Deliverables/DoD/Tests sections as the
+**spec of record**. Record progress, scope changes, and corrections as **dated entries appended under the
+bolt's `## Updates` log** (`### YYYY-MM-DD — <what changed / why>`, newest last) rather than silently
+editing the original. If the brief itself genuinely must change, make the edit *and* note it in an Update
+entry so the history stays honest. (This keeps an audit trail and pairs with the per-bolt `Status:` field.)
 
 ## Order & dependencies
 Order: **scanners → backend core → durability → identity/triage → read → history → frontend → deploy.**
