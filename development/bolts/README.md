@@ -20,9 +20,10 @@ entry so the history stays honest. (This keeps an audit trail and pairs with the
 ## Order & dependencies
 Order: **scanners → backend core → durability → identity/triage → read → history → frontend → deploy.**
 
-> **Live status lives on GitHub** (AUDIT.md N8) — one **issue per bolt** (label `bolt`) on the project board;
-> each bolt README links its tracking issue, and merging a bolt's PR with `Closes #<n>` moves the card to Done.
-> This table is the **dependency/order map** only — no status column, so nothing drifts.
+> **Live status lives on GitHub** (AUDIT.md N8) — one **issue per bolt** (label `bolt`) on the
+> **[JAVV bolts board](https://github.com/orgs/Danube-Labs/projects/1)**; each bolt README links its tracking
+> issue, and merging a bolt's PR with `Closes #<n>` moves the card to Done. This table is the
+> **dependency/order map** only — no status column, so nothing drifts.
 
 | Bolt | Title | Depends on |
 |------|-------|-----------|
