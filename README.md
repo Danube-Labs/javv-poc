@@ -37,7 +37,7 @@ JAVV fills the seam between them.
 | [docs/research/](docs/research/) | Stack best-practices, tooling/MCP, audits backing v4 |
 | [handoff/v4/](handoff/v4/) | UI reference: prototype + UI docs + brand (reference point, not a 1:1 contract) |
 | [design/](design/) | Brand source of record (logos, tokens, guide) |
-| [docs/engineering/V2/](docs/engineering/V2/), [V3/](docs/engineering/V3/), [docs/deprecated/](docs/deprecated/) | Frozen evolution trail |
+| [.deprecated/](.deprecated/) | Frozen evolution trail — superseded V1/V2/V3 docs + the original UI handoff |
 
 ## Stack (locked)
 

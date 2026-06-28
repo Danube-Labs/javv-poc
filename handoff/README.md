@@ -6,7 +6,7 @@ canonical engineering spec is `../docs/engineering/V4/` and **wins on any disagr
 | Folder | What it is | Status |
 |--------|-----------|--------|
 | `v4/` | Current bundle: React/CDN prototype, UI docs (SCREENS, DESIGN_SYSTEM, V4-DELTA…), brand assets. Targets the v4 design (time-travel, 6-state VEX, scoped risk-accept, per-cluster retention). | **Active** |
-| `v1/` | The original 12-screen bundle (v3-era). Kept for the evolution trail. | **Frozen** |
+| `../.deprecated/handoff/v1/` | The original 12-screen bundle (v3-era). Archived to `.deprecated/`. | **Frozen** |
 
 ## Reading order (v4)
 1. `v4/README.md` - bundle overview + how to open the prototype.
