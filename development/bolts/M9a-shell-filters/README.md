@@ -36,7 +36,10 @@ Files this bolt creates — **in the layered tree, not here** (paths proposed):
   (D28/FR-23). Emits a normalized `T` (`null` = now).
 - `frontend/src/stores/timeTravel.ts` — Pinia store holding global `T`; every data-fetching store/composable
   reads it so one picker rewinds the whole app (D28).
-- `frontend/src/styles/tokens.css` (+ `tokens.ts`) — design tokens (color/space/type/severity palette),
+- `frontend/src/styles/tokens.css` (+ `tokens.ts`) — **the binding design-token source of truth** per
+  [`standards/ui-foundations.md`](../../standards/ui-foundations.md) (promote the DESIGN_SYSTEM values once;
+  components use tokens only). Also wire **stylelint** into the `Frontend` CI gate to fail on raw
+  hex / non-token fonts. design tokens (color/space/type/severity palette),
   PrimeVue theme bridge. Single source for severity colors used by M9b/M9c.
 - **Filter module (the reusable core):**
   - `frontend/src/filters/fields.config.ts` — the `fields` config: per-filter `{ key, label, type

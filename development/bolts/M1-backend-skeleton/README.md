@@ -31,8 +31,10 @@ The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/re
 - `backend/models/` - Pydantic v2 schemas; **request models `extra="forbid"`**; `cluster_id` shape validated.
 - `backend/repositories/`, `backend/services/`, `backend/routers/ingest.py` - the ingest path: validate →
   normalize → `_bulk` write (inspect `response["errors"]` + per-item status; backoff on 429/503).
-- `POST /ingest/scan` - **hardened:** rate-limit, size + decompression caps, **256-bit random
-  `(cluster,scanner)` tokens stored as peppered SHA-256**, structured queries, **current-envelope-only** acceptance.
+- `POST /api/v1/ingest/scan` - **hardened:** rate-limit, size + decompression caps, **256-bit random
+  `(cluster,scanner)` tokens stored as peppered SHA-256**, structured queries, **current-envelope-only**
+  acceptance. Sets the house conventions in [`standards/api-design.md`](../../standards/api-design.md)
+  (`/api/v1` prefix, snake_case, `extra="forbid"`, error envelope).
 - `/healthz` (liveness, **no** OpenSearch dependency) + `/readyz` (readiness, reflects OpenSearch reachability)
   + `/metrics` + structlog with bound `request_id`/`cluster_id`. See [`standards/observability.md`](../../standards/observability.md).
 
