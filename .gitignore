@@ -36,3 +36,6 @@ Thumbs.db
 
 # Claude Code — personal local settings (team config lives in .claude/settings.json)
 .claude/settings.local.json
+
+# Local-only audit/working tracker (temporary; never committed)
+development/AUDIT.md
