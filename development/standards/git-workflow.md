@@ -21,6 +21,8 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 - Target `main`; keep them reviewable (small > big).
 - **PR description = the Definition of Done checklist** ([definition-of-done.md](definition-of-done.md)) ticked off,
   plus a line linking the bolt: `Implements development/bolts/M<n>-<slug>/`.
+- **`Closes #<bolt-issue>`** in the PR body so merging auto-closes the bolt's tracking issue and moves its
+  card to Done on the board (live status = the GitHub issue/board; see [bolts/README.md](../bolts/README.md)).
 - CI must be green (ruff + pyright + pytest, ESLint + Vitest) before merge.
 - `code-review-and-quality` pass on the diff.
 

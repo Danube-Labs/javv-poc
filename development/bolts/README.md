@@ -15,13 +15,14 @@ future bolt from [`../standards/bolt-readme-template.md`](../standards/bolt-read
 **spec of record**. Record progress, scope changes, and corrections as **dated entries appended under the
 bolt's `## Updates` log** (`### YYYY-MM-DD — <what changed / why>`, newest last) rather than silently
 editing the original. If the brief itself genuinely must change, make the edit *and* note it in an Update
-entry so the history stays honest. (This keeps an audit trail and pairs with the per-bolt `Status:` field.)
+entry so the history stays honest. (This keeps an audit trail and pairs with the bolt's tracking issue.)
 
 ## Order & dependencies
 Order: **scanners → backend core → durability → identity/triage → read → history → frontend → deploy.**
 
-> **Status is per-bolt** — each bolt README's own `Status:` field is the **single source of truth** (AUDIT.md
-> N8). This table is the dependency/order map only and carries **no** status column, so the two can't drift.
+> **Live status lives on GitHub** (AUDIT.md N8) — one **issue per bolt** (label `bolt`) on the project board;
+> each bolt README links its tracking issue, and merging a bolt's PR with `Closes #<n>` moves the card to Done.
+> This table is the **dependency/order map** only — no status column, so nothing drifts.
 
 | Bolt | Title | Depends on |
 |------|-------|-----------|

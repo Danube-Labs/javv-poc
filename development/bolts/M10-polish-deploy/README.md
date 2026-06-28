@@ -1,6 +1,6 @@
 # M10 - Polish & deploy
 
-**Status:** `not-started`
+**Status:** tracked in [#41](https://github.com/Danube-Labs/javv-poc/issues/41) — live status on the GitHub issue/board
 
 ## Goal
 Deploy and polish only. Production Helm chart (PVC vuln-DB cache, CronJob hygiene, least-priv

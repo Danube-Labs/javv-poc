@@ -1,6 +1,6 @@
 # M4 - Logs layer (scan-events) + retention
 
-**Status:** `not-started`
+**Status:** tracked in [#26](https://github.com/Danube-Labs/javv-poc/issues/26) — live status on the GitHub issue/board
 
 ## Goal
 Append an immutable `javv-scan-events-<cluster_id>-*` doc on every ingest - one per
