@@ -42,6 +42,34 @@ JAVV fills the seam between them.
 Python scanner module (Trivy + Grype adapters, drop-in per cluster) → FastAPI backend →
 OpenSearch single store → Vue 3 frontend. Apache-2.0 components throughout.
 
+## Toolchain
+
+Versions for the **gate tools** (the ones that decide lint/type/test results) are pinned so local
+matches CI. They live in **one place — [`development/setup-dev.sh`](development/setup-dev.sh)** — bump
+them there. Scanners and Kubernetes tooling intentionally track latest (security DBs and cluster
+compatibility are more defensible at HEAD).
+
+| Tool | Role | Version |
+|---|---|---|
+| Python | Backend runtime | 3.12 |
+| [uv](https://docs.astral.sh/uv/) | Python package/venv manager | 0.11.25 *(pinned)* |
+| [ruff](https://docs.astral.sh/ruff/) | Lint + format (backend) | 0.15.20 *(pinned)* |
+| [pyright](https://microsoft.github.io/pyright/) | Type check (backend) | 1.1.411 *(pinned)* |
+| pytest | Backend tests | from `backend/pyproject.toml` (once it exists) |
+| Node.js | Frontend runtime / toolchain | 22 LTS *(pinned major)* |
+| ESLint + Vitest | Lint + tests (frontend) | from `frontend/package.json` (once it exists) |
+| OpenSearch | Single datastore | runs as a container in the dev cluster |
+| [Trivy](https://trivy.dev/) · [Grype](https://github.com/anchore/grype) | Scanners (per-scanner, never merged) | latest |
+| kubectl · helm · [k3d](https://k3d.io/) | Local k8s (k3s-in-Docker) | latest |
+| Docker | Container runtime (k3d backend) | host-provided |
+| [gh](https://cli.github.com/) | GitHub CLI (branch protection, automation) | latest |
+| commitlint | Conventional-commit CI gate | `wagoid/commitlint-github-action@v6` |
+| [release-please](https://github.com/googleapis/release-please) | Release automation | GitHub Action |
+| [Renovate](https://docs.renovatebot.com/) | Dependency automation | GitHub App |
+
+> Full install on a fresh Ubuntu VM: **`bash development/setup-dev.sh`** (idempotent). Verify a host is
+> ready with **`bash development/preflight.sh`**.
+
 ## License
 
 JAVV is **source-available** under the [Business Source License 1.1](LICENSE):
