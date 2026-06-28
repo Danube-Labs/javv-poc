@@ -26,6 +26,12 @@ Files this bolt creates — **in the layered tree, not here** (paths proposed):
 - `frontend/src/router/index.ts` — route table with lazy-loaded route components; placeholder routes for
   Findings (M9b), Overview/Images (M9c), Audit (M9d), Settings (M9e).
 - `frontend/src/layouts/AppShell.vue` — top bar + nav rail + content slot; hosts the global time picker.
+- `frontend/src/components/system/BackendHealthBanner.vue` — **global degraded banner**: polls `/readyz`,
+  and on `503 degraded` (or any API 503-envelope) shows a persistent, dismissible-but-recurring
+  *"Search backend unavailable — check OpenSearch health"* bar across every screen; auto-clears when
+  `/readyz` returns `200`. The app stays usable (chrome up), data areas show the degraded state rather than
+  blank/cryptic errors. Reads the M1 error envelope (`status`/`title`/`request_id`); see
+  [`standards/observability.md`](../../standards/observability.md).
 - `frontend/src/components/time-travel/GlobalTimePicker.vue` — days/hours/minutes-ago picker, default `now`
   (D28/FR-23). Emits a normalized `T` (`null` = now).
 - `frontend/src/stores/timeTravel.ts` — Pinia store holding global `T`; every data-fetching store/composable

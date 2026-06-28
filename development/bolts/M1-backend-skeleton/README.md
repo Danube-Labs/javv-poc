@@ -19,8 +19,13 @@ decisions **D9** (observability), **D16** (normalizer), **D25/D35** (current-env
 ## Deliverables
 The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/research/STACK-BEST-PRACTICES.md)):
 - `backend/core/` - settings, structlog config, **lifespan** holding the single `AsyncOpenSearch` client
-  (injected via `Depends`, `await`-closed on shutdown); **fail-fast at startup** with a clear error if
-  OpenSearch is unreachable, rather than booting blind.
+  (injected via `Depends`, `await`-closed on shutdown). **Boot vs runtime** (per
+  [`standards/observability.md`](../../standards/observability.md)): **fail-fast at startup** (clear error,
+  non-zero exit) if OpenSearch is unreachable; but at **runtime** the app **stays up and degrades** - data
+  endpoints return the 503 envelope and `/readyz` flips to `503`, never crash.
+- `backend/core/errors.py` - the **single error envelope** (problem-details: `type/title/status/detail/request_id`)
+  + exception handlers; **every** non-2xx response uses it (routers never hand-roll error bodies). `request_id`
+  is bound into structlog so a client error maps to exact logs.
 - `backend/core/bootstrap.py` - **versioned index bootstrap**: `dynamic:false` mappings for current-state
   (`findings`, `images`) + `system-*`, with keyword ids, the **severity normalizer**, reshaped CVSS, EPSS/KEV.
 - `backend/models/` - Pydantic v2 schemas; **request models `extra="forbid"`**; `cluster_id` shape validated.
@@ -28,7 +33,8 @@ The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/re
   normalize → `_bulk` write (inspect `response["errors"]` + per-item status; backoff on 429/503).
 - `POST /ingest/scan` - **hardened:** rate-limit, size + decompression caps, **256-bit random
   `(cluster,scanner)` tokens stored as peppered SHA-256**, structured queries, **current-envelope-only** acceptance.
-- `/healthz`, `/readyz`, `/metrics` + structlog.
+- `/healthz` (liveness, **no** OpenSearch dependency) + `/readyz` (readiness, reflects OpenSearch reachability)
+  + `/metrics` + structlog with bound `request_id`/`cluster_id`. See [`standards/observability.md`](../../standards/observability.md).
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** the M1 PLAN gate:
@@ -37,8 +43,10 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   normalized severity bucketed**. Automated.
 - Ingest rejects: oversized/over-compressed bodies, an envelope with extra fields (`extra="forbid"`), a bad/missing
   token, and a non-current envelope.
-- `/healthz` + `/readyz` reflect real OpenSearch reachability; the app **fails fast** (clear error, non-zero
-  exit) when OpenSearch is unreachable at startup; `/metrics` emits ingest counters.
+- `/healthz` stays `200` without OpenSearch; `/readyz` returns `503 degraded` when OpenSearch is unreachable
+  and `200 ready` when it recovers; the app **fails fast** (non-zero exit) only at **startup**, and at
+  **runtime** stays up returning the **503 error envelope** (with `request_id`) instead of crashing;
+  `/metrics` emits ingest counters. Redaction test: a token/password never appears in a log line.
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
