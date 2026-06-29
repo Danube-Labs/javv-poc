@@ -30,7 +30,11 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 Each bolt has a GitHub issue (label `bolt`) on the
 [project board](https://github.com/orgs/Danube-Labs/projects/1) — that's the **live status**; the bolt
 README is the spec. While working a bolt, comment its issue at these checkpoints:
-- **Kickoff** — "starting M<n>" (and move the card to In Progress).
+- **Kickoff** — "starting M<n>" (and move the card to In Progress). First **verify dev tooling is wired**:
+  the bolt's relevant MCPs (`claude mcp list` → serena / opensearch / context7 per
+  [`docs/research/TOOLING-AND-MCP.md`](../../docs/research/TOOLING-AND-MCP.md)) and the static floor
+  (ruff/pyright). If any are missing, wire them at kickoff (they load on the next session) — don't skip and
+  press on.
 - **Blocker** — what's blocking and on what.
 - **Scope / decision change** — and mirror anything spec-level into the bolt README's `## Updates` log; the
   issue comment can just link it (don't double-maintain — issue = running commentary, README = durable spec).
