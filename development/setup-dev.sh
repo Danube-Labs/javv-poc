@@ -91,7 +91,8 @@ install_precommit() {
 install_node() {
   if have node; then skip node "$(node --version)"; return; fi
   log "Installing Node.js ${NODE_MAJOR} LTS (NodeSource)"
-  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | $SUDO -E bash -
+  # ${SUDO:+...} adds 'sudo -E' only when non-root; as root $SUDO is empty so it's just 'bash -'
+  curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | ${SUDO:+$SUDO -E} bash -
   $SUDO apt-get install -y nodejs
 }
 
