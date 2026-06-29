@@ -39,6 +39,8 @@ README is the spec. While working a bolt, comment its issue at these checkpoints
 - **Scope / decision change** — and mirror anything spec-level into the bolt README's `## Updates` log; the
   issue comment can just link it (don't double-maintain — issue = running commentary, README = durable spec).
 - **Done** — a short wrap-up; the PR's `Closes #<n>` then closes the issue + moves the card to Done.
+  Note which **MCPs/skills you actually used** (one line — self-attestation; keeps the tooling honest,
+  since tool-use can't be CI-enforced).
 
 Mechanical activity (commits/PRs that mention `#<n>`) shows up in the issue timeline automatically — no comment
 needed for that. Agent included: when Claude works a bolt, it follows these same checkpoints.
