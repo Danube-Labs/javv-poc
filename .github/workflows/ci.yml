@@ -13,6 +13,7 @@ name: CI
 #   - OpenSearch service container + integration tests (testing.md layer 2)
 #   - coverage ratchet: pytest --cov-fail-under + vitest thresholds (C3)
 #   - FE/BE contract test: regenerate @hey-api/openapi-ts client, fail on git diff (I7)
+#   - FE E2E smoke: Playwright against a built FE + seeded backend (testing.md §4, owned by M9f)
 # Assumes: backend in ./backend (uv + pyproject.toml, pyright as a dev dep),
 #          frontend in ./frontend (npm + package.json). Adjust paths if they differ.
 

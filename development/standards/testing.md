@@ -3,7 +3,7 @@
 Test taxonomy + conventions, referenced by every bolt. A bolt README lists *which* cases it needs; the *how*
 lives here.
 
-## The three layers
+## Test layers
 
 ### 1. Unit - pure, fast, no I/O
 The default. Anything that's a pure function of its inputs:
@@ -33,6 +33,18 @@ expected resulting docs out. **Mandatory golden coverage for:**
 
 Fixtures live next to the code they test (`tests/fixtures/`), are real scanner output where possible, and are
 regenerated only with an explicit, reviewed reason.
+
+### 4. E2E smoke - Playwright, real browser against the running app
+For the **frontend** only: a thin set of **smoke** flows (not exhaustive UI coverage) proving the app boots
+and the core loop round-trips. Keep it to a handful of fast, deterministic specs in the `Frontend` CI gate:
+- App shell loads, routes render, login works, and the **degraded banner** shows when `/readyz` is down (M9a).
+- **Core triage loop:** findings grid lists from a seeded backend → open a finding → a triage action persists
+  and the row re-renders (M9b - the core-loop gate).
+- **Server-side-everything holds:** the grid pages/filters via backend queries (assert the network calls; no
+  client-side counting).
+Run Playwright against a **built frontend + a seeded backend** (real OpenSearch container). Playwright **MCP**
+drives the same browser interactively during dev (authoring/debugging these specs) - see
+[`TOOLING-AND-MCP.md`](../../docs/research/TOOLING-AND-MCP.md); the committed specs are what gate CI.
 
 ## Conventions
 - **Deterministic:** freeze time; no calls to real registries/vuln-DBs; seed any randomness.

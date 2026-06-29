@@ -72,7 +72,7 @@ as pure units** (Vitest).
 - **Component:** lazy DataTable emits correct load events; `VexJustificationPicker` appears only on
   `not_affected`; RBAC hides gated controls; `RiskAcceptDialog` requires approver+expiry; bulk conflict path.
 - **Integration (optional, against M6/M5b):** triage write round-trip reflects in the grid.
-- **Playwright:** core-loop E2E deferred to M9f — note only.
+- **Playwright (E2E):** the core-loop smoke (grid → finding → triage round-trip) lives in **M9f's E2E suite** ([`testing.md §4`](../../standards/testing.md)) — note only here.
 
 ## Out of scope (defer)
 - Per-image occurrences / point-in-time image view → M9c. Overview & dashboards → M9c.

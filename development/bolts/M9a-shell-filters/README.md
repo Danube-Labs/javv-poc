@@ -81,7 +81,7 @@ as pure units** (Vitest).
 - **Component (vue-test-utils):** FacetRail renders per-scanner buckets without merging; FilterBar add/remove
   updates the store; one-config-drives-both assertion.
 - **Contract:** a committed snapshot/CI step proving the generated client matches current OpenAPI (the I7 gate).
-- **Playwright:** deferred to M9f (cross-cutting E2E) — note only.
+- **Playwright (E2E):** the shell-loads/login + degraded-banner smoke lives in **M9f's E2E suite** ([`testing.md §4`](../../standards/testing.md)) — note only here.
 
 ## Out of scope (defer)
 - Findings grid + triage → M9b. Overview/images/dashboards → M9c. Audit/approvals → M9d. Settings panels → M9e.

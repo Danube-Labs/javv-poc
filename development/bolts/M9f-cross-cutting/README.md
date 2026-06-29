@@ -6,7 +6,8 @@
 The cross-cutting frontend layer that every screen leans on: global search, bell notifications
 (SLA breaches + new assignments + ready exports), saved views with deep-links, capability-based
 RBAC gating of the client, and the empty/cold-start states. All grids are **server-side lazy** —
-no client-side counting (server-side-everything hard constraint).
+no client-side counting (server-side-everything hard constraint). **Also owns the FE E2E smoke
+suite** (Playwright) that M9a/M9b defer to.
 
 **Canonical refs:** [`PLAN_v4 §8 M9f`](../../../docs/engineering/V4/PLAN_v4.md) ·
 `SPEC_v4` FR-16 (notifications, per-user, polling no-broker), FR-17 (saved views), FR-18 (capability-based RBAC client gating),
@@ -26,6 +27,7 @@ In the layered tree, not here (paths proposed):
 - `frontend/src/components/EmptyState.vue` / cold-start variants — no-data, no-scan-yet, no-cluster states.
 - `frontend/src/composables/useLazyGrid.ts` — shared server-side lazy `DataTable` adapter (page/sort/filter → query params), reused by every grid.
 - Backend read endpoints (if not pre-existing): `GET /search`, `GET /notifications`, `GET/POST/DELETE /saved-views` — all `cluster_id`-filtered via the chokepoint helper.
+- `frontend/playwright.config.ts` + `frontend/tests/e2e/*.spec.ts` — **the E2E smoke suite** ([`testing.md §4`](../../standards/testing.md)): app-loads/login, the M9b core triage round-trip, the OpenSearch-degraded banner on `/readyz` down, and server-side paging asserted via network calls. A few fast, deterministic specs — wired into the `Frontend` CI gate, run against a **built FE + seeded backend**. (Playwright **MCP** drives the browser during authoring — [`TOOLING-AND-MCP.md`](../../../docs/research/TOOLING-AND-MCP.md).)
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test):
@@ -34,12 +36,14 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Saved-view deep-links round-trip: save a filter set → reopen → identical query params → identical server result.
 - Capability gating: a route/action hidden client-side is **also** 403'd server-side for a principal lacking the capability (client gate alone is non-authoritative — D33/FR-18).
 - Empty/cold-start states render for no-data / no-scan / no-cluster without errors.
+- **E2E smoke (Playwright) green in CI:** app shell loads + login; the core triage loop round-trips (grid → finding → `not_affected`+justification persists → grid reflects it); the OpenSearch-degraded banner shows when `/readyz` is down; grid paging/filtering goes through backend queries (no client-side counting) — against a built FE + seeded backend ([`testing.md §4`](../../standards/testing.md)).
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:
 - **Unit (Vitest):** lazy-grid query-param builder; saved-view serialize/deserialize round-trip; notification category mapping; capability predicate; emitted search params.
 - **Integration (real OpenSearch):** search hit paging; notifications agg; saved-view CRUD with `cluster_id` chokepoint negative test; server-side 403 for missing capability.
 - **Golden fixtures:** a saved filter set → expected deep-link URL + emitted query body (regression guard against param drift).
+- **E2E (Playwright):** the smoke flows in the DoD — a handful of fast, deterministic specs against a built FE + seeded backend; Playwright MCP for authoring/debugging ([`testing.md §4`](../../standards/testing.md)).
 
 ## Out of scope (defer)
 - Per-user/role `allowed_cluster_ids` grants → post-MVP (MVP tenant = all-clusters-visible, `cluster_id` is a data filter — D38/H9).
