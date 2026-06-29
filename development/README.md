@@ -78,11 +78,17 @@ kernel - fine for functional wiring, **not** for benchmarking scan throughput.
 > **scanner JSON, per-scanner, never merged.**
 
 For **local dev** you don't need the images yet - just the CLIs, to produce the JSON the backend ingests.
-First give the scanners something to find:
+First give the scanners something to find - apply the checked-in **dev smoke target** (3 deployments of
+deliberately-old images, incl. a 3-replica nginx so digest-dedup has something to collapse):
 
 ```bash
-kubectl --context k3d-alpha create deployment vuln --image=python:3.4-slim   # EOL → many CVEs
+kubectl apply -f development/setup/seed-vuln-workloads.yaml   # → namespace javv-smoke
+kubectl -n javv-smoke get pods                               # 5 pods, 3 distinct images
+# teardown:  kubectl delete -f development/setup/seed-vuln-workloads.yaml
 ```
+
+This is the scan target for M0's live-cluster verification (`PLAN_v4 §9`). For a throwaway one-off instead:
+`kubectl --context k3d-alpha create deployment vuln --image=python:3.4-slim` (EOL → many CVEs).
 
 ```bash
 # Trivy — emits the JSON JAVV ingests (scanner=trivy)
