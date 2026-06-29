@@ -1,0 +1,22 @@
+# JAVV self-built Grype scanner image — per-scanner, never a third-party operator.
+# The pinned grype binary is copied from the official pinned image (supply-chain control);
+# our package provides the entrypoint. Build context = scanner/.
+#   docker build -f scanner/Dockerfile.grype -t javv-scanner-grype scanner
+ARG PYTHON_VERSION=3.12
+ARG GRYPE_VERSION=0.115.0
+
+FROM anchore/grype:v${GRYPE_VERSION} AS grype
+
+FROM python:${PYTHON_VERSION}-slim
+COPY --from=grype /grype /usr/local/bin/grype
+
+WORKDIR /app
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1
+RUN pip install --no-cache-dir uv
+COPY pyproject.toml uv.lock ./
+COPY src ./src
+RUN uv sync --frozen --no-dev
+
+ENV JAVV_SCANNER=grype
+ENTRYPOINT ["uv", "run", "--no-sync", "python", "-m", "scanner"]

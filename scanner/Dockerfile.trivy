@@ -1,0 +1,22 @@
+# JAVV self-built Trivy scanner image — per-scanner, never the Trivy Operator.
+# The pinned trivy binary is copied from the official pinned image (supply-chain control);
+# our package provides the entrypoint. Build context = scanner/.
+#   docker build -f scanner/Dockerfile.trivy -t javv-scanner-trivy scanner
+ARG PYTHON_VERSION=3.12
+ARG TRIVY_VERSION=0.71.2
+
+FROM aquasec/trivy:${TRIVY_VERSION} AS trivy
+
+FROM python:${PYTHON_VERSION}-slim
+COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
+
+WORKDIR /app
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1
+RUN pip install --no-cache-dir uv
+COPY pyproject.toml uv.lock ./
+COPY src ./src
+RUN uv sync --frozen --no-dev
+
+ENV JAVV_SCANNER=trivy
+ENTRYPOINT ["uv", "run", "--no-sync", "python", "-m", "scanner"]
