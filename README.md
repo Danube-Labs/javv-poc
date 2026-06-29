@@ -8,13 +8,14 @@ platform.
 > Status: pre-MVP, design phase (v4). Canonical design lives in [docs/engineering/V4/](docs/engineering/V4/) - start
 > with [PLAN_v4.md](docs/engineering/V4/PLAN_v4.md) and [SPEC_v4.md](docs/engineering/V4/SPEC_v4.md).
 
+> 🗺️ **New here? Start with [REPO-MAP.md](REPO-MAP.md)** — a map of every folder, the canonical docs, and the
+> milestone bolts, with a "read in this order" guide.
+
 ## Why
 
 Vulnerability tooling splits into two worlds: triage tools (DefectDojo, Dependency-Track) with rigid
 reporting, and dashboard tools (Kibana/OpenSearch Dashboards) with no concept of auditing a finding.
 JAVV fills the seam between them.
-
-> New to the repo? **[REPO-MAP.md](REPO-MAP.md)** maps every folder and what's in it.
 
 ## Design docs
 
@@ -33,6 +34,7 @@ JAVV fills the seam between them.
 
 | Path | What |
 |---|---|
+| [REPO-MAP.md](REPO-MAP.md) | **Repository map** — what every folder is + reading order |
 | [docs/engineering/UI-GUIDELINES.md](docs/engineering/UI-GUIDELINES.md) | Dashboard UI target |
 | [docs/research/](docs/research/) | Stack best-practices, tooling/MCP, audits backing v4 |
 | [handoff/v4/](handoff/v4/) | UI reference: prototype + UI docs + brand (reference point, not a 1:1 contract) |
