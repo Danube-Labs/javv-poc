@@ -49,7 +49,7 @@ OpenSearch single store → Vue 3 frontend. Apache-2.0 components throughout.
 ## Toolchain
 
 Versions for the **gate tools** (the ones that decide lint/type/test results) are pinned so local
-matches CI. They live in **one place — [`development/setup-dev.sh`](development/setup-dev.sh)** — bump
+matches CI. They live in **one place — [`development/setup/setup-dev.sh`](development/setup/setup-dev.sh)** — bump
 them there. Scanners and Kubernetes tooling intentionally track latest (security DBs and cluster
 compatibility are more defensible at HEAD).
 
@@ -71,8 +71,8 @@ compatibility are more defensible at HEAD).
 | [release-please](https://github.com/googleapis/release-please) | Release automation | GitHub Action |
 | [Renovate](https://docs.renovatebot.com/) | Dependency automation | GitHub App |
 
-> Full install on a fresh Ubuntu VM: **`bash development/setup-dev.sh`** (idempotent). Verify a host is
-> ready with **`bash development/preflight.sh`**.
+> Full install on a fresh Ubuntu VM: **`bash development/setup/setup-dev.sh`** (idempotent). Verify a host is
+> ready with **`bash development/setup/preflight.sh`**.
 
 ## License
 

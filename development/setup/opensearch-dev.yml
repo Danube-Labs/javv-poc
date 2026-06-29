@@ -3,9 +3,9 @@
 # first ran; bump deliberately (keep in step with the target deploy version).
 # Brings up http://localhost:9200 (+ :9600 metrics).
 #
-#   docker compose -f development/opensearch-dev.yml up -d     # start
-#   docker compose -f development/opensearch-dev.yml down      # stop (keep data)
-#   docker compose -f development/opensearch-dev.yml down -v   # stop + wipe the data volume
+#   docker compose -f development/setup/opensearch-dev.yml up -d     # start
+#   docker compose -f development/setup/opensearch-dev.yml down      # stop (keep data)
+#   docker compose -f development/setup/opensearch-dev.yml down -v   # stop + wipe the data volume
 #
 # Equivalent throwaway one-liner (no persistence):
 #   docker run -d --name javv-opensearch -p 9200:9200 -p 9600:9600 \
