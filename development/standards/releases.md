@@ -9,6 +9,9 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
 
 ## Versioning
 - **SemVer** (`MAJOR.MINOR.PATCH`), derived from conventional-commit types, never bumped by hand.
+- **Pre-1.0:** while in MVP we stay in `0.x` — config sets `bump-minor-pre-major` +
+  `bump-patch-for-minor-pre-major`, so `feat`/breaking bump within `0.x` rather than jumping to `1.0.0`.
+  First real tag is cut at the deploy bolt (M10); the standing release PR just accumulates until then.
 - JAVV is a **deployed app** (FastAPI + Vue, shipped via Helm/k3s), **not a published library**.
   A "release" here is a tag + changelog + GitHub Release that a deploy can pin to — not a
   registry publish.
