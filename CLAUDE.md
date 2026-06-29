@@ -35,7 +35,10 @@ Invoke the matching skill before starting that kind of work:
   construction. Mandatory for M1 ingest and M3 auth.
 - **performance-optimization** - OpenSearch query/agg/shard tuning, large-table FE render. Measure first.
 - **code-review-and-quality** - before merging any change.
-- **git-workflow-and-versioning** - commits/branches throughout.
+- **git-workflow-and-versioning** - commits/branches throughout. **Track each bolt on its GitHub issue**
+  (label `bolt`, on the project board): comment at kickoff / blocker / scope-change / done, and put
+  `Closes #<n>` in the bolt PR. Spec-level changes also go in the bolt README's `## Updates` log. Full
+  convention: `development/standards/git-workflow.md` § "Tracking a bolt".
 - **ci-cd-and-automation** - the Helm→k3s pipeline + ruff/pyright/pytest CI gates.
 
 ## Tooling to lean on (see `docs/research/TOOLING-AND-MCP.md` for install)
