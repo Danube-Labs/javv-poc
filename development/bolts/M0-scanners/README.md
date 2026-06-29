@@ -66,3 +66,9 @@ See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
   dedup check) — to apply into the `alpha` k3d cluster for that step. The skip-unchanged sub-clause from v3 §9
   is superseded by D30 (scan-all). No change to scope or deliverables; this is the integration layer of M0's
   existing "done", which the golden fixtures alone can't prove.
+- **2026-06-30** — **M0 implemented** (PR #58), built TDD in slices: normalize → adapters → envelope →
+  discovery → push → drivers/orchestrator → Dockerfiles → live verification. Package lives in `scanner/`
+  (own uv project, dedicated CI gate). Live verification passed against `alpha`: nginx 3×→1 digest-dedup,
+  distinct digests, and real trivy + grype envelopes with actual CVEs on `python:3.9.16-slim`
+  (`JAVV_LIVE_VERIFY=1 uv run pytest tests/test_live_verify.py`). Implementation note: k8s reports
+  **fully-qualified image refs** (`docker.io/library/nginx:1.21.6`) — discovery captures those verbatim.
