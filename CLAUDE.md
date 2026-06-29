@@ -5,6 +5,8 @@
 > lives in **`docs/engineering/V4/`** (PLAN_v4 · SPEC_v4 · ARCHITECTURE_v4); V3 and earlier are frozen for the
 > evolution trail. UI reference: `handoff/v4/` (a *reference point, not a 1:1 contract*). Research
 > backing the v4 revision: `docs/research/`. **Lost? Read `REPO-MAP.md` first** - it maps every folder.
+> **Resuming a session?** Read the newest file in `.claude/sessions/` (the last handoff) before acting;
+> save one with `/save-context` before ending or compacting.
 
 ## Stack (fixed)
 Backend: **Python 3.12 · FastAPI (async) · AsyncOpenSearch (opensearch-py) · Pydantic v2**. Frontend:
