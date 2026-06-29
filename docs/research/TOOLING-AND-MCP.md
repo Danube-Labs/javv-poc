@@ -21,9 +21,11 @@ edits) instead of raw file reads. Why here: two-language codebase that will grow
 burned, fewer botched multi-file refactors. Install:
 ```bash
 claude mcp add serena -- uvx --from git+https://github.com/oraios/serena \
-  serena-mcp-server --context ide-assistant --project "$(pwd)"
+  serena start-mcp-server --context ide-assistant --project "$(pwd)"
 ```
 First session: ask Claude to "read Serena's initial instructions." Needs `uv`/`uvx`.
+> Entrypoint is `serena start-mcp-server` (the older `serena-mcp-server` executable was removed). MCP
+> servers load at **session start**, so wire them, then restart / `claude --continue` to pick them up.
 
 ## 2. OpenSearch MCP (HIGH - JAVV-specific)
 Official `opensearch-project/opensearch-mcp-server-py`: `ListIndexTool`, `IndexMappingTool`,
