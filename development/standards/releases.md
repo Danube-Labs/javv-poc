@@ -11,9 +11,11 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
 - **SemVer** (`MAJOR.MINOR.PATCH`), derived from conventional-commit types, never bumped by hand.
 - **Pre-1.0:** while in MVP we stay in `0.x`. release-please otherwise defaults the *first* release to
   `1.0.0`, so the config pins it with **`release-as: "0.1.0"`** (plus `bump-minor-pre-major` +
-  `bump-patch-for-minor-pre-major` for bumps after that). First real tag is cut at the deploy bolt (M10);
-  the standing release PR just accumulates until then. **After that first `0.1.0` tag, remove `release-as`**
-  from `release-please-config.json` so later versions compute from commits.
+  `bump-patch-for-minor-pre-major` for bumps after that). The **first tag (`v0.1.0`) is cut when M0/M1 lands
+  the first runnable code** — not now (the tree is docs-only) and not as late as M10; `0.x` = pre-stable dev,
+  so an early dev milestone is exactly when to tag. `1.0.0`/GA is roughly the deploy bolt (M10). The standing
+  release PR just accumulates until then. **After that first `0.1.0` tag, remove `release-as`** from
+  `release-please-config.json` so later versions compute from commits.
 - JAVV is a **deployed app** (FastAPI + Vue, shipped via Helm/k3s), **not a published library**.
   A "release" here is a tag + changelog + GitHub Release that a deploy can pin to — not a
   registry publish.
