@@ -77,6 +77,20 @@ else
   warn "OpenSearch not reachable at $OPENSEARCH_URL — start the dev cluster / OpenSearch container"
 fi
 
+hdr "Dev MCPs (soft — per-user config, not repo-enforced)"
+if command -v claude >/dev/null 2>&1; then
+  mcps=$(claude mcp list 2>/dev/null || true)
+  for m in serena opensearch context7; do
+    if printf '%s\n' "$mcps" | grep -qE "^${m}:.*Connected"; then
+      ok "MCP $m connected"
+    else
+      warn "MCP $m not wired/connected — see docs/research/TOOLING-AND-MCP.md (loads next session)"
+    fi
+  done
+else
+  warn "claude CLI not found — skipping MCP check"
+fi
+
 echo
 if [ "$HARD" -ne 0 ]; then
   printf '\033[1;31mPREFLIGHT FAILED\033[0m — fix the ✗ items above.\n'; exit 1
