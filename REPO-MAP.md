@@ -45,9 +45,9 @@
 | Path | Contents |
 |---|---|
 | `development/README.md` | **Dev-environment + local-loop guide**: setup, single k3d cluster, scanning the cluster, quality gates, planned repo layout |
-| `development/setup-dev.sh` | Idempotent toolchain installer (uv/ruff/pyright/node/k8s/scanners/gh); **pinned gate-tool versions** at top |
-| `development/preflight.sh` | Host readiness check (tools+versions, Docker daemon, k3d cluster, OpenSearch reachable) |
-| `development/setup-branch-protection.sh` | Reproducible `gh api` branch protection for `main` (deferred - free-plan private repo can't enforce; ready when org→Team/public) |
+| `development/setup/setup-dev.sh` | Idempotent toolchain installer (uv/ruff/pyright/node/k8s/scanners/gh); **pinned gate-tool versions** at top |
+| `development/setup/preflight.sh` | Host readiness check (tools+versions, Docker daemon, k3d cluster, OpenSearch reachable) |
+| `development/setup/setup-branch-protection.sh` | Reproducible `gh api` branch protection for `main` (deferred - free-plan private repo can't enforce; ready when org→Team/public) |
 | `development/AUDIT.md` | **Temporary** working tracker from the `development/` review; delete once items close |
 | **`development/bolts/`** | One folder per milestone unit M0-M10 (the **execution briefs**) - see milestone map below |
 | **`development/standards/`** | Process rules: `definition-of-done` · `testing` · `git-workflow` · `releases` · `bolt-readme-template` · `README` |

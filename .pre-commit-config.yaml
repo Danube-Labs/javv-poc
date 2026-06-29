@@ -6,7 +6,7 @@ default_install_hook_types: [pre-commit, commit-msg]
 
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.20            # keep in sync with RUFF_VERSION in development/setup-dev.sh
+    rev: v0.15.20            # keep in sync with RUFF_VERSION in development/setup/setup-dev.sh
     hooks:
       - id: ruff             # lint (with --fix)
         args: [--fix]

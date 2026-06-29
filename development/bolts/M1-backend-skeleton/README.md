@@ -13,7 +13,7 @@ decisions **D9** (observability), **D16** (normalizer), **D25/D35** (current-env
 
 ## Depends on
 - **M0** - produces the envelope this bolt ingests.
-- **Local environment:** run [`development/preflight.sh`](../../preflight.sh) first - it verifies the Docker
+- **Local environment:** run [`development/setup/preflight.sh`](../../setup/preflight.sh) first - it verifies the Docker
   daemon, the k3d cluster, OpenSearch reachability, and required tool versions before this bolt can run.
 
 ## Deliverables

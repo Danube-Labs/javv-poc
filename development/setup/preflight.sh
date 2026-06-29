@@ -36,7 +36,7 @@ for t in docker uv ruff node npm pyright kubectl helm k3d trivy grype gh jq; do
   if command -v "$t" >/dev/null 2>&1; then
     ok "$t ($(tool_version "$t"))"
   else
-    fail "$t missing — run development/setup-dev.sh"
+    fail "$t missing — run development/setup/setup-dev.sh"
   fi
 done
 

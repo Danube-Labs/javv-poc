@@ -5,7 +5,7 @@ Getting a fresh machine ready to build JAVV. For *what* we're building, see the 
 and local-loop guide.
 
 > Target host: **Ubuntu 24.04 (x86_64)**. Docker must already be installed and running. Everything else is
-> installed by [`development/setup-dev.sh`](setup-dev.sh).
+> installed by [`development/setup/setup-dev.sh`](setup/setup-dev.sh).
 
 ---
 
@@ -13,7 +13,7 @@ and local-loop guide.
 
 ```bash
 # from the repo root
-./development/setup-dev.sh
+./development/setup/setup-dev.sh
 ```
 
 The script is **idempotent** - re-run it any time; it skips tools already present. It needs `sudo` for the
@@ -35,7 +35,8 @@ The script is **idempotent** - re-run it any time; it skips tools already presen
 - **MCP servers** (Serena, OpenSearch, Context7, …) - wire up per
   [`docs/research/TOOLING-AND-MCP.md`](../docs/research/TOOLING-AND-MCP.md) with `claude mcp add …`. `uvx`/`npx` are
   prerequisites and the script installs both.
-- **OpenSearch** - runs as a container in the dev cluster, not on the host.
+- **OpenSearch** - for local dev, run the pinned single-node container (security off, `:9200`):
+  `docker compose -f development/setup/opensearch-dev.yml up -d`. In-cluster deploy comes later (M9e/M10).
 
 ### After it runs
 
@@ -119,7 +120,7 @@ backend/
   core/           settings, logging, lifespan (single AsyncOpenSearch client)
   jobs/           CronJob entrypoints - reuse services, must NOT import FastAPI
 frontend/         Vue 3 (<script setup lang="ts">) · PrimeVue · vue-echarts · Pinia
-development/      dev/setup tooling + this guide (setup-dev.sh lives here)
+development/      dev docs + this guide; setup/ (setup-dev.sh, preflight.sh, opensearch-dev.yml), bolts/, standards/
 deploy/           Helm charts (→ k3s)
 ```
 
