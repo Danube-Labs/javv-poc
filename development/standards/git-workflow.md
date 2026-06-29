@@ -26,7 +26,20 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 - CI must be green (ruff + pyright + pytest, ESLint + Vitest) before merge.
 - `code-review-and-quality` pass on the diff.
 
+## Tracking a bolt (GitHub issues)
+Each bolt has a GitHub issue (label `bolt`) on the
+[project board](https://github.com/orgs/Danube-Labs/projects/1) — that's the **live status**; the bolt
+README is the spec. While working a bolt, comment its issue at these checkpoints:
+- **Kickoff** — "starting M<n>" (and move the card to In Progress).
+- **Blocker** — what's blocking and on what.
+- **Scope / decision change** — and mirror anything spec-level into the bolt README's `## Updates` log; the
+  issue comment can just link it (don't double-maintain — issue = running commentary, README = durable spec).
+- **Done** — a short wrap-up; the PR's `Closes #<n>` then closes the issue + moves the card to Done.
+
+Mechanical activity (commits/PRs that mention `#<n>`) shows up in the issue timeline automatically — no comment
+needed for that. Agent included: when Claude works a bolt, it follows these same checkpoints.
+
 ## main
 - Protected. No direct pushes; PR + green CI + review to merge.
-- Tag releases when the deploy bolt (M10) produces something shippable.
+- First tag (`v0.1.0`) is cut at **M0/M1** (first runnable code); `1.0.0`/GA ~ the deploy bolt (M10).
 - Versioning + release/dependency automation (release-please, Renovate): see [releases.md](releases.md).
