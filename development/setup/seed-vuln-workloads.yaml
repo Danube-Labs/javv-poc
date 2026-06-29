@@ -1,0 +1,91 @@
+# JAVV dev smoke target — deliberately-old, known-vulnerable images to give the
+# scanner something real to discover and scan in the local k3d cluster (`alpha`).
+#
+# NOT part of the app and NOT deployed anywhere real — this exists only to verify
+# M0's scanner against a live cluster (PLAN_v4 §9 "Scanner: <local cluster> + a
+# known-vulnerable image; confirm digest dedup …").
+#
+#   Apply:   kubectl apply -f development/setup/seed-vuln-workloads.yaml
+#   Remove:  kubectl delete -f development/setup/seed-vuln-workloads.yaml
+#
+# What it proves once the scanner runs against it:
+#   - discovery enumerates images across multiple namespaces/workloads (3 deployments here)
+#   - digest-dedup: vuln-nginx has 3 replicas of ONE image → 3 pods collapse to 1 scan (D30)
+#   - the trivy/grype adapters drive the real binaries on a real image and find real CVEs
+#
+# Images are intentionally old (CVE-rich). Tags are pinned; pull-once means all replicas
+# share a digest, which is exactly what digest-dedup keys on. Bump deliberately if a tag
+# ever stops resolving — the point is "old enough to have findings", not "latest".
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: javv-smoke
+  labels:
+    javv.dev/purpose: scan-smoke-target
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vuln-nginx
+  namespace: javv-smoke
+  labels: { javv.dev/purpose: scan-smoke-target }
+spec:
+  replicas: 3                      # 3 pods, 1 image → digest-dedup must collapse to 1 scan
+  selector:
+    matchLabels: { app: vuln-nginx }
+  template:
+    metadata:
+      labels: { app: vuln-nginx }
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:1.21.6      # old; known CVEs
+          ports: [{ containerPort: 80 }]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vuln-python
+  namespace: javv-smoke
+  labels: { javv.dev/purpose: scan-smoke-target }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: vuln-python }
+  template:
+    metadata:
+      labels: { app: vuln-python }
+    spec:
+      containers:
+        - name: python
+          image: python:3.9.16-slim   # old; OS + interpreter CVEs
+          command: ["sleep", "infinity"]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits:   { cpu: 100m, memory: 64Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vuln-alpine
+  namespace: javv-smoke
+  labels: { javv.dev/purpose: scan-smoke-target }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: vuln-alpine }
+  template:
+    metadata:
+      labels: { app: vuln-alpine }
+    spec:
+      containers:
+        - name: alpine
+          image: alpine:3.14          # old base; a different distro for variety
+          command: ["sleep", "infinity"]
+          resources:
+            requests: { cpu: 10m, memory: 16Mi }
+            limits:   { cpu: 100m, memory: 64Mi }

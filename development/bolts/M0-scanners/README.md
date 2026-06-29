@@ -39,6 +39,12 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Two scans of the same image with **no change** still emit a full envelope (no skip-unchanged - D30), with a
   new `scan_run_id` and a strictly greater `scan_order`.
 - A push that fails permanently lands in the dead-letter sink; a transient failure is retried with backoff.
+- **Live-cluster verification (PLAN_v4 §9, inherits v3 §9 "Scanner").** With the dev smoke target applied
+  (`kubectl apply -f development/setup/seed-vuln-workloads.yaml` → the `javv-smoke` namespace), the scanner
+  run against the real `alpha` k3d cluster confirms: discovery enumerates all three deployments; **digest-dedup
+  collapses `vuln-nginx`'s 3 replicas to a single scan** (N pods → M<N scans - D30); and the trivy/grype
+  adapters drive the **real binaries on a real image** and produce a real envelope with actual CVEs (proves the
+  golden-fixture path matches live output). This is the integration smoke the fixture tests can't cover.
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
@@ -51,3 +57,12 @@ See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
 - The ingest endpoint + storage → **M1**.
 - `commit_key`, occurrence snapshots, watermarks → stamped/consumed server-side in **M3 / M8a**.
 - Helm packaging of the scanner (PVC cache, CronJob hygiene, RBAC) → **M10**.
+
+## Updates
+- **2026-06-30** — Spelled out the **live-cluster scanner verification** in the DoD. It was always required
+  (PLAN_v4 §9 opens "As v3 §9 plus…", and v3 §9 mandates "Scanner: <local cluster> + a known-vulnerable
+  image; confirm digest dedup") but was only implied by inheritance, not stated here. Added a dev smoke target
+  manifest — `development/setup/seed-vuln-workloads.yaml` (3 deployments incl. a 3-replica nginx for the
+  dedup check) — to apply into the `alpha` k3d cluster for that step. The skip-unchanged sub-clause from v3 §9
+  is superseded by D30 (scan-all). No change to scope or deliverables; this is the integration layer of M0's
+  existing "done", which the golden fixtures alone can't prove.
