@@ -6,10 +6,14 @@ Grype additionally provides EPSS (`vulnerability.epss[].epss`) and KEV
 `fixed` or a fixed version is listed. Input is untrusted: malformed entries are skipped.
 """
 
-from collections.abc import Mapping, Sequence
+import json
+import subprocess
+from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
 from scanner.models import Finding
+
+Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
 def _cvss(cvss: Any) -> float | None:
@@ -60,3 +64,9 @@ def parse_grype(data: Mapping[str, Any]) -> list[Finding]:
             )
         )
     return findings
+
+
+def scan_grype(image_ref: str, *, runner: Runner = subprocess.run) -> list[Finding]:
+    """Drive the grype binary against an image ref and parse its JSON output."""
+    proc = runner(["grype", image_ref, "-o", "json"], capture_output=True, text=True, check=True)
+    return parse_grype(json.loads(proc.stdout))

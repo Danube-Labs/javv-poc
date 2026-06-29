@@ -5,10 +5,17 @@ over V2 and take the highest available. A vuln is fixable when Trivy gives a `Fi
 Trivy provides no EPSS/KEV. Input is untrusted: malformed entries are skipped, never fatal.
 """
 
-from collections.abc import Mapping
+import json
+import subprocess
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from scanner.models import Finding
+
+# Pinned scanner flags; the pinned binary version lives in Dockerfile.trivy.
+TRIVY_CMD = ["trivy", "image", "--quiet", "--scanners", "vuln", "--format", "json"]
+
+Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
 def _cvss(cvss: Any) -> float | None:
@@ -50,3 +57,9 @@ def parse_trivy(data: Mapping[str, Any]) -> list[Finding]:
                 )
             )
     return findings
+
+
+def scan_trivy(image_ref: str, *, runner: Runner = subprocess.run) -> list[Finding]:
+    """Drive the trivy binary against an image ref and parse its JSON output."""
+    proc = runner([*TRIVY_CMD, image_ref], capture_output=True, text=True, check=True)
+    return parse_trivy(json.loads(proc.stdout))
