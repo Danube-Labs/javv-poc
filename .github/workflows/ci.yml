@@ -14,8 +14,8 @@ name: CI
 #   - coverage ratchet: pytest --cov-fail-under + vitest thresholds (C3)
 #   - FE/BE contract test: regenerate @hey-api/openapi-ts client, fail on git diff (I7)
 #   - FE E2E smoke: Playwright against a built FE + seeded backend (testing.md §4, owned by M9f)
-# Assumes: backend in ./backend (uv + pyproject.toml, pyright as a dev dep),
-#          frontend in ./frontend (npm + package.json). Adjust paths if they differ.
+# Assumes: backend in ./backend and scanner in ./scanner (uv + pyproject.toml, pyright as a
+#          dev dep), frontend in ./frontend (npm + package.json). Adjust paths if they differ.
 
 on:
   pull_request:
@@ -92,6 +92,53 @@ jobs:
       - name: Pytest
         if: steps.detect.outputs.present == 'true'
         working-directory: backend
+        run: uv run pytest
+
+  scanner:
+    name: Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect scanner
+        id: detect
+        run: |
+          if [ -f scanner/pyproject.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No scanner/pyproject.toml yet — skipping scanner gates (scaffold)."
+          fi
+
+      - name: Set up uv
+        if: steps.detect.outputs.present == 'true'
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        if: steps.detect.outputs.present == 'true'
+        working-directory: scanner
+        run: uv sync --all-extras --dev
+
+      - name: Ruff lint
+        if: steps.detect.outputs.present == 'true'
+        working-directory: scanner
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        if: steps.detect.outputs.present == 'true'
+        working-directory: scanner
+        run: uv run ruff format --check .
+
+      - name: Pyright
+        if: steps.detect.outputs.present == 'true'
+        working-directory: scanner
+        run: uv run pyright
+
+      - name: Pytest
+        if: steps.detect.outputs.present == 'true'
+        working-directory: scanner
         run: uv run pytest
 
   frontend:
