@@ -1,0 +1,40 @@
+# Local DEV OpenSearch — single node, security DISABLED. NOT for production.
+# JAVV's datastore for local dev + M1 integration tests. Pinned to the version the dev VM
+# first ran; bump deliberately (keep in step with the target deploy version).
+# Brings up http://localhost:9200 (+ :9600 metrics).
+#
+#   docker compose -f development/opensearch-dev.yml up -d     # start
+#   docker compose -f development/opensearch-dev.yml down      # stop (keep data)
+#   docker compose -f development/opensearch-dev.yml down -v   # stop + wipe the data volume
+#
+# Equivalent throwaway one-liner (no persistence):
+#   docker run -d --name javv-opensearch -p 9200:9200 -p 9600:9600 \
+#     -e discovery.type=single-node -e DISABLE_SECURITY_PLUGIN=true \
+#     -e "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" opensearchproject/opensearch:3.7.0
+#
+# Prereq: vm.max_map_count >= 262144  (sudo sysctl -w vm.max_map_count=262144)
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:3.7.0
+    container_name: javv-opensearch
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=true            # DEV ONLY — no TLS/auth on :9200
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m  # small heap for a dev VM
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+    volumes:
+      - javv-opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  javv-opensearch-data:

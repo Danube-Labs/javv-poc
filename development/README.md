@@ -35,7 +35,8 @@ The script is **idempotent** - re-run it any time; it skips tools already presen
 - **MCP servers** (Serena, OpenSearch, Context7, …) - wire up per
   [`docs/research/TOOLING-AND-MCP.md`](../docs/research/TOOLING-AND-MCP.md) with `claude mcp add …`. `uvx`/`npx` are
   prerequisites and the script installs both.
-- **OpenSearch** - runs as a container in the dev cluster, not on the host.
+- **OpenSearch** - for local dev, run the pinned single-node container (security off, `:9200`):
+  `docker compose -f development/opensearch-dev.yml up -d`. In-cluster deploy comes later (M9e/M10).
 
 ### After it runs
 
