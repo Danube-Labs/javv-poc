@@ -166,13 +166,11 @@ check_docker() {
 }
 
 # --- summary ----------------------------------------------------------------
-# Not every tool accepts `--version` (helm/k3d/grype/kubectl use their own form).
+# kubectl and helm reject `--version`; everything else (incl. k3d/grype) prints a clean one-liner with it.
 tool_version() {
   case "$1" in
-    helm)    helm version --short 2>/dev/null ;;
-    k3d)     k3d version 2>/dev/null | head -1 ;;
-    grype)   grype version 2>/dev/null | head -1 ;;
     kubectl) kubectl version --client 2>/dev/null | head -1 ;;
+    helm)    helm version --short 2>/dev/null ;;
     *)       "$1" --version 2>/dev/null | head -1 ;;
   esac
 }

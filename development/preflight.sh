@@ -22,10 +22,19 @@ warn() { printf '  \033[1;33m!\033[0m %s\n' "$*"; SOFT=1; }
 fail() { printf '  \033[1;31m✗\033[0m %s\n' "$*"; HARD=1; }
 hdr()  { printf '\n\033[1;36m== %s ==\033[0m\n' "$*"; }
 
+# kubectl and helm reject `--version`; everything else (incl. k3d/grype) prints a clean one-liner with it.
+tool_version() {
+  case "$1" in
+    kubectl) kubectl version --client 2>/dev/null | head -1 ;;
+    helm)    helm version --short 2>/dev/null ;;
+    *)       "$1" --version 2>/dev/null | head -1 ;;
+  esac
+}
+
 hdr "Required tools"
 for t in docker uv ruff node npm pyright kubectl helm k3d trivy grype gh jq; do
   if command -v "$t" >/dev/null 2>&1; then
-    ok "$t ($("$t" --version 2>&1 | head -1))"
+    ok "$t ($(tool_version "$t"))"
   else
     fail "$t missing — run development/setup-dev.sh"
   fi
