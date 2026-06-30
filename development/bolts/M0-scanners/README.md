@@ -66,3 +66,17 @@ See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
   dedup check) — to apply into the `alpha` k3d cluster for that step. The skip-unchanged sub-clause from v3 §9
   is superseded by D30 (scan-all). No change to scope or deliverables; this is the integration layer of M0's
   existing "done", which the golden fixtures alone can't prove.
+- **2026-06-30** — **M0 implemented** (PR #58), built TDD in slices: normalize → adapters → envelope →
+  discovery → push → drivers/orchestrator → Dockerfiles → live verification. Package lives in `scanner/`
+  (own uv project, dedicated CI gate). Live verification passed against `alpha`: nginx 3×→1 digest-dedup,
+  distinct digests, and real trivy + grype envelopes with actual CVEs on `python:3.9.16-slim`
+  (`JAVV_LIVE_VERIFY=1 uv run pytest tests/test_live_verify.py`). Implementation note: k8s reports
+  **fully-qualified image refs** (`docker.io/library/nginx:1.21.6`) — discovery captures those verbatim.
+- **2026-06-30** — **Scanner versioning (D41).** The scanner version is **build-time**: pinned via the
+  Dockerfile `ARG` (`TRIVY_VERSION`/`GRYPE_VERSION`). The images are **published** to a registry (public once
+  the repo is) and the **Dockerfiles stay public** (supply-chain transparency); a cluster operator changes the
+  version by **swapping the published image tag** in their own deploy — JAVV never writes to clusters, and
+  there is **no live in-app "version select"** (it doesn't survive multi-cluster). "Multiple versions" lives in
+  CI as a **compatibility/blessing gate** (see the new bolt), not a runtime switch. The envelope now stamps
+  **`scanner_version` + vuln-DB version/built** (self-reported by the binary) for read-only version display +
+  audit. Full decision: PLAN_v4 **D41**. Deploy mechanics (Helm tag value, per-schema DB cache) → M10.
