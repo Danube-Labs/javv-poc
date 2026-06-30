@@ -1,4 +1,4 @@
-# Build the blessed, pinned scanner images from one Dockerfile per scanner (M0b / D41).
+# Build the compatible, pinned scanner images from one Dockerfile per scanner (M0b / D41).
 # One Dockerfile, built across a matrix of versions → N pinned image tags. The version lists
 # default to the current pins here but are overridden in CI from scanner-versions.json.
 # Run from the scanner/ dir (context = "."), e.g.:

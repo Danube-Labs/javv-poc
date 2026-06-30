@@ -1,7 +1,7 @@
-"""The compatibility/blessing gate (M0b): a candidate scanner version is "blessed" only if its
-real output still satisfies the JAVV adapter contracts — version provenance present, findings
-parse on a known-vulnerable image, severities canonicalize, and the envelope builds. CI runs the
-real binary per blessed version; these unit tests prove the checker bites on format drift."""
+"""The compatibility gate (M0b): a candidate scanner version is compatible only if its real
+output still satisfies the JAVV adapter contracts — version provenance present, findings parse on
+a known-vulnerable image, severities canonicalize, and the envelope builds. CI runs the real
+binary per compatible version; these unit tests prove the checker bites on format drift."""
 
 import json
 import os
@@ -40,10 +40,10 @@ def test_renamed_output_key_drifts_to_zero_findings_and_is_flagged() -> None:
     drifted = {"results": raw["matches"], "descriptor": {"version": "9.9.9"}}
     result = ScanResult(findings=parse_grype(drifted), provenance=parse_grype_provenance(drifted))
     assert result.findings == []  # parse path broken by the rename
-    assert contract_violations(result, scanner="grype", expect_findings=True)  # → not blessed
+    assert contract_violations(result, scanner="grype", expect_findings=True)  # → not compatible
 
 
-# --- the real blessing run CI does per version (guarded) -------------------
+# --- the real compatibility run CI does per version (guarded) --------------
 
 
 @pytest.mark.skipif(
@@ -51,7 +51,7 @@ def test_renamed_output_key_drifts_to_zero_findings_and_is_flagged() -> None:
     reason="runs the real installed scanner binary; set JAVV_COMPAT_VERIFY=1",
 )
 @pytest.mark.parametrize("scanner", ["trivy", "grype"])
-def test_installed_binary_is_blessed(scanner: str) -> None:
+def test_installed_binary_is_compatible(scanner: str) -> None:
     from scanner.compat import run_compat
 
     result, violations = run_compat(scanner, "python:3.9.16-slim")  # type: ignore[arg-type]

@@ -349,8 +349,8 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   other clusters' GitOps repos is a cross-cluster privilege-escalation surface and often network-impossible
   when JAVV is separate/SaaS). So the reference UI's "version **select**" (`SCREENS.md` §12) becomes
   **read-only version *display*** (running `scanner_version` + DB freshness, Harbor-style), **not** a control.
-  - **"Multiple versions" lives in CI, not at runtime:** a **compatibility/blessing gate** runs candidate
-    Trivy/Grype versions through the JAVV adapters/golden contracts; green → the image is published as blessed
+  - **"Multiple versions" lives in CI, not at runtime:** a **compatibility gate** runs candidate
+    Trivy/Grype versions through the JAVV adapters/golden contracts; green → the image is published as compatible
     (new bolt, between M0 and M1). Keep the published set **small** (current + 1-2 prior) - each pinned tag is
     supply-chain surface (re-base/re-scan) and risks an **EOL vuln-DB** (Grype <0.88 scans a frozen DB;
     v5↔v6 schemas are incompatible - the PVC DB cache in M10 must be **per-schema**, not per-binary).

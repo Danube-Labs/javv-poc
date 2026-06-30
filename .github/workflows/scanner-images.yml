@@ -1,9 +1,9 @@
 name: Scanner images
 
-# M0b / D41: build the self-built, pinned scanner images across the blessed version matrix,
-# gate each on the compatibility/blessing check (real binary → JAVV adapters), and publish the
-# green ones to GHCR. Bless runs on PRs touching the scanner; publish only on a tag or manual
-# dispatch (deliberate releases). Versions come from scanner/scanner-versions.json.
+# M0b / D41: build the self-built, pinned scanner images across the compatible version matrix,
+# gate each on the compatibility check (real binary → JAVV adapters), and publish the green ones
+# to GHCR. The compatibility check runs on PRs touching the scanner; publish only on a tag or
+# manual dispatch (deliberate releases). Versions come from scanner/scanner-versions.json.
 
 on:
   pull_request:
@@ -23,7 +23,7 @@ permissions:
 
 jobs:
   matrix:
-    name: Resolve blessed versions
+    name: Resolve compatible versions
     runs-on: ubuntu-latest
     outputs:
       include: ${{ steps.gen.outputs.include }}
@@ -34,10 +34,10 @@ jobs:
           include=$(jq -c '[(.trivy[]|{scanner:"trivy",version:.}),(.grype[]|{scanner:"grype",version:.})]' \
             scanner/scanner-versions.json)
           echo "include=$include" >> "$GITHUB_OUTPUT"
-          echo "blessed matrix: $include"
+          echo "compatible-versions matrix: $include"
 
-  bless:
-    name: Bless ${{ matrix.scanner }} ${{ matrix.version }}
+  compat:
+    name: Compatibility ${{ matrix.scanner }} ${{ matrix.version }}
     needs: matrix
     runs-on: ubuntu-latest
     strategy:
@@ -62,13 +62,13 @@ jobs:
       - name: Install scanner package
         working-directory: scanner
         run: uv sync --all-extras --dev
-      - name: Blessing gate (real binary → JAVV adapters)
+      - name: Compatibility gate (real binary → JAVV adapters)
         working-directory: scanner
         run: uv run python -m scanner.compat --scanner "${{ matrix.scanner }}"
 
   publish:
-    name: Build + publish blessed images
-    needs: bless
+    name: Build + publish compatible images
+    needs: compat
     if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     permissions:
@@ -89,7 +89,7 @@ jobs:
           echo "registry=ghcr.io/$owner" >> "$GITHUB_OUTPUT"
           echo "trivy=$(jq -r '.trivy|join(",")' scanner/scanner-versions.json)" >> "$GITHUB_OUTPUT"
           echo "grype=$(jq -r '.grype|join(",")' scanner/scanner-versions.json)" >> "$GITHUB_OUTPUT"
-      - name: Bake + push the blessed matrix
+      - name: Bake + push the compatible matrix
         working-directory: scanner
         run: docker buildx bake -f docker-bake.hcl --push
         env:

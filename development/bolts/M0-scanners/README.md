@@ -77,6 +77,6 @@ See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
   the repo is) and the **Dockerfiles stay public** (supply-chain transparency); a cluster operator changes the
   version by **swapping the published image tag** in their own deploy — JAVV never writes to clusters, and
   there is **no live in-app "version select"** (it doesn't survive multi-cluster). "Multiple versions" lives in
-  CI as a **compatibility/blessing gate** (see the new bolt), not a runtime switch. The envelope now stamps
+  CI as a **compatibility gate** (see the new bolt), not a runtime switch. The envelope now stamps
   **`scanner_version` + vuln-DB version/built** (self-reported by the binary) for read-only version display +
   audit. Full decision: PLAN_v4 **D41**. Deploy mechanics (Helm tag value, per-schema DB cache) → M10.

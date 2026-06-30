@@ -1,6 +1,6 @@
-"""Scanner compatibility / blessing gate (M0b, D41).
+"""Scanner compatibility gate (M0b, D41).
 
-A candidate scanner version is publishable ("blessed") only if its real output still satisfies
+A candidate scanner version is publishable (compatible) only if its real output still satisfies
 the JAVV adapter contracts. `contract_violations` is the pure checker; `run_compat` drives the
 real binary and checks it; `main()` is the CI entry — `python -m scanner.compat --scanner trivy`
 exits non-zero (blocking publish) when the format has drifted.
@@ -22,7 +22,7 @@ _DRIVERS = {"trivy": scan_trivy, "grype": scan_grype}
 def contract_violations(
     result: ScanResult, *, scanner: Scanner, expect_findings: bool
 ) -> list[str]:
-    """Return human-readable contract violations; empty list = the version is blessed."""
+    """Return human-readable contract violations; empty list = the version is compatible."""
     violations: list[str] = []
 
     if not result.provenance.scanner_version:
@@ -57,7 +57,7 @@ def run_compat(scanner: Scanner, image: str) -> tuple[ScanResult, list[str]]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="JAVV scanner compatibility/blessing gate")
+    ap = argparse.ArgumentParser(description="JAVV scanner compatibility gate")
     ap.add_argument("--scanner", required=True, choices=["trivy", "grype"])
     ap.add_argument("--image", default="python:3.9.16-slim")
     args = ap.parse_args()
