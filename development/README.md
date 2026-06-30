@@ -77,9 +77,13 @@ kernel - fine for functional wiring, **not** for benchmarking scan throughput.
 > control over scanner version, flags, and supply chain, and clean **per-scanner** isolation. Ingest is
 > **scanner JSON, per-scanner, never merged.**
 
-For **local dev** you don't need the images yet - just the CLIs, to produce the JSON the backend ingests.
-First give the scanners something to find - apply the checked-in **dev smoke target** (3 deployments of
-deliberately-old images, incl. a 3-replica nginx so digest-dedup has something to collapse):
+Supported scanner versions are pinned in **[`versions.yaml`](../versions.yaml)** (single source of truth,
+D42); JAVV builds + publishes one image per scanner per version (M0b) as
+`ghcr.io/danube-labs/javv-scanner-{trivy,grype}:<ver>`. The package itself runs a scan cycle via
+`python -m scanner` (see [`scanner/README.md`](../scanner/README.md)). For **local dev** you can just use the
+CLIs to produce the JSON the backend ingests. First give the scanners something to find - apply the checked-in
+**dev smoke target** (3 deployments of deliberately-old images, incl. a 3-replica nginx so digest-dedup has
+something to collapse):
 
 ```bash
 kubectl apply -f development/setup/seed-vuln-workloads.yaml   # → namespace javv-smoke
@@ -107,18 +111,21 @@ syft python:3.4-slim -o json | grype --output json            # SBOM → grype (
 | ~~Trivy Operator~~ | third-party in-cluster operator | **Not used** — JAVV owns the scanner images |
 
 Keep the two scanners **separate**: never merge a CVE across Trivy and Grype (per-scanner is sacred).
-The two Dockerfiles are produced in **M0**; their Helm/CronJob wiring lands in **M10**.
+The two Dockerfiles + the scanner package land in **M0**; image build/publish + the compatibility gate in
+**M0b** (`python -m scanner.compat`); their Helm/CronJob wiring in **M10**.
 
 ---
 
 ## 3. Repo layout (planned)
 
-> The repo is currently **design-only** - no `backend/` or `frontend/` exists yet. This is the target shape
-> from [`docs/research/STACK-BEST-PRACTICES.md`](../docs/research/STACK-BEST-PRACTICES.md) §1, recorded here so the
-> first scaffolding milestone (M1) lands in the right place.
+> The **`scanner/`** package exists (M0/M0b); **`backend/`** and **`frontend/`** are not scaffolded yet
+> (`backend/` lands in **M1**). Target shape from
+> [`docs/research/STACK-BEST-PRACTICES.md`](../docs/research/STACK-BEST-PRACTICES.md) §1:
 
 ```
-backend/
+scanner/          in-cluster scanner package (M0/M0b): adapters · normalize · envelope · push · discovery
+                  · compat (blessing gate) · run (entrypoint); Dockerfile.{trivy,grype} · docker-bake.hcl
+backend/          (M1) FastAPI
   routers/        HTTP layer (FastAPI)
   services/       business logic - takes the OpenSearch client as a param, no FastAPI imports
   repositories/   raw OpenSearch query bodies
@@ -126,7 +133,8 @@ backend/
   core/           settings, logging, lifespan (single AsyncOpenSearch client)
   jobs/           CronJob entrypoints - reuse services, must NOT import FastAPI
 frontend/         Vue 3 (<script setup lang="ts">) · PrimeVue · vue-echarts · Pinia
-development/      dev docs + this guide; setup/ (setup-dev.sh, preflight.sh, opensearch-dev.yml), bolts/, standards/
+versions.yaml     pinned external tool/service versions (scanners, OpenSearch) - single source of truth (D42)
+development/      dev docs + this guide; setup/ (setup-dev.sh, preflight.sh, opensearch-dev.yml), bolts/, standards/, scripts/
 deploy/           Helm charts (→ k3s)
 ```
 
@@ -137,8 +145,11 @@ deploy/           Helm charts (→ k3s)
 Run these locally before pushing; CI enforces the same (see the `ci-cd-and-automation` skill / M10):
 
 ```bash
-# Python - env, lint, types, tests
-uv sync                       # once backend/pyproject.toml exists
+# Scanner (exists today) - run from scanner/
+cd scanner && uv sync --all-extras --dev && uv run ruff check . && uv run pyright && uv run pytest
+
+# Backend (once backend/pyproject.toml exists, M1)
+uv sync
 uv run ruff check . && uv run ruff format --check .
 pyright
 uv run pytest                 # pytest-asyncio + httpx.AsyncClient against a real containerized OpenSearch
@@ -156,7 +167,7 @@ FastAPI's OpenAPI with `@hey-api/openapi-ts` so the Pydantic↔TS contract can't
 
 | Doc | What |
 |---|---|
-| [`docs/engineering/V4/PLAN_v4.md`](../docs/engineering/V4/PLAN_v4.md) | Decisions (D1-D40), data model, milestones (M0-M10) |
+| [`docs/engineering/V4/PLAN_v4.md`](../docs/engineering/V4/PLAN_v4.md) | Decisions (D1-D42), data model, milestones (M0-M10) |
 | [`docs/engineering/V4/INDEX-MAP_v4.md`](../docs/engineering/V4/INDEX-MAP_v4.md) | **Source of truth** for every OpenSearch index + mapping - read before touching any index |
 | [`docs/research/STACK-BEST-PRACTICES.md`](../docs/research/STACK-BEST-PRACTICES.md) | Day-one engineering rules (async client, mappings, `_bulk`, Vue patterns) |
 | [`docs/research/TOOLING-AND-MCP.md`](../docs/research/TOOLING-AND-MCP.md) | MCP servers + tooling, ranked, with install commands |
