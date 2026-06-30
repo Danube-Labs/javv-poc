@@ -41,7 +41,7 @@ jobs:
       contents: read
       pull-requests: read   # the action lists the PR's commits via the API
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - name: Lint PR commits
@@ -51,7 +51,7 @@ jobs:
     name: Backend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Detect backend
         id: detect
@@ -65,7 +65,7 @@ jobs:
 
       - name: Set up uv
         if: steps.detect.outputs.present == 'true'
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
@@ -98,7 +98,7 @@ jobs:
     name: Scanner
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Detect scanner
         id: detect
@@ -112,7 +112,7 @@ jobs:
 
       - name: Set up uv
         if: steps.detect.outputs.present == 'true'
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
@@ -145,7 +145,7 @@ jobs:
     name: Frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Detect frontend
         id: detect
@@ -159,7 +159,7 @@ jobs:
 
       - name: Set up Node
         if: steps.detect.outputs.present == 'true'
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '22'
           cache: npm
