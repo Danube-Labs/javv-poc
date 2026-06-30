@@ -24,7 +24,12 @@ M0 (#22, the adapters + golden fixtures + Dockerfiles this gates).
   through the adapters, and assert the contracts — severity canonicalization (D16), EPSS/KEV capture,
   envelope shape, and **provenance present** (`scanner_version` + DB fields). **Green → publish as compatible.**
 - **Publish** to the registry (GHCR) on green; images **public once the repo is public**; Dockerfiles stay
-  public for supply-chain transparency.
+  public for supply-chain transparency. Each build pushes a **moving `:<ver>`** tag (latest build of that
+  scanner version) **+ an immutable `:<ver>-<git-sha>`** tag, with OCI labels (`org.opencontainers.image.
+  version`/`revision`/`source`, `javv.scanner`). **Scanner image release ≠ JAVV release** (D41): publishing
+  is its own track (`scanner-v*` tag / dispatch), independent of release-please's `v*` app tags — a new
+  scanner version or a base-layer rebuild ships without bumping JAVV; the `-<git-sha>` tag/label ties each
+  image to the JAVV commit that built its entrypoint.
 - **`versions.yaml`** (repo root, D42) — the single source of truth for the compatible set (**current + 1-2 prior**, not 5), each with an explicit
   EOL; **per-vuln-DB-schema** awareness (Grype v5↔v6 incompatible; Grype <0.88 = frozen DB).
 - Supply-chain: image **scan + SBOM (+ optional signing)** of the published scanner images themselves.

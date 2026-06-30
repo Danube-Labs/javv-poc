@@ -13,6 +13,13 @@ variable "TRIVY_VERSIONS" {
 variable "GRYPE_VERSIONS" {
   default = "0.115.0,0.114.0"
 }
+# JAVV git commit that builds the image (the entrypoint is JAVV code). CI passes the short sha;
+# "dev" for local builds. Each image gets a moving :<ver> tag + an immutable :<ver>-<GIT_SHA> tag.
+variable "GIT_SHA" {
+  default = "dev"
+}
+
+SOURCE = "https://github.com/Danube-Labs/javv-poc"
 
 group "default" {
   targets = ["trivy", "grype"]
@@ -24,7 +31,16 @@ target "trivy" {
   context    = "."
   dockerfile = "Dockerfile.trivy"
   args       = { TRIVY_VERSION = ver }
-  tags       = ["${REGISTRY}/javv-scanner-trivy:${ver}"]
+  tags = [
+    "${REGISTRY}/javv-scanner-trivy:${ver}",            # moving: latest build of this scanner version
+    "${REGISTRY}/javv-scanner-trivy:${ver}-${GIT_SHA}", # immutable: this exact JAVV build
+  ]
+  labels = {
+    "org.opencontainers.image.version"  = ver
+    "org.opencontainers.image.revision" = GIT_SHA
+    "org.opencontainers.image.source"   = SOURCE
+    "javv.scanner"                       = "trivy"
+  }
 }
 
 target "grype" {
@@ -33,5 +49,14 @@ target "grype" {
   context    = "."
   dockerfile = "Dockerfile.grype"
   args       = { GRYPE_VERSION = ver }
-  tags       = ["${REGISTRY}/javv-scanner-grype:${ver}"]
+  tags = [
+    "${REGISTRY}/javv-scanner-grype:${ver}",
+    "${REGISTRY}/javv-scanner-grype:${ver}-${GIT_SHA}",
+  ]
+  labels = {
+    "org.opencontainers.image.version"  = ver
+    "org.opencontainers.image.revision" = GIT_SHA
+    "org.opencontainers.image.source"   = SOURCE
+    "javv.scanner"                       = "grype"
+  }
 }

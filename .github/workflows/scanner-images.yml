@@ -88,6 +88,7 @@ jobs:
         run: |
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "registry=ghcr.io/$owner" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
           json=$(yq -o=json versions.yaml)
           echo "trivy=$(echo "$json" | jq -r '([.scanners.trivy.current] + (.scanners.trivy.also_supported // [])) | join(",")')" >> "$GITHUB_OUTPUT"
           echo "grype=$(echo "$json" | jq -r '([.scanners.grype.current] + (.scanners.grype.also_supported // [])) | join(",")')" >> "$GITHUB_OUTPUT"
@@ -98,3 +99,4 @@ jobs:
           REGISTRY: ${{ steps.vars.outputs.registry }}
           TRIVY_VERSIONS: ${{ steps.vars.outputs.trivy }}
           GRYPE_VERSIONS: ${{ steps.vars.outputs.grype }}
+          GIT_SHA: ${{ steps.vars.outputs.sha }}

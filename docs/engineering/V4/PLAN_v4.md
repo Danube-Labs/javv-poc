@@ -354,6 +354,12 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
     (new bolt, between M0 and M1). Keep the published set **small** (current + 1-2 prior) - each pinned tag is
     supply-chain surface (re-base/re-scan) and risks an **EOL vuln-DB** (Grype <0.88 scans a frozen DB;
     v5↔v6 schemas are incompatible - the PVC DB cache in M10 must be **per-schema**, not per-binary).
+  - **Scanner image release ≠ JAVV release.** Image publishing is its own track (`scanner-v*` tag /
+    `workflow_dispatch`), independent of release-please's `v*` app version - a new compatible scanner
+    version or a base-layer rebuild ships **without bumping JAVV**. Each build pushes a **moving `:<ver>`**
+    tag + an **immutable `:<ver>-<git-sha>`** tag with OCI labels (`…image.version/revision/source`,
+    `javv.scanner`); the `-<git-sha>` ties the image to the JAVV commit that built its entrypoint (entrypoint
+    *logic* changes are JAVV code and still version with JAVV, but can be published any time via dispatch).
   - **Provenance (M0):** the envelope stamps **`scanner_version` + `scanner_db_version` + `scanner_db_built`**,
     self-reported by the binary (Trivy `Trivy.Version`; Grype `descriptor.version` + `descriptor.db.status`;
     Trivy's standalone JSON has no DB info → DB fields null). Stored on `scan-events` for the read-only version
