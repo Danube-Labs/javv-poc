@@ -1,0 +1,5 @@
+{
+  "_comment": "Blessed scanner versions (M0b / D41). Single source of truth: CI builds + blessing-gates each, and publishes the green ones as pinned images. Keep small (current + 1-2 prior); the FIRST entry per scanner is the current/default. Mind vuln-DB schema EOL (Grype v5<->v6 incompatible; <0.88 = frozen DB).",
+  "trivy": ["0.71.2", "0.70.0"],
+  "grype": ["0.115.0", "0.114.0"]
+}
