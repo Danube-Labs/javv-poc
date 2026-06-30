@@ -1,0 +1,21 @@
+# Externally-owned tools/services JAVV pins and supports — single source of truth (D42).
+# Renovate updates the pins here (customManager in renovate.json); consumers (the scanner
+# Dockerfiles, docker-bake, the scanner-images workflow, the dev OpenSearch compose) derive
+# from this file, and a CI drift check (development/scripts/check-versions.sh) fails if a
+# consumer's literal pin diverges. Keep the supported set small (current + 1-2 prior); the
+# `current` entry is the default/recommended version. `also_supported` are manual (Renovate
+# only bumps the annotated `current` pins). Phase 1 = scanners + OpenSearch; toolchain → phase 2.
+
+scanners:
+  trivy:
+    # renovate: datasource=docker depName=aquasec/trivy
+    current: "0.71.2"
+    also_supported: ["0.70.0"]
+  grype:
+    # renovate: datasource=docker depName=anchore/grype extractVersion=^v(?<version>.+)$
+    current: "0.115.0"
+    also_supported: ["0.114.0"]
+
+datastore:
+  # renovate: datasource=docker depName=opensearchproject/opensearch
+  opensearch: "3.7.0"

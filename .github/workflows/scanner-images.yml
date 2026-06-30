@@ -1,0 +1,102 @@
+name: Scanner images
+
+# M0b / D41: build the self-built, pinned scanner images across the compatible version matrix,
+# gate each on the compatibility check (real binary → JAVV adapters), and publish the green ones
+# to GHCR. The compatibility check runs on PRs touching the scanner; publish only on a tag or
+# manual dispatch (deliberate releases). Versions come from versions.yaml (single source, D42).
+
+on:
+  pull_request:
+    paths:
+      - 'versions.yaml'
+      - 'scanner/Dockerfile.*'
+      - 'scanner/docker-bake.hcl'
+      - 'scanner/src/scanner/adapters/**'
+      - 'scanner/src/scanner/compat.py'
+      - '.github/workflows/scanner-images.yml'
+  workflow_dispatch:
+  push:
+    tags: ['scanner-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    name: Resolve compatible versions
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.gen.outputs.include }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: gen
+        run: |
+          include=$(yq -o=json versions.yaml | jq -c \
+            '[.scanners | to_entries[] | .key as $s
+              | ([.value.current] + (.value.also_supported // []))[] | {scanner:$s, version:.}]')
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+          echo "compatible-versions matrix: $include"
+
+  compat:
+    name: Compatibility ${{ matrix.scanner }} ${{ matrix.version }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.matrix.outputs.include) }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install trivy ${{ matrix.version }}
+        if: matrix.scanner == 'trivy'
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin "v${{ matrix.version }}"
+      - name: Install grype ${{ matrix.version }}
+        if: matrix.scanner == 'grype'
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin "v${{ matrix.version }}"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install scanner package
+        working-directory: scanner
+        run: uv sync --all-extras --dev
+      - name: Compatibility gate (real binary → JAVV adapters)
+        working-directory: scanner
+        run: uv run python -m scanner.compat --scanner "${{ matrix.scanner }}"
+
+  publish:
+    name: Build + publish compatible images
+    needs: compat
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve registry + versions from the source of truth
+        id: vars
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "registry=ghcr.io/$owner" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+          json=$(yq -o=json versions.yaml)
+          echo "trivy=$(echo "$json" | jq -r '([.scanners.trivy.current] + (.scanners.trivy.also_supported // [])) | join(",")')" >> "$GITHUB_OUTPUT"
+          echo "grype=$(echo "$json" | jq -r '([.scanners.grype.current] + (.scanners.grype.also_supported // [])) | join(",")')" >> "$GITHUB_OUTPUT"
+      - name: Bake + push the compatible matrix
+        working-directory: scanner
+        run: docker buildx bake -f docker-bake.hcl --push
+        env:
+          REGISTRY: ${{ steps.vars.outputs.registry }}
+          TRIVY_VERSIONS: ${{ steps.vars.outputs.trivy }}
+          GRYPE_VERSIONS: ${{ steps.vars.outputs.grype }}
+          GIT_SHA: ${{ steps.vars.outputs.sha }}
