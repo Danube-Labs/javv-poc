@@ -9,11 +9,21 @@ Grype additionally provides EPSS (`vulnerability.epss[].epss`) and KEV
 import json
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
+from datetime import datetime
 from typing import Any
 
-from scanner.models import Finding
+from scanner.models import Finding, Provenance, ScanResult
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
+
+
+def _coerce_dt(value: Any) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)  # handles the trailing Z (3.11+)
+    except ValueError:
+        return None
 
 
 def _cvss(cvss: Any) -> float | None:
@@ -66,7 +76,23 @@ def parse_grype(data: Mapping[str, Any]) -> list[Finding]:
     return findings
 
 
-def scan_grype(image_ref: str, *, runner: Runner = subprocess.run) -> list[Finding]:
-    """Drive the grype binary against an image ref and parse its JSON output."""
+def parse_grype_provenance(data: Mapping[str, Any]) -> Provenance:
+    """Scanner version from `descriptor.version`; vuln-DB info from `descriptor.db.status`."""
+    desc = data.get("descriptor")
+    if not isinstance(desc, Mapping):
+        return Provenance()
+    db = desc.get("db")
+    status = db.get("status") if isinstance(db, Mapping) else None
+    status = status if isinstance(status, Mapping) else {}
+    return Provenance(
+        scanner_version=desc.get("version") or None,
+        db_version=status.get("schemaVersion") or None,
+        db_built=_coerce_dt(status.get("built")),
+    )
+
+
+def scan_grype(image_ref: str, *, runner: Runner = subprocess.run) -> ScanResult:
+    """Drive the grype binary against an image ref and parse its JSON output + provenance."""
     proc = runner(["grype", image_ref, "-o", "json"], capture_output=True, text=True, check=True)
-    return parse_grype(json.loads(proc.stdout))
+    data = json.loads(proc.stdout)
+    return ScanResult(findings=parse_grype(data), provenance=parse_grype_provenance(data))

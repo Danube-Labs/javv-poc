@@ -96,6 +96,30 @@ def test_last_seen_at_is_tz_aware_full_precision() -> None:
     assert datetime.fromisoformat(iso) == env.last_seen_at
 
 
+def test_provenance_flows_onto_the_envelope() -> None:
+    from datetime import UTC, datetime
+
+    from scanner.models import Provenance
+
+    built = datetime(2026, 6, 29, 8, 3, 40, tzinfo=UTC)
+    env = build_envelope(
+        new_scan_run(),
+        cluster_id="c",
+        scanner="grype",
+        image_digest="sha256:x",
+        findings=[],
+        provenance=Provenance(scanner_version="0.115.0", db_version="v6.1.7", db_built=built),
+    )
+    assert env.scanner_version == "0.115.0"
+    assert env.scanner_db_version == "v6.1.7"
+    assert env.scanner_db_built == built
+
+
+def test_provenance_defaults_to_none_when_absent() -> None:
+    env = _trivy_env()
+    assert env.scanner_version is None  # no provenance passed → nullable fields stay None
+
+
 def test_scanner_name_is_constrained_to_trivy_or_grype() -> None:
     with pytest.raises(ValidationError):
         build_envelope(

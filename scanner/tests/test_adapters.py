@@ -9,8 +9,8 @@ from typing import Any
 
 import pytest
 
-from scanner.adapters.grype import parse_grype
-from scanner.adapters.trivy import parse_trivy
+from scanner.adapters.grype import parse_grype, parse_grype_provenance
+from scanner.adapters.trivy import parse_trivy, parse_trivy_provenance
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -106,6 +106,24 @@ def test_parse_grype_every_severity_canonicalizes() -> None:
 def test_empty_or_garbage_input_is_empty_list(parse: Any) -> None:
     assert parse({}) == []
     assert parse({"Results": None, "matches": None}) == []
+
+
+def test_parse_trivy_provenance_has_version_but_no_db() -> None:
+    p = parse_trivy_provenance(load("trivy-python-3.9.16-slim.json"))
+    assert p.scanner_version == "0.71.2"  # Trivy.Version
+    assert p.db_version is None and p.db_built is None  # standalone JSON has no vuln-DB info
+
+
+def test_parse_grype_provenance_has_version_and_db() -> None:
+    p = parse_grype_provenance(load("grype-python-3.9.16-slim.json"))
+    assert p.scanner_version == "0.115.0"  # descriptor.version
+    assert p.db_version == "v6.1.7"  # descriptor.db.status.schemaVersion
+    assert p.db_built is not None  # descriptor.db.status.built parsed to a datetime
+
+
+@pytest.mark.parametrize("parse_prov", [parse_trivy_provenance, parse_grype_provenance])
+def test_provenance_parsers_tolerate_garbage(parse_prov: Any) -> None:
+    assert parse_prov({}).scanner_version is None  # never raises on missing/empty
 
 
 def test_parse_trivy_skips_entries_missing_id_or_package() -> None:

@@ -12,10 +12,10 @@ from typing import Any, cast
 
 from scanner.discovery import ImageTarget, discover
 from scanner.envelope import Envelope, Scanner, build_envelope, new_scan_run
-from scanner.models import Finding
+from scanner.models import ScanResult
 from scanner.push import PushResult, push_envelope
 
-ScanFn = Callable[[str], list[Finding]]
+ScanFn = Callable[[str], ScanResult]
 PushFn = Callable[[Envelope], PushResult]
 
 
@@ -30,12 +30,14 @@ def scan_all(
     run = new_scan_run()
     results: list[PushResult] = []
     for t in targets:
+        scanned = scan_fn(t.image_ref)
         envelope = build_envelope(
             run,
             cluster_id=cluster_id,
             scanner=scanner,
             image_digest=t.image_digest,
-            findings=scan_fn(t.image_ref),
+            findings=scanned.findings,
+            provenance=scanned.provenance,
         )
         results.append(push_fn(envelope))
     return results

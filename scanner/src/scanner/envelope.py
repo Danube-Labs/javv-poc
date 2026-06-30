@@ -18,7 +18,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict
 
-from scanner.models import Finding
+from scanner.models import Finding, Provenance
 from scanner.normalize import SEVERITIES
 
 SCHEMA_VERSION = 1
@@ -73,6 +73,10 @@ class Envelope(BaseModel):
     scan_run_id: str
     scan_order: int
     last_seen_at: datetime
+    # scanner provenance (D41) — self-reported; DB fields null for Trivy
+    scanner_version: str | None = None
+    scanner_db_version: str | None = None
+    scanner_db_built: datetime | None = None
     counts: SeverityCounts
     findings: list[Finding]
 
@@ -85,12 +89,17 @@ def build_envelope(
     image_digest: str,
     findings: Sequence[Finding],
     namespace: str | None = None,
+    provenance: Provenance | None = None,
 ) -> Envelope:
+    prov = provenance or Provenance()
     return Envelope(
         cluster_id=cluster_id,
         scanner=scanner,
         image_digest=image_digest,
         namespace=namespace,
+        scanner_version=prov.scanner_version,
+        scanner_db_version=prov.db_version,
+        scanner_db_built=prov.db_built,
         scan_run_id=run.scan_run_id,
         scan_order=run.scan_order,
         last_seen_at=run.started_at,

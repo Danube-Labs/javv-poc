@@ -10,7 +10,7 @@ import subprocess
 from collections.abc import Callable, Mapping
 from typing import Any
 
-from scanner.models import Finding
+from scanner.models import Finding, Provenance, ScanResult
 
 # Pinned scanner flags; the pinned binary version lives in Dockerfile.trivy.
 TRIVY_CMD = ["trivy", "image", "--quiet", "--scanners", "vuln", "--format", "json"]
@@ -59,7 +59,15 @@ def parse_trivy(data: Mapping[str, Any]) -> list[Finding]:
     return findings
 
 
-def scan_trivy(image_ref: str, *, runner: Runner = subprocess.run) -> list[Finding]:
-    """Drive the trivy binary against an image ref and parse its JSON output."""
+def parse_trivy_provenance(data: Mapping[str, Any]) -> Provenance:
+    """Scanner version from `Trivy.Version`. Trivy's standalone JSON carries no vuln-DB info."""
+    trivy = data.get("Trivy")
+    version = trivy.get("Version") if isinstance(trivy, Mapping) else None
+    return Provenance(scanner_version=version or None)
+
+
+def scan_trivy(image_ref: str, *, runner: Runner = subprocess.run) -> ScanResult:
+    """Drive the trivy binary against an image ref and parse its JSON output + provenance."""
     proc = runner([*TRIVY_CMD, image_ref], capture_output=True, text=True, check=True)
-    return parse_trivy(json.loads(proc.stdout))
+    data = json.loads(proc.stdout)
+    return ScanResult(findings=parse_trivy(data), provenance=parse_trivy_provenance(data))

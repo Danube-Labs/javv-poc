@@ -54,19 +54,23 @@ def test_real_trivy_and_grype_drive_produces_envelope_with_cves() -> None:
     run = new_scan_run()
     image = "python:3.9.16-slim"  # Debian — Trivy and Grype both find CVEs
 
+    trivy = scan_trivy(image)
+    grype = scan_grype(image)
     trivy_env = build_envelope(
         run,
         cluster_id="alpha",
         scanner="trivy",
         image_digest="sha256:live",
-        findings=scan_trivy(image),
+        findings=trivy.findings,
+        provenance=trivy.provenance,
     )
     grype_env = build_envelope(
         run,
         cluster_id="alpha",
         scanner="grype",
         image_digest="sha256:live",
-        findings=scan_grype(image),
+        findings=grype.findings,
+        provenance=grype.provenance,
     )
 
     # the real binaries found real vulnerabilities
@@ -77,3 +81,6 @@ def test_real_trivy_and_grype_drive_produces_envelope_with_cves() -> None:
     assert grype_env.scanner == "grype"
     # Grype's EPSS signal survives the full drive→parse→envelope path
     assert any(f.epss is not None for f in grype_env.findings)
+    # provenance is self-reported by the real binaries (D41)
+    assert trivy_env.scanner_version and grype_env.scanner_version
+    assert grype_env.scanner_db_version  # Grype reports its vuln-DB schema; Trivy does not
