@@ -6,6 +6,7 @@ cycle is unit-testable; `main()` wires the real kube client, scanner binaries, a
 
 import os
 import sys
+import traceback
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
@@ -30,7 +31,17 @@ def scan_all(
     run = new_scan_run()
     results: list[PushResult] = []
     for t in targets:
-        scanned = scan_fn(t.image_ref)
+        # D30: scan everything every cycle. One un-pullable image, a scanner non-zero exit, or a
+        # subprocess timeout must not abort the rest of the cycle — isolate it, log, and continue.
+        try:
+            scanned = scan_fn(t.image_ref)
+        except Exception:
+            print(
+                f"{scanner}: scan failed for {t.image_ref} ({t.image_digest}) — skipping:",
+                file=sys.stderr,
+            )
+            traceback.print_exc()
+            continue
         envelope = build_envelope(
             run,
             cluster_id=cluster_id,

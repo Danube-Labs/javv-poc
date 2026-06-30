@@ -15,6 +15,10 @@ from scanner.models import Finding, Provenance, ScanResult
 # Pinned scanner flags; the pinned binary version lives in Dockerfile.trivy.
 TRIVY_CMD = ["trivy", "image", "--quiet", "--scanners", "vuln", "--format", "json"]
 
+# Hard cap per image so a hung scanner can't block the cycle forever (TimeoutExpired is then
+# isolated per-image in run.scan_all). The k8s activeDeadlineSeconds belt-and-braces lands in M10.
+SCAN_TIMEOUT_SECONDS = 600
+
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
 
@@ -68,6 +72,12 @@ def parse_trivy_provenance(data: Mapping[str, Any]) -> Provenance:
 
 def scan_trivy(image_ref: str, *, runner: Runner = subprocess.run) -> ScanResult:
     """Drive the trivy binary against an image ref and parse its JSON output + provenance."""
-    proc = runner([*TRIVY_CMD, image_ref], capture_output=True, text=True, check=True)
+    proc = runner(
+        [*TRIVY_CMD, image_ref],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=SCAN_TIMEOUT_SECONDS,
+    )
     data = json.loads(proc.stdout)
     return ScanResult(findings=parse_trivy(data), provenance=parse_trivy_provenance(data))

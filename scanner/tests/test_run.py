@@ -91,6 +91,54 @@ def test_scan_all_emits_one_envelope_per_target_under_one_run() -> None:
     assert len({e.scan_order for e in pushed}) == 1
 
 
+def test_scan_all_isolates_a_failing_image_and_finishes_the_cycle() -> None:
+    # D30: scan everything every cycle — one un-pullable image / scanner error
+    # must not abort the rest.
+    targets = [
+        target("sha256:a", "good-1:1"),
+        target("sha256:boom", "broken:1"),
+        target("sha256:c", "good-2:1"),
+    ]
+    pushed: list[Envelope] = []
+
+    def scan_fn(ref: str) -> ScanResult:
+        if ref == "broken:1":
+            raise subprocess.CalledProcessError(1, ["trivy"], stderr="image not found")
+        return ScanResult(provenance=Provenance(scanner_version="0.71.2"))
+
+    def push_fn(env: Envelope) -> PushResult:
+        pushed.append(env)
+        return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+    results = scan_all(targets, scanner="trivy", cluster_id="c", scan_fn=scan_fn, push_fn=push_fn)
+
+    # the failing image is skipped; the two healthy ones still scan + push
+    assert [e.image_digest for e in pushed] == ["sha256:a", "sha256:c"]
+    assert len(results) == 2
+
+
+def test_scan_trivy_passes_a_subprocess_timeout() -> None:
+    seen: dict[str, Any] = {}
+
+    def runner(cmd: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+        seen.update(kw)
+        return subprocess.CompletedProcess(cmd, 0, stdout="{}", stderr="")
+
+    scan_trivy("img:1", runner=runner)
+    assert isinstance(seen.get("timeout"), int | float) and seen["timeout"] > 0
+
+
+def test_scan_grype_passes_a_subprocess_timeout() -> None:
+    seen: dict[str, Any] = {}
+
+    def runner(cmd: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+        seen.update(kw)
+        return subprocess.CompletedProcess(cmd, 0, stdout="{}", stderr="")
+
+    scan_grype("img:1", runner=runner)
+    assert isinstance(seen.get("timeout"), int | float) and seen["timeout"] > 0
+
+
 def test_scan_all_with_no_targets_pushes_nothing() -> None:
     assert (
         scan_all(

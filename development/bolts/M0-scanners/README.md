@@ -48,7 +48,7 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
-- **Unit:** severity normalizer per scanner (incl. `negligible`/`unknown` → "other", never crit); envelope
+- **Unit:** severity normalizer per scanner (`negligible`/`unknown` kept as distinct buckets, not folded — "other" is a UI concern, D16; never crit); envelope
   builder (`scan_order` monotonic, `last_seen_at` full precision); dedup logic.
 - **Golden fixtures:** `tests/fixtures/trivy-*.json` + `grype-*.json` → expected normalized envelope.
 - **Unit:** push retry/backoff/dead-letter (mock transport; assert idempotent body).
