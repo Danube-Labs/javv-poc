@@ -36,7 +36,7 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Audit trail replays in **causal order**: same-field edits order by `revision`, not `event_id` (D38/H8, D40/H-r3); `target_ids` render as the frozen affected set, never a re-evaluated selector.
 - Contributors aggregations are **server-side** (no raw audit rows shipped to compute counts); leaderboard window clamps to `system-audit-log` retention.
 - Every read/agg endpoint applies the `cluster_id` filter via the chokepoint helper; negative test proves cross-cluster bleed is impossible (SEC-4).
-- Scanner-status reflects the **latest committed** `scan_order` per `(cluster,scanner)` (catalog/commit-marker, not latest doc).
+- Scanner-status reflects the **latest committed** `scan_order` per `(cluster,scanner)` (catalog/commit-marker, not latest doc), including the **read-only running `scanner_version` + vuln-DB version/freshness** from that doc's ingested provenance (D41) — display only, never a version control.
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:

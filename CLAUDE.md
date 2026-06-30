@@ -24,6 +24,11 @@ single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scann
 - **Scanners are self-built images** - one JAVV-built Dockerfile per scanner (`Dockerfile.trivy`,
   `Dockerfile.grype`, pinned scanner version + our entrypoint), run as CronJobs. **Never the Trivy
   Operator / Starboard or any third-party scanner operator** - own the images for version/supply-chain control.
+- **Scanner version = build-time, operator-swapped (D41).** Version is pinned in the Dockerfile `ARG`; JAVV
+  **publishes** the pinned images and the operator changes versions by **swapping the published image tag**
+  (GitOps). **No live in-app "version select"** and JAVV **never writes to monitored clusters**. "Multiple
+  versions" = a **CI compatibility/blessing gate**, not a runtime switch; the envelope stamps `scanner_version`
+  (+ vuln-DB version) for read-only display + audit.
 - **Diagrams are Mermaid** (working-agreement). `.deprecated/docs/deprecated/original_notes_for_app.md` is read-only.
 
 ## Use these skills (when the work matches)

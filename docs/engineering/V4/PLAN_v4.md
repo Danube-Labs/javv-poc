@@ -341,6 +341,24 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
     "one pass" → "one ingest request, **ordered phases**." **Reconcile cost bound:** route by `cluster_id`,
     query exact `cluster_id`+`scanner`+`image_digest`, throttle, observe conflict/retry counts, document
     expected max findings/digest.
+- **D41 - Scanner version is build-time; no live in-app version switch.** The scanner binary version is
+  **pinned in the Dockerfile `ARG`** (`TRIVY_VERSION`/`GRYPE_VERSION`), and JAVV **publishes** the self-built,
+  pinned images (public once the repo is; Dockerfiles stay public for supply-chain transparency). A cluster
+  operator changes the version by **swapping the published image tag in their own deploy** (Helm value →
+  GitOps reconcile); JAVV **never writes to monitored clusters** (a backend that PATCHes CronJobs / writes
+  other clusters' GitOps repos is a cross-cluster privilege-escalation surface and often network-impossible
+  when JAVV is separate/SaaS). So the reference UI's "version **select**" (`SCREENS.md` §12) becomes
+  **read-only version *display*** (running `scanner_version` + DB freshness, Harbor-style), **not** a control.
+  - **"Multiple versions" lives in CI, not at runtime:** a **compatibility/blessing gate** runs candidate
+    Trivy/Grype versions through the JAVV adapters/golden contracts; green → the image is published as blessed
+    (new bolt, between M0 and M1). Keep the published set **small** (current + 1-2 prior) - each pinned tag is
+    supply-chain surface (re-base/re-scan) and risks an **EOL vuln-DB** (Grype <0.88 scans a frozen DB;
+    v5↔v6 schemas are incompatible - the PVC DB cache in M10 must be **per-schema**, not per-binary).
+  - **Provenance (M0):** the envelope stamps **`scanner_version` + `scanner_db_version` + `scanner_db_built`**,
+    self-reported by the binary (Trivy `Trivy.Version`; Grype `descriptor.version` + `descriptor.db.status`;
+    Trivy's standalone JSON has no DB info → DB fields null). Stored on `scan-events` for the read-only version
+    view + audit version matrix (`AUDIT-RESPONSE_v4.md` "scanner/backend version matrix"). A deliberate
+    *downgrade* must still mint a **greater `scan_order`** (D40) so newer-wins reconcile doesn't mis-rank it.
 - **Promoted/retained MVP:** per-finding occurrences + point-in-time (now M8); VEX **export** (M6).
 - **Moved to v1.1:** **VEX import** (consuming external VEX into `system-decisions`) - MVP ingests **only
   the scanner JSON envelope**; Jira ticket push; dashboard **builder** (saved views stay the default);

@@ -23,7 +23,7 @@ append families `javv-finding-occurrences-*` / `javv-scan-events-*` / `javv-imag
 ## Deliverables
 In the layered tree, not here (paths proposed):
 - `frontend/src/views/settings/DataOpenSearchView.vue` — per-`cluster_id` `retention_days`; rollover knobs (doc count / age / size; defaults ~40 GB / 30 d / 50 M docs); snapshot repo + schedule + manual snapshot/restore buttons.
-- `frontend/src/views/settings/ScanningView.vue` — two-timer staleness editor (FR-6/D20); both windows editable; preview of resulting banner behavior.
+- `frontend/src/views/settings/ScanningView.vue` — two-timer staleness editor (FR-6/D20); both windows editable; preview of resulting banner behavior. Per-scanner cards show the **read-only running version + DB freshness** (from the ingested `scanner_version`/DB provenance) — **not a version-select control**; the version is changed by swapping the published image tag (D41).
 - `frontend/src/views/settings/CveAuditView.vue` — CVE-audit panel (per-CVE cross-scanner disagreement / decision provenance, read-side).
 - `frontend/src/composables/useRetentionForm.ts`, `useSnapshotForm.ts` — pure validators/option-builders (unit-tested).
 - Backend (if not delivered by M2/M4): `PUT /settings/retention`, `PUT /settings/rollover`, `POST /snapshots`, `POST /snapshots/{id}/restore`, `PUT /settings/staleness`, `GET /cve-audit` — capability-gated (`can_manage_retention`, `can_restore_snapshot`, `can_drop_index`) and journaled to `system-audit-log`.

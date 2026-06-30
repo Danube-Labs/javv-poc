@@ -227,7 +227,8 @@ CAS-bumped at each commit; the newer-scan-wins guard for create AND update (D40)
 first, then reads occurrences for it).
 ```jsonc
 { "@timestamp": "2026-03-01T02:00:00Z", "scan_run_id": "R1", "scan_order": 1, "commit_key": "hash(9b1e-uid|trivy|sha256:AAA|R1)",
-  "cluster_id": "9b1e-uid", "scanner": "trivy", "namespace": "shop", "image_repo": "docker.io/library/nginx",
+  "cluster_id": "9b1e-uid", "scanner": "trivy", "scanner_version": "0.71.2", "scanner_db_version": null, "scanner_db_built": null,  // provenance (D41); Trivy JSON has no DB info
+  "namespace": "shop", "image_repo": "docker.io/library/nginx",
   "image_digest": "sha256:AAA", "tag": "1.25", "app": "storefront",
   "crit": 1, "high": 1, "med": 0, "low": 0, "negligible": 0, "unknown": 0, "total": 2, "fixable": 2,
   "schema_version": 1 }
