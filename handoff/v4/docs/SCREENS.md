@@ -145,9 +145,10 @@ Sections:
 - **Scan scope** - Running-only toggle; **Include list** (active toggle + namespace text list) and
   **Ignore list** (active toggle + namespace text list) - symmetric, simple (not a mode switch);
   excluded image globs; skipped workload kinds.
-- **Scanners** - per-scanner cards (enable, **version select**, Trivy: severities / ignore-unfixed /
-  pkg-types / layer scope / timeout / concurrency; Grype: fail-on / only-fixed / scope / app-update).
-  Banner: results kept per-scanner, never merged.
+- **Scanners** - per-scanner cards (enable, **read-only running version + DB freshness** (from the ingested
+  `scanner_version`/DB provenance - **not** a control; the version is changed by swapping the published image
+  tag, D41), Trivy: severities / ignore-unfixed / pkg-types / layer scope / timeout / concurrency; Grype:
+  fail-on / only-fixed / scope / app-update). Banner: results kept per-scanner, never merged.
 - **Schedule** - scan interval, daily sweep time, staleness window, retry+backoff.
 - **SLA policy** - editable SLA days per severity + KEV override hours (Security Lead+).
 - **Ignore rules** - allowlist table (id, scope, reason, added-by, expires) - reason + expiry required;

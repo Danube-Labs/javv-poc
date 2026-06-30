@@ -81,6 +81,9 @@ scan_order        long          scanner-assigned monotonic per (cluster,scanner)
 commit_key        keyword       hash(cluster_id + scanner + image_digest + scan_run_id) - 4-tuple commit identity (D37/H3)
 cluster_id        keyword
 scanner           keyword
+scanner_version   keyword       self-reported binary version (D41); Trivy Trivy.Version / Grype descriptor.version
+scanner_db_version keyword      vuln-DB schema version (D41); Grype descriptor.db.status.schemaVersion (Trivy: null)
+scanner_db_built  date          vuln-DB build time (D41); Grype descriptor.db.status.built (Trivy: null)
 namespace         keyword
 image_repo        keyword
 image_digest      keyword

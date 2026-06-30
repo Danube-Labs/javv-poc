@@ -35,7 +35,9 @@ from an env/secret and must change the password on first login - FR-18.)
   gzipped, retried (backoff+jitter, dead-letter), to `POST /api/v1/ingest/scan` over a private network with a
   per-`(cluster,scanner)` token. The endpoint **validates** the **versioned** envelope and **accepts the
   current envelope only, rejecting older with a clear 4xx** (D25/D35/D38 - N/N-1 dual-parse dropped); it is
-  **hardened** (NFR-7) and never parses raw scanner JSON. Each push carries `scan_run_id`.
+  **hardened** (NFR-7) and never parses raw scanner JSON. Each push carries `scan_run_id` and the scanner's
+  self-reported **`scanner_version` + vuln-DB version/built** provenance (D41) - the ingest model must accept
+  these fields (it is `extra="forbid"`).
 - **FR-4 Dedup/identity.** Upsert `findings` by `_id = finding_key = hash(cluster_id + image_digest +
   scanner + cve_id + package_name + installed_version)`. **No-op for unchanged findings** (`detect_noop`);
   **full-precision `last_seen_at`** (D37/M13) + `last_scan_run_id` + **`last_scan_order`** (guard key) +
@@ -52,8 +54,9 @@ from an env/secret and must change the password on first login - FR-18.)
   by **shared-key joins**, never embedded sub-tables (worked example: `FLOW-EXAMPLE_v4.md` §7–§8).
 - **FR-5 Logs / trends.** On every ingest, append an **immutable** doc to `javv-scan-events-*` - one per
   **(image, scanner, scan)**: severity *counts* + dimensions + `@timestamp` + **`scan_order`** (the catalog
-  ordering key - D40) + `commit_key`, **idempotent `_id`** (D18). The
-  trends source. Partitioned per `cluster_id`; lifecycle per FR-19.
+  ordering key - D40) + `commit_key` + **`scanner_version` / `scanner_db_version` / `scanner_db_built`**
+  provenance (D41, for the read-only scanner-status version view + audit matrix), **idempotent `_id`** (D18).
+  The trends source. Partitioned per `cluster_id`; lifecycle per FR-19.
 - **FR-5b Per-scan snapshots (point-in-time).** Every **successful** scan appends a **full snapshot** to
   `javv-finding-occurrences-<cluster_id>-*` - one immutable row per current finding (`@timestamp`,
   `scan_run_id`, **`scan_order`** (D40), **`commit_key`** (D39), `finding_key`, `vuln_id`, package,

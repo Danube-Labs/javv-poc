@@ -29,6 +29,8 @@ The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/re
 - `backend/core/bootstrap.py` - **versioned index bootstrap**: `dynamic:false` mappings for current-state
   (`findings`, `images`) + `system-*`, with keyword ids, the **severity normalizer**, reshaped CVSS, EPSS/KEV.
 - `backend/models/` - Pydantic v2 schemas; **request models `extra="forbid"`**; `cluster_id` shape validated.
+  **Coupling (D41):** because the ingest envelope model is `extra="forbid"`, it **must** include M0's provenance
+  fields — `scanner_version`, `scanner_db_version`, `scanner_db_built` — or it will reject the M0 envelope.
 - `backend/repositories/`, `backend/services/`, `backend/routers/ingest.py` - the ingest path: validate →
   normalize → `_bulk` write (inspect `response["errors"]` + per-item status; backoff on 429/503).
 - `POST /api/v1/ingest/scan` - **hardened:** rate-limit, size + decompression caps, **256-bit random

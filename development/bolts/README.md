@@ -28,6 +28,7 @@ Order: **scanners → backend core → durability → identity/triage → read �
 | Bolt | Title | Depends on |
 |------|-------|-----------|
 | **M0** | Scanner modules | - |
+| **M0b** | Scanner image publish + compatibility/blessing CI | M0 |
 | **M1** | Backend skeleton + indexes + ingest + observability | M0 |
 | **M2** | Snapshot/restore (durability early) | M1 |
 | **M3** | Dedup/identity + staleness + projection *(highest risk)* | M1 |
