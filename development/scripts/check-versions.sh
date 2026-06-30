@@ -19,6 +19,8 @@ V=versions.yaml
 trivy=$(yq -r '.scanners.trivy.current' "$V")
 grype=$(yq -r '.scanners.grype.current' "$V")
 opensearch=$(yq -r '.datastore.opensearch' "$V")
+ruff=$(yq -r '.toolchain.ruff' "$V")
+pyright=$(yq -r '.toolchain.pyright' "$V")
 
 fail=0
 # name | source-of-truth value | file | sed-match (extract) | sed-replace (for --fix)
@@ -43,6 +45,12 @@ check "Dockerfile.grype ARG" "$grype" scanner/Dockerfile.grype \
   'ARG GRYPE_VERSION=\K[0-9.]+' "s/^ARG GRYPE_VERSION=.*/ARG GRYPE_VERSION=$grype/"
 check "opensearch dev compose" "$opensearch" development/setup/opensearch-dev.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
+# Gate toolchain (D42 phase 2): ruff/pyright are pinned exactly in each pyproject.toml dev-deps
+# (what CI runs via `uv run`); setup-dev.sh reads versions.yaml directly so it can't drift.
+check "scanner ruff pin" "$ruff" scanner/pyproject.toml \
+  'ruff==\K[0-9.]+' "s/ruff==[0-9.]+/ruff==$ruff/"
+check "scanner pyright pin" "$pyright" scanner/pyproject.toml \
+  'pyright==\K[0-9.]+' "s/pyright==[0-9.]+/pyright==$pyright/"
 
 if [ "$fail" -ne 0 ]; then
   echo
