@@ -16,7 +16,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           # Manifest mode: reads release-please-config.json + .release-please-manifest.json.
           # Uses the default GITHUB_TOKEN. NOTE: PRs opened with GITHUB_TOKEN do not
