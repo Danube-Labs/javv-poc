@@ -1,10 +1,13 @@
 # Externally-owned tools/services JAVV pins and supports — single source of truth (D42).
 # Renovate updates the pins here (customManager in renovate.json); consumers (the scanner
-# Dockerfiles, docker-bake, the scanner-images workflow, the dev OpenSearch compose) derive
-# from this file, and a CI drift check (development/scripts/check-versions.sh) fails if a
-# consumer's literal pin diverges. Keep the supported set small (current + 1-2 prior); the
-# `current` entry is the default/recommended version. `also_supported` are manual (Renovate
-# only bumps the annotated `current` pins). Phase 1 = scanners + OpenSearch; toolchain → phase 2.
+# Dockerfiles, docker-bake, the scanner-images workflow, the dev OpenSearch compose, the dev
+# setup script + pyproject dev-deps) derive from this file, and a CI drift check
+# (development/scripts/check-versions.sh) fails if a literal-pin consumer diverges. Keep the
+# supported set small (current + 1-2 prior); the `current` entry is the default/recommended
+# version. `also_supported` are manual (Renovate only bumps the annotated `current` pins).
+# Phase 1 = scanners + OpenSearch; phase 2 = the gate toolchain (uv/ruff/pyright/pre-commit/node).
+# Deliberately NOT here: k8s tooling (kubectl/helm/k3d) and the dev scanner CLIs track latest
+# (cluster compat / security DBs are more defensible at HEAD) — see development/setup/setup-dev.sh.
 
 scanners:
   trivy:
@@ -19,3 +22,18 @@ scanners:
 datastore:
   # renovate: datasource=docker depName=opensearchproject/opensearch
   opensearch: "3.7.0"
+
+# Gate toolchain (D42 phase 2): tools whose version decides lint/type results, so local MUST
+# match CI. Consumers: development/setup/setup-dev.sh reads these directly; ruff/pyright are also
+# pinned in each pyproject.toml dev-deps (what CI runs via `uv run`) and drift-checked here.
+toolchain:
+  # renovate: datasource=github-releases depName=astral-sh/uv
+  uv: "0.11.25"
+  # renovate: datasource=pypi depName=ruff
+  ruff: "0.15.20"
+  # renovate: datasource=npm depName=pyright
+  pyright: "1.1.411"
+  # renovate: datasource=pypi depName=pre-commit
+  pre-commit: "4.6.0"
+  # major-only LTS — manual bump (no Renovate annotation; CI's setup-node pins '22' too)
+  node: "22"

@@ -11,10 +11,12 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pyright>=1.1.400",
+    # ruff/pyright pinned exactly — single source is versions.yaml (D42 phase 2),
+    # drift-checked by development/scripts/check-versions.sh. Bump there, then --fix.
+    "pyright==1.1.411",
     "pytest>=8",
     "pytest-cov>=5",
-    "ruff>=0.15",
+    "ruff==0.15.20",
 ]
 
 [build-system]

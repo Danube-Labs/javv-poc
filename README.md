@@ -91,6 +91,19 @@ Dockerfiles + dev compose in step. To change support, edit `versions.yaml`.
 Scanner images are published per supported version as `ghcr.io/danube-labs/javv-scanner-{trivy,grype}:<ver>`;
 an operator pins/swaps a tag in their own deploy (JAVV never changes versions in a running cluster).
 
+The **gate toolchain** (the tools whose version decides lint/type results, so local must match CI) is
+pinned in the same file (D42 phase 2). `development/setup/setup-dev.sh` reads these directly; ruff/pyright
+are also pinned in each `pyproject.toml` and drift-checked. k8s tooling (kubectl/helm/k3d) and the dev
+scanner CLIs intentionally track latest and are not pinned here.
+
+| Tool | Version |
+|---|---|
+| uv | 0.11.25 |
+| ruff | 0.15.20 |
+| pyright | 1.1.411 |
+| pre-commit | 4.6.0 |
+| Node.js | 22 (LTS) |
+
 ## License
 
 JAVV is **source-available** under the [Business Source License 1.1](LICENSE):

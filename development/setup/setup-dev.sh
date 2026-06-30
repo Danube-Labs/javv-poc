@@ -16,15 +16,18 @@
 #
 set -euo pipefail
 
-# Gate-tool version pins (AUDIT.md I14) — these decide lint/type results, so they MUST
-# match CI to keep local == CI. Bump here in one place. Scanners + k8s tooling intentionally
-# track latest (security DBs / cluster compat are more defensible at HEAD). Once
-# backend/pyproject.toml exists, prefer sourcing these from there / pre-commit pinned revs.
-NODE_MAJOR=22
-UV_VERSION=0.11.25
-RUFF_VERSION=0.15.20
-PYRIGHT_VERSION=1.1.411
-PRE_COMMIT_VERSION=4.6.0
+# Gate-tool versions (AUDIT.md I14) decide lint/type results, so local MUST match CI. They live in
+# versions.yaml (single source of truth, D42 phase 2) — edit there, not here; load_versions() reads
+# them below. Scanners + k8s tooling intentionally track latest (security DBs / cluster compat are
+# more defensible at HEAD) and are deliberately NOT in versions.yaml.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+VERSIONS_FILE="$REPO_ROOT/versions.yaml"
+# Populated by load_versions() once yq is bootstrapped (kept declared for `set -u`).
+NODE_MAJOR=""
+UV_VERSION=""
+RUFF_VERSION=""
+PYRIGHT_VERSION=""
+PRE_COMMIT_VERSION=""
 
 # --- helpers ----------------------------------------------------------------
 if [ "$(id -u)" -eq 0 ]; then SUDO=""; else SUDO="sudo"; fi
@@ -41,6 +44,29 @@ require_ubuntu() {
   if [ "$(uname -m)" != "x86_64" ]; then
     echo "WARNING: built for x86_64; on $(uname -m) the kubectl download arch may need adjusting." >&2
   fi
+}
+
+# --- 0. versions.yaml bootstrap (D42) ---------------------------------------
+# yq is the one tool installed before we can read versions.yaml (chicken-and-egg) — a single static
+# binary, itself unpinned (the deliberate bootstrap exception). Needs curl (from the build floor).
+install_yq() {
+  if have yq; then return; fi
+  log "Installing yq (mikefarah, static binary — bootstraps versions.yaml reads)"
+  local arch; arch="$(dpkg --print-architecture)"
+  $SUDO curl -fsSLo /usr/local/bin/yq \
+    "https://github.com/mikefarah/yq/releases/latest/download/yq_linux_${arch}"
+  $SUDO chmod 0755 /usr/local/bin/yq
+}
+
+load_versions() {
+  install_yq
+  [ -f "$VERSIONS_FILE" ] || { echo "ERROR: versions.yaml not found at $VERSIONS_FILE" >&2; exit 1; }
+  NODE_MAJOR="$(yq -r '.toolchain.node' "$VERSIONS_FILE")"
+  UV_VERSION="$(yq -r '.toolchain.uv' "$VERSIONS_FILE")"
+  RUFF_VERSION="$(yq -r '.toolchain.ruff' "$VERSIONS_FILE")"
+  PYRIGHT_VERSION="$(yq -r '.toolchain.pyright' "$VERSIONS_FILE")"
+  PRE_COMMIT_VERSION="$(yq -r '.toolchain."pre-commit"' "$VERSIONS_FILE")"
+  log "Pinned toolchain (versions.yaml): node ${NODE_MAJOR}, uv ${UV_VERSION}, ruff ${RUFF_VERSION}, pyright ${PYRIGHT_VERSION}, pre-commit ${PRE_COMMIT_VERSION}"
 }
 
 # --- 1. build floor + apt prerequisites -------------------------------------
@@ -199,6 +225,7 @@ EOF
 main() {
   require_ubuntu
   install_build_floor
+  load_versions          # bootstrap yq + read gate-tool pins from versions.yaml (needs curl above)
   install_uv
   install_ruff
   install_precommit
