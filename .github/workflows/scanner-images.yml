@@ -1,0 +1,98 @@
+name: Scanner images
+
+# M0b / D41: build the self-built, pinned scanner images across the blessed version matrix,
+# gate each on the compatibility/blessing check (real binary → JAVV adapters), and publish the
+# green ones to GHCR. Bless runs on PRs touching the scanner; publish only on a tag or manual
+# dispatch (deliberate releases). Versions come from scanner/scanner-versions.json.
+
+on:
+  pull_request:
+    paths:
+      - 'scanner/Dockerfile.*'
+      - 'scanner/scanner-versions.json'
+      - 'scanner/docker-bake.hcl'
+      - 'scanner/src/scanner/adapters/**'
+      - 'scanner/src/scanner/compat.py'
+      - '.github/workflows/scanner-images.yml'
+  workflow_dispatch:
+  push:
+    tags: ['scanner-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    name: Resolve blessed versions
+    runs-on: ubuntu-latest
+    outputs:
+      include: ${{ steps.gen.outputs.include }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: gen
+        run: |
+          include=$(jq -c '[(.trivy[]|{scanner:"trivy",version:.}),(.grype[]|{scanner:"grype",version:.})]' \
+            scanner/scanner-versions.json)
+          echo "include=$include" >> "$GITHUB_OUTPUT"
+          echo "blessed matrix: $include"
+
+  bless:
+    name: Bless ${{ matrix.scanner }} ${{ matrix.version }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.matrix.outputs.include) }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install trivy ${{ matrix.version }}
+        if: matrix.scanner == 'trivy'
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin "v${{ matrix.version }}"
+      - name: Install grype ${{ matrix.version }}
+        if: matrix.scanner == 'grype'
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
+            | sh -s -- -b /usr/local/bin "v${{ matrix.version }}"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Install scanner package
+        working-directory: scanner
+        run: uv sync --all-extras --dev
+      - name: Blessing gate (real binary → JAVV adapters)
+        working-directory: scanner
+        run: uv run python -m scanner.compat --scanner "${{ matrix.scanner }}"
+
+  publish:
+    name: Build + publish blessed images
+    needs: bless
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve registry + versions from the source of truth
+        id: vars
+        run: |
+          owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "registry=ghcr.io/$owner" >> "$GITHUB_OUTPUT"
+          echo "trivy=$(jq -r '.trivy|join(",")' scanner/scanner-versions.json)" >> "$GITHUB_OUTPUT"
+          echo "grype=$(jq -r '.grype|join(",")' scanner/scanner-versions.json)" >> "$GITHUB_OUTPUT"
+      - name: Bake + push the blessed matrix
+        working-directory: scanner
+        run: docker buildx bake -f docker-bake.hcl --push
+        env:
+          REGISTRY: ${{ steps.vars.outputs.registry }}
+          TRIVY_VERSIONS: ${{ steps.vars.outputs.trivy }}
+          GRYPE_VERSIONS: ${{ steps.vars.outputs.grype }}
