@@ -5,7 +5,8 @@
     ":semanticCommits",
     ":dependencyDashboard"
   ],
-  "labels": ["dependencies"],
+  "labels": ["dependencies", "housekeeping"],
+  "prBodyNotes": ["Part of the housekeeping tracker #66."],
   "customManagers": [
     {
       "description": "versions.yaml single source of truth (D42) — bump the annotated `current` pins",
