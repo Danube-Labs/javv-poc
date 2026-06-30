@@ -6,6 +6,16 @@
     ":dependencyDashboard"
   ],
   "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "description": "versions.yaml single source of truth (D42) — bump the annotated `current` pins",
+      "customType": "regex",
+      "managerFilePatterns": ["/^versions\\.yaml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+\\S+:\\s*\"(?<currentValue>[^\"]+)\""
+      ]
+    }
+  ],
   "packageRules": [
     {
       "description": "Group GitHub Actions bumps into one PR",

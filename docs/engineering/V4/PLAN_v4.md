@@ -359,6 +359,16 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
     Trivy's standalone JSON has no DB info → DB fields null). Stored on `scan-events` for the read-only version
     view + audit version matrix (`AUDIT-RESPONSE_v4.md` "scanner/backend version matrix"). A deliberate
     *downgrade* must still mint a **greater `scan_order`** (D40) so newer-wins reconcile doesn't mis-rank it.
+- **D42 - Single source of truth for externally-owned versions (`versions.yaml`).** The versions of tools/
+  services JAVV doesn't own (scanners, OpenSearch; toolchain in a phase 2) are pinned in one root file
+  **`versions.yaml`**, the human-/app-readable "what JAVV supports" registry (surfaced in the README's
+  *Supported versions*). **Renovate** watches it via a `customManager` (bumps only the annotated `current`
+  pins; `also_supported` priors are manual), and a Renovate bump's PR is auto-validated by the **D41
+  compatibility gate**. Consumers keep a literal pin so they work standalone (`docker build`,
+  `docker compose up`); a CI **drift check** (`development/scripts/check-versions.sh`, `--fix` to propagate)
+  fails if a consumer diverges from `versions.yaml`. Code *libraries* (pyproject), GitHub Actions, and
+  pre-commit hooks stay in their native files where Renovate manages them directly - **not** centralized
+  (centralizing them would fight Renovate, not help).
 - **Promoted/retained MVP:** per-finding occurrences + point-in-time (now M8); VEX **export** (M6).
 - **Moved to v1.1:** **VEX import** (consuming external VEX into `system-decisions`) - MVP ingests **only
   the scanner JSON envelope**; Jira ticket push; dashboard **builder** (saved views stay the default);

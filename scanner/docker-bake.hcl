@@ -1,6 +1,6 @@
 # Build the compatible, pinned scanner images from one Dockerfile per scanner (M0b / D41).
 # One Dockerfile, built across a matrix of versions → N pinned image tags. The version lists
-# default to the current pins here but are overridden in CI from scanner-versions.json.
+# default to the current pins here but are overridden in CI from versions.yaml (single source, D42).
 # Run from the scanner/ dir (context = "."), e.g.:
 #   docker buildx bake -f docker-bake.hcl --print
 #   docker buildx bake -f docker-bake.hcl --set '*.platform=linux/amd64'

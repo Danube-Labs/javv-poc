@@ -50,8 +50,9 @@ OpenSearch single store → Vue 3 frontend. Apache-2.0 components throughout.
 
 Versions for the **gate tools** (the ones that decide lint/type/test results) are pinned so local
 matches CI. They live in **one place — [`development/setup/setup-dev.sh`](development/setup/setup-dev.sh)** — bump
-them there. Scanners and Kubernetes tooling intentionally track latest (security DBs and cluster
-compatibility are more defensible at HEAD).
+them there. Kubernetes tooling intentionally tracks latest. **Scanners + OpenSearch are pinned to a
+supported set** in [`versions.yaml`](versions.yaml) (single source of truth, D41/D42; see **Supported
+versions** below).
 
 | Tool | Role | Version |
 |---|---|---|
@@ -62,8 +63,8 @@ compatibility are more defensible at HEAD).
 | pytest | Backend tests | from `backend/pyproject.toml` (once it exists) |
 | Node.js | Frontend runtime / toolchain | 22 LTS *(pinned major)* |
 | ESLint + Vitest | Lint + tests (frontend) | from `frontend/package.json` (once it exists) |
-| OpenSearch | Single datastore | runs as a container in the dev cluster |
-| [Trivy](https://trivy.dev/) · [Grype](https://github.com/anchore/grype) | Scanners (per-scanner, never merged) | latest |
+| OpenSearch | Single datastore | pinned in [`versions.yaml`](versions.yaml) |
+| [Trivy](https://trivy.dev/) · [Grype](https://github.com/anchore/grype) | Scanners (per-scanner, never merged) | pinned in [`versions.yaml`](versions.yaml) |
 | kubectl · helm · [k3d](https://k3d.io/) | Local k8s (k3s-in-Docker) | latest |
 | Docker | Container runtime (k3d backend) | host-provided |
 | [gh](https://cli.github.com/) | GitHub CLI (branch protection, automation) | latest |
@@ -73,6 +74,22 @@ compatibility are more defensible at HEAD).
 
 > Full install on a fresh Ubuntu VM: **`bash development/setup/setup-dev.sh`** (idempotent). Verify a host is
 > ready with **`bash development/setup/preflight.sh`**.
+
+## Supported versions
+
+The externally-owned scanners + datastore JAVV pins and supports live in one place —
+[`versions.yaml`](versions.yaml) (D41/D42). Renovate watches it and the **compatibility gate**
+(`scanner-images` CI) validates a new scanner version before it's published; a drift check keeps the
+Dockerfiles + dev compose in step. To change support, edit `versions.yaml`.
+
+| Component | Current | Also supported |
+|---|---|---|
+| Trivy | 0.71.2 | 0.70.0 |
+| Grype | 0.115.0 | 0.114.0 |
+| OpenSearch | 3.7.0 | — |
+
+Scanner images are published per supported version as `ghcr.io/danube-labs/javv-scanner-{trivy,grype}:<ver>`;
+an operator pins/swaps a tag in their own deploy (JAVV never changes versions in a running cluster).
 
 ## License
 

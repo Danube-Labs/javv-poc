@@ -25,7 +25,7 @@ M0 (#22, the adapters + golden fixtures + Dockerfiles this gates).
   envelope shape, and **provenance present** (`scanner_version` + DB fields). **Green → publish as compatible.**
 - **Publish** to the registry (GHCR) on green; images **public once the repo is public**; Dockerfiles stay
   public for supply-chain transparency.
-- **Compatible-versions config** — a small curated set (**current + 1-2 prior**, not 5), each with an explicit
+- **`versions.yaml`** (repo root, D42) — the single source of truth for the compatible set (**current + 1-2 prior**, not 5), each with an explicit
   EOL; **per-vuln-DB-schema** awareness (Grype v5↔v6 incompatible; Grype <0.88 = frozen DB).
 - Supply-chain: image **scan + SBOM (+ optional signing)** of the published scanner images themselves.
 

@@ -3,13 +3,13 @@ name: Scanner images
 # M0b / D41: build the self-built, pinned scanner images across the compatible version matrix,
 # gate each on the compatibility check (real binary → JAVV adapters), and publish the green ones
 # to GHCR. The compatibility check runs on PRs touching the scanner; publish only on a tag or
-# manual dispatch (deliberate releases). Versions come from scanner/scanner-versions.json.
+# manual dispatch (deliberate releases). Versions come from versions.yaml (single source, D42).
 
 on:
   pull_request:
     paths:
+      - 'versions.yaml'
       - 'scanner/Dockerfile.*'
-      - 'scanner/scanner-versions.json'
       - 'scanner/docker-bake.hcl'
       - 'scanner/src/scanner/adapters/**'
       - 'scanner/src/scanner/compat.py'
@@ -31,8 +31,9 @@ jobs:
       - uses: actions/checkout@v5
       - id: gen
         run: |
-          include=$(jq -c '[(.trivy[]|{scanner:"trivy",version:.}),(.grype[]|{scanner:"grype",version:.})]' \
-            scanner/scanner-versions.json)
+          include=$(yq -o=json versions.yaml | jq -c \
+            '[.scanners | to_entries[] | .key as $s
+              | ([.value.current] + (.value.also_supported // []))[] | {scanner:$s, version:.}]')
           echo "include=$include" >> "$GITHUB_OUTPUT"
           echo "compatible-versions matrix: $include"
 
@@ -87,8 +88,9 @@ jobs:
         run: |
           owner=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "registry=ghcr.io/$owner" >> "$GITHUB_OUTPUT"
-          echo "trivy=$(jq -r '.trivy|join(",")' scanner/scanner-versions.json)" >> "$GITHUB_OUTPUT"
-          echo "grype=$(jq -r '.grype|join(",")' scanner/scanner-versions.json)" >> "$GITHUB_OUTPUT"
+          json=$(yq -o=json versions.yaml)
+          echo "trivy=$(echo "$json" | jq -r '([.scanners.trivy.current] + (.scanners.trivy.also_supported // [])) | join(",")')" >> "$GITHUB_OUTPUT"
+          echo "grype=$(echo "$json" | jq -r '([.scanners.grype.current] + (.scanners.grype.also_supported // [])) | join(",")')" >> "$GITHUB_OUTPUT"
       - name: Bake + push the compatible matrix
         working-directory: scanner
         run: docker buildx bake -f docker-bake.hcl --push
