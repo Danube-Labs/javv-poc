@@ -60,3 +60,18 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   (+ optional cosign) of the published images; **EOL + per-vuln-DB-schema annotations in `versions.yaml`**
   (flag, don't silently ship an EOL/frozen-DB version); automated **publish-smoke**; `docker build --check`
   in CI. Pickup TBD (focused M0b follow-up vs. fold into M10 supply-chain).
+- **2026-07-01 (follow-up)** — the four deferred items above implemented in `scanner-images.yml` + `versions.yaml`:
+  - **Supply-chain (point 1):** `syft` SBOM + `grype` self-scan of our *own* published images, **report-only**
+    (never blocks the publish; SBOM + scan uploaded as a CI artifact). **Signing (`cosign`) deliberately deferred
+    until the repo/images are public** — keyless cosign would record digests + CI identity in the public Rekor
+    log; tracked on #60.
+  - **DB policy (point 2):** **no invented EOL dates** — Trivy/Grype publish none. `versions.yaml` now records the
+    *factual* `vuln_db` compatibility per scanner (Trivy schema v2, **fails loud** on an incompatible DB; Grype
+    schema v6 since 0.88.0, `min_live_version: 0.88.0` because schema v5 EOL'd 2026-03-06 and old Grype runs it
+    **silently**). New gate `development/scripts/check-scanner-db-policy.sh` (wired into `versions.yml`) fails CI
+    if a supported version would run a frozen/incompatible DB.
+  - **Publish-smoke (point 3):** runs **before** publish — bake `--load` → run each built image's entrypoint
+    (`scanner.compat`, exercising the image's real binary + package + wiring, which the runner-side compat gate
+    does *not*) → only `--push` if green, so a broken image never gets a public tag.
+  - **`docker build --check` (point 4):** new `lint-dockerfiles` job on both Dockerfiles; `publish` now
+    `needs: [compat, lint-dockerfiles]`.
