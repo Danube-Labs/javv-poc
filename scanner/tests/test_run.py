@@ -91,6 +91,38 @@ def test_scan_all_emits_one_envelope_per_target_under_one_run() -> None:
     assert len({e.scan_order for e in pushed}) == 1
 
 
+def test_scan_all_stamps_observed_topology_from_discovery() -> None:
+    # only the scanner observes where/how many an image runs — it must flow onto the envelope.
+    tgt = ImageTarget(
+        image_digest="sha256:a",
+        image_ref="nginx:1.21.6",
+        locations=(
+            Location(namespace="team-a", pod="p1", container="c"),
+            Location(namespace="team-a", pod="p2", container="c"),
+            Location(namespace="team-b", pod="p3", container="c"),
+        ),
+    )
+    pushed: list[Envelope] = []
+
+    def push_fn(env: Envelope) -> PushResult:
+        pushed.append(env)
+        return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+    scan_all(
+        [tgt],
+        scanner="trivy",
+        cluster_id="c",
+        scan_fn=lambda ref: ScanResult(),
+        push_fn=push_fn,
+    )
+
+    env = pushed[0]
+    assert env.image_ref == "nginx:1.21.6"
+    assert env.namespaces == ["team-a", "team-b"]  # sorted distinct
+    assert env.replicas == 3  # three running pods
+    assert env.schema_version == 2
+
+
 def test_scan_all_isolates_a_failing_image_and_finishes_the_cycle() -> None:
     # D30: scan everything every cycle — one un-pullable image / scanner error
     # must not abort the rest.

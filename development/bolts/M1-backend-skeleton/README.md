@@ -31,12 +31,11 @@ The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/re
 - `backend/models/` - Pydantic v2 schemas; **request models `extra="forbid"`**; `cluster_id` shape validated.
   **Coupling (D41):** because the ingest envelope model is `extra="forbid"`, it **must** include M0's provenance
   fields — `scanner_version`, `scanner_db_version`, `scanner_db_built` — or it will reject the M0 envelope.
-  **Decide the envelope shape here (M0 retrospective):** M0's envelope currently carries a vestigial singular
-  `namespace` (always `None`) and **drops `replicas`/`pod_count` and `image_ref`**, which only the scanner can
-  observe — yet `INDEX-MAP_v4.md:115` reserves `replicas` "observed at scan time". A digest can span namespaces,
-  so the field is the wrong shape. Settle the envelope↔ingest contract now (namespaces[] + observed-replicas,
-  or explicit drop) and wire the scanner side to match — since `extra="forbid"` couples the two, don't add the
-  field on one side only.
+  **Observed topology (resolved — envelope schema v2):** the scanner envelope now carries `image_ref`,
+  `namespaces[]` (a digest can span namespaces), and `replicas` (running pod count) — the scanner-only
+  observations `INDEX-MAP_v4.md:115` reserves. So the ingest model **must** accept them (`extra="forbid"`),
+  and the **`javv-images`** mapping needs `namespaces` as **`keyword[]`** + `replicas` `integer` (reconciling
+  INDEX-MAP's singular `namespace` → `namespaces[]`, since dedup collapses a digest across namespaces).
 - `backend/repositories/`, `backend/services/`, `backend/routers/ingest.py` - the ingest path: validate →
   normalize → `_bulk` write (inspect `response["errors"]` + per-item status; backoff on 429/503).
 - `POST /api/v1/ingest/scan` - **hardened:** rate-limit, size + decompression caps, **256-bit random
