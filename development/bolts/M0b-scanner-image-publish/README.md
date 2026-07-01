@@ -51,3 +51,12 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Helm chart / CronJob deploy + the **per-schema PVC DB cache** → **M10** (the operator wires the tag there).
 - The read-only version display in the UI → **M9d / M9e**.
 - The ingest endpoint that accepts the provenance fields → **M1** (`extra="forbid"` coupling, D41).
+
+## Updates
+- **2026-07-01** — First GHCR publish dispatched from `main` @ `70a057c` ([run 28480042666](https://github.com/Danube-Labs/javv-poc/actions/runs/28480042666)):
+  8 tags live (`javv-scanner-{trivy,grype}:<ver>` + `:<ver>-<sha>`), full pipeline green. The M0/M0b
+  retrospective ([`../M0-scanners/RETROSPECTIVE.md`](../M0-scanners/RETROSPECTIVE.md)) then surfaced
+  **deferred DoD items closed silently** — issue **#60 reopened** to track them: SBOM + image-scan
+  (+ optional cosign) of the published images; **EOL + per-vuln-DB-schema annotations in `versions.yaml`**
+  (flag, don't silently ship an EOL/frozen-DB version); automated **publish-smoke**; `docker build --check`
+  in CI. Pickup TBD (focused M0b follow-up vs. fold into M10 supply-chain).

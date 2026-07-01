@@ -36,7 +36,15 @@ class ScanRun:
 
 
 def new_scan_run() -> ScanRun:
-    """Mint a fresh run: unique id + monotonic order + full-precision UTC start time."""
+    """Mint a fresh run: unique id + monotonic order + full-precision UTC start time.
+
+    CAVEAT (D40): `scan_order` here is wall-clock `time.time_ns()`, which strictly increases between
+    the CronJob's non-overlapping (`Forbid`) runs *on a single host*. Across nodes an NTP step-back
+    could make a newer run's order regress; M3's server-side watermark CAS (keyed on `scan_order`)
+    would then correctly reject the newer scan as stale. This is fine for single-node dev/MVP but
+    contradicts D40's "never order by clock" intent — revisit before M3 (e.g. a source that can't
+    regress) if multi-node scanning lands.
+    """
     return ScanRun(scan_run_id=uuid4().hex, scan_order=time.time_ns(), started_at=datetime.now(UTC))
 
 

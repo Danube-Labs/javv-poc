@@ -49,3 +49,11 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 ## Before coding
 Pre-split into stacked PRs per [`git-workflow.md`](../../standards/git-workflow.md):
 merge → scan_order/watermark → commit-then-cache → reconcile → staleness → rebuild-state.
+
+> **Settle the `scan_order` source first (M0 retrospective).** The scanner currently mints `scan_order`
+> from wall-clock `time.time_ns()` (`scanner/src/scanner/envelope.py` `new_scan_run`). It's monotonic on a
+> single host across `Forbid` runs, but **across nodes an NTP step-back can make a newer run's order
+> regress** — at which point this bolt's watermark CAS would (correctly, per D40) reject the newer scan as
+> stale and drop its findings. Fine for single-node MVP; if multi-node scanning is in play, replace the
+> scanner's order source with one that can't regress **before** building the CAS on top of it. D40's
+> "never order by clock" applies to the *source*, not just to not using `@timestamp`.

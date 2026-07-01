@@ -16,6 +16,10 @@ from scanner.models import Finding, Provenance, ScanResult
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
+# Hard cap per image so a hung scanner can't block the cycle forever (TimeoutExpired is then
+# isolated per-image in run.scan_all). The k8s activeDeadlineSeconds belt-and-braces lands in M10.
+SCAN_TIMEOUT_SECONDS = 600
+
 
 def _coerce_dt(value: Any) -> datetime | None:
     if not isinstance(value, str):
@@ -93,6 +97,12 @@ def parse_grype_provenance(data: Mapping[str, Any]) -> Provenance:
 
 def scan_grype(image_ref: str, *, runner: Runner = subprocess.run) -> ScanResult:
     """Drive the grype binary against an image ref and parse its JSON output + provenance."""
-    proc = runner(["grype", image_ref, "-o", "json"], capture_output=True, text=True, check=True)
+    proc = runner(
+        ["grype", image_ref, "-o", "json"],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=SCAN_TIMEOUT_SECONDS,
+    )
     data = json.loads(proc.stdout)
     return ScanResult(findings=parse_grype(data), provenance=parse_grype_provenance(data))
