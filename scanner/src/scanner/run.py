@@ -47,6 +47,9 @@ def scan_all(
             cluster_id=cluster_id,
             scanner=scanner,
             image_digest=t.image_digest,
+            image_ref=t.image_ref,
+            namespaces=t.namespaces,
+            replicas=t.pod_count,
             findings=scanned.findings,
             provenance=scanned.provenance,
         )

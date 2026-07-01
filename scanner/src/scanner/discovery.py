@@ -31,6 +31,11 @@ class ImageTarget(BaseModel):
     def pod_count(self) -> int:
         return len({(loc.namespace, loc.pod) for loc in self.locations})
 
+    @property
+    def namespaces(self) -> tuple[str, ...]:
+        """Distinct namespaces this digest runs in (a digest can span several)."""
+        return tuple(sorted({loc.namespace for loc in self.locations}))
+
 
 class _PodSource(Protocol):
     def list_pod_for_all_namespaces(self, *, watch: bool = ...) -> Any: ...

@@ -87,6 +87,27 @@ def test_envelope_carries_the_run_and_image_identity() -> None:
     assert env.scan_run_id and isinstance(env.scan_order, int)
 
 
+def test_envelope_carries_observed_topology() -> None:
+    env = build_envelope(
+        new_scan_run(),
+        cluster_id="c",
+        scanner="trivy",
+        image_digest="sha256:x",
+        image_ref="nginx:1.21.6",
+        namespaces=["team-a", "team-b"],
+        replicas=3,
+        findings=[],
+    )
+    assert env.image_ref == "nginx:1.21.6"
+    assert env.namespaces == ["team-a", "team-b"]
+    assert env.replicas == 3
+    assert env.schema_version == 2  # v2 = observed topology replaced the vestigial null namespace
+    # and it survives serialization (what the backend ingests)
+    dumped = json.loads(env.model_dump_json())
+    assert dumped["namespaces"] == ["team-a", "team-b"] and dumped["replicas"] == 3
+    assert "namespace" not in dumped  # the old singular field is gone
+
+
 def test_last_seen_at_is_tz_aware_full_precision() -> None:
     env = _trivy_env()
     assert isinstance(env.last_seen_at, datetime)

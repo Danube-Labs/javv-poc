@@ -51,6 +51,7 @@ def test_same_digest_across_namespaces_is_one_target_spanning_both() -> None:
     assert len(targets) == 1
     assert {loc.namespace for loc in targets[0].locations} == {"ns-a", "ns-b"}
     assert targets[0].pod_count == 2
+    assert targets[0].namespaces == ("ns-a", "ns-b")  # sorted distinct, spans both
 
 
 def test_ignores_pods_without_a_resolved_digest_or_not_running() -> None:

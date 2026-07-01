@@ -21,7 +21,8 @@ from pydantic import BaseModel, ConfigDict
 from scanner.models import Finding, Provenance
 from scanner.normalize import SEVERITIES
 
-SCHEMA_VERSION = 1
+# v2: observed topology (image_ref, namespaces[], replicas) replaced the vestigial null namespace
+SCHEMA_VERSION = 2
 
 Scanner = Literal["trivy", "grype"]
 
@@ -77,7 +78,11 @@ class Envelope(BaseModel):
     cluster_id: str
     scanner: Scanner
     image_digest: str
-    namespace: str | None = None
+    # observed topology at scan time — only the scanner can see this (INDEX-MAP images/replicas).
+    # A digest can run in several namespaces, so namespaces is a list; replicas = running pod count.
+    image_ref: str = ""
+    namespaces: list[str] = []
+    replicas: int = 0
     scan_run_id: str
     scan_order: int
     last_seen_at: datetime
@@ -96,7 +101,9 @@ def build_envelope(
     scanner: Scanner,
     image_digest: str,
     findings: Sequence[Finding],
-    namespace: str | None = None,
+    image_ref: str = "",
+    namespaces: Sequence[str] | None = None,
+    replicas: int = 0,
     provenance: Provenance | None = None,
 ) -> Envelope:
     prov = provenance or Provenance()
@@ -104,7 +111,9 @@ def build_envelope(
         cluster_id=cluster_id,
         scanner=scanner,
         image_digest=image_digest,
-        namespace=namespace,
+        image_ref=image_ref,
+        namespaces=list(namespaces or []),
+        replicas=replicas,
         scanner_version=prov.scanner_version,
         scanner_db_version=prov.db_version,
         scanner_db_built=prov.db_built,
