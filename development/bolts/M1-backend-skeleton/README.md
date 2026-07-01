@@ -27,7 +27,10 @@ The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/re
   + exception handlers; **every** non-2xx response uses it (routers never hand-roll error bodies). `request_id`
   is bound into structlog so a client error maps to exact logs.
 - `backend/core/bootstrap.py` - **versioned index bootstrap**: `dynamic:false` mappings for current-state
-  (`findings`, `images`) + `system-*`, with keyword ids, the **severity normalizer**, reshaped CVSS, EPSS/KEV.
+  (`findings`, `images`) + `system-*`, with keyword ids, the **severity normalizer**, reshaped CVSS, EPSS/KEV,
+  and the **schema-v2 observed topology** — `namespaces` as **`keyword[]`** (never singular; array-contains
+  filter, per-ns counts overlap), `replicas` `integer`, `image_ref` `keyword`. Read `INDEX-MAP_v4.md` (now
+  reconciled, audit finding #1) before writing any mapping — never aggregate on `text`.
 - `backend/models/` - Pydantic v2 schemas; **request models `extra="forbid"`**; `cluster_id` shape validated.
   **Coupling (D41):** because the ingest envelope model is `extra="forbid"`, it **must** include M0's provenance
   fields — `scanner_version`, `scanner_db_version`, `scanner_db_built` — or it will reject the M0 envelope.
