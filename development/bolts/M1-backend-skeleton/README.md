@@ -33,9 +33,10 @@ The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/re
   fields — `scanner_version`, `scanner_db_version`, `scanner_db_built` — or it will reject the M0 envelope.
   **Observed topology (resolved — envelope schema v2):** the scanner envelope now carries `image_ref`,
   `namespaces[]` (a digest can span namespaces), and `replicas` (running pod count) — the scanner-only
-  observations `INDEX-MAP_v4.md:115` reserves. So the ingest model **must** accept them (`extra="forbid"`),
-  and the **`javv-images`** mapping needs `namespaces` as **`keyword[]`** + `replicas` `integer` (reconciling
-  INDEX-MAP's singular `namespace` → `namespaces[]`, since dedup collapses a digest across namespaces).
+  observations the indexes reserve. So the ingest model **must** accept them (`extra="forbid"`), and
+  `findings`/`occurrences`/`scan-events`/`images` all use `namespaces` **`keyword[]`** (+ `images.replicas`
+  `integer`) — INDEX-MAP reconciled (audit finding #1). A namespace filter is array-contains, so the same
+  finding surfaces under each namespace it runs in; per-namespace counts overlap (only the all-ns total is deduped).
 - `backend/repositories/`, `backend/services/`, `backend/routers/ingest.py` - the ingest path: validate →
   normalize → `_bulk` write (inspect `response["errors"]` + per-item status; backoff on 429/503).
 - `POST /api/v1/ingest/scan` - **hardened:** rate-limit, size + decompression caps, **256-bit random
