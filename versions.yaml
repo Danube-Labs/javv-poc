@@ -9,15 +9,28 @@
 # Deliberately NOT here: k8s tooling (kubectl/helm/k3d) and the dev scanner CLIs track latest
 # (cluster compat / security DBs are more defensible at HEAD) — see development/setup/setup-dev.sh.
 
+# `vuln_db` records the *factual* DB compatibility of each scanner (M0b) — NOT an invented EOL for the
+# tool itself (Trivy/Grype publish no release-EOL, so we don't fabricate one). It states which vuln-DB
+# schema a scanner version speaks, and — where upstream froze an old schema — the minimum version that
+# still receives DB updates. `development/scripts/check-scanner-db-policy.sh` fails CI if a supported
+# version would run a frozen/incompatible DB, so we never *silently* ship a stale scanner.
 scanners:
   trivy:
     # renovate: datasource=docker depName=aquasec/trivy
     current: "0.71.2"
     also_supported: ["0.70.0"]
+    vuln_db:
+      schema: 2  # trivy-db schema these versions speak (current). Trivy REFUSES a schema-incompatible
+                 # DB at runtime (errors, won't scan) — it fails loud, so there's no silent-stale risk.
   grype:
     # renovate: datasource=docker depName=anchore/grype extractVersion=^v(?<version>.+)$
     current: "0.115.0"
     also_supported: ["0.114.0"]
+    vuln_db:
+      schema: 6  # Grype DB schema v6 (used since grype 0.88.0, Mar 2025).
+      # Grype < 0.88.0 speaks schema v5, which upstream EOL'd 2026-03-06 → frozen (no more DB updates),
+      # and old Grype runs on it SILENTLY. Never support a version below this floor.
+      min_live_version: "0.88.0"
 
 datastore:
   # renovate: datasource=docker depName=opensearchproject/opensearch
