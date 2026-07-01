@@ -48,7 +48,7 @@ commit_key        keyword       = scan-events commit_key; exact-tuple membership
 cluster_id        keyword       tenant + routing
 scanner           keyword
 image_digest      keyword       reconstruction identity (content-addressed)
-namespace         keyword
+namespaces        keyword[]    distinct namespaces the digest runs in — a digest can span several (D30 dedup); ns filter = array-contains
 vuln_id           keyword       CVE pivot (= cve_id elsewhere)
 package_name      keyword
 package_version   keyword       (= findings.installed_version)
@@ -84,7 +84,7 @@ scanner           keyword
 scanner_version   keyword       self-reported binary version (D41); Trivy Trivy.Version / Grype descriptor.version
 scanner_db_version keyword      vuln-DB schema version (D41); Grype descriptor.db.status.schemaVersion (Trivy: null)
 scanner_db_built  date          vuln-DB build time (D41); Grype descriptor.db.status.built (Trivy: null)
-namespace         keyword
+namespaces        keyword[]    distinct namespaces the digest runs in — a digest can span several (D30 dedup); ns filter = array-contains
 image_repo        keyword
 image_digest      keyword
 tag               keyword
@@ -107,7 +107,7 @@ cluster_id        keyword
 image_digest      keyword
 image_repo        keyword
 tag               keyword
-namespace         keyword
+namespaces        keyword[]    distinct namespaces the digest runs in — a digest can span several (D30 dedup); ns filter = array-contains
 app               keyword
 scanners          keyword[]     scanners that reported this image this run
 crit high med low negligible unknown total fixable   integer
@@ -187,6 +187,12 @@ lifecycle + system `stale`) - `present=true` = on the latest committed scan; `pr
 = resolved-by-scan (fixed); `state=stale` = scanner silent. Every "now" query **must** filter on both
 (`present=true` + the screen's `state`) and carry `cluster_id`+`scanner`. Settings: `lc` normalizer; start at 1
 primary shard (route/shard by `cluster_id` only if it ever grows large - it scales with live fleet, not time).
+**Namespace is multi-valued (D30):** digest-dedup collapses N pods of one image into one scan, but those pods
+can live in different namespaces - so `namespaces` is a `keyword[]` (matching the schema-v2 scanner envelope),
+not a scalar. `finding_key` excludes it (a vuln is a property of the image, not the namespace). A namespace
+filter is an array-contains `terms` match, so the **same** finding surfaces under every namespace it runs in;
+per-namespace finding counts therefore **overlap** (only the all-namespaces total is deduped). Resolves the
+`namespaces[]` vs singular `namespace` mismatch (project audit finding #1).
 ```
 finding_key       keyword       _id = hash(cluster_id+image_digest+scanner+cve_id+package_name+installed_version)
 cluster_id        keyword
@@ -194,7 +200,7 @@ scanner           keyword
 image_digest      keyword
 image_repo        keyword
 tag               keyword
-namespace         keyword
+namespaces        keyword[]    distinct namespaces the digest runs in — a digest can span several (D30 dedup); ns filter = array-contains
 app               keyword
 cve_id            keyword
 package_name      keyword
