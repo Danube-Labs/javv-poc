@@ -2,6 +2,8 @@
 reproduces the previously-hardcoded command exactly (no behaviour change), and each JAVV_* override
 is reflected in the built command. Pure builders — no subprocess."""
 
+import pytest
+
 from scanner.adapters.grype import grype_command
 from scanner.adapters.trivy import trivy_command
 from scanner.config import GrypeConfig, TrivyConfig
@@ -94,3 +96,49 @@ def test_flag_parsing_is_lenient_but_safe() -> None:
     assert TrivyConfig.from_env({"JAVV_TRIVY_IGNORE_UNFIXED": "TRUE"}).ignore_unfixed is True
     assert TrivyConfig.from_env({"JAVV_TRIVY_IGNORE_UNFIXED": "0"}).ignore_unfixed is False
     assert TrivyConfig.from_env({"JAVV_TRIVY_IGNORE_UNFIXED": "maybe"}).ignore_unfixed is False
+
+
+def test_grype_garbage_timeout_fails_fast_with_the_env_name() -> None:
+    # a typo'd timeout must not surface as a bare int() ValueError traceback (#97)
+    with pytest.raises(ValueError, match="JAVV_GRYPE_SCAN_TIMEOUT.*'abc'"):
+        GrypeConfig.from_env({"JAVV_GRYPE_SCAN_TIMEOUT": "abc"})
+
+
+# --- garbage-value fail-fast (#97): every knob rejects junk, naming its env var
+
+
+def test_trivy_scanners_rejects_unknown_token() -> None:
+    with pytest.raises(ValueError, match="JAVV_TRIVY_SCANNERS.*bogus"):
+        TrivyConfig.from_env({"JAVV_TRIVY_SCANNERS": "vuln,bogus"})
+
+
+def test_trivy_severities_rejects_junk_and_normalizes_case() -> None:
+    with pytest.raises(ValueError, match="JAVV_TRIVY_SEVERITIES"):
+        TrivyConfig.from_env({"JAVV_TRIVY_SEVERITIES": "CRITICAL,SEVERE"})
+    cfg = TrivyConfig.from_env({"JAVV_TRIVY_SEVERITIES": "critical,High"})
+    assert cfg.severities == "CRITICAL,HIGH"
+
+
+def test_trivy_pkg_types_rejects_junk() -> None:
+    with pytest.raises(ValueError, match="JAVV_TRIVY_PKG_TYPES.*rpm"):
+        TrivyConfig.from_env({"JAVV_TRIVY_PKG_TYPES": "os,rpm"})
+
+
+def test_trivy_timeout_wants_a_go_duration() -> None:
+    for ok in ("5m0s", "300s", "1h30m", "1.5h"):
+        assert TrivyConfig.from_env({"JAVV_TRIVY_TIMEOUT": ok}).timeout == ok
+    for bad in ("5x", "5", "five minutes", "-5m"):
+        with pytest.raises(ValueError, match="JAVV_TRIVY_TIMEOUT"):
+            TrivyConfig.from_env({"JAVV_TRIVY_TIMEOUT": bad})
+
+
+def test_grype_scope_rejects_junk_and_normalizes_case() -> None:
+    with pytest.raises(ValueError, match="JAVV_GRYPE_SCOPE.*everything"):
+        GrypeConfig.from_env({"JAVV_GRYPE_SCOPE": "everything"})
+    assert GrypeConfig.from_env({"JAVV_GRYPE_SCOPE": "All-Layers"}).scope == "all-layers"
+
+
+def test_grype_timeout_must_be_positive() -> None:
+    for bad in ("0", "-5"):
+        with pytest.raises(ValueError, match="JAVV_GRYPE_SCAN_TIMEOUT"):
+            GrypeConfig.from_env({"JAVV_GRYPE_SCAN_TIMEOUT": bad})

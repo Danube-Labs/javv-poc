@@ -45,10 +45,13 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 ## 2. JAVV Scanner (CronJob) — `JAVV_*` env vars
 
 Source: `scanner/src/scanner/run.py` (tier ②). One CronJob per scanner; stateless per cycle.
+**Every set value is validated at startup (#97):** a garbage value (typo'd scanner, scheme-less URL,
+malformed cluster id, unknown flag token…) exits 2 / raises with the env-var name — never a silent
+fallback or a per-image error loop. Unset always means the documented default.
 
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
-| `JAVV_SCANNER` | `trivy` | Which scanner this pod runs (`trivy`\|`grype`). Also baked into each image's `ENV`. | ⚙️ GitOps (per-image) |
+| `JAVV_SCANNER` | `trivy` | Which scanner this pod runs (`trivy`\|`grype`). Also baked into each image's `ENV`. Any other value → exit 2 with an error (never silently falls back, #97). | ⚙️ GitOps (per-image) |
 | `JAVV_BACKEND_URL` | `http://localhost:8000` | Backend ingest endpoint | n/a (deploy) |
 | `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). **Effectively required** — since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed). | 🔒 secret |
 | `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity; defaults to the immutable `kube-system` namespace UID (never `cluster_name`). | n/a (deploy) |
@@ -62,6 +65,8 @@ Source: `scanner/src/scanner/config.py` + `adapters/trivy.py`. **Phase 1 of #91 
 now `JAVV_TRIVY_*` env vars (tier ②), each defaulting to the previously-hardcoded value — an unset env
 reproduces the old command exactly. Set them on the scanner CronJob manifest (GitOps). `--format json`
 stays fixed (the parser depends on it). Runtime/UI control is Phase 2 (`system-config` + Settings UI).
+Set values are validated against the pinned binary's accepted sets — scanners ∈ `vuln,misconfig,secret,license`,
+severities ∈ `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`, pkg-types ∈ `os,library`, timeout = Go duration (#97).
 
 | Env var | Default | Effect | UI? |
 |---|---|---|---|
@@ -84,8 +89,8 @@ env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (pa
 | Env var | Default | Effect | UI? |
 |---|---|---|---|
 | `JAVV_GRYPE_ONLY_FIXED` | `false` | adds `--only-fixed` | ✅ Phase 2 (#91) |
-| `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers` (unset = grype default) | ✅ Phase 2 |
-| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag) | ✅ Phase 2 |
+| `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers\|deep-squashed` (validated, #97; unset = grype default) | ✅ Phase 2 |
+| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag); non-integer → fail-fast with a clear error (#97) | ✅ Phase 2 |
 | Output format | `json` | fixed — parser depends on it | n/a |
 | **Grype version** | `0.115.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; DB pulled at scan time | ⚙️ read-only display |
