@@ -76,3 +76,14 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 container can write to (`path.repo`). s3/MinIO is k3s-prod only. Slice 2 sets `path.repo` on the dev
 compose + the CI service container; no external infra. No `settings.py` snapshot fields — the repo ref
 lives in `system-config` (data), not process config.
+
+### 2026-07-02 — Slice 3 scoping (SM policy now, deploy manifests → M10)
+Scheduled snapshots use OpenSearch's native **Snapshot Management (SM)** policy
+(`_plugins/_sm/policies`), not ISM (ISM = index rollover/delete; SM = scheduled snapshots) and
+not a CronJob — OpenSearch takes + prunes the snapshot itself, so coordination stays in OpenSearch
+(no-broker constraint). Policy body lives in code (`admin/snapshot.py`, source of truth like the
+bootstrap mappings), D26-configurable; `create_snapshot_policy` registers it. The k8s deploy
+manifests originally listed here — `snapshot-repo.yaml` (repo registration) and the
+`snapshot-verify` CronJob (scheduled restore-drill) — are **deferred to M10**, where the Helm chart
+lives; building them now (no chart yet, untestable) would be speculative. The PLAN gate (the
+automated restore drill) is met in Slice 2 and doesn't depend on them.
