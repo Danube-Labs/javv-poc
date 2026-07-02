@@ -3,12 +3,11 @@
 One envelope per (image, scanner) per scan cycle. It carries the severity buckets
 (D16/INDEX-MAP), the per-scanner findings (verbatim severity + EPSS/KEV kept), and run
 identity: `scan_run_id` (unique per cycle) and a monotonic `scan_order` (D40 — the ordering
-key, never `@timestamp`). `scan_order` is scanner-assigned and monotonic across the CronJob's
-non-overlapping (`Forbid`) runs; we use `time.time_ns()`, which strictly increases between runs
-on a host. Per D30 a clean scan still emits a full envelope (no skip-unchanged).
+key, never `@timestamp`). `scan_order` is **backend-allocated** (D45): fetched at cycle start
+via `POST /api/v1/scan-runs`, a strictly increasing per-(cluster, scanner) sequence that can
+never regress. Per D30 a clean scan still emits a full envelope (no skip-unchanged).
 """
 
-import time
 from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -39,17 +38,15 @@ class ScanRun:
     started_at: datetime
 
 
-def new_scan_run() -> ScanRun:
-    """Mint a fresh run: unique id + monotonic order + full-precision UTC start time.
+def new_scan_run(scan_order: int) -> ScanRun:
+    """Mint a fresh run around a **backend-allocated** `scan_order` (D45 — never a clock).
 
-    CAVEAT (D40): `scan_order` here is wall-clock `time.time_ns()`, which strictly increases between
-    the CronJob's non-overlapping (`Forbid`) runs *on a single host*. Across nodes an NTP step-back
-    could make a newer run's order regress; M3's server-side watermark CAS (keyed on `scan_order`)
-    would then correctly reject the newer scan as stale. This is fine for single-node dev/MVP but
-    contradicts D40's "never order by clock" intent — revisit before M3 (e.g. a source that can't
-    regress) if multi-node scanning lands.
+    The order comes from `POST /api/v1/scan-runs` (`scanner.orders.fetch_scan_order`): a strictly
+    increasing per-(cluster, scanner) sequence that can never regress, regardless of which node the
+    CronJob pod lands on. This replaced the old wall-clock `time.time_ns()` mint, whose per-host
+    monotonicity did not survive pod rescheduling (the D40 audit caveat).
     """
-    return ScanRun(scan_run_id=uuid4().hex, scan_order=time.time_ns(), started_at=datetime.now(UTC))
+    return ScanRun(scan_run_id=uuid4().hex, scan_order=scan_order, started_at=datetime.now(UTC))
 
 
 class SeverityCounts(BaseModel):

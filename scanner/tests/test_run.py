@@ -87,7 +87,9 @@ def test_scan_all_emits_one_envelope_per_target_under_one_run() -> None:
         pushed.append(env)
         return PushResult(delivered=True, attempts=1, dead_lettered=False)
 
-    results = scan_all(targets, scanner="trivy", cluster_id="c", scan_fn=scan_fn, push_fn=push_fn)
+    results = scan_all(
+        targets, scanner="trivy", cluster_id="c", scan_fn=scan_fn, push_fn=push_fn, scan_order=1
+    )
 
     assert len(results) == 2
     assert scanned == ["nginx:1.21.6", "python:3.9.16-slim"]  # scanned by ref
@@ -122,6 +124,7 @@ def test_scan_all_stamps_observed_topology_from_discovery() -> None:
         cluster_id="c",
         scan_fn=lambda ref: ScanResult(),
         push_fn=push_fn,
+        scan_order=1,
     )
 
     env = pushed[0]
@@ -150,7 +153,9 @@ def test_scan_all_isolates_a_failing_image_and_finishes_the_cycle() -> None:
         pushed.append(env)
         return PushResult(delivered=True, attempts=1, dead_lettered=False)
 
-    results = scan_all(targets, scanner="trivy", cluster_id="c", scan_fn=scan_fn, push_fn=push_fn)
+    results = scan_all(
+        targets, scanner="trivy", cluster_id="c", scan_fn=scan_fn, push_fn=push_fn, scan_order=1
+    )
 
     # the failing image is skipped; the two healthy ones still scan + push
     assert [e.image_digest for e in pushed] == ["sha256:a", "sha256:c"]
@@ -187,6 +192,7 @@ def test_scan_all_with_no_targets_pushes_nothing() -> None:
             cluster_id="c",
             scan_fn=lambda r: ScanResult(),
             push_fn=lambda e: PushResult(True, 1, False),
+            scan_order=1,
         )
         == []
     )
@@ -267,6 +273,7 @@ def test_scan_all_stamps_effective_config_and_schema_v3() -> None:
         cluster_id="c",
         scan_fn=lambda ref: ScanResult(),
         push_fn=push_fn,
+        scan_order=7,
         effective_config=cfg,
     )
     env = pushed[0]

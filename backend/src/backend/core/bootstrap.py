@@ -17,7 +17,7 @@ from typing import Any
 
 from opensearchpy import AsyncOpenSearch, RequestError
 
-MAPPING_VERSION = 1
+MAPPING_VERSION = 2  # v2: + javv-scan-orders (M3/D45)
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -102,6 +102,17 @@ _TOKENS_PROPERTIES: dict[str, Any] = {
     "last_ingest_at": _DATE,  # scanner-down guard
 }
 
+# javv-scan-orders (M3/D45): the AUTHORITATIVE per-(cluster,scanner) scan_order counter —
+# #clusters × #scanners docs, CAS-updated in place; no rollover/ISM/retention EVER; rebuild-state
+# never touches it (unlike the derived watermarks). See CORRECTNESS-CONTRACT §2.
+_SCAN_ORDERS_PROPERTIES: dict[str, Any] = {
+    "cluster_id": _KW,
+    "scanner": _KW,
+    "max_allocated_scan_order": {"type": "long"},  # strictly increasing per (cluster_id, scanner)
+    "allocated_at": _DATE,  # last allocation time (display/ops)
+    "schema_version": {"type": "short"},
+}
+
 MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "findings": {
         "settings": {"index": {**_BASE_SETTINGS, "analysis": _LC_ANALYSIS}},
@@ -114,6 +125,10 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "system-config": {  # M2 — snapshot-repo ref + other config knobs
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_CONFIG_PROPERTIES),
+    },
+    "javv-scan-orders": {  # M3/D45 — authoritative scan_order counter
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_SCAN_ORDERS_PROPERTIES),
     },
 }
 
