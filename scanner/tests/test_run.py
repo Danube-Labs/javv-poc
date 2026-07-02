@@ -4,6 +4,7 @@ ScanRun across all images (one scan_run_id/scan_order per cycle). The subprocess
 injected so this is unit-testable without invoking real trivy/grype."""
 
 import subprocess
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +12,7 @@ import pytest
 
 from scanner import run
 from scanner.adapters.grype import scan_grype
-from scanner.adapters.trivy import scan_trivy
+from scanner.adapters.trivy import TrivyDbInfo, scan_trivy, trivy_db_info
 from scanner.discovery import ImageTarget, Location
 from scanner.envelope import Envelope
 from scanner.models import Finding, Provenance, ScanResult
@@ -213,3 +214,32 @@ def test_main_rejects_malformed_cluster_id(
     monkeypatch.setenv("JAVV_CLUSTER_ID", "Bad_Cluster!")
     assert run.main() == 2
     assert "JAVV_CLUSTER_ID" in capsys.readouterr().err
+
+
+# --- trivy vuln-DB provenance (#96) ------------------------------------------
+
+
+def test_trivy_db_info_parses_the_version_command_output() -> None:
+    out = (FIXTURES / "trivy-version.json").read_text()
+    expect = ["trivy", "version", "--format", "json"]
+    info = trivy_db_info(runner=runner_returning(out, expect))
+    assert info.version == "2"
+    assert info.built is not None and info.built.isoformat().startswith("2026-07-02T01:09:26")
+
+
+def test_trivy_db_info_is_best_effort_never_fatal() -> None:
+    assert trivy_db_info(runner=runner_returning("not json")) == TrivyDbInfo(None, None)
+
+    def boom(cmd: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+        raise subprocess.CalledProcessError(1, cmd, stderr="no cache")
+
+    assert trivy_db_info(runner=boom) == TrivyDbInfo(None, None)
+
+
+def test_scan_trivy_stamps_the_cycle_db_info_into_provenance() -> None:
+    out = (FIXTURES / "trivy-python-3.9.16-slim.json").read_text()
+    db = TrivyDbInfo(version="2", built=datetime(2026, 7, 2, tzinfo=UTC))
+    result = scan_trivy("python:3.9.16-slim", runner=runner_returning(out), db=db)
+    assert result.provenance.scanner_version == "0.71.2"  # still from the scan report
+    assert result.provenance.db_version == "2"
+    assert result.provenance.db_built == db.built
