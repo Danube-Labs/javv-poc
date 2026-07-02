@@ -5,6 +5,7 @@ cycle is unit-testable; `main()` wires the real kube client, scanner binaries, a
 """
 
 import os
+import re
 import sys
 import traceback
 from collections.abc import Callable, Iterable
@@ -72,6 +73,17 @@ def main() -> int:
         return 2
     scanner: Scanner = cast(Scanner, scanner_env)
     backend = os.environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
+    if not backend.startswith(("http://", "https://")):  # else httpx fails as a silent skip
+        print(f"invalid JAVV_BACKEND_URL: {backend!r} (want http(s)://…)", file=sys.stderr)
+        return 2
+    env_cluster_id = os.environ.get("JAVV_CLUSTER_ID")
+    if env_cluster_id and not re.fullmatch(r"[a-z0-9-]{8,64}", env_cluster_id):
+        # mirrors the backend's shape rule — garbage here would 422 on every push
+        print(
+            f"invalid JAVV_CLUSTER_ID: {env_cluster_id!r} (want lowercase alnum/hyphen, 8-64)",
+            file=sys.stderr,
+        )
+        return 2
     # bearer token — effectively required: without it the scope fetch 401s and every cycle skips
     token = os.environ.get("JAVV_TOKEN")
     dead_letter = Path(os.environ.get("JAVV_DEAD_LETTER", f"{scanner}.dead-letter.jsonl"))
@@ -85,7 +97,7 @@ def main() -> int:
     # Tenant identity = the immutable kube-system namespace UID (never cluster_name).
     # kubernetes-client return types are untyped unions; cast for the attribute access.
     kube_system = cast(Any, api.read_namespace("kube-system"))
-    cluster_id = os.environ.get("JAVV_CLUSTER_ID") or str(kube_system.metadata.uid)
+    cluster_id = env_cluster_id or str(kube_system.metadata.uid)
 
     # scan-behaviour config from JAVV_TRIVY_*/JAVV_GRYPE_* env (#91); defaults = the pinned command.
     scan_fn: ScanFn

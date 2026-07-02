@@ -196,3 +196,20 @@ def test_main_rejects_unknown_scanner_before_doing_anything(
     monkeypatch.setenv("JAVV_SCANNER", "trvy")
     assert run.main() == 2
     assert "JAVV_SCANNER" in capsys.readouterr().err
+
+
+def test_main_rejects_garbage_backend_url(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("JAVV_BACKEND_URL", "localhost:8000")  # missing scheme
+    assert run.main() == 2
+    assert "JAVV_BACKEND_URL" in capsys.readouterr().err
+
+
+def test_main_rejects_malformed_cluster_id(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # mirrors the backend's shape rule — garbage here would 422 on every push
+    monkeypatch.setenv("JAVV_CLUSTER_ID", "Bad_Cluster!")
+    assert run.main() == 2
+    assert "JAVV_CLUSTER_ID" in capsys.readouterr().err
