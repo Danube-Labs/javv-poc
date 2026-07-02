@@ -12,9 +12,12 @@ import pytest
 from pydantic import ValidationError
 
 from backend.admin.snapshot import (
+    DURABILITY_INDICES,
     SNAPSHOT_REPO_KEY,
     SnapshotRepoRef,
+    create_snapshot_policy,
     read_snapshot_repo_ref,
+    snapshot_policy_body,
     write_snapshot_repo_ref,
 )
 from backend.core.bootstrap import MUTABLE_INDEXES, bootstrap
@@ -64,6 +67,26 @@ def test_ref_rejects_extra_top_level_field() -> None:
     kwargs = {"repository": "r", "type": "fs", "settings": {"location": "/m"}, "secret_key": "AKIA"}
     with pytest.raises(ValidationError):
         SnapshotRepoRef(**kwargs)
+
+
+def test_snapshot_policy_body_shape() -> None:
+    body = snapshot_policy_body(repository="javv-snapshots")
+    sc = body["snapshot_config"]
+    assert sc["repository"] == "javv-snapshots"
+    assert sc["indices"] == DURABILITY_INDICES == "findings,javv-images-*,system-*"
+    assert sc["include_global_state"] is False  # index-scoped durability contract
+    assert body["creation"]["schedule"]["cron"]["expression"] == "0 2 * * *"
+    # retention floor keeps at least min_count snapshots regardless of age (D26)
+    assert body["deletion"]["condition"] == {"max_age": "30d", "min_count": 14, "max_count": 50}
+
+
+def test_snapshot_policy_knobs_are_configurable() -> None:
+    body = snapshot_policy_body(
+        repository="r", indices="findings", creation_cron="*/30 * * * *", retention_min_count=3
+    )
+    assert body["snapshot_config"]["indices"] == "findings"
+    assert body["creation"]["schedule"]["cron"]["expression"] == "*/30 * * * *"
+    assert body["deletion"]["condition"]["min_count"] == 3
 
 
 def test_system_config_is_bootstrapped() -> None:
@@ -139,3 +162,17 @@ async def test_read_missing_ref_returns_none(client) -> None:
     c, prefix = client
     await bootstrap(c, prefix=prefix)
     assert await read_snapshot_repo_ref(c, prefix=prefix) is None
+
+
+@requires_opensearch
+async def test_snapshot_policy_registers(client) -> None:
+    c, prefix = client
+    name = f"{prefix}sm"
+    body = snapshot_policy_body(repository=f"{prefix}repo")
+    await create_snapshot_policy(c, name, body)
+    try:
+        got = await c.transport.perform_request("GET", f"/_plugins/_sm/policies/{name}")
+        assert got["sm_policy"]["snapshot_config"]["repository"] == f"{prefix}repo"
+        assert got["sm_policy"]["snapshot_config"]["include_global_state"] is False
+    finally:
+        await c.transport.perform_request("DELETE", f"/_plugins/_sm/policies/{name}")

@@ -17,6 +17,10 @@ from pydantic import BaseModel, ConfigDict, field_validator
 
 SNAPSHOT_REPO_KEY = "snapshot_repo"  # the system-config doc _id holding the repo ref
 
+# the durability set — current-state + config indices snapshotted on schedule (NFR-6). The bulky
+# per-cluster append series (occurrences) are snapshotted less often / separately (DR RPO note).
+DURABILITY_INDICES = "findings,javv-images-*,system-*"
+
 # Only these repo-settings keys may be persisted — non-secret location/addressing knobs. Anything
 # else (notably credentials) is refused. Allowlist, not denylist: safe by construction.
 _ALLOWED_SETTINGS: dict[str, frozenset[str]] = {
@@ -156,4 +160,59 @@ async def restore_snapshot(
         snapshot=snapshot,
         body=body,
         params={"wait_for_completion": "true" if wait else "false"},
+    )
+
+
+# --- scheduled snapshots (OpenSearch Snapshot Management) --------------------
+# Native SM policy (`_plugins/_sm/policies`) — OpenSearch schedules + takes the snapshot itself, so
+# no CronJob/broker is needed for the *taking* (coordination stays in OpenSearch). The retention/
+# schedule knobs are D26-configurable; these defaults are the starting policy. The k8s deploy
+# manifests (repo registration + the restore-drill verify CronJob) are M10's, where the chart lives.
+
+
+def snapshot_policy_body(
+    *,
+    repository: str,
+    indices: str = DURABILITY_INDICES,
+    creation_cron: str = "0 2 * * *",  # daily 02:00
+    deletion_cron: str = "0 3 * * *",  # daily 03:00
+    timezone: str = "UTC",
+    retention_max_age: str = "30d",
+    retention_min_count: int = 14,
+    retention_max_count: int = 50,
+    time_limit: str = "1h",
+) -> dict[str, Any]:
+    """Build an SM policy body: take a scheduled snapshot of `indices` into `repository`, and prune
+    old snapshots by age/count (retention floor keeps at least `retention_min_count`). D26 knobs."""
+    return {
+        "description": "JAVV automated durability snapshots (current-state + config indices)",
+        "creation": {
+            "schedule": {"cron": {"expression": creation_cron, "timezone": timezone}},
+            "time_limit": time_limit,
+        },
+        "deletion": {
+            "schedule": {"cron": {"expression": deletion_cron, "timezone": timezone}},
+            "condition": {
+                "max_age": retention_max_age,
+                "min_count": retention_min_count,
+                "max_count": retention_max_count,
+            },
+            "time_limit": time_limit,
+        },
+        "snapshot_config": {
+            "repository": repository,
+            "indices": indices,
+            "include_global_state": False,
+            "ignore_unavailable": True,
+            "partial": False,
+        },
+    }
+
+
+async def create_snapshot_policy(
+    client: AsyncOpenSearch, name: str, body: dict[str, Any]
+) -> dict[str, Any]:
+    """Register an SM policy. OpenSearch then takes + prunes snapshots on the policy's schedule."""
+    return await client.transport.perform_request(
+        "POST", f"/_plugins/_sm/policies/{name}", body=body
     )
