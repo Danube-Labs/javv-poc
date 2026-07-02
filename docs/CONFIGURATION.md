@@ -50,7 +50,7 @@ Source: `scanner/src/scanner/run.py` (tier ②). One CronJob per scanner; statel
 |---|---|---|---|
 | `JAVV_SCANNER` | `trivy` | Which scanner this pod runs (`trivy`\|`grype`). Also baked into each image's `ENV`. | ⚙️ GitOps (per-image) |
 | `JAVV_BACKEND_URL` | `http://localhost:8000` | Backend ingest endpoint | n/a (deploy) |
-| `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). Unset = anonymous (dev only). | 🔒 secret |
+| `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). **Effectively required** — since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed). | 🔒 secret |
 | `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity; defaults to the immutable `kube-system` namespace UID (never `cluster_name`). | n/a (deploy) |
 | `JAVV_DEAD_LETTER` | `<scanner>.dead-letter.jsonl` | Path for per-image scan failures (isolate + continue) | n/a (deploy) |
 
@@ -119,6 +119,7 @@ home for policy that operators change — no rebuild, no restart.
 | Per-`cluster_id` **retention days** + rollover knobs | **M9e** | `system-config` → ISM drops whole indices | ✅ Planned (`can_manage_retention`) |
 | **Staleness** two-timer windows | **M9e** / M4 (D20) | `system-config` | ✅ Planned |
 | **SLA policy** (days per severity + KEV override) | **M5d** | `system-config` | ✅ Planned |
+| **Scan scope** (namespaces/images/kinds to scan) | **#94** (backend) / **M9e** (UI) | `system-config` `scan_scope:<cluster_id>`; scanner fetches via `GET /api/v1/scan-scope` (D43) | ✅ Backend built; M9e UI |
 | Ingest **push tokens** (rotate/revoke) | **M9a** ("shell + tokens") / M1 backend | `system-tokens` | ✅ Planned |
 | Users / RBAC (capability bundles) | **M5a** (backend) | `system-users` | ❌ management UI unowned (see gaps) |
 
@@ -134,8 +135,12 @@ gap for the flags people actually tune.
 **Intentionally still GitOps (never UI):** scanner **version** + **vuln-DB** are build-time
 (`versions.yaml` + Dockerfile `ARG`, tag-swap — D41/D42). "Version select" must never return as a control.
 
-**Phase 2 — planned (#91).** Runtime, operator-editable scan config: a `scanner_config` doc in
-`system-config`, a capability-gated write API + Settings→Scanners UI, and the scanner reading it at
-cycle start (tier ③). **⚠️ Needs a canonical decision id first** — a stateless CronJob scanner reading
-config from OpenSearch at runtime departs from D30/D41, so it's recorded in `PLAN_v4`/`SPEC_v4` before
-building. Until Phase 2 lands, scanner tuning is env-var/GitOps only.
+**Scan *scope* is different — UI-configurable now (D43/#94).** *Which* namespaces/images/kinds to scan
+is operational policy (not tuning), so it lives in `system-config` (tier ③) and the scanner **fetches it
+from the backend** (`GET /api/v1/scan-scope`) at cycle start — never reads OpenSearch directly. Fetch is
+**fail-closed** (backend down → skip the cycle; fetched-empty → scan all). This is the backend-mediated
+pattern D43 blesses; scanner **tuning** flags deliberately do **not** use it (they stay env/GitOps).
+
+**Scanner tuning in the UI = read-only (planned, #91).** The effective *tuning* flags will be surfaced
+read-only by stamping them into the envelope (a later joint schema-v3 with the scan-scope effective
+stamp) — display, not control. There is no `scanner_config` write path; tuning stays env-var/GitOps.

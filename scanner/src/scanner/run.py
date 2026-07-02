@@ -15,6 +15,7 @@ from scanner.discovery import ImageTarget, discover
 from scanner.envelope import Envelope, Scanner, build_envelope, new_scan_run
 from scanner.models import ScanResult
 from scanner.push import PushResult, push_envelope
+from scanner.scope import fetch_scan_scope
 
 ScanFn = Callable[[str], ScanResult]
 PushFn = Callable[[Envelope], PushResult]
@@ -67,7 +68,8 @@ def main() -> int:
 
     scanner: Scanner = os.environ.get("JAVV_SCANNER", "trivy")  # type: ignore[assignment]
     backend = os.environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
-    token = os.environ.get("JAVV_TOKEN")  # ingest bearer token; unset = anonymous (dev only)
+    # bearer token — effectively required: without it the scope fetch 401s and every cycle skips
+    token = os.environ.get("JAVV_TOKEN")
     dead_letter = Path(os.environ.get("JAVV_DEAD_LETTER", f"{scanner}.dead-letter.jsonl"))
 
     try:
@@ -90,8 +92,18 @@ def main() -> int:
         grype_cfg = GrypeConfig.from_env()
         scan_fn = lambda ref: scan_grype(ref, config=grype_cfg)  # noqa: E731
 
-    targets = discover(api)
     with httpx.Client(base_url=backend, timeout=30.0) as http:
+        # D43/FR-24: fetch the cluster's scan scope first. Fail-closed — if the backend is
+        # unreachable we can't confirm what to scan (and couldn't push anyway), so skip the cycle.
+        # A fetched *empty* scope means scan everything (handled by the discovery filter).
+        scope = fetch_scan_scope(http, token=token)
+        if scope is None:
+            print(
+                f"{scanner}: scan scope unavailable (backend unreachable) — skipping cycle",
+                file=sys.stderr,
+            )
+            return 0
+        targets = discover(api, scope)
         results = scan_all(
             targets,
             scanner=scanner,

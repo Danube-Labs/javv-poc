@@ -23,7 +23,8 @@ append families `javv-finding-occurrences-*` / `javv-scan-events-*` / `javv-imag
 ## Deliverables
 In the layered tree, not here (paths proposed):
 - `frontend/src/views/settings/DataOpenSearchView.vue` — per-`cluster_id` `retention_days`; rollover knobs (doc count / age / size; defaults ~40 GB / 30 d / 50 M docs); snapshot repo + schedule + manual snapshot/restore buttons.
-- `frontend/src/views/settings/ScanningView.vue` — two-timer staleness editor (FR-6/D20); both windows editable; preview of resulting banner behavior. Per-scanner cards show the **read-only running version + DB freshness** (from the ingested `scanner_version`/DB provenance) — **not a version-select control**; the version is changed by swapping the published image tag (D41).
+- `frontend/src/views/settings/ScanningView.vue` — two-timer staleness editor (FR-6/D20); both windows editable; preview of resulting banner behavior. Per-scanner cards show the **read-only running version + DB freshness** (from the ingested `scanner_version`/DB provenance) — **not a version-select control**; the version is changed by swapping the published image tag (D41). Also shows the **read-only effective scan *tuning* flags** (severities/ignore-unfixed/timeout) from the joint schema-v3 `effective_config` envelope stamp (#91) — display only, tuning stays env/GitOps.
+- `frontend/src/views/settings/ScanScopeView.vue` — **Scan scope editor (D43/FR-24, #94)**: per-cluster include/ignore **namespaces**, excluded **image globs**, ignored **kinds** → `PUT /api/v1/scan-scope`. Backend read path + `system-config` storage + interim CLI already shipped (PR #95); this bolt adds the UI + the RBAC-gated **`PUT /api/v1/scan-scope`** (capability-gated, journaled to `system-audit-log`). Semantics are fixed by FR-24: empty include = all, ignore wins, fail-closed scanner fetch.
 - `frontend/src/views/settings/CveAuditView.vue` — CVE-audit panel (per-CVE cross-scanner disagreement / decision provenance, read-side).
 - `frontend/src/composables/useRetentionForm.ts`, `useSnapshotForm.ts` — pure validators/option-builders (unit-tested).
 - Backend (if not delivered by M2/M4): `PUT /settings/retention`, `PUT /settings/rollover`, `POST /snapshots`, `POST /snapshots/{id}/restore`, `PUT /settings/staleness`, `GET /cve-audit` — capability-gated (`can_manage_retention`, `can_restore_snapshot`, `can_drop_index`) and journaled to `system-audit-log`.
@@ -34,6 +35,7 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - **Retention = drop whole indices (keystone):** applying a `retention_days` change results in expired time-partitioned indices being **dropped whole** via ISM/`indices.delete`; a test asserts the retention path **never** issues a `delete_by_query` against append families (hard constraint).
 - `stale` and **delete** are independent: changing the staleness timer flips the `stale` flag only; `findings`/occurrences docs are removed solely on the separate long retention window (D37/M12).
 - Destructive actions (retention change, drop, restore) are **rejected without the matching capability** server-side (`can_manage_retention`/`can_drop_index`/`can_restore_snapshot`) and each appends a `system-audit-log` entry.
+- Scan-scope writes (`PUT /api/v1/scan-scope`) are capability-gated + journaled; a round-trip test proves a UI-saved scope is what `GET /api/v1/scan-scope` then serves the scanner (D43/FR-24).
 - Snapshot → restore round-trips against a real container (reuses/extends the M2 restore drill).
 - Rollover-knob writes land in `system-config` and re-apply the ISM policy idempotently.
 
@@ -54,3 +56,11 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-03 — scan-scope UI + tuning display added to deliverables.** D43/FR-24 (PR #95) made scan
+  scope UI-configurable and named M9e the UI owner: this bolt now delivers `ScanScopeView.vue` + the
+  RBAC-gated `PUT /api/v1/scan-scope` (read path + CLI already shipped). The ScanningView per-scanner
+  cards additionally display the read-only effective *tuning* flags from the joint schema-v3
+  `effective_config` stamp (#91). Mirrored on [#39](https://github.com/Danube-Labs/javv-poc/issues/39).

@@ -11,6 +11,8 @@ from typing import Any, Protocol
 
 from pydantic import BaseModel, ConfigDict
 
+from scanner.scope import ScanScope
+
 
 class Location(BaseModel):
     model_config = ConfigDict(frozen=True)  # frozen → hashable, dedups cleanly
@@ -54,11 +56,25 @@ def _digest(image_id: str) -> str | None:
     return s if s.startswith("sha256:") else None
 
 
-def running_images(pods: Iterable[Any] | None) -> list[ImageTarget]:
+def _owner_kinds(pod: Any) -> list[str]:
+    """The pod's owner-reference kinds (e.g. ReplicaSet, Job, DaemonSet) for scope kind-filtering.
+    Immediate owner only — a Deployment-managed pod reads as `ReplicaSet`, a CronJob's as `Job`."""
+    refs = getattr(getattr(pod, "metadata", None), "owner_references", None) or []
+    return [getattr(o, "kind", "") for o in refs]
+
+
+def running_images(pods: Iterable[Any] | None, scope: ScanScope | None = None) -> list[ImageTarget]:
+    scope = scope or ScanScope()  # empty scope = scan everything (the default)
     by_digest: dict[str, dict[str, Any]] = {}
     for p in pods or []:
         status = getattr(p, "status", None)
         if status is None or getattr(status, "phase", None) != "Running":
+            continue
+        # scope filter at the pod level (before dedup): a digest survives if it runs in ≥1 in-scope
+        # pod (D30 — a digest can span namespaces). Image-glob is applied to the target below.
+        if not scope.namespace_allowed(p.metadata.namespace):
+            continue
+        if not scope.kinds_allowed(_owner_kinds(p)):
             continue
         for cs in getattr(status, "container_statuses", None) or []:
             digest = _digest(getattr(cs, "image_id", "") or "")
@@ -68,7 +84,7 @@ def running_images(pods: Iterable[Any] | None) -> list[ImageTarget]:
             entry["locs"].add(
                 Location(namespace=p.metadata.namespace, pod=p.metadata.name, container=cs.name)
             )
-    return [
+    targets = [
         ImageTarget(
             image_digest=digest,
             image_ref=entry["ref"],
@@ -78,7 +94,8 @@ def running_images(pods: Iterable[Any] | None) -> list[ImageTarget]:
         )
         for digest, entry in sorted(by_digest.items())
     ]
+    return [t for t in targets if scope.image_allowed(t.image_ref)]
 
 
-def discover(api: _PodSource) -> list[ImageTarget]:
-    return running_images(api.list_pod_for_all_namespaces(watch=False).items)
+def discover(api: _PodSource, scope: ScanScope | None = None) -> list[ImageTarget]:
+    return running_images(api.list_pod_for_all_namespaces(watch=False).items, scope)

@@ -375,6 +375,22 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   fails if a consumer diverges from `versions.yaml`. Code *libraries* (pyproject), GitHub Actions, and
   pre-commit hooks stay in their native files where Renovate manages them directly - **not** centralized
   (centralizing them would fight Renovate, not help).
+- **D43 - Scan scope is UI-configurable via `system-config`; the scanner fetches it from the backend.**
+  *Which* namespaces/images/kinds the scanner scans is **operational policy** an operator changes often, so
+  it is **runtime data** (tier ③) - a `scan_scope:<cluster_id>` doc in `system-config`, editable from the
+  Settings→Scan scope UI (M9e). This is distinct from scanner *tuning* flags (severities/ignore-unfixed -
+  env/GitOps, read-only in the UI, #91) and scanner *version* (build-time, D41). The **scanner fetches scope
+  from the backend** (`GET /api/v1/scan-scope`) at cycle start and filters discovery **before** pull/scan; it
+  **never reads OpenSearch directly** (the backend owns the client + always-applied `cluster_id` filter,
+  SEC-4). A deliberate, bounded departure from "purely env-configured scanner": a **read-only config fetch**,
+  still stateless, and it does **not** change D30 (still scans *everything in scope* every cycle, no
+  skip-unchanged). **Fail-closed fetch:** backend unreachable → **no-op cycle** (nothing to push to anyway);
+  a *successfully-fetched empty* scope → **scan all** (the default) - `fetch failed` and `fetched empty` are
+  distinct paths. **Token (MVP):** any valid, non-disabled token may read **its own cluster's** scope - no
+  scope-broadening; scope is non-secret data the scanner already effectively sees (it lists all namespaces),
+  and real capability-based auth is M5a (D33). Write path = the M9e UI + an interim admin CLI; the
+  effective-scope envelope stamp is a later **joint schema-v3** with the scanner effective-flags stamp (#91).
+  (**FR-24**.)
 - **Promoted/retained MVP:** per-finding occurrences + point-in-time (now M8); VEX **export** (M6).
 - **Moved to v1.1:** **VEX import** (consuming external VEX into `system-decisions`) - MVP ingests **only
   the scanner JSON envelope**; Jira ticket push; dashboard **builder** (saved views stay the default);
