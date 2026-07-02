@@ -17,7 +17,10 @@ D26 (configurable rollover/retention), D38 (`scanner` is a field, not the index 
 D40 (`scan_order`, never `@timestamp`).
 
 ## Depends on
-- M1 (index bootstrap + ingest skeleton - the request path this appends from).
+- M1 (index bootstrap + ingest skeleton - the request path this appends from). **The
+  `javv-scan-events-*` / `javv-images-*` templates already live in `backend/core/bootstrap.py`
+  (versioned, run at app startup) — evolve them THERE (+ add the ISM policies) with a
+  `MAPPING_VERSION` bump; don't create a parallel template-management path.**
 - M3 (scanner-assigned `scan_order` source - `backend/app/ingest/scan_order.py` - and `commit_key`
   construction; M4 stamps both onto the scan-events doc).
 
