@@ -50,7 +50,7 @@ Source: `scanner/src/scanner/run.py` (tier ②). One CronJob per scanner; statel
 |---|---|---|---|
 | `JAVV_SCANNER` | `trivy` | Which scanner this pod runs (`trivy`\|`grype`). Also baked into each image's `ENV`. | ⚙️ GitOps (per-image) |
 | `JAVV_BACKEND_URL` | `http://localhost:8000` | Backend ingest endpoint | n/a (deploy) |
-| `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). Unset = anonymous (dev only). | 🔒 secret |
+| `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). **Effectively required** — since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed). | 🔒 secret |
 | `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity; defaults to the immutable `kube-system` namespace UID (never `cluster_name`). | n/a (deploy) |
 | `JAVV_DEAD_LETTER` | `<scanner>.dead-letter.jsonl` | Path for per-image scan failures (isolate + continue) | n/a (deploy) |
 

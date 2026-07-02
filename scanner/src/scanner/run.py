@@ -68,7 +68,8 @@ def main() -> int:
 
     scanner: Scanner = os.environ.get("JAVV_SCANNER", "trivy")  # type: ignore[assignment]
     backend = os.environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
-    token = os.environ.get("JAVV_TOKEN")  # ingest bearer token; unset = anonymous (dev only)
+    # bearer token — effectively required: without it the scope fetch 401s and every cycle skips
+    token = os.environ.get("JAVV_TOKEN")
     dead_letter = Path(os.environ.get("JAVV_DEAD_LETTER", f"{scanner}.dead-letter.jsonl"))
 
     try:
