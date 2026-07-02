@@ -53,3 +53,26 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - Full users/triage restore re-verification → re-run as a drill **after M5a/M5b** (those indices don't exist at M2's position).
 - Surfacing snapshot schedule/retention in the admin UI → `Settings → Data & OpenSearch` panel (FR-19, M9e).
 - Cross-cluster / DR replication → out of MVP.
+
+## Updates
+
+### 2026-07-02 — Config-source decision (where snapshot config lives)
+"Snapshot config" is **three separate things with three homes** — deliberately not one place, and
+**not env vars for app config**:
+
+1. **Credentials** (s3 `access_key`/`secret_key`) → **OpenSearch keystore** (`s3.client.default.*`),
+   set by the operator via a Helm secret at cluster provisioning. Never in `system-config`, never in
+   env visible to the app, never in a doc. `SnapshotRepoRef`'s allowlist structurally refuses them.
+2. **Repo registration + `path.repo`** (the fs allow-path / s3 repo definition) → **deploy manifests
+   on disk** (`deploy/opensearch/snapshot-repo.yaml`, GitOps-applied), because it's cluster-level infra
+   that needs the keystore/`path.repo` to exist first and must be reproducible/auditable. For local/CI
+   the drill registers an **fs** repo programmatically via `register_repository`.
+3. **Which repo to use + schedule/retention** → the **`system-config` ref** (the app's pointer to a
+   registered repo, non-secret) + the **ISM policy JSON** (indices/schedule/retention). The ref is
+   edited via the **JAVV UI** later (FR-19/D26, M9e); until then a one-time write/CLI. The deploy
+   manifest *creates* the repo in OpenSearch; the `system-config` ref *names* it for the app — complementary.
+
+**Testing needs no S3.** The restore drill uses an **fs** repository = a local directory the OpenSearch
+container can write to (`path.repo`). s3/MinIO is k3s-prod only. Slice 2 sets `path.repo` on the dev
+compose + the CI service container; no external infra. No `settings.py` snapshot fields — the repo ref
+lives in `system-config` (data), not process config.

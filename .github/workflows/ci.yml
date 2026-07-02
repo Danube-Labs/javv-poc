@@ -59,6 +59,9 @@ jobs:
           discovery.type: single-node
           DISABLE_SECURITY_PLUGIN: "true"
           OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+          # fs snapshot repo root for the M2 restore drill — inside the data dir so it's writable
+          # by the opensearch uid (a mounted volume would be root-owned). Matches the dev compose.
+          path.repo: /usr/share/opensearch/data/snapshots
         ports:
           - 9200:9200
         options: >-
