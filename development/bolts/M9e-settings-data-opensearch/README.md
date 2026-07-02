@@ -29,6 +29,7 @@ In the layered tree, not here (paths proposed):
 - `frontend/src/composables/useRetentionForm.ts`, `useSnapshotForm.ts` — pure validators/option-builders (unit-tested).
 - Backend (if not delivered by M2/M4): `PUT /settings/retention`, `PUT /settings/rollover`, `POST /snapshots`, `POST /snapshots/{id}/restore`, `PUT /settings/staleness`, `GET /cve-audit` — capability-gated (`can_manage_retention`, `can_restore_snapshot`, `can_drop_index`) and journaled to `system-audit-log`.
 - ISM-policy apply/update glue: JAVV writes the retention/rollover policy so OpenSearch **drops whole indices** at horizon.
+- `backend/jobs/findings_cleanup.py` — the **long-window `findings` cleanup CronJob (D37/M12)**: `delete_by_query` on `findings` rows (+ their `javv-scan-watermarks` docs) whose image has been gone from inventory / `present=false` for the **long** retention window (a `system-config` knob this panel edits; independent of, and much longer than, the staleness timers). This is the job that bounds the `findings` plateau — **never** runs on the freshness timer, k8s CronJob `Forbid`, journaled to `system-audit-log`. *(Ownership was previously implied by D37/M12 but unowned — landed here because it pairs with the retention panel that configures it.)*
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test):
