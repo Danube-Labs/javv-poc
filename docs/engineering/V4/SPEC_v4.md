@@ -177,6 +177,16 @@ from an env/secret and must change the password on first login - FR-18.)
   limited/unavailable** (per-cluster rewind is fully supported); they become cheap once the `javv-metrics`
   rollup (v1.1) lands, read from the rollup not raw occurrences. PIT/search contexts are **explicitly closed**
   (not left to expiry); composite aggs paginate via `after_key`.
+- **FR-24 Scan scope (which namespaces/images to scan) - UI-configurable, backend-mediated (D43).** An
+  operator sets include/ignore **namespaces**, excluded **image** globs, and ignored workload **kinds** from
+  Settings→Scan scope (M9e); the config is a `scan_scope:<cluster_id>` doc in `system-config`. The scanner
+  **fetches it from the backend** (`GET /api/v1/scan-scope`) at cycle start and filters discovery **before**
+  pull/scan (so "scan only namespace X to test fast" is genuinely cheap). Semantics: empty include = all,
+  **ignore wins over include**; a digest spanning namespaces is scanned if it runs in ≥1 in-scope namespace.
+  **Fail-closed:** backend unreachable → scan nothing that cycle; fetched-empty → scan all. Scope is enforced
+  scanner-side (not merely at ingest) so "don't scan" means the image is never pulled/scanned. Write path is
+  M9e (interim admin CLI); a valid token reads only its own cluster's scope (SEC-4). Not scanner *tuning*
+  (env/GitOps, #91) nor *version* (build-time, D41).
 
 ## Non-functional requirements
 
