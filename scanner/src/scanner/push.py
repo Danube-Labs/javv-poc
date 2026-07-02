@@ -19,7 +19,7 @@ import httpx
 
 from scanner.envelope import Envelope
 
-INGEST_PATH = "/ingest/scan"
+INGEST_PATH = "/api/v1/ingest/scan"  # must match the backend router (M1)
 
 
 @dataclass(frozen=True)
@@ -50,6 +50,7 @@ def push_envelope(
     client: httpx.Client,
     dead_letter_path: Path,
     path: str = INGEST_PATH,
+    token: str | None = None,
     max_attempts: int = 5,
     base_delay: float = 0.5,
     max_delay: float = 30.0,
@@ -58,6 +59,8 @@ def push_envelope(
 ) -> PushResult:
     body = gzip.compress(envelope.model_dump_json().encode(), mtime=0)
     headers = {"Content-Encoding": "gzip", "Content-Type": "application/json"}
+    if token:  # ingest bearer token (D38/M14); never logged
+        headers["Authorization"] = f"Bearer {token}"
 
     for attempt in range(1, max_attempts + 1):
         try:

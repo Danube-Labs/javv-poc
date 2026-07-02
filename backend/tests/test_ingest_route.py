@@ -173,3 +173,33 @@ async def test_golden_envelope_round_trip_against_real_opensearch() -> None:
         assert ev["hits"]["total"]["value"] == 1  # the commit doc landed
     finally:
         await client.close()
+
+
+async def test_oversized_compressed_body_is_413_even_with_lying_header() -> None:
+    t = mint_token()
+    big = b"\x1f\x8b" + b"0" * (11 * 1024 * 1024)  # 11 MiB on the wire (> 10 MiB cap)
+    async with app_with(FakeOS(token_doc(t))) as c:
+        r = await post(c, big, t)
+    assert r.status_code == 413
+
+
+@pytest.mark.skipif(not _os_up(), reason="OpenSearch not reachable")
+async def test_repush_is_idempotent_counts_stay_stable() -> None:
+    from backend.models.envelope import IngestEnvelope
+    from backend.services.ingest import ingest_envelope
+
+    env = IngestEnvelope.model_validate(
+        {**json.loads(GOLDEN), "scan_run_id": f"idem-{uuid.uuid4().hex[:8]}"}
+    )
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    try:
+        q = {"query": {"term": {"last_scan_run_id": env.scan_run_id}}}
+        await ingest_envelope(client, env)
+        await client.indices.refresh(index="findings")
+        first = (await client.count(index="findings", body=q))["count"]
+        await ingest_envelope(client, env)  # same envelope again — deterministic _ids
+        await client.indices.refresh(index="findings")
+        second = (await client.count(index="findings", body=q))["count"]
+        assert first == second == 29  # re-push overwrote, never duplicated
+    finally:
+        await client.close()

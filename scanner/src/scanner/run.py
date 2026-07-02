@@ -66,6 +66,7 @@ def main() -> int:
 
     scanner: Scanner = os.environ.get("JAVV_SCANNER", "trivy")  # type: ignore[assignment]
     backend = os.environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
+    token = os.environ.get("JAVV_TOKEN")  # ingest bearer token; unset = anonymous (dev only)
     dead_letter = Path(os.environ.get("JAVV_DEAD_LETTER", f"{scanner}.dead-letter.jsonl"))
 
     try:
@@ -87,7 +88,9 @@ def main() -> int:
             scanner=scanner,
             cluster_id=cluster_id,
             scan_fn=scan_fn,
-            push_fn=lambda e: push_envelope(e, client=http, dead_letter_path=dead_letter),
+            push_fn=lambda e: push_envelope(
+                e, client=http, dead_letter_path=dead_letter, token=token
+            ),
         )
 
     delivered = sum(1 for r in results if r.delivered)
