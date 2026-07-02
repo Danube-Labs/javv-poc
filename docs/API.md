@@ -15,6 +15,7 @@
 | GET | `/readyz` | none | Readiness — `200 {ready}` if OpenSearch reachable, `503 {degraded}` if not | M1 |
 | GET | `/metrics` | none | Prometheus exposition (see below) | M1 |
 | POST | `/api/v1/ingest/scan` | **Bearer token** | Ingest one scanner envelope → findings/scan-events/images | M1 |
+| GET | `/api/v1/scan-scope` | **Bearer token** | The scanner reads its own cluster's scan scope (namespaces/images/kinds to scan); scoped to the token's `cluster_id` (D43) | #94 |
 
 Everything below `/api/v1` is added by later bolts (read/query APIs M6/M8b, auth M5a, decisions
 M5c, exports M7, …) — they'll be listed here as they land.
