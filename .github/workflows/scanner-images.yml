@@ -57,8 +57,12 @@ jobs:
         run: |
           curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
             | sh -s -- -b /usr/local/bin "v${{ matrix.version }}"
+      - name: Read uv pin from versions.yaml (D42)
+        id: uv
+        run: echo "version=$(yq -r '.toolchain.uv' versions.yaml)" >> "$GITHUB_OUTPUT"
       - uses: astral-sh/setup-uv@v7
         with:
+          version: ${{ steps.uv.outputs.version }}
           enable-cache: true
       - name: Install scanner package
         working-directory: scanner
