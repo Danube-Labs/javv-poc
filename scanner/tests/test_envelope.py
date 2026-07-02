@@ -33,7 +33,7 @@ def load(name: str) -> dict[str, Any]:
 def _trivy_env() -> Envelope:
     findings = parse_trivy(load("trivy-python-3.9.16-slim.json"))
     return build_envelope(
-        new_scan_run(),
+        new_scan_run(1),
         cluster_id="cluster-abc",
         scanner="trivy",
         image_digest="sha256:deadbeef",
@@ -47,7 +47,7 @@ def _trivy_env() -> Envelope:
 def test_counts_bucket_every_finding_and_total_is_the_sum() -> None:
     findings = parse_trivy(load("trivy-python-3.9.16-slim.json"))
     env = build_envelope(
-        new_scan_run(),
+        new_scan_run(1),
         cluster_id="c",
         scanner="trivy",
         image_digest="sha256:x",
@@ -64,7 +64,7 @@ def test_counts_bucket_every_finding_and_total_is_the_sum() -> None:
 def test_clean_scan_still_emits_a_full_envelope_with_zero_counts() -> None:
     # alpine:3.14 → Trivy finds nothing; D30 says still emit (no skip).
     env = build_envelope(
-        new_scan_run(),
+        new_scan_run(1),
         cluster_id="c",
         scanner="trivy",
         image_digest="sha256:x",
@@ -89,7 +89,7 @@ def test_envelope_carries_the_run_and_image_identity() -> None:
 
 def test_envelope_carries_observed_topology() -> None:
     env = build_envelope(
-        new_scan_run(),
+        new_scan_run(1),
         cluster_id="c",
         scanner="trivy",
         image_digest="sha256:x",
@@ -124,7 +124,7 @@ def test_provenance_flows_onto_the_envelope() -> None:
 
     built = datetime(2026, 6, 29, 8, 3, 40, tzinfo=UTC)
     env = build_envelope(
-        new_scan_run(),
+        new_scan_run(1),
         cluster_id="c",
         scanner="grype",
         image_digest="sha256:x",
@@ -144,7 +144,7 @@ def test_provenance_defaults_to_none_when_absent() -> None:
 def test_scanner_name_is_constrained_to_trivy_or_grype() -> None:
     with pytest.raises(ValidationError):
         build_envelope(
-            new_scan_run(),
+            new_scan_run(1),
             cluster_id="c",
             scanner="nessus",  # type: ignore[arg-type]
             image_digest="sha256:x",
@@ -155,7 +155,7 @@ def test_scanner_name_is_constrained_to_trivy_or_grype() -> None:
 def test_grype_envelope_preserves_epss_and_verbatim_severity_in_payload() -> None:
     findings = parse_grype(load("grype-python-3.9.16-slim.json"))
     env = build_envelope(
-        new_scan_run(),
+        new_scan_run(1),
         cluster_id="c",
         scanner="grype",
         image_digest="sha256:x",
@@ -171,21 +171,22 @@ def test_grype_envelope_preserves_epss_and_verbatim_severity_in_payload() -> Non
 # --- monotonic run ordering (D40) ------------------------------------------
 
 
-def test_new_scan_run_ids_unique_and_scan_order_strictly_increases() -> None:
-    r1, r2 = new_scan_run(), new_scan_run()
+def test_new_scan_run_ids_unique_and_order_is_the_backend_allocated_one() -> None:
+    # D45: ordering is the backend's job — the run just carries the allocated value verbatim
+    r1, r2 = new_scan_run(1), new_scan_run(2)
     assert r1.scan_run_id != r2.scan_run_id
-    assert r2.scan_order > r1.scan_order
+    assert (r1.scan_order, r2.scan_order) == (1, 2)
 
 
 def test_two_no_change_scans_emit_full_envelopes_new_run_greater_order() -> None:
     findings = parse_trivy(load("trivy-python-3.9.16-slim.json"))
     e1 = build_envelope(
-        new_scan_run(), cluster_id="c", scanner="trivy", image_digest="sha256:x", findings=findings
+        new_scan_run(1), cluster_id="c", scanner="trivy", image_digest="sha256:x", findings=findings
     )
     e2 = build_envelope(
-        new_scan_run(), cluster_id="c", scanner="trivy", image_digest="sha256:x", findings=findings
+        new_scan_run(2), cluster_id="c", scanner="trivy", image_digest="sha256:x", findings=findings
     )
     assert e1.scan_run_id != e2.scan_run_id
-    assert e2.scan_order > e1.scan_order
+    assert e2.scan_order > e1.scan_order  # backend allocation guarantees this across cycles (D45)
     assert e1.counts == e2.counts  # identical content
     assert len(e2.findings) == len(findings) > 0  # full envelope, not skipped

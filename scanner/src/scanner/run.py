@@ -15,6 +15,7 @@ from typing import Any, cast
 from scanner.discovery import ImageTarget, discover
 from scanner.envelope import EffectiveConfig, Envelope, Scanner, build_envelope, new_scan_run
 from scanner.models import ScanResult
+from scanner.orders import fetch_scan_order
 from scanner.push import PushResult, push_envelope
 from scanner.scope import fetch_scan_scope
 
@@ -29,9 +30,10 @@ def scan_all(
     cluster_id: str,
     scan_fn: ScanFn,
     push_fn: PushFn,
+    scan_order: int,
     effective_config: EffectiveConfig | None = None,
 ) -> list[PushResult]:
-    run = new_scan_run()
+    run = new_scan_run(scan_order)  # backend-allocated (D45) — the cycle's ordering key
     results: list[PushResult] = []
     for t in targets:
         # D30: scan everything every cycle. One un-pullable image, a scanner non-zero exit, or a
@@ -123,6 +125,14 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 0
+        # D45: the backend mints the cycle's ordering key — same fail-closed contract as scope
+        scan_order = fetch_scan_order(http, token=token)
+        if scan_order is None:
+            print(
+                f"{scanner}: scan_order allocation failed (backend) — skipping cycle",
+                file=sys.stderr,
+            )
+            return 0
         targets = discover(api, scope)
         results = scan_all(
             targets,
@@ -132,6 +142,7 @@ def main() -> int:
             push_fn=lambda e: push_envelope(
                 e, client=http, dead_letter_path=dead_letter, token=token
             ),
+            scan_order=scan_order,
             # D44/FR-25: stamp what this cycle ran with (tuning flags + the applied scope)
             effective_config=EffectiveConfig(tuning=tuning, scope=scope),
         )

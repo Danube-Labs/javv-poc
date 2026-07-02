@@ -51,7 +51,7 @@ def test_real_trivy_and_grype_drive_produces_envelope_with_cves() -> None:
     from scanner.adapters.trivy import scan_trivy
     from scanner.envelope import build_envelope, new_scan_run
 
-    run = new_scan_run()
+    run = new_scan_run(1)  # guarded live test, no backend — any positive order (D45)
     image = "python:3.9.16-slim"  # Debian — Trivy and Grype both find CVEs
 
     trivy = scan_trivy(image)

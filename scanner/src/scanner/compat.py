@@ -36,7 +36,7 @@ def contract_violations(
 
     try:
         env = build_envelope(
-            new_scan_run(),
+            new_scan_run(1),  # local harness, no backend — any positive order works (D45)
             cluster_id="compat",
             scanner=scanner,
             image_digest="sha256:compat",

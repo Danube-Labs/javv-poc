@@ -19,7 +19,7 @@ ERR = "ERR"  # sentinel: handler raises a transport error on this attempt
 
 def make_envelope() -> Envelope:
     return build_envelope(
-        new_scan_run(),
+        new_scan_run(1),
         cluster_id="c",
         scanner="trivy",
         image_digest="sha256:x",
