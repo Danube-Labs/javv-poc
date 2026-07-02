@@ -53,3 +53,37 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - Full users/triage restore re-verification → re-run as a drill **after M5a/M5b** (those indices don't exist at M2's position).
 - Surfacing snapshot schedule/retention in the admin UI → `Settings → Data & OpenSearch` panel (FR-19, M9e).
 - Cross-cluster / DR replication → out of MVP.
+
+## Updates
+
+### 2026-07-02 — Config-source decision (where snapshot config lives)
+"Snapshot config" is **three separate things with three homes** — deliberately not one place, and
+**not env vars for app config**:
+
+1. **Credentials** (s3 `access_key`/`secret_key`) → **OpenSearch keystore** (`s3.client.default.*`),
+   set by the operator via a Helm secret at cluster provisioning. Never in `system-config`, never in
+   env visible to the app, never in a doc. `SnapshotRepoRef`'s allowlist structurally refuses them.
+2. **Repo registration + `path.repo`** (the fs allow-path / s3 repo definition) → **deploy manifests
+   on disk** (`deploy/opensearch/snapshot-repo.yaml`, GitOps-applied), because it's cluster-level infra
+   that needs the keystore/`path.repo` to exist first and must be reproducible/auditable. For local/CI
+   the drill registers an **fs** repo programmatically via `register_repository`.
+3. **Which repo to use + schedule/retention** → the **`system-config` ref** (the app's pointer to a
+   registered repo, non-secret) + the **ISM policy JSON** (indices/schedule/retention). The ref is
+   edited via the **JAVV UI** later (FR-19/D26, M9e); until then a one-time write/CLI. The deploy
+   manifest *creates* the repo in OpenSearch; the `system-config` ref *names* it for the app — complementary.
+
+**Testing needs no S3.** The restore drill uses an **fs** repository = a local directory the OpenSearch
+container can write to (`path.repo`). s3/MinIO is k3s-prod only. Slice 2 sets `path.repo` on the dev
+compose + the CI service container; no external infra. No `settings.py` snapshot fields — the repo ref
+lives in `system-config` (data), not process config.
+
+### 2026-07-02 — Slice 3 scoping (SM policy now, deploy manifests → M10)
+Scheduled snapshots use OpenSearch's native **Snapshot Management (SM)** policy
+(`_plugins/_sm/policies`), not ISM (ISM = index rollover/delete; SM = scheduled snapshots) and
+not a CronJob — OpenSearch takes + prunes the snapshot itself, so coordination stays in OpenSearch
+(no-broker constraint). Policy body lives in code (`admin/snapshot.py`, source of truth like the
+bootstrap mappings), D26-configurable; `create_snapshot_policy` registers it. The k8s deploy
+manifests originally listed here — `snapshot-repo.yaml` (repo registration) and the
+`snapshot-verify` CronJob (scheduled restore-drill) — are **deferred to M10**, where the Helm chart
+lives; building them now (no chart yet, untestable) would be speculative. The PLAN gate (the
+automated restore drill) is met in Slice 2 and doesn't depend on them.

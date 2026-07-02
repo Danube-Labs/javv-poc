@@ -4,11 +4,11 @@ here. All mappings are `dynamic:false` (unmapped fields survive in `_source` —
 are never indexed) and carry `_meta.version`; `bootstrap()` is idempotent and only touches an
 index/template whose recorded version is older.
 
-M1 scope: the `findings` current-state cache + `system-tokens` (ingest auth), plus index
-*templates* for the per-cluster `javv-scan-events-*` / `javv-images-*` append series so any
-per-cluster index gets the pinned mapping at auto-create. ISM rollover/retention policies are
-M4; `javv-scan-watermarks` is created and owned by M3; occurrences (M8a) and audit-log (M5a)
-land with their bolts.
+Scope: the `findings` current-state cache + `system-tokens` (ingest auth) + `system-config`
+(M2 — holds the snapshot-repo ref), plus index *templates* for the per-cluster
+`javv-scan-events-*` / `javv-images-*` append series so any per-cluster index gets the pinned
+mapping at auto-create. ISM rollover/retention policies are M4; `javv-scan-watermarks` is created
+and owned by M3; occurrences (M8a) and audit-log (M5a) land with their bolts.
 
 Runnable standalone: `uv run python -m backend.core.bootstrap`.
 """
@@ -79,6 +79,17 @@ _FINDINGS_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# system-config (M2): a small key/value config shelf — SLA policy, rollover/retention/staleness
+# knobs, and the snapshot-repo ref (creds live in the OS keystore, never here). `value` is an
+# opaque object (`enabled:false`): stored in _source, never indexed, so heterogeneous config
+# payloads can't explode the mapping. Fetch by `_id` (the config key), never aggregate.
+_CONFIG_PROPERTIES: dict[str, Any] = {
+    "key": _KW,  # the config key — also the doc _id (e.g. "snapshot_repo")
+    "value": {"type": "object", "enabled": False},  # opaque blob, kept in _source, not indexed
+    "updated_at": _DATE,
+    "updated_by": _KW,
+}
+
 _TOKENS_PROPERTIES: dict[str, Any] = {
     "token_hash": _KW,  # peppered SHA-256 of a 256-bit random token — never the raw value (D38)
     "cluster_id": _KW,  # authz binding: payload must match token scope (SEC-3)
@@ -99,6 +110,10 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "system-tokens": {
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_TOKENS_PROPERTIES),
+    },
+    "system-config": {  # M2 — snapshot-repo ref + other config knobs
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_CONFIG_PROPERTIES),
     },
 }
 

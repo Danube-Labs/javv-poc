@@ -22,6 +22,9 @@ services:
       - discovery.type=single-node
       - DISABLE_SECURITY_PLUGIN=true            # DEV ONLY — no TLS/auth on :9200
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m  # small heap for a dev VM
+      # fs snapshot repo root (M2 restore drill). Inside the data dir so it's writable by the
+      # opensearch uid (1000) without a chown dance; a mounted volume would be root-owned.
+      - path.repo=/usr/share/opensearch/data/snapshots
     ulimits:
       memlock: { soft: -1, hard: -1 }
       nofile: { soft: 65536, hard: 65536 }

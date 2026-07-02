@@ -100,9 +100,10 @@ def test_tokens_index_matches_index_map() -> None:
     assert p["disabled"] == {"type": "boolean"}
 
 
-def test_m1_scope_only() -> None:
-    # watermarks are M3's (it creates + owns them); occurrences M8a; audit-log M5a.
-    assert set(MUTABLE_INDEXES) == {"findings", "system-tokens"}
+def test_bootstrap_scope() -> None:
+    # M1: findings + system-tokens + the two append templates. M2 adds system-config (snapshot-repo
+    # ref). watermarks are M3's (it creates + owns them); occurrences M8a; audit-log M5a.
+    assert set(MUTABLE_INDEXES) == {"findings", "system-tokens", "system-config"}
     assert set(INDEX_TEMPLATES) == {"javv-scan-events", "javv-images"}
 
 
