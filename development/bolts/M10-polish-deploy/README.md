@@ -53,3 +53,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - VEX **import** → v1.1 (FR-22).
 - HA implementation (HA is not JAVV-built — NFR-9/D23; M10 documents multi-pod notes only).
 - `javv-metrics` rollup for all-clusters historical dashboards → v1.1 (D38/M16).
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

@@ -59,3 +59,10 @@ merge → scan_order/watermark → commit-then-cache → reconcile → staleness
 > stale and drop its findings. Fine for single-node MVP; if multi-node scanning is in play, replace the
 > scanner's order source with one that can't regress **before** building the CAS on top of it. D40's
 > "never order by clock" applies to the *source*, not just to not using `@timestamp`.
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

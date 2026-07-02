@@ -48,3 +48,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - The streaming export **engine** itself (CSV sanitizer, VEX serializers, PIT paging) → owned by M6; M7 only invokes it.
 - The bell **UI** (notification badge/polling) → M9d; M7 only writes the `system-notifications` doc.
 - Admin-configurable off-peak windows in the UI → `Settings → Data & OpenSearch` (FR-19, M9e).
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

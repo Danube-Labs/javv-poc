@@ -78,3 +78,10 @@ as pure units** (Vitest).
 - Per-image occurrences / point-in-time image view → M9c. Overview & dashboards → M9c.
 - Audit log / approvals queue / contributors → M9d. Saved views, bell, global search → M9f.
 - VEX **import** (statement → decision) → v1.1 (FR-22); MVP triage writes scanner-JSON-backed findings only.
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

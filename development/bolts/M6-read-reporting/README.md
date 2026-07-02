@@ -45,3 +45,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - **VEX import** → v1.1.
 - Scheduled/throttled large exports + the `system-reports` queue → M7.
 - Historical **all-clusters** dashboards → v1.1 `javv-metrics` rollup (limited until then).
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

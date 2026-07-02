@@ -85,3 +85,10 @@ as pure units** (Vitest).
   v1.1 metrics rollup, read from the rollup (not raw occurrences).
 - Audit/approvals/contributors/scanner-status → M9d. Settings (Data & OpenSearch, staleness) → M9e.
 - Streaming/scheduled export from a lens → M6/M7 (export dialog wiring); cross-cutting empty states → M9f.
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
