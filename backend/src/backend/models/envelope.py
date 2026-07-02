@@ -1,5 +1,7 @@
-"""The ingest wire contract — the scanner's schema-v2 envelope, mirrored field-for-field with
+"""The ingest wire contract — the scanner's schema-v3 envelope, mirrored field-for-field with
 `extra="forbid"` (D41 coupling: any drift on either side is a 422, caught by the golden fixture).
+v3 adds `effective_config` (D44/FR-25): the tuning flags + scope the cycle actually ran with —
+read-only display/audit, persisted on scan-events only, and the tuning shape must match `scanner`.
 
 Security posture (untrusted input): `cluster_id` is shape-validated strictly because it flows into
 OpenSearch index names (index-name injection); the counts invariant (total == bucket sum) is an
@@ -83,10 +85,53 @@ class IngestCounts(BaseModel):
     fixable: int = Field(ge=0)
 
 
+class TrivyTuning(BaseModel):
+    """Mirror of the scanner's `TrivyConfig` — disjoint from `GrypeTuning`, so the union below
+    is unambiguous and a mismatched shape fails validation."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    scanners: str = Field(max_length=128)
+    ignore_unfixed: bool
+    severities: str | None = Field(default=None, max_length=128)
+    pkg_types: str | None = Field(default=None, max_length=128)
+    timeout: str | None = Field(default=None, max_length=64)
+
+
+class GrypeTuning(BaseModel):
+    """Mirror of the scanner's `GrypeConfig`."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    only_fixed: bool
+    scope: str | None = Field(default=None, max_length=64)
+    scan_timeout: int = Field(ge=1)
+
+
+class IngestScope(BaseModel):
+    """Mirror of the D43 `ScanScope` the scanner applied this cycle."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    include_namespaces: list[str] = Field(default=[], max_length=1024)
+    ignore_namespaces: list[str] = Field(default=[], max_length=1024)
+    exclude_images: list[str] = Field(default=[], max_length=1024)
+    ignore_kinds: list[str] = Field(default=[], max_length=64)
+
+
+class IngestEffectiveConfig(BaseModel):
+    """What the cycle ran with (D44/FR-25) — display/audit only, never a control surface."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    tuning: TrivyTuning | GrypeTuning
+    scope: IngestScope
+
+
 class IngestEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[2]  # current-envelope-only acceptance (D25/D35)
+    schema_version: Literal[3]  # current-envelope-only acceptance (D25/D35); v3 flag-day = D44
     cluster_id: str
     scanner: Literal["trivy", "grype"]  # per-scanner is sacred — no other value exists
     image_digest: str = Field(pattern=r"^sha256:[a-fA-F0-9]{6,64}$", max_length=128)
@@ -99,6 +144,7 @@ class IngestEnvelope(BaseModel):
     scanner_version: str | None = Field(default=None, max_length=128)
     scanner_db_version: str | None = Field(default=None, max_length=128)
     scanner_db_built: datetime | None = None
+    effective_config: IngestEffectiveConfig  # required in v3 (D44) — no silent omission
     counts: IngestCounts
     findings: list[IngestFinding] = Field(max_length=100_000)
 
@@ -115,4 +161,12 @@ class IngestEnvelope(BaseModel):
         buckets = c.crit + c.high + c.med + c.low + c.negligible + c.unknown
         if c.total != buckets or c.total != len(self.findings):
             raise ValueError("counts invariant violated: total != bucket sum != len(findings)")
+        return self
+
+    @model_validator(mode="after")
+    def _tuning_matches_scanner(self) -> "IngestEnvelope":
+        # a trivy envelope carrying grype tuning (or vice versa) is a lying client (D44)
+        expected = TrivyTuning if self.scanner == "trivy" else GrypeTuning
+        if not isinstance(self.effective_config.tuning, expected):
+            raise ValueError(f"effective_config.tuning shape does not match scanner {self.scanner}")
         return self

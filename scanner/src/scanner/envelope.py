@@ -18,11 +18,14 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict
 
+from scanner.config import GrypeConfig, TrivyConfig
 from scanner.models import Finding, Provenance
 from scanner.normalize import SEVERITIES
+from scanner.scope import ScanScope
 
 # v2: observed topology (image_ref, namespaces[], replicas) replaced the vestigial null namespace
-SCHEMA_VERSION = 2
+# v3: effective_config (tuning flags + applied scope) for read-only display/audit (D44/FR-25)
+SCHEMA_VERSION = 3
 
 Scanner = Literal["trivy", "grype"]
 
@@ -71,6 +74,17 @@ def _count(findings: Sequence[Finding]) -> SeverityCounts:
     )
 
 
+class EffectiveConfig(BaseModel):
+    """What this cycle actually ran with (D44): the scanner's tuning flags (the existing per-scanner
+    config types — trivy/grype field sets are disjoint, so the union is unambiguous) and the D43
+    scope applied to discovery. Read-only display/audit downstream — never a control surface."""
+
+    model_config = ConfigDict(frozen=True)
+
+    tuning: TrivyConfig | GrypeConfig
+    scope: ScanScope
+
+
 class Envelope(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -90,6 +104,8 @@ class Envelope(BaseModel):
     scanner_version: str | None = None
     scanner_db_version: str | None = None
     scanner_db_built: datetime | None = None
+    # what this cycle ran with (D44/FR-25) — read-only display/audit, one value per run
+    effective_config: EffectiveConfig | None = None
     counts: SeverityCounts
     findings: list[Finding]
 
@@ -105,9 +121,11 @@ def build_envelope(
     namespaces: Sequence[str] | None = None,
     replicas: int = 0,
     provenance: Provenance | None = None,
+    effective_config: EffectiveConfig | None = None,
 ) -> Envelope:
     prov = provenance or Provenance()
     return Envelope(
+        effective_config=effective_config,
         cluster_id=cluster_id,
         scanner=scanner,
         image_digest=image_digest,

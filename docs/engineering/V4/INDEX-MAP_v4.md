@@ -82,8 +82,9 @@ commit_key        keyword       hash(cluster_id + scanner + image_digest + scan_
 cluster_id        keyword
 scanner           keyword
 scanner_version   keyword       self-reported binary version (D41); Trivy Trivy.Version / Grype descriptor.version
-scanner_db_version keyword      vuln-DB schema version (D41); Grype descriptor.db.status.schemaVersion (Trivy: null)
-scanner_db_built  date          vuln-DB build time (D41); Grype descriptor.db.status.built (Trivy: null)
+scanner_db_version keyword      vuln-DB schema version (D41); Grype descriptor.db.status.schemaVersion / Trivy per-cycle `trivy version` call (#96)
+scanner_db_built  date          vuln-DB build time (D41); Grype descriptor.db.status.built / Trivy VulnerabilityDB.UpdatedAt (#96)
+effective_config  object (enabled:false)  what the cycle ran with (D44/FR-25): {tuning: per-scanner flags, scope: applied D43 ScanScope} - _source-only (not indexed/aggregatable, display+audit read it off the doc); scan-events ONLY, not findings/images
 namespaces        keyword[]    distinct namespaces the digest runs in — a digest can span several (D30 dedup); ns filter = array-contains
 image_repo        keyword
 image_digest      keyword

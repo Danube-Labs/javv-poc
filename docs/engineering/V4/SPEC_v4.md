@@ -187,6 +187,10 @@ from an env/secret and must change the password on first login - FR-18.)
   scanner-side (not merely at ingest) so "don't scan" means the image is never pulled/scanned. Write path is
   M9e (interim admin CLI); a valid token reads only its own cluster's scope (SEC-4). Not scanner *tuning*
   (env/GitOps, #91) nor *version* (build-time, D41).
+- **FR-25 Effective-config stamp (D44).** Every envelope (schema **v3**) carries `effective_config` =
+  the scanner's effective **tuning** flags (per-scanner shape) + the **scope** applied that cycle;
+  persisted on **scan-events** only. Read-only - feeds the M9e per-scanner cards and the audit trail;
+  no write-back. Envelope stays current-only: v2→v3 is a flag-day (scanner + backend upgrade together).
 
 ## Non-functional requirements
 

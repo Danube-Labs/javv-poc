@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from scanner.discovery import ImageTarget, discover
-from scanner.envelope import Envelope, Scanner, build_envelope, new_scan_run
+from scanner.envelope import EffectiveConfig, Envelope, Scanner, build_envelope, new_scan_run
 from scanner.models import ScanResult
 from scanner.push import PushResult, push_envelope
 from scanner.scope import fetch_scan_scope
@@ -29,6 +29,7 @@ def scan_all(
     cluster_id: str,
     scan_fn: ScanFn,
     push_fn: PushFn,
+    effective_config: EffectiveConfig | None = None,
 ) -> list[PushResult]:
     run = new_scan_run()
     results: list[PushResult] = []
@@ -54,6 +55,7 @@ def scan_all(
             replicas=t.pod_count,
             findings=scanned.findings,
             provenance=scanned.provenance,
+            effective_config=effective_config,
         )
         results.append(push_fn(envelope))
     return results
@@ -101,12 +103,13 @@ def main() -> int:
 
     # scan-behaviour config from JAVV_TRIVY_*/JAVV_GRYPE_* env (#91); defaults = the pinned command.
     scan_fn: ScanFn
+    tuning: TrivyConfig | GrypeConfig
     if scanner == "trivy":
-        trivy_cfg = TrivyConfig.from_env()
+        tuning = trivy_cfg = TrivyConfig.from_env()
         trivy_db = trivy_db_info()  # once per cycle, best-effort vuln-DB provenance (#96)
         scan_fn = lambda ref: scan_trivy(ref, config=trivy_cfg, db=trivy_db)  # noqa: E731
     else:
-        grype_cfg = GrypeConfig.from_env()
+        tuning = grype_cfg = GrypeConfig.from_env()
         scan_fn = lambda ref: scan_grype(ref, config=grype_cfg)  # noqa: E731
 
     with httpx.Client(base_url=backend, timeout=30.0) as http:
@@ -129,6 +132,8 @@ def main() -> int:
             push_fn=lambda e: push_envelope(
                 e, client=http, dead_letter_path=dead_letter, token=token
             ),
+            # D44/FR-25: stamp what this cycle ran with (tuning flags + the applied scope)
+            effective_config=EffectiveConfig(tuning=tuning, scope=scope),
         )
 
     delivered = sum(1 for r in results if r.delivered)

@@ -391,6 +391,17 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   and real capability-based auth is M5a (D33). Write path = the M9e UI + an interim admin CLI; the
   effective-scope envelope stamp is a later **joint schema-v3** with the scanner effective-flags stamp (#91).
   (**FR-24**.)
+- **D44 - Effective config is stamped on the envelope (schema v3) - read-only display, never a control.**
+  Every envelope carries an `effective_config` block: the scanner's effective **tuning** flags (the
+  per-scanner `JAVV_TRIVY_*`/`JAVV_GRYPE_*` values actually used, a per-scanner-discriminated shape) and
+  the **scope** actually applied that cycle (the fetched D43 `ScanScope`). Purpose: the M9e per-scanner
+  cards + audit answer "what did this scan run with" from data, not inference. **Display/audit only** -
+  there is no write-back path; tuning stays env/GitOps (D41 + the #91 read-only ruling), scope's write
+  path stays D43's. The stamp is persisted on the **scan-events** docs only (the run-level record) - not
+  findings, not images. The envelope stays **current-only** (D37/D38 ruling): the v2→v3 bump is a
+  **flag-day** - scanner images and backend upgrade in lockstep (a deploy constraint, noted in M10); the
+  backend 422s non-current envelopes by design. Supersedes the old "phase-2 `scanner_config` doc in
+  `system-config`" idea. (Closes the #91 arc; joint with #94's effective scope.)
 - **Promoted/retained MVP:** per-finding occurrences + point-in-time (now M8); VEX **export** (M6).
 - **Moved to v1.1:** **VEX import** (consuming external VEX into `system-decisions`) - MVP ingests **only
   the scanner JSON envelope**; Jira ticket push; dashboard **builder** (saved views stay the default);

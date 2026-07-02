@@ -89,6 +89,8 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
         "image_repo": repo,
         "image_digest": env.image_digest,
         "tag": tag,
+        # what the cycle ran with (D44/FR-25) — run-level, scan-events only, display/audit
+        "effective_config": env.effective_config.model_dump(mode="json"),
         **counts,
         "schema_version": env.schema_version,
     }
