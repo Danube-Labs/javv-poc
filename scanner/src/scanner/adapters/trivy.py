@@ -8,7 +8,8 @@ Trivy provides no EPSS/KEV. Input is untrusted: malformed entries are skipped, n
 import json
 import subprocess
 from collections.abc import Callable, Mapping
-from typing import Any
+from datetime import datetime
+from typing import Any, NamedTuple
 
 from scanner.config import TrivyConfig
 from scanner.models import Finding, Provenance, ScanResult
@@ -85,10 +86,57 @@ def parse_trivy_provenance(data: Mapping[str, Any]) -> Provenance:
     return Provenance(scanner_version=version or None)
 
 
+class TrivyDbInfo(NamedTuple):
+    version: str | None
+    built: datetime | None
+
+
+def _coerce_dt(value: Any) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)  # handles trailing Z + nanosecond fractions (3.11+)
+    except ValueError:
+        return None
+
+
+def trivy_db_info(*, runner: Runner = subprocess.run) -> TrivyDbInfo:
+    """Best-effort vuln-DB provenance via `trivy version --format json`, once per cycle (#96).
+
+    Trivy's scan report deliberately omits DB metadata (upstream discussions 6264/9400); the
+    supported source is the version command, which reads the same local cache the scan uses.
+    `VulnerabilityDB.Version` = DB schema, `UpdatedAt` = when the DB content was built. Any
+    failure (no cache, bad JSON, subprocess error) → nulls — never fatal to the cycle.
+    """
+    try:
+        proc = runner(
+            ["trivy", "version", "--format", "json"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=60,
+        )
+        db = json.loads(proc.stdout).get("VulnerabilityDB")
+        if not isinstance(db, Mapping):
+            return TrivyDbInfo(None, None)
+        version = db.get("Version")
+        return TrivyDbInfo(
+            version=str(version) if version is not None else None,
+            built=_coerce_dt(db.get("UpdatedAt")),
+        )
+    except Exception:
+        return TrivyDbInfo(None, None)
+
+
 def scan_trivy(
-    image_ref: str, *, runner: Runner = subprocess.run, config: TrivyConfig | None = None
+    image_ref: str,
+    *,
+    runner: Runner = subprocess.run,
+    config: TrivyConfig | None = None,
+    db: TrivyDbInfo | None = None,
 ) -> ScanResult:
-    """Drive the trivy binary against an image ref and parse its JSON output + provenance."""
+    """Drive the trivy binary against an image ref and parse its JSON output + provenance.
+    `db` is the cycle-level `trivy_db_info()` result, merged into the provenance (#96)."""
     proc = runner(
         trivy_command(image_ref, config or TrivyConfig()),
         capture_output=True,
@@ -97,4 +145,7 @@ def scan_trivy(
         timeout=SCAN_TIMEOUT_SECONDS,
     )
     data = json.loads(proc.stdout)
-    return ScanResult(findings=parse_trivy(data), provenance=parse_trivy_provenance(data))
+    provenance = parse_trivy_provenance(data)
+    if db is not None:
+        provenance = provenance.model_copy(update={"db_version": db.version, "db_built": db.built})
+    return ScanResult(findings=parse_trivy(data), provenance=provenance)

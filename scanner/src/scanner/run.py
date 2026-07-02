@@ -64,7 +64,7 @@ def main() -> int:
     from kubernetes import client, config
 
     from scanner.adapters.grype import scan_grype
-    from scanner.adapters.trivy import scan_trivy
+    from scanner.adapters.trivy import scan_trivy, trivy_db_info
     from scanner.config import GrypeConfig, TrivyConfig
 
     scanner_env = os.environ.get("JAVV_SCANNER", "trivy")
@@ -103,7 +103,8 @@ def main() -> int:
     scan_fn: ScanFn
     if scanner == "trivy":
         trivy_cfg = TrivyConfig.from_env()
-        scan_fn = lambda ref: scan_trivy(ref, config=trivy_cfg)  # noqa: E731
+        trivy_db = trivy_db_info()  # once per cycle, best-effort vuln-DB provenance (#96)
+        scan_fn = lambda ref: scan_trivy(ref, config=trivy_cfg, db=trivy_db)  # noqa: E731
     else:
         grype_cfg = GrypeConfig.from_env()
         scan_fn = lambda ref: scan_grype(ref, config=grype_cfg)  # noqa: E731

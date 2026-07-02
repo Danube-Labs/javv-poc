@@ -77,7 +77,7 @@ severities ∈ `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`, pkg-types ∈ `os,library`, t
 | `JAVV_TRIVY_TIMEOUT` | *(unset)* | `--timeout 5m0s` (unset = trivy's own default) | ✅ Phase 2 |
 | Output format | `json` | fixed — parser depends on it | n/a |
 | **Trivy version** | `0.71.2` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
-| **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; DB pulled at scan time | ⚙️ read-only display |
+| **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; DB pulled at scan time; stamped per envelope via a per-cycle `trivy version --format json` (#96) | ⚙️ read-only display |
 
 ---
 

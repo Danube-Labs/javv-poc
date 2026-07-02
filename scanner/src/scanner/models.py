@@ -16,13 +16,14 @@ from scanner.normalize import canonical_severity
 class Provenance(BaseModel):
     """Which scanner build + vuln-DB produced a scan (D41). Self-reported by the binary at run
     time; ingested for the read-only "scanner status / version" view and audit version matrix.
-    DB fields are nullable: Grype reports them; Trivy's standalone JSON does not."""
+    DB fields are nullable/best-effort: Grype reports them in the scan JSON; Trivy's comes from a
+    per-cycle `trivy version --format json` call (#96) — nulls if that fails, never a dead scan."""
 
     model_config = ConfigDict(frozen=True)
 
     scanner_version: str | None = None  # Trivy `Trivy.Version` / Grype `descriptor.version`
-    db_version: str | None = None  # Grype `descriptor.db.status.schemaVersion` (Trivy: none)
-    db_built: datetime | None = None  # Grype `descriptor.db.status.built`
+    db_version: str | None = None  # Grype `db.status.schemaVersion` / Trivy `VulnerabilityDB` ver
+    db_built: datetime | None = None  # Grype `db.status.built` / Trivy `VulnerabilityDB.UpdatedAt`
 
 
 class Finding(BaseModel):
