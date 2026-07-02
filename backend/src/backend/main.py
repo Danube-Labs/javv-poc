@@ -6,13 +6,14 @@ from fastapi import FastAPI
 
 from backend.core.errors import register_error_handlers
 from backend.core.lifespan import lifespan
-from backend.routers import health
+from backend.routers import health, ingest
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="JAVV backend", version="0.1.0", lifespan=lifespan)
     register_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(ingest.router)
     return app
 
 
