@@ -50,6 +50,20 @@ jobs:
   backend:
     name: Backend
     runs-on: ubuntu-latest
+    services:
+      # Real OpenSearch so the ingest/bootstrap integration tests (golden round-trip) run in CI,
+      # not just locally. Security off — dev/CI only. Image kept in sync with versions.yaml (D42).
+      opensearch:
+        image: opensearchproject/opensearch:3.7.0
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl -sf http://localhost:9200/_cluster/health || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 20 --health-start-period 40s
     steps:
       - uses: actions/checkout@v5
 

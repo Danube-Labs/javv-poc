@@ -1,18 +1,22 @@
 """FastAPI app factory. Conventions (api-design.md): `/api/v1` prefix for data routes, snake_case,
-`extra="forbid"` request models, the single problem-details error envelope. Ingest + the versioned
-index bootstrap land in the next slices; this is the runnable skeleton."""
+`extra="forbid"` request models, the single problem-details error envelope. Observability (D9):
+JSON structlog with a bound `request_id`, and `/metrics` (Prometheus)."""
 
 from fastapi import FastAPI
 
 from backend.core.errors import register_error_handlers
 from backend.core.lifespan import lifespan
-from backend.routers import health, ingest
+from backend.core.logging import configure_logging, install_request_context
+from backend.routers import health, ingest, metrics
 
 
 def create_app() -> FastAPI:
+    configure_logging()
     app = FastAPI(title="JAVV backend", version="0.1.0", lifespan=lifespan)
+    install_request_context(app)
     register_error_handlers(app)
     app.include_router(health.router)
+    app.include_router(metrics.router)
     app.include_router(ingest.router)
     return app
 

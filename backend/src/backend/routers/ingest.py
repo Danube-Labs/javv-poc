@@ -13,14 +13,25 @@ import zlib
 from collections import defaultdict, deque
 from typing import Any, cast
 
+import structlog
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import ValidationError
 
+from backend.core.metrics import FINDINGS_WRITTEN, INGEST_ACCEPTED, INGEST_REJECTED
 from backend.core.security import hash_token, tokens_match
 from backend.core.settings import get_settings
 from backend.models.envelope import IngestEnvelope
 from backend.repositories.bulk import BulkError
 from backend.services.ingest import ingest_envelope
+
+log = structlog.get_logger()
+
+
+def _reject(status: int, reason: str, detail: str) -> HTTPException:
+    """Count + raise. `reason` is a bounded metric label (never user input)."""
+    INGEST_REJECTED.labels(reason=reason).inc()
+    return HTTPException(status, detail)
+
 
 router = APIRouter(prefix="/api/v1/ingest", tags=["ingest"])
 
@@ -45,7 +56,7 @@ async def _read_capped(request: Request, cap: int) -> bytes:
     async for chunk in request.stream():
         size += len(chunk)
         if size > cap:  # enforced while reading — the header may lie
-            raise HTTPException(413, "compressed body too large")
+            raise _reject(413, "too_large", "compressed body too large")
         chunks.append(chunk)
     return b"".join(chunks)
 
@@ -55,9 +66,9 @@ def _decompress_capped(raw: bytes, cap: int) -> bytes:
     try:
         out = d.decompress(raw, cap + 1)
     except zlib.error as exc:
-        raise HTTPException(400, "invalid gzip body") from exc
+        raise _reject(400, "bad_gzip", "invalid gzip body") from exc
     if len(out) > cap or d.unconsumed_tail:
-        raise HTTPException(413, "decompressed body too large")  # zip bomb
+        raise _reject(413, "too_large", "decompressed body too large")  # zip bomb
     return out
 
 
@@ -66,11 +77,11 @@ async def ingest_scan(request: Request) -> dict[str, Any]:
     settings = get_settings()
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer ") or len(auth) > 512:
-        raise HTTPException(401, "invalid token")
+        raise _reject(401, "bad_token", "invalid token")
     candidate = hash_token(auth.removeprefix("Bearer "), pepper=settings.token_pepper)
 
     if _rate_limited(candidate, settings.ingest_rate_limit_per_minute):
-        raise HTTPException(429, "rate limit exceeded")
+        raise _reject(429, "rate_limited", "rate limit exceeded")
 
     client = cast(Any, request.app.state.opensearch)
     hits = await client.search(
@@ -84,29 +95,36 @@ async def ingest_scan(request: Request) -> dict[str, Any]:
         or not tokens_match(candidate, token["token_hash"])  # constant-time, belt & braces
         or token.get("disabled")
     ):
-        raise HTTPException(401, "invalid token")  # generic — no existence oracle
+        raise _reject(401, "bad_token", "invalid token")  # generic — no existence oracle
 
     raw = await _read_capped(request, settings.ingest_max_compressed_bytes)
     if request.headers.get("content-encoding", "").lower() == "gzip":
         raw = _decompress_capped(raw, settings.ingest_max_body_bytes)
     elif len(raw) > settings.ingest_max_body_bytes:
-        raise HTTPException(413, "body too large")
+        raise _reject(413, "too_large", "body too large")
 
     try:
         env = IngestEnvelope.model_validate(json.loads(raw))
     except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-        raise HTTPException(400, "body is not valid JSON") from exc
+        raise _reject(400, "bad_json", "body is not valid JSON") from exc
     except ValidationError as exc:
-        raise HTTPException(422, f"envelope rejected: {exc.error_count()} error(s)") from exc
+        raise _reject(
+            422, "invalid_envelope", f"envelope rejected: {exc.error_count()} error(s)"
+        ) from exc
 
     # authz binding (SEC-3): the token's scope must match the payload it pushes
     if env.cluster_id != token["cluster_id"] or env.scanner != token["scanner"]:
-        raise HTTPException(403, "token not valid for this cluster/scanner")
+        raise _reject(403, "scope_mismatch", "token not valid for this cluster/scanner")
 
+    structlog.contextvars.bind_contextvars(cluster_id=env.cluster_id, scanner=env.scanner)
     try:
         written = await ingest_envelope(client, env)
     except BulkError as exc:
-        raise HTTPException(503, "storage temporarily unavailable") from exc
+        raise _reject(503, "storage_error", "storage temporarily unavailable") from exc
+
+    INGEST_ACCEPTED.labels(scanner=env.scanner).inc()
+    FINDINGS_WRITTEN.labels(scanner=env.scanner).inc(written)
+    log.info("ingest committed", scan_run_id=env.scan_run_id, findings=written)
 
     await client.update(
         index="system-tokens",

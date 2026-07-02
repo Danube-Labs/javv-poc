@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.9,<3",
     "pydantic-settings>=2.4",
     "structlog>=24",
+    "prometheus-client>=0.25.0",
 ]
 
 [dependency-groups]

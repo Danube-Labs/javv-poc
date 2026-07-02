@@ -138,6 +138,7 @@ def _os_up() -> bool:
 
 @pytest.mark.skipif(not _os_up(), reason="OpenSearch not reachable")
 async def test_golden_envelope_round_trip_against_real_opensearch() -> None:
+    from backend.core.bootstrap import bootstrap
     from backend.models.envelope import IngestEnvelope
     from backend.services.ingest import ingest_envelope
 
@@ -146,6 +147,7 @@ async def test_golden_envelope_round_trip_against_real_opensearch() -> None:
     )
     client = AsyncOpenSearch(hosts=[OS_URL])
     try:
+        await bootstrap(client)  # findings + templates must exist (fresh CI)
         written = await ingest_envelope(client, env)
         assert written == 29
         await client.indices.refresh(index=f"findings,javv-scan-events-{env.cluster_id}-*")
@@ -193,6 +195,9 @@ async def test_repush_is_idempotent_counts_stay_stable() -> None:
     )
     client = AsyncOpenSearch(hosts=[OS_URL])
     try:
+        from backend.core.bootstrap import bootstrap
+
+        await bootstrap(client)  # findings must exist (fresh CI)
         q = {"query": {"term": {"last_scan_run_id": env.scan_run_id}}}
         await ingest_envelope(client, env)
         await client.indices.refresh(index="findings")
