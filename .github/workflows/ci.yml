@@ -77,10 +77,15 @@ jobs:
             echo "::notice::No backend/pyproject.toml yet — skipping backend gates (scaffold)."
           fi
 
+      - name: Read uv pin from versions.yaml (D42)
+        if: steps.detect.outputs.present == 'true'
+        id: uv
+        run: echo "version=$(yq -r '.toolchain.uv' versions.yaml)" >> "$GITHUB_OUTPUT"
       - name: Set up uv
         if: steps.detect.outputs.present == 'true'
         uses: astral-sh/setup-uv@v7
         with:
+          version: ${{ steps.uv.outputs.version }}
           enable-cache: true
 
       - name: Install dependencies
@@ -124,10 +129,15 @@ jobs:
             echo "::notice::No scanner/pyproject.toml yet — skipping scanner gates (scaffold)."
           fi
 
+      - name: Read uv pin from versions.yaml (D42)
+        if: steps.detect.outputs.present == 'true'
+        id: uv
+        run: echo "version=$(yq -r '.toolchain.uv' versions.yaml)" >> "$GITHUB_OUTPUT"
       - name: Set up uv
         if: steps.detect.outputs.present == 'true'
         uses: astral-sh/setup-uv@v7
         with:
+          version: ${{ steps.uv.outputs.version }}
           enable-cache: true
 
       - name: Install dependencies

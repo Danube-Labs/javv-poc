@@ -37,8 +37,9 @@ datastore:
   opensearch: "3.7.0"
 
 # Gate toolchain (D42 phase 2): tools whose version decides lint/type results, so local MUST
-# match CI. Consumers: development/setup/setup-dev.sh reads these directly; ruff/pyright are also
-# pinned in each pyproject.toml dev-deps (what CI runs via `uv run`) and drift-checked here.
+# match CI. Consumers read these directly (can't drift): development/setup/setup-dev.sh, and CI's
+# setup-uv reads `.toolchain.uv` via yq. ruff/pyright are also pinned in each pyproject.toml
+# dev-deps (what CI runs via `uv run`) and drift-checked here.
 toolchain:
   # renovate: datasource=github-releases depName=astral-sh/uv
   uv: "0.11.25"
