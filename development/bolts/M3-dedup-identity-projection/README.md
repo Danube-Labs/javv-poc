@@ -18,7 +18,7 @@ javv-finding-occurrences, javv-scan-events) · decisions D16, D19, D20, D31, D37
 ## Deliverables
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
 - `backend/app/ingest/merge.py` — partial-doc merge; scanner-field allowlist, human/triage fields untouched (D31, D16).
-- `backend/app/ingest/scan_order.py` — scanner-assigned monotonic scan_order (CronJob `Forbid`); never `@timestamp` (D40).
+- `backend/app/ingest/scan_order.py` + `POST /api/v1/scan-runs` — **backend-allocated** monotonic `scan_order` (**D45** — amends D40's source; never a clock): per-`(cluster_id, scanner)` counter doc CAS in **`javv-scan-orders`** (own tiny mutable index — authoritative, rebuild never touches it; separate from the *derived* watermarks), token-scoped, fail-closed scanner fetch at cycle start (replaces the scanner's `time.time_ns()` mint in `scanner/envelope.py new_scan_run`). **Creates + owns `javv-scan-orders`** (bootstrap template + MAPPING_VERSION bump, same as the watermarks index).
 - `backend/app/ingest/watermark.py` — per-`(cluster,scanner,digest)` `max_committed_scan_order` CAS; guards create AND update (D40). **Creates + owns `javv-scan-watermarks`** (resolves the M3/M8a ownership overlap).
 - `backend/app/ingest/commit.py` — commit-then-cache ordering: append occurrences+images → commit scan-events → merge findings last (D39).
 - `backend/app/ingest/reconcile.py` — reconcile-on-commit: flip `present=false` on findings the new run omits; cache-only, history stays tombstone-free (D37/D38).
@@ -49,16 +49,17 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - Snapshot/occurrence history append → M8a. Point-in-time query → M8b. (M3 maintains the cache + current-state; the append history and time-travel reads are the M8 line.)
 
 ## Before coding
-Pre-split into stacked PRs per [`git-workflow.md`](../../standards/git-workflow.md):
-merge → scan_order/watermark → commit-then-cache → reconcile → staleness → rebuild-state.
+**Read [`CORRECTNESS-CONTRACT.md`](CORRECTNESS-CONTRACT.md) first** — the one-page distillation of every
+rule this bolt must honor (identity keys, ordering, CAS semantics, write order, reconcile, merge
+allowlist, rebuild invariant, the keystone tests). Pre-split into stacked PRs per
+[`git-workflow.md`](../../standards/git-workflow.md):
+**scan-order allocation (D45)** → merge → watermark CAS → commit-then-cache → reconcile → staleness → rebuild-state.
 
-> **Settle the `scan_order` source first (M0 retrospective).** The scanner currently mints `scan_order`
-> from wall-clock `time.time_ns()` (`scanner/src/scanner/envelope.py` `new_scan_run`). It's monotonic on a
-> single host across `Forbid` runs, but **across nodes an NTP step-back can make a newer run's order
-> regress** — at which point this bolt's watermark CAS would (correctly, per D40) reject the newer scan as
-> stale and drop its findings. Fine for single-node MVP; if multi-node scanning is in play, replace the
-> scanner's order source with one that can't regress **before** building the CAS on top of it. D40's
-> "never order by clock" applies to the *source*, not just to not using `@timestamp`.
+> **`scan_order` source — SETTLED (D45, 2026-07-03).** The wall-clock `time.time_ns()` mint is replaced by
+> a **backend-allocated sequence**: `POST /api/v1/scan-runs` CAS-increments a per-`(cluster_id, scanner)`
+> counter doc and returns 1, 2, 3, … — can never regress regardless of node clocks (CronJob pods
+> reschedule across nodes, so "monotonic on one host" was not a safe assumption). Fail-closed like the
+> D43 scope fetch. Built as this bolt's FIRST slice — everything downstream trusts the order.
 
 ## Config tracking
 

@@ -52,8 +52,9 @@ Responses:
 | `javv_ingest_rejected_total` | counter | `reason` | Envelopes rejected — `reason` ∈ `bad_token`, `rate_limited`, `too_large`, `bad_gzip`, `bad_json`, `invalid_envelope`, `scope_mismatch`, `storage_error` |
 | `javv_ingest_findings_written_total` | counter | `scanner` | Finding docs written |
 
-Plus the default `prometheus_client` process/GC gauges. SLO/alerting rules on top of these are a
-later ops concern (no bolt owns it yet — audit gap).
+Plus the default `prometheus_client` process/GC gauges. SLO/alerting rules on top of these are
+**owned by M10** (`prometheus-rules.yaml` in the Helm chart — see the M10 bolt README; gap closed
+2026-07-03).
 
 ## Logging
 

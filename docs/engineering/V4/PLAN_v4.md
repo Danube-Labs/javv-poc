@@ -402,6 +402,24 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   **flag-day** - scanner images and backend upgrade in lockstep (a deploy constraint, noted in M10); the
   backend 422s non-current envelopes by design. Supersedes the old "phase-2 `scanner_config` doc in
   `system-config`" idea. (Closes the #91 arc; joint with #94's effective scope.)
+- **D45 - `scan_order` is backend-allocated (amends D40's *source*; the intent - never a clock - stands).**
+  The M0 scanner minted `scan_order` from wall-clock `time.time_ns()`; monotonic on one host, but CronJob
+  pods reschedule across nodes, and a skewed/stepped node clock could make a **newer** run's order regress -
+  M3's watermark CAS would then (correctly) reject it and **silently drop its findings**. So the ordering
+  key is minted by the **backend**: at cycle start the scanner `POST`s `/api/v1/scan-runs` (token-scoped,
+  **fail-closed** like the D43 scope fetch - backend down → skip the cycle); the backend CAS-increments a
+  per-`(cluster_id, scanner)` counter doc in **`javv-scan-orders`** - a dedicated, tiny mutable index
+  (`#clusters × #scanners` docs, `_seq_no`/`_primary_term`-guarded, no rollover/ISM/retention ever) -
+  and returns the new order. **Separate from `javv-scan-watermarks` on purpose:** watermarks are
+  *derived* state (rebuild-state may wipe + recompute them from the catalog); the counter is
+  *authoritative* (allocated-but-uncommitted orders are invisible to the catalog, so a naive rebuild
+  could re-issue one) - the index boundary makes "rebuild never touches the counter" structural. The
+  counter self-heals only **forward** (if `max(committed) > counter`, bump up; never down). Pure logical
+  (Lamport-style) sequence: 1, 2, 3, … - **can never regress**, independent of any node clock; gaps
+  (allocated-but-crashed cycles) are harmless (monotonicity, not density, is the contract).
+  `@timestamp` stays display-only (D40).
+  Envelope schema unchanged - same `scan_order` field, different mint. Built as M3's first slice (#25);
+  contract page: `development/bolts/M3-dedup-identity-projection/CORRECTNESS-CONTRACT.md`.
 - **Promoted/retained MVP:** per-finding occurrences + point-in-time (now M8); VEX **export** (M6).
 - **Moved to v1.1:** **VEX import** (consuming external VEX into `system-decisions`) - MVP ingests **only
   the scanner JSON envelope**; Jira ticket push; dashboard **builder** (saved views stay the default);
