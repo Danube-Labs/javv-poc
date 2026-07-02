@@ -13,7 +13,7 @@
 | `commit_key` | `hash(cluster_id + scanner + image_digest + scan_run_id)` — the 4-tuple | commit identity on scan-events + occurrence rows (D37/H3) |
 | watermark key | `(cluster_id, scanner, image_digest)` → `max_committed_scan_order` | the create-AND-update guard (D40) |
 | `scan_run_id` | backend/scanner-minted per cycle, unique | groups one cycle's envelopes |
-| `scan_order` | **backend-allocated sequence per `(cluster_id, scanner)` — D45** | THE ordering key. Everywhere. |
+| `scan_order` | **backend-allocated sequence per `(cluster_id, scanner)` — D45; counter doc in `javv-scan-orders`** | THE ordering key. Everywhere. |
 
 `namespaces` is `keyword[]` and is **not** in `finding_key` (a vuln belongs to the image, not the
 namespace — D30). Per-namespace counts overlap by design; only the all-namespaces total is deduped.
@@ -23,9 +23,14 @@ namespace — D30). Per-namespace counts overlap by design; only the all-namespa
 - **Correctness ordering uses `scan_order`, never `@timestamp`** (D40/C-r3). `@timestamp` is display.
 - **`scan_order` is backend-allocated (D45):** scanner `POST /api/v1/scan-runs` at cycle start
   (token-scoped, **fail-closed** — backend down → skip cycle, same as the D43 scope fetch); backend
-  CAS-increments a per-`(cluster_id, scanner)` counter doc (`javv-scan-watermarks`, its own doc kind,
-  `_seq_no`/`_primary_term` guard) → returns 1, 2, 3, … **Never a clock. Can never regress.**
+  CAS-increments a per-`(cluster_id, scanner)` counter doc in **`javv-scan-orders`**
+  (`_seq_no`/`_primary_term` guard) → returns 1, 2, 3, … **Never a clock. Can never regress.**
   Gaps are fine (crashed cycles); density is not the contract, monotonicity is.
+- **`javv-scan-orders` is a separate index from the watermarks, on purpose:** watermarks are *derived*
+  (rebuild may wipe + recompute from the catalog); the counter is *authoritative* (an
+  allocated-but-uncommitted order is invisible to the catalog — a naive rebuild could re-issue it).
+  **rebuild-state never touches `javv-scan-orders`.** Counter self-heals forward only
+  (`max(committed) > counter` → bump up; never down). Mutable family: no rollover/ISM/retention, ever.
 - The catalog ("latest committed run") and "running at T" sort by `scan_order`/`inventory_order`.
 
 ## 3. The watermark CAS — guards CREATE and UPDATE (the D40 keystone)
@@ -88,7 +93,8 @@ Every "now" query filters `cluster_id` + `scanner` + `present=true` + the screen
 From the append logs alone (catalog order, committed runs only), rebuild must reproduce **identical**
 `findings` cache rows *including* the scanner-presence fields (`present`, `last_scan_order`,
 `last_scan_at`, `last_scan_run_id`, `resolved_at`) **and** the watermarks. "Identical" is a test
-assertion (golden), not a code-review opinion.
+assertion (golden), not a code-review opinion. **Rebuild never touches `javv-scan-orders`** (the
+counter is authoritative, not derived — D45); its only self-heal is the forward bump in §2.
 
 ## 10. Keystone tests (each an automated test, not a promise)
 
@@ -100,7 +106,8 @@ assertion (golden), not a code-review opinion.
    create AND update; final state == newer scan regardless of arrival order.
 6. **rebuild-state** reproduces identical cache + presence + watermarks from the logs.
 7. **(D45)** allocation: concurrent `POST /api/v1/scan-runs` never hands out the same order twice;
-   orders strictly increase per `(cluster_id, scanner)`; fail-closed when the backend is down.
+   orders strictly increase per `(cluster_id, scanner)`; fail-closed when the backend is down;
+   rebuild-state leaves `javv-scan-orders` byte-identical (wipe-and-recompute must not reach it).
 
 ## Slice order (stacked PRs, git-workflow.md)
 

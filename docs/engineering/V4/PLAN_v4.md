@@ -408,10 +408,16 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   M3's watermark CAS would then (correctly) reject it and **silently drop its findings**. So the ordering
   key is minted by the **backend**: at cycle start the scanner `POST`s `/api/v1/scan-runs` (token-scoped,
   **fail-closed** like the D43 scope fetch - backend down → skip the cycle); the backend CAS-increments a
-  per-`(cluster_id, scanner)` counter doc (stored in `javv-scan-watermarks` as its own doc kind,
-  `_seq_no`/`_primary_term`-guarded) and returns the new order. Pure logical (Lamport-style) sequence:
-  1, 2, 3, … - **can never regress**, independent of any node clock; gaps (allocated-but-crashed cycles)
-  are harmless (monotonicity, not density, is the contract). `@timestamp` stays display-only (D40).
+  per-`(cluster_id, scanner)` counter doc in **`javv-scan-orders`** - a dedicated, tiny mutable index
+  (`#clusters × #scanners` docs, `_seq_no`/`_primary_term`-guarded, no rollover/ISM/retention ever) -
+  and returns the new order. **Separate from `javv-scan-watermarks` on purpose:** watermarks are
+  *derived* state (rebuild-state may wipe + recompute them from the catalog); the counter is
+  *authoritative* (allocated-but-uncommitted orders are invisible to the catalog, so a naive rebuild
+  could re-issue one) - the index boundary makes "rebuild never touches the counter" structural. The
+  counter self-heals only **forward** (if `max(committed) > counter`, bump up; never down). Pure logical
+  (Lamport-style) sequence: 1, 2, 3, … - **can never regress**, independent of any node clock; gaps
+  (allocated-but-crashed cycles) are harmless (monotonicity, not density, is the contract).
+  `@timestamp` stays display-only (D40).
   Envelope schema unchanged - same `scan_order` field, different mint. Built as M3's first slice (#25);
   contract page: `development/bolts/M3-dedup-identity-projection/CORRECTNESS-CONTRACT.md`.
 - **Promoted/retained MVP:** per-finding occurrences + point-in-time (now M8); VEX **export** (M6).

@@ -17,6 +17,7 @@
 | `javv-metrics-*` *(v1.1)* | append (downsample rollup) | cluster | **yes** | keep long (tiny) |
 | `findings` | mutable current-state ("now" cache) | none (field `cluster_id`) | **no** | `stale`/`present` are **flags**; `delete_by_query` only after a **long** window (D37/M12) |
 | `javv-scan-watermarks` | mutable (per-digest commit pointer) | none (field `cluster_id`) | **no** | bounded by live fleet; prune with `findings` |
+| `javv-scan-orders` | mutable (**authoritative** `scan_order` counter, D45) | none (field `cluster_id`) | **no** | **none, ever** — `#clusters × #scanners` docs; rebuild-state never touches it |
 | `system-decisions` | mutable (source of truth) | none | **no** | none (lifecycle-stamped; kept for time-travel/audit) |
 | `system-users` | mutable | none | **no** | none |
 | `system-roles` | mutable (capability bundles) | none | **no** | none |
@@ -243,6 +244,24 @@ image_digest            keyword
 max_committed_scan_order long     the watermark - guards both create and update of findings (D40/C-r3)
 max_committed_scan_at    date     committed run @timestamp (display)
 schema_version          short
+```
+
+### `javv-scan-orders` - the authoritative `scan_order` allocation counter (D45)
+1 doc per `(cluster_id, scanner)` (`_id = <cluster_id>:<scanner>`) - the backend CAS-increments
+`max_allocated_scan_order` (`_seq_no`/`_primary_term` guard) when the scanner `POST`s
+`/api/v1/scan-runs` at cycle start, and returns the new order (pure Lamport sequence; never a clock,
+never regresses; gaps from crashed cycles are harmless). **Separate from the watermarks on purpose:**
+watermarks are *derived* (rebuild-state wipes + recomputes them from the catalog); this counter is
+*authoritative* - an allocated-but-uncommitted order is invisible to the catalog, so a naive rebuild
+could re-issue it. **rebuild-state never touches this index**; the only self-heal is forward
+(`max(committed) > counter` → bump up, never down). Mutable, no rollover, **no retention ever**;
+snapshot/restored with everything else (M2).
+```
+cluster_id               keyword   tenant filter
+scanner                  keyword
+max_allocated_scan_order long      the counter - strictly increasing per (cluster_id, scanner)
+allocated_at             date      last allocation time (display/ops)
+schema_version           short
 ```
 
 ### `system-decisions` - scoped human decisions (source of truth; lifecycle-stamped for time-travel)
