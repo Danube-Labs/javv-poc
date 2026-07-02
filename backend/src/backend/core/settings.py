@@ -11,6 +11,12 @@ class Settings(BaseSettings):
 
     opensearch_url: str = "http://localhost:9200"
     request_timeout: float = 30.0
+    # ingest hardening (M1). The pepper MUST be set in any real deployment (D38/M14);
+    # the dev default exists only so the app boots locally.
+    token_pepper: str = "dev-only-pepper"
+    ingest_max_compressed_bytes: int = 10 * 1024 * 1024  # 10 MiB on the wire
+    ingest_max_body_bytes: int = 60 * 1024 * 1024  # 60 MiB decompressed (zip-bomb cap)
+    ingest_rate_limit_per_minute: int = 120
 
 
 @lru_cache
