@@ -12,13 +12,26 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import datetime
 from typing import Any
 
+from scanner.config import GrypeConfig
 from scanner.models import Finding, Provenance, ScanResult
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
 
-# Hard cap per image so a hung scanner can't block the cycle forever (TimeoutExpired is then
-# isolated per-image in run.scan_all). The k8s activeDeadlineSeconds belt-and-braces lands in M10.
+# Default hard cap per image (overridable via config.scan_timeout) so a hung scanner can't block the
+# cycle forever (TimeoutExpired is isolated per-image in run.scan_all). k8s activeDeadlineSeconds
+# belt-and-braces lands in M10.
 SCAN_TIMEOUT_SECONDS = 600
+
+
+def grype_command(image_ref: str, config: GrypeConfig) -> list[str]:
+    """Build the grype invocation from config. `-o json` is fixed (the parser depends on it); the
+    default config reproduces the previously-pinned command exactly (#91)."""
+    cmd = ["grype", image_ref, "-o", "json"]
+    if config.only_fixed:
+        cmd.append("--only-fixed")
+    if config.scope:
+        cmd += ["--scope", config.scope]
+    return cmd
 
 
 def _coerce_dt(value: Any) -> datetime | None:
@@ -95,14 +108,17 @@ def parse_grype_provenance(data: Mapping[str, Any]) -> Provenance:
     )
 
 
-def scan_grype(image_ref: str, *, runner: Runner = subprocess.run) -> ScanResult:
+def scan_grype(
+    image_ref: str, *, runner: Runner = subprocess.run, config: GrypeConfig | None = None
+) -> ScanResult:
     """Drive the grype binary against an image ref and parse its JSON output + provenance."""
+    cfg = config or GrypeConfig()
     proc = runner(
-        ["grype", image_ref, "-o", "json"],
+        grype_command(image_ref, cfg),
         capture_output=True,
         text=True,
         check=True,
-        timeout=SCAN_TIMEOUT_SECONDS,
+        timeout=cfg.scan_timeout,
     )
     data = json.loads(proc.stdout)
     return ScanResult(findings=parse_grype(data), provenance=parse_grype_provenance(data))

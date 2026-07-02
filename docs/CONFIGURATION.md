@@ -58,20 +58,19 @@ Source: `scanner/src/scanner/run.py` (tier ②). One CronJob per scanner; statel
 
 ## 3. Trivy — scan parameters ⚠️ (the hardcoding gap)
 
-Source: `scanner/src/scanner/adapters/trivy.py`. **Currently tier ① and literally hardcoded** as a
-constant — the scanner reads no env / `system-config` override for these:
+Source: `scanner/src/scanner/config.py` + `adapters/trivy.py`. **Phase 1 of #91 done:** scan flags are
+now `JAVV_TRIVY_*` env vars (tier ②), each defaulting to the previously-hardcoded value — an unset env
+reproduces the old command exactly. Set them on the scanner CronJob manifest (GitOps). `--format json`
+stays fixed (the parser depends on it). Runtime/UI control is Phase 2 (`system-config` + Settings UI).
 
-```python
-TRIVY_CMD = ["trivy", "image", "--quiet", "--scanners", "vuln", "--format", "json"]
-```
-
-| Parameter | Current value | How to change **today** | UI? (handoff intent) |
+| Env var | Default | Effect | UI? |
 |---|---|---|---|
-| Scanners | `vuln` only | **Edit `TRIVY_CMD` + rebuild image** | ❌ Gap — handoff Settings→Scanners envisions it |
-| Output format | `json` | (fixed — the parser depends on it) | n/a |
-| Severities filter | *(none — all returned; filtered server-side)* | edit code | ❌ Gap |
-| Ignore-unfixed | *(off)* | edit code | ❌ Gap |
-| Package types / layer scope / timeout / concurrency | *(defaults)* | edit code | ❌ Gap |
+| `JAVV_TRIVY_SCANNERS` | `vuln` | `--scanners` (e.g. `vuln,secret,misconfig`) | ✅ Phase 2 (#91) |
+| `JAVV_TRIVY_IGNORE_UNFIXED` | `false` | adds `--ignore-unfixed` | ✅ Phase 2 |
+| `JAVV_TRIVY_SEVERITIES` | *(unset)* | `--severity CRITICAL,HIGH` (unset = all) | ✅ Phase 2 |
+| `JAVV_TRIVY_PKG_TYPES` | *(unset)* | `--pkg-types os,library` | ✅ Phase 2 |
+| `JAVV_TRIVY_TIMEOUT` | *(unset)* | `--timeout 5m0s` (unset = trivy's own default) | ✅ Phase 2 |
+| Output format | `json` | fixed — parser depends on it | n/a |
 | **Trivy version** | `0.71.2` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; DB pulled at scan time | ⚙️ read-only display |
 
@@ -79,14 +78,15 @@ TRIVY_CMD = ["trivy", "image", "--quiet", "--scanners", "vuln", "--format", "jso
 
 ## 4. Grype — scan parameters ⚠️ (same gap)
 
-Source: `scanner/src/scanner/adapters/grype.py`. Drives `grype <image> -o json`; `SCAN_TIMEOUT_SECONDS
-= 600` is hardcoded. Same story as Trivy — no runtime override.
+Source: `scanner/src/scanner/config.py` + `adapters/grype.py`. **Phase 1 of #91 done:** `JAVV_GRYPE_*`
+env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (parser depends on it).
 
-| Parameter | Current value | How to change **today** | UI? (handoff intent) |
+| Env var | Default | Effect | UI? |
 |---|---|---|---|
-| Output format | `json` | (fixed — parser depends on it) | n/a |
-| Scan timeout | `600` s | **edit `SCAN_TIMEOUT_SECONDS` + rebuild** | ❌ Gap |
-| Fail-on / only-fixed / scope / app-update | *(defaults)* | edit code | ❌ Gap — handoff Settings→Scanners envisions it |
+| `JAVV_GRYPE_ONLY_FIXED` | `false` | adds `--only-fixed` | ✅ Phase 2 (#91) |
+| `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers` (unset = grype default) | ✅ Phase 2 |
+| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag) | ✅ Phase 2 |
+| Output format | `json` | fixed — parser depends on it | n/a |
 | **Grype version** | `0.115.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; DB pulled at scan time | ⚙️ read-only display |
 
@@ -124,27 +124,18 @@ home for policy that operators change — no rebuild, no restart.
 
 ---
 
-## 7. The scanner-config gap — how to configure Trivy/Grype before the UI exists
+## 7. Scanner config — status (#91)
 
-**Today there is no supported way** to change scanner scan behavior without editing
-`TRIVY_CMD`/`GRYPE_CMD`/`SCAN_TIMEOUT_SECONDS` in the adapter and rebuilding the image. The v3 handoff
-Settings→Scanners panel *envisions* controlling severities / ignore-unfixed / scope / timeout, but:
+**Phase 1 — done.** Scan-behaviour flags are now `JAVV_TRIVY_*` / `JAVV_GRYPE_*` **env vars** (§3/§4),
+defaulting to the previously-hardcoded values (unset env = identical command). Set them on the scanner
+CronJob manifest — GitOps, no code edit, scanner stays stateless. This closes the immediate hardcoding
+gap for the flags people actually tune.
 
-- **No bolt implements the write-path** (persisting scanner scan-config), and
-- **No bolt implements the read-path** (a stateless CronJob scanner reading that config at runtime).
+**Intentionally still GitOps (never UI):** scanner **version** + **vuln-DB** are build-time
+(`versions.yaml` + Dockerfile `ARG`, tag-swap — D41/D42). "Version select" must never return as a control.
 
-Note some of the v3 panel is **intentionally obsolete** in v4: scanner **version** and **vuln-DB** are
-build-time/GitOps (D41/D42), *not* live UI — so "version select" should never come back as a control.
-But the **scan-behavior** flags (severities, ignore-unfixed, timeout, scope) are legitimate config with
-no owner.
-
-**Recommended path (not yet built — flagged for a future bolt):**
-1. **Short term (fits the CronJob/GitOps model):** promote the hardcoded flags to **env vars** on the
-   scanner (`JAVV_TRIVY_SCANNERS`, `JAVV_TRIVY_IGNORE_UNFIXED`, `JAVV_GRYPE_SCAN_TIMEOUT`, …) with the
-   current values as defaults. Configurable via the CronJob manifest (GitOps) — no code edit, no UI yet.
-2. **Long term (UI):** a `scanner_config` doc in `system-config`, edited via the Settings→Scanners UI;
-   the scanner reads it at cycle start (tier ③). Needs a new bolt to own both the write UI and the
-   scanner read-path — **this is the gap to schedule** if runtime scanner tuning is a product goal.
-
-Until one of those lands, treat scanner scan flags as **build-time config**: change them in the adapter,
-rebuild, and swap the image tag — the same GitOps flow as a version bump.
+**Phase 2 — planned (#91).** Runtime, operator-editable scan config: a `scanner_config` doc in
+`system-config`, a capability-gated write API + Settings→Scanners UI, and the scanner reading it at
+cycle start (tier ③). **⚠️ Needs a canonical decision id first** — a stateless CronJob scanner reading
+config from OpenSearch at runtime departs from D30/D41, so it's recorded in `PLAN_v4`/`SPEC_v4` before
+building. Until Phase 2 lands, scanner tuning is env-var/GitOps only.
