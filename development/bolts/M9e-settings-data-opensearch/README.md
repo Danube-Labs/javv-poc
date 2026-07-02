@@ -47,3 +47,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - Full index-management UI (per-index ILM browser) → v1.x (FR-19 note).
 - Snapshot/restore backend internals + the restore gate → M2 (this bolt is the panel + glue).
 - VEX import config → v1.1.
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

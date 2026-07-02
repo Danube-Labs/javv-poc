@@ -87,3 +87,10 @@ as pure units** (Vitest).
 - Findings grid + triage → M9b. Overview/images/dashboards → M9c. Audit/approvals → M9d. Settings panels → M9e.
 - Global search, bell notifications, saved views, empty/cold-start states → M9f.
 - OpenAPI **breaking-change** classifier (`oasdiff`, AUDIT I8) → CI/process work, not this bolt.
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

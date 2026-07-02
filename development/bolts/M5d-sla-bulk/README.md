@@ -48,3 +48,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - SLA-breach **notifications** (bell) → FR-16 (M6 line); this bolt computes overdue, does not push notifications.
 - Async **report/export** job infrastructure → M7 (`system-reports`); the bulk async path here is triage-apply only.
 - Decision **precedence/projection** mechanics → M5c (consumed, not built here).
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

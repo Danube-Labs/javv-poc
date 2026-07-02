@@ -37,6 +37,11 @@ demonstrated - by an automated test wherever possible.
 - The bolt implemented what the canonical docs say. **A new decision is not invented in code** - if reality
   forces a change, update `PLAN_v4`/`SPEC_v4`/`INDEX-MAP_v4` (with a decision id) *first*, then build.
 - The bolt README's **Deliverables** all exist; **Out of scope** items were genuinely deferred, not silently built.
+- **New config keys are tracked.** If the bolt introduces any configuration knob — a `JAVV_*` or
+  OpenSearch env var, a `system-config` key, or a scanner scan flag — add it to
+  [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md) in the **same PR**: its default, how it's set,
+  and whether it's UI-controllable. That file is the single tracker for every knob; leaving a new key
+  out is config drift.
 
 ## 7. Review & CI
 - `code-review-and-quality` skill pass on the diff.

@@ -89,3 +89,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - Maintaining the `findings` current-state cache / reconcile-on-commit / `present=false` → M3.
 - `javv-images` inventory **row** writes (M8a writes only the *manifest* certifying them) → the image
   ingest path; M8a depends on that bulk having landed before the manifest commits.
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

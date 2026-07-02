@@ -95,3 +95,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - As-of-T read reconstruction that joins decisions-active-at-T into the historical view → M6/M8b
   (M5c maintains the *current* projection cache + the rebuild; the time-travel join is the M6/M8 line).
 - The scanner-field partial-doc merge of `findings` (decisions touch only human/projected fields) → M3.
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).

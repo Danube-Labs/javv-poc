@@ -48,3 +48,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 ## Out of scope (defer)
 - Per-user/role `allowed_cluster_ids` grants → post-MVP (MVP tenant = all-clusters-visible, `cluster_id` is a data filter — D38/H9).
 - Push/websocket notifications → out of scope (no broker, NFR-9).
+
+## Config tracking
+
+> **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
+> `system-config` key, or a scanner scan flag) to
+> [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
+> whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
