@@ -16,6 +16,37 @@ Bootstrap the indexes against a running OpenSearch: `uv run python -m backend.co
 (idempotent + versioned; M1 scope = `findings`, `system-tokens`, and the `javv-scan-events-*` /
 `javv-images-*` templates — watermarks are M3's, occurrences M8a's, audit-log M5a's).
 
+**When it runs:** manual for now; the observability slice wires it into **app startup** (lifespan:
+ping → bootstrap → serve; unreachable = fail fast) — safe every boot because unchanged versions are
+a no-op and the concurrent-create race is handled (the Kibana pattern: version-gated boot-time
+migration). Additive changes = edit INDEX-MAP + bootstrap.py, bump `MAPPING_VERSION`; a field
+**type change** is a reindex migration — never automatic.
+
+## Inspecting OpenSearch by hand
+
+Dev OpenSearch is `http://localhost:9200`, security off. `| jq` prettifies.
+
+```bash
+curl -s 'localhost:9200/_cat/indices/findings,system-tokens,javv-*?v'   # JAVV indices + doc counts
+curl -s 'localhost:9200/findings/_mapping' | jq                         # every field + type
+curl -s 'localhost:9200/_index_template/javv-scan-events' | jq          # per-cluster template
+curl -s 'localhost:9200/findings/_count' | jq                           # doc count
+curl -s 'localhost:9200/findings/_search?size=10' | jq '.hits.hits[]._source'   # first 10 docs
+
+# filter: critical findings in one namespace (array-contains on namespaces[])
+curl -s 'localhost:9200/findings/_search' -H 'Content-Type: application/json' -d '{
+  "query": {"bool": {"filter": [
+    {"term": {"severity": "critical"}},
+    {"term": {"namespaces": "javv-smoke"}},
+    {"term": {"present": true}}
+  ]}}}' | jq '.hits.hits[]._source'
+
+# aggregation: findings per severity (the lc normalizer folds scanner casing)
+curl -s 'localhost:9200/findings/_search?size=0' -H 'Content-Type: application/json' \
+  -d '{"aggs": {"by_severity": {"terms": {"field": "severity"}}}}' \
+  | jq '.aggregations.by_severity.buckets'
+```
+
 Next slices: hardened `POST /api/v1/ingest/scan` (token auth, size/decompression caps,
 `extra="forbid"` full-envelope model) · observability (`/metrics`, structlog `request_id`,
 startup fail-fast + `/readyz` degrade) · OpenSearch service container in CI.
