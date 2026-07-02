@@ -7,14 +7,19 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from backend.models.envelope import SEVERITY_RANK, IngestEnvelope, canonical_severity
+from backend.models.envelope import (
+    SEVERITY_RANK,
+    IngestEnvelope,
+    TrivyTuning,
+    canonical_severity,
+)
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
 
 
 def test_golden_envelope_from_the_real_scanner_validates() -> None:
     env = IngestEnvelope.model_validate(GOLDEN)
-    assert env.scanner == "trivy" and env.schema_version == 2
+    assert env.scanner == "trivy" and env.schema_version == 3
     assert env.namespaces == ["javv-smoke", "team-b"] and env.replicas == 3
     assert len(env.findings) == 29 and env.counts.total == 29
     assert env.scanner_version == "0.71.2"  # provenance survives (D41)
@@ -31,8 +36,9 @@ def test_extra_fields_are_rejected_everywhere() -> None:
 
 
 def test_non_current_schema_version_is_rejected() -> None:  # current-envelope-only (D25/D35)
-    with pytest.raises(ValidationError):
-        IngestEnvelope.model_validate({**GOLDEN, "schema_version": 1})
+    for old in (1, 2):  # v2→v3 is a flag-day (D44) — old scanners 422, deploy in lockstep
+        with pytest.raises(ValidationError):
+            IngestEnvelope.model_validate({**GOLDEN, "schema_version": old})
 
 
 def test_cluster_id_shape_is_enforced() -> None:
@@ -76,3 +82,43 @@ def test_canonical_severity_maps_both_scanners_and_defends_garbage() -> None:
         "negligible": 1,
         "unknown": 0,
     }
+
+
+# --- effective_config (D44/FR-25, schema v3) ----------------------------------
+
+
+def test_golden_envelope_carries_effective_config() -> None:
+    env = IngestEnvelope.model_validate(GOLDEN)
+    assert env.effective_config.scope.ignore_namespaces == ["kube-system"]
+    tuning = env.effective_config.tuning
+    assert isinstance(tuning, TrivyTuning) and tuning.scanners == "vuln"  # trivy shape
+
+
+def test_tuning_shape_must_match_the_scanner() -> None:
+    # a trivy envelope carrying grype tuning (or vice versa) is a lying client — 422
+    grype_tuning = {"only_fixed": False, "scope": None, "scan_timeout": 600}
+    mutated = {**GOLDEN, "effective_config": {**GOLDEN["effective_config"], "tuning": grype_tuning}}
+    with pytest.raises(ValidationError):
+        IngestEnvelope.model_validate(mutated)
+
+
+def test_effective_config_forbids_extras_and_is_required() -> None:
+    for mutation in (
+        {**GOLDEN, "effective_config": {**GOLDEN["effective_config"], "surprise": 1}},
+        {**GOLDEN, "effective_config": None},
+        {k: v for k, v in GOLDEN.items() if k != "effective_config"},
+    ):
+        with pytest.raises(ValidationError):
+            IngestEnvelope.model_validate(mutation)
+
+
+def test_scan_event_doc_carries_the_effective_config() -> None:
+    from backend.services.ingest import build_docs
+
+    docs = build_docs(IngestEnvelope.model_validate(GOLDEN))
+    stamped = docs["scan_event"]["effective_config"]
+    assert stamped["scope"]["ignore_namespaces"] == ["kube-system"]
+    assert stamped["tuning"]["scanners"] == "vuln"
+    # run-level metadata stays off the per-finding and image docs (D44)
+    assert "effective_config" not in docs["findings"][0]
+    assert "effective_config" not in docs["image"]

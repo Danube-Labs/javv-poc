@@ -134,6 +134,9 @@ _SCAN_EVENTS_PROPERTIES: dict[str, Any] = {
     "image_digest": _KW,
     "tag": _KW,
     "app": _KW,
+    # D44/FR-25: what the cycle ran with — stored for display/audit, deliberately NOT indexed
+    # (enabled:false keeps it in _source without mapping churn as tuning knobs evolve)
+    "effective_config": {"type": "object", "enabled": False},
     **{bucket: _INT for bucket in _COUNT_BUCKETS},
     "schema_version": {"type": "short"},
 }

@@ -21,7 +21,9 @@ Everything below `/api/v1` is added by later bolts (read/query APIs M6/M8b, auth
 M5c, exports M7, …) — they'll be listed here as they land.
 
 ### POST `/api/v1/ingest/scan`
-The hardened, untrusted-input surface. Request: a **schema-v2 scanner envelope**, JSON, optionally
+The hardened, untrusted-input surface. Request: a **schema-v3 scanner envelope** (v3 = the D44
+`effective_config` stamp; **current-only** — older schema versions 422, scanner + backend deploy in
+lockstep), JSON, optionally
 `Content-Encoding: gzip`. Auth: `Authorization: Bearer <token>` (256-bit; minted via
 `python -m backend.core.tokens`; stored only as a peppered SHA-256).
 

@@ -23,7 +23,7 @@ append families `javv-finding-occurrences-*` / `javv-scan-events-*` / `javv-imag
 ## Deliverables
 In the layered tree, not here (paths proposed):
 - `frontend/src/views/settings/DataOpenSearchView.vue` — per-`cluster_id` `retention_days`; rollover knobs (doc count / age / size; defaults ~40 GB / 30 d / 50 M docs); snapshot repo + schedule + manual snapshot/restore buttons.
-- `frontend/src/views/settings/ScanningView.vue` — two-timer staleness editor (FR-6/D20); both windows editable; preview of resulting banner behavior. Per-scanner cards show the **read-only running version + DB freshness** (from the ingested `scanner_version`/DB provenance) — **not a version-select control**; the version is changed by swapping the published image tag (D41). Also shows the **read-only effective scan *tuning* flags** (severities/ignore-unfixed/timeout) from the joint schema-v3 `effective_config` envelope stamp (#91) — display only, tuning stays env/GitOps.
+- `frontend/src/views/settings/ScanningView.vue` — two-timer staleness editor (FR-6/D20); both windows editable; preview of resulting banner behavior. Per-scanner cards show the **read-only running version + DB freshness** (from the ingested `scanner_version`/DB provenance) — **not a version-select control**; the version is changed by swapping the published image tag (D41). Also shows the **read-only effective scan *tuning* flags + applied scope** from the `effective_config` stamp (**landed** — D44/FR-25, schema v3): read it off the latest committed scan-event doc's `_source` (the field is `enabled:false` — display-only, not aggregatable). Display only; tuning stays env/GitOps.
 - `frontend/src/views/settings/ScanScopeView.vue` — **Scan scope editor (D43/FR-24, #94)**: per-cluster include/ignore **namespaces**, excluded **image globs**, ignored **kinds** → `PUT /api/v1/scan-scope`. Backend read path + `system-config` storage + interim CLI already shipped (PR #95); this bolt adds the UI + the RBAC-gated **`PUT /api/v1/scan-scope`** (capability-gated, journaled to `system-audit-log`). Semantics are fixed by FR-24: empty include = all, ignore wins, fail-closed scanner fetch.
 - `frontend/src/views/settings/CveAuditView.vue` — CVE-audit panel (per-CVE cross-scanner disagreement / decision provenance, read-side).
 - `frontend/src/composables/useRetentionForm.ts`, `useSnapshotForm.ts` — pure validators/option-builders (unit-tested).
@@ -64,3 +64,6 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   RBAC-gated `PUT /api/v1/scan-scope` (read path + CLI already shipped). The ScanningView per-scanner
   cards additionally display the read-only effective *tuning* flags from the joint schema-v3
   `effective_config` stamp (#91). Mirrored on [#39](https://github.com/Danube-Labs/javv-poc/issues/39).
+- **2026-07-03 — the `effective_config` stamp LANDED (D44/FR-25, schema v3).** Scan-events docs now
+  carry `{tuning, scope}` in `_source` (`enabled:false` — not aggregatable). The per-scanner cards
+  read it from the latest committed scan-event; trivy DB freshness is also populated now (#96).

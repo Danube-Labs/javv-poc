@@ -29,7 +29,10 @@ The actual files/modules this bolt creates - **in the layered tree, not here** (
 - `backend/app/logs/scan_events.py` - build + append the scan-events doc per `(image, scanner, scan)`;
   idempotent `_id = hash(scan_run_id + image_digest + scanner)` (D18); stamps `scan_order` (D40) +
   `commit_key = hash(cluster_id + scanner + image_digest + scan_run_id)` (D37). A **clean scan still
-  writes a doc** with `total:0`.
+  writes a doc** with `total:0`. Since schema v3 the doc also carries **`effective_config`** (D44/FR-25
+  - what the cycle ran with; `enabled:false` in the mapping, `_source`-only) — **preserve it** when this
+  bolt takes ownership of the doc builder + mapping (both live in M1's `services/ingest.py` +
+  `core/bootstrap.py` today).
 - `backend/app/logs/severity_counts.py` - per-scan severity bucket counts
   (`crit/high/med/low/negligible/unknown/total/fixable`); enforces the **`total = Σ buckets`** invariant.
 - `backend/app/logs/disagreement.py` - precompute (a) per-finding **severity** disagreement flag and

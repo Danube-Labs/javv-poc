@@ -13,11 +13,13 @@ import pytest
 from scanner import run
 from scanner.adapters.grype import scan_grype
 from scanner.adapters.trivy import TrivyDbInfo, scan_trivy, trivy_db_info
+from scanner.config import GrypeConfig, TrivyConfig
 from scanner.discovery import ImageTarget, Location
-from scanner.envelope import Envelope
+from scanner.envelope import EffectiveConfig, Envelope
 from scanner.models import Finding, Provenance, ScanResult
 from scanner.push import PushResult
 from scanner.run import scan_all
+from scanner.scope import ScanScope
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -126,7 +128,7 @@ def test_scan_all_stamps_observed_topology_from_discovery() -> None:
     assert env.image_ref == "nginx:1.21.6"
     assert env.namespaces == ["team-a", "team-b"]  # sorted distinct
     assert env.replicas == 3  # three running pods
-    assert env.schema_version == 2
+    assert env.schema_version == 3
 
 
 def test_scan_all_isolates_a_failing_image_and_finishes_the_cycle() -> None:
@@ -243,3 +245,39 @@ def test_scan_trivy_stamps_the_cycle_db_info_into_provenance() -> None:
     assert result.provenance.scanner_version == "0.71.2"  # still from the scan report
     assert result.provenance.db_version == "2"
     assert result.provenance.db_built == db.built
+
+
+# --- effective_config stamp (D44/FR-25, schema v3) ----------------------------
+
+
+def test_scan_all_stamps_effective_config_and_schema_v3() -> None:
+    cfg = EffectiveConfig(
+        tuning=TrivyConfig(severities="CRITICAL,HIGH"),
+        scope=ScanScope(ignore_namespaces=("kube-system",)),
+    )
+    pushed: list[Envelope] = []
+
+    def push_fn(env: Envelope) -> PushResult:
+        pushed.append(env)
+        return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+    scan_all(
+        [target("sha256:a", "img:1")],
+        scanner="trivy",
+        cluster_id="c",
+        scan_fn=lambda ref: ScanResult(),
+        push_fn=push_fn,
+        effective_config=cfg,
+    )
+    env = pushed[0]
+    assert env.schema_version == 3
+    assert env.effective_config is not None
+    dumped = env.effective_config.model_dump()
+    assert dumped["tuning"]["severities"] == "CRITICAL,HIGH"
+    assert dumped["scope"]["ignore_namespaces"] == ("kube-system",)
+
+
+def test_effective_config_serializes_grype_tuning_distinctly() -> None:
+    cfg = EffectiveConfig(tuning=GrypeConfig(only_fixed=True), scope=ScanScope())
+    dumped = cfg.model_dump()
+    assert dumped["tuning"] == {"only_fixed": True, "scope": None, "scan_timeout": 600}

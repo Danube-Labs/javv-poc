@@ -146,6 +146,8 @@ from the backend** (`GET /api/v1/scan-scope`) at cycle start — never reads Ope
 **fail-closed** (backend down → skip the cycle; fetched-empty → scan all). This is the backend-mediated
 pattern D43 blesses; scanner **tuning** flags deliberately do **not** use it (they stay env/GitOps).
 
-**Scanner tuning in the UI = read-only (planned, #91).** The effective *tuning* flags will be surfaced
-read-only by stamping them into the envelope (a later joint schema-v3 with the scan-scope effective
-stamp) — display, not control. There is no `scanner_config` write path; tuning stays env-var/GitOps.
+**Scanner tuning in the UI = read-only (shipped, D44/#91).** Every envelope (schema **v3**) stamps
+`effective_config` — the effective *tuning* flags + the *scope* applied that cycle — persisted on
+scan-events for the M9e per-scanner cards and audit. Display, not control: there is no
+`scanner_config` write path; tuning stays env-var/GitOps. The v2→v3 bump is a **flag-day**: scanner
+images and backend deploy in lockstep (older envelopes 422 by design).
