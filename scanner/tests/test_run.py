@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from scanner.adapters.grype import scan_grype
-from scanner.adapters.trivy import TRIVY_CMD, scan_trivy
+from scanner.adapters.trivy import scan_trivy
 from scanner.discovery import ImageTarget, Location
 from scanner.envelope import Envelope
 from scanner.models import Finding, Provenance, ScanResult
@@ -41,8 +41,10 @@ def target(digest: str, ref: str) -> ImageTarget:
 
 def test_scan_trivy_runs_pinned_command_parses_and_stamps_version() -> None:
     out = (FIXTURES / "trivy-python-3.9.16-slim.json").read_text()
-    expect = [*TRIVY_CMD, "python:3.9.16-slim"]
-    result = scan_trivy("python:3.9.16-slim", runner=runner_returning(out, expect))
+    # default config → the previously-pinned command, verbatim (#91 no-behaviour-change contract)
+    img = "python:3.9.16-slim"
+    expect = ["trivy", "image", "--quiet", "--scanners", "vuln", "--format", "json", img]
+    result = scan_trivy(img, runner=runner_returning(out, expect))
     assert len(result.findings) > 0
     assert all(isinstance(f, Finding) for f in result.findings)
     assert result.provenance.scanner_version == "0.71.2"  # from Trivy.Version

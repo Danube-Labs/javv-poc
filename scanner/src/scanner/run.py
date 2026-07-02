@@ -63,6 +63,7 @@ def main() -> int:
 
     from scanner.adapters.grype import scan_grype
     from scanner.adapters.trivy import scan_trivy
+    from scanner.config import GrypeConfig, TrivyConfig
 
     scanner: Scanner = os.environ.get("JAVV_SCANNER", "trivy")  # type: ignore[assignment]
     backend = os.environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
@@ -79,7 +80,15 @@ def main() -> int:
     # kubernetes-client return types are untyped unions; cast for the attribute access.
     kube_system = cast(Any, api.read_namespace("kube-system"))
     cluster_id = os.environ.get("JAVV_CLUSTER_ID") or str(kube_system.metadata.uid)
-    scan_fn: ScanFn = {"trivy": scan_trivy, "grype": scan_grype}[scanner]
+
+    # scan-behaviour config from JAVV_TRIVY_*/JAVV_GRYPE_* env (#91); defaults = the pinned command.
+    scan_fn: ScanFn
+    if scanner == "trivy":
+        trivy_cfg = TrivyConfig.from_env()
+        scan_fn = lambda ref: scan_trivy(ref, config=trivy_cfg)  # noqa: E731
+    else:
+        grype_cfg = GrypeConfig.from_env()
+        scan_fn = lambda ref: scan_grype(ref, config=grype_cfg)  # noqa: E731
 
     targets = discover(api)
     with httpx.Client(base_url=backend, timeout=30.0) as http:

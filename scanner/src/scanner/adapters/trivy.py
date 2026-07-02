@@ -10,16 +10,31 @@ import subprocess
 from collections.abc import Callable, Mapping
 from typing import Any
 
+from scanner.config import TrivyConfig
 from scanner.models import Finding, Provenance, ScanResult
-
-# Pinned scanner flags; the pinned binary version lives in Dockerfile.trivy.
-TRIVY_CMD = ["trivy", "image", "--quiet", "--scanners", "vuln", "--format", "json"]
 
 # Hard cap per image so a hung scanner can't block the cycle forever (TimeoutExpired is then
 # isolated per-image in run.scan_all). The k8s activeDeadlineSeconds belt-and-braces lands in M10.
 SCAN_TIMEOUT_SECONDS = 600
 
 Runner = Callable[..., "subprocess.CompletedProcess[str]"]
+
+
+def trivy_command(image_ref: str, config: TrivyConfig) -> list[str]:
+    """Build the trivy invocation from config. `--format json` is fixed (the parser depends on it);
+    the default config reproduces the previously-pinned command exactly (#91). Optional flags are
+    appended in a deterministic order so the command is stable/testable."""
+    cmd = ["trivy", "image", "--quiet", "--scanners", config.scanners, "--format", "json"]
+    if config.ignore_unfixed:
+        cmd.append("--ignore-unfixed")
+    if config.severities:
+        cmd += ["--severity", config.severities]
+    if config.pkg_types:
+        cmd += ["--pkg-types", config.pkg_types]
+    if config.timeout:
+        cmd += ["--timeout", config.timeout]
+    cmd.append(image_ref)
+    return cmd
 
 
 def _cvss(cvss: Any) -> float | None:
@@ -70,10 +85,12 @@ def parse_trivy_provenance(data: Mapping[str, Any]) -> Provenance:
     return Provenance(scanner_version=version or None)
 
 
-def scan_trivy(image_ref: str, *, runner: Runner = subprocess.run) -> ScanResult:
+def scan_trivy(
+    image_ref: str, *, runner: Runner = subprocess.run, config: TrivyConfig | None = None
+) -> ScanResult:
     """Drive the trivy binary against an image ref and parse its JSON output + provenance."""
     proc = runner(
-        [*TRIVY_CMD, image_ref],
+        trivy_command(image_ref, config or TrivyConfig()),
         capture_output=True,
         text=True,
         check=True,
