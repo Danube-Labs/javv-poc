@@ -46,6 +46,8 @@ The actual files/modules this bolt creates - **in the layered tree, not here** (
 - `backend/app/indices/occurrences_template.py` + `occurrences_ism.py` - **owns** the
   `javv-finding-occurrences-<cluster_id>-*` template (`dynamic:false`, INDEX-MAP fields, 1 primary
   shard, monthly rollover) + ISM (size/age/docs rollover, per-cluster drop-whole-index retention).
+  **Register the template through `backend/core/bootstrap.py` (+ `MAPPING_VERSION` bump — the
+  versioned boot-time bootstrap from M1); the ISM policy module can stay separate.**
 - `backend/app/indices/inventory_runs_template.py` + `inventory_runs_ism.py` - **owns** the
   `javv-inventory-runs-<cluster_id>-*` template (`dynamic:false`) + ISM. (Both resolve AUDIT **I1**.)
 

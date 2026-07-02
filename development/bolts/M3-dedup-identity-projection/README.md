@@ -25,7 +25,9 @@ The actual files/modules this bolt creates — **in the layered tree, not here**
 - `backend/app/projection/engine.py` — projection-on-new-only (D19).
 - `backend/jobs/staleness.py` — two-timer staleness (D20).
 - `backend/jobs/rebuild_state.py` — rebuild-state self-heal: rebuilds findings + scanner-presence cache from append logs (D40).
-- Index template for `javv-scan-watermarks` (`dynamic:false`).
+- Index template for `javv-scan-watermarks` (`dynamic:false`) — **register it in
+  `backend/core/bootstrap.py` + bump `MAPPING_VERSION`** (the versioned boot-time bootstrap from M1);
+  don't hand-roll a separate creation path.
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test, not a promise):

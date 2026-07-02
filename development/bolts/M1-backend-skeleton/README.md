@@ -22,7 +22,10 @@ The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/re
   (injected via `Depends`, `await`-closed on shutdown). **Boot vs runtime** (per
   [`standards/observability.md`](../../standards/observability.md)): **fail-fast at startup** (clear error,
   non-zero exit) if OpenSearch is unreachable; but at **runtime** the app **stays up and degrades** - data
-  endpoints return the 503 envelope and `/readyz` flips to `503`, never crash.
+  endpoints return the 503 envelope and `/readyz` flips to `503`, never crash. **Startup also runs
+  `core/bootstrap.py`** (ping → bootstrap → serve, the Kibana pattern): idempotent/version-gated so every
+  boot is a no-op when current, and the concurrent-create race is already handled — wire this in the
+  observability slice, don't leave bootstrap manual-only.
 - `backend/core/errors.py` - the **single error envelope** (problem-details: `type/title/status/detail/request_id`)
   + exception handlers; **every** non-2xx response uses it (routers never hand-roll error bodies). `request_id`
   is bound into structlog so a client error maps to exact logs.

@@ -25,6 +25,11 @@ In the deploy tree, not here (paths proposed):
 - `deploy/helm/javv/templates/scanner-rbac.yaml` — least-priv scanner ServiceAccount/Role (read-only workloads; namespace-scoped Secret read — NFR-3).
 - `deploy/helm/javv/templates/cronjob-*.yaml` — staleness/rebuild-state/export/snapshot jobs, all `Forbid`.
 - `deploy/runbooks/opensearch-sizing.md`, `reindex-migration.md` (D25), `ha-multipod.md` (D23), `rollback.md`.
+  **Index bootstrap in k8s:** the API pod runs `backend/core/bootstrap.py` at startup (idempotent,
+  version-gated, multi-pod-race-safe) — the default; if least-priv ever demands API pods that can't
+  write mappings, move it to a Helm pre-install/pre-upgrade hook Job instead. Either way,
+  **reindex-class migrations (field type changes) are never automatic at boot** — that's the
+  `reindex-migration.md` runbook, an explicit operator job.
 - VEX export finalization (FR-22): OpenVEX/CycloneDX serialization verified consumable by Trivy/Grype `--vex`.
 - Attribution / NOTICE.
 

@@ -18,6 +18,9 @@ decisions D33 (capability RBAC + `can_accept_audit_final`), D38/M14 (peppered SH
 
 ## Depends on
 - M1 (index bootstrap + `AsyncOpenSearch` `lifespan` client + ingest-token surface to harden).
+  **`system-tokens` already exists in `backend/core/bootstrap.py`; add `system-users` /
+  `system-roles` / `system-sessions` there (+ `MAPPING_VERSION` bump) — the versioned boot-time
+  bootstrap, not a separate creation path.**
 
 ## Deliverables
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
