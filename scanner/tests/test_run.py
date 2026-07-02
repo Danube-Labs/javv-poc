@@ -7,6 +7,9 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+import pytest
+
+from scanner import run
 from scanner.adapters.grype import scan_grype
 from scanner.adapters.trivy import scan_trivy
 from scanner.discovery import ImageTarget, Location
@@ -184,3 +187,12 @@ def test_scan_all_with_no_targets_pushes_nothing() -> None:
         )
         == []
     )
+
+
+def test_main_rejects_unknown_scanner_before_doing_anything(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # a typo'd JAVV_SCANNER must not silently run grype (#97)
+    monkeypatch.setenv("JAVV_SCANNER", "trvy")
+    assert run.main() == 2
+    assert "JAVV_SCANNER" in capsys.readouterr().err

@@ -2,6 +2,8 @@
 reproduces the previously-hardcoded command exactly (no behaviour change), and each JAVV_* override
 is reflected in the built command. Pure builders — no subprocess."""
 
+import pytest
+
 from scanner.adapters.grype import grype_command
 from scanner.adapters.trivy import trivy_command
 from scanner.config import GrypeConfig, TrivyConfig
@@ -94,3 +96,9 @@ def test_flag_parsing_is_lenient_but_safe() -> None:
     assert TrivyConfig.from_env({"JAVV_TRIVY_IGNORE_UNFIXED": "TRUE"}).ignore_unfixed is True
     assert TrivyConfig.from_env({"JAVV_TRIVY_IGNORE_UNFIXED": "0"}).ignore_unfixed is False
     assert TrivyConfig.from_env({"JAVV_TRIVY_IGNORE_UNFIXED": "maybe"}).ignore_unfixed is False
+
+
+def test_grype_garbage_timeout_fails_fast_with_the_env_name() -> None:
+    # a typo'd timeout must not surface as a bare int() ValueError traceback (#97)
+    with pytest.raises(ValueError, match="JAVV_GRYPE_SCAN_TIMEOUT.*'abc'"):
+        GrypeConfig.from_env({"JAVV_GRYPE_SCAN_TIMEOUT": "abc"})

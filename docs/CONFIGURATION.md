@@ -48,7 +48,7 @@ Source: `scanner/src/scanner/run.py` (tier ②). One CronJob per scanner; statel
 
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
-| `JAVV_SCANNER` | `trivy` | Which scanner this pod runs (`trivy`\|`grype`). Also baked into each image's `ENV`. | ⚙️ GitOps (per-image) |
+| `JAVV_SCANNER` | `trivy` | Which scanner this pod runs (`trivy`\|`grype`). Also baked into each image's `ENV`. Any other value → exit 2 with an error (never silently falls back, #97). | ⚙️ GitOps (per-image) |
 | `JAVV_BACKEND_URL` | `http://localhost:8000` | Backend ingest endpoint | n/a (deploy) |
 | `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). **Effectively required** — since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed). | 🔒 secret |
 | `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity; defaults to the immutable `kube-system` namespace UID (never `cluster_name`). | n/a (deploy) |
@@ -85,7 +85,7 @@ env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (pa
 |---|---|---|---|
 | `JAVV_GRYPE_ONLY_FIXED` | `false` | adds `--only-fixed` | ✅ Phase 2 (#91) |
 | `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers` (unset = grype default) | ✅ Phase 2 |
-| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag) | ✅ Phase 2 |
+| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag); non-integer → fail-fast with a clear error (#97) | ✅ Phase 2 |
 | Output format | `json` | fixed — parser depends on it | n/a |
 | **Grype version** | `0.115.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; DB pulled at scan time | ⚙️ read-only display |

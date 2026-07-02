@@ -52,8 +52,14 @@ class GrypeConfig:
     @classmethod
     def from_env(cls, environ: Environ = os.environ) -> "GrypeConfig":
         raw = environ.get("JAVV_GRYPE_SCAN_TIMEOUT", "").strip()
+        try:
+            scan_timeout = int(raw) if raw else 600
+        except ValueError:
+            raise ValueError(
+                f"invalid JAVV_GRYPE_SCAN_TIMEOUT: {raw!r} (want whole seconds, e.g. 600)"
+            ) from None
         return cls(
             only_fixed=_flag(environ, "JAVV_GRYPE_ONLY_FIXED"),
             scope=_opt(environ, "JAVV_GRYPE_SCOPE"),
-            scan_timeout=int(raw) if raw else 600,
+            scan_timeout=scan_timeout,
         )

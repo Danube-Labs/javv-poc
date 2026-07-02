@@ -66,7 +66,11 @@ def main() -> int:
     from scanner.adapters.trivy import scan_trivy
     from scanner.config import GrypeConfig, TrivyConfig
 
-    scanner: Scanner = os.environ.get("JAVV_SCANNER", "trivy")  # type: ignore[assignment]
+    scanner_env = os.environ.get("JAVV_SCANNER", "trivy")
+    if scanner_env not in ("trivy", "grype"):  # a typo must not silently run grype (#97)
+        print(f"unknown JAVV_SCANNER: {scanner_env!r} (want trivy|grype)", file=sys.stderr)
+        return 2
+    scanner: Scanner = cast(Scanner, scanner_env)
     backend = os.environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
     # bearer token — effectively required: without it the scope fetch 401s and every cycle skips
     token = os.environ.get("JAVV_TOKEN")
