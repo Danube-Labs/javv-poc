@@ -31,6 +31,13 @@ In the deploy tree, not here (paths proposed):
   **reindex-class migrations (field type changes) are never automatic at boot** — that's the
   `reindex-migration.md` runbook, an explicit operator job.
 - VEX export finalization (FR-22): OpenVEX/CycloneDX serialization verified consumable by Trivy/Grype `--vex`.
+- `deploy/helm/javv/templates/prometheus-rules.yaml` — **SLO/alert rules on the M1 ingest metrics**
+  (closes the audit gap flagged in `docs/API.md` §Metrics): sustained `javv_ingest_rejected_total`
+  growth by `reason` (esp. `bad_token`/`invalid_envelope` — a misconfigured or version-skewed scanner),
+  `javv_ingest_accepted_total` **flat while the fleet runs** (scanner silent = the two-timer staleness
+  signal, seen from the ops side), `storage_error` spikes (OpenSearch backpressure). Gated behind a
+  Helm value (`monitoring.prometheusRules.enabled`) so clusters without the Prometheus operator still
+  install cleanly.
 - Attribution / NOTICE.
 
 ## Definition of Done
