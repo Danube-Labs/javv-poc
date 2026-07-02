@@ -48,7 +48,14 @@ JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://localhost:8000 JAVV_TOKEN="$TOKEN" \
 curl -s 'localhost:9200/findings/_search?size=0' -H 'Content-Type: application/json' \
   -d "{\"query\":{\"term\":{\"cluster_id\":\"$CID\"}},
        \"aggs\":{\"sev\":{\"terms\":{\"field\":\"severity\"}}}}" | jq '.aggregations.sev.buckets'
+
+# 6. observability: counters incremented, and the OpenAPI/Swagger UI
+curl -s localhost:8000/metrics | grep javv_ingest_          # accepted/rejected/findings_written
+open http://localhost:8000/docs                             # live API reference (or /openapi.json)
 ```
+
+The full HTTP surface + metrics are documented in [`docs/API.md`](../docs/API.md); `/docs` is the
+live source of truth.
 
 Failure modes worth testing by hand: no/garbage token → **401** (generic); a token minted for
 `grype` pushing a trivy envelope → **403** (scope binding); a >10 MiB compressed body or a zip

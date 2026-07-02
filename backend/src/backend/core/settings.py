@@ -11,6 +11,9 @@ class Settings(BaseSettings):
 
     opensearch_url: str = "http://localhost:9200"
     request_timeout: float = 30.0
+    # startup contract: ping OpenSearch + run bootstrap before serving (fail-fast). Unit tests that
+    # run the app without an OpenSearch set this false.
+    bootstrap_on_startup: bool = True
     # ingest hardening (M1). The pepper MUST be set in any real deployment (D38/M14);
     # the dev default exists only so the app boots locally.
     token_pepper: str = "dev-only-pepper"

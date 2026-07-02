@@ -1,19 +1,25 @@
-"""App lifespan: hold the single `AsyncOpenSearch` client for the process, injected via the app
-state and `await`-closed on shutdown (STACK-BEST-PRACTICES: one client, no per-request clients).
+"""App lifespan: hold the single `AsyncOpenSearch` client for the process (STACK-BEST-PRACTICES:
+one client, no per-request clients), and enforce the boot contract (observability.md):
 
-Note: the client is created lazily-connecting — constructing it does not open a socket, so the app
-boots without OpenSearch. Startup fail-fast (clear error + non-zero exit when unreachable) and the
-`/readyz` degrade path land with the observability/bootstrap slice; kept out of the skeleton so the
-Backend CI job stays green before an OpenSearch service container is wired.
+  ping OpenSearch → run the versioned index bootstrap → serve.
+
+**Fail-fast at startup** (D9): if OpenSearch is unreachable at boot, raise — the process exits
+non-zero with a clear message rather than serving a broken app. At *runtime* the app stays up and
+degrades (`/readyz` → 503) instead of crashing. Set `JAVV_BOOTSTRAP_ON_STARTUP=false` to skip the
+ping+bootstrap (used by unit tests that run the app without an OpenSearch).
 """
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+import structlog
 from fastapi import FastAPI
 from opensearchpy import AsyncOpenSearch
 
+from backend.core.bootstrap import bootstrap
 from backend.core.settings import get_settings
+
+log = structlog.get_logger()
 
 
 @asynccontextmanager
@@ -21,6 +27,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
     app.state.opensearch = client
+
+    if settings.bootstrap_on_startup:
+        try:
+            await client.info()  # fail-fast: unreachable OpenSearch at boot is fatal
+        except Exception as exc:
+            await client.close()
+            raise RuntimeError(
+                f"OpenSearch unreachable at startup ({settings.opensearch_url}): {exc!r}"
+            ) from exc
+        results = await bootstrap(client)  # idempotent + version-gated (Kibana pattern)
+        log.info("bootstrap complete", indexes=results)
+
     try:
         yield
     finally:
