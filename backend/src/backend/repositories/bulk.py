@@ -2,6 +2,7 @@
 strict: always inspect `response["errors"]` + per-item status; retry ONLY 429/503 items with
 exponential backoff + full jitter; anything else raises. sleep/rng injected for tests."""
 
+import asyncio
 import random
 from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
@@ -19,10 +20,6 @@ class BulkError(Exception):
         super().__init__(f"bulk write failed for {len(items)} item(s)")
 
 
-async def _noop_sleep(_: float) -> None:  # replaced in prod wiring; injected in tests
-    return None
-
-
 async def bulk_write(
     client: AsyncOpenSearch,
     actions: Sequence[dict[str, Any]],
@@ -35,7 +32,7 @@ async def bulk_write(
     """Submit action/doc pairs; return docs written. Retries 429/503 items; raises BulkError."""
     if not actions:
         return 0
-    sleep = sleep or _noop_sleep
+    sleep = sleep or asyncio.sleep  # real backoff in prod; tests inject a no-op (M-4)
     rng = rng or random.Random()
     pending = list(actions)
     written = 0
