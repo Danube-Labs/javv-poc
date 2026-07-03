@@ -18,7 +18,9 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.core.bootstrap import bootstrap
 from backend.models.envelope import IngestEnvelope
+from backend.repositories.bulk import bulk_write
 from backend.services.ingest import build_docs, ingest_envelope
+from backend.services.merge import merge_action
 from backend.services.watermarks import _doc_id, advance_watermark
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
@@ -207,3 +209,55 @@ async def test_out_of_order_scan_does_not_create_a_retired_finding(real_os) -> N
         index=index, body={"query": {"terms": {"finding_key": list(ghost_keys)}}, "size": 0}
     )
     assert hits["hits"]["total"]["value"] == 0
+
+
+# --- T-1: the per-doc merge guard closes the watermark check-then-write TOCTOU (audit M-1) ---
+
+
+@requires_opensearch
+async def test_delayed_stale_merge_never_overwrites_a_newer_finding(real_os) -> None:
+    client, prefix = real_os
+    index = f"{prefix}findings"
+    # both scans pass the watermark (A=5 before B=6 bumps it) — the watermark can't stop A's cache
+    # write anymore; only the per-doc merge guard can. Reproduce the interleave deterministically.
+    await advance_watermark(
+        client, CLUSTER, "trivy", DIGEST, 5, "2026-07-03T00:00:00Z", prefix=prefix
+    )
+    await advance_watermark(
+        client, CLUSTER, "trivy", DIGEST, 6, "2026-07-03T00:00:00Z", prefix=prefix
+    )
+
+    newer = build_docs(_env(6, "run-b"))["findings"][
+        0
+    ]  # B's cache write (scan_order 6) lands first
+    older = build_docs(_env(5, "run-a"))["findings"][
+        0
+    ]  # A's delayed cache write (scan_order 5) last
+    fk = newer["finding_key"]
+    assert fk == older["finding_key"]
+
+    await bulk_write(client, list(merge_action(newer, index=index)))
+    await bulk_write(client, list(merge_action(older, index=index)))  # arrives out of order
+    await client.indices.refresh(index=index)
+
+    row = (await client.get(index=index, id=fk))["_source"]
+    assert (
+        row["last_scan_order"] == 6
+    )  # A's stale merge no-op'd — newer scan wins regardless of order
+
+
+@requires_opensearch
+async def test_newer_merge_does_apply(real_os) -> None:
+    client, prefix = real_os
+    index = f"{prefix}findings"
+    fk = build_docs(_env(5, "r"))["findings"][0]["finding_key"]
+    await bulk_write(
+        client, list(merge_action(build_docs(_env(5, "r"))["findings"][0], index=index))
+    )
+    await bulk_write(
+        client, list(merge_action(build_docs(_env(8, "r"))["findings"][0], index=index))
+    )
+    await client.indices.refresh(index=index)
+    assert (await client.get(index=index, id=fk))["_source"][
+        "last_scan_order"
+    ] == 8  # strictly newer

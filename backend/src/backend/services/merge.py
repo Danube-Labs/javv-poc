@@ -37,13 +37,29 @@ SCANNER_FIELDS = frozenset(
 # human/triage-owned — ingest NEVER writes these on an existing doc (D31)
 HUMAN_FIELDS = frozenset({"state", "vex_justification", "assignee", "notes", "pre_stale_status"})
 
+# newer-scan-wins per-doc guard (D40/audit M-1): on an EXISTING doc, apply the scanner fields only
+# when strictly newer (`scan_order > last_scan_order`); else no-op. Closes the resurrection the
+# per-digest watermark's check-then-write can't — `advance_watermark` and this cache write are
+# separate awaits, so a delayed/out-of-order merge could otherwise overwrite a newer scan's row. On
+# first sight the doc is absent, so the `upsert` inserts as-is (the script never runs for the create
+# path — the watermark guards creates). `first_seen_at` is upsert-only either way.
+_MERGE_SCRIPT = (
+    "if (ctx._source.last_scan_order != null && params.f.last_scan_order != null "
+    "&& params.f.last_scan_order <= ctx._source.last_scan_order) { ctx.op = 'noop'; return; } "
+    "for (entry in params.f.entrySet()) { ctx._source[entry.getKey()] = entry.getValue(); }"
+)
+
 
 def merge_action(doc: dict[str, Any], *, index: str) -> tuple[dict[str, Any], dict[str, Any]]:
-    """The `_bulk` update pair for one findings doc: partial `doc` = scanner fields only;
-    `upsert` = the full doc (identity + `first_seen_at` + initial human state) for first sight."""
+    """The `_bulk` update pair for one findings doc: a scripted update that refreshes the scanner
+    fields only when the scan is newer (M-1 guard); `upsert` seeds the full doc (identity +
+    `first_seen_at` + initial human state) on first sight."""
     partial = {k: v for k, v in doc.items() if k in SCANNER_FIELDS}
     partial["resolved_at"] = None  # re-appearance clears resolved-by-scan (presence family)
     return (
         {"update": {"_index": index, "_id": doc["finding_key"]}},
-        {"doc": partial, "upsert": {**doc, "resolved_at": None}},
+        {
+            "script": {"lang": "painless", "source": _MERGE_SCRIPT, "params": {"f": partial}},
+            "upsert": {**doc, "resolved_at": None},
+        },
     )

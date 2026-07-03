@@ -33,12 +33,21 @@ def test_merge_action_updates_scanner_fields_only() -> None:
     doc = _one_finding_doc()
     action, body = merge_action(doc, index="findings")
     assert action == {"update": {"_index": "findings", "_id": doc["finding_key"]}}
-    # the partial "doc" carries scanner fields only — no human field, ever
-    assert set(body["doc"]) <= SCANNER_FIELDS
-    assert not (set(body["doc"]) & HUMAN_FIELDS)
+    # the scripted-update params carry scanner fields only — no human field, ever
+    fields = body["script"]["params"]["f"]
+    assert set(fields) <= SCANNER_FIELDS
+    assert not (set(fields) & HUMAN_FIELDS)
     # first_seen_at is upsert-only: a re-scan must never move it (D37/M13)
-    assert "first_seen_at" not in body["doc"]
+    assert "first_seen_at" not in fields
     assert body["upsert"]["first_seen_at"] == doc["first_seen_at"]
+
+
+def test_merge_action_guards_on_scan_order() -> None:
+    # the script is the newer-scan-wins per-doc guard (M-1): no-op when not strictly newer
+    _, body = merge_action(_one_finding_doc(), index="findings")
+    src = body["script"]["source"]
+    assert "ctx.op = 'noop'" in src
+    assert "last_scan_order" in src
 
 
 def test_merge_action_upsert_seeds_the_full_doc_with_initial_human_state() -> None:
@@ -51,8 +60,9 @@ def test_merge_action_upsert_seeds_the_full_doc_with_initial_human_state() -> No
 def test_reappearance_clears_resolved_at() -> None:
     # presence-field family moves together (§7/§9): present→true must null resolved_at
     _, body = merge_action(_one_finding_doc(), index="findings")
-    assert body["doc"]["present"] is True
-    assert body["doc"]["resolved_at"] is None
+    fields = body["script"]["params"]["f"]
+    assert fields["present"] is True
+    assert fields["resolved_at"] is None
 
 
 def test_the_allowlists_partition_the_findings_doc() -> None:

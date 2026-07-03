@@ -100,9 +100,10 @@ async def test_happy_path_writes_in_commit_then_cache_order() -> None:
     assert len(fake.bulks) == 3  # images → scan-events → findings (D39 order)
     assert fake.bulks[0][0]["index"]["_index"].startswith(f"javv-images-{CLUSTER}")
     assert fake.bulks[1][0]["index"]["_index"].startswith(f"javv-scan-events-{CLUSTER}")
-    # findings are partial-doc merges (D31, M3 slice 2) — update ops, never full index
+    # findings are scripted-merge updates (D31 + M-1 guard) — update ops, never full index
     assert fake.bulks[2][0]["update"]["_index"] == "findings"
-    assert "state" not in fake.bulks[2][1]["doc"]  # human fields never in the partial doc
+    fields = fake.bulks[2][1]["script"]["params"]["f"]
+    assert "state" not in fields  # human fields never in the scanner-field params
     assert fake.updates[0]["body"]["doc"]["last_ingest_at"]  # scanner-down guard stamped
 
 
@@ -211,8 +212,14 @@ async def test_repush_is_idempotent_counts_stay_stable() -> None:
     from backend.models.envelope import IngestEnvelope
     from backend.services.ingest import ingest_envelope
 
+    # unique digest + run id so this test owns its finding_keys and watermark on the shared real
+    # index — otherwise a prior golden ingest's watermark makes the re-push a no-op (M-1 guard)
     env = IngestEnvelope.model_validate(
-        {**json.loads(GOLDEN), "scan_run_id": f"idem-{uuid.uuid4().hex[:8]}"}
+        {
+            **json.loads(GOLDEN),
+            "scan_run_id": f"idem-{uuid.uuid4().hex[:8]}",
+            "image_digest": f"sha256:{uuid.uuid4().hex}{uuid.uuid4().hex}",
+        }
     )
     client = AsyncOpenSearch(hosts=[OS_URL])
     try:
