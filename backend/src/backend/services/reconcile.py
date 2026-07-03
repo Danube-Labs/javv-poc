@@ -61,7 +61,9 @@ async def reconcile_absent(
         },
     }
     # the just-merged findings must be visible (new last_scan_order) before we decide who's absent,
-    # or a present finding could be wrongly reconciled off its own scan
+    # or a present finding could be wrongly reconciled off its own scan. NOTE (#117): this is a
+    # per-envelope forced refresh on the hottest index — correct, but measure/throttle before M6
+    # read load (a bounded reconcile is the eventual fix; the refresh is load-bearing until then).
     await client.indices.refresh(index=index)
 
     reconciled = 0

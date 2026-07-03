@@ -32,6 +32,13 @@ Files this bolt creates — **in the layered tree, not here** (paths proposed):
   `/readyz` returns `200`. The app stays usable (chrome up), data areas show the degraded state rather than
   blank/cryptic errors. Reads the M1 error envelope (`status`/`title`/`request_id`); see
   [`standards/observability.md`](../../standards/observability.md).
+- `frontend/src/components/system/ScannerFreshnessBanner.vue` — **the "data as of T; scanner silent since
+  T′" banner (SPEC FR-6 / D20; audit m-7).** Shown on inventory views when a `(cluster, scanner)` is silent
+  (read-time, computed from `system-tokens.last_ingest_at` — **not** written by the M3 staleness sweep).
+  Reads a small M6 freshness read (per-cluster/scanner `last_ingest_at` + derived silent-since); this bolt
+  owns the shared banner component (sibling to `BackendHealthBanner`), M9b/M9c mount it. *(Ownership was
+  unassigned — the staleness sweep correctly leaves the banner as a read-time view; landed here because
+  M9a owns the app-shell global banners.)*
 - `frontend/src/components/time-travel/GlobalTimePicker.vue` — days/hours/minutes-ago picker, default `now`
   (D28/FR-23). Emits a normalized `T` (`null` = now).
 - `frontend/src/stores/timeTravel.ts` — Pinia store holding global `T`; every data-fetching store/composable

@@ -177,7 +177,8 @@ schema_version    short
 fields only - merge semantics leave human fields untouched; **no preserve script**). Human fields are a
 **projected cache** of `system-decisions` + `system-audit-log`. **Reconcile-on-commit** (D37/C2): a committed
 scan for `(digest, scanner)` runs `update_by_query` setting `present=false`/`resolved_at` on findings whose
-`last_scan_run_id` ≠ the new run, so resolved CVEs leave the "now" grid immediately. **`stale`/`present` are
+`last_scan_order < the new run's scan_order` (D40 newer-scan-wins — not `last_scan_run_id` equality), so
+resolved CVEs leave the "now" grid immediately. **`stale`/`present` are
 flags, not deletes** (D37/M12): `delete_by_query` runs only after a **long** retention window (or once gone
 from inventory that long), never on the freshness timer. Both create and update are **newer-scan-wins**: a run
 skips the cache when its `scan_order ≤ doc.last_scan_order` **or `< the per-digest `javv-scan-watermarks`
