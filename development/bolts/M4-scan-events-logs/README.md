@@ -3,11 +3,12 @@
 **Status:** tracked in [#26](https://github.com/Danube-Labs/javv-poc/issues/26) — live status on the GitHub issue/board
 
 ## Goal
-Append an immutable `javv-scan-events-<cluster_id>-*` doc on every ingest - one per
-`(image, scanner, scan)` - carrying severity-count trends, the scanner-assigned `scan_order`
-ordering key and the `commit_key` 4-tuple, with an idempotent `_id`; own the index mapping +
-ISM (rollover + per-cluster `retention_days` delete); and precompute the scanner-disagreement
-flags consumed downstream.
+Own the `javv-scan-events-<cluster_id>-*` logs layer end-to-end: the immutable per-`(image,
+scanner, scan)` append doc (carrying severity-count trends, the **backend-allocated** `scan_order`
+ordering key (D45) and the `commit_key` 4-tuple, with an idempotent `_id`) — **already written by
+M1/M3's ingest path; M4 takes ownership and asserts it**; add the missing lifecycle: **write
+aliases (audit n-2)** + ISM (rollover + per-cluster `retention_days` drop-whole-index delete);
+and precompute the scanner-disagreement flags consumed downstream.
 
 **Canonical refs:** [`PLAN_v4 §8 M4`](../../../docs/engineering/V4/PLAN_v4.md) ·
 `SPEC_v4` FR-5 (logs/trends), FR-11 (scanner disagreement), FR-19 (lifecycle/retention) ·
@@ -21,43 +22,58 @@ D40 (`scan_order`, never `@timestamp`).
   `javv-scan-events-*` / `javv-images-*` templates already live in `backend/core/bootstrap.py`
   (versioned, run at app startup) — evolve them THERE (+ add the ISM policies) with a
   `MAPPING_VERSION` bump; don't create a parallel template-management path.**
-- M3 (scanner-assigned `scan_order` source - `backend/app/ingest/scan_order.py` - and `commit_key`
-  construction; M4 stamps both onto the scan-events doc).
+- M3 (**backend-allocated** `scan_order` source (D45) - `backend/src/backend/services/scan_orders.py`
+  behind `POST /api/v1/scan-runs` - and `commit_key` construction; both are already stamped onto the
+  scan-events doc by `services/ingest.py`).
+
+## Already landed (M1–M3) — M4 asserts + takes ownership, doesn't rebuild
+- **Scan-events doc builder** — `backend/src/backend/services/ingest.py` (`build_docs` +
+  `ingest_envelope`) already appends the doc per `(image, scanner, scan)`: idempotent
+  `_id = hash(scan_run_id|image_digest|scanner)` (D18); `scan_order` (D40/D45) + the `commit_key`
+  4-tuple (D37) stamped; **`effective_config`** carried (D44/FR-25, `enabled:false` mapping,
+  `_source`-only); a **clean scan still commits a `total:0` doc** (D30). If M4 extracts it into its
+  own module while taking ownership, behavior must be preserved bit-for-bit (it's the commit marker).
+- **Counts + the `total = Σ buckets` invariant** — enforced at the edge by the `IngestCounts`
+  validator in `models/envelope.py` (also checks `total == len(findings)`). No separate
+  severity-counts module needed.
+- **Index template** — the `javv-scan-events-*` mapping lives in `core/bootstrap.py`
+  (`_SCAN_EVENTS_PROPERTIES`, `dynamic:false`, versioned `MAPPING_VERSION`); **evolve it there**
+  (resolves AUDIT **I1** in place — no parallel template module). The disagreement fields
+  (`disagree`, `trivy_count`/`grype_count`) are already mapped, just never populated.
 
 ## Deliverables
-The actual files/modules this bolt creates - **in the layered tree, not here** (paths proposed):
-- `backend/app/logs/scan_events.py` - build + append the scan-events doc per `(image, scanner, scan)`;
-  idempotent `_id = hash(scan_run_id + image_digest + scanner)` (D18); stamps `scan_order` (D40) +
-  `commit_key = hash(cluster_id + scanner + image_digest + scan_run_id)` (D37). A **clean scan still
-  writes a doc** with `total:0`. Since schema v3 the doc also carries **`effective_config`** (D44/FR-25
-  - what the cycle ran with; `enabled:false` in the mapping, `_source`-only) — **preserve it** when this
-  bolt takes ownership of the doc builder + mapping (both live in M1's `services/ingest.py` +
-  `core/bootstrap.py` today).
-- `backend/app/logs/severity_counts.py` - per-scan severity bucket counts
-  (`crit/high/med/low/negligible/unknown/total/fixable`); enforces the **`total = Σ buckets`** invariant.
-- `backend/app/logs/disagreement.py` - precompute (a) per-finding **severity** disagreement flag and
-  (b) per-image **count** disagreement (`trivy_count` / `grype_count` / `count_delta`); per-scanner,
-  **never summed/merged** (D5a/D5b, FR-11). *(Computed here; consumed by M9b/M9d - cross-link N10.)*
-- `backend/app/indices/scan_events_template.py` - **owns** the `javv-scan-events-<cluster_id>-*`
-  index template: `dynamic:false`, explicit `keyword`/`integer`/`date`/`short` mappings per INDEX-MAP,
-  1 primary shard, monthly rollover. (Resolves AUDIT **I1** - this index's mapping ownership.)
-- `backend/app/indices/scan_events_ism.py` - **owns** the ISM policy: rollover on doc-count/age/size
+The actual files/modules this bolt creates - **in the layered tree, not here** (paths proposed,
+matching the real `backend/src/backend/` layout):
+- **Write aliases (audit n-2, ordering constraint: land before or with the ISM policy).**
+  `services/ingest.py` hardcodes the write targets as `javv-scan-events-<cluster>-000001` /
+  `javv-images-<cluster>-000001` — correct only until rollover exists. Create a write alias per
+  append series (`is_write_index`), point ingest at the alias, and let ISM rollover retarget it.
+- `backend/src/backend/services/disagreement.py` - precompute (a) per-finding **severity**
+  disagreement flag and (b) per-image **count** disagreement (`trivy_count` / `grype_count` /
+  `count_delta`); per-scanner, **never summed/merged** (D5a/D5b, FR-11). The mapped fields exist;
+  this adds the compute. *(Computed here; consumed by M9b/M9d - cross-link N10.)*
+- `backend/src/backend/core/ism.py` - **owns** the ISM policy: rollover on doc-count/age/size
   (D26 configurable knobs surfaced in settings) + per-cluster `retention_days` **drop-whole-index**
-  delete (never `delete_by_query`).
-- `backend/jobs/scan_events_retention.py` - CronJob entrypoint that applies the retention sweep
-  (drop expired rolled indices per `cluster_id`).
+  delete (never `delete_by_query`). Applied at bootstrap alongside the templates.
+- `backend/src/backend/jobs/scan_events_retention.py` - CronJob entrypoint that applies the
+  retention sweep (drop expired rolled indices per `cluster_id`); sibling to `jobs/staleness.py`.
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**
 (each an automated test, not a promise):
-- Every ingest appends exactly one scan-events doc per `(image, scanner, scan)`; re-ingesting the
-  same scan is idempotent (same `_id` → no duplicate) (FR-5/D18).
-- A **clean scan** writes a doc with all buckets `0` and `total:0` (so the commit catalog is complete).
-- The `total = Σ severity buckets` invariant holds on every emitted doc (invariant-checked).
-- Each doc carries the M3-supplied `scan_order` and the correct `commit_key` 4-tuple; ordering reads
-  sort by `scan_order`, **never `@timestamp`** (D40).
-- The created index template matches INDEX-MAP exactly (`dynamic:false`, field types) - fails on drift
+- *(already green — keep as regression)* Every ingest appends exactly one scan-events doc per
+  `(image, scanner, scan)`; re-ingesting the same scan is idempotent (same `_id` → no duplicate)
+  (FR-5/D18).
+- *(already green — keep as regression)* A **clean scan** writes a doc with all buckets `0` and
+  `total:0` (so the commit catalog is complete).
+- *(already green — keep as regression)* The `total = Σ severity buckets` invariant holds on every
+  emitted doc (invariant-checked).
+- *(already green — keep as regression)* Each doc carries the M3-supplied `scan_order` and the
+  correct `commit_key` 4-tuple; ordering reads sort by `scan_order`, **never `@timestamp`** (D40).
+- The index template matches INDEX-MAP exactly (`dynamic:false`, field types) - fails on drift
   (AUDIT I1/I9).
+- **Ingest writes go through the write alias (n-2):** after a rollover, new docs land in the new
+  backing index with no code change — proven by a rollover-then-ingest integration test.
 - ISM rollover fires on the configured doc/age/size knobs; `retention_days` drops a whole expired index
   per `cluster_id` and never touches live ones (no `delete_by_query`).
 - Severity-disagreement and count-disagreement (`count_delta`) flags are computed per-scanner and never
@@ -89,3 +105,17 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-03 — pre-kickoff refresh against the M0–M3 reality.** M1/M3 already built the
+  scan-events doc builder (idempotent `_id`, `scan_order`, `commit_key`, `effective_config`,
+  clean-scan `total:0`), the counts invariant, and the index template — moved to a new *Already
+  landed* section; M4 asserts + takes ownership instead of rebuilding. Fixed stale refs:
+  `scan_order` is **backend-allocated** (D45, `POST /api/v1/scan-runs`), not scanner-assigned;
+  paths now match the real `backend/src/backend/` layout; dropped the parallel
+  `scan_events_template.py` deliverable (template evolves in `core/bootstrap.py`, AUDIT I1
+  resolved in place). Added the **write-alias deliverable (audit n-2, #26 comment)** with its
+  ordering constraint — aliases must land before/with ISM rollover, or rollover strands the
+  hardcoded `-000001` writes. Remaining net-new work: aliases, ISM, retention CronJob,
+  disagreement compute.
