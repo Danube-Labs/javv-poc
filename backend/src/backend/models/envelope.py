@@ -40,8 +40,6 @@ _CANONICAL = {
 # k8s namespace UID shape; lowercase alnum + hyphens only — safe inside an index name
 _CLUSTER_ID = re.compile(r"^[a-z0-9][a-z0-9-]{7,63}$")
 
-CURRENT_SCHEMA_VERSION = 2
-
 
 def canonical_severity(raw: str) -> str:
     """Defensive normalizer (D16): anything unrecognized is `unknown`, never `crit`."""
