@@ -110,6 +110,28 @@ async def test_timers_default_then_read_back_from_config(real_os) -> None:
     assert got.freshness_days == 1 and got.scanner_down_days == 5
 
 
+@requires_opensearch
+async def test_per_cluster_timers_override_the_global_default(real_os) -> None:  # m-1 / FR-6
+    client, prefix = real_os
+    await write_staleness_timers(
+        client,
+        StalenessTimers(freshness_days=1, scanner_down_days=2),
+        updated_by="t",
+        prefix=prefix,
+    )  # fleet-wide default
+    await write_staleness_timers(
+        client,
+        StalenessTimers(freshness_days=10, scanner_down_days=20),
+        updated_by="t",
+        cluster_id=CLUSTER,
+        prefix=prefix,
+    )  # per-cluster override
+    # the configured cluster reads its own override; any other cluster falls back to the default
+    mine = await read_staleness_timers(client, cluster_id=CLUSTER, prefix=prefix)
+    other = await read_staleness_timers(client, cluster_id="other-cluster-9x", prefix=prefix)
+    assert mine.freshness_days == 10 and other.freshness_days == 1
+
+
 # --- per-finding freshness (scanner healthy) -----------------------------------
 
 

@@ -27,7 +27,13 @@ from typing import Any
 from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
-STALENESS_KEY = "staleness"  # the system-config doc _id holding the timers
+STALENESS_KEY = (
+    "staleness"  # the fleet-wide default doc _id; per-cluster is `staleness:<cluster_id>`
+)
+
+
+def _timers_id(cluster_id: str | None) -> str:
+    return STALENESS_KEY if cluster_id is None else f"{STALENESS_KEY}:{cluster_id}"
 
 
 class StalenessTimers(BaseModel):
@@ -39,24 +45,43 @@ class StalenessTimers(BaseModel):
     scanner_down_days: float = Field(default=7, gt=0)  # M — scanner-down escalation
 
 
-async def read_staleness_timers(client: AsyncOpenSearch, *, prefix: str = "") -> StalenessTimers:
-    """The configured timers, or the D20 defaults (3/7) if none are set."""
+async def _read_one(client: AsyncOpenSearch, doc_id: str, prefix: str) -> StalenessTimers | None:
     try:
-        got = await client.get(index=f"{prefix}system-config", id=STALENESS_KEY)
+        got = await client.get(index=f"{prefix}system-config", id=doc_id)
     except NotFoundError:
-        return StalenessTimers()
+        return None
     return StalenessTimers.model_validate(got["_source"]["value"])
 
 
+async def read_staleness_timers(
+    client: AsyncOpenSearch, *, cluster_id: str | None = None, prefix: str = ""
+) -> StalenessTimers:
+    """The timers for a cluster: the per-cluster `staleness:<cluster_id>` doc if set (FR-6), else
+    the fleet-wide `staleness` default, else the D20 defaults (3/7). `cluster_id=None` reads only
+    the fleet-wide default (the interim CLI / M9e 'apply to all' path)."""
+    if cluster_id is not None:
+        per_cluster = await _read_one(client, _timers_id(cluster_id), prefix)
+        if per_cluster is not None:
+            return per_cluster
+    return await _read_one(client, STALENESS_KEY, prefix) or StalenessTimers()
+
+
 async def write_staleness_timers(
-    client: AsyncOpenSearch, timers: StalenessTimers, *, updated_by: str, prefix: str = ""
+    client: AsyncOpenSearch,
+    timers: StalenessTimers,
+    *,
+    updated_by: str,
+    cluster_id: str | None = None,
+    prefix: str = "",
 ) -> None:
-    """Persist the timers in system-config (interim admin path until the M9e UI)."""
+    """Persist the timers in system-config (interim admin path until the M9e UI). `cluster_id=None`
+    writes the fleet-wide default; a value writes the per-cluster override (FR-6)."""
+    doc_id = _timers_id(cluster_id)
     await client.index(
         index=f"{prefix}system-config",
-        id=STALENESS_KEY,
+        id=doc_id,
         body={
-            "key": STALENESS_KEY,
+            "key": doc_id,
             "value": timers.model_dump(),
             "updated_at": datetime.now(UTC).isoformat(),
             "updated_by": updated_by,
@@ -141,11 +166,6 @@ async def run_staleness_sweep(
     `now` is injectable for tests. The scanner's silence is read from `system-tokens.last_ingest_at`
     (the scanner-down guard) — the tokens ARE the (cluster, scanner) registry."""
     now = now or datetime.now(UTC)
-    timers = await read_staleness_timers(client, prefix=prefix)
-    n_delta = timedelta(days=timers.freshness_days)
-    m_delta = timedelta(days=timers.scanner_down_days)
-    n_cutoff = now - n_delta
-
     # Collapse the token docs into the (cluster, scanner) registry: skip DISABLED tokens, and take
     # the MOST RECENT last_ingest across a scanner's tokens — otherwise a rotated/disabled old token
     # (stale last_ingest) would mass-stale a scanner that a newer token is actively feeding (M-2).
@@ -166,7 +186,16 @@ async def run_staleness_sweep(
                 registry[key] = li
 
     staled = reverted = 0
+    timers_by_cluster: dict[str, StalenessTimers] = {}  # per-cluster timers, read once each (FR-6)
     for (cluster_id, scanner), last_ingest in registry.items():
+        if cluster_id not in timers_by_cluster:
+            timers_by_cluster[cluster_id] = await read_staleness_timers(
+                client, cluster_id=cluster_id, prefix=prefix
+            )
+        timers = timers_by_cluster[cluster_id]
+        n_delta = timedelta(days=timers.freshness_days)
+        m_delta = timedelta(days=timers.scanner_down_days)
+        n_cutoff = now - n_delta
         silent = (now - last_ingest) if last_ingest else None  # never ingested = infinitely silent
 
         if silent is None or silent >= m_delta:
@@ -192,6 +221,7 @@ if __name__ == "__main__":  # daily CronJob entrypoint + interim timer-config CL
     ap = argparse.ArgumentParser(description="Run the staleness sweep, or set the D20 timers")
     ap.add_argument("--set-freshness-days", type=float, help="N: per-finding freshness (default 3)")
     ap.add_argument("--set-scanner-down-days", type=float, help="M: scanner-down (default 7)")
+    ap.add_argument("--cluster", help="set the per-cluster override (default: fleet-wide)")
     args = ap.parse_args()
 
     async def _main() -> None:
@@ -199,7 +229,7 @@ if __name__ == "__main__":  # daily CronJob entrypoint + interim timer-config CL
         client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
         try:
             if args.set_freshness_days is not None or args.set_scanner_down_days is not None:
-                current = await read_staleness_timers(client)
+                current = await read_staleness_timers(client, cluster_id=args.cluster)
                 timers = current.model_copy(
                     update={
                         k: v
@@ -210,8 +240,11 @@ if __name__ == "__main__":  # daily CronJob entrypoint + interim timer-config CL
                         if v is not None
                     }
                 )
-                await write_staleness_timers(client, timers, updated_by="cli")
-                print(f"staleness timers set: {timers.model_dump()}")
+                await write_staleness_timers(
+                    client, timers, updated_by="cli", cluster_id=args.cluster
+                )
+                scope = f"cluster {args.cluster}" if args.cluster else "fleet-wide"
+                print(f"staleness timers set ({scope}): {timers.model_dump()}")
             else:
                 print(f"staleness sweep: {await run_staleness_sweep(client)}")
         finally:

@@ -122,7 +122,7 @@ home for policy that operators change — no rebuild, no restart.
 |---|---|---|---|
 | Snapshot repo **ref** (non-secret) + schedule/retention | **M2** (backend) / **M9e** (UI) | `system-config` doc + SM policy | ✅ Planned (M9e, `can_restore_snapshot`) |
 | Per-`cluster_id` **retention days** + rollover knobs | **M9e** | `system-config` → ISM drops whole indices | ✅ Planned (`can_manage_retention`) |
-| **Staleness** two-timer windows (`freshness_days` N=3, `scanner_down_days` M=7) | **M3** (backend) / **M9e** (UI) | `system-config` `staleness` doc; read by the daily `jobs/staleness.py` sweep — **never hardcoded** (D20). Interim CLI: `python -m backend.jobs.staleness --set-freshness-days N --set-scanner-down-days M` | ✅ Backend built; M9e UI |
+| **Staleness** two-timer windows (`freshness_days` N=3, `scanner_down_days` M=7) | **M3** (backend) / **M9e** (UI) | `system-config`: **per-cluster** `staleness:<cluster_id>` overrides the fleet-wide `staleness` default (FR-6); read by the daily `jobs/staleness.py` sweep — **never hardcoded** (D20). Interim CLI: `python -m backend.jobs.staleness --set-freshness-days N --set-scanner-down-days M [--cluster <id>]` | ✅ Backend built; M9e UI |
 | **SLA policy** (days per severity + KEV override) | **M5d** | `system-config` | ✅ Planned |
 | **Scan scope** (namespaces/images/kinds to scan) | **#94** (backend) / **M9e** (UI) | `system-config` `scan_scope:<cluster_id>`; scanner fetches via `GET /api/v1/scan-scope` (D43) | ✅ Backend built; M9e UI |
 | Ingest **push tokens** (rotate/revoke) | **M9a** ("shell + tokens") / M1 backend | `system-tokens` | ✅ Planned |
