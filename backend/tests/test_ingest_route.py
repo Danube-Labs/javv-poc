@@ -30,6 +30,8 @@ class FakeOS:
         self.bulks: list[list[dict[str, Any]]] = []
         self.updates: list[dict[str, Any]] = []
         self.indexes: list[dict[str, Any]] = []
+        self.ubqs: list[dict[str, Any]] = []
+        self.indices = _FakeIndices()
 
     async def search(self, **_: Any) -> dict[str, Any]:
         hits = [{"_id": "t1", "_source": self.token_doc}] if self.token_doc else []
@@ -49,6 +51,15 @@ class FakeOS:
     async def index(self, **kw: Any) -> dict[str, Any]:
         self.indexes.append(kw)  # watermark CAS write (op_type=create on first commit)
         return {"_id": kw.get("id")}
+
+    async def update_by_query(self, **kw: Any) -> dict[str, Any]:
+        self.ubqs.append(kw)  # reconcile-on-commit — nothing absent in a single-envelope test
+        return {"updated": 0, "version_conflicts": 0}
+
+
+class _FakeIndices:
+    async def refresh(self, **_: Any) -> dict[str, Any]:
+        return {}
 
 
 def app_with(fake: FakeOS) -> httpx.AsyncClient:

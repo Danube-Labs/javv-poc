@@ -3,7 +3,8 @@ scan-events commit doc → watermark CAS → findings cache last. All `_id`s are
 a re-push of the same envelope is idempotent. The findings cache is a **partial-doc merge** (D31, M3
 slice 2 — scanner fields refresh, human fields survive; see `services.merge`), gated by the
 per-digest **watermark CAS** (D40, M3 slice 3 — a stale/out-of-order run skips the cache entirely;
-see `services.watermarks`).
+see `services.watermarks`), then **reconciled** (D37/D38, M3 slice 5 — findings the fresh run
+omitted flip `present=false` so resolved CVEs leave the "now" grid; see `services.reconcile`).
 """
 
 import hashlib
@@ -14,6 +15,7 @@ from opensearchpy import AsyncOpenSearch
 from backend.models.envelope import IngestEnvelope
 from backend.repositories.bulk import bulk_write
 from backend.services.merge import merge_action
+from backend.services.reconcile import reconcile_absent
 from backend.services.watermarks import advance_watermark
 
 
@@ -149,8 +151,21 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
     )
     if not fresh:
         return 0
-    # 3b) cache last: partial-doc merge — scanner fields refresh, human fields survive (D31)
+    # 3b) cache: partial-doc merge — scanner fields refresh, human fields survive (D31)
     actions: list[dict[str, Any]] = []
     for doc in docs["findings"]:
         actions += merge_action(doc, index=f"{prefix}findings")
-    return await bulk_write(client, actions)
+    written = await bulk_write(client, actions)
+    # 3c) reconcile-on-commit — findings of this digest omitted by the fresh run flip present=false
+    #     (+ resolved_at) so resolved CVEs leave the "now" grid immediately; cache-only, history
+    #     stays tombstone-free (D37/D38). Runs even for a 0-finding clean scan (whole image fixed).
+    await reconcile_absent(
+        client,
+        env.cluster_id,
+        env.scanner,
+        env.image_digest,
+        env.scan_order,
+        env.last_seen_at,
+        prefix=prefix,
+    )
+    return written
