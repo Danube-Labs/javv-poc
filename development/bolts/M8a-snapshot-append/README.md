@@ -13,8 +13,8 @@ written last). **No close events** - an absent vuln is simply not in later snaps
 **Canonical refs:** [`PLAN_v4 §8 M8a`](../../../docs/engineering/V4/PLAN_v4.md) ·
 `SPEC_v4` FR-5b (per-scan snapshots / point-in-time) ·
 [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md)
-(`javv-finding-occurrences-<cluster_id>-*` **[OWNS mapping + ISM]**,
-`javv-inventory-runs-<cluster_id>-*` **[OWNS mapping + ISM]**,
+(`javv-finding-occurrences-<cluster_id>-*` **[OWNS mapping + lifecycle]**,
+`javv-inventory-runs-<cluster_id>-*` **[OWNS mapping + lifecycle]**,
 `javv-scan-events` [reads as catalog, owned by M4], `javv-scan-watermarks` **[CONSUMES, owned by M3]**) ·
 decisions D18 (idempotent `_id`), D37 (R-CATALOG / `commit_key`), D39 (catalog-first, inventory manifest,
 commit-then-cache), D40 (`scan_order`/`inventory_order` ordering + watermark CAS).
@@ -46,13 +46,14 @@ The actual files/modules this bolt creates - **in the layered tree, not here** (
   (`_id = inventory_run_id`, `inventory_order` D40/F-r3, `expected_count`/`written_count`,
   `status ∈ {committed, partial, failed}`), **written last** after the `javv-images` bulk for the run
   succeeds; `status=committed` iff `written_count == expected_count`.
-- `backend/app/indices/occurrences_template.py` + `occurrences_ism.py` - **owns** the
-  `javv-finding-occurrences-<cluster_id>-*` template (`dynamic:false`, INDEX-MAP fields, 1 primary
-  shard, monthly rollover) + ISM (size/age/docs rollover, per-cluster drop-whole-index retention).
-  **Register the template through `backend/core/bootstrap.py` (+ `MAPPING_VERSION` bump — the
-  versioned boot-time bootstrap from M1); the ISM policy module can stay separate.**
-- `backend/app/indices/inventory_runs_template.py` + `inventory_runs_ism.py` - **owns** the
-  `javv-inventory-runs-<cluster_id>-*` template (`dynamic:false`) + ISM. (Both resolve AUDIT **I1**.)
+- **Owns** the `javv-finding-occurrences-<cluster_id>-*` template (`dynamic:false`, INDEX-MAP
+  fields, 1 primary shard, monthly rollover) — registered in `backend/core/bootstrap.py`
+  (+ `MAPPING_VERSION` bump, the versioned boot-time bootstrap from M1) — **plus lifecycle**: give
+  the series write aliases (M4's `services/aliases.py`) and add it to `SERIES` in M4's
+  `jobs/lifecycle.py` (rollover + per-cluster drop-whole-index retention — no ISM plugin; see the
+  M4 README `## Updates` mechanism decision).
+- **Owns** the `javv-inventory-runs-<cluster_id>-*` template (`dynamic:false`) + the same
+  lifecycle registration. (Both resolve AUDIT **I1**.)
 - **Extension to `backend/jobs/rebuild_state.py` — the scanner-presence arm (D40/D-r3, moved out of
   M3 on 2026-07-03).** The base job (human/decision projection arm) is created in **M5c**; this bolt
   **adds the scanner-presence arm**: reconstruct the `findings` presence fields (`present`,

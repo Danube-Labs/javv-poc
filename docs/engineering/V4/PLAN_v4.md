@@ -525,10 +525,13 @@ One **immutable** doc per **(image, scanner, scan)**. Logs/events, not metrics.
   then reads occurrences for that run (so a clean rescan that wrote zero occurrence rows is read as *clean*,
   not as the stale previous snapshot). A clean scan still writes this doc (`total:0`).
 - `dynamic:false`, 1 primary shard, **monthly rollover**, partition `javv-scan-events-<cluster_id>-NNNNNN`
-  (**`scanner` is a field, not in the index name** - D38/M15; write to a rollover alias; ISM makes backing
-  indices).
-- **Lifecycle (D8):** ISM rollover (doc count / age / size, configurable via D26) → ISM delete by **dropping
-  whole indices** at per-cluster `retention_days`. Never delete-by-query.
+  (**`scanner` is a field, not in the index name** - D38/M15; write to a rollover alias; rollover makes
+  backing indices).
+- **Lifecycle (D8):** rollover (doc count / age / size, configurable via D26) → delete by **dropping
+  whole indices** at per-cluster `retention_days`. Never delete-by-query. Executed by the M4 **lifecycle
+  CronJob** (`_rollover`+`conditions`, evaluated server-side; the Curator model), NOT the ISM plugin —
+  ISM's per-index `rollover_alias` setting can't be templated per cluster, its policy edits don't
+  live-apply, and per-cluster `retention_days` doesn't fit one static policy (settled at M4 kickoff, #26).
 
 ### 5.5 `javv-finding-occurrences-*` - append-only per-scan snapshots (point-in-time) · PINNED
 **Full snapshot per successful scan:** every scan of a digest appends one **immutable** row for **every**
@@ -710,8 +713,9 @@ Each ends on a verifiable check + Confirm gate.
    staleness** + scanner-down guard + banner (D20); **projection-on-new-only** at ingest (D19); optimistic
    concurrency.
 5. **M4 - Logs layer (scan-events) + retention.** `javv-scan-events-*` append on ingest with **idempotent
-   `_id`** (D18); per-`cluster_id` partition + ISM rollover (doc/age/size, configurable D26) + per-cluster
-   `retention_days` delete; scanner-disagreement flags (D5a/b).
+   `_id`** (D18); per-`cluster_id` partition + write aliases + the lifecycle CronJob (rollover on
+   doc/age/size, configurable D26; per-cluster `retention_days` drop-whole-index); scanner-disagreement
+   flags (D5a/b).
 6. **M5 - Triage (split):**
    - **M5a - Auth & Session (own bolt - SEC-5).** `system-users` (argon2id) + **server-side sessions**
      (`system-sessions`, httpOnly+Secure+SameSite cookie, TTL, revoke-on-role-change); **password policy +
