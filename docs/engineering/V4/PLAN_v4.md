@@ -26,12 +26,12 @@
 |---|---|---|
 | M1 | M1 | + golden-envelope round-trip gate; + `severity` normalizer |
 | - | **M2** | **new** - snapshot/restore (durability pulled forward) |
-| M2 | M3 | + inline-preserve-as-cache framing; + two-timer staleness; projection-on-new (rebuild-state job → M8a, needs occurrences) |
+| M2 | M3 | + inline-preserve-as-cache framing; + two-timer staleness; projection-on-new (rebuild-state job deferred: M5c creates the human/decision arm, M8a adds the scanner-presence arm) |
 | M2.5 | M4 | + idempotent `_id`; rollover knobs surface in settings |
 | M3 (one bolt) | **M5a–M5d** | split: access · state machine · decisions/projection · SLA/bulk |
 | M4 | M6 | read/reporting + VEX **export** (import → v1.1) |
 | - | **M7** | **new** - scheduled/throttled export (`system-reports`) |
-| **M2.6** (before triage) | **M8a–M8b** (after read) | **moved + simplified**: full per-scan snapshots · point-in-time API (close events removed); + rebuild-state job (moved from M3 — replays occurrences) |
+| **M2.6** (before triage) | **M8a–M8b** (after read) | **moved + simplified**: full per-scan snapshots · point-in-time API (close events removed); + rebuild-state **scanner-presence arm** (base job created in M5c; M8a extends it — replays occurrences) |
 | M5 (one bolt) | **M9a–M9f** | split reusable-first; core-loop gate; + Data & OpenSearch panel |
 | M6 | M10 | polish & deploy |
 | `system-exceptions` | `system-decisions` | renamed (clearer) |
