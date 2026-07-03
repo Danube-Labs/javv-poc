@@ -88,7 +88,14 @@ Every "now" query filters `cluster_id` + `scanner` + `present=true` + the screen
 - **Two-timer staleness (D20):** warn-window → banner/flag; hard-window → `state=stale`. Timers are
   tier-③ config (`system-config`, M9e-editable) — read them, don't hardcode.
 
-## 9. rebuild-state — the self-heal invariant (D40/D-r3)
+## 9. rebuild-state — the self-heal invariant (D40/D-r3) · **JOB DEFERRED OUT OF M3**
+
+> **Not an M3 job** (2026-07-03). rebuild-state has two arms, neither with an M3 data source: the
+> **human/decision** arm rebuilds from `system-decisions` + `system-audit-log` (D17) → **M5c** (creates
+> `jobs/rebuild_state.py`); the **scanner-presence** arm rebuilds from `occurrences` + `scan-events`
+> (PLAN §D-r3) → **M8a**. So the invariant below can't be met in M3 (only the watermarks are
+> reconstructable from `scan-events` here). M3's crash recovery is the stateless full re-scan every
+> cycle (D30, §4). The invariant is kept here as the contract those later jobs must honor.
 
 From the append logs alone (catalog order, committed runs only), rebuild must reproduce **identical**
 `findings` cache rows *including* the scanner-presence fields (`present`, `last_scan_order`,
@@ -104,7 +111,8 @@ counter is authoritative, not derived — D45); its only self-heal is the forwar
 4. **Merge allowlist**: scanner fields update; `state`/`vex_justification` untouched.
 5. **CAS race (AUDIT I10)**: two writers, same digest, inverted `scan_order` → loser rejected on
    create AND update; final state == newer scan regardless of arrival order.
-6. **rebuild-state** reproduces identical cache + presence + watermarks from the logs.
+6. **rebuild-state** reproduces identical cache + presence + watermarks from the logs. **(Deferred out
+   of M3: presence+watermark arm → M8a (needs `occurrences`); human/decision arm → M5c.)**
 7. **(D45)** allocation: concurrent `POST /api/v1/scan-runs` never hands out the same order twice;
    orders strictly increase per `(cluster_id, scanner)`; fail-closed when the backend is down;
    rebuild-state leaves `javv-scan-orders` byte-identical (wipe-and-recompute must not reach it).
@@ -112,5 +120,7 @@ counter is authoritative, not derived — D45); its only self-heal is the forwar
 ## Slice order (stacked PRs, git-workflow.md)
 
 **scan-order allocation (D45, scanner+backend) → merge → watermark CAS → commit-then-cache →
-reconcile → staleness → rebuild-state.** D45 moved allocation to the front — everything downstream
-trusts the order, so mint it correctly before building the CAS on top.
+reconcile → staleness.** D45 moved allocation to the front — everything downstream trusts the order,
+so mint it correctly before building the CAS on top. **(rebuild-state was the planned 7th slice →
+deferred out of M3: human/decision arm → M5c, scanner-presence arm → M8a. These six are the whole M3
+implementation.)**
