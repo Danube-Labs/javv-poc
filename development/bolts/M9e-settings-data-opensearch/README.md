@@ -18,12 +18,12 @@ append families `javv-finding-occurrences-*` / `javv-scan-events-*` / `javv-imag
 ## Depends on
 - **M9a** (shell + tokens + reusable filter/form module; capability-gated client routing).
 - **M2** (snapshot/restore backend + ISM policy application — the M2 restore gate; this panel drives it).
-- **M4** (staleness timers / two-timer machinery whose knobs this panel edits).
+- **M3** (two-timer staleness machinery + `system-config` `staleness` doc whose knobs this panel edits — **backend shipped**: `jobs/staleness.py` sweep + `read/write_staleness_timers` + interim CLI).
 
 ## Deliverables
 In the layered tree, not here (paths proposed):
 - `frontend/src/views/settings/DataOpenSearchView.vue` — per-`cluster_id` `retention_days`; rollover knobs (doc count / age / size; defaults ~40 GB / 30 d / 50 M docs); snapshot repo + schedule + manual snapshot/restore buttons. **Retention/rollover controls apply to the time-partitioned append families ONLY** — the mutable family (`findings`, `javv-scan-watermarks`, **`javv-scan-orders`** (D45 — no retention EVER, it's the authoritative order counter), `system-*`) must never be offered a rollover/drop control; `findings`' only cleanup is the separate LONG-window `delete_by_query` (D37/M12), not a retention drop.
-- `frontend/src/views/settings/ScanningView.vue` — two-timer staleness editor (FR-6/D20); both windows editable; preview of resulting banner behavior. Per-scanner cards show the **read-only running version + DB freshness** (from the ingested `scanner_version`/DB provenance) — **not a version-select control**; the version is changed by swapping the published image tag (D41). Also shows the **read-only effective scan *tuning* flags + applied scope** from the `effective_config` stamp (**landed** — D44/FR-25, schema v3): read it off the latest committed scan-event doc's `_source` (the field is `enabled:false` — display-only, not aggregatable). Display only; tuning stays env/GitOps.
+- `frontend/src/views/settings/ScanningView.vue` — two-timer staleness editor (FR-6/D20); both windows editable; preview of resulting banner behavior. **Backend already shipped (M3):** the `system-config` `staleness` doc (`freshness_days` N=3, `scanner_down_days` M=7), `jobs/staleness.py` daily sweep, and `read/write_staleness_timers` + interim CLI — this bolt adds the UI + the RBAC-gated `PUT /settings/staleness` (capability-gated, journaled). The "scanner silent since T'" banner is a read-time view (computed from `last_ingest_at`), not written by the sweep. Per-scanner cards show the **read-only running version + DB freshness** (from the ingested `scanner_version`/DB provenance) — **not a version-select control**; the version is changed by swapping the published image tag (D41). Also shows the **read-only effective scan *tuning* flags + applied scope** from the `effective_config` stamp (**landed** — D44/FR-25, schema v3): read it off the latest committed scan-event doc's `_source` (the field is `enabled:false` — display-only, not aggregatable). Display only; tuning stays env/GitOps.
 - `frontend/src/views/settings/ScanScopeView.vue` — **Scan scope editor (D43/FR-24, #94)**: per-cluster include/ignore **namespaces**, excluded **image globs**, ignored **kinds** → `PUT /api/v1/scan-scope`. Backend read path + `system-config` storage + interim CLI already shipped (PR #95); this bolt adds the UI + the RBAC-gated **`PUT /api/v1/scan-scope`** (capability-gated, journaled to `system-audit-log`). Semantics are fixed by FR-24: empty include = all, ignore wins, fail-closed scanner fetch.
 - `frontend/src/views/settings/CveAuditView.vue` — CVE-audit panel (per-CVE cross-scanner disagreement / decision provenance, read-side).
 - `frontend/src/composables/useRetentionForm.ts`, `useSnapshotForm.ts` — pure validators/option-builders (unit-tested).
@@ -68,3 +68,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - **2026-07-03 — the `effective_config` stamp LANDED (D44/FR-25, schema v3).** Scan-events docs now
   carry `{tuning, scope}` in `_source` (`enabled:false` — not aggregatable). The per-scanner cards
   read it from the latest committed scan-event; trivy DB freshness is also populated now (#96).
+- **2026-07-03 — staleness-timer BACKEND landed in M3 (D20).** The two-timer machinery this panel edits
+  is built: `system-config` `staleness` doc (`freshness_days` N=3 / `scanner_down_days` M=7), the daily
+  `jobs/staleness.py` sweep (per-finding + scanner-down + hold + revert-on-return), and
+  `read/write_staleness_timers` + interim CLI. `ScanningView.vue` now only needs the UI + RBAC-gated
+  `PUT /settings/staleness`. Depends-on updated M4→M3. Mirrored on
+  [#39](https://github.com/Danube-Labs/javv-poc/issues/39).
