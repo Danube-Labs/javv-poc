@@ -19,7 +19,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import ValidationError
 
 from backend.core.metrics import FINDINGS_WRITTEN, INGEST_ACCEPTED, INGEST_REJECTED
-from backend.core.security import hash_token, tokens_match
+from backend.core.security import hash_token, token_expired, tokens_match
 from backend.core.settings import get_settings
 from backend.models.envelope import IngestEnvelope
 from backend.repositories.bulk import BulkError
@@ -38,11 +38,21 @@ router = APIRouter(prefix="/api/v1/ingest", tags=["ingest"])
 
 # in-process sliding window per token-hash — MVP single-pod (no broker by design)
 _WINDOW_S = 60.0
+_MAX_KEYS = 100_000  # bound the map so a flood of distinct/garbage tokens can't leak it (m-4)
 _hits: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _sweep_drained(now: float) -> None:
+    """Drop keys whose window has fully drained — an unauthenticated token flood keys this map on
+    every request, so without eviction each distinct token leaves a permanent empty deque (m-4)."""
+    for k in [k for k, dq in _hits.items() if not dq or now - dq[-1] > _WINDOW_S]:
+        del _hits[k]
 
 
 def _rate_limited(key: str, limit: int) -> bool:
     now = time.monotonic()
+    if len(_hits) > _MAX_KEYS:  # cheap: only when the map has actually grown large
+        _sweep_drained(now)
     q = _hits[key]
     while q and now - q[0] > _WINDOW_S:
         q.popleft()
@@ -95,6 +105,7 @@ async def ingest_scan(request: Request) -> dict[str, Any]:
         token is None
         or not tokens_match(candidate, token["token_hash"])  # constant-time, belt & braces
         or token.get("disabled")
+        or token_expired(token)  # lifecycle: an expired token is dead (audit m-3)
     ):
         raise _reject(401, "bad_token", "invalid token")  # generic — no existence oracle
 

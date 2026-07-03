@@ -100,9 +100,10 @@ async def test_happy_path_writes_in_commit_then_cache_order() -> None:
     assert len(fake.bulks) == 3  # images → scan-events → findings (D39 order)
     assert fake.bulks[0][0]["index"]["_index"].startswith(f"javv-images-{CLUSTER}")
     assert fake.bulks[1][0]["index"]["_index"].startswith(f"javv-scan-events-{CLUSTER}")
-    # findings are partial-doc merges (D31, M3 slice 2) — update ops, never full index
+    # findings are scripted-merge updates (D31 + M-1 guard) — update ops, never full index
     assert fake.bulks[2][0]["update"]["_index"] == "findings"
-    assert "state" not in fake.bulks[2][1]["doc"]  # human fields never in the partial doc
+    fields = fake.bulks[2][1]["script"]["params"]["f"]
+    assert "state" not in fields  # human fields never in the scanner-field params
     assert fake.updates[0]["body"]["doc"]["last_ingest_at"]  # scanner-down guard stamped
 
 
@@ -125,6 +126,31 @@ async def test_disabled_token_rejected() -> None:
     doc = {**token_doc(t), "disabled": True}
     async with app_with(FakeOS(doc)) as c:
         assert (await post(c, gz(GOLDEN), t)).status_code == 401
+
+
+async def test_expired_token_rejected() -> None:
+    t = mint_token()
+    doc = {**token_doc(t), "expiry": "2020-01-01T00:00:00+00:00"}  # long past (m-3)
+    async with app_with(FakeOS(doc)) as c:
+        assert (await post(c, gz(GOLDEN), t)).status_code == 401
+
+
+def test_rate_limiter_evicts_drained_keys() -> None:  # audit m-4
+    import time
+
+    from backend.routers.ingest import _WINDOW_S, _hits, _sweep_drained
+
+    now = time.monotonic()
+    try:
+        _hits["drained"].append(now - _WINDOW_S - 1)  # last hit older than the window
+        _hits["fresh"].append(now)  # a live key must survive
+        _ = _hits["empty"]  # defaultdict materialises an empty deque
+        _sweep_drained(now)
+        assert "drained" not in _hits and "empty" not in _hits  # garbage-token leak swept
+        assert "fresh" in _hits
+    finally:
+        for k in ("drained", "fresh", "empty"):
+            _hits.pop(k, None)
 
 
 async def test_zip_bomb_is_rejected_413() -> None:
@@ -211,8 +237,14 @@ async def test_repush_is_idempotent_counts_stay_stable() -> None:
     from backend.models.envelope import IngestEnvelope
     from backend.services.ingest import ingest_envelope
 
+    # unique digest + run id so this test owns its finding_keys and watermark on the shared real
+    # index — otherwise a prior golden ingest's watermark makes the re-push a no-op (M-1 guard)
     env = IngestEnvelope.model_validate(
-        {**json.loads(GOLDEN), "scan_run_id": f"idem-{uuid.uuid4().hex[:8]}"}
+        {
+            **json.loads(GOLDEN),
+            "scan_run_id": f"idem-{uuid.uuid4().hex[:8]}",
+            "image_digest": f"sha256:{uuid.uuid4().hex}{uuid.uuid4().hex}",
+        }
     )
     client = AsyncOpenSearch(hosts=[OS_URL])
     try:

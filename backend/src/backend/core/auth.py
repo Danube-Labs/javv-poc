@@ -11,7 +11,7 @@ from typing import Any, cast
 
 from fastapi import HTTPException, Request
 
-from backend.core.security import hash_token, tokens_match
+from backend.core.security import hash_token, token_expired, tokens_match
 from backend.core.settings import get_settings
 
 
@@ -32,6 +32,7 @@ async def require_token(request: Request) -> dict[str, Any]:
         token is None
         or not tokens_match(candidate, token["token_hash"])  # constant-time, belt & braces
         or token.get("disabled")
+        or token_expired(token)  # lifecycle: an expired token is dead (audit m-3)
     ):
         raise HTTPException(401, "invalid token")  # generic — no existence oracle
     return token
