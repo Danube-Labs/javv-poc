@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 import pytest
-from opensearchpy import AsyncOpenSearch
+from opensearchpy import AsyncOpenSearch, NotFoundError
 
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
@@ -29,6 +29,7 @@ class FakeOS:
         self.token_doc = token_doc
         self.bulks: list[list[dict[str, Any]]] = []
         self.updates: list[dict[str, Any]] = []
+        self.indexes: list[dict[str, Any]] = []
 
     async def search(self, **_: Any) -> dict[str, Any]:
         hits = [{"_id": "t1", "_source": self.token_doc}] if self.token_doc else []
@@ -41,6 +42,13 @@ class FakeOS:
     async def update(self, **kw: Any) -> dict[str, Any]:
         self.updates.append(kw)
         return {}
+
+    async def get(self, **_: Any) -> dict[str, Any]:
+        raise NotFoundError(404, "not_found", {})  # first commit: watermark doc absent
+
+    async def index(self, **kw: Any) -> dict[str, Any]:
+        self.indexes.append(kw)  # watermark CAS write (op_type=create on first commit)
+        return {"_id": kw.get("id")}
 
 
 def app_with(fake: FakeOS) -> httpx.AsyncClient:

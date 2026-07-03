@@ -1,8 +1,9 @@
 """Envelope → documents, written in commit-then-cache order (D39): images append →
-scan-events commit doc → findings cache last. All `_id`s are deterministic (D18) so a re-push of
-the same envelope is idempotent. The findings cache is a **partial-doc merge** (D31, M3 slice 2 —
-scanner fields refresh, human fields survive; see `services.merge`); the watermark +
-newer-scan-wins guards are the next M3 slice.
+scan-events commit doc → watermark CAS → findings cache last. All `_id`s are deterministic (D18) so
+a re-push of the same envelope is idempotent. The findings cache is a **partial-doc merge** (D31, M3
+slice 2 — scanner fields refresh, human fields survive; see `services.merge`), gated by the
+per-digest **watermark CAS** (D40, M3 slice 3 — a stale/out-of-order run skips the cache entirely;
+see `services.watermarks`).
 """
 
 import hashlib
@@ -13,6 +14,7 @@ from opensearchpy import AsyncOpenSearch
 from backend.models.envelope import IngestEnvelope
 from backend.repositories.bulk import bulk_write
 from backend.services.merge import merge_action
+from backend.services.watermarks import advance_watermark
 
 
 def _h(*parts: str) -> str:
@@ -133,8 +135,21 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
         client,
         [{"index": {"_index": seq, "_id": docs["scan_event_id"]}}, docs["scan_event"]],
     )
-    # 3) cache last: partial-doc merge — scanner fields refresh, human fields survive (D31, M3
-    #    slice 2); the watermark/newer-scan-wins guards land in the next slice
+    # 3a) advance the per-digest watermark (CAS at commit, D40) — the create+update guard; a
+    #     stale/out-of-order run (scan_order < max_committed) skips ALL cache writes so it can never
+    #     resurrect a since-retired finding (history above is idempotent + scan_order-ordered)
+    fresh = await advance_watermark(
+        client,
+        env.cluster_id,
+        env.scanner,
+        env.image_digest,
+        env.scan_order,
+        env.last_seen_at,
+        prefix=prefix,
+    )
+    if not fresh:
+        return 0
+    # 3b) cache last: partial-doc merge — scanner fields refresh, human fields survive (D31)
     actions: list[dict[str, Any]] = []
     for doc in docs["findings"]:
         actions += merge_action(doc, index=f"{prefix}findings")
