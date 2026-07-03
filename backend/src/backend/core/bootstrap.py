@@ -7,8 +7,9 @@ index/template whose recorded version is older.
 Scope: the `findings` current-state cache + `system-tokens` (ingest auth) + `system-config`
 (M2 — holds the snapshot-repo ref), plus index *templates* for the per-cluster
 `javv-scan-events-*` / `javv-images-*` append series so any per-cluster index gets the pinned
-mapping at auto-create. ISM rollover/retention policies are M4; `javv-scan-watermarks` is created
-and owned by M3; occurrences (M8a) and audit-log (M5a) land with their bolts.
+mapping at auto-create. ISM rollover/retention policies are M4; `javv-scan-orders` (D45) and
+`javv-scan-watermarks` (D40) are owned by M3; occurrences (M8a) + audit-log (M5a) land with
+their bolts.
 
 Runnable standalone: `uv run python -m backend.core.bootstrap`.
 """
@@ -17,7 +18,7 @@ from typing import Any
 
 from opensearchpy import AsyncOpenSearch, RequestError
 
-MAPPING_VERSION = 2  # v2: + javv-scan-orders (M3/D45)
+MAPPING_VERSION = 3  # v3: + javv-scan-watermarks (M3/D40)
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -113,6 +114,20 @@ _SCAN_ORDERS_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# javv-scan-watermarks (M3/D40): per-(cluster,scanner,image_digest) committed-scan watermark — the
+# serialization point that makes newer-scan-wins safe *including creates* (per-doc findings state
+# can't guard a finding that doesn't exist yet). CAS-bumped at commit; a run below the watermark
+# skips ALL cache writes. Mutable, no rollover; bounded by the live fleet (prune with findings).
+# See CORRECTNESS-CONTRACT §3.
+_SCAN_WATERMARKS_PROPERTIES: dict[str, Any] = {
+    "cluster_id": _KW,
+    "scanner": _KW,
+    "image_digest": _KW,
+    "max_committed_scan_order": {"type": "long"},  # guards create AND update of findings (D40/C-r3)
+    "max_committed_scan_at": _DATE,  # committed run @timestamp (display)
+    "schema_version": {"type": "short"},
+}
+
 MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "findings": {
         "settings": {"index": {**_BASE_SETTINGS, "analysis": _LC_ANALYSIS}},
@@ -129,6 +144,10 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "javv-scan-orders": {  # M3/D45 — authoritative scan_order counter
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_SCAN_ORDERS_PROPERTIES),
+    },
+    "javv-scan-watermarks": {  # M3/D40 — per-digest committed-scan watermark
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_SCAN_WATERMARKS_PROPERTIES),
     },
 }
 

@@ -102,13 +102,14 @@ def test_tokens_index_matches_index_map() -> None:
 
 def test_bootstrap_scope() -> None:
     # M1: findings + system-tokens + the two append templates. M2 adds system-config (snapshot-repo
-    # ref). M3 adds javv-scan-orders (D45 counter); watermarks land with M3's CAS slice;
+    # ref). M3 adds javv-scan-orders (D45 counter) + javv-scan-watermarks (D40 CAS guard);
     # occurrences M8a; audit-log M5a.
     assert set(MUTABLE_INDEXES) == {
         "findings",
         "system-tokens",
         "system-config",
         "javv-scan-orders",
+        "javv-scan-watermarks",
     }
     assert set(INDEX_TEMPLATES) == {"javv-scan-events", "javv-images"}
 
