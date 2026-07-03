@@ -9,7 +9,7 @@
 
 | Index | Shelf | Partition | Rollover | Retention |
 |---|---|---|---|---|
-| `javv-finding-occurrences-<cluster_id>-*` | append (history) | cluster | **yes** (ISM size/age/docs) | per-cluster drop-whole-index; **bounds how far back time-travel goes** |
+| `javv-finding-occurrences-<cluster_id>-*` | append (history) | cluster | **yes** (lifecycle job: size/age/docs) | per-cluster drop-whole-index; **bounds how far back time-travel goes** |
 | `javv-scan-events-<cluster_id>-*` | append (trends + **commit catalog**) | cluster (scanner = field, D38) | **yes** | per-cluster drop-whole-index |
 | `javv-images-<cluster_id>-*` | append (inventory snapshots, per `inventory_run_id`) | cluster | **yes** | per-cluster drop-whole-index |
 | `javv-inventory-runs-<cluster_id>-*` | append (**inventory commit manifest**, 1/run) | cluster | **yes** | per-cluster drop-whole-index |
@@ -349,7 +349,8 @@ revoked           boolean       revoke-on-role-change / logout-all
 ---
 
 ## Notes
-- **Naming:** ISM rollover creates numbered backing indices behind a write-alias; the `-*` denotes the
+- **Naming:** rollover (the M4 lifecycle CronJob, `_rollover`+`conditions` — not the ISM plugin; see
+  PLAN D8) creates numbered backing indices behind a write-alias; the `-*` denotes the
   rolled series. Route append series on **immutable `cluster_id`**, never `cluster_name`.
 - **Every read carries a `cluster_id` filter** via one tenant-scoping repository helper (SEC-4) - including
   both steps of the point-in-time symmetric query and the export drain. **MVP tenant model (D38/H9):** all

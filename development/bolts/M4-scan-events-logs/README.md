@@ -7,20 +7,20 @@ Own the `javv-scan-events-<cluster_id>-*` logs layer end-to-end: the immutable p
 scanner, scan)` append doc (carrying severity-count trends, the **backend-allocated** `scan_order`
 ordering key (D45) and the `commit_key` 4-tuple, with an idempotent `_id`) — **already written by
 M1/M3's ingest path; M4 takes ownership and asserts it**; add the missing lifecycle: **write
-aliases (audit n-2)** + ISM (rollover + per-cluster `retention_days` drop-whole-index delete);
-and precompute the scanner-disagreement flags consumed downstream.
+aliases (audit n-2)** + the **lifecycle CronJob** (rollover + per-cluster `retention_days`
+drop-whole-index delete); and precompute the scanner-disagreement flags consumed downstream.
 
 **Canonical refs:** [`PLAN_v4 §8 M4`](../../../docs/engineering/V4/PLAN_v4.md) ·
 `SPEC_v4` FR-5 (logs/trends), FR-11 (scanner disagreement), FR-19 (lifecycle/retention) ·
 [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`javv-scan-events-<cluster_id>-*`
-**[OWNS mapping + ISM]**) · decisions D5a/D5b (disagreement), D18 (idempotent `_id`),
+**[OWNS mapping + lifecycle]**) · decisions D5a/D5b (disagreement), D18 (idempotent `_id`),
 D26 (configurable rollover/retention), D38 (`scanner` is a field, not the index name),
 D40 (`scan_order`, never `@timestamp`).
 
 ## Depends on
 - M1 (index bootstrap + ingest skeleton - the request path this appends from). **The
   `javv-scan-events-*` / `javv-images-*` templates already live in `backend/core/bootstrap.py`
-  (versioned, run at app startup) — evolve them THERE (+ add the ISM policies) with a
+  (versioned, run at app startup) — evolve them THERE with a
   `MAPPING_VERSION` bump; don't create a parallel template-management path.**
 - M3 (**backend-allocated** `scan_order` source (D45) - `backend/src/backend/services/scan_orders.py`
   behind `POST /api/v1/scan-runs` - and `commit_key` construction; both are already stamped onto the
@@ -44,19 +44,23 @@ D40 (`scan_order`, never `@timestamp`).
 ## Deliverables
 The actual files/modules this bolt creates - **in the layered tree, not here** (paths proposed,
 matching the real `backend/src/backend/` layout):
-- **Write aliases (audit n-2, ordering constraint: land before or with the ISM policy).**
+- **Write aliases (audit n-2, ordering constraint: land before or with rollover).**
   `services/ingest.py` hardcodes the write targets as `javv-scan-events-<cluster>-000001` /
   `javv-images-<cluster>-000001` — correct only until rollover exists. Create a write alias per
-  append series (`is_write_index`), point ingest at the alias, and let ISM rollover retarget it.
+  append series (`is_write_index`), point ingest at the alias, and let rollover retarget it.
+- `backend/src/backend/jobs/lifecycle.py` - the **lifecycle CronJob** (daily, `Forbid`; sibling to
+  `jobs/staleness.py`): per managed series alias, (1) **rollover** via `_rollover`+`conditions`
+  (doc-count/age/size — OpenSearch evaluates the conditions server-side, the job pulls the
+  trigger), then (2) **retention** — drop whole expired NON-write backing indices at the
+  per-cluster `retention_days` (never `delete_by_query`, never the write index; age = newest
+  `@timestamp`, not `creation_date`). Knobs are tier-③ runtime config in `system-config`
+  (fleet-wide `lifecycle` + per-cluster `lifecycle:<cluster_id>` override, D26/M9e; interim CLI on
+  the module). **Deliberately NOT the ISM plugin** — see `## Updates` 2026-07-03 (mechanism
+  decision, settled with the operator).
 - `backend/src/backend/services/disagreement.py` - precompute (a) per-finding **severity**
   disagreement flag and (b) per-image **count** disagreement (`trivy_count` / `grype_count` /
   `count_delta`); per-scanner, **never summed/merged** (D5a/D5b, FR-11). The mapped fields exist;
   this adds the compute. *(Computed here; consumed by M9b/M9d - cross-link N10.)*
-- `backend/src/backend/core/ism.py` - **owns** the ISM policy: rollover on doc-count/age/size
-  (D26 configurable knobs surfaced in settings) + per-cluster `retention_days` **drop-whole-index**
-  delete (never `delete_by_query`). Applied at bootstrap alongside the templates.
-- `backend/src/backend/jobs/scan_events_retention.py` - CronJob entrypoint that applies the
-  retention sweep (drop expired rolled indices per `cluster_id`); sibling to `jobs/staleness.py`.
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**
@@ -74,8 +78,8 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   (AUDIT I1/I9).
 - **Ingest writes go through the write alias (n-2):** after a rollover, new docs land in the new
   backing index with no code change — proven by a rollover-then-ingest integration test.
-- ISM rollover fires on the configured doc/age/size knobs; `retention_days` drops a whole expired index
-  per `cluster_id` and never touches live ones (no `delete_by_query`).
+- The lifecycle sweep rolls on the configured doc/age/size knobs; `retention_days` drops a whole expired
+  index per `cluster_id` and never touches live ones (no `delete_by_query`, never the write index).
 - Severity-disagreement and count-disagreement (`count_delta`) flags are computed per-scanner and never
   summed across scanners (FR-11/D5b).
 
@@ -86,7 +90,7 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   single-scanner = no flag); the scan-events doc builder body (assert emitted `_source` + `_id`).
 - **Integration (real OpenSearch):** ingest → one scan-events doc appears per `(image, scanner, scan)`;
   re-ingest is idempotent (no dup `_id`); template applied is `dynamic:false` and matches INDEX-MAP;
-  ISM rollover triggers on the configured knob; `retention_days` drops a whole expired index and
+  the lifecycle sweep rolls on the configured knob; `retention_days` drops a whole expired index and
   leaves current indices intact.
 - **Golden fixtures:** real Trivy + Grype envelopes for the same image → expected scan-events docs
   (severity counts, `count_delta`, both disagreement flags) - per-scanner, never merged; a **clean
@@ -116,6 +120,21 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   paths now match the real `backend/src/backend/` layout; dropped the parallel
   `scan_events_template.py` deliverable (template evolves in `core/bootstrap.py`, AUDIT I1
   resolved in place). Added the **write-alias deliverable (audit n-2, #26 comment)** with its
-  ordering constraint — aliases must land before/with ISM rollover, or rollover strands the
-  hardcoded `-000001` writes. Remaining net-new work: aliases, ISM, retention CronJob,
+  ordering constraint — aliases must land before/with rollover, or rollover strands the
+  hardcoded `-000001` writes. Remaining net-new work: aliases, lifecycle job,
   disagreement compute.
+
+- **2026-07-03 — mechanism decision (D8/D26 execution): lifecycle CronJob, not the ISM plugin**
+  (settled with the operator at M4 kickoff; options laid out on #26). The D8 *contract* is
+  unchanged — numbered backing indices behind a write alias, rollover on doc/age/size, retention =
+  drop-whole-index, never `delete_by_query` — only the *executor* changed. Why: ISM's rollover
+  action needs a per-index `plugins.index_state_management.rollover_alias` **setting** whose value
+  is per-cluster; one shared template can't emit it, and the rollover-created next index wouldn't
+  inherit it (fix = per-cluster template machinery + component-template restructure). ISM policy
+  edits also don't live-apply (`change_policy` fan-out vs D26's UI-editable knobs), and per-cluster
+  `retention_days` doesn't fit one static policy (a retention job would be needed anyway). The
+  `_rollover`+`conditions` API is evaluated server-side by OpenSearch either way (the Curator
+  model, battle-tested for multi-tenant lifecycles; Elastic's own data-stream escape hatch is
+  closed to us — `op_type=create` breaks D18 idempotent re-ingest). Rollover precision = job
+  cadence (daily), noise at monthly-rollover scale. PLAN D8 + INDEX-MAP notes updated in the same
+  PR. Merged `core/ism.py` + `jobs/scan_events_retention.py` into one `jobs/lifecycle.py`.

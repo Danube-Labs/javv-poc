@@ -7,7 +7,7 @@ index/template whose recorded version is older.
 Scope: the `findings` current-state cache + `system-tokens` (ingest auth) + `system-config`
 (M2 — holds the snapshot-repo ref), plus index *templates* for the per-cluster
 `javv-scan-events-*` / `javv-images-*` append series so any per-cluster index gets the pinned
-mapping at auto-create. ISM rollover/retention policies are M4; `javv-scan-orders` (D45) and
+mapping at auto-create. Rollover/retention is M4's lifecycle job; `javv-scan-orders` (D45) and
 `javv-scan-watermarks` (D40) are owned by M3; occurrences (M8a) + audit-log (M5a) land with
 their bolts.
 

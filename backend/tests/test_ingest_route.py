@@ -61,6 +61,9 @@ class _FakeIndices:
     async def refresh(self, **_: Any) -> dict[str, Any]:
         return {}
 
+    async def exists_alias(self, **_: Any) -> bool:
+        return True  # write alias already ensured (M4/n-2) — creation paths are test_aliases.py
+
 
 def app_with(fake: FakeOS) -> httpx.AsyncClient:
     app = create_app()

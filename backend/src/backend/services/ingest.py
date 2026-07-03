@@ -14,6 +14,7 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.models.envelope import IngestEnvelope
 from backend.repositories.bulk import bulk_write
+from backend.services.aliases import ensure_write_alias
 from backend.services.merge import merge_action
 from backend.services.reconcile import reconcile_absent
 from backend.services.watermarks import advance_watermark
@@ -127,8 +128,12 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
     """Write one envelope in commit-then-cache order (D39). Returns findings written.
     `prefix` isolates index names (tests only), same convention as `bootstrap`."""
     docs = build_docs(env)
-    seq = f"{prefix}javv-scan-events-{env.cluster_id}-000001"
-    img = f"{prefix}javv-images-{env.cluster_id}-000001"
+    # append writes go through the series write alias (M4/n-2): ISM rollover retargets the
+    # backing index (-000001, -000002, …) and this code never changes
+    seq = f"{prefix}javv-scan-events-{env.cluster_id}"
+    img = f"{prefix}javv-images-{env.cluster_id}"
+    await ensure_write_alias(client, seq)
+    await ensure_write_alias(client, img)
 
     # 1) history append: the image inventory doc
     await bulk_write(client, [{"index": {"_index": img, "_id": docs["image_id"]}}, docs["image"]])

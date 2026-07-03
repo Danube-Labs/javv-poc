@@ -13,12 +13,13 @@ never `delete_by_query`** (hard constraint). Every destructive action is capabil
 NFR-6 (snapshot/restore + independent retention horizons) ·
 [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`system-config` **[reads/writes knobs]**, time-partitioned
 append families `javv-finding-occurrences-*` / `javv-scan-events-*` / `javv-images-*` / `javv-inventory-runs-*`;
-`system-audit-log-*` **keep long**; ISM policies) · decisions D20, D26, D37/M12 (stale=flag; delete only on long retention).
+`system-audit-log-*` **keep long**; lifecycle knobs) · decisions D20, D26, D37/M12 (stale=flag; delete only on long retention).
 
 ## Depends on
 - **M9a** (shell + tokens + reusable filter/form module; capability-gated client routing).
 - **M2** (snapshot/restore backend + ISM policy application — the M2 restore gate; this panel drives it).
 - **M3** (two-timer staleness machinery + `system-config` `staleness` doc whose knobs this panel edits — **backend shipped**: `jobs/staleness.py` sweep + `read/write_staleness_timers` + interim CLI).
+- **M4** (lifecycle machinery + `system-config` `lifecycle` doc whose knobs this panel edits — **backend shipped**: `jobs/lifecycle.py` sweep + `read/write_lifecycle_knobs` + interim CLI; no ISM policy re-apply glue needed).
 
 ## Deliverables
 In the layered tree, not here (paths proposed):
@@ -28,23 +29,26 @@ In the layered tree, not here (paths proposed):
 - `frontend/src/views/settings/CveAuditView.vue` — CVE-audit panel (per-CVE cross-scanner disagreement / decision provenance, read-side).
 - `frontend/src/composables/useRetentionForm.ts`, `useSnapshotForm.ts` — pure validators/option-builders (unit-tested).
 - Backend (if not delivered by M2/M4): `PUT /settings/retention`, `PUT /settings/rollover`, `POST /snapshots`, `POST /snapshots/{id}/restore`, `PUT /settings/staleness`, `GET /cve-audit` — capability-gated (`can_manage_retention`, `can_restore_snapshot`, `can_drop_index`) and journaled to `system-audit-log`.
-- ISM-policy apply/update glue: JAVV writes the retention/rollover policy so OpenSearch **drops whole indices** at horizon.
+- ~~ISM-policy apply/update glue~~ **not needed** (M4 mechanism decision): the panel just writes the
+  `lifecycle`/`lifecycle:<cluster_id>` knob docs in `system-config` (M4's `read/write_lifecycle_knobs`);
+  the daily `jobs/lifecycle.py` sweep reads them live and **drops whole indices** at horizon — an edit
+  takes effect at the next sweep with no re-apply step.
 - `backend/jobs/findings_cleanup.py` — the **long-window `findings` cleanup CronJob (D37/M12)**: `delete_by_query` on `findings` rows (+ their `javv-scan-watermarks` docs) whose image has been gone from inventory / `present=false` for the **long** retention window (a `system-config` knob this panel edits; independent of, and much longer than, the staleness timers). This is the job that bounds the `findings` plateau — **never** runs on the freshness timer, k8s CronJob `Forbid`, journaled to `system-audit-log`. *(Ownership was previously implied by D37/M12 but unowned — landed here because it pairs with the retention panel that configures it.)*
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test):
-- **Retention = drop whole indices (keystone):** applying a `retention_days` change results in expired time-partitioned indices being **dropped whole** via ISM/`indices.delete`; a test asserts the retention path **never** issues a `delete_by_query` against append families (hard constraint).
+- **Retention = drop whole indices (keystone):** applying a `retention_days` change results in expired time-partitioned indices being **dropped whole** by the lifecycle sweep (`indices.delete`); a test asserts the retention path **never** issues a `delete_by_query` against append families (hard constraint).
 - `stale` and **delete** are independent: changing the staleness timer flips the `stale` flag only; `findings`/occurrences docs are removed solely on the separate long retention window (D37/M12).
 - Destructive actions (retention change, drop, restore) are **rejected without the matching capability** server-side (`can_manage_retention`/`can_drop_index`/`can_restore_snapshot`) and each appends a `system-audit-log` entry.
 - Scan-scope writes (`PUT /api/v1/scan-scope`) are capability-gated + journaled; a round-trip test proves a UI-saved scope is what `GET /api/v1/scan-scope` then serves the scanner (D43/FR-24).
 - Snapshot → restore round-trips against a real container (reuses/extends the M2 restore drill).
-- Rollover-knob writes land in `system-config` and re-apply the ISM policy idempotently.
+- Rollover-knob writes land in `system-config` (`lifecycle`/`lifecycle:<cluster_id>`) and are picked up by the next lifecycle sweep — asserted end-to-end (write knob → run sweep → behavior changed).
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:
-- **Unit:** retention/rollover/staleness form validators; ISM-policy body builder (assert emitted policy JSON, incl. **delete-index** action, **not** delete-by-query); CVE-audit query builder.
+- **Unit:** retention/rollover/staleness form validators (against M4's `LifecycleKnobs` bounds); CVE-audit query builder.
 - **Integration (real OpenSearch):** apply retention policy → expired index dropped whole, survivors intact; capability-gated 403 paths; snapshot/restore round-trip; staleness-timer flip changes flag without deleting docs.
-- **Golden fixtures:** a retention config → expected ISM policy document (regression guard that the action stays `delete` of the index, never `delete_by_query`).
+- **Golden fixtures:** a retention config → expected `lifecycle` knob doc + the sweep's delete decision (regression guard that the action stays `delete` of the index, never `delete_by_query`).
 
 ## Out of scope (defer)
 - Full index-management UI (per-index ILM browser) → v1.x (FR-19 note).
