@@ -11,6 +11,16 @@ PIT+search_after search (faceted by scanner, composite aggs); trend endpoints ov
 M3, M4, M5c, M5b (system-audit-log — Contributors + audit-log replay read it). The T<now
 time-travel portion additionally depends on M8b (`as_of_t`) — gated, not a blocker for M6's T=now core.
 
+## Carried-in from M3 — reconcile refresh (audit #117)
+**Measure-first task, do it at M6 kickoff.** `services/reconcile.py` calls `indices.refresh("findings")`
+**once per ingest envelope** on the hottest index (load-bearing today: the just-merged findings must be
+visible before reconcile decides who's absent). It's harmless while nothing reads `findings` — M6 is the
+first read load that contends with it, so it's the first time it can storm. Marked with an in-code
+`NOTE(#117)` at the refresh site. **Do:** load-test ingest at target `clusters × scanners × digests`, watch
+OpenSearch `refresh` count/time; if flat, close [#117](https://github.com/Danube-Labs/javv-poc/issues/117)
+with the numbers; if it storms, replace the per-envelope refresh with a **bounded reconcile**
+(batch/debounce per `(cluster, scanner)` cycle, or `refresh=wait_for` on the merge writes). Don't fix blind.
+
 ## Deliverables
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
 - `backend/app/query/search.py` — faceted PIT + `search_after` finding search (FR-12); filters by severity/state/scanner/assignee/KEV/fix-available/disagree; `from/size` only under 10k, PIT+`search_after` for deep paging (delete the PIT in `finally`).
