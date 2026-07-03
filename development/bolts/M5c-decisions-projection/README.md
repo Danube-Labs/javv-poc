@@ -20,8 +20,10 @@ both land).
 ## Depends on
 - M5a (Auth & Session - `can_accept_audit_final` gates who may create a risk-accept decision; SEC-2;
   `get_current_principal()`).
-- M3 (owns the `findings` cache + the projection engine seam - `backend/app/projection/engine.py` -
-  and the rebuild-state self-heal this bolt extends with the human/decision projection).
+- M3 (owns the `findings` cache + the projection engine seam - `backend/app/projection/engine.py`).
+  **This bolt CREATES `backend/jobs/rebuild_state.py`** (the human/decision-projection arm — rebuild-state
+  was deferred out of M3 on 2026-07-03: M3 has neither `system-decisions`/`system-audit-log` nor
+  `occurrences`. The scanner-presence arm is added later in **M8a**.)
 
 ## Deliverables
 The actual files/modules this bolt creates - **in the layered tree, not here** (paths proposed):
@@ -46,8 +48,10 @@ The actual files/modules this bolt creates - **in the layered tree, not here** (
 - `backend/app/indices/decisions_template.py` - **owns** the `system-decisions` mapping
   (`dynamic:false`, INDEX-MAP fields, single index, no rollover; the role allows only the `revoked_at`
   post-hoc stamp - D39).
-- Extension to `backend/jobs/rebuild_state.py` (M3) - rebuild the **decision projection** of the
-  `findings` cache from `system-decisions` source (registers the human/decision arm of the self-heal).
+- `backend/jobs/rebuild_state.py` (**created here** - the base self-heal job; rebuild-state moved out
+  of M3 on 2026-07-03) - rebuild the **decision projection** of the `findings` cache from
+  `system-decisions` + `system-audit-log` source (the human/decision arm; M8a later adds the
+  scanner-presence arm - D-r3). Reuses M3's merge field-allowlist (single source, CONTRACT §6).
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**

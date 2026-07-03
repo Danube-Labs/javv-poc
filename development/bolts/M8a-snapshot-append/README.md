@@ -24,6 +24,9 @@ commit-then-cache), D40 (`scan_order`/`inventory_order` ordering + watermark CAS
   `commit_key`, and the commit-then-cache ordering this append plugs into). M8a **consumes** the
   watermark - it does **not** create it (AUDIT **I2**).
 - M4 (owns the `javv-scan-events` catalog doc that certifies a snapshot as committed).
+- **rebuild-state extension only:** M5c owns the **base** `backend/jobs/rebuild_state.py` (the
+  human/decision arm); this bolt extends it with the scanner-presence arm. The presence + watermark
+  rebuild needs only this bolt's `occurrences` + the catalog.
 
 ## Deliverables
 The actual files/modules this bolt creates - **in the layered tree, not here** (paths proposed):
@@ -50,6 +53,16 @@ The actual files/modules this bolt creates - **in the layered tree, not here** (
   versioned boot-time bootstrap from M1); the ISM policy module can stay separate.**
 - `backend/app/indices/inventory_runs_template.py` + `inventory_runs_ism.py` - **owns** the
   `javv-inventory-runs-<cluster_id>-*` template (`dynamic:false`) + ISM. (Both resolve AUDIT **I1**.)
+- **Extension to `backend/jobs/rebuild_state.py` — the scanner-presence arm (D40/D-r3, moved out of
+  M3 on 2026-07-03).** The base job (human/decision projection arm) is created in **M5c**; this bolt
+  **adds the scanner-presence arm**: reconstruct the `findings` presence fields (`present`,
+  `last_scan_order`, `last_scan_at`, `last_scan_run_id`, `resolved_at`) **and** the
+  `javv-scan-watermarks` from the append logs (catalog order, committed runs only) — landed here
+  because it replays **`occurrences`** (this bolt's per-finding history), which don't exist earlier.
+  **Reuses M3's merge field-allowlist + watermark/reconcile helpers** (single source — must not
+  diverge, CORRECTNESS-CONTRACT §6/§9), and **never touches `javv-scan-orders`** (authoritative, not
+  derived — D45). On-demand + after a detected crash; k8s CronJob `Forbid`. (Why not M3: M3 has no
+  `occurrences`; its crash recovery is the stateless full re-scan every cycle, D30.)
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**
@@ -65,6 +78,9 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - The inventory manifest is `_id = inventory_run_id`, carries `inventory_order`, is written **last**,
   and is `status=committed` **iff** `written_count == expected_count`; a partial run stays `partial`.
 - Both created templates are `dynamic:false` and match INDEX-MAP exactly - fail on drift (I1/I9).
+- **rebuild-state** reproduces an **identical** findings scanner-presence cache + watermarks from the
+  append logs alone (`occurrences` + `scan-events`, catalog order, committed runs only) — a golden
+  test, not an opinion (CORRECTNESS-CONTRACT §9); it **never** writes `javv-scan-orders` (D45).
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:

@@ -6,7 +6,9 @@
 Highest-risk bolt. Turn idempotent appends into correct current-state: partial-doc merge
 (scanner fields only), scanner-assigned scan_order + per-digest watermark CAS guarding BOTH
 create and update, commit-then-cache ordering, reconcile-on-commit, projection-on-new,
-two-timer staleness, and the rebuild-state self-heal job.
+and two-timer staleness. (The **rebuild-state** self-heal job is **deferred out of M3** — its data
+sources don't exist here; built later split across **M5c** (human/decision arm) + **M8a**
+(scanner-presence arm). See Updates.)
 
 **Canonical refs:** [`PLAN_v4 §8 M3`](../../../docs/engineering/V4/PLAN_v4.md) · `SPEC_v4` (FRs for M3) ·
 [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (javv-scan-watermarks **[OWNS]**, javv-findings,
@@ -24,7 +26,7 @@ The actual files/modules this bolt creates — **in the layered tree, not here**
 - `backend/app/ingest/reconcile.py` — reconcile-on-commit: flip `present=false` on findings the new run omits; cache-only, history stays tombstone-free (D37/D38).
 - `backend/app/projection/engine.py` — projection-on-new-only (D19).
 - `backend/jobs/staleness.py` — two-timer staleness (D20).
-- `backend/jobs/rebuild_state.py` — rebuild-state self-heal: rebuilds findings + scanner-presence cache from append logs (D40).
+- ~~`backend/jobs/rebuild_state.py` — rebuild-state self-heal~~ → **deferred out of M3.** Base job (human/decision arm) created in **M5c** (needs `system-decisions`/`system-audit-log`); scanner-presence arm added in **M8a** (needs `occurrences`, D-r3). M3's crash recovery is the stateless full re-scan every cycle (D30 — "the next cycle catches up").
 - Index template for `javv-scan-watermarks` (`dynamic:false`) — **register it in
   `backend/core/bootstrap.py` + bump `MAPPING_VERSION`** (the versioned boot-time bootstrap from M1);
   don't hand-roll a separate creation path.
@@ -36,7 +38,7 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - reconcile-on-commit flips `present=false` on omitted findings; no tombstones in history.
 - Partial-doc merge: scanner fields update; human triage fields (`state`, `vex_justification`) untouched.
 - Watermark CAS rejects a stale create AND a stale update; `committed_run_ts ≤ last_scan_at` is a no-op.
-- rebuild-state reproduces identical findings + scanner-presence cache from the append logs.
+- _(rebuild-state's DoD is deferred: the presence + watermark rebuild from `occurrences` + `scan-events` is an **M8a** keystone; the human/decision-projection rebuild is an **M5c** keystone. Neither's source exists in M3.)_
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:
@@ -47,13 +49,16 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 
 ## Out of scope (defer)
 - Snapshot/occurrence history append → M8a. Point-in-time query → M8b. (M3 maintains the cache + current-state; the append history and time-travel reads are the M8 line.)
+- **rebuild-state self-heal job → deferred (M5c + M8a)** (2026-07-03). Human/decision arm needs `system-decisions`/`system-audit-log` (D17) → **M5c**; scanner-presence arm needs `occurrences` (PLAN §D-r3) → **M8a**. Neither source exists in M3; M3's crash recovery is the stateless full re-scan every cycle (D30). See Updates.
 
 ## Before coding
 **Read [`CORRECTNESS-CONTRACT.md`](CORRECTNESS-CONTRACT.md) first** — the one-page distillation of every
 rule this bolt must honor (identity keys, ordering, CAS semantics, write order, reconcile, merge
 allowlist, rebuild invariant, the keystone tests). Pre-split into stacked PRs per
 [`git-workflow.md`](../../standards/git-workflow.md):
-**scan-order allocation (D45)** → merge → watermark CAS → commit-then-cache → reconcile → staleness → rebuild-state.
+**scan-order allocation (D45)** → merge → watermark CAS → commit-then-cache → reconcile → staleness.
+(rebuild-state was the planned 7th slice → **deferred** to M5c + M8a; see Updates.) **M3 implementation
+is complete at the staleness slice.**
 
 > **`scan_order` source — SETTLED (D45, 2026-07-03).** The wall-clock `time.time_ns()` mint is replaced by
 > a **backend-allocated sequence**: `POST /api/v1/scan-runs` CAS-increments a per-`(cluster_id, scanner)`
@@ -67,3 +72,18 @@ allowlist, rebuild invariant, the keystone tests). Pre-split into stacked PRs pe
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-03 — rebuild-state deferred out of M3; M3 implementation complete at the staleness slice.**
+  The planned 7th slice (`jobs/rebuild_state.py`) has **two arms with different data sources, neither
+  of which exists in M3**: the **human/decision** arm rebuilds from `system-decisions` +
+  `system-audit-log` (D17) → created in **M5c**; the **scanner-presence** arm rebuilds from
+  `occurrences` + `scan-events` (PLAN §D-r3) → added in **M8a**. Its keystone (#6: reproduce identical
+  findings + presence + watermarks from the logs) is therefore unsatisfiable in M3 — only the
+  watermarks are reconstructable from `scan-events` here. M3's crash recovery is already the
+  **stateless full re-scan every cycle** (D30 — the contract's own "rebuild-state _or the next cycle_
+  catches up"). The six shipped slices (allocation → merge → watermark CAS → commit-then-cache →
+  reconcile → staleness) are the whole M3 implementation. Downstream docs updated: PLAN milestone table
+  + §D-r3, CORRECTNESS-CONTRACT §9/#6/ladder, M5c + M8a READMEs. Mirrored on
+  [#25](https://github.com/Danube-Labs/javv-poc/issues/25).

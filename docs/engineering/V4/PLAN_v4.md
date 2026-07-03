@@ -26,12 +26,12 @@
 |---|---|---|
 | M1 | M1 | + golden-envelope round-trip gate; + `severity` normalizer |
 | - | **M2** | **new** - snapshot/restore (durability pulled forward) |
-| M2 | M3 | + inline-preserve-as-cache framing + rebuild-state job; + two-timer staleness; projection-on-new |
+| M2 | M3 | + inline-preserve-as-cache framing; + two-timer staleness; projection-on-new (rebuild-state job deferred: M5c creates the human/decision arm, M8a adds the scanner-presence arm) |
 | M2.5 | M4 | + idempotent `_id`; rollover knobs surface in settings |
 | M3 (one bolt) | **M5a–M5d** | split: access · state machine · decisions/projection · SLA/bulk |
 | M4 | M6 | read/reporting + VEX **export** (import → v1.1) |
 | - | **M7** | **new** - scheduled/throttled export (`system-reports`) |
-| **M2.6** (before triage) | **M8a–M8b** (after read) | **moved + simplified**: full per-scan snapshots · point-in-time API (close events removed) |
+| **M2.6** (before triage) | **M8a–M8b** (after read) | **moved + simplified**: full per-scan snapshots · point-in-time API (close events removed); + rebuild-state **scanner-presence arm** (base job created in M5c; M8a extends it — replays occurrences) |
 | M5 (one bolt) | **M9a–M9f** | split reusable-first; core-loop gate; + Data & OpenSearch panel |
 | M6 | M10 | polish & deploy |
 | `system-exceptions` | `system-decisions` | renamed (clearer) |
@@ -315,7 +315,9 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   - **Scanner-cache rebuild (D-r3).** `rebuild-state` is extended to **rebuild the scanner-presence cache**
     (`present`, `last_scan_order`, `last_scan_at`, `last_scan_run_id`, `resolved_at`) from `scan-events` +
     `occurrences`, so a crash between commit and the findings merge self-heals (on demand + after a detected
-    crash). (Previously rebuild-state was human-state only.)
+    crash). (Previously rebuild-state was human-state only.) **The job is built in M8a, not M3** (it replays
+    `occurrences`, which land in M8a — 2026-07-03); in M3 the same crash self-heals via the stateless
+    full re-scan every cycle (D30).
   - **Reconcile retries to zero conflicts (E-r3).** The reconcile `update_by_query` **inspects the conflict
     count and re-runs scoped until zero** (not `conflicts=proceed`-and-forget), so a doc racing a human triage
     write is never wrongly left `present=true`. The script patches **scanner-owned fields only**.
