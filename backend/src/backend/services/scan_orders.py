@@ -9,13 +9,17 @@ old `time.time_ns()` orders — the sequence continues above them). Gaps from cr
 the contract is monotonicity, not density.
 """
 
+import asyncio
+import random
 from datetime import UTC, datetime
 from typing import Any
 
 from opensearchpy import AsyncOpenSearch, ConflictError, NotFoundError
 
 INDEX = "javv-scan-orders"
-_CAS_RETRIES = 8
+# generous: real contention is ~1 (one CronJob per scanner, Forbid), but the CAS must also
+# survive pathological races (the keystone test runs 10 allocators at once)
+_CAS_RETRIES = 32
 
 
 def _doc_id(cluster_id: str, scanner: str) -> str:
@@ -88,5 +92,6 @@ async def allocate_scan_order(
             )
             return order
         except ConflictError:
+            await asyncio.sleep(random.uniform(0, 0.02))  # jitter so racers don't lockstep
             continue  # lost the CAS race — re-read and retry
     raise RuntimeError("scan-order allocation: CAS retries exhausted")

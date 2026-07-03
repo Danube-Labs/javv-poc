@@ -1,7 +1,8 @@
 """Envelope → documents, written in commit-then-cache order (D39): images append →
 scan-events commit doc → findings cache last. All `_id`s are deterministic (D18) so a re-push of
-the same envelope is idempotent. M1 writes the findings cache naively (full index op); the
-partial-merge + watermark/newer-scan-wins guards are M3 — do not pre-build them here.
+the same envelope is idempotent. The findings cache is a **partial-doc merge** (D31, M3 slice 2 —
+scanner fields refresh, human fields survive; see `services.merge`); the watermark +
+newer-scan-wins guards are the next M3 slice.
 """
 
 import hashlib
@@ -11,6 +12,7 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.models.envelope import IngestEnvelope
 from backend.repositories.bulk import bulk_write
+from backend.services.merge import merge_action
 
 
 def _h(*parts: str) -> str:
@@ -117,11 +119,12 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
     }
 
 
-async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope) -> int:
-    """Write one envelope in commit-then-cache order (D39). Returns findings written."""
+async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefix: str = "") -> int:
+    """Write one envelope in commit-then-cache order (D39). Returns findings written.
+    `prefix` isolates index names (tests only), same convention as `bootstrap`."""
     docs = build_docs(env)
-    seq = f"javv-scan-events-{env.cluster_id}-000001"
-    img = f"javv-images-{env.cluster_id}-000001"
+    seq = f"{prefix}javv-scan-events-{env.cluster_id}-000001"
+    img = f"{prefix}javv-images-{env.cluster_id}-000001"
 
     # 1) history append: the image inventory doc
     await bulk_write(client, [{"index": {"_index": img, "_id": docs["image_id"]}}, docs["image"]])
@@ -130,8 +133,9 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope) -> int:
         client,
         [{"index": {"_index": seq, "_id": docs["scan_event_id"]}}, docs["scan_event"]],
     )
-    # 3) cache last: findings (M1 naive index; M3 adds merge + watermark guards)
+    # 3) cache last: partial-doc merge — scanner fields refresh, human fields survive (D31, M3
+    #    slice 2); the watermark/newer-scan-wins guards land in the next slice
     actions: list[dict[str, Any]] = []
     for doc in docs["findings"]:
-        actions += [{"index": {"_index": "findings", "_id": doc["finding_key"]}}, doc]
+        actions += merge_action(doc, index=f"{prefix}findings")
     return await bulk_write(client, actions)

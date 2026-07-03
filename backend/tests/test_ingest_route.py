@@ -81,7 +81,9 @@ async def test_happy_path_writes_in_commit_then_cache_order() -> None:
     assert len(fake.bulks) == 3  # images → scan-events → findings (D39 order)
     assert fake.bulks[0][0]["index"]["_index"].startswith(f"javv-images-{CLUSTER}")
     assert fake.bulks[1][0]["index"]["_index"].startswith(f"javv-scan-events-{CLUSTER}")
-    assert fake.bulks[2][0]["index"]["_index"] == "findings"
+    # findings are partial-doc merges (D31, M3 slice 2) — update ops, never full index
+    assert fake.bulks[2][0]["update"]["_index"] == "findings"
+    assert "state" not in fake.bulks[2][1]["doc"]  # human fields never in the partial doc
     assert fake.updates[0]["body"]["doc"]["last_ingest_at"]  # scanner-down guard stamped
 
 
