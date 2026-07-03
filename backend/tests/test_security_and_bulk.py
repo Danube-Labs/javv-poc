@@ -2,12 +2,24 @@
 retry with jitter, hard failure otherwise)."""
 
 import random
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
 
-from backend.core.security import hash_token, mint_token, tokens_match
+from backend.core.security import hash_token, mint_token, token_expired, tokens_match
 from backend.repositories.bulk import BulkError, bulk_write
+
+
+def test_token_expiry_is_enforced() -> None:  # audit m-3
+    now = datetime(2026, 7, 3, tzinfo=UTC)
+    assert token_expired({}, now=now) is False  # no expiry = never expires
+    assert token_expired({"expiry": None}, now=now) is False
+    assert token_expired({"expiry": (now - timedelta(seconds=1)).isoformat()}, now=now) is True
+    assert token_expired({"expiry": (now + timedelta(days=1)).isoformat()}, now=now) is False
+    # tz-naive stored value is coerced to UTC, not crashed
+    assert token_expired({"expiry": "2020-01-01T00:00:00"}, now=now) is True
+
 
 # --- tokens ------------------------------------------------------------------
 

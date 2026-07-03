@@ -5,6 +5,8 @@ logged or persisted."""
 import hashlib
 import hmac
 import secrets
+from datetime import UTC, datetime
+from typing import Any
 
 
 def mint_token() -> str:
@@ -21,3 +23,15 @@ def hash_token(token: str, *, pepper: str) -> str:
 def tokens_match(candidate_hash: str, stored_hash: str) -> bool:
     """Constant-time comparison (no timing oracle on the hash tail)."""
     return hmac.compare_digest(candidate_hash, stored_hash)
+
+
+def token_expired(token: dict[str, Any], *, now: datetime | None = None) -> bool:
+    """True if the token doc carries an `expiry` at or before now (audit m-3). A null/absent expiry
+    never expires. tz-naive stored values are coerced to UTC (defensive, like the sweep)."""
+    exp = token.get("expiry")
+    if not exp:
+        return False
+    dt = datetime.fromisoformat(exp.replace("Z", "+00:00")) if isinstance(exp, str) else exp
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    return dt <= (now or datetime.now(UTC))

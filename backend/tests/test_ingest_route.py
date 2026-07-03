@@ -128,6 +128,31 @@ async def test_disabled_token_rejected() -> None:
         assert (await post(c, gz(GOLDEN), t)).status_code == 401
 
 
+async def test_expired_token_rejected() -> None:
+    t = mint_token()
+    doc = {**token_doc(t), "expiry": "2020-01-01T00:00:00+00:00"}  # long past (m-3)
+    async with app_with(FakeOS(doc)) as c:
+        assert (await post(c, gz(GOLDEN), t)).status_code == 401
+
+
+def test_rate_limiter_evicts_drained_keys() -> None:  # audit m-4
+    import time
+
+    from backend.routers.ingest import _WINDOW_S, _hits, _sweep_drained
+
+    now = time.monotonic()
+    try:
+        _hits["drained"].append(now - _WINDOW_S - 1)  # last hit older than the window
+        _hits["fresh"].append(now)  # a live key must survive
+        _ = _hits["empty"]  # defaultdict materialises an empty deque
+        _sweep_drained(now)
+        assert "drained" not in _hits and "empty" not in _hits  # garbage-token leak swept
+        assert "fresh" in _hits
+    finally:
+        for k in ("drained", "fresh", "empty"):
+            _hits.pop(k, None)
+
+
 async def test_zip_bomb_is_rejected_413() -> None:
     t = mint_token()
     bomb = gzip.compress(b"0" * (70 * 1024 * 1024))  # tiny wire, huge inflate
