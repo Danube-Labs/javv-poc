@@ -51,13 +51,21 @@ async def real_os():
     await client.close()
 
 
-async def _seed_token(client, prefix, *, scanner="trivy", last_ingest: datetime | None) -> None:
-    body = {"cluster_id": CLUSTER, "scanner": scanner, "token_hash": "x", "disabled": False}
+async def _seed_token(
+    client,
+    prefix,
+    *,
+    scanner="trivy",
+    last_ingest: datetime | None,
+    disabled: bool = False,
+    token_id: str | None = None,
+) -> None:
+    body = {"cluster_id": CLUSTER, "scanner": scanner, "token_hash": "x", "disabled": disabled}
     if last_ingest is not None:
         body["last_ingest_at"] = last_ingest.isoformat()
     await client.index(
         index=f"{prefix}system-tokens",
-        id=f"{CLUSTER}:{scanner}",
+        id=token_id or f"{CLUSTER}:{scanner}",
         body=body,
         params={"refresh": "true"},
     )
@@ -191,3 +199,62 @@ async def test_sweep_is_idempotent(real_os) -> None:
     assert first["staled"] == 1 and second["staled"] == 0  # already stale — not re-marked
     old = await _get(client, prefix, "old")
     assert old["state"] == "stale" and old["pre_stale_status"] == "open"  # not clobbered to "stale"
+
+
+# --- M-2: a disabled/rotated stale token must not mass-stale a healthy scanner ---------
+
+
+@requires_opensearch
+async def test_rotated_token_does_not_mass_stale_a_healthy_scanner(real_os) -> None:
+    client, prefix = real_os
+    # old token: disabled, last ingested 10 days ago (would trigger scanner-down if counted)
+    await _seed_token(
+        client,
+        prefix,
+        last_ingest=NOW - timedelta(days=10),
+        disabled=True,
+        token_id=f"{CLUSTER}:trivy:old",
+    )
+    # new token: active, healthy — the scanner is actually fine
+    await _seed_token(
+        client, prefix, last_ingest=NOW - timedelta(hours=1), token_id=f"{CLUSTER}:trivy:new"
+    )
+    await _seed_finding(client, prefix, "fresh", last_seen=NOW - timedelta(hours=2))
+
+    result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
+
+    # the disabled stale token is ignored; the healthy one wins → nothing mass-staled
+    assert result["staled"] == 0
+    assert (await _get(client, prefix, "fresh"))["state"] == "open"
+
+
+# --- M-3: a tz-naive last_ingest_at must not crash the sweep -----------------------
+
+
+@requires_opensearch
+async def test_naive_timestamp_does_not_crash_the_sweep(real_os) -> None:
+    client, prefix = real_os
+    # a bad-clock client wrote a tz-naive timestamp (no offset); _parse_dt coerces it to UTC
+    naive = NOW.replace(tzinfo=None) - timedelta(days=9)
+    await _seed_token(client, prefix, last_ingest=naive)
+    await _seed_finding(client, prefix, "a", last_seen=NOW - timedelta(days=9))
+
+    result = await run_staleness_sweep(client, now=NOW, prefix=prefix)  # must not raise TypeError
+
+    assert result["staled"] == 1  # 9d naive ≥ M(7) → scanner-down escalation still fires
+    assert (await _get(client, prefix, "a"))["state"] == "stale"
+
+
+# --- T-2: a never-ingested token is infinitely silent → scanner-down --------------
+
+
+@requires_opensearch
+async def test_never_ingested_token_mass_stales(real_os) -> None:
+    client, prefix = real_os
+    await _seed_token(client, prefix, last_ingest=None)  # token minted, never pushed
+    await _seed_finding(client, prefix, "a", last_seen=NOW - timedelta(hours=1))
+
+    result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["staled"] == 1
+    assert (await _get(client, prefix, "a"))["state"] == "stale"

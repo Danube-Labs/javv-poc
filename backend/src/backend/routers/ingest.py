@@ -11,6 +11,7 @@ import json
 import time
 import zlib
 from collections import defaultdict, deque
+from datetime import UTC, datetime
 from typing import Any, cast
 
 import structlog
@@ -126,9 +127,11 @@ async def ingest_scan(request: Request) -> dict[str, Any]:
     FINDINGS_WRITTEN.labels(scanner=env.scanner).inc(written)
     log.info("ingest committed", scan_run_id=env.scan_run_id, findings=written)
 
+    # server-side timestamp — the scanner-down guard must not be gameable by a client clock (M-3);
+    # this records when the backend last accepted a push, not the scanner's self-reported scan time
     await client.update(
         index="system-tokens",
         id=docs[0]["_id"],
-        body={"doc": {"last_ingest_at": env.last_seen_at.isoformat()}},
+        body={"doc": {"last_ingest_at": datetime.now(UTC).isoformat()}},
     )
     return {"accepted": True, "findings": written, "commit": env.scan_run_id}

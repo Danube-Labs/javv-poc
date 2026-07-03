@@ -66,9 +66,12 @@ async def write_staleness_timers(
 
 
 def _parse_dt(value: str | None) -> datetime | None:
+    """Parse an ISO timestamp, coercing tz-naive input to UTC — a naive value would otherwise make
+    `now(UTC) - dt` raise and kill the sweep for every tenant (M-3)."""
     if not value:
         return None
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    dt = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
 
 
 async def _mark_stale(
@@ -143,14 +146,27 @@ async def run_staleness_sweep(
     m_delta = timedelta(days=timers.scanner_down_days)
     n_cutoff = now - n_delta
 
+    # Collapse the token docs into the (cluster, scanner) registry: skip DISABLED tokens, and take
+    # the MOST RECENT last_ingest across a scanner's tokens — otherwise a rotated/disabled old token
+    # (stale last_ingest) would mass-stale a scanner that a newer token is actively feeding (M-2).
     tokens = await client.search(
-        index=f"{prefix}system-tokens", body={"size": 10_000, "query": {"match_all": {}}}
+        index=f"{prefix}system-tokens",
+        body={"size": 10_000, "query": {"bool": {"must_not": [{"term": {"disabled": True}}]}}},
     )
-    staled = reverted = 0
+    registry: dict[tuple[str, str], datetime | None] = {}
     for hit in tokens["hits"]["hits"]:
         src = hit["_source"]
-        cluster_id, scanner = src["cluster_id"], src["scanner"]
-        last_ingest = _parse_dt(src.get("last_ingest_at"))
+        key = (src["cluster_id"], src["scanner"])
+        li = _parse_dt(src.get("last_ingest_at"))
+        if key not in registry:
+            registry[key] = li
+        else:
+            existing = registry[key]
+            if li is not None and (existing is None or li > existing):
+                registry[key] = li
+
+    staled = reverted = 0
+    for (cluster_id, scanner), last_ingest in registry.items():
         silent = (now - last_ingest) if last_ingest else None  # never ingested = infinitely silent
 
         if silent is None or silent >= m_delta:
