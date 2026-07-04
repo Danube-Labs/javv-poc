@@ -1,0 +1,145 @@
+"""The structured audit writer (M5b slice 2, D32/D17) — one immutable row per field change,
+append-only BY CONSTRUCTION (`_id` = `event_id`, `op_type=create` — an overwrite is impossible,
+not just forbidden). Replay ordering: `(@timestamp, event_id)` across entities, `revision` for
+same-`(entity, field)` causality (D40/H-r3). Absorbs M5a's thin auth appender (same rows, one
+writer). Real OpenSearch, prefix-isolated."""
+
+import contextlib
+import os
+from uuid import uuid4
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.audit.writer import (
+    AUDIT_SCHEMA_VERSION,
+    append_auth_event,
+    append_field_change,
+)
+from backend.core.bootstrap import bootstrap
+
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+
+
+def _os_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+
+
+@pytest.fixture
+async def real_os():
+    prefix = f"t-{uuid4().hex[:8]}-"
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    await bootstrap(client, prefix=prefix)
+    yield client, prefix
+    with contextlib.suppress(Exception):
+        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
+    await client.close()
+
+
+async def _rows(client, prefix) -> list[dict]:
+    await client.indices.refresh(index=f"{prefix}system-audit-log-*")
+    hits = await client.search(
+        index=f"{prefix}system-audit-log-*", body={"size": 100, "query": {"match_all": {}}}
+    )
+    return [h["_source"] for h in hits["hits"]["hits"]]
+
+
+async def test_field_change_row_carries_the_full_d32_contract(real_os) -> None:
+    client, prefix = real_os
+
+    event_id = await append_field_change(
+        client,
+        actor="alice",
+        action="risk_accept",
+        entity_type="finding",
+        entity_id="fk-1",
+        finding_key="fk-1",
+        field="state",
+        old_value="open",
+        new_value="risk_accepted",
+        revision=7,
+        cluster_id="c-1",
+        prefix=prefix,
+    )
+
+    rows = await _rows(client, prefix)
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["event_id"] == event_id and row["@timestamp"]  # the ordering pair (D39)
+    assert row["actor"] == "alice" and row["action"] == "risk_accept"
+    assert (row["entity_type"], row["entity_id"], row["finding_key"]) == ("finding", "fk-1", "fk-1")
+    assert (row["field"], row["field_type"]) == ("state", "scalar")
+    assert (row["old_value"], row["new_value"]) == ("open", "risk_accepted")
+    assert row["revision"] == 7  # same-(entity,field) causal order (D40/H-r3)
+    assert row["cluster_id"] == "c-1"
+    assert row["schema_version"] == AUDIT_SCHEMA_VERSION
+
+
+async def test_notes_are_text_typed(real_os) -> None:
+    client, prefix = real_os
+    await append_field_change(
+        client,
+        actor="alice",
+        action="note",
+        entity_type="finding",
+        entity_id="fk-1",
+        finding_key="fk-1",
+        field="notes",
+        old_value=None,
+        new_value="looked into it",
+        revision=2,
+        cluster_id="c-1",
+        prefix=prefix,
+    )
+    (row,) = await _rows(client, prefix)
+    assert row["field_type"] == "text"
+    assert row.get("old_value") is None  # first write — no before-image
+
+
+async def test_rows_are_append_only_by_construction(real_os) -> None:
+    # the row _id IS the event_id and writes use op_type=create — a second write under the same
+    # identity cannot silently overwrite history (SEC-1's create-only role is the deploy backstop)
+    client, prefix = real_os
+    event_id = await append_field_change(
+        client,
+        actor="alice",
+        action="assign",
+        entity_type="finding",
+        entity_id="fk-1",
+        finding_key="fk-1",
+        field="assignee",
+        old_value=None,
+        new_value="bob",
+        revision=1,
+        cluster_id="c-1",
+        prefix=prefix,
+    )
+    from opensearchpy.exceptions import ConflictError
+
+    with pytest.raises(ConflictError):
+        await client.index(
+            index=f"{prefix}system-audit-log",
+            id=event_id,
+            body={"event_id": event_id, "actor": "mallory"},
+            params={"op_type": "create"},
+        )
+
+
+async def test_the_absorbed_auth_appender_writes_the_same_shape(real_os) -> None:
+    client, prefix = real_os
+
+    await append_auth_event(
+        client, actor="alice", action="login", entity_type="user", entity_id="alice", prefix=prefix
+    )
+
+    (row,) = await _rows(client, prefix)
+    assert row["action"] == "login" and row["entity_type"] == "user"
+    assert row["schema_version"] == AUDIT_SCHEMA_VERSION
+    assert row["event_id"] and row["@timestamp"]
