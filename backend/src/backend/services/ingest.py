@@ -15,6 +15,11 @@ from opensearchpy import AsyncOpenSearch
 from backend.models.envelope import IngestEnvelope
 from backend.repositories.bulk import bulk_write
 from backend.services.aliases import ensure_write_alias
+from backend.services.disagreement import (
+    count_pair,
+    latest_committed_total,
+    recompute_disagreement,
+)
 from backend.services.merge import merge_action
 from backend.services.reconcile import reconcile_absent
 from backend.services.watermarks import advance_watermark
@@ -135,7 +140,13 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
     await ensure_write_alias(client, seq)
     await ensure_write_alias(client, img)
 
-    # 1) history append: the image inventory doc
+    # 1) history append: the image inventory doc — decorated with the D5b count pair when the
+    #    OTHER scanner has a committed scan of this digest (as-of-append; single scanner = no pair)
+    other = "grype" if env.scanner == "trivy" else "trivy"
+    other_total = await latest_committed_total(
+        client, env.cluster_id, other, env.image_digest, prefix=prefix
+    )
+    docs["image"] |= count_pair(env.scanner, env.counts.total, other_total)
     await bulk_write(client, [{"index": {"_index": img, "_id": docs["image_id"]}}, docs["image"]])
     # 2) the commit doc — the catalog marker; a clean scan (0 findings) still commits (D30)
     await bulk_write(
@@ -173,4 +184,7 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
         env.last_seen_at,
         prefix=prefix,
     )
+    # 3d) D5a severity-disagreement flags — recomputed for the whole digest AFTER merge+reconcile
+    #     (fresh presence), so reconvergence / a dropped finding clears the flag on both sides
+    await recompute_disagreement(client, env.cluster_id, env.image_digest, prefix=prefix)
     return written

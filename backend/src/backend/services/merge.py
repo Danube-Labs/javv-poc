@@ -37,6 +37,10 @@ SCANNER_FIELDS = frozenset(
 # human/triage-owned — ingest NEVER writes these on an existing doc (D31)
 HUMAN_FIELDS = frozenset({"state", "vex_justification", "assignee", "notes", "pre_stale_status"})
 
+# third family (M4/D5a): `disagree` is derived cross-scanner decoration — owned solely by
+# services.disagreement.recompute_disagreement, deliberately in NEITHER allowlist so merges
+# never clobber it and rebuild-state recomputes it rather than replaying it
+
 # newer-scan-wins per-doc guard (D40/audit M-1): on an EXISTING doc, apply the scanner fields only
 # when strictly newer (`scan_order > last_scan_order`); else no-op. Closes the resurrection the
 # per-digest watermark's check-then-write can't — `advance_watermark` and this cache write are

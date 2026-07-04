@@ -33,9 +33,12 @@ class FakeOS:
         self.ubqs: list[dict[str, Any]] = []
         self.indices = _FakeIndices()
 
-    async def search(self, **_: Any) -> dict[str, Any]:
-        hits = [{"_id": "t1", "_source": self.token_doc}] if self.token_doc else []
-        return {"hits": {"hits": hits}}
+    async def search(self, **kw: Any) -> dict[str, Any]:
+        if "system-tokens" in str(kw.get("index", "")):
+            hits = [{"_id": "t1", "_source": self.token_doc}] if self.token_doc else []
+            return {"hits": {"hits": hits}}
+        # findings / scan-events lookups (D5a recompute, D5b catalog read) — nothing seeded
+        return {"hits": {"hits": []}}
 
     async def bulk(self, body: list[dict[str, Any]]) -> dict[str, Any]:
         self.bulks.append(body)
