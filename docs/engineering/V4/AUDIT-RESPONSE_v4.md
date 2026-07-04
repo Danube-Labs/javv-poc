@@ -265,13 +265,13 @@ discipline, scripted newer-scan-wins guards, and a fencing token - all on OpenSe
 A mechanism-level concurrency review found that D39's newer-scan-wins guarded **per-doc** state, which
 **cannot guard a create** - an out-of-order older run could re-create a finding a newer *clean* scan had
 retired. Real bug. Fixed in **D40**, plus the supporting ordering/atomicity gaps. Locked choices:
-**scanner-assigned `scan_order`** (monotonic via CronJob `Forbid`) as the trusted ordering key (not
+**scanner-assigned `scan_order`** (monotonic via CronJob `Forbid`; *source since amended to backend-allocated - D45*) as the trusted ordering key (not
 `@timestamp`); **extend `rebuild-state`** to also rebuild the scanner-presence cache.
 
 | # | Sev | Verdict | Fix (→ D40) |
 |---|-----|---------|-------------|
 | Keystone (A/B-r3) | Crit | Adopt | New **`javv-scan-watermarks`** index (`max_committed_scan_order`, CAS at commit); **create AND update** guard against it - a stale out-of-order run skips the cache (history harmless) |
-| C-r3 (ordering) | Crit | Adopt | Correctness ordering uses scanner-assigned **`scan_order`**, never `@timestamp`; on `scan-events` + `occurrences` rows; catalog sorts by `scan_order` |
+| C-r3 (ordering) | Crit | Adopt | Correctness ordering uses **`scan_order`** (then scanner-assigned; backend-allocated since D45), never `@timestamp`; on `scan-events` + `occurrences` rows; catalog sorts by `scan_order` |
 | D-r3 (crash) | High | Adopt | `rebuild-state` extended to rebuild the **scanner-presence cache** (`present`/`last_scan_order`/`last_scan_at`/`last_scan_run_id`/`resolved_at`) from the catalog |
 | E-r3 (reconcile vs triage) | High | Adopt | Reconcile `update_by_query` **retries scoped until zero conflicts** (not `conflicts=proceed`); scanner-owned fields only |
 | G-r3 (decision edit) | High | Adopt | Revoke+create share **one `effective_at` + `operation_id`**; projection deferred until both land - no neither/both gap |

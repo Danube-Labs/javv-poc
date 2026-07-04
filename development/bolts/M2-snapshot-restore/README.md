@@ -21,7 +21,7 @@ later bolt builds on a recoverable store. (NFR-6.)
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
 - `deploy/opensearch/snapshot-repo.yaml` — register the snapshot repository (FS for local/CI, `repository-s3`/MinIO for k3s);
   repo credentials live in the OpenSearch keystore, **never** in `system-config` (only the repo *ref* is stored there).
-- `backend/app/admin/snapshot.py` — thin helpers to register the repo, read/write the snapshot-repo ref in `system-config`,
+- `backend/src/backend/admin/snapshot.py` — thin helpers to register the repo, read/write the snapshot-repo ref in `system-config`,
   and trigger an on-demand snapshot (used by the restore-drill harness and, later, FR-19 admin panel).
 - `deploy/opensearch/ism-snapshot-policy.json` — ISM policy: automated periodic snapshot of `javv-findings`/`javv-images`/`system-*`
   (schedule + retention per D26); attaches via index template.

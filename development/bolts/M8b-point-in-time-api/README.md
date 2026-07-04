@@ -16,9 +16,9 @@ javv-inventory-runs, system-audit-log, decisions) · D28, D37–D40.
 
 ## Deliverables
 Paths proposed:
-- `backend/app/query/pit.py` — catalog-first two-step (latest committed run ≤ T by `scan_order`, then occurrences for that run); never "latest doc per key" (R-CATALOG).
-- `backend/app/query/as_of_t.py` — composes the four append logs at T (D28). **M6 delegates its T<now read path here** (see M6 split).
-- `backend/app/api/point_in_time.py` — GET endpoint; results labelled "as-scanned".
+- `backend/src/backend/query/pit.py` — catalog-first two-step (latest committed run ≤ T by `scan_order`, then occurrences for that run); never "latest doc per key" (R-CATALOG).
+- `backend/src/backend/query/as_of_t.py` — composes the four append logs at T (D28). **M6 delegates its T<now read path here** (see M6 split).
+- `backend/src/backend/api/point_in_time.py` — GET endpoint; results labelled "as-scanned".
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**:

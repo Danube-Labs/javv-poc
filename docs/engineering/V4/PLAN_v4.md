@@ -264,7 +264,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
     digest" over occurrences.
   - **Newer-scan-wins (C2-r2; ⚠ guard key superseded by D40).** `findings` carries a per-doc guard so the
     partial-merge and reconcile no-op for an out-of-order *older* run. **D40 supersedes the key:** guard on the
-    scanner-assigned **`scan_order`** (not `@timestamp`/`last_scan_at`) **and the per-digest
+    backend-allocated (D45) **`scan_order`** (not `@timestamp`/`last_scan_at`) **and the per-digest
     `javv-scan-watermarks` watermark** - the watermark is what guards a *create* (a finding the newer scan
     omits that has no doc yet), which per-doc `last_scan_at` could not. See D40.
   - **Cache-after-commit ordering (H3-r2).** Ingest order is: **append occurrences + images → write the
@@ -330,7 +330,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
     `revision`, not `event_id` (which is only a tiebreak for unrelated events). Fixes the same-millisecond
     same-field race.
   - **Inventory ordering (F-r3).** The `javv-inventory-runs` manifest gains **`inventory_order`**
-    (scanner-assigned, same basis as `scan_order`); "running at T" sorts by `inventory_order`, not `@timestamp`.
+    (backend-allocated - D45, same basis as `scan_order`; minted when M8a builds the manifest); "running at T" sorts by `inventory_order`, not `@timestamp`.
     A partial run writes no `committed` manifest → reads fall back to the prior committed run + the staleness
     banner.
   - **PIT catalog ordering (C-r3).** The catalog's "latest commit per digest ≤ T" sorts by
@@ -506,7 +506,7 @@ One **immutable** doc per **(image, scanner, scan)**. Logs/events, not metrics.
 |---|---|---|
 | `@timestamp` | `date` | scan time; rollover/retention axis (**display only**, not ordering - D40) |
 | `scan_run_id` | `keyword` | the run this summary belongs to |
-| `scan_order` | `long` | scanner-assigned monotonic per (cluster,scanner); **the catalog ordering key** (D40/C-r3) |
+| `scan_order` | `long` | backend-allocated (D45) monotonic per (cluster,scanner); **the catalog ordering key** (D40/C-r3) |
 | `cluster_id` | `keyword` | immutable; tenant filter + index routing |
 | `scanner` | `keyword` | `trivy`/`grype` |
 | `namespace` | `keyword` | |
@@ -543,7 +543,7 @@ present in later snapshots - **no close events** (validated: this is Elastic CSP
 |---|---|---|
 | `@timestamp` | `date` | scan time; point-in-time axis (one value per `scan_run_id`) |
 | `scan_run_id` | `keyword` | the snapshot's scan run |
-| `scan_order` | `long` | scanner-assigned monotonic per (cluster,scanner); ordering key (D40/C-r3) |
+| `scan_order` | `long` | backend-allocated (D45) monotonic per (cluster,scanner); ordering key (D40/C-r3) |
 | `commit_key` | `keyword` | = scan-events `commit_key` (cluster+scanner+digest+run); exact membership for the symmetric query (D39) |
 | `cluster_id` | `keyword` | tenant + routing |
 | `scanner` | `keyword` | |
@@ -702,7 +702,7 @@ Each ends on a verifiable check + Confirm gate.
    only - human fields untouched, no preserve script; D31) with golden-fixture tests incl. **concurrent
    ingest+triage** (`retry_on_conflict≥3` / 409-retry - SND-8); `detect_noop` (free upsert default);
    **commit-then-cache ordering** (append occurrences+images → scan-events commit after per-item `_bulk`
-   success → findings merge+reconcile **last** - D39/H3-r2); **scanner-assigned `scan_order`** + **per-digest
+   success → findings merge+reconcile **last** - D39/H3-r2); **backend-allocated `scan_order`** (D45) + **per-digest
    committed-scan watermark** (`javv-scan-watermarks`, CAS at commit; stale run skips cache - D40) as the
    newer-scan-wins guard on **both create and update**; **reconcile-on-commit** `update_by_query` (mark
    `present=false`/`resolved_at` on findings the committed run omitted, **retry scoped until zero conflicts** -

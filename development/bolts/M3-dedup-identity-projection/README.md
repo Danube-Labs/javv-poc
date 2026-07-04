@@ -4,7 +4,7 @@
 
 ## Goal
 Highest-risk bolt. Turn idempotent appends into correct current-state: partial-doc merge
-(scanner fields only), scanner-assigned scan_order + per-digest watermark CAS guarding BOTH
+(scanner fields only), backend-allocated scan_order (D45) + per-digest watermark CAS guarding BOTH
 create and update, commit-then-cache ordering, reconcile-on-commit, projection-on-new,
 and two-timer staleness. (The **rebuild-state** self-heal job is **deferred out of M3** — its data
 sources don't exist here; built later split across **M5c** (human/decision arm) + **M8a**
@@ -19,12 +19,12 @@ javv-finding-occurrences, javv-scan-events) · decisions D16, D19, D20, D31, D37
 
 ## Deliverables
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
-- `backend/app/ingest/merge.py` — partial-doc merge; scanner-field allowlist, human/triage fields untouched (D31, D16).
-- `backend/app/ingest/scan_order.py` + `POST /api/v1/scan-runs` — **backend-allocated** monotonic `scan_order` (**D45** — amends D40's source; never a clock): per-`(cluster_id, scanner)` counter doc CAS in **`javv-scan-orders`** (own tiny mutable index — authoritative, rebuild never touches it; separate from the *derived* watermarks), token-scoped, fail-closed scanner fetch at cycle start (replaces the scanner's `time.time_ns()` mint in `scanner/envelope.py new_scan_run`). **Creates + owns `javv-scan-orders`** (bootstrap template + MAPPING_VERSION bump, same as the watermarks index).
-- `backend/app/ingest/watermark.py` — per-`(cluster,scanner,digest)` `max_committed_scan_order` CAS; guards create AND update (D40). **Creates + owns `javv-scan-watermarks`** (resolves the M3/M8a ownership overlap).
-- `backend/app/ingest/commit.py` — commit-then-cache ordering: append occurrences+images → commit scan-events → merge findings last (D39).
-- `backend/app/ingest/reconcile.py` — reconcile-on-commit: flip `present=false` on findings the new run omits; cache-only, history stays tombstone-free (D37/D38).
-- `backend/app/projection/engine.py` — projection-on-new-only (D19).
+- `backend/src/backend/ingest/merge.py` — partial-doc merge; scanner-field allowlist, human/triage fields untouched (D31, D16).
+- `backend/src/backend/ingest/scan_order.py` + `POST /api/v1/scan-runs` — **backend-allocated** monotonic `scan_order` (**D45** — amends D40's source; never a clock): per-`(cluster_id, scanner)` counter doc CAS in **`javv-scan-orders`** (own tiny mutable index — authoritative, rebuild never touches it; separate from the *derived* watermarks), token-scoped, fail-closed scanner fetch at cycle start (replaces the scanner's `time.time_ns()` mint in `scanner/envelope.py new_scan_run`). **Creates + owns `javv-scan-orders`** (bootstrap template + MAPPING_VERSION bump, same as the watermarks index).
+- `backend/src/backend/ingest/watermark.py` — per-`(cluster,scanner,digest)` `max_committed_scan_order` CAS; guards create AND update (D40). **Creates + owns `javv-scan-watermarks`** (resolves the M3/M8a ownership overlap).
+- `backend/src/backend/ingest/commit.py` — commit-then-cache ordering: append occurrences+images → commit scan-events → merge findings last (D39).
+- `backend/src/backend/ingest/reconcile.py` — reconcile-on-commit: flip `present=false` on findings the new run omits; cache-only, history stays tombstone-free (D37/D38).
+- `backend/src/backend/projection/engine.py` — projection-on-new-only (D19).
 - `backend/jobs/staleness.py` — two-timer staleness (D20).
 - ~~`backend/jobs/rebuild_state.py` — rebuild-state self-heal~~ → **deferred out of M3.** Base job (human/decision arm) created in **M5c** (needs `system-decisions`/`system-audit-log`); scanner-presence arm added in **M8a** (needs `occurrences`, D-r3). M3's crash recovery is the stateless full re-scan every cycle (D30 — "the next cycle catches up").
 - Index template for `javv-scan-watermarks` (`dynamic:false`) — **register it in
