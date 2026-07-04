@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from opensearchpy import NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.auth.audit import append_auth_event
+from backend.audit.writer import append_auth_event
 from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal
 from backend.core.security import hash_token, mint_token

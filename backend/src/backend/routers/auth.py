@@ -15,8 +15,8 @@ from typing import Annotated, Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.audit.writer import append_auth_event
 from backend.auth import lockout
-from backend.auth.audit import append_auth_event
 from backend.auth.passwords import check_policy, hash_password, verify_password
 from backend.auth.providers import USERS_INDEX, LocalPasswordProvider, LoginCredentials
 from backend.auth.sessions import (
