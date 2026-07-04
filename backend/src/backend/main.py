@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from backend.core.errors import register_error_handlers
 from backend.core.lifespan import lifespan
 from backend.core.logging import configure_logging, install_request_context
-from backend.routers import auth, health, ingest, metrics, scan_runs, scan_scope, tokens
+from backend.routers import auth, health, ingest, metrics, scan_runs, scan_scope, tokens, triage
 
 
 def create_app() -> FastAPI:
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
     app.include_router(scan_scope.router)
     app.include_router(scan_runs.router)
     app.include_router(tokens.router)
+    app.include_router(triage.router)
     return app
 
 
