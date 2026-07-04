@@ -36,6 +36,8 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 | `JAVV_INGEST_MAX_COMPRESSED_BYTES` | `10485760` (10 MiB) | Max ingest body on the wire (streamed cap) | n/a (deploy) |
 | `JAVV_INGEST_MAX_BODY_BYTES` | `62914560` (60 MiB) | Max decompressed ingest body (zip-bomb cap) | n/a (deploy) |
 | `JAVV_INGEST_RATE_LIMIT_PER_MINUTE` | `120` | Per-token ingest rate limit | n/a (deploy) |
+| `JAVV_SESSION_TTL_HOURS` | `24.0` | Server-side human-session TTL (M5a/SEC-5) — `system-sessions.expires_at` is authoritative, the cookie's lifetime is advisory | n/a (deploy) |
+| `JAVV_TOKEN_PEPPER` *(shared)* | — | Also peppers **session-id hashes** (domain-separated `session:` prefix) since M5a | 🔒 secret |
 
 > These are deployment/ops knobs, tuned per environment (a Helm values file will inject them — M10).
 > Not user-facing settings.

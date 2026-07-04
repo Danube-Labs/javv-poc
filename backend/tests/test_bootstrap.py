@@ -102,16 +102,39 @@ def test_tokens_index_matches_index_map() -> None:
 
 def test_bootstrap_scope() -> None:
     # M1: findings + system-tokens + the two append templates. M2 adds system-config (snapshot-repo
-    # ref). M3 adds javv-scan-orders (D45 counter) + javv-scan-watermarks (D40 CAS guard);
-    # occurrences M8a; audit-log M5a.
+    # ref). M3 adds javv-scan-orders (D45 counter) + javv-scan-watermarks (D40 CAS guard); M5a adds
+    # the human-auth trio (users/roles/sessions); occurrences M8a; audit-log M5b.
     assert set(MUTABLE_INDEXES) == {
         "findings",
         "system-tokens",
         "system-config",
         "javv-scan-orders",
         "javv-scan-watermarks",
+        "system-users",
+        "system-roles",
+        "system-sessions",
     }
     assert set(INDEX_TEMPLATES) == {"javv-scan-events", "javv-images"}
+
+
+def test_auth_indices_match_index_map() -> None:  # M5a slice 1 (FR-18/SEC-5/SEC-6)
+    users = _props(MUTABLE_INDEXES["system-users"])
+    for f in ("username", "password_hash", "role", "capabilities", "auth_source", "external_id"):
+        assert users[f] == {"type": "keyword"}, f
+    assert users["must_change"] == {"type": "boolean"}  # SEC-6 first-login gate
+    assert users["disabled"] == {"type": "boolean"}
+    assert users["created_at"] == {"type": "date"}
+
+    roles = _props(MUTABLE_INDEXES["system-roles"])
+    assert roles["role"] == {"type": "keyword"}
+    assert roles["capabilities"] == {"type": "keyword"}  # the D33 bundles
+
+    sessions = _props(MUTABLE_INDEXES["system-sessions"])
+    assert sessions["session_id"] == {"type": "keyword"}  # stores the HASH, never the raw value
+    assert sessions["user_id"] == {"type": "keyword"}
+    assert sessions["created_at"] == {"type": "date"}
+    assert sessions["expires_at"] == {"type": "date"}  # server-side TTL is authoritative
+    assert sessions["revoked"] == {"type": "boolean"}  # logout / role-change kill switch
 
 
 # --- integration: real OpenSearch (skipped when unreachable) ----------------

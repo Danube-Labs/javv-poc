@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     ingest_max_compressed_bytes: int = 10 * 1024 * 1024  # 10 MiB on the wire
     ingest_max_body_bytes: int = 60 * 1024 * 1024  # 60 MiB decompressed (zip-bomb cap)
     ingest_rate_limit_per_minute: int = 120
+    # human sessions (M5a/SEC-5): server-side TTL — the cookie's own lifetime is advisory
+    session_ttl_hours: float = 24.0
 
 
 @lru_cache
