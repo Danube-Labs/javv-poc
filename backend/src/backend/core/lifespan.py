@@ -16,6 +16,7 @@ import structlog
 from fastapi import FastAPI
 from opensearchpy import AsyncOpenSearch
 
+from backend.auth.bootstrap_admin import seed_bootstrap_admin
 from backend.core.bootstrap import bootstrap
 from backend.core.settings import get_settings
 
@@ -36,8 +37,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             raise RuntimeError(
                 f"OpenSearch unreachable at startup ({settings.opensearch_url}): {exc!r}"
             ) from exc
-        results = await bootstrap(client)  # idempotent + version-gated (Kibana pattern)
+        results = await bootstrap(client)  # idempotent + version-gated
         log.info("bootstrap complete", indexes=results)
+        # M5a/SEC-6: seed the bootstrap admin exactly once (no-op unless the secret is mounted)
+        log.info("bootstrap admin", outcome=await seed_bootstrap_admin(client))
 
     try:
         yield
