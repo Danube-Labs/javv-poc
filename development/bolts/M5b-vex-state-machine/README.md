@@ -4,11 +4,17 @@
 
 ## Goal
 The triage state machine over the two-field VEX model (`state` + `vex_justification`,
-6 states) with validated transitions, and the structured **`system-audit-log`** that this
-bolt **owns and creates** — the immutable human-state timeline that M5d (bulk), M6
-(Contributors/time-travel), and M8/M9 all read. Every triage action is journaled (D17);
-triage writes use `refresh=wait_for`; decisions are immutable + lifecycle-stamped (edit =
-revoke+new).
+6 states) with validated transitions, and the structured **`system-audit-log` writer** that this
+bolt **owns** — the immutable human-state timeline that M5d (bulk), M6
+(Contributors/time-travel), and M8/M9 all read. (The index *template* already landed with M5a's
+thin auth appender — this bolt owns the row contract + replay semantics and absorbs that
+appender.) Every triage action is journaled (D17); triage writes use `refresh=wait_for`;
+decisions are immutable + lifecycle-stamped (edit = revoke+new).
+
+> ⚠️ **Do not use hardcoded config.** Every knob this bolt introduces (a `JAVV_*` env var, a
+> `system-config` key, a tunable limit) goes to [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md)
+> **in the same PR** — default · how it's set · UI-controllable or not. Contract constants
+> (schema versions, capability names, index names) are exempt but must be justified in-code.
 
 **Canonical refs:** [`PLAN_v4 §8 M5b`](../../../docs/engineering/V4/PLAN_v4.md) ·
 `SPEC_v4` FR-7 (VEX two-field model, 6 states), FR-8 (decisions immutable + lifecycle) ·
@@ -18,18 +24,41 @@ decisions D32 (structured audit-log), D17 (every action journaled), D40/H-r3 (`r
 D39/H5-r2 (decisions immutable except `revoked_at`), D40/G-r3 (revoke+create `effective_at`/`operation_id`).
 
 ## Depends on
-- M5a (auth/session, `get_current_principal()`, `can_triage` capability, tenant chokepoint).
-- M3 (the `findings` cache whose human fields this bolt mutates; CAS guard semantics).
+- M5a (**built**): `get_current_principal()` + `require_capability` (`auth/principal.py` /
+  `auth/capabilities.py`), the `can_triage` / `can_accept_audit_final` bundles already seeded in
+  `system-roles`, the tenant chokepoint (`tenancy/chokepoint.py`), and the **standing RBAC/IDOR
+  suite** (`tests/security/test_rbac_idor_contract.py`) every new mutating endpoint registers into.
+- M3 (**built**): the `findings` cache whose human fields this bolt mutates; CAS guard semantics.
+
+## Already landed (M5a) — M5b builds ON these, doesn't recreate them
+- **`system-audit-log-*` index template** — in `core/bootstrap.py` (`_AUDIT_LOG_PROPERTIES`,
+  `dynamic:false`, `MAPPING_VERSION` 5) with the full INDEX-MAP schema; evolve it THERE (+ version
+  bump, per the documented procedure at the constant). Writes go through the `system-audit-log`
+  **write alias** (M4 convention, `ensure_write_alias`).
+- **Thin auth appender** — `auth/audit.py` (login/logout/pwd_change/token_mint/token_revoke rows,
+  `AUDIT_SCHEMA_VERSION = 1`). The M5b writer **absorbs it** (same rows, richer machinery); audit
+  rows version independently of the ingest envelope — M5b owns bumps.
+- **The human-field contract** — `services/merge.py` `HUMAN_FIELDS` is the allowlist ingest never
+  touches (`state`/`vex_justification`/`assignee`/`notes`/`pre_stale_status`); the triage service
+  is their ONLY writer. `disagree` is a third family owned by `services/disagreement.py` — triage
+  must not write it either. M3's staleness sweep owns `stale`/`pre_stale_status` transitions.
 
 ## Deliverables
-The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
-- `backend/app/audit/schema.py` — the **structured `system-audit-log` schema** (D32): `event_id`, `actor`, `action`, `entity_type`, `entity_id`, `finding_key`, `target_ids`, `target_selector`, `result_hash`/`result_count`, `field`/`field_type`, `revision`, `old_value`/`new_value`(`_json`), `decision_id`, `schema_version` (per INDEX-MAP). **Dependency of M5d/M6/M9d.**
-- `backend/app/audit/writer.py` — append-only writer via a **create-only role** (SEC-1); one row per field change; replay-deterministic ordering by `(@timestamp, event_id)`, same-`(entity,field)` ordered by `revision` (D40/H-r3, D39/H6-r2 — no monotonic `seq`).
-- `backend/app/audit/template.py` — `system-audit-log-*` index template (`dynamic:false`, time-rollover, kept-long retention).
-- `backend/app/triage/state_machine.py` — the 6-state model `{open, acknowledged, not_affected, risk_accepted, resolved, stale}` × `vex_justification` (CISA five, **required iff `not_affected`**); validates allowed transitions; `resolved` manual-only; `stale` system-only; "false positive" = `not_affected` + component/code-not-present justification.
-- `backend/app/triage/service.py` — single triage action (assign/note/acknowledge/risk_accept/not_affected/resolve/reopen): **CAS on the finding** (`retry_on_conflict`/409-retry), `refresh=wait_for` on the write, then **exactly one** `system-audit-log` append per action incl. the resulting `revision`.
-- `backend/app/triage/routes.py` — `PATCH /findings/{finding_key}/triage` (+ assign/note/ack endpoints); capability-gated (`can_triage`; risk-accept additionally `can_accept_audit_final`); registers into the M5a standing RBAC/IDOR suite.
-- `backend/app/decisions/lifecycle.py` — decision immutability helper: any scope/justification/`expiry` edit is **revoke+create-new** under one `effective_at` + `operation_id`, `revoked_at(old)=created_at(new)=effective_at`; only `revoked_at` is a post-hoc stamp (D39/H5-r2, D40/G-r3). *(Decision precedence/projection itself is M5c; this bolt owns only the immutable-write discipline + its audit journaling.)*
+The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed,
+matching the real `backend/src/backend/` layout):
+- `backend/src/backend/audit/writer.py` — the **structured audit writer** (D32), absorbing M5a's
+  thin `auth/audit.py` appender: the row model (`event_id`, `actor`, `action`, `entity_type`,
+  `entity_id`, `finding_key`, `target_ids`, `target_selector`, `result_hash`/`result_count`,
+  `field`/`field_type`, `revision`, `old_value`/`new_value`(`_json`), `decision_id`,
+  `schema_version` — per INDEX-MAP, mapping already pinned) + append-only discipline: one row per
+  field change via `op_type=create`; replay-deterministic ordering by `(@timestamp, event_id)`,
+  same-`(entity,field)` by `revision` (D40/H-r3, D39/H6-r2 — no monotonic `seq`). **Dependency of
+  M5d/M6/M9d.** *(SEC-1's create-only OpenSearch role is a deploy control — Helm/M10; in code the
+  append-only property holds by construction.)*
+- `backend/src/backend/triage/state_machine.py` — the 6-state model `{open, acknowledged, not_affected, risk_accepted, resolved, stale}` × `vex_justification` (CISA five, **required iff `not_affected`**); validates allowed transitions; `resolved` manual-only; `stale` system-only (the M3 staleness sweep is its writer); "false positive" = `not_affected` + component/code-not-present justification.
+- `backend/src/backend/triage/service.py` — single triage action (assign/note/acknowledge/risk_accept/not_affected/resolve/reopen): **CAS on the finding** (`retry_on_conflict`/409-retry), `refresh=wait_for` on the write, then **exactly one** `system-audit-log` append per action incl. the resulting `revision`. Writes ONLY the `HUMAN_FIELDS` allowlist (merge.py is the contract).
+- `backend/src/backend/routers/triage.py` — `PATCH /api/v1/findings/{finding_key}/triage` (+ assign/note/ack); capability-gated (`can_triage`; risk-accept additionally `can_accept_audit_final` — both bundles already seeded); **registers into the M5a standing RBAC/IDOR suite** (`tests/security/test_rbac_idor_contract.py` — the presence check fails the build otherwise).
+- `backend/src/backend/decisions/lifecycle.py` — decision immutability helper: any scope/justification/`expiry` edit is **revoke+create-new** under one `effective_at` + `operation_id`, `revoked_at(old)=created_at(new)=effective_at`; only `revoked_at` is a post-hoc stamp (D39/H5-r2, D40/G-r3). Creates the **`system-decisions` mutable index** in `bootstrap.MUTABLE_INDEXES` (+ `MAPPING_VERSION` bump) per INDEX-MAP. *(Decision precedence/projection itself is M5c; this bolt owns only the immutable-write discipline + its audit journaling.)*
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test, not a promise):
@@ -58,3 +87,17 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-04 — pre-kickoff refresh against the M0–M5a reality.** The `system-audit-log-*`
+  template + a thin auth-event appender landed with M5a (see the #28 heads-up): dropped the
+  `audit/template.py` + separate `schema.py` deliverables — the writer owns the row contract and
+  absorbs `auth/audit.py`; the mapping evolves in `core/bootstrap.py` (documented procedure at
+  `MAPPING_VERSION`, now v5). Marked M5a deps as built with real paths (`require_capability`,
+  seeded `can_triage`/`can_accept_audit_final` bundles, chokepoint, the standing RBAC/IDOR suite
+  the triage routes must register into). Fixed stale `backend/app/` paths; SEC-1's create-only
+  role reframed as a deploy control (append-only holds by construction in code); noted the
+  `system-decisions` index creation lands here (bootstrap + version bump); added the explicit
+  **no-hardcoded-config stamp** (banner under Goal). Scope itself is unchanged — the bolt is
+  fully doable on the M0–M5a base.
