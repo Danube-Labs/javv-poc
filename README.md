@@ -2,20 +2,24 @@
 
 A lightweight, k8s-runtime-native container-vulnerability tool by **Danube Labs**: discovers what's
 actually running in your clusters, scans it with **Trivy and Grype**, and gives you a **triage
-lifecycle** plus **Kibana-grade dashboards and one-click CSV** - without the weight of a full ASPM
-platform.
+lifecycle** plus **rich exploratory dashboards and one-click CSV** - without the weight of a full
+ASPM platform.
 
-> Status: pre-MVP, design phase (v4). Canonical design lives in [docs/engineering/V4/](docs/engineering/V4/) - start
-> with [PLAN_v4.md](docs/engineering/V4/PLAN_v4.md) and [SPEC_v4.md](docs/engineering/V4/SPEC_v4.md).
+> Status: **backend + scanner built through M5b** (ingest → merge/reconcile → disagreement flags,
+> lifecycle jobs, sessions/RBAC/token auth, triage state machine, append-only audit log, decision
+> lifecycle) — releases cut via release-please. Frontend (M9x) and Helm deploy (M10) not started.
+> Canonical design lives in [docs/engineering/V4/](docs/engineering/V4/) - start with
+> [PLAN_v4.md](docs/engineering/V4/PLAN_v4.md) and [SPEC_v4.md](docs/engineering/V4/SPEC_v4.md).
 
 > 🗺️ **New here? Start with [REPO-MAP.md](REPO-MAP.md)** — a map of every folder, the canonical docs, and the
-> milestone bolts, with a "read in this order" guide.
+> milestone bolts, with a "read in this order" guide. To run the stack by hand, follow
+> [development/RUNNING-THE-STACK.md](development/RUNNING-THE-STACK.md).
 
 ## Why
 
 Vulnerability tooling splits into two worlds: triage tools (DefectDojo, Dependency-Track) with rigid
-reporting, and dashboard tools (Kibana/OpenSearch Dashboards) with no concept of auditing a finding.
-JAVV fills the seam between them.
+reporting, and log-analytics dashboard tools with no concept of auditing a finding. JAVV fills the
+seam between them.
 
 ## Design docs
 
@@ -23,7 +27,7 @@ JAVV fills the seam between them.
 
 | Doc | What |
 |---|---|
-| [PLAN_v4.md](docs/engineering/V4/PLAN_v4.md) | Decisions (D1–D40), data model, milestones (M0–M10) |
+| [PLAN_v4.md](docs/engineering/V4/PLAN_v4.md) | Decisions (D1–D45), data model, milestones (M0–M10) |
 | [SPEC_v4.md](docs/engineering/V4/SPEC_v4.md) | Functional + non-functional requirements (FR/NFR) |
 | [ARCHITECTURE_v4.md](docs/engineering/V4/ARCHITECTURE_v4.md) | Layers, data flow, diagrams (Mermaid) |
 | [INDEX-MAP_v4.md](docs/engineering/V4/INDEX-MAP_v4.md) | Source of truth for every OpenSearch index + mapping |
@@ -49,10 +53,10 @@ OpenSearch single store → Vue 3 frontend. Apache-2.0 components throughout.
 ## Toolchain
 
 Versions for the **gate tools** (the ones that decide lint/type/test results) are pinned so local
-matches CI. They live in **one place — [`development/setup/setup-dev.sh`](development/setup/setup-dev.sh)** — bump
-them there. Kubernetes tooling intentionally tracks latest. **Scanners + OpenSearch are pinned to a
-supported set** in [`versions.yaml`](versions.yaml) (single source of truth, D41/D42; see **Supported
-versions** below).
+matches CI. Their single source of truth is **[`versions.yaml`](versions.yaml)** (D42) — bump them
+there; `development/setup/setup-dev.sh` reads it directly and `development/scripts/check-versions.sh`
+drift-checks every consumer. Kubernetes tooling intentionally tracks latest. **Scanners + OpenSearch
+are pinned to a supported set** in the same file (D41/D42; see **Supported versions** below).
 
 | Tool | Role | Version |
 |---|---|---|
@@ -60,7 +64,7 @@ versions** below).
 | [uv](https://docs.astral.sh/uv/) | Python package/venv manager | 0.11.25 *(pinned)* |
 | [ruff](https://docs.astral.sh/ruff/) | Lint + format (backend) | 0.15.20 *(pinned)* |
 | [pyright](https://microsoft.github.io/pyright/) | Type check (backend) | 1.1.411 *(pinned)* |
-| pytest | Backend tests | from `backend/pyproject.toml` (once it exists) |
+| pytest | Backend + scanner tests | from `backend/pyproject.toml` / `scanner/pyproject.toml` |
 | Node.js | Frontend runtime / toolchain | 22 LTS *(pinned major)* |
 | ESLint + Vitest | Lint + tests (frontend) | from `frontend/package.json` (once it exists) |
 | OpenSearch | Single datastore | pinned in [`versions.yaml`](versions.yaml) |
