@@ -46,7 +46,27 @@ class MutatingEndpoint:
 
 
 # ── THE REGISTRY — every new capability-gated mutating endpoint adds itself here ──────────────
-REGISTRY: tuple[MutatingEndpoint, ...] = ()
+REGISTRY: tuple[MutatingEndpoint, ...] = (
+    MutatingEndpoint(  # M5a slice 6 — token admin (D38/M14)
+        method="POST",
+        path="/api/v1/admin/tokens",
+        route_path="/api/v1/admin/tokens",
+        capability="can_manage_tokens",
+        body={"cluster_id": "c-rbac-suite", "scanner": "trivy"},
+    ),
+    MutatingEndpoint(
+        method="POST",
+        path="/api/v1/admin/tokens/t-sample/revoke",
+        route_path="/api/v1/admin/tokens/{token_id}/revoke",
+        capability="can_manage_tokens",
+    ),
+    MutatingEndpoint(
+        method="POST",
+        path="/api/v1/admin/tokens/t-sample/rotate",
+        route_path="/api/v1/admin/tokens/{token_id}/rotate",
+        capability="can_manage_tokens",
+    ),
+)
 
 # mutating routes with their own (tested) auth regime — NOT capability-gated
 EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(

@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.auth import lockout
+from backend.auth.audit import append_auth_event
 from backend.auth.passwords import check_policy, hash_password, verify_password
 from backend.auth.providers import USERS_INDEX, LocalPasswordProvider, LoginCredentials
 from backend.auth.sessions import (
@@ -86,6 +87,13 @@ async def login(request: Request, creds: LoginCredentials, response: Response) -
         raise _GENERIC_401
     lockout.clear(creds.username)
     _set_session_cookie(response, await mint_session(_os(request), result.user_id))
+    await append_auth_event(
+        _os(request),
+        actor=result.user_id,
+        action="login",
+        entity_type="user",
+        entity_id=result.user_id,
+    )
     return {"user": _public_user(result.user)}
 
 
@@ -93,7 +101,17 @@ async def login(request: Request, creds: LoginCredentials, response: Response) -
 async def logout(request: Request, response: Response) -> None:
     raw = request.cookies.get(COOKIE_NAME, "")
     if raw:
-        await revoke_session(_os(request), raw)  # server-side kill — the cookie is now inert
+        client = _os(request)
+        session = await lookup_session(client, raw)
+        await revoke_session(client, raw)  # server-side kill — the cookie is now inert
+        if session is not None:
+            await append_auth_event(
+                client,
+                actor=session["user_id"],
+                action="logout",
+                entity_type="user",
+                entity_id=session["user_id"],
+            )
     response.delete_cookie(COOKIE_NAME, path="/")
 
 
@@ -133,6 +151,13 @@ async def change_password(
     )
     await revoke_all_for_user(client, session["user_id"])
     _set_session_cookie(response, await mint_session(client, session["user_id"]))
+    await append_auth_event(
+        client,
+        actor=session["user_id"],
+        action="pwd_change",
+        entity_type="user",
+        entity_id=session["user_id"],
+    )
     return {"user": _public_user({**user, "must_change": False})}
 
 

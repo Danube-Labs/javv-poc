@@ -114,7 +114,8 @@ def test_bootstrap_scope() -> None:
         "system-roles",
         "system-sessions",
     }
-    assert set(INDEX_TEMPLATES) == {"javv-scan-events", "javv-images"}
+    # + system-audit-log (M5a appender; M5b owns writer/replay); occurrences/inventory-runs → M8a
+    assert set(INDEX_TEMPLATES) == {"javv-scan-events", "javv-images", "system-audit-log"}
 
 
 def test_auth_indices_match_index_map() -> None:  # M5a slice 1 (FR-18/SEC-5/SEC-6)

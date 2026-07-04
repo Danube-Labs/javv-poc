@@ -32,8 +32,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #      clusters are untouched. Existing DOCS are never rewritten — new fields are simply absent
 #      until writes populate them.
 # History: v2 schema-v2 fields · v3 + javv-scan-watermarks (M3/D40) ·
-#          v4 + system-users/system-roles/system-sessions (M5a/FR-18)
-MAPPING_VERSION = 4
+#          v4 + system-users/system-roles/system-sessions (M5a/FR-18) ·
+#          v5 + system-audit-log template (M5a appender; writer/replay semantics owned by M5b)
+MAPPING_VERSION = 5
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -251,7 +252,44 @@ _IMAGES_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# system-audit-log-* (SND-2/D38-H8): 1 immutable structured row per field change / auth event.
+# Template landed with M5a's thin appender so auth events never write into a dynamic-mapped index;
+# **M5b owns the writer + replay semantics** (latest-entry-per-field, revision ordering). Append
+# only; time-rollover; kept long — deliberately NOT in the M4 lifecycle SERIES (retention is an
+# M5b/M9e decision). Order by (@timestamp, event_id); same-(entity,field) by `revision` (D40/H-r3).
+_AUDIT_LOG_PROPERTIES: dict[str, Any] = {
+    "@timestamp": _DATE,
+    "event_id": _KW,  # unique per event; tiebreak for UNRELATED events
+    "actor": _KW,  # user_id (or "system")
+    "action": _KW,  # assign|…|login|logout|pwd_change|role_change|token_mint|token_revoke
+    "entity_type": _KW,  # finding|decision|user|token|session|…
+    "entity_id": _KW,
+    "finding_key": _KW,  # convenience target for finding actions
+    "target_ids": _KW,  # bulk actions: the FROZEN affected set (H8)
+    "target_selector": {"type": "object", "enabled": False},  # provenance only; replay uses ids
+    "result_hash": _KW,
+    "result_count": _INT,
+    "cluster_id": _KW,
+    "field": _KW,  # e.g. state|assignee|notes
+    "field_type": _KW,  # scalar|text|json
+    "revision": {"type": "long"},  # same-(entity,field) causal order (D40/H-r3)
+    "old_value": _KW,
+    "new_value": _KW,
+    "old_value_json": {"type": "object", "enabled": False},
+    "new_value_json": {"type": "object", "enabled": False},
+    "decision_id": _KW,
+    "schema_version": {"type": "short"},
+}
+
 INDEX_TEMPLATES: dict[str, dict[str, Any]] = {
+    "system-audit-log": {
+        "index_patterns": ["system-audit-log-*"],
+        "priority": 10,
+        "template": {
+            "settings": {"index": _BASE_SETTINGS},
+            "mappings": _mappings(_AUDIT_LOG_PROPERTIES),
+        },
+    },
     "javv-scan-events": {
         "index_patterns": ["javv-scan-events-*"],
         "priority": 10,
