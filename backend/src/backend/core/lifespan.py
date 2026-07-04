@@ -16,6 +16,8 @@ import structlog
 from fastapi import FastAPI
 from opensearchpy import AsyncOpenSearch
 
+from backend.auth.bootstrap_admin import seed_bootstrap_admin
+from backend.auth.capabilities import seed_default_roles
 from backend.core.bootstrap import bootstrap
 from backend.core.settings import get_settings
 
@@ -36,8 +38,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             raise RuntimeError(
                 f"OpenSearch unreachable at startup ({settings.opensearch_url}): {exc!r}"
             ) from exc
-        results = await bootstrap(client)  # idempotent + version-gated (Kibana pattern)
+        results = await bootstrap(client)  # idempotent + version-gated
         log.info("bootstrap complete", indexes=results)
+        # M5a/D33+SEC-6: default role bundles + the bootstrap admin — both seed-once
+        # (op_type=create), so customized roles / a live admin are never overwritten
+        roles_created = await seed_default_roles(client)
+        log.info("bootstrap admin", outcome=await seed_bootstrap_admin(client), roles=roles_created)
 
     try:
         yield

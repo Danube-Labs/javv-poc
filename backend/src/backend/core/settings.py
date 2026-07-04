@@ -22,6 +22,13 @@ class Settings(BaseSettings):
     ingest_rate_limit_per_minute: int = 120
     # human sessions (M5a/SEC-5): server-side TTL — the cookie's own lifetime is advisory
     session_ttl_hours: float = 24.0
+    # login lockout (M5a): N failures per sliding window locks the username (429)
+    login_max_attempts: int = 5
+    login_lockout_minutes: float = 15.0
+    # bootstrap admin (M5a/SEC-6): password from a mounted k8s Secret; empty = don't seed.
+    # Seed-once — rotating the mounted value later has no effect on an existing admin by design.
+    bootstrap_admin_username: str = "admin"
+    bootstrap_admin_password: str = ""
 
 
 @lru_cache
