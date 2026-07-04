@@ -48,3 +48,7 @@ development/AUDIT.md
 .claude/sessions/*.md
 !.claude/sessions/README.md
 !.claude/sessions/TEMPLATE.md
+
+# Codex (second independent auditor) — local setup, not part of the repo.
+.codex/
+AGENTS.md
