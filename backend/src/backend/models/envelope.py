@@ -9,11 +9,12 @@ integrity check; the server RE-derives the canonical severity + rank from the ve
 (D16) — the client's `severity_canonical` is accepted on the wire but never trusted.
 """
 
-import re
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from backend.core.identifiers import CLUSTER_ID_RE as _CLUSTER_ID
 
 # canonical buckets (D16) + the fixed rank order (OE-5): crit>high>med>low>negligible>unknown
 SEVERITY_RANK: dict[str, int] = {
@@ -37,8 +38,7 @@ _CANONICAL = {
     "unknown": "unknown",
 }
 
-# k8s namespace UID shape; lowercase alnum + hyphens only — safe inside an index name
-_CLUSTER_ID = re.compile(r"^[a-z0-9][a-z0-9-]{7,63}$")
+# cluster_id shape: the ONE shared rule lives in core/identifiers.py (task E/Codex M2)
 
 
 def canonical_severity(raw: str) -> str:

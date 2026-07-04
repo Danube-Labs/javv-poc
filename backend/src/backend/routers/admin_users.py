@@ -14,7 +14,7 @@ and every mutation is journaled (D17)."""
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from opensearchpy import NotFoundError
 from opensearchpy.exceptions import ConflictError
 from pydantic import BaseModel, ConfigDict, Field
@@ -120,12 +120,27 @@ async def _assert_not_last_admin(client: Any, username: str) -> None:
 
 
 @router.get("")
-async def list_users(request: Request, principal: ManageUsers) -> dict[str, Any]:
-    # size cap mirrors the token list (audit task E tracks pagination for both)
+async def list_users(
+    request: Request,
+    principal: ManageUsers,
+    size: Annotated[int, Query(ge=1, le=1000)] = 100,
+    offset: Annotated[int, Query(ge=0, le=9000)] = 0,
+) -> dict[str, Any]:
+    # explicit from/size pagination (task E/Codex L1) — same shape as the token list
     hits = await _os(request).search(
-        index=USERS_INDEX, body={"size": 10_000, "query": {"match_all": {}}}
+        index=USERS_INDEX,
+        body={
+            "size": size,
+            "from": offset,
+            "track_total_hits": True,
+            "sort": [{"username": "asc"}],
+            "query": {"match_all": {}},
+        },
     )
-    return {"users": [_public(h["_source"]) for h in hits["hits"]["hits"]]}
+    return {
+        "users": [_public(h["_source"]) for h in hits["hits"]["hits"]],
+        "total": hits["hits"]["total"]["value"],
+    }
 
 
 @router.post("", status_code=201)

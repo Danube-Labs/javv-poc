@@ -19,6 +19,7 @@ from opensearchpy.exceptions import ConflictError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.audit.writer import append_field_change
+from backend.core.identifiers import ClusterId
 
 DECISIONS_INDEX = "system-decisions"
 DECISION_SCHEMA_VERSION = 1  # the decision DOC contract — this module owns bumps
@@ -44,7 +45,7 @@ class DecisionPayload(BaseModel):
     vex_justification: str | None = Field(default=None, max_length=128)
     justification: str = Field(min_length=1, max_length=10_000)
     expiry: str | None = None  # ISO date; IMMUTABLE after creation — change = revoke+create
-    cluster_id: str = Field(min_length=1, max_length=256)
+    cluster_id: ClusterId  # the ONE shared shape (task E/Codex M2)
 
 
 async def create_decision(

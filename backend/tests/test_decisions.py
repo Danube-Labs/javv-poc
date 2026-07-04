@@ -56,7 +56,7 @@ def _payload(**overrides) -> DecisionPayload:
             "vex_justification": None,
             "justification": "compensating control in place",
             "expiry": "2026-12-31T00:00:00+00:00",
-            "cluster_id": "c-dec",
+            "cluster_id": "c-decisions",
             **overrides,
         }
     )

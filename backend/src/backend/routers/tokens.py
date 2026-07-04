@@ -10,13 +10,14 @@ suite (`tests/security/test_rbac_idor_contract.py`)."""
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from opensearchpy import NotFoundError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.audit.writer import append_auth_event
 from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal
+from backend.core.identifiers import ClusterId
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
 
@@ -40,8 +41,20 @@ ManageTokens = Annotated[Principal, Depends(require_capability("can_manage_token
 class MintRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    cluster_id: str = Field(min_length=1, max_length=256)
+    cluster_id: ClusterId  # the ONE shared shape (task E/Codex M2)
     scanner: str = Field(pattern="^(trivy|grype)$")  # per-scanner is sacred — no other value
+    # optional expiry (task E m-7): enforced at ingest since the M3 audit — now settable too
+    expiry: datetime | None = None
+
+    @field_validator("expiry")
+    @classmethod
+    def _expiry_in_the_future(cls, v: datetime | None) -> datetime | None:
+        if v is None:
+            return None
+        aware = v if v.tzinfo is not None else v.replace(tzinfo=UTC)
+        if aware <= datetime.now(UTC):
+            raise ValueError("expiry must be in the future")
+        return aware
 
 
 def _os(request: Request) -> Any:
@@ -53,7 +66,7 @@ def _public(token_id: str, doc: dict[str, Any]) -> dict[str, Any]:
 
 
 async def _mint_doc(
-    client: Any, *, cluster_id: str, scanner: str, created_by: str
+    client: Any, *, cluster_id: str, scanner: str, created_by: str, expiry: str | None = None
 ) -> tuple[str, str]:
     """Create a token doc; returns (doc_id, RAW token) — the raw value's only server-side moment."""
     raw = mint_token()
@@ -64,6 +77,7 @@ async def _mint_doc(
         "scope": "push:findings",
         "created_by": created_by,
         "created_at": datetime.now(UTC).isoformat(),
+        "expiry": expiry,
         "disabled": False,
     }
     resp = await client.index(index=TOKENS_INDEX, body=doc, params={"refresh": "true"})
@@ -72,23 +86,42 @@ async def _mint_doc(
 
 @router.get("")
 async def list_tokens(
-    request: Request, principal: ManageTokens, cluster_id: str | None = None
+    request: Request,
+    principal: ManageTokens,
+    cluster_id: str | None = None,
+    size: Annotated[int, Query(ge=1, le=1000)] = 100,
+    offset: Annotated[int, Query(ge=0, le=9000)] = 0,
 ) -> dict[str, Any]:
+    # explicit from/size pagination (task E/Codex L1) — fine under 10k (day-one rule);
+    # an admin token inventory beyond that is not a realistic MVP shape
     filters: list[dict[str, Any]] = []
     if cluster_id:
         filters.append({"term": {"cluster_id": cluster_id}})
     hits = await _os(request).search(
         index=TOKENS_INDEX,
-        body={"size": 10_000, "query": {"bool": {"filter": filters}}},
+        body={
+            "size": size,
+            "from": offset,
+            "track_total_hits": True,
+            "sort": [{"created_at": "desc"}],
+            "query": {"bool": {"filter": filters}},
+        },
     )
-    return {"tokens": [_public(h["_id"], h["_source"]) for h in hits["hits"]["hits"]]}
+    return {
+        "tokens": [_public(h["_id"], h["_source"]) for h in hits["hits"]["hits"]],
+        "total": hits["hits"]["total"]["value"],
+    }
 
 
 @router.post("", status_code=201)
 async def mint(request: Request, body: MintRequest, principal: ManageTokens) -> dict[str, Any]:
     client = _os(request)
     token_id, raw = await _mint_doc(
-        client, cluster_id=body.cluster_id, scanner=body.scanner, created_by=principal.user_id
+        client,
+        cluster_id=body.cluster_id,
+        scanner=body.scanner,
+        created_by=principal.user_id,
+        expiry=body.expiry.isoformat() if body.expiry else None,
     )
     await append_auth_event(
         client,
@@ -124,7 +157,8 @@ async def revoke(request: Request, token_id: str, principal: ManageTokens) -> di
 
 @router.post("/{token_id}/rotate", status_code=201)
 async def rotate(request: Request, token_id: str, principal: ManageTokens) -> dict[str, Any]:
-    """Mint the sibling FIRST, then disable the old — the scanner is never token-less."""
+    """Mint the sibling FIRST, then disable the old — the scanner is never token-less.
+    The sibling inherits the old token's expiry (rotation is not extension, task E m-7)."""
     client = _os(request)
     old = await _load(client, token_id)
     new_id, raw = await _mint_doc(
@@ -132,6 +166,7 @@ async def rotate(request: Request, token_id: str, principal: ManageTokens) -> di
         cluster_id=old["cluster_id"],
         scanner=old["scanner"],
         created_by=principal.user_id,
+        expiry=old.get("expiry"),
     )
     await client.update(
         index=TOKENS_INDEX,
