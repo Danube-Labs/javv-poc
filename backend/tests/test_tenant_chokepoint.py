@@ -47,6 +47,34 @@ def test_the_original_body_is_not_mutated() -> None:
     assert body == {"query": {"match_all": {}}}
 
 
+# --- task C n-1 (#140): the two filter-sidestep vectors are refused ---------------------
+
+
+def test_global_agg_is_refused_at_any_depth() -> None:
+    # a `global` aggregation ignores the query entirely — the forced tenant filter with it
+    with pytest.raises(ValueError, match="global"):
+        tenant_query("c-1", {"aggs": {"g": {"global": {}}}})
+    nested = {"aggs": {"by_sev": {"terms": {"field": "severity"}, "aggs": {"g": {"global": {}}}}}}
+    with pytest.raises(ValueError, match="global"):
+        tenant_query("c-1", nested)
+
+
+async def test_query_string_param_is_refused() -> None:
+    # `?q=` is a URI query-string query — it bypasses the body the filter was forced into
+    class _NeverSearch:
+        async def search(self, **_: object) -> dict:  # pragma: no cover — must not be reached
+            raise AssertionError("search must not run with a q= param")
+
+    with pytest.raises(ValueError, match="q"):
+        await tenant_search(
+            _NeverSearch(),  # type: ignore[arg-type]
+            index="findings",
+            cluster_id="c-1",
+            body={"query": {"match_all": {}}},
+            params={"q": "cluster_id:c-2"},
+        )
+
+
 # --- one real round-trip: cross-tenant rows cannot come back --------------------------
 
 

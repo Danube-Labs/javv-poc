@@ -84,18 +84,27 @@ async def revoke_session(client: AsyncOpenSearch, raw: str, *, prefix: str = "")
 
 
 async def revoke_all_for_user(client: AsyncOpenSearch, user_id: str, *, prefix: str = "") -> int:
-    """Logout-all / revoke-on-role-change (D33): kill every live session of the user."""
-    resp = await client.update_by_query(
-        index=f"{prefix}{INDEX}",
-        body={
-            "query": {
-                "bool": {
-                    "filter": [{"term": {"user_id": user_id}}],
-                    "must_not": [{"term": {"revoked": True}}],
-                }
+    """Logout-all / revoke-on-role-change (D33): kill every live session of the user.
+
+    Retried until ZERO version conflicts (task C m-2, #140): with `conflicts=proceed` alone, a
+    doc that raced a concurrent write is silently skipped — a stolen session could survive
+    logout-all. The query re-selects only still-unrevoked docs, so retrying converges."""
+    total = 0
+    for _ in range(8):
+        resp = await client.update_by_query(
+            index=f"{prefix}{INDEX}",
+            body={
+                "query": {
+                    "bool": {
+                        "filter": [{"term": {"user_id": user_id}}],
+                        "must_not": [{"term": {"revoked": True}}],
+                    }
+                },
+                "script": {"lang": "painless", "source": "ctx._source.revoked = true;"},
             },
-            "script": {"lang": "painless", "source": "ctx._source.revoked = true;"},
-        },
-        params={"conflicts": "proceed", "refresh": "true"},
-    )
-    return int(resp.get("updated", 0))
+            params={"conflicts": "proceed", "refresh": "true"},
+        )
+        total += int(resp.get("updated", 0))
+        if int(resp.get("version_conflicts", 0)) == 0:
+            return total
+    raise RuntimeError(f"revoke_all_for_user: conflicts did not drain for {user_id}")

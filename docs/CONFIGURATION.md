@@ -29,10 +29,11 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
+| `JAVV_ENV` | `dev` | Deployment profile (task C #140). `prod`/`production` turns dev conveniences into **startup failures** — currently: the dev `JAVV_TOKEN_PEPPER` refuses to boot (`assert_production_ready`). Set on any real deployment. | n/a (deploy) |
 | `JAVV_OPENSEARCH_URL` | `http://localhost:9200` | OpenSearch endpoint the backend connects to | n/a (deploy) |
 | `JAVV_REQUEST_TIMEOUT` | `30.0` | OpenSearch client request timeout (seconds) | n/a (deploy) |
 | `JAVV_BOOTSTRAP_ON_STARTUP` | `true` | Ping OpenSearch + run index bootstrap before serving (fail-fast). Tests set `false`. | n/a (deploy) |
-| `JAVV_TOKEN_PEPPER` | `dev-only-pepper` | 🔒 Server-side pepper for hashing ingest tokens. **MUST be set to a real secret in any deployment** (D38). | 🔒 secret |
+| `JAVV_TOKEN_PEPPER` | `dev-only-pepper` | 🔒 Server-side pepper for hashing ingest tokens **and session ids** (domain-separated). **MUST be a real secret in any deployment** (D38) — with `JAVV_ENV=production` the dev default now **fails startup** (task C #140). | 🔒 secret |
 | `JAVV_INGEST_MAX_COMPRESSED_BYTES` | `10485760` (10 MiB) | Max ingest body on the wire (streamed cap) | n/a (deploy) |
 | `JAVV_INGEST_MAX_BODY_BYTES` | `62914560` (60 MiB) | Max decompressed ingest body (zip-bomb cap) | n/a (deploy) |
 | `JAVV_INGEST_RATE_LIMIT_PER_MINUTE` | `120` | Per-token ingest rate limit | n/a (deploy) |

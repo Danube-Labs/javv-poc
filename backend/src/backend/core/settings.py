@@ -9,6 +9,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JAVV_", extra="ignore")
 
+    # deployment profile (task C / Codex M3): "dev" keeps local-boot conveniences; anything
+    # prod-like ("prod"/"production") turns them into startup FAILURES (assert_production_ready)
+    env: str = "dev"
     opensearch_url: str = "http://localhost:9200"
     request_timeout: float = 30.0
     # startup contract: ping OpenSearch + run bootstrap before serving (fail-fast). Unit tests that
@@ -34,3 +37,18 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+_DEV_PEPPER = "dev-only-pepper"
+
+
+def assert_production_ready(settings: Settings) -> None:
+    """Fail-fast profile guard (task C / Codex M3): a prod-profile process must never run on the
+    dev conveniences. Called at the top of the app lifespan — raising here aborts startup."""
+    if settings.env.lower() not in ("prod", "production"):
+        return
+    if settings.token_pepper == _DEV_PEPPER:
+        raise RuntimeError(
+            "JAVV_ENV is production but JAVV_TOKEN_PEPPER is the dev default — every ingest-token"
+            " and session hash would be forgeable-by-documentation. Set a real secret."
+        )
