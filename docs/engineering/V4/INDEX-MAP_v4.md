@@ -293,11 +293,14 @@ schema_version    short
 ```
 # system-users
 username          keyword
-password_hash     keyword       argon2id (never logged)
+password_hash     keyword       argon2id (never logged); NULL for external (ldap|oidc) users
 role              keyword       → resolves to a capability bundle in system-roles
 capabilities      keyword[]     effective capabilities (denormalized for fast checks)
 must_change       boolean       server-enforced first-login password change (SEC-6)
 disabled          boolean
+auth_source       keyword       local|ldap|oidc — the IdP seam (#27 kickoff design): external IdPs
+                                replace credential verification/provisioning only, never sessions
+external_id       keyword       IdP subject/DN; NULL for local users
 created_at        date
 # system-roles  (capability bundles - SEC-9)
 role              keyword       e.g. viewer|triager|security_lead|admin

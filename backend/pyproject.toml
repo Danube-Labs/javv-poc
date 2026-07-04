@@ -11,6 +11,7 @@ dependencies = [
     "pydantic-settings>=2.4",
     "structlog>=24",
     "prometheus-client>=0.25.0",
+    "argon2-cffi>=25.1.0",
 ]
 
 [dependency-groups]

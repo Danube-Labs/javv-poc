@@ -5,10 +5,11 @@ are never indexed) and carry `_meta.version`; `bootstrap()` is idempotent and on
 index/template whose recorded version is older.
 
 Scope: the `findings` current-state cache + `system-tokens` (ingest auth) + `system-config`
-(M2 — holds the snapshot-repo ref), plus index *templates* for the per-cluster
+(M2 — holds the snapshot-repo ref) + the M5a human-auth trio (`system-users` / `system-roles` /
+`system-sessions`, FR-18/D33/SEC-5), plus index *templates* for the per-cluster
 `javv-scan-events-*` / `javv-images-*` append series so any per-cluster index gets the pinned
 mapping at auto-create. Rollover/retention is M4's lifecycle job; `javv-scan-orders` (D45) and
-`javv-scan-watermarks` (D40) are owned by M3; occurrences (M8a) + audit-log (M5a) land with
+`javv-scan-watermarks` (D40) are owned by M3; occurrences (M8a) + audit-log (M5b) land with
 their bolts.
 
 Runnable standalone: `uv run python -m backend.core.bootstrap`.
@@ -18,7 +19,7 @@ from typing import Any
 
 from opensearchpy import AsyncOpenSearch, RequestError
 
-MAPPING_VERSION = 3  # v3: + javv-scan-watermarks (M3/D40)
+MAPPING_VERSION = 4  # v4: + system-users/system-roles/system-sessions (M5a/FR-18)
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -128,6 +129,36 @@ _SCAN_WATERMARKS_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# M5a (FR-18/D33) human-auth trio. system-users: password_hash is argon2id and NEVER logged;
+# auth_source/external_id are the OIDC/LDAP seam (external users = normal rows, null password_hash
+# — #27 kickoff design); capabilities are denormalized from the role bundle for fast checks.
+_USERS_PROPERTIES: dict[str, Any] = {
+    "username": _KW,
+    "password_hash": _KW,  # argon2id; null for external (ldap|oidc) users
+    "role": _KW,  # → capability bundle in system-roles
+    "capabilities": _KW,  # keyword[] — effective caps, denormalized
+    "must_change": _BOOL,  # SEC-6: server-enforced first-login password change
+    "disabled": _BOOL,
+    "auth_source": _KW,  # local|ldap|oidc — the IdP seam
+    "external_id": _KW,  # IdP subject/DN; null for local users
+    "created_at": _DATE,
+}
+
+_ROLES_PROPERTIES: dict[str, Any] = {  # capability bundles (SEC-9); Admin holds all (D33)
+    "role": _KW,
+    "capabilities": _KW,  # keyword[] — can_triage, can_accept_audit_final, can_manage_*, …
+}
+
+# system-sessions (SEC-5): session_id stores the HASH of the cookie value (a leaked index can't
+# replay sessions); expires_at is the authoritative TTL; revoked = logout / role-change kill.
+_SESSIONS_PROPERTIES: dict[str, Any] = {
+    "session_id": _KW,
+    "user_id": _KW,
+    "created_at": _DATE,
+    "expires_at": _DATE,
+    "revoked": _BOOL,
+}
+
 MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "findings": {
         "settings": {"index": {**_BASE_SETTINGS, "analysis": _LC_ANALYSIS}},
@@ -148,6 +179,18 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "javv-scan-watermarks": {  # M3/D40 — per-digest committed-scan watermark
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_SCAN_WATERMARKS_PROPERTIES),
+    },
+    "system-users": {  # M5a/FR-18 — humans (local + future ldap/oidc)
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_USERS_PROPERTIES),
+    },
+    "system-roles": {  # M5a/D33 — capability bundles
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_ROLES_PROPERTIES),
+    },
+    "system-sessions": {  # M5a/SEC-5 — server-side sessions
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_SESSIONS_PROPERTIES),
     },
 }
 
