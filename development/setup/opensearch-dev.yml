@@ -18,10 +18,21 @@ services:
   opensearch:
     image: opensearchproject/opensearch:3.7.0
     container_name: javv-opensearch
+    restart: unless-stopped  # survive VM crashes/reboots (2026-07-04 power cut left it Exited)
     environment:
       - discovery.type=single-node
       - DISABLE_SECURITY_PLUGIN=true            # DEV ONLY — no TLS/auth on :9200
       - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m  # small heap for a dev VM
+      # keep single-node health GREEN and crash-tolerant: JAVV does its own lifecycle (M4 job,
+      # not the ISM plugin — PLAN D8) and doesn't use query-insights, but their internal indices
+      # otherwise stick the cluster on yellow (.opendistro-ism-config wants a replica) or go red
+      # after a hard crash (daily top_queries-* loses its primary). Also applied as persistent
+      # cluster settings on the existing volume; these cover a fresh volume (down -v).
+      - plugins.index_state_management.enabled=false
+      - plugins.index_state_management.history.enabled=false
+      - search.insights.top_queries.latency.enabled=false
+      - search.insights.top_queries.cpu.enabled=false
+      - search.insights.top_queries.memory.enabled=false
       # fs snapshot repo root (M2 restore drill). Inside the data dir so it's writable by the
       # opensearch uid (1000) without a chown dance; a mounted volume would be root-owned.
       - path.repo=/usr/share/opensearch/data/snapshots
