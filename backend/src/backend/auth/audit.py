@@ -18,7 +18,10 @@ from backend.services.aliases import ensure_write_alias
 log = structlog.get_logger()
 
 ALIAS = "system-audit-log"
-SCHEMA_VERSION = 3
+# the AUDIT ROW schema version — independent of the ingest envelope's v3 (a different contract:
+# scanner docs inherit the wire version, audit rows version their own D38/H8 shape). Starts at 1;
+# M5b owns bumps when its structured writer extends the row.
+AUDIT_SCHEMA_VERSION = 1
 
 
 async def append_auth_event(
@@ -38,7 +41,7 @@ async def append_auth_event(
         "action": action,
         "entity_type": entity_type,
         "entity_id": entity_id,
-        "schema_version": SCHEMA_VERSION,
+        "schema_version": AUDIT_SCHEMA_VERSION,
     }
     if cluster_id is not None:
         doc["cluster_id"] = cluster_id
