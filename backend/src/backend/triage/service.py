@@ -3,9 +3,14 @@
 
 Write discipline: **CAS on the finding** (`if_seq_no`/`if_primary_term`, retried on 409 — a
 concurrent triage or scan merge just re-reads and re-validates), `refresh=wait_for` (a read
-immediately after the write sees it), then the audit rows — one per ACTION, carrying the
-resulting `_version` as `revision` (D40/H-r3). Journaling is not optional: an audit failure fails
-the request AFTER the write applied; the retry's duplicate row is replay-idempotent by revision.
+immediately after the write sees it). Audit rows — one per ACTION — are journaled **BEFORE the
+CAS write** (audit M-3 ruling, task A): journal-then-commit means a mid-flight failure can leave
+an orphan ROW (a change that never landed — replay tolerates it: a lost CAS is re-journaled at
+the winning revision, which dominates latest-per-field), but never an orphan CHANGE (applied but
+unjournaled — the client retry would no-op and the change would evade D17 forever). Rows carry
+the PREDICTED revision (`_version + 1` — exact when the CAS lands, since CAS excludes
+interleaving writes); a duplicate row from a client retry at the same revision is
+replay-idempotent.
 
 Ruling (one-action-one-entry vs one-row-per-field): a `not_affected` transition atomically sets
 `state` + `vex_justification` but is ONE action — one row, `field=state`, with the justification
@@ -104,6 +109,20 @@ async def apply_triage(
                         ),
                     }
                 )
+            elif patch.state == "not_affected" and patch.vex_justification != src.get(
+                "vex_justification"
+            ):
+                # audit M-1 (task A): not_affected → not_affected with a DIFFERENT justification
+                # is a real correction, not a same-state no-op — write + journal it.
+                partial["vex_justification"] = patch.vex_justification
+                actions.append(
+                    {
+                        "action": "not_affected",
+                        "field": "vex_justification",
+                        "old_value": src.get("vex_justification"),
+                        "new_value": patch.vex_justification,
+                    }
+                )
         if patch.assignee is not None and patch.assignee != src.get("assignee"):
             partial["assignee"] = patch.assignee
             actions.append(
@@ -128,21 +147,10 @@ async def apply_triage(
         if not partial:
             return src  # no-op: nothing changed, nothing journaled
 
-        try:
-            resp = await client.update(
-                index=index,
-                id=finding_key,
-                body={"doc": partial},
-                params={
-                    "if_seq_no": got["_seq_no"],
-                    "if_primary_term": got["_primary_term"],
-                    "refresh": "wait_for",  # immediately searchable (FR-7 DoD)
-                },
-            )
-        except ConflictError:
-            continue  # a racing writer won — re-read, re-validate, re-apply
-
-        revision = int(resp["_version"])  # the resulting CAS version → causal replay key
+        # Journal FIRST (audit M-3 ruling — see module docstring): predicted revision is exact
+        # when the CAS below lands; if it loses instead, these rows are tolerated orphans that
+        # the winning iteration's re-journal dominates.
+        revision = int(got["_version"]) + 1
         for action in actions:
             extra_json = action.pop("new_value_json", None)
             event_kwargs: dict[str, Any] = {
@@ -156,6 +164,20 @@ async def apply_triage(
                 **action,
             }
             await append_field_change(client, **event_kwargs, new_value_json=extra_json)
+
+        try:
+            await client.update(
+                index=index,
+                id=finding_key,
+                body={"doc": partial},
+                params={
+                    "if_seq_no": got["_seq_no"],
+                    "if_primary_term": got["_primary_term"],
+                    "refresh": "wait_for",  # immediately searchable (FR-7 DoD)
+                },
+            )
+        except ConflictError:
+            continue  # a racing writer won — re-read, re-validate, re-apply (+ re-journal)
         return {**src, **partial}
 
     raise RuntimeError("triage: CAS conflicts did not drain")

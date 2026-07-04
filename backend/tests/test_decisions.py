@@ -5,6 +5,7 @@ ONE `effective_at` (`revoked_at(old) = created_at(new)`), with the new doc carry
 coverage — never a gap where a risk-acceptance silently lapses). Every lifecycle event is
 journaled. Real OpenSearch, prefix-isolated."""
 
+import asyncio
 import contextlib
 import os
 from uuid import uuid4
@@ -142,6 +143,78 @@ async def test_editing_or_revoking_a_revoked_decision_is_refused(real_os) -> Non
             changes={"justification": "new words"},
             prefix=prefix,
         )
+
+
+async def test_concurrent_revokes_cannot_double_stamp_revoked_at(real_os) -> None:
+    # Audit M-2 (task A): revoke was check-then-act — two racers both passed the Python check and
+    # the second overwrote the immutable revoked_at (corrupting past-T reconstruction). Exactly
+    # one revoke may win; the loser gets the "already revoked" refusal.
+    client, prefix = real_os
+    doc = await create_decision(client, actor="lead", payload=_payload(), prefix=prefix)
+
+    results = await asyncio.gather(
+        revoke_decision(
+            client,
+            actor="alice",
+            decision_id=doc["decision_id"],
+            effective_at="2026-08-01T00:00:00+00:00",
+            prefix=prefix,
+        ),
+        revoke_decision(
+            client,
+            actor="bob",
+            decision_id=doc["decision_id"],
+            effective_at="2026-09-01T00:00:00+00:00",
+            prefix=prefix,
+        ),
+        return_exceptions=True,
+    )
+
+    winners = [r for r in results if isinstance(r, dict)]
+    losers = [r for r in results if isinstance(r, ValueError)]
+    assert len(winners) == 1 and len(losers) == 1
+    stored = await _get(client, prefix, doc["decision_id"])
+    assert stored["revoked_at"] == winners[0]["revoked_at"]  # the stamp is single-writer
+    rows = await _audit(client, prefix, doc["decision_id"])
+    assert sum(1 for r in rows if r["action"] == "decision_revoke") == 1
+
+
+async def test_concurrent_edits_leave_exactly_one_active_decision(real_os) -> None:
+    # Audit M-2 (task A): two concurrent edits both created successors and both revoked the same
+    # old doc → two active decisions forever, breaking the pairing invariant M5c's projection
+    # needs. Exactly one edit may win; the loser compensates (its successor never stays active).
+    client, prefix = real_os
+    doc = await create_decision(client, actor="lead", payload=_payload(), prefix=prefix)
+
+    results = await asyncio.gather(
+        edit_decision(
+            client,
+            actor="alice",
+            decision_id=doc["decision_id"],
+            changes={"justification": "alice's revision"},
+            prefix=prefix,
+        ),
+        edit_decision(
+            client,
+            actor="bob",
+            decision_id=doc["decision_id"],
+            changes={"justification": "bob's revision"},
+            prefix=prefix,
+        ),
+        return_exceptions=True,
+    )
+
+    ok = [r for r in results if isinstance(r, tuple)]
+    failed = [r for r in results if isinstance(r, ValueError)]
+    assert len(ok) == 1 and len(failed) == 1
+    await client.indices.refresh(index=f"{prefix}system-decisions")
+    active = await client.search(
+        index=f"{prefix}system-decisions",
+        body={"query": {"bool": {"must_not": [{"exists": {"field": "revoked_at"}}]}}},
+    )
+    assert active["hits"]["total"]["value"] == 1  # never two active successors
+    winner_new = ok[0][1]
+    assert active["hits"]["hits"][0]["_id"] == winner_new["decision_id"]
 
 
 async def test_active_at_t_semantics_hold(real_os) -> None:

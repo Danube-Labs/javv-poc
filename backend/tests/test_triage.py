@@ -6,6 +6,7 @@ justification. Triage writes ONLY the human fields (merge.py contract); a human 
 `stale` clears `pre_stale_status` so the sweep can't later revert it. Real OpenSearch."""
 
 import asyncio
+import contextlib
 import os
 import uuid
 from typing import Any
@@ -168,6 +169,35 @@ async def test_leaving_not_affected_clears_the_justification(triage_client) -> N
     assert doc["state"] == "open" and doc["vex_justification"] is None
 
 
+async def test_justification_only_correction_is_written_and_journaled(triage_client) -> None:
+    # Audit M-1 (task A): not_affected → not_affected with a DIFFERENT justification is a real
+    # correction — it must land on the doc and in the journal, not vanish in the same-state no-op.
+    http, client = triage_client
+    await _login(http, client, capabilities=["can_triage"])
+    fk = await _seed_finding(client)
+    await _patch(http, fk, {"state": "not_affected", "vex_justification": "component_not_present"})
+
+    r = await _patch(
+        http, fk, {"state": "not_affected", "vex_justification": "vulnerable_code_not_present"}
+    )
+
+    assert r.status_code == 200
+    doc = await _doc(client, fk)
+    assert doc["vex_justification"] == "vulnerable_code_not_present"
+    corrections = [
+        row for row in await _audit_rows(client, fk) if row["field"] == "vex_justification"
+    ]
+    assert len(corrections) == 1
+    assert corrections[0]["old_value"] == "component_not_present"
+    assert corrections[0]["new_value"] == "vulnerable_code_not_present"
+    # same state + same justification stays a true no-op
+    before = len(await _audit_rows(client, fk))
+    await _patch(
+        http, fk, {"state": "not_affected", "vex_justification": "vulnerable_code_not_present"}
+    )
+    assert len(await _audit_rows(client, fk)) == before
+
+
 async def test_stale_is_never_a_human_target(triage_client) -> None:
     http, client = triage_client
     await _login(http, client, capabilities=["can_triage"])
@@ -236,10 +266,50 @@ async def test_unknown_finding_is_404_and_empty_patch_is_422(triage_client) -> N
     assert (await _patch(http, fk, {})).status_code == 422  # at least one field required
 
 
+# --- D17 completeness under partial failure (audit M-3, task A) ------------------------
+
+
+async def test_journal_outage_cannot_orphan_an_applied_change(triage_client, monkeypatch) -> None:
+    # Audit M-3: with write-then-journal, a journal failure after the CAS write leaves an
+    # applied-but-unjournaled change; the client retry no-ops (state already there) and never
+    # journals it. D17 requires: if the change is applied, a row for it must exist.
+    import backend.triage.service as svc
+
+    http, client = triage_client
+    await _login(http, client, capabilities=["can_triage"])
+    fk = await _seed_finding(client)
+
+    real_append = svc.append_field_change
+    calls = {"n": 0}
+
+    async def flaky_append(*args: Any, **kwargs: Any) -> str:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("injected audit outage")
+        return await real_append(*args, **kwargs)
+
+    monkeypatch.setattr(svc, "append_field_change", flaky_append)
+
+    with contextlib.suppress(Exception):  # first attempt fails (audit outage) — that's expected
+        await _patch(http, fk, {"state": "acknowledged"})
+    r = await _patch(http, fk, {"state": "acknowledged"})  # the client retry
+    assert r.status_code == 200
+
+    doc = await _doc(client, fk)
+    assert doc["state"] == "acknowledged"
+    state_rows = [row for row in await _audit_rows(client, fk) if row["field"] == "state"]
+    assert state_rows, "an applied change MUST have an audit row (D17)"
+    latest = max(state_rows, key=lambda row: row["revision"])
+    assert latest["new_value"] == "acknowledged"
+
+
 # --- concurrency (DoD): racing writers resolve via CAS retry ---------------------------
 
 
-async def test_concurrent_triage_writes_both_land_with_one_row_each(triage_client) -> None:
+async def test_concurrent_triage_writes_both_land_and_replay_correctly(triage_client) -> None:
+    # Journal-before-commit (audit M-3 ruling): a lost CAS may leave a tolerated orphan row, so
+    # the contract is NOT "exactly one row per action" under contention — it's the replay
+    # contract: latest-per-field by revision reconstructs the doc.
     http, client = triage_client
     await _login(http, client, capabilities=["can_triage"])
     fk = await _seed_finding(client)
@@ -253,4 +323,8 @@ async def test_concurrent_triage_writes_both_land_with_one_row_each(triage_clien
     doc = await _doc(client, fk)
     assert doc["assignee"] == "bob" and doc["notes"] == "racing note"  # neither write lost
     rows = await _audit_rows(client, fk)
-    assert {r["action"] for r in rows} == {"assign", "note"} and len(rows) == 2
+    assert {r["action"] for r in rows} == {"assign", "note"}
+    for field, expected in (("assignee", "bob"), ("notes", "racing note")):
+        field_rows = [r for r in rows if r["field"] == field]
+        latest = max(field_rows, key=lambda r: r["revision"])
+        assert latest["new_value"] == expected  # replay converges on the doc
