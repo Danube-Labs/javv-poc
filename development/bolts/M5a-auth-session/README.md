@@ -22,26 +22,41 @@ decisions D33 (capability RBAC + `can_accept_audit_final`), D38/M14 (peppered SH
   `system-roles` / `system-sessions` there (+ `MAPPING_VERSION` bump) — the versioned boot-time
   bootstrap, not a separate creation path.**
 
+## Already landed (M1–M3 + audit fixes) — M5a builds ON these, doesn't duplicate them
+- **Ingest-token crypto** — `backend/src/backend/core/security.py`: 256-bit `mint_token`,
+  peppered-SHA-256 `hash_token`, constant-time `tokens_match`, `token_expired` (audit m-3).
+- **Token↔payload binding (SEC-3)** — enforced + tested on the ingest POST
+  (`routers/ingest.py`: 403 `scope_mismatch`); `require_token` (`core/auth.py`) is the shared
+  machine read-path dependency (generic 401, no existence oracle, expiry + `disabled` honored).
+- **Mint (CLI)** — `core/tokens.py` (`python -m backend.core.tokens`); the raw token prints once,
+  only the peppered hash is stored. The capability-gated mint/rotate/revoke **API** is this bolt.
+- **`system-tokens` index** — mutable index + `dynamic:false` mapping in bootstrap
+  (`MUTABLE_INDEXES`), incl. `expiry`/`disabled`/`last_ingest_at`.
+- **Reusable patterns:** the ingest rate-limiter (`routers/ingest.py`, audit m-4) is the shape for
+  the login lockout; the `system-config` read/write helpers (`jobs/staleness.py` /
+  `jobs/lifecycle.py`) are the shape for any auth policy knobs.
+
 ## Deliverables
-The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
-- `backend/app/auth/passwords.py` — argon2id hash/verify; `password_hash` **never logged**; password policy (length/complexity); `compare_digest`-style constant-time verify.
-- `backend/app/auth/sessions.py` — server-side sessions: mint/lookup/revoke; **hashed** `session_id` in `system-sessions`; httpOnly+Secure+SameSite cookie; TTL `expires_at`; **revoke-on-role-change / logout-all**; one session per browser, shared across tabs.
-- `backend/app/auth/lockout.py` — login lockout/throttle (failed-attempt counter + backoff).
-- `backend/app/auth/capabilities.py` — capability bundles resolved from `system-roles`; `require_capability(cap)` FastAPI dependency; `can_accept_audit_final`, `can_triage`, `can_manage_*`, destructive caps Admin-only (D33/SEC-2/SEC-9).
-- `backend/app/auth/principal.py` — `get_current_principal()` resolving the session → user + effective capabilities (OIDC-swappable later).
-- `backend/app/auth/bootstrap.py` — bootstrap admin: mounted-secret, **seed-once** (idempotent), server-enforced `must_change` on first login (SEC-6).
-- `backend/app/auth/tokens.py` — ingest tokens: 256-bit random token, **peppered SHA-256** (`token_hash`, `compare_digest`), **token↔payload binding** (payload `cluster_id`+`scanner` must match token scope — SEC-3); mint/revoke/lifecycle; **kept separate from human session auth**.
-- `backend/app/tenancy/chokepoint.py` — the single `tenant_search(...)` helper that injects the `cluster_id` filter into **every** read/export query (SEC-4); the only sanctioned path to OpenSearch reads. Per-request entitlement on fetch **and** export (IDOR).
-- `backend/app/auth/routes.py` — `POST /auth/login`, `POST /auth/logout`, `POST /auth/password` (first-login change), `GET /auth/me`; admin user/role/token management endpoints (capability-gated).
-- `backend/app/auth/audit.py` — emits auth-event audit entries (`login`/`logout`/`pwd_change`/`role_change`/`token_mint`/`token_revoke`) into `system-audit-log` (D17). *(Consumes the audit-log writer/schema **owned by M5b**; if M5b lands after, a thin local appender stands in and is replaced.)*
+The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed,
+matching the real `backend/src/backend/` layout; a new `auth/` package beside `core/`):
+- `backend/src/backend/auth/passwords.py` — argon2id hash/verify; `password_hash` **never logged**; password policy (length/complexity); `compare_digest`-style constant-time verify.
+- `backend/src/backend/auth/sessions.py` — server-side sessions: mint/lookup/revoke; **hashed** `session_id` in `system-sessions`; httpOnly+Secure+SameSite cookie; TTL `expires_at`; **revoke-on-role-change / logout-all**; one session per browser, shared across tabs.
+- `backend/src/backend/auth/lockout.py` — login lockout/throttle (failed-attempt counter + backoff; the ingest rate-limiter is the pattern).
+- `backend/src/backend/auth/capabilities.py` — capability bundles resolved from `system-roles`; `require_capability(cap)` FastAPI dependency; `can_accept_audit_final`, `can_triage`, `can_manage_*`, destructive caps Admin-only (D33/SEC-2/SEC-9).
+- `backend/src/backend/auth/principal.py` — `get_current_principal()` resolving the session → user + effective capabilities (OIDC-swappable later).
+- `backend/src/backend/auth/bootstrap_admin.py` — bootstrap admin: mounted-secret, **seed-once** (idempotent), server-enforced `must_change` on first login (SEC-6).
+- **Token admin API** (`backend/src/backend/routers/tokens.py`) — capability-gated mint/rotate/revoke/list over the **existing** token machinery (`core/security.py` crypto, SEC-3 binding, `core/tokens.py` mint — see *Already landed*; do NOT create a second token path). Rotate = mint-new + disable-old (the staleness sweep already dedupes rotated tokens, audit M-2); revoke = `disabled:true`. Machine tokens stay **separate from human session auth**.
+- `backend/src/backend/tenancy/chokepoint.py` — the single `tenant_search(...)` helper that injects the `cluster_id` filter into **every** read/export query (SEC-4); the only sanctioned path to OpenSearch reads for the user-facing API (M6 consumes it; internal jobs/services keep their explicit-filter queries). Per-request entitlement on fetch **and** export (IDOR).
+- `backend/src/backend/routers/auth.py` — `POST /auth/login`, `POST /auth/logout`, `POST /auth/password` (first-login change), `GET /auth/me`; admin user/role management endpoints (capability-gated).
+- `backend/src/backend/auth/audit.py` — emits auth-event audit entries (`login`/`logout`/`pwd_change`/`role_change`/`token_mint`/`token_revoke`) into `system-audit-log` (D17). *(Consumes the audit-log writer/schema **owned by M5b**; if M5b lands after, a thin local appender stands in and is replaced.)*
 - `backend/tests/security/rbac_idor_contract.py` — **the standing parametrized RBAC/IDOR negative-test suite** (AUDIT N4 / SEC-4): a registry every mutating endpoint registers into, asserting each rejects (a) missing capability, (b) insufficient capability, and (c) cross-`cluster_id` access.
-- Index templates (`dynamic:false`) for `system-users`, `system-roles`, `system-sessions`, `system-tokens`.
+- `system-users` / `system-roles` / `system-sessions` mutable indices (`dynamic:false`) added to `bootstrap.MUTABLE_INDEXES` (+ `MAPPING_VERSION` bump); `system-tokens` already exists there.
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test, not a promise):
 - **Capability gate (D33):** risk-accept (and every `can_*`-gated action) is rejected for a principal lacking the capability; `can_accept_audit_final` specifically gates risk-accept; Admin holds all.
 - **Bootstrap admin (FR-18/SEC-6):** seeds exactly once from the mounted secret (idempotent re-run is a no-op); first login is forced through `must_change` before any other action succeeds.
-- **Token security (D38/M14):** ingest token is 256-bit, stored only as a **peppered SHA-256**; verification is constant-time; a token whose payload `cluster_id`/`scanner` ≠ its scope is rejected (SEC-3 binding).
+- **Token security (D38/M14):** *(crypto/binding/expiry already green — keep as regression)* ingest token is 256-bit, stored only as a **peppered SHA-256**; verification is constant-time; a token whose payload `cluster_id`/`scanner` ≠ its scope is rejected (SEC-3 binding). **New here:** mint/rotate/revoke API is capability-gated + audited; a revoked/rotated-out token 401s immediately.
 - **Session security:** cookie is httpOnly+Secure+SameSite; `session_id` stored hashed; expired/revoked sessions rejected; role-change revokes live sessions.
 - **Tenant chokepoint (SEC-4):** a read that bypasses `tenant_search` is caught by the negative test; every read carries a `cluster_id` filter; MVP = all-clusters-visible but the filter is *always applied* (D38/H9).
 - **Standing RBAC/IDOR suite (AUDIT N4):** the parametrized suite passes for every registered mutating endpoint (missing-cap, insufficient-cap, cross-`cluster_id`); an endpoint that forgets to register fails a presence check.
@@ -66,3 +81,18 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-04 — pre-kickoff refresh against the M0–M4 reality (post-M4 close).** The ingest-token
+  surface listed as a deliverable was largely built by M1/M3 + the M3 audit fixes: crypto
+  (`core/security.py`), SEC-3 binding (ingest 403, tested), expiry/disabled enforcement,
+  `require_token`, the mint CLI, and the `system-tokens` index — moved to a new *Already landed*
+  section; the deliverable is rescoped to the **capability-gated token admin API** (mint/rotate/
+  revoke/list) on top of the existing machinery, one token path only. Fixed stale `backend/app/`
+  paths to the real `backend/src/backend/` layout (new `auth/` package); "index templates" for the
+  system indices corrected to **mutable indices in `bootstrap.MUTABLE_INDEXES`** (they don't roll).
+  Noted reusable patterns: ingest rate-limiter → login lockout; staleness/lifecycle config helpers
+  → auth knobs. Everything human-auth (passwords/sessions/lockout/capabilities/principal/bootstrap
+  admin/routes/chokepoint/RBAC-IDOR suite/auth auditing) is untouched net-new scope — the bolt is
+  fully doable on the M0–M4 base.
