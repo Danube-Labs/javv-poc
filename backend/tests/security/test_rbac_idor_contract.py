@@ -73,6 +73,34 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_triage",
         body={"state": "acknowledged"},
     ),
+    MutatingEndpoint(  # task D (#141) — admin user management (FR-18)
+        method="POST",
+        path="/api/v1/admin/users",
+        route_path="/api/v1/admin/users",
+        capability="can_manage_users",
+        body={"username": "u-rbac-sample", "temp_password": PASSWORD, "role": "viewer"},
+    ),
+    MutatingEndpoint(
+        method="PATCH",
+        path="/api/v1/admin/users/u-rbac-sample/role",
+        route_path="/api/v1/admin/users/{username}/role",
+        capability="can_manage_users",
+        body={"role": "viewer"},
+    ),
+    MutatingEndpoint(
+        method="PATCH",
+        path="/api/v1/admin/users/u-rbac-sample/disabled",
+        route_path="/api/v1/admin/users/{username}/disabled",
+        capability="can_manage_users",
+        body={"disabled": True},
+    ),
+    MutatingEndpoint(
+        method="POST",
+        path="/api/v1/admin/users/u-rbac-sample/password-reset",
+        route_path="/api/v1/admin/users/{username}/password-reset",
+        capability="can_manage_users",
+        body={"temp_password": PASSWORD},
+    ),
 )
 
 # mutating routes with their own (tested) auth regime — NOT capability-gated
