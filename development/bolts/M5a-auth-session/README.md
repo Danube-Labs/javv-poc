@@ -121,3 +121,16 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   → auth knobs. Everything human-auth (passwords/sessions/lockout/capabilities/principal/bootstrap
   admin/routes/chokepoint/RBAC-IDOR suite/auth auditing) is untouched net-new scope — the bolt is
   fully doable on the M0–M4 base.
+
+- **2026-07-05 — Task D (#141) delivered the deferred FR-18 admin surface.** Both independent
+  audits flagged that this bolt promised admin user/role endpoints + "role-change revokes
+  sessions" but shipped only the self-service half. Operator ruled **build now**:
+  `routers/admin_users.py` (`can_manage_users`-gated) — create (admin-set temp password →
+  `must_change: true`, same SEC-6 discipline as the bootstrap admin), list, role change
+  (role + denormalized capabilities updated together, then `revoke_all_for_user` — D33 finally
+  has its caller), disable/enable (disable revokes), password-reset (temp + `must_change` +
+  revoke-all, local users only). **Last-enabled-admin guard** (409 on demote/disable — no
+  self-bricking). Rulings: bootstrap stays **secret-only** (a default `admin/admin` was
+  considered and rejected — `must_change` can't close the pre-first-login hijack race);
+  role-bundle editing stays out of scope. All four mutating routes registered in the RBAC/IDOR
+  suite; every action journaled. Docs: `docs/CONFIGURATION.md` §6.
