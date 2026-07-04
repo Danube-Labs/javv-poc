@@ -37,6 +37,10 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 | `JAVV_INGEST_MAX_BODY_BYTES` | `62914560` (60 MiB) | Max decompressed ingest body (zip-bomb cap) | n/a (deploy) |
 | `JAVV_INGEST_RATE_LIMIT_PER_MINUTE` | `120` | Per-token ingest rate limit | n/a (deploy) |
 | `JAVV_SESSION_TTL_HOURS` | `24.0` | Server-side human-session TTL (M5a/SEC-5) — `system-sessions.expires_at` is authoritative, the cookie's lifetime is advisory | n/a (deploy) |
+| `JAVV_LOGIN_MAX_ATTEMPTS` | `5` | Login lockout (M5a): failed attempts per username within the window before 429 | n/a (deploy) |
+| `JAVV_LOGIN_LOCKOUT_MINUTES` | `15.0` | Login lockout sliding window. In-memory per pod (like the ingest limiter) — N replicas ⇒ N× the budget | n/a (deploy) |
+| `JAVV_BOOTSTRAP_ADMIN_USERNAME` | `admin` | Bootstrap admin username (M5a/SEC-6) | n/a (deploy) |
+| `JAVV_BOOTSTRAP_ADMIN_PASSWORD` | *(empty = don't seed)* | 🔒 Initial admin password from a mounted k8s Secret. **Seed-once**: consumed only when the admin doesn't exist yet — rotating the mounted value later has NO effect (change the password in-app); the seeded account is forced through `must_change` on first login | 🔒 secret |
 | `JAVV_TOKEN_PEPPER` *(shared)* | — | Also peppers **session-id hashes** (domain-separated `session:` prefix) since M5a | 🔒 secret |
 
 > These are deployment/ops knobs, tuned per environment (a Helm values file will inject them — M10).
@@ -127,8 +131,8 @@ home for policy that operators change — no rebuild, no restart.
 | **Staleness** two-timer windows (`freshness_days` N=3, `scanner_down_days` M=7) | **M3** (backend) / **M9e** (UI) | `system-config`: **per-cluster** `staleness:<cluster_id>` overrides the fleet-wide `staleness` default (FR-6); read by the daily `jobs/staleness.py` sweep — **never hardcoded** (D20). Interim CLI: `python -m backend.jobs.staleness --set-freshness-days N --set-scanner-down-days M [--cluster <id>]` | ✅ Backend built; M9e UI |
 | **SLA policy** (days per severity + KEV override) | **M5d** | `system-config` | ✅ Planned |
 | **Scan scope** (namespaces/images/kinds to scan) | **#94** (backend) / **M9e** (UI) | `system-config` `scan_scope:<cluster_id>`; scanner fetches via `GET /api/v1/scan-scope` (D43) | ✅ Backend built; M9e UI |
-| Ingest **push tokens** (rotate/revoke) | **M9a** ("shell + tokens") / M1 backend | `system-tokens` | ✅ Planned |
-| Users / RBAC (capability bundles) | **M5a** (backend) | `system-users` | ❌ management UI unowned (see gaps) |
+| Ingest **push tokens** (mint/rotate/revoke/list) | **M5a** (backend **built**) / **M9a** (UI) | `POST/GET /api/v1/admin/tokens` (+ `/{id}/rotate`, `/{id}/revoke`), capability `can_manage_tokens`, journaled; raw token shown exactly once. Interim CLI: `python -m backend.core.tokens --cluster <id> --scanner <trivy\|grype>` | ✅ Backend built; M9a UI |
+| Users / RBAC (capability bundles, D33) | **M5a** (backend **built**) | `system-roles` docs (`_id` = role) hold the bundles — **seed-once defaults** (`viewer`/`triager`/`security_lead`/`admin="*"`); edit the doc to customize, restarts never clobber it. Users carry a `role` + optional denormalized `capabilities` in `system-users` | ❌ management UI unowned (see gaps) |
 
 ---
 

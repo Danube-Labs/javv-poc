@@ -1,0 +1,86 @@
+"""Tenant chokepoint (M5a slice 5, SEC-4): `tenant_query` is the unit-tested contract — whatever
+body a caller passes, the emitted DSL carries the `cluster_id` term filter. Pure units + one real
+round-trip proving cross-tenant rows cannot come back."""
+
+import contextlib
+import os
+from uuid import uuid4
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.core.bootstrap import bootstrap
+from backend.tenancy.chokepoint import tenant_query, tenant_search
+
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+FILTER = {"term": {"cluster_id": "c-1"}}
+
+
+def test_bare_body_gets_the_cluster_filter() -> None:
+    out = tenant_query("c-1", {"size": 5})
+    assert out["query"]["bool"]["filter"] == [FILTER]
+    assert out["size"] == 5
+
+
+def test_caller_query_is_preserved_under_must_and_cannot_displace_the_filter() -> None:
+    hostile = {"query": {"bool": {"must_not": [FILTER]}}}  # tries to negate the tenant filter
+    out = tenant_query("c-1", hostile)
+    assert out["query"]["bool"]["filter"] == [FILTER]  # structurally ANDed — always wins
+    assert out["query"]["bool"]["must"] == [hostile["query"]]
+
+
+def test_agg_only_body_keeps_aggs_and_gains_the_filter() -> None:
+    out = tenant_query("c-1", {"size": 0, "aggs": {"by_sev": {"terms": {"field": "severity"}}}})
+    assert out["query"]["bool"]["filter"] == [FILTER]
+    assert "by_sev" in out["aggs"]
+
+
+def test_missing_cluster_id_is_refused() -> None:
+    with pytest.raises(ValueError, match="cluster_id"):
+        tenant_query("", {"query": {"match_all": {}}})
+
+
+def test_the_original_body_is_not_mutated() -> None:
+    body = {"query": {"match_all": {}}}
+    tenant_query("c-1", body)
+    assert body == {"query": {"match_all": {}}}
+
+
+# --- one real round-trip: cross-tenant rows cannot come back --------------------------
+
+
+def _os_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+async def test_tenant_search_never_returns_another_clusters_rows() -> None:
+    prefix = f"t-{uuid4().hex[:8]}-"
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    try:
+        await bootstrap(client, prefix=prefix)
+        for cluster, fk in (("c-a", "f-a"), ("c-b", "f-b")):
+            await client.index(
+                index=f"{prefix}findings",
+                id=fk,
+                body={"finding_key": fk, "cluster_id": cluster, "present": True},
+                params={"refresh": "true"},
+            )
+
+        hits = await tenant_search(
+            client,
+            index=f"{prefix}findings",
+            cluster_id="c-a",
+            body={"query": {"match_all": {}}, "size": 10},
+        )
+
+        keys = {h["_source"]["finding_key"] for h in hits["hits"]["hits"]}
+        assert keys == {"f-a"}  # c-b's row is structurally unreachable
+    finally:
+        with contextlib.suppress(Exception):
+            await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
+        await client.close()
