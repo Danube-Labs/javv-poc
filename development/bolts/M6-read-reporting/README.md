@@ -23,14 +23,14 @@ with the numbers; if it storms, replace the per-envelope refresh with a **bounde
 
 ## Deliverables
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
-- `backend/app/query/search.py` — faceted PIT + `search_after` finding search (FR-12); filters by severity/state/scanner/assignee/KEV/fix-available/disagree; `from/size` only under 10k, PIT+`search_after` for deep paging (delete the PIT in `finally`).
-- `backend/app/query/aggs.py` — scanner-faceted aggregations; capped `terms` or **composite** aggs paginating via `after_key` (FR-12, NFR pin §). Pure DSL-builder, unit-tested on the emitted body.
-- `backend/app/query/trends.py` — trend endpoints over `javv-scan-events-*` (FR-5/FR-12; "new in 30d"); per-`cluster_id`, always-applied filter.
-- `backend/app/query/contributors.py` — **Contributors (expanded)** over `system-audit-log`: resolved-over-time, median TTR, SLA-hit %, leaderboard (FR-15). Reads M5b's audit log.
-- `backend/app/api/search.py` — GET search/agg/trend/contributors endpoints; `extra="forbid"` request models; `cluster_id` via the one `tenant_search` chokepoint (SEC-4), entitlement on every fetch **and export** (IDOR). Follow [`standards/api-design.md`](../../standards/api-design.md) (paths/naming, opaque `next_cursor`, `as_of` param, response shape).
-- `backend/app/export/csv_stream.py` — streaming, **CSV-injection-sanitized** export from any lens, constant memory (FR-13 inline "run now" path); PIT+`search_after`, small pages.
-- `backend/app/export/vex.py` — **VEX export** serializing `state`/`vex_justification` → OpenVEX + CycloneDX, consumable by Trivy/Grype `--vex` (FR-22 export-only; import → v1.1).
-- `backend/app/query/as_of.py` — the **as-of-T dispatcher**: `T=now` short-circuits to materialized current-state (M3 cache); `T<now` **delegates to M8b's `backend/app/query/as_of_t.py`** (does NOT reimplement reconstruction — D28/FR-23 boundary).
+- `backend/src/backend/query/search.py` — faceted PIT + `search_after` finding search (FR-12); filters by severity/state/scanner/assignee/KEV/fix-available/disagree; `from/size` only under 10k, PIT+`search_after` for deep paging (delete the PIT in `finally`).
+- `backend/src/backend/query/aggs.py` — scanner-faceted aggregations; capped `terms` or **composite** aggs paginating via `after_key` (FR-12, NFR pin §). Pure DSL-builder, unit-tested on the emitted body.
+- `backend/src/backend/query/trends.py` — trend endpoints over `javv-scan-events-*` (FR-5/FR-12; "new in 30d"); per-`cluster_id`, always-applied filter.
+- `backend/src/backend/query/contributors.py` — **Contributors (expanded)** over `system-audit-log`: resolved-over-time, median TTR, SLA-hit %, leaderboard (FR-15). Reads M5b's audit log.
+- `backend/src/backend/api/search.py` — GET search/agg/trend/contributors endpoints; `extra="forbid"` request models; `cluster_id` via the one `tenant_search` chokepoint (SEC-4), entitlement on every fetch **and export** (IDOR). Follow [`standards/api-design.md`](../../standards/api-design.md) (paths/naming, opaque `next_cursor`, `as_of` param, response shape).
+- `backend/src/backend/export/csv_stream.py` — streaming, **CSV-injection-sanitized** export from any lens, constant memory (FR-13 inline "run now" path); PIT+`search_after`, small pages.
+- `backend/src/backend/export/vex.py` — **VEX export** serializing `state`/`vex_justification` → OpenVEX + CycloneDX, consumable by Trivy/Grype `--vex` (FR-22 export-only; import → v1.1).
+- `backend/src/backend/query/as_of.py` — the **as-of-T dispatcher**: `T=now` short-circuits to materialized current-state (M3 cache); `T<now` **delegates to M8b's `backend/src/backend/query/as_of_t.py`** (does NOT reimplement reconstruction — D28/FR-23 boundary).
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test, not a promise):

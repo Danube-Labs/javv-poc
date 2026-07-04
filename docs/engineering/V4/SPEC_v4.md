@@ -44,7 +44,7 @@ from an env/secret and must change the password on first login - FR-18.)
   `last_scan_at` (display); re-ingest writes scanner fields via a **partial-doc merge**, leaving all
   human-owned fields untouched (a rebuildable cache - D17/D31). **Ordering (D39/H3-r2, D40):** the `findings`
   merge runs **after** the scan-events commit doc lands (which itself lands only after per-item `_bulk`
-  success), and is **newer-scan-wins** keyed on the scanner-assigned **`scan_order`** - both create and update
+  success), and is **newer-scan-wins** keyed on the backend-allocated (D45) **`scan_order`** - both create and update
   **no-op when `scan_order ≤ doc.last_scan_order` or `< the per-digest `javv-scan-watermarks` watermark`**, so
   an out-of-order older run can't overwrite **or re-create** state (the watermark is what guards a *create* -
   C-r3). Then **reconcile-on-commit** flips `present=false`/`resolved_at` on findings the committed run omits

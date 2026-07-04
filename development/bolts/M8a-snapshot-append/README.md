@@ -30,19 +30,19 @@ commit-then-cache), D40 (`scan_order`/`inventory_order` ordering + watermark CAS
 
 ## Deliverables
 The actual files/modules this bolt creates - **in the layered tree, not here** (paths proposed):
-- `backend/app/snapshots/occurrences.py` - build the full per-scan snapshot: one immutable row per
+- `backend/src/backend/snapshots/occurrences.py` - build the full per-scan snapshot: one immutable row per
   current finding, `_id = hash(scan_run_id + finding_key)` (idempotent, D18), stamped `scan_order`
   (D40) + `commit_key` (D39) + as-of-then `severity`/`cvss`/`fixable` (no `severity_rank` here, D38).
   One `scan_run_id` + one `@timestamp` per scan (atomic/complete).
-- `backend/app/snapshots/commit.py` - the commit sequence: append occurrence rows via `_bulk` →
+- `backend/src/backend/snapshots/commit.py` - the commit sequence: append occurrence rows via `_bulk` →
   **inspect `response["errors"]` + per-item status** → write the `javv-scan-events` catalog doc
   **after** per-item success (D39 commit-then-cache); a **clean scan writes zero occurrence rows** but
   still commits the catalog doc.
-- `backend/app/snapshots/watermark_guard.py` - **consumes** `javv-scan-watermarks`: before committing,
+- `backend/src/backend/snapshots/watermark_guard.py` - **consumes** `javv-scan-watermarks`: before committing,
   CAS-check / bump `max_committed_scan_order`; a run whose `scan_order < watermark` is **stale → skip**
   (history is immutable + idempotent + `scan_order`-ordered, so stale history is harmless). Uses M3's
   helper; adds no new watermark fields (AUDIT I2).
-- `backend/app/snapshots/inventory_runs.py` - write the `javv-inventory-runs` commit manifest
+- `backend/src/backend/snapshots/inventory_runs.py` - write the `javv-inventory-runs` commit manifest
   (`_id = inventory_run_id`, `inventory_order` D40/F-r3, `expected_count`/`written_count`,
   `status ∈ {committed, partial, failed}`), **written last** after the `javv-images` bulk for the run
   succeeds; `status=committed` iff `written_count == expected_count`.

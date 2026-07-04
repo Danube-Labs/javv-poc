@@ -20,9 +20,9 @@ decisions `D24`, `D38`, `D39`, `D40`.
 
 ## Deliverables
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
-- `backend/app/api/reports.py` — enqueue endpoint: writes a `pending` `system-reports` doc (`params`, `requested_by`, `run_mode: now|offpeak`, `scheduled_for`, `cluster_id`); `extra="forbid"`; entitlement + `cluster_id` chokepoint (SEC-4/IDOR).
-- `backend/app/reports/claim.py` — **optimistic-concurrency claim**: `pending→running` via `seq_no`/`primary_term` CAS; stamps a fresh **`attempt_id`** fencing token + `lease_expires_at` (D38/M17).
-- `backend/app/reports/lease.py` — `heartbeat_at` refresh and the `done`/`failed` transition, **both CAS'd on `attempt_id`** so an expired-then-reclaimed slow worker can't publish (D39/M7-r2).
+- `backend/src/backend/api/reports.py` — enqueue endpoint: writes a `pending` `system-reports` doc (`params`, `requested_by`, `run_mode: now|offpeak`, `scheduled_for`, `cluster_id`); `extra="forbid"`; entitlement + `cluster_id` chokepoint (SEC-4/IDOR).
+- `backend/src/backend/reports/claim.py` — **optimistic-concurrency claim**: `pending→running` via `seq_no`/`primary_term` CAS; stamps a fresh **`attempt_id`** fencing token + `lease_expires_at` (D38/M17).
+- `backend/src/backend/reports/lease.py` — `heartbeat_at` refresh and the `done`/`failed` transition, **both CAS'd on `attempt_id`** so an expired-then-reclaimed slow worker can't publish (D39/M7-r2).
 - `backend/jobs/report_drain.py` — the throttled drain worker: claims a job, streams the export via M6's engine (PIT+`search_after`, small pages, brief sleeps), writes the result to object storage at a path **including `attempt_id`** (object metadata too), CAS-finalizes `done` with `result_location`, then writes a `report_ready` `system-notifications` doc (the bell).
 - `backend/jobs/orphan_sweep.py` — **orphan-object TTL sweep**: deletes result objects from failed/stale/never-finalized attempts whose `attempt_id` is not the `done` doc's (D40/I-r3).
 - `deploy/cronjobs/report-drain.yaml` — CronJob (`concurrencyPolicy: Forbid`) running the off-peak drain; throttle/sleep knobs surfaced.

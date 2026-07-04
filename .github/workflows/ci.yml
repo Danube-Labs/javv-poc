@@ -1,21 +1,21 @@
 name: CI
 
-# Quality gate for every PR + push to main: backend (ruff + pyright + pytest) and
-# frontend (eslint + vitest), as required by development/standards/definition-of-done.md
+# Quality gate for every PR + push to main: backend + scanner (ruff + pyright + pytest)
+# and frontend (eslint + vitest), as required by development/standards/definition-of-done.md
 # and git-workflow.md.
 #
-# SCAFFOLD BEHAVIOUR (AUDIT.md C1): the repo has no backend/ or frontend/ yet, so each
-# job DETECTS its project and no-ops to green until the code exists — then the gates
-# activate automatically. Jobs always run (never skipped) so they stay valid as required
-# status checks for branch protection (AUDIT.md C2).
+# DETECTION (AUDIT.md C1): each job DETECTS its project and no-ops to green when it's absent.
+# Backend and scanner exist — their gates are ACTIVE (incl. the OpenSearch service container
+# for integration tests). Frontend doesn't exist yet (M9x) — its job no-ops until it lands.
+# Jobs always run (never skipped) so they stay valid as required status checks for branch
+# protection (AUDIT.md C2).
 #
-# TODO once code lands (tracked in development/AUDIT.md):
-#   - OpenSearch service container + integration tests (testing.md layer 2)
+# TODO still pending (tracked in development/AUDIT.md):
 #   - coverage ratchet: pytest --cov-fail-under + vitest thresholds (C3)
 #   - FE/BE contract test: regenerate @hey-api/openapi-ts client, fail on git diff (I7)
 #   - FE E2E smoke: Playwright against a built FE + seeded backend (testing.md §4, owned by M9f)
-# Assumes: backend in ./backend and scanner in ./scanner (uv + pyproject.toml, pyright as a
-#          dev dep), frontend in ./frontend (npm + package.json). Adjust paths if they differ.
+# Layout: backend in ./backend, scanner in ./scanner (uv + pyproject.toml, pyright as a
+#         dev dep), frontend in ./frontend (npm + package.json).
 
 on:
   pull_request:

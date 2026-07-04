@@ -21,12 +21,12 @@ decisions D21 (vuln-age earliest `first_seen_at`), D38/H8 (frozen `target_ids`),
 
 ## Deliverables
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
-- `backend/app/sla/policy.py` — per-severity SLA days (CRIT 2 / HIGH 7 / MED 30 / LOW 90, editable) + **KEV override (24h)**; loaded from `system-config`.
-- `backend/app/sla/overdue.py` — **read-time** overdue derivation from vuln-age: group by `(cve_id, image_digest)`, earliest `first_seen_at` so a package bump doesn't reset the clock (D21); pure function of inputs.
-- `backend/app/sla/routes.py` — `GET`/`PUT /settings/sla` (Admin-gated, `can_manage_*`); registers into the M5a RBAC/IDOR suite.
-- `backend/app/triage/bulk.py` — bulk triage executor: `_bulk` apply across the affected set with `retry_on_conflict`; **202 + async** for large sets; **one** `system-audit-log` entry per bulk action with the **frozen `target_ids`** (not a selector/count) + `result_hash`/`result_count` (D38/H8).
-- `backend/app/triage/bulk_routes.py` — `POST /findings/bulk-triage` (selector in → frozen id-set → 202 + job ref); capability-gated.
-- `backend/app/decisions/approval_list.py` — risk-accept approval list endpoint (pending risk-accepts surfaced for `can_accept_audit_final` holders).
+- `backend/src/backend/sla/policy.py` — per-severity SLA days (CRIT 2 / HIGH 7 / MED 30 / LOW 90, editable) + **KEV override (24h)**; loaded from `system-config`.
+- `backend/src/backend/sla/overdue.py` — **read-time** overdue derivation from vuln-age: group by `(cve_id, image_digest)`, earliest `first_seen_at` so a package bump doesn't reset the clock (D21); pure function of inputs.
+- `backend/src/backend/sla/routes.py` — `GET`/`PUT /settings/sla` (Admin-gated, `can_manage_*`); registers into the M5a RBAC/IDOR suite.
+- `backend/src/backend/triage/bulk.py` — bulk triage executor: `_bulk` apply across the affected set with `retry_on_conflict`; **202 + async** for large sets; **one** `system-audit-log` entry per bulk action with the **frozen `target_ids`** (not a selector/count) + `result_hash`/`result_count` (D38/H8).
+- `backend/src/backend/triage/bulk_routes.py` — `POST /findings/bulk-triage` (selector in → frozen id-set → 202 + job ref); capability-gated.
+- `backend/src/backend/decisions/approval_list.py` — risk-accept approval list endpoint (pending risk-accepts surfaced for `can_accept_audit_final` holders).
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test, not a promise):

@@ -44,7 +44,7 @@ primary shard, monthly rollover.
 ```
 @timestamp        date          scan time (one value per scan_run_id); display only - not the ordering key (D40)
 scan_run_id       keyword       the snapshot's run (valid only if a scan-events commit doc exists)
-scan_order        long          scanner-assigned monotonic per (cluster,scanner); ordering key (D40/C-r3)
+scan_order        long          backend-allocated (D45) monotonic per (cluster,scanner); ordering key (D40/C-r3)
 commit_key        keyword       = scan-events commit_key; exact-tuple membership for the symmetric query (D39)
 cluster_id        keyword       tenant + routing
 scanner           keyword
@@ -78,7 +78,7 @@ doc exists for its full `commit_key` 4-tuple; the point-in-time read resolves th
 ```
 @timestamp        date          display only - NOT the ordering key (D40)
 scan_run_id       keyword
-scan_order        long          scanner-assigned monotonic per (cluster,scanner); the catalog ordering key (D40/C-r3)
+scan_order        long          backend-allocated (D45) monotonic per (cluster,scanner); the catalog ordering key (D40/C-r3)
 commit_key        keyword       hash(cluster_id + scanner + image_digest + scan_run_id) - 4-tuple commit identity (D37/H3)
 cluster_id        keyword
 scanner           keyword
@@ -127,7 +127,7 @@ or zero-image run is never mistaken for the live inventory (a partial run falls 
 ```
 @timestamp        date          run completion time (display)
 inventory_run_id  keyword       = the run's id
-inventory_order   long          scanner-assigned monotonic per cluster; the "running at T" ordering key (D40/F-r3)
+inventory_order   long          backend-allocated (D45 basis) monotonic per cluster; the "running at T" ordering key (D40/F-r3)
 cluster_id        keyword       tenant + routing
 started_at        date
 completed_at      date

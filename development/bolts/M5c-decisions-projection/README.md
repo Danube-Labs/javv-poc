@@ -20,32 +20,32 @@ both land).
 ## Depends on
 - M5a (Auth & Session - `can_accept_audit_final` gates who may create a risk-accept decision; SEC-2;
   `get_current_principal()`).
-- M3 (owns the `findings` cache + the projection engine seam - `backend/app/projection/engine.py`).
+- M3 (owns the `findings` cache + the projection engine seam - `backend/src/backend/projection/engine.py`).
   **This bolt CREATES `backend/jobs/rebuild_state.py`** (the human/decision-projection arm — rebuild-state
   was deferred out of M3 on 2026-07-03: M3 has neither `system-decisions`/`system-audit-log` nor
   `occurrences`. The scanner-presence arm is added later in **M8a**.)
 
 ## Deliverables
 The actual files/modules this bolt creates - **in the layered tree, not here** (paths proposed):
-- `backend/app/decisions/models.py` - Pydantic v2 `system-decisions` request/doc models
+- `backend/src/backend/decisions/models.py` - Pydantic v2 `system-decisions` request/doc models
   (`extra="forbid"` on requests): `type`, `cve_id`, `scope {namespaces[], images[]}`,
   `apply_both_scanners`, `vex_justification`, `justification`, `expiry` (nullable, **immutable**),
   lifecycle stamps (`created_at`, `revoked_at`, `effective_at`, `operation_id`).
-- `backend/app/decisions/service.py` - create / **revoke+create** edit / revoke flows: a scope,
+- `backend/src/backend/decisions/service.py` - create / **revoke+create** edit / revoke flows: a scope,
   justification **or `expiry`** change is **revoke-old + create-new** sharing one `effective_at` and
   one `operation_id` (`revoked_at(old) = created_at(new) = effective_at`); projection is **deferred
   until both writes land** so "active at T" never sees a neither/both gap (D39/D40).
-- `backend/app/decisions/projection.py` - the precedence projector: resolves a finding's decision-driven
+- `backend/src/backend/decisions/projection.py` - the precedence projector: resolves a finding's decision-driven
   `state` by **precedence (explicit-finding > image > namespace > cluster; direct action > auto-rule)**,
   applies **expiry-refresh** (an expired decision stops projecting; "active at T" =
   `created_at ≤ T AND (revoked_at null OR > T) AND (expiry null OR > T)`), and implements the **pinned
   `apply_both_scanners` rule (D22)**: matches on `(cluster, cve, scope)` ignoring scanner, projects onto
   each scanner's finding independently, each closes on its own, and a **scanner-specific decision
   outranks a both-scanners one for that scanner**.
-- `backend/app/decisions/reproject.py` - re-projection triggers: at **ingest (newly-created findings
+- `backend/src/backend/decisions/reproject.py` - re-projection triggers: at **ingest (newly-created findings
   only**, vs cascading namespace/cluster rules - D19), at **decision-apply/revoke**, and on the
   **daily sweep** (expiry-refresh fallback - SND-9). Updates the `findings` human-field cache.
-- `backend/app/indices/decisions_template.py` - **owns** the `system-decisions` mapping
+- `backend/src/backend/indices/decisions_template.py` - **owns** the `system-decisions` mapping
   (`dynamic:false`, INDEX-MAP fields, single index, no rollover; the role allows only the `revoked_at`
   post-hoc stamp - D39).
 - `backend/jobs/rebuild_state.py` (**created here** - the base self-heal job; rebuild-state moved out

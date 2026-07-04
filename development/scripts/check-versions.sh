@@ -49,6 +49,10 @@ check "opensearch CI service" "$opensearch" .github/workflows/ci.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 # Gate toolchain (D42 phase 2): ruff/pyright are pinned exactly in each pyproject.toml dev-deps
 # (what CI runs via `uv run`); setup-dev.sh reads versions.yaml directly so it can't drift.
+check "backend ruff pin" "$ruff" backend/pyproject.toml \
+  'ruff==\K[0-9.]+' "s/ruff==[0-9.]+/ruff==$ruff/"
+check "backend pyright pin" "$pyright" backend/pyproject.toml \
+  'pyright==\K[0-9.]+' "s/pyright==[0-9.]+/pyright==$pyright/"
 check "scanner ruff pin" "$ruff" scanner/pyproject.toml \
   'ruff==\K[0-9.]+' "s/ruff==[0-9.]+/ruff==$ruff/"
 check "scanner pyright pin" "$pyright" scanner/pyproject.toml \
