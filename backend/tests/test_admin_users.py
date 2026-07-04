@@ -342,3 +342,16 @@ async def test_password_reset_refuses_externally_managed_users(admin_env) -> Non
         f"/api/v1/admin/users/{username}/password-reset", json={"temp_password": TEMP_PASSWORD}
     )
     assert r.status_code == 403
+
+
+async def test_user_list_paginates(admin_env) -> None:
+    # task E (#142): the same pagination the token list gained
+    make_http, client = admin_env
+    admin = make_http()
+    await _seed_and_login(admin, client, capabilities=["can_manage_users"])
+
+    r = await admin.get("/api/v1/admin/users", params={"size": 1, "offset": 0})
+
+    assert r.status_code == 200
+    assert len(r.json()["users"]) == 1
+    assert r.json()["total"] >= 1

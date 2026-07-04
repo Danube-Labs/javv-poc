@@ -177,3 +177,66 @@ async def test_login_logout_and_pwd_change_each_append_one_audit_row(admin_clien
 
     await http.post("/auth/logout")
     assert len(await _audit_rows(client, action="logout", entity_id=username)) == 1
+
+
+# --- task E (#142): expiry knob, shared cluster_id shape, list pagination -----------------
+
+
+async def test_mint_with_expiry_stores_it_and_rotate_inherits_it(admin_client) -> None:
+    http, client, _ = admin_client
+    cluster = _cluster()
+    expiry = "2030-01-01T00:00:00+00:00"
+
+    r = await http.post(
+        "/api/v1/admin/tokens",
+        json={"cluster_id": cluster, "scanner": "trivy", "expiry": expiry},
+    )
+
+    assert r.status_code == 201
+    doc = (await client.get(index="system-tokens", id=r.json()["id"]))["_source"]
+    assert doc["expiry"] == expiry
+    # rotation is not extension: the sibling inherits the old token's expiry
+    rot = await http.post(f"/api/v1/admin/tokens/{r.json()['id']}/rotate")
+    assert rot.status_code == 201
+    new = (await client.get(index="system-tokens", id=rot.json()["id"]))["_source"]
+    assert new["expiry"] == expiry
+
+
+async def test_mint_with_a_past_expiry_is_422(admin_client) -> None:
+    http, _, _ = admin_client
+    r = await http.post(
+        "/api/v1/admin/tokens",
+        json={
+            "cluster_id": _cluster(),
+            "scanner": "trivy",
+            "expiry": "2020-01-01T00:00:00+00:00",
+        },
+    )
+    assert r.status_code == 422
+
+
+async def test_mint_rejects_a_malformed_cluster_id(admin_client) -> None:
+    # Codex M2: one shared cluster_id shape — the envelope's rule, everywhere
+    http, _, _ = admin_client
+    for bad in ("UPPER-CASE-ID", "short", "has_underscore_x", "-leading-hyphen"):
+        r = await http.post("/api/v1/admin/tokens", json={"cluster_id": bad, "scanner": "trivy"})
+        assert r.status_code == 422, bad
+
+
+async def test_token_list_paginates(admin_client) -> None:
+    http, _, _ = admin_client
+    cluster = _cluster()
+    for _ in range(3):
+        await http.post("/api/v1/admin/tokens", json={"cluster_id": cluster, "scanner": "trivy"})
+
+    page1 = await http.get(
+        "/api/v1/admin/tokens", params={"cluster_id": cluster, "size": 2, "offset": 0}
+    )
+    page2 = await http.get(
+        "/api/v1/admin/tokens", params={"cluster_id": cluster, "size": 2, "offset": 2}
+    )
+
+    assert page1.status_code == page2.status_code == 200
+    assert page1.json()["total"] == page2.json()["total"] == 3
+    assert len(page1.json()["tokens"]) == 2
+    assert len(page2.json()["tokens"]) == 1
