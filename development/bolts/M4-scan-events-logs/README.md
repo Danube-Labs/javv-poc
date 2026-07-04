@@ -92,9 +92,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   re-ingest is idempotent (no dup `_id`); template applied is `dynamic:false` and matches INDEX-MAP;
   the lifecycle sweep rolls on the configured knob; `retention_days` drops a whole expired index and
   leaves current indices intact.
-- **Golden fixtures:** real Trivy + Grype envelopes for the same image → expected scan-events docs
-  (severity counts, `count_delta`, both disagreement flags) - per-scanner, never merged; a **clean
-  envelope** → a `total:0` doc.
+- **Golden fixtures:** Trivy + Grype envelopes for the same image → expected severity counts
+  (scan-events), the `count_delta` pair (**images doc** — per INDEX-MAP, not scan-events) and both
+  `disagree` flags - per-scanner, never merged; a **clean envelope** → a `total:0` doc.
 
 ## Out of scope (defer)
 - Full per-scan finding snapshots + the commit-catalog *read* (R-CATALOG) → M8a/M8b. (M4 writes the
