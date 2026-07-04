@@ -22,6 +22,31 @@ decisions D33 (capability RBAC + `can_accept_audit_final`), D38/M14 (peppered SH
   `system-roles` / `system-sessions` there (+ `MAPPING_VERSION` bump) — the versioned boot-time
   bootstrap, not a separate creation path.**
 
+## Auth design (settled with the operator at kickoff, 2026-07-04 — mirrored on #27)
+**Server-side sessions, not JWTs.** Login mints a 256-bit random `session_id`; only its peppered
+SHA-256 is stored (`system-sessions`, doc `_id` = hash → one GET per request); the raw value lives
+solely in an `HttpOnly; Secure; SameSite=Lax` cookie. TTL is the server-side `expires_at`
+(`JAVV_SESSION_TTL_HOURS`); logout / logout-all / **role-change** flip `revoked:true` — instant
+server-side kill. *Why no JWT:* D33 requires instant revocation, which a self-contained JWT cannot
+do without a per-request server-side denylist — i.e. a session store with extra steps; JWT's
+statelessness only pays when third parties verify tokens without calling us, which never happens
+in a single-backend app whose store is already one `GET` away.
+
+**Login** (`POST /auth/login`): lockout check → argon2id verify that ALWAYS runs (unknown user
+verifies against `DUMMY_HASH` — no username timing oracle; generic 401 either way) → `must_change`
+gate (bootstrap admin gets a restricted session that can only change its password, SEC-6) →
+session mint → `{user, capabilities}` body (UI hints only — the server re-checks every call).
+**Logout**: revoke + clear cookie. **CSRF**: SameSite=Lax + JSON-only mutation APIs, same-origin SPA.
+
+**OIDC/LDAP seam (designed in now, built post-MVP):** an `IdentityProvider` protocol —
+`authenticate(credentials) → AuthResult` — with `LocalPasswordProvider` as the only MVP
+implementation. External IdPs replace **credential verification + user provisioning only, never
+the session layer**: after any provider authenticates, JAVV mints its own first-party session, so
+sessions/capabilities/audit/logout and the RBAC suite are identical across providers. Baked in
+now: `system-users.auth_source` (`local|ldap|oidc`) + `external_id`, nullable `password_hash`
+(INDEX-MAP updated); capabilities always resolve from `system-roles` regardless of provider
+(LDAP groups / OIDC claims later map *into* roles).
+
 ## Already landed (M1–M3 + audit fixes) — M5a builds ON these, doesn't duplicate them
 - **Ingest-token crypto** — `backend/src/backend/core/security.py`: 256-bit `mint_token`,
   peppered-SHA-256 `hash_token`, constant-time `tokens_match`, `token_expired` (audit m-3).
