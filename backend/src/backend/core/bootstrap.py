@@ -33,8 +33,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #      until writes populate them.
 # History: v2 schema-v2 fields · v3 + javv-scan-watermarks (M3/D40) ·
 #          v4 + system-users/system-roles/system-sessions (M5a/FR-18) ·
-#          v5 + system-audit-log template (M5a appender; writer/replay semantics owned by M5b)
-MAPPING_VERSION = 5
+#          v5 + system-audit-log template (M5a appender; writer/replay semantics owned by M5b) ·
+#          v6 + system-decisions (M5b/FR-8 — immutable except revoked_at)
+MAPPING_VERSION = 6
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -174,6 +175,27 @@ _SESSIONS_PROPERTIES: dict[str, Any] = {
     "revoked": _BOOL,
 }
 
+# system-decisions (M5b/FR-8): 1 doc per decision, IMMUTABLE except revoked_at (D39/H5-r2);
+# edit = revoke+create-new under one effective_at/operation_id (D40/G-r3 — the pair tie).
+# "Active at T" = created_at <= T AND (revoked_at null OR > T) AND (expiry null OR > T).
+_DECISIONS_PROPERTIES: dict[str, Any] = {
+    "decision_id": _KW,
+    "type": _KW,  # risk_accepted|ignore_rule|not_affected
+    "cve_id": _KW,
+    "scope": {"properties": {"namespaces": _KW, "images": _KW}},  # empty = cluster-wide
+    "apply_both_scanners": _BOOL,  # semantics pinned (D22)
+    "vex_justification": _KW,
+    "justification": {"type": "text"},
+    "created_by": _KW,  # gated by can_accept_audit_final (SEC-2)
+    "created_at": _DATE,  # = effective_at for a create
+    "expiry": _DATE,  # IMMUTABLE — change = revoke+create-new
+    "revoked_at": _DATE,  # the only post-hoc stamp
+    "effective_at": _DATE,  # revoke+create pair shares ONE effective_at
+    "operation_id": _KW,  # ties the pair; projection waits for both (D40/G-r3)
+    "cluster_id": _KW,
+    "schema_version": {"type": "short"},
+}
+
 MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "findings": {
         "settings": {"index": {**_BASE_SETTINGS, "analysis": _LC_ANALYSIS}},
@@ -206,6 +228,10 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "system-sessions": {  # M5a/SEC-5 — server-side sessions
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_SESSIONS_PROPERTIES),
+    },
+    "system-decisions": {  # M5b/FR-8 — immutable except revoked_at
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_DECISIONS_PROPERTIES),
     },
 }
 

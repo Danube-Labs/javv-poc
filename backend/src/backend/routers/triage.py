@@ -1,0 +1,37 @@
+"""Triage route (M5b, FR-7) — `PATCH /api/v1/findings/{finding_key}/triage`, capability-gated
+(`can_triage`; **risk-accept additionally requires `can_accept_audit_final`**, SEC-2/D33) and
+registered in the standing RBAC/IDOR suite. The service does the CAS + journaling; this layer
+only translates auth + errors (404 unknown finding, 422 illegal transition/patch, 403 caps)."""
+
+from typing import Annotated, Any, cast
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+
+from backend.auth.capabilities import require_capability
+from backend.auth.principal import Principal
+from backend.triage.service import FindingNotFound, TriagePatch, apply_triage
+from backend.triage.state_machine import TransitionError
+
+router = APIRouter(prefix="/api/v1/findings", tags=["triage"])
+
+CanTriage = Annotated[Principal, Depends(require_capability("can_triage"))]
+
+
+@router.patch("/{finding_key}/triage")
+async def triage(
+    request: Request, finding_key: str, patch: TriagePatch, principal: CanTriage
+) -> dict[str, Any]:
+    if patch.state == "risk_accepted" and not (
+        "*" in principal.capabilities or "can_accept_audit_final" in principal.capabilities
+    ):
+        raise HTTPException(403, "risk-accept requires can_accept_audit_final")
+    client = cast(Any, request.app.state.opensearch)
+    try:
+        finding = await apply_triage(
+            client, actor=principal.user_id, finding_key=finding_key, patch=patch
+        )
+    except FindingNotFound:
+        raise HTTPException(404, "finding not found") from None
+    except TransitionError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    return {"finding": finding}

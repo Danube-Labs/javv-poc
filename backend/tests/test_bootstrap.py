@@ -113,6 +113,7 @@ def test_bootstrap_scope() -> None:
         "system-users",
         "system-roles",
         "system-sessions",
+        "system-decisions",
     }
     # + system-audit-log (M5a appender; M5b owns writer/replay); occurrences/inventory-runs → M8a
     assert set(INDEX_TEMPLATES) == {"javv-scan-events", "javv-images", "system-audit-log"}

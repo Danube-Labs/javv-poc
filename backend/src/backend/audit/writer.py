@@ -64,6 +64,8 @@ async def append_field_change(
     cluster_id: str,
     finding_key: str | None = None,
     decision_id: str | None = None,
+    old_value_json: dict[str, Any] | None = None,
+    new_value_json: dict[str, Any] | None = None,  # non-scalar payload riding the row (D38/H8)
     prefix: str = "",
 ) -> str:
     """One structured row for one field change (D32). Raises on failure — no row, no action."""
@@ -80,6 +82,8 @@ async def append_field_change(
             "field_type": "text" if field in _TEXT_FIELDS else "scalar",
             "old_value": old_value,
             "new_value": new_value,
+            "old_value_json": old_value_json,
+            "new_value_json": new_value_json,
             "revision": revision,
             "cluster_id": cluster_id,
         },

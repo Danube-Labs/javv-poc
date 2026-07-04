@@ -66,6 +66,13 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         route_path="/api/v1/admin/tokens/{token_id}/rotate",
         capability="can_manage_tokens",
     ),
+    MutatingEndpoint(  # M5b slice 3 — triage (FR-7)
+        method="PATCH",
+        path="/api/v1/findings/fk-rbac-suite/triage",
+        route_path="/api/v1/findings/{finding_key}/triage",
+        capability="can_triage",
+        body={"state": "acknowledged"},
+    ),
 )
 
 # mutating routes with their own (tested) auth regime — NOT capability-gated
