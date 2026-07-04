@@ -1,0 +1,173 @@
+"""Decision lifecycle (M5b slice 4, FR-8/D39-H5-r2/D40-G-r3): `system-decisions` docs are
+immutable except `revoked_at`. An edit (scope/justification/expiry) is revoke+create-new sharing
+ONE `effective_at` (`revoked_at(old) = created_at(new)`), with the new doc carrying the pair's
+`operation_id`; the NEW doc lands FIRST (a crash between the writes leaves overlap — duplicate
+coverage — never a gap where a risk-acceptance silently lapses). Every lifecycle event is
+journaled. Real OpenSearch, prefix-isolated."""
+
+import contextlib
+import os
+from uuid import uuid4
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.core.bootstrap import bootstrap
+from backend.decisions.lifecycle import (
+    DecisionPayload,
+    create_decision,
+    edit_decision,
+    revoke_decision,
+)
+
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+
+
+def _os_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+
+
+@pytest.fixture
+async def real_os():
+    prefix = f"t-{uuid4().hex[:8]}-"
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    await bootstrap(client, prefix=prefix)
+    yield client, prefix
+    with contextlib.suppress(Exception):
+        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
+    await client.close()
+
+
+def _payload(**overrides) -> DecisionPayload:
+    return DecisionPayload.model_validate(
+        {
+            "type": "risk_accepted",
+            "cve_id": "CVE-2026-0001",
+            "scope": {"namespaces": ["payments"], "images": []},
+            "apply_both_scanners": True,
+            "vex_justification": None,
+            "justification": "compensating control in place",
+            "expiry": "2026-12-31T00:00:00+00:00",
+            "cluster_id": "c-dec",
+            **overrides,
+        }
+    )
+
+
+async def _get(client, prefix, decision_id) -> dict:
+    return (await client.get(index=f"{prefix}system-decisions", id=decision_id))["_source"]
+
+
+async def _audit(client, prefix, decision_id) -> list[dict]:
+    await client.indices.refresh(index=f"{prefix}system-audit-log-*")
+    hits = await client.search(
+        index=f"{prefix}system-audit-log-*",
+        body={"size": 20, "query": {"term": {"decision_id": decision_id}}},
+    )
+    return [h["_source"] for h in hits["hits"]["hits"]]
+
+
+async def test_create_stamps_identity_lifecycle_and_journals(real_os) -> None:
+    client, prefix = real_os
+
+    doc = await create_decision(client, actor="lead", payload=_payload(), prefix=prefix)
+
+    stored = await _get(client, prefix, doc["decision_id"])
+    assert stored["type"] == "risk_accepted" and stored["created_by"] == "lead"
+    assert stored["created_at"] == stored["effective_at"]  # create: effective_at = created_at
+    assert stored["operation_id"] and stored["revoked_at"] is None
+    rows = await _audit(client, prefix, doc["decision_id"])
+    assert len(rows) == 1 and rows[0]["action"] == "decision_create"
+    assert rows[0]["entity_type"] == "decision" and rows[0]["actor"] == "lead"
+
+
+async def test_revoke_stamps_only_revoked_at(real_os) -> None:
+    client, prefix = real_os
+    doc = await create_decision(client, actor="lead", payload=_payload(), prefix=prefix)
+
+    await revoke_decision(client, actor="lead", decision_id=doc["decision_id"], prefix=prefix)
+
+    after = await _get(client, prefix, doc["decision_id"])
+    assert after["revoked_at"] is not None
+    unchanged = {k: v for k, v in after.items() if k != "revoked_at"}
+    assert unchanged == {k: v for k, v in doc.items() if k != "revoked_at"}  # immutable otherwise
+    rows = await _audit(client, prefix, doc["decision_id"])
+    assert {r["action"] for r in rows} == {"decision_create", "decision_revoke"}
+
+
+async def test_edit_is_revoke_plus_create_under_one_effective_at(real_os) -> None:
+    client, prefix = real_os
+    doc = await create_decision(client, actor="lead", payload=_payload(), prefix=prefix)
+
+    old, new = await edit_decision(
+        client,
+        actor="lead",
+        decision_id=doc["decision_id"],
+        changes={"expiry": "2027-06-30T00:00:00+00:00"},
+        prefix=prefix,
+    )
+
+    assert new["decision_id"] != old["decision_id"]
+    # ONE effective_at knots the pair: revoked_at(old) = created_at(new) = effective_at (D40/G-r3)
+    assert old["revoked_at"] == new["created_at"] == new["effective_at"]
+    assert new["operation_id"] != doc["operation_id"]  # the pair's shared op id is the NEW one
+    assert new["expiry"] == "2027-06-30T00:00:00+00:00"
+    assert new["cve_id"] == doc["cve_id"]  # untouched fields carry over
+    # the old doc mutated ONLY revoked_at
+    stored_old = await _get(client, prefix, doc["decision_id"])
+    assert {k: v for k, v in stored_old.items() if k != "revoked_at"} == {
+        k: v for k, v in doc.items() if k != "revoked_at"
+    }
+
+
+async def test_editing_or_revoking_a_revoked_decision_is_refused(real_os) -> None:
+    client, prefix = real_os
+    doc = await create_decision(client, actor="lead", payload=_payload(), prefix=prefix)
+    await revoke_decision(client, actor="lead", decision_id=doc["decision_id"], prefix=prefix)
+
+    with pytest.raises(ValueError, match="revoked"):
+        await revoke_decision(client, actor="lead", decision_id=doc["decision_id"], prefix=prefix)
+    with pytest.raises(ValueError, match="revoked"):
+        await edit_decision(
+            client,
+            actor="lead",
+            decision_id=doc["decision_id"],
+            changes={"justification": "new words"},
+            prefix=prefix,
+        )
+
+
+async def test_active_at_t_semantics_hold(real_os) -> None:
+    # "Active at T" = created_at <= T AND (revoked_at null OR > T) AND (expiry null OR > T)
+    client, prefix = real_os
+    doc = await create_decision(client, actor="lead", payload=_payload(), prefix=prefix)
+    await revoke_decision(client, actor="lead", decision_id=doc["decision_id"], prefix=prefix)
+    stored = await _get(client, prefix, doc["decision_id"])
+
+    t_during = stored["created_at"]  # instant of creation — active
+    t_after = "2099-01-01T00:00:00+00:00"
+    active_query = lambda t: {  # noqa: E731 — the M5c projection will own this as a real builder
+        "bool": {
+            "filter": [{"range": {"created_at": {"lte": t}}}],
+            "must_not": [
+                {"range": {"revoked_at": {"lte": t}}},
+                {"range": {"expiry": {"lte": t}}},
+            ],
+        }
+    }
+    await client.indices.refresh(index=f"{prefix}system-decisions")
+    during = await client.search(
+        index=f"{prefix}system-decisions", body={"query": active_query(t_during)}
+    )
+    after = await client.search(
+        index=f"{prefix}system-decisions", body={"query": active_query(t_after)}
+    )
+    assert during["hits"]["total"]["value"] == 1  # visible at its own creation instant
+    assert after["hits"]["total"]["value"] == 0  # revoked + expired by then
