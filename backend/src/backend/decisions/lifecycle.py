@@ -15,12 +15,14 @@ from typing import Any, Literal
 from uuid import uuid4
 
 from opensearchpy import AsyncOpenSearch
+from opensearchpy.exceptions import ConflictError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.audit.writer import append_field_change
 
 DECISIONS_INDEX = "system-decisions"
 DECISION_SCHEMA_VERSION = 1  # the decision DOC contract — this module owns bumps
+_CAS_RETRIES = 8
 
 
 class DecisionScope(BaseModel):
@@ -98,30 +100,48 @@ async def revoke_decision(
     effective_at: str | None = None,
     prefix: str = "",
 ) -> dict[str, Any]:
-    """Stamp `revoked_at` — the ONLY legal post-hoc mutation. Refuses a second revocation."""
+    """Stamp `revoked_at` — the ONLY legal post-hoc mutation. Refuses a second revocation.
+
+    CAS'd on `if_seq_no`/`if_primary_term` (audit M-2, task A): the stamp is single-writer —
+    a racing revoke loses the CAS, re-reads, and gets the same "already revoked" refusal a
+    late sequential caller would. Check-then-act alone let the second racer overwrite the
+    immutable stamp (corrupting past-T reconstruction)."""
     index = f"{prefix}{DECISIONS_INDEX}"
-    current = (await client.get(index=index, id=decision_id))["_source"]
-    if current.get("revoked_at") is not None:
-        raise ValueError(f"decision {decision_id} is already revoked")
-    at = effective_at or datetime.now(UTC).isoformat()
-    await client.update(
-        index=index, id=decision_id, body={"doc": {"revoked_at": at}}, params={"refresh": "true"}
-    )
-    await append_field_change(
-        client,
-        actor=actor,
-        action="decision_revoke",
-        entity_type="decision",
-        entity_id=decision_id,
-        decision_id=decision_id,
-        field="lifecycle",
-        old_value="active",
-        new_value="revoked",
-        revision=2,
-        cluster_id=current["cluster_id"],
-        prefix=prefix,
-    )
-    return {**current, "revoked_at": at}
+    for _ in range(_CAS_RETRIES):
+        got = await client.get(index=index, id=decision_id)
+        current = got["_source"]
+        if current.get("revoked_at") is not None:
+            raise ValueError(f"decision {decision_id} is already revoked")
+        at = effective_at or datetime.now(UTC).isoformat()
+        try:
+            await client.update(
+                index=index,
+                id=decision_id,
+                body={"doc": {"revoked_at": at}},
+                params={
+                    "if_seq_no": got["_seq_no"],
+                    "if_primary_term": got["_primary_term"],
+                    "refresh": "true",
+                },
+            )
+        except ConflictError:
+            continue  # a racer stamped first — the re-read above raises "already revoked"
+        await append_field_change(
+            client,
+            actor=actor,
+            action="decision_revoke",
+            entity_type="decision",
+            entity_id=decision_id,
+            decision_id=decision_id,
+            field="lifecycle",
+            old_value="active",
+            new_value="revoked",
+            revision=2,
+            cluster_id=current["cluster_id"],
+            prefix=prefix,
+        )
+        return {**current, "revoked_at": at}
+    raise RuntimeError(f"decision revoke: CAS conflicts did not drain for {decision_id}")
 
 
 async def edit_decision(
@@ -155,7 +175,20 @@ async def edit_decision(
         operation_id=uuid4().hex,
         prefix=prefix,
     )
-    revoked = await revoke_decision(
-        client, actor=actor, decision_id=decision_id, effective_at=effective_at, prefix=prefix
-    )
+    try:
+        revoked = await revoke_decision(
+            client, actor=actor, decision_id=decision_id, effective_at=effective_at, prefix=prefix
+        )
+    except ValueError:
+        # A concurrent revoke/edit won the old doc (audit M-2, task A): withdraw our successor —
+        # overlap is a crash allowance, never a licence for two active decisions. The
+        # compensating revoke is journaled like any other, so the trail shows the lost race.
+        await revoke_decision(
+            client,
+            actor=actor,
+            decision_id=new["decision_id"],
+            effective_at=effective_at,
+            prefix=prefix,
+        )
+        raise
     return revoked, new
