@@ -19,7 +19,7 @@ from opensearchpy import AsyncOpenSearch
 from backend.auth.bootstrap_admin import seed_bootstrap_admin
 from backend.auth.capabilities import seed_default_roles
 from backend.core.bootstrap import bootstrap
-from backend.core.settings import get_settings
+from backend.core.settings import assert_production_ready, get_settings
 
 log = structlog.get_logger()
 
@@ -27,6 +27,7 @@ log = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
+    assert_production_ready(settings)  # task C/Codex M3: dev secrets never survive a prod boot
     client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
     app.state.opensearch = client
 

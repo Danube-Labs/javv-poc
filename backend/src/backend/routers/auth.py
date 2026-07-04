@@ -79,14 +79,27 @@ async def require_session(request: Request) -> dict[str, Any]:
 
 @router.post("/login")
 async def login(request: Request, creds: LoginCredentials, response: Response) -> dict[str, Any]:
+    # task C m-8 (#140): login CSRF. A cross-site HTML form can only POST as urlencoded /
+    # multipart / text/plain — never application/json — and a cross-origin fetch with a JSON
+    # content type dies in the CORS preflight (no CORS middleware is configured, by design).
+    # Enforcing the content type here closes the text/plain JSON-smuggling arm.
+    if "application/json" not in request.headers.get("content-type", ""):
+        raise HTTPException(415, "login requires application/json")
     if lockout.locked(creds.username):
         raise HTTPException(429, "too many attempts")  # budget spent — credentials unseen
-    result = await _provider.authenticate(_os(request), creds)
+    client = _os(request)
+    result = await _provider.authenticate(client, creds)
     if result is None:
         lockout.record_failure(creds.username)
         raise _GENERIC_401
     lockout.clear(creds.username)
-    _set_session_cookie(response, await mint_session(_os(request), result.user_id))
+    # task C m-10 (#140): a login that arrives with a still-valid session cookie is this
+    # browser replacing its session (account switch without logout) — revoke the old one so
+    # no live orphan outlasts the cookie that held it. Idempotent; unknown cookie is a no-op.
+    prior = request.cookies.get(COOKIE_NAME, "")
+    if prior:
+        await revoke_session(client, prior)
+    _set_session_cookie(response, await mint_session(client, result.user_id))
     await append_auth_event(
         _os(request),
         actor=result.user_id,
