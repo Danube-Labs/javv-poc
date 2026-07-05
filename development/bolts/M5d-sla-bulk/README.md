@@ -55,3 +55,16 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-05 (drift sweep alongside the M5c kickoff — smaller deltas, same causes):**
+  - New mutating endpoints (`/settings/sla`, `/findings/bulk-triage`) MUST register in
+    `tests/security/test_rbac_idor_contract.py` (n-2 carry-forward; the build fails otherwise).
+  - The audit writer is `backend/src/backend/audit/writer.py::append_field_change`; the
+    **journal-before-commit** ruling (task A M-3, #138) applies to the bulk path's audit row too.
+  - `system-config` knob precedent: `jobs/lifecycle.py`'s `LifecycleKnobs` (fleet doc + per-cluster
+    override, read live per run) — the SLA policy should follow that pattern, and any new knob goes
+    in `docs/CONFIGURATION.md` §6 same PR.
+  - New jobs/sweeps use the shared `javv_common.logging` pipeline (#159); async bulk progress is a
+    natural INFO line.

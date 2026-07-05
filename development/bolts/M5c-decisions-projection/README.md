@@ -106,3 +106,33 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-05 (pre-kickoff drift sweep — M5b + audit tasks A/E + #159 changed this bolt's ground):**
+  1. **`decisions/models.py` + `decisions/service.py` won't be created — they exist** as
+     `backend/src/backend/decisions/lifecycle.py` (M5b slices 3–4, hardened by audit task A #138):
+     `DecisionPayload` (now carrying `cluster_id: ClusterId` — the task-E shared shape, missing from
+     the model list above), and create / revoke / edit with one `effective_at`+`operation_id`,
+     **CAS'd revoke** (`if_seq_no`/`if_primary_term`), **edit-loser compensation** (a lost race
+     revokes its own successor), new-doc-first write order (overlap over gap), and D17 journaling.
+     This bolt BUILDS ON lifecycle.py; it does not re-create models/service.
+  2. **`indices/decisions_template.py` won't be created** — the `system-decisions` mapping is owned
+     by `core/bootstrap.py` (since M5b). Any mapping change = bump `MAPPING_VERSION` (now **7**) +
+     INDEX-MAP + the in-code upgrade note.
+  3. **The "M3 projection engine seam" (`projection/engine.py`) never materialized** — M3's real
+     seam is `services/merge.py`'s field allowlists (`HUMAN_FIELDS`/`SCANNER_FIELDS`, CONTRACT §6).
+     The projector is created fresh here (`decisions/projection.py`) and must write findings
+     **only through `HUMAN_FIELDS`** so merge and rebuild can't diverge.
+  4. **No HTTP routes exist for decisions yet** — this bolt creates `routers/decisions.py`, and
+     every new mutating endpoint MUST register in `tests/security/test_rbac_idor_contract.py`
+     (n-2: the build fails otherwise).
+  5. **Journal-before-commit (task A M-3 ruling)** governs any new audited write path added here:
+     audit row first (predicted `revision`), CAS write after; an orphan ROW is replay-tolerated,
+     an orphan CHANGE never.
+  6. **Observability (#156/#159):** new sweeps/jobs use the shared `javv_common.logging` pipeline
+     (`JAVV_LOG_LEVEL`); state-changing ops leave an INFO line (the lifecycle sweep's roll/drop
+     lines are the pattern). Jobs live at `backend/src/backend/jobs/` with the `__main__` CLI
+     pattern (`lifecycle.py`/`staleness.py`) — `rebuild_state.py` follows it.
+  7. Baseline: 312 backend tests; `tests/test_decisions.py` already pins the lifecycle incl. the
+     revoke/edit race contracts — extend it, don't duplicate it.
