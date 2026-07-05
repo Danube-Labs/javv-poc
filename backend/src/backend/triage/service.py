@@ -94,6 +94,9 @@ async def apply_triage(
                 partial["vex_justification"] = (
                     patch.vex_justification if patch.state == "not_affected" else None
                 )
+                # a direct human action reclaims ownership of `state` from any decision
+                # projection (M5c: direct action > auto-rule) — clear the provenance marker
+                partial["state_decision_id"] = None
                 if current_state == "stale":
                     partial["pre_stale_status"] = None  # human override beats the sweep
                 actions.append(

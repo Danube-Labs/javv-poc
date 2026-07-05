@@ -230,6 +230,7 @@ vex_justification keyword        CISA five (required iff not_affected)
 assignee          keyword
 notes             text
 pre_stale_status  keyword        prior state, for revert on re-push
+state_decision_id keyword        projection provenance (M5c): the decision that set `state`; null = human/direct (direct action outranks rules); expiry-refresh finds projected findings by it
 schema_version    short
 ```
 
