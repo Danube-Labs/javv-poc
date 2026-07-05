@@ -26,6 +26,7 @@ from opensearchpy import AsyncOpenSearch
 from backend.models.envelope import canonical_severity
 
 _MATCH_FIELDS = ("cve_id", "package_name")  # the D5a cross-scanner identity
+_SEARCH_PAGE = 10_000  # per-page; the recompute PAGES (task F m-3) — no silent truncation
 
 
 def severity_flags(docs: list[dict[str, Any]]) -> dict[str, bool]:
@@ -52,26 +53,33 @@ async def recompute_disagreement(
     client: AsyncOpenSearch, cluster_id: str, image_digest: str, *, prefix: str = ""
 ) -> int:
     """Recompute D5a flags for every PRESENT finding of the digest; write only the changed ones.
-    Runs after merge + reconcile (both refresh), so the search sees the fresh state. Returns the
-    number of docs updated. Idempotent — a re-run changes nothing."""
+    Runs after merge + reconcile (both refresh), so the search sees the fresh state. Pages by
+    `search_after` on the unique `finding_key` (task F m-3) — a pathological >10k-findings digest
+    is recomputed completely, never silently truncated. Returns the number of docs updated.
+    Idempotent — a re-run changes nothing."""
     index = f"{prefix}findings"
-    resp = await client.search(
-        index=index,
-        body={
-            "size": 10_000,  # per-digest findings are bounded (hundreds); no paging needed
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"term": {"cluster_id": cluster_id}},
-                        {"term": {"image_digest": image_digest}},
-                        {"term": {"present": True}},
-                    ]
-                }
-            },
-            "_source": ["finding_key", "scanner", "cve_id", "package_name", "severity", "disagree"],
+    body: dict[str, Any] = {
+        "size": _SEARCH_PAGE,
+        "sort": [{"finding_key": "asc"}],  # unique keyword — a stable search_after cursor
+        "query": {
+            "bool": {
+                "filter": [
+                    {"term": {"cluster_id": cluster_id}},
+                    {"term": {"image_digest": image_digest}},
+                    {"term": {"present": True}},
+                ]
+            }
         },
-    )
-    docs = [h["_source"] for h in resp["hits"]["hits"]]
+        "_source": ["finding_key", "scanner", "cve_id", "package_name", "severity", "disagree"],
+    }
+    docs: list[dict[str, Any]] = []
+    while True:
+        resp = await client.search(index=index, body=body)
+        hits = resp["hits"]["hits"]
+        docs += [h["_source"] for h in hits]
+        if len(hits) < _SEARCH_PAGE:
+            break
+        body = {**body, "search_after": hits[-1]["sort"]}
     flags = severity_flags(docs)
 
     actions: list[dict[str, Any]] = []

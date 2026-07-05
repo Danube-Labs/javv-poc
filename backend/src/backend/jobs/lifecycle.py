@@ -14,20 +14,34 @@ Knobs are tier-③ runtime config in `system-config` (fleet-wide `lifecycle` doc
 `lifecycle:<cluster_id>` override — edited in the M9e UI or the interim CLI below, never
 hardcoded), read live on every run so a D26 edit applies at the next sweep.
 
-Retention age = the index's newest `@timestamp` (**data** age; display-only elsewhere, but
-retention windows are wall-clock by definition — D40 ordering is untouched). NOT `creation_date`:
-an index created 100d ago that rolled yesterday holds day-old data, and creation-age deletion
-would destroy it. Empty indices fall back to `creation_date`. The write index is never dropped.
+Retention age = the newest of the index's **server-stamped `ingested_at`** and its `@timestamp`
+(task F m-4, #143): `@timestamp` is client(scanner)-supplied, so a backdated clock could make
+fresh data look expired — the server-side append stamp is the floor that prevents early deletion
+(a FUTURE-dated `@timestamp` merely keeps an index longer: the safe direction). NOT
+`creation_date`: an index created 100d ago that rolled yesterday holds day-old data, and
+creation-age deletion would destroy it. Empty indices fall back to `creation_date`. The write
+index is never dropped.
+
+`system-audit-log` is ROLLOVER-ONLY (task F m-6): the append-only journal rolls on the fleet
+knobs like any series but is NEVER retention-dropped — audit history has no expiry in MVP
+(revisit only with an explicit compliance-driven window). A broken cluster (malformed knobs doc,
+index-level error) is skipped and counted, never allowed to abort the sweep for every other
+cluster (task F m-5) — and never silently swept with DEFAULT knobs, which could apply a shorter
+retention than the operator configured (fail-closed beats fail-default for a destructive op).
 """
 
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import structlog
 from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
+log = structlog.get_logger()
+
 LIFECYCLE_KEY = "lifecycle"  # fleet-wide default doc _id; per-cluster is `lifecycle:<cluster_id>`
 SERIES = ("javv-scan-events", "javv-images")
+ROLLOVER_ONLY = ("system-audit-log",)  # rolls, NEVER retention-dropped (task F m-6)
 
 
 def _knobs_id(cluster_id: str | None) -> str:
@@ -118,14 +132,26 @@ async def _series_aliases(client: AsyncOpenSearch, prefix: str) -> dict[str, dic
 
 
 async def _newest_data_at(client: AsyncOpenSearch, index: str) -> datetime | None:
-    """The index's newest `@timestamp` (None = no dated docs). Refreshed first — a delete decision
-    must see everything that was indexed."""
+    """The newest of the index's server-stamped `ingested_at` and client `@timestamp` (None = no
+    dated docs) — see the module docstring for why the server stamp is the floor (task F m-4).
+    Refreshed first — a delete decision must see everything that was indexed."""
     await client.indices.refresh(index=index)
     resp = await client.search(
-        index=index, body={"size": 0, "aggs": {"newest": {"max": {"field": "@timestamp"}}}}
+        index=index,
+        body={
+            "size": 0,
+            "aggs": {
+                "newest_ts": {"max": {"field": "@timestamp"}},
+                "newest_ingested": {"max": {"field": "ingested_at"}},
+            },
+        },
     )
-    value = resp["aggregations"]["newest"].get("value")
-    return None if value is None else datetime.fromtimestamp(value / 1000, tz=UTC)
+    values = [
+        v
+        for agg in ("newest_ts", "newest_ingested")
+        if (v := resp["aggregations"][agg].get("value")) is not None
+    ]
+    return None if not values else datetime.fromtimestamp(max(values) / 1000, tz=UTC)
 
 
 async def _created_at(client: AsyncOpenSearch, index: str) -> datetime:
@@ -138,44 +164,64 @@ async def _created_at(client: AsyncOpenSearch, index: str) -> datetime:
 async def run_lifecycle_sweep(
     client: AsyncOpenSearch, *, now: datetime | None = None, prefix: str = ""
 ) -> dict[str, int]:
-    """Roll + retire every managed series once. Returns counts {rolled, dropped}.
+    """Roll + retire every managed series once. Returns counts {rolled, dropped, errors}.
 
     Retention evaluates the pre-rollover backing set, so an index that just rolled is first
-    considered on the NEXT run — conservative by a day, never destructive. `now` is injectable
-    for tests."""
+    considered on the NEXT run — conservative by a day, never destructive. One broken cluster
+    is skipped + counted, never fatal to the rest (task F m-5). `now` is injectable for tests."""
     now = now or datetime.now(UTC)
-    rolled = dropped = 0
+    rolled = dropped = errors = 0
     knobs_by_cluster: dict[str, LifecycleKnobs] = {}  # read once per cluster per run (D26 live)
 
     for alias, backing in (await _series_aliases(client, prefix)).items():
         series = next(s for s in SERIES if alias.startswith(f"{prefix}{s}-"))
         cluster_id = alias[len(f"{prefix}{series}-") :]
-        if cluster_id not in knobs_by_cluster:
-            knobs_by_cluster[cluster_id] = await read_lifecycle_knobs(
-                client, cluster_id=cluster_id, prefix=prefix
+        try:
+            if cluster_id not in knobs_by_cluster:
+                knobs_by_cluster[cluster_id] = await read_lifecycle_knobs(
+                    client, cluster_id=cluster_id, prefix=prefix
+                )
+            knobs = knobs_by_cluster[cluster_id]
+
+            # 1) rollover — OpenSearch evaluates the conditions; no-op unless one is met
+            resp = await client.indices.rollover(
+                alias=alias, body={"conditions": knobs.rollover_conditions()}
             )
-        knobs = knobs_by_cluster[cluster_id]
+            if resp.get("rolled_over"):
+                rolled += 1
 
-        # 1) rollover — OpenSearch evaluates the conditions; no-op unless one is met
-        resp = await client.indices.rollover(
-            alias=alias, body={"conditions": knobs.rollover_conditions()}
-        )
-        if resp.get("rolled_over"):
-            rolled += 1
+            # 2) retention — drop whole expired NON-write indices (never the write index, D8)
+            cutoff = now - timedelta(days=knobs.retention_days)
+            for index_name, is_write in backing.items():
+                if is_write:
+                    continue
+                aged_at = await _newest_data_at(client, index_name) or await _created_at(
+                    client, index_name
+                )
+                if aged_at < cutoff:
+                    await client.indices.delete(index=index_name)
+                    dropped += 1
+        except Exception:  # noqa: BLE001 — m-5: isolate the broken cluster, sweep the rest
+            log.exception("lifecycle sweep failed for alias", alias=alias, cluster=cluster_id)
+            errors += 1
 
-        # 2) retention — drop whole expired NON-write indices (never the write index, D8)
-        cutoff = now - timedelta(days=knobs.retention_days)
-        for index_name, is_write in backing.items():
-            if is_write:
-                continue
-            aged_at = await _newest_data_at(client, index_name) or await _created_at(
-                client, index_name
+    # 3) rollover-only series (m-6): the audit journal rolls on the fleet knobs, NEVER retires
+    for name in ROLLOVER_ONLY:
+        alias = f"{prefix}{name}"
+        if not await client.indices.exists_alias(name=alias):
+            continue
+        try:
+            fleet = await read_lifecycle_knobs(client, prefix=prefix)
+            resp = await client.indices.rollover(
+                alias=alias, body={"conditions": fleet.rollover_conditions()}
             )
-            if aged_at < cutoff:
-                await client.indices.delete(index=index_name)
-                dropped += 1
+            if resp.get("rolled_over"):
+                rolled += 1
+        except Exception:  # noqa: BLE001 — same isolation rule
+            log.exception("lifecycle rollover failed for alias", alias=alias)
+            errors += 1
 
-    return {"rolled": rolled, "dropped": dropped}
+    return {"rolled": rolled, "dropped": dropped, "errors": errors}
 
 
 if __name__ == "__main__":  # daily CronJob entrypoint + interim knob-config CLI (until M9e UI)

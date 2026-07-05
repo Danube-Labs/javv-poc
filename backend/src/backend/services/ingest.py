@@ -8,6 +8,7 @@ omitted flip `present=false` so resolved CVEs leave the "now" grid; see `service
 """
 
 import hashlib
+from datetime import UTC, datetime
 from typing import Any
 
 from opensearchpy import AsyncOpenSearch
@@ -46,6 +47,9 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
     counts = env.counts.model_dump()
     commit_key = _h(env.cluster_id, env.scanner, env.image_digest, env.scan_run_id)
     ts = env.last_seen_at.isoformat()
+    # SERVER-stamped append time (task F m-4): the retention clock must never trust the
+    # client-supplied @timestamp — a backdated scanner clock could age-out recent data
+    ingested_at = datetime.now(UTC).isoformat()
 
     findings = []
     for f in env.findings:
@@ -89,6 +93,7 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
 
     scan_event = {
         "@timestamp": ts,
+        "ingested_at": ingested_at,
         "scan_run_id": env.scan_run_id,
         "scan_order": env.scan_order,
         "commit_key": commit_key,
@@ -108,6 +113,7 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
     }
     image = {
         "@timestamp": ts,
+        "ingested_at": ingested_at,
         "scan_run_id": env.scan_run_id,
         "cluster_id": env.cluster_id,
         "image_digest": env.image_digest,

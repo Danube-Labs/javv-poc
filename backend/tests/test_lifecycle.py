@@ -250,3 +250,83 @@ async def test_sweep_is_idempotent(real_os) -> None:
 
     assert first["dropped"] == 1 and second["dropped"] == 0  # nothing left to drop
     assert first["rolled"] == 0 and second["rolled"] == 0  # empty write index — no re-roll storm
+
+
+# --- task F (#143): retention clock, per-cluster isolation, audit-log rollover ------------
+
+
+@requires_opensearch
+async def test_backdated_client_timestamps_cannot_age_out_fresh_data(real_os) -> None:
+    # m-4: @timestamp is scanner-supplied — a backdated clock made fresh data look expired.
+    # The server-stamped ingested_at is the floor for the age decision.
+    client, prefix = real_os
+    alias = f"{prefix}javv-scan-events-{CLUSTER}"
+    await ensure_write_alias(client, alias)
+    await client.index(
+        index=alias,
+        body={
+            "@timestamp": (NOW - timedelta(days=400)).isoformat(),  # a badly backdated clock
+            "ingested_at": NOW.isoformat(),  # ...but the server appended it JUST NOW
+            "scan_run_id": "r-backdated",
+            "cluster_id": CLUSTER,
+        },
+        params={"refresh": "true"},
+    )
+    await client.indices.rollover(alias=alias)
+
+    result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["dropped"] == 0
+    assert await client.indices.exists(index=f"{alias}-000001")  # fresh data survived
+
+
+@requires_opensearch
+async def test_a_malformed_knobs_doc_cannot_abort_the_whole_sweep(real_os) -> None:
+    # m-5: one cluster's broken config is skipped + counted; every other cluster still sweeps.
+    # The broken cluster is NOT swept with defaults — a default window shorter than the
+    # operator's intent would delete data (fail-closed, ruling in the module docstring).
+    client, prefix = real_os
+    broken, healthy = "cluster-broken-9x", CLUSTER
+    for cl in (broken, healthy):
+        alias = f"{prefix}javv-scan-events-{cl}"
+        await ensure_write_alias(client, alias)
+        await _seed_event(client, alias, at=NOW - timedelta(days=200))
+        await client.indices.rollover(alias=alias)
+    await client.index(
+        index=f"{prefix}system-config",
+        id=f"lifecycle:{broken}",
+        body={"key": f"lifecycle:{broken}", "value": {"max_age_days": "not-a-number"}},
+        params={"refresh": "true"},
+    )
+
+    result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["errors"] == 1
+    assert result["dropped"] == 1  # the healthy cluster still retired its expired index
+    assert not await client.indices.exists(index=f"{prefix}javv-scan-events-{healthy}-000001")
+    # the broken cluster's data is untouched — skipped, not defaulted
+    assert await client.indices.exists(index=f"{prefix}javv-scan-events-{broken}-000001")
+
+
+@requires_opensearch
+async def test_audit_log_rolls_over_but_is_never_retired(real_os) -> None:
+    # m-6: the append-only journal rolls on the fleet knobs but has NO retention
+    client, prefix = real_os
+    alias = f"{prefix}system-audit-log"
+    await ensure_write_alias(client, alias)
+    await client.index(
+        index=alias,
+        body={"@timestamp": (NOW - timedelta(days=400)).isoformat(), "event_id": "e1"},
+        params={"refresh": "true"},
+    )
+    await write_lifecycle_knobs(  # fleet knobs: roll after 1 doc
+        client, LifecycleKnobs(max_docs=1), updated_by="test", prefix=prefix
+    )
+
+    result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["rolled"] >= 1  # the journal rolled...
+    assert await client.indices.exists(index=f"{alias}-000001")  # ...and 400d-old rows survive
+    second = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
+    assert await client.indices.exists(index=f"{alias}-000001")  # never retired, ever
+    assert second["dropped"] == 0
