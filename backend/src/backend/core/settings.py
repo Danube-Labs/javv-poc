@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     login_lockout_minutes: float = 15.0
     # bulk triage (M5d): sets at or under the limit apply inline (200); larger → 202 + async
     bulk_inline_limit: int = 500
+    # findings search (M6): PIT keep-alive per page — an abandoned cursor's PIT self-expires
+    search_pit_keep_alive: str = "2m"
     # bootstrap admin (M5a/SEC-6): password from a mounted k8s Secret; empty = don't seed.
     # Seed-once — rotating the mounted value later has no effect on an existing admin by design.
     bootstrap_admin_username: str = "admin"

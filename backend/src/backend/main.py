@@ -11,6 +11,7 @@ from backend.routers import (
     admin_users,
     auth,
     decisions,
+    findings,
     health,
     ingest,
     metrics,
@@ -37,6 +38,7 @@ def create_app() -> FastAPI:
     app.include_router(tokens.router)
     app.include_router(admin_users.router)
     app.include_router(triage.router)
+    app.include_router(findings.router)
     app.include_router(decisions.router)
     app.include_router(sla_routes.router)
     app.include_router(bulk_routes.router)
