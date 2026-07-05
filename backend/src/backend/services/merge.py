@@ -35,7 +35,9 @@ SCANNER_FIELDS = frozenset(
 )
 
 # human/triage-owned — ingest NEVER writes these on an existing doc (D31)
-HUMAN_FIELDS = frozenset({"state", "vex_justification", "assignee", "notes", "pre_stale_status"})
+HUMAN_FIELDS = frozenset(
+    {"state", "vex_justification", "assignee", "notes", "pre_stale_status", "state_decision_id"}
+)
 
 # third family (M4/D5a): `disagree` is derived cross-scanner decoration — owned solely by
 # services.disagreement.recompute_disagreement, deliberately in NEITHER allowlist so merges

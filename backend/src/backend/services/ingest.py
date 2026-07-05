@@ -208,4 +208,11 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
     # 3d) D5a severity-disagreement flags — recomputed for the whole digest AFTER merge+reconcile
     #     (fresh presence), so reconvergence / a dropped finding clears the flag on both sides
     await recompute_disagreement(client, env.cluster_id, env.image_digest, prefix=prefix)
+    # 3e) D19 projection-on-new-only: decisions cascade onto the CVEs this commit touched
+    # (one terms query; only CVEs that HAVE decisions reproject — delta-only, never a clobber)
+    from backend.decisions.reproject import project_at_ingest
+
+    await project_at_ingest(
+        client, env.cluster_id, sorted({f["cve_id"] for f in docs["findings"]}), prefix=prefix
+    )
     return written

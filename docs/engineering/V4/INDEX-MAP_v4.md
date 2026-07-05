@@ -230,6 +230,7 @@ vex_justification keyword        CISA five (required iff not_affected)
 assignee          keyword
 notes             text
 pre_stale_status  keyword        prior state, for revert on re-push
+state_decision_id keyword        projection provenance (M5c): the decision that set `state`; null = human/direct (direct action outranks rules); expiry-refresh finds projected findings by it
 schema_version    short
 ```
 
@@ -279,6 +280,7 @@ type              keyword       risk_accepted|ignore_rule|not_affected
 cve_id            keyword
 scope             object        { namespaces: keyword[], images: keyword[] }  (empty = cluster-wide)
 apply_both_scanners boolean     semantics pinned (D22)
+scanner           keyword       required iff NOT apply-both — which scanner a scanner-specific decision is for (M5c/D22)
 vex_justification keyword
 justification     text
 created_by        keyword       the accepting user (gated by can_accept_audit_final - SEC-2)
