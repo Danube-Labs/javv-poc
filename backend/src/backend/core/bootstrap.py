@@ -410,3 +410,13 @@ if __name__ == "__main__":  # pragma: no cover — thin runner; logic is bootstr
             await client.close()
 
     asyncio.run(_main())
+
+
+def summarize_actions(results: dict[str, str]) -> dict[str, list[str]]:
+    """Invert {index: action} → {action: [indexes]} for the startup log line (#156): index names
+    must be list VALUES, never dict keys — the (deliberately broad) redaction processor masks any
+    key containing `token`, so `system-tokens` as a key came out `[REDACTED]`."""
+    summary: dict[str, list[str]] = {}
+    for name, action in results.items():
+        summary.setdefault(action, []).append(name)
+    return {action: sorted(names) for action, names in summary.items()}

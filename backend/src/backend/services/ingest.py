@@ -11,6 +11,7 @@ import hashlib
 from datetime import UTC, datetime
 from typing import Any
 
+import structlog
 from opensearchpy import AsyncOpenSearch
 
 from backend.models.envelope import IngestEnvelope
@@ -135,6 +136,9 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
     }
 
 
+log = structlog.get_logger()
+
+
 async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefix: str = "") -> int:
     """Write one envelope in commit-then-cache order (D39). Returns findings written.
     `prefix` isolates index names (tests only), same convention as `bootstrap`."""
@@ -172,16 +176,23 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
         prefix=prefix,
     )
     if not fresh:
+        log.debug("ingest: cache writes skipped (stale scan_order)", scan_order=env.scan_order)
         return 0
     # 3b) cache: partial-doc merge — scanner fields refresh, human fields survive (D31)
     actions: list[dict[str, Any]] = []
     for doc in docs["findings"]:
         actions += merge_action(doc, index=f"{prefix}findings")
     written = await bulk_write(client, actions)
+    log.debug(
+        "ingest: findings merged",
+        image_digest=env.image_digest,
+        scan_order=env.scan_order,
+        merged=written,
+    )
     # 3c) reconcile-on-commit — findings of this digest omitted by the fresh run flip present=false
     #     (+ resolved_at) so resolved CVEs leave the "now" grid immediately; cache-only, history
     #     stays tombstone-free (D37/D38). Runs even for a 0-finding clean scan (whole image fixed).
-    await reconcile_absent(
+    reconciled = await reconcile_absent(
         client,
         env.cluster_id,
         env.scanner,
@@ -190,6 +201,10 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
         env.last_seen_at,
         prefix=prefix,
     )
+    if reconciled:
+        log.debug(
+            "ingest: findings reconciled absent", image_digest=env.image_digest, count=reconciled
+        )
     # 3d) D5a severity-disagreement flags — recomputed for the whole digest AFTER merge+reconcile
     #     (fresh presence), so reconvergence / a dropped finding clears the flag on both sides
     await recompute_disagreement(client, env.cluster_id, env.image_digest, prefix=prefix)

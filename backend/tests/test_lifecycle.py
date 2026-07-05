@@ -330,3 +330,31 @@ async def test_audit_log_rolls_over_but_is_never_retired(real_os) -> None:
     second = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
     assert await client.indices.exists(index=f"{alias}-000001")  # never retired, ever
     assert second["dropped"] == 0
+
+
+# --- destructive ops are logged (#156 observability) --------------------------
+
+
+@requires_opensearch
+async def test_sweep_logs_rollover_and_drop_at_info(real_os) -> None:
+    """The first e2e smoke found the sweep deletes indices SILENTLY (only failures logged).
+    A destructive op must leave an INFO line: what rolled, what was dropped and why."""
+    import structlog.testing
+
+    client, prefix = real_os
+    alias = f"{prefix}javv-scan-events-{CLUSTER}"
+    await ensure_write_alias(client, alias)
+    await _seed_event(client, alias, at=NOW - timedelta(days=200))  # expired vs retention(90)
+    await client.indices.rollover(alias=alias)  # -000001 becomes a non-write expired index
+    await _seed_event(client, alias, at=NOW, run_id="r2")
+    await write_lifecycle_knobs(client, LifecycleKnobs(max_docs=1), updated_by="t", prefix=prefix)
+
+    with structlog.testing.capture_logs() as logs:
+        result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["rolled"] == 1 and result["dropped"] == 1
+    rolled = [e for e in logs if e["event"] == "index rolled"]
+    dropped = [e for e in logs if e["event"] == "index dropped"]
+    assert rolled and rolled[0]["alias"] == alias and rolled[0]["log_level"] == "info"
+    assert dropped and dropped[0]["index"] == f"{alias}-000001"
+    assert dropped[0]["retention_days"] == 90.0  # the drop line says WHY (window it violated)

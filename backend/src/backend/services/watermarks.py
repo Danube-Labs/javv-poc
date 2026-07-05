@@ -21,12 +21,14 @@ import random
 from datetime import datetime
 from typing import Any
 
+import structlog
 from opensearchpy import AsyncOpenSearch, ConflictError, NotFoundError
 
 INDEX = "javv-scan-watermarks"
 # real contention is ~1 (one CronJob per scanner, Forbid); the ceiling covers pathological races
 # (the keystone test drives concurrent commits for one digest with inverted scan_order)
 _CAS_RETRIES = 32
+log = structlog.get_logger()
 
 
 def _doc_id(cluster_id: str, scanner: str, image_digest: str) -> str:
@@ -81,6 +83,14 @@ async def advance_watermark(
                 continue  # another commit created it first — retry via the get path
         current = int(got["_source"]["max_committed_scan_order"])
         if scan_order < current:
+            # the out-of-order guard doing its job (D40) — worth a trace when debugging ingest
+            log.debug(
+                "watermark: stale scan skipped",
+                scanner=scanner,
+                image_digest=image_digest,
+                scan_order=scan_order,
+                max_committed=current,
+            )
             return False  # stale: a newer scan already committed for this digest
         if scan_order == current:
             return True  # idempotent replay of the newest run — merge is idempotent, no bump
@@ -97,6 +107,7 @@ async def advance_watermark(
             )
             return True
         except ConflictError:
+            log.debug("watermark: CAS conflict, retrying", image_digest=image_digest)
             await asyncio.sleep(random.uniform(0, 0.02))  # jitter so racers don't lockstep
             continue  # lost the CAS race — re-read and retry
     raise RuntimeError("watermark CAS: retries exhausted")
