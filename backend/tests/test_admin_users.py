@@ -261,33 +261,49 @@ async def test_the_last_enabled_admin_cannot_be_demoted_or_disabled(admin_env) -
     admin_http = make_http()
     # the acting admin IS a real admin (role=admin) — and the only one in this scenario
     acting = await _seed_and_login(admin_http, client, capabilities=["*"], role="admin")
-    # make them provably the only enabled admin: disable every OTHER admin user
-    await client.update_by_query(
-        index="system-users",
-        body={
-            "query": {
-                "bool": {
-                    "filter": [{"term": {"role": "admin"}}],
-                    "must_not": [{"term": {"username": acting}}],
-                }
+    # make them provably the only enabled admin: disable every OTHER admin user — and RESTORE
+    # them after (this runs against the shared dev OpenSearch; leaving the real bootstrap
+    # `admin` disabled bricked the e2e smoke, #158)
+    other_admins = {
+        "bool": {
+            "filter": [{"term": {"role": "admin"}}, {"term": {"disabled": False}}],
+            "must_not": [{"term": {"username": acting}}],
+        }
+    }
+    hits = await client.search(index="system-users", body={"query": other_admins, "size": 1000})
+    disabled_ids = [h["_id"] for h in hits["hits"]["hits"]]
+    flip = "ctx._source.disabled = {};"
+
+    async def _set_disabled(ids: list[str], value: bool) -> None:
+        if not ids:
+            return
+        await client.update_by_query(
+            index="system-users",
+            body={
+                "query": {"ids": {"values": ids}},
+                "script": {"lang": "painless", "source": flip.format("true" if value else "false")},
             },
-            "script": {"lang": "painless", "source": "ctx._source.disabled = true;"},
-        },
-        params={"conflicts": "proceed", "refresh": "true"},
-    )
+            params={"conflicts": "proceed", "refresh": "true"},
+        )
 
-    r = await admin_http.patch(f"/api/v1/admin/users/{acting}/role", json={"role": "viewer"})
-    assert r.status_code == 409
-    r = await admin_http.patch(f"/api/v1/admin/users/{acting}/disabled", json={"disabled": True})
-    assert r.status_code == 409
-    assert (await _doc(client, acting))["role"] == "admin"  # untouched
+    await _set_disabled(disabled_ids, True)
+    try:
+        r = await admin_http.patch(f"/api/v1/admin/users/{acting}/role", json={"role": "viewer"})
+        assert r.status_code == 409
+        r = await admin_http.patch(
+            f"/api/v1/admin/users/{acting}/disabled", json={"disabled": True}
+        )
+        assert r.status_code == 409
+        assert (await _doc(client, acting))["role"] == "admin"  # untouched
 
-    # with a second enabled admin present, the same demotion is allowed (and revokes sessions)
-    second_http = make_http()
-    await _seed_and_login(second_http, client, capabilities=["*"], role="admin")
-    r = await admin_http.patch(f"/api/v1/admin/users/{acting}/role", json={"role": "viewer"})
-    assert r.status_code == 200
-    assert (await admin_http.get("/auth/me")).status_code == 401  # self-demotion: logged out
+        # with a second enabled admin present, the same demotion is allowed (+ revokes sessions)
+        second_http = make_http()
+        await _seed_and_login(second_http, client, capabilities=["*"], role="admin")
+        r = await admin_http.patch(f"/api/v1/admin/users/{acting}/role", json={"role": "viewer"})
+        assert r.status_code == 200
+        assert (await admin_http.get("/auth/me")).status_code == 401  # self-demotion: logged out
+    finally:
+        await _set_disabled(disabled_ids, False)  # leave the shared index as we found it
 
 
 # --- password reset ----------------------------------------------------------------------

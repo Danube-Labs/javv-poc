@@ -30,7 +30,7 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
 | `JAVV_ENV` | `dev` | Deployment profile (task C #140). `prod`/`production` turns dev conveniences into **startup failures** — currently: the dev `JAVV_TOKEN_PEPPER` refuses to boot (`assert_production_ready`). Set on any real deployment. | n/a (deploy) |
-| `JAVV_LOG_LEVEL` | `info` | Log threshold for the shared pipeline (`libs/javv-common`, #156): `debug`\|`info`\|`warning`\|`error`; unknown value fails startup. At `debug` the opensearch-py client's **per-request lines** surface (every OpenSearch touch: method/path/status/took); `opensearchpy.trace` (request bodies) is always off. One JSON stream — uvicorn + client libs are bridged through the same redaction. | n/a (deploy) |
+| `JAVV_LOG_LEVEL` | `info` | Log threshold for the shared pipeline (`libs/javv-common`, #156): `debug`\|`info`\|`warning`\|`error`; unknown value fails startup. At `debug` the opensearch-py client's **per-request lines** surface (every OpenSearch touch: method/path/status/took); request/response **bodies** never emit at any level — both the client logger's own DEBUG body dump and `opensearchpy.trace` are capped (one cycle of bodies = 6 MB of log, #158). One JSON stream — uvicorn + client libs are bridged through the same redaction. | n/a (deploy) |
 | `JAVV_OPENSEARCH_URL` | `http://localhost:9200` | OpenSearch endpoint the backend connects to | n/a (deploy) |
 | `JAVV_REQUEST_TIMEOUT` | `30.0` | OpenSearch client request timeout (seconds) | n/a (deploy) |
 | `JAVV_BOOTSTRAP_ON_STARTUP` | `true` | Ping OpenSearch + run index bootstrap before serving (fail-fast). Tests set `false`. | n/a (deploy) |

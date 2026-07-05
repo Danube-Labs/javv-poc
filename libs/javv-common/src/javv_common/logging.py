@@ -57,6 +57,19 @@ def redact_processor(_logger: WrappedLogger, _method: str, event_dict: EventDict
     }
 
 
+_LEAD_KEYS = ("timestamp", "level", "event")  # the reading order of a log line
+
+
+def order_keys(_logger: WrappedLogger, _method: str, event_dict: EventDict) -> EventDict:
+    """Emit `timestamp, level, event` first — that's what an operator scans for — then the rest
+    in their natural insertion order. JSONRenderer serializes in dict order, so ordering the
+    dict IS ordering the line."""
+    return {
+        **{k: event_dict[k] for k in _LEAD_KEYS if k in event_dict},
+        **{k: v for k, v in event_dict.items() if k not in _LEAD_KEYS},
+    }
+
+
 def _resolve_level(level: str | None) -> int:
     name = (level or os.environ.get("JAVV_LOG_LEVEL") or "info").lower()
     if name not in _LEVELS:
@@ -73,6 +86,7 @@ def configure_logging(level: str | None = None) -> None:
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         redact_processor,
+        order_keys,
     ]
     structlog.configure(
         processors=[*shared, structlog.processors.JSONRenderer()],
@@ -86,6 +100,7 @@ def configure_logging(level: str | None = None) -> None:
         structlog.stdlib.ProcessorFormatter(
             processors=[
                 structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+                order_keys,  # remove_processors_meta perturbs the dict — re-order after it
                 structlog.processors.JSONRenderer(),
             ],
             foreign_pre_chain=shared,
@@ -102,8 +117,11 @@ def configure_logging(level: str | None = None) -> None:
         uv_logger.handlers.clear()
         uv_logger.propagate = True
 
-    # opensearch-py: per-request lines only when explicitly debugging; request bodies NEVER
+    # opensearch-py: per-request lines (INFO on its logger) only when explicitly debugging.
+    # Bodies NEVER — the client logs full request/response bodies at its DEBUG level (one scan
+    # cycle produced a 6 MB log), so the logger is capped at INFO even under JAVV_LOG_LEVEL=debug;
+    # `opensearchpy.trace` (the curl-style body mirror) is always off for the same reason.
     logging.getLogger("opensearch").setLevel(
-        logging.DEBUG if threshold <= logging.DEBUG else logging.WARNING
+        logging.INFO if threshold <= logging.DEBUG else logging.WARNING
     )
     logging.getLogger("opensearchpy.trace").setLevel(logging.CRITICAL + 1)
