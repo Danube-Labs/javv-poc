@@ -6,7 +6,10 @@
 #   1. OpenSearch:  docker compose -f development/setup/opensearch-dev.yml up -d   (green)
 #   2. Backend:     cd backend && JAVV_ENV=dev JAVV_BOOTSTRAP_ADMIN_USERNAME=admin \
 #                     JAVV_BOOTSTRAP_ADMIN_PASSWORD=smoke-admin-pw \
-#                     uv run uvicorn backend.main:app --port 8000
+#                     uv run uvicorn backend.main:app --port 8000 \
+#                       > development/scripts/e2e-tests/backend.log 2>&1
+#                   (pipe to backend.log — the log-assertion phase reads it; JAVV_LOG_LEVEL=debug
+#                    additionally surfaces every OpenSearch request, see docs/CONFIGURATION.md)
 #                   (for a clean run, wipe first: docker compose ... down -v && up -d)
 #   3. k3d cluster 'alpha' + trivy/grype on PATH.
 #
@@ -76,9 +79,9 @@ TOK_TRIVY="$(mint trivy)"; TOK_GRYPE="$(mint grype)"
 [ -n "$TOK_TRIVY" ] && [ -n "$TOK_GRYPE" ] || fail "token mint failed"
 
 # ---- 4. scan cycles ---------------------------------------------------------
-run_scanner() { # $1=scanner $2=token $3=logfile $4=label
+run_scanner() { # $1=scanner $2=token $3=logfile $4=label [$5="EXTRA=env EXTRA2=env"]
   echo "########## $1 $4 @ $(date -u +%FT%TZ) ##########" >> "$3"
-  ( cd "$ROOT/scanner" && KUBECONFIG="$HOME/.kube/config" JAVV_SCANNER="$1" \
+  ( cd "$ROOT/scanner" && env ${5:-} KUBECONFIG="$HOME/.kube/config" JAVV_SCANNER="$1" \
       JAVV_BACKEND_URL="$BACKEND" JAVV_CLUSTER_ID="$SCAN_CID" JAVV_TOKEN="$2" \
       uv run python -m scanner ) >> "$3" 2>&1
   tail -1 "$3"
@@ -117,7 +120,48 @@ SO=$(curl -s "$OS/javv-scan-events-$SCAN_CID-*/_search" -H 'content-type: applic
   -d '{"size":0,"query":{"term":{"scanner":"trivy"}},"aggs":{"m":{"max":{"field":"scan_order"}}}}' | jq -r '.aggregations.m.value')
 echo "max trivy scan_order after 2 cycles (monotonic, expect >=2): $SO"
 
-# ---- 6. background jobs -----------------------------------------------------
+# ---- 6. reconcile / tombstone phase (#158) -----------------------------------
+# The real present=false path: reconcile-on-commit is PER-DIGEST, so the flip needs the SAME
+# digest re-scanned reporting fewer findings. `JAVV_TRIVY_SEVERITIES=CRITICAL` (#91 tuning) does
+# exactly that — it mirrors the real trigger (a vuln-DB update dropping findings for an unchanged
+# image). A disappeared image (e.g. a tag bump) is deliberately NOT reconciled — that's the
+# staleness sweep's job (D20). A final full cycle proves re-appearance and keeps this idempotent.
+say "reconcile phase: same digest, CRITICAL-only cycle → tombstones → full cycle → back"
+present_trivy() { curl -s "$OS/findings/_count" -H 'content-type: application/json' \
+  -d "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"cluster_id\":\"$SCAN_CID\"}},{\"term\":{\"scanner\":\"trivy\"}},{\"term\":{\"present\":$1}}]}}}" | jq -r .count; }
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+BASE_PRESENT=$(present_trivy true)
+echo "baseline trivy present=true: $BASE_PRESENT"
+
+run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle CRITICAL-only (reconcile repro)" "JAVV_TRIVY_SEVERITIES=CRITICAL"
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+NARROW_PRESENT=$(present_trivy true); TOMBSTONED=$(present_trivy false)
+echo "after CRITICAL-only cycle: present=true $NARROW_PRESENT · present=false $TOMBSTONED"
+[ "$NARROW_PRESENT" -lt "$BASE_PRESENT" ] || fail "reconcile did not shrink the present set"
+[ "$TOMBSTONED" -gt 0 ] || fail "no findings flipped present=false"
+WITH_RESOLVED=$(curl -s "$OS/findings/_count" -H 'content-type: application/json' \
+  -d "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"cluster_id\":\"$SCAN_CID\"}},{\"term\":{\"scanner\":\"trivy\"}},{\"term\":{\"present\":false}},{\"exists\":{\"field\":\"resolved_at\"}}]}}}" | jq -r .count)
+[ "$WITH_RESOLVED" = "$TOMBSTONED" ] || fail "tombstones missing resolved_at ($WITH_RESOLVED/$TOMBSTONED)"
+echo "tombstones carry resolved_at: $WITH_RESOLVED/$TOMBSTONED"
+
+run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle full (re-appearance)"
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+RESTORED=$(present_trivy true)
+echo "after full cycle: present=true restored to $RESTORED (baseline $BASE_PRESENT)"
+[ "$RESTORED" -eq "$BASE_PRESENT" ] || fail "re-appearance did not restore the present set"
+
+# ---- 6b. log-content assertions (#158/#159): the pipeline itself is a contract ----
+say "log assertions"
+grep -q '"event": "ingest committed"' "$HERE/backend.log" 2>/dev/null \
+  || fail "backend.log has no 'ingest committed' JSON line (is the backend logging to it?)"
+grep '"event": "ingest committed"' "$HERE/backend.log" | head -1 | jq -e .cluster_id >/dev/null \
+  || fail "backend.log ingest line is not parseable JSON with cluster_id"
+grep -q '"event": "scanning image"' "$TLOG" || fail "scanner log has no per-image progress lines"
+grep -q '"event": "scan done"' "$TLOG" || fail "scanner log has no scan-done lines"
+grep -q '"event": "cycle complete"' "$TLOG" || fail "scanner log has no cycle summary"
+echo "backend JSON ingest lines + scanner per-image progress: present and parseable"
+
+# ---- 7. background jobs -----------------------------------------------------
 say "background jobs"
 JLOG="$HERE/jobs.log"; : > "$JLOG"
 {
@@ -126,7 +170,7 @@ JLOG="$HERE/jobs.log"; : > "$JLOG"
   ( cd "$ROOT/backend" && JAVV_OPENSEARCH_URL="$OS" uv run python -m backend.jobs.lifecycle )
 } | tee -a "$JLOG"
 
-# ---- 7. opensearch log snapshot --------------------------------------------
+# ---- 8. opensearch log snapshot --------------------------------------------
 say "opensearch log snapshot"
 OLOG="$HERE/opensearch.log"
 {

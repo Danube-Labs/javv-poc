@@ -102,8 +102,11 @@ def configure_logging(level: str | None = None) -> None:
         uv_logger.handlers.clear()
         uv_logger.propagate = True
 
-    # opensearch-py: per-request lines only when explicitly debugging; request bodies NEVER
+    # opensearch-py: per-request lines (INFO on its logger) only when explicitly debugging.
+    # Bodies NEVER — the client logs full request/response bodies at its DEBUG level (one scan
+    # cycle produced a 6 MB log), so the logger is capped at INFO even under JAVV_LOG_LEVEL=debug;
+    # `opensearchpy.trace` (the curl-style body mirror) is always off for the same reason.
     logging.getLogger("opensearch").setLevel(
-        logging.DEBUG if threshold <= logging.DEBUG else logging.WARNING
+        logging.INFO if threshold <= logging.DEBUG else logging.WARNING
     )
     logging.getLogger("opensearchpy.trace").setLevel(logging.CRITICAL + 1)

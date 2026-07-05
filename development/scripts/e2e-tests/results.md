@@ -96,3 +96,54 @@ The two nginx tags were the point of this run — see the tag-comparison result 
 `./script.sh` in this directory (assumes OpenSearch + k3d `alpha` + backend are up; see the header
 of the script). It re-runs the workload deploy → token mint → both scan cycles → verification and
 refreshes these logs. The manual first pass that produced this file matched the script step-for-step.
+
+---
+
+# Second run — 2026-07-05 (post-#159 logging + the #158 reconcile phase)
+
+Fresh wipe, same workloads. Everything from run 1 reproduced identically (same per-scanner counts:
+trivy 2064 / grype 2168; same two-nginx-tag split; jobs 0 errors). New in this run:
+
+## Reconcile / tombstone phase (#158) ✅ — the previously-unexercised path
+
+Reconcile-on-commit is **per-digest**, so the flip needs the *same* digest re-scanned reporting
+fewer findings — `JAVV_TRIVY_SEVERITIES=CRITICAL` does exactly that (mirrors a vuln-DB update
+dropping findings for an unchanged image). Measured:
+
+| Step | present=true | present=false |
+|---|---|---|
+| baseline (full cycle) | 2064 | 0 |
+| CRITICAL-only cycle | 59 | **2005 — all 2005 with `resolved_at`** |
+| full cycle again | **2064 (exact restore)** | 0 |
+
+Also documented (not asserted): a **disappeared image is deliberately NOT reconciled** — a new tag
+is a new digest; the old digest keeps `present=true` until the **staleness sweep** (D20) owns it.
+The original #158 text got this wrong; corrected on the issue.
+
+## The new logging (#159), live
+
+- `scanner-trivy.log` / `scanner-grype.log`: JSON per-image progress —
+  `{"event":"scanning image","position":"3/9",…}` → `{"event":"scan done","findings":759,
+  "duration_s":12.4,…}` → `{"event":"cycle complete","scanned":9,"delivered":9,…}` — every line
+  carrying `scanner`/`cluster_id`/`scan_run_id`/`scan_order`.
+- `backend.log`: one JSON stream (uvicorn access lines bridged too); `bootstrap complete` now
+  lists index names unredacted; `ingest committed` per envelope with `request_id`.
+- `backend-debug.log` (`JAVV_LOG_LEVEL=debug`): **every OpenSearch touch** —
+  `POST http://localhost:9200/findings/_bulk [status:200 request:0.04s]` — plus the ingest
+  sub-step seeds (`ingest: findings merged`, `ingest: findings reconciled absent`).
+- The script now **asserts** log content (parseable `ingest committed` JSON, per-image progress
+  lines) so a silent logging regression fails the smoke.
+
+## New findings from this run (both fixed in the #158 PR)
+
+1. 🔴 **Backend pytest bricks the dev admin.** The task-D last-admin-guard test disabled every
+   other `role=admin` user in the *shared* `system-users` index via update_by_query and never
+   restored them — the real bootstrap `admin` stayed `disabled:true` (no audit row: it was a
+   direct doc write, not the API — the journal proved this in one query). Any full pytest run
+   against the dev OpenSearch would break a subsequent smoke/login. **Fixed**: the test snapshots
+   the ids it disables and restores them in a `finally`.
+2. 🟠 **`JAVV_LOG_LEVEL=debug` dumped full OpenSearch request/response bodies** through the
+   `opensearch` logger's own DEBUG lines — one scan cycle → a 6.3 MB backend log, and bodies are
+   exactly what the `opensearchpy.trace` ban exists for. **Fixed** in javv-common: that logger is
+   capped at INFO (per-request lines, no bodies) even at debug; pinned by test. Same cycle now
+   logs 50 KB.

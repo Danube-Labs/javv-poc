@@ -162,3 +162,12 @@ def test_opensearch_trace_bodies_never_emit_even_at_debug(capsys) -> None:
     configure_logging(level="debug")
     logging.getLogger("opensearchpy.trace").info('{"query": {"term": {"secret": "x"}}}')
     assert _lines(capsys.readouterr().err) == []
+
+
+def test_opensearch_bodies_never_emit_even_at_debug(capsys) -> None:
+    """The client logs full request/response BODIES at its own DEBUG level — one real scan cycle
+    produced a 6 MB log (#158). The per-request lines (INFO) are the debug feature; bodies are
+    banned at every threshold, same ruling as `opensearchpy.trace`."""
+    configure_logging(level="debug")
+    logging.getLogger("opensearch").debug('> {"huge": "request body"}')
+    assert _lines(capsys.readouterr().err) == []
