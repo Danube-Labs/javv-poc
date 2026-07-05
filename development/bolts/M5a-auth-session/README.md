@@ -134,3 +134,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   considered and rejected — `must_change` can't close the pre-first-login hijack race);
   role-bundle editing stays out of scope. All four mutating routes registered in the RBAC/IDOR
   suite; every action journaled. Docs: `docs/CONFIGURATION.md` §6.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

@@ -87,3 +87,9 @@ manifests originally listed here — `snapshot-repo.yaml` (repo registration) an
 `snapshot-verify` CronJob (scheduled restore-drill) — are **deferred to M10**, where the Helm chart
 lives; building them now (no chart yet, untestable) would be speculative. The PLAN gate (the
 automated restore drill) is met in Slice 2 and doesn't depend on them.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

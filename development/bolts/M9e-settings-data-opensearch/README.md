@@ -78,3 +78,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   `read/write_staleness_timers` + interim CLI. `ScanningView.vue` now only needs the UI + RBAC-gated
   `PUT /settings/staleness`. Depends-on updated M4→M3. Mirrored on
   [#39](https://github.com/Danube-Labs/javv-poc/issues/39).
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
