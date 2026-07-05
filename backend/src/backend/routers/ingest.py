@@ -16,6 +16,7 @@ from typing import Any, cast
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request
+from opensearchpy.exceptions import ConflictError
 from pydantic import ValidationError
 
 from backend.core.metrics import FINDINGS_WRITTEN, INGEST_ACCEPTED, INGEST_REJECTED
@@ -139,10 +140,17 @@ async def ingest_scan(request: Request) -> dict[str, Any]:
     log.info("ingest committed", scan_run_id=env.scan_run_id, findings=written)
 
     # server-side timestamp — the scanner-down guard must not be gameable by a client clock (M-3);
-    # this records when the backend last accepted a push, not the scanner's self-reported scan time
-    await client.update(
-        index="system-tokens",
-        id=docs[0]["_id"],
-        body={"doc": {"last_ingest_at": datetime.now(UTC).isoformat()}},
-    )
+    # this records when the backend last accepted a push, not the scanner's self-reported scan
+    # time. Best-effort: the ingest is already committed, so a version conflict here (two
+    # same-token pushes racing the stamp — found by the #117 bench) must not 500 an accepted
+    # push; the racer just wrote an equally-fresh timestamp.
+    try:
+        await client.update(
+            index="system-tokens",
+            id=docs[0]["_id"],
+            body={"doc": {"last_ingest_at": datetime.now(UTC).isoformat()}},
+            params={"retry_on_conflict": "3"},
+        )
+    except ConflictError:
+        log.warning("last_ingest_at stamp lost a write race — a racer stamped fresher")
     return {"accepted": True, "findings": written, "commit": env.scan_run_id}

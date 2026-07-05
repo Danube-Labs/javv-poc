@@ -111,6 +111,23 @@ async def test_happy_path_writes_in_commit_then_cache_order() -> None:
     fields = fake.bulks[2][1]["script"]["params"]["f"]
     assert "state" not in fields  # human fields never in the scanner-field params
     assert fake.updates[0]["body"]["doc"]["last_ingest_at"]  # scanner-down guard stamped
+    assert fake.updates[0]["params"] == {"retry_on_conflict": "3"}  # racing pushes self-resolve
+
+
+async def test_last_ingest_stamp_conflict_never_fails_a_committed_ingest() -> None:
+    """Found by the #117 bench: two same-token pushes racing the `last_ingest_at` update threw
+    ConflictError AFTER commit → 500 → pointless scanner retry. The stamp is best-effort
+    bookkeeping (a concurrent racer just wrote a fresher timestamp); the accepted ingest wins."""
+    from opensearchpy.exceptions import ConflictError
+
+    class ConflictingOS(FakeOS):
+        async def update(self, **kw: Any) -> dict[str, Any]:
+            raise ConflictError(409, "version_conflict_engine_exception", {})
+
+    t = mint_token()
+    async with app_with(ConflictingOS(token_doc(t))) as c:
+        r = await post(c, gz(GOLDEN), t)
+    assert r.status_code == 202  # committed data is reported committed, conflict or not
 
 
 async def test_missing_or_unknown_token_is_generic_401() -> None:
