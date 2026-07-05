@@ -47,6 +47,35 @@ jobs:
       - name: Lint PR commits
         uses: wagoid/commitlint-github-action@v6
 
+  common:
+    name: javv-common (shared lib)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Read uv pin from versions.yaml (D42)
+        id: uv
+        run: echo "version=$(yq -r '.toolchain.uv' versions.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ steps.uv.outputs.version }}
+          enable-cache: true
+      - name: Install dependencies
+        working-directory: libs/javv-common
+        run: uv sync --all-extras --dev
+      - name: Ruff lint
+        working-directory: libs/javv-common
+        run: uv run ruff check .
+      - name: Ruff format
+        working-directory: libs/javv-common
+        run: uv run ruff format --check .
+      - name: Pyright
+        working-directory: libs/javv-common
+        run: uv run pyright
+      - name: Pytest
+        working-directory: libs/javv-common
+        run: uv run pytest
+
   backend:
     name: Backend
     runs-on: ubuntu-latest

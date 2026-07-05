@@ -57,6 +57,10 @@ check "scanner ruff pin" "$ruff" scanner/pyproject.toml \
   'ruff==\K[0-9.]+' "s/ruff==[0-9.]+/ruff==$ruff/"
 check "scanner pyright pin" "$pyright" scanner/pyproject.toml \
   'pyright==\K[0-9.]+' "s/pyright==[0-9.]+/pyright==$pyright/"
+check "javv-common ruff pin" "$ruff" libs/javv-common/pyproject.toml \
+  'ruff==\K[0-9.]+' "s/ruff==[0-9.]+/ruff==$ruff/"
+check "javv-common pyright pin" "$pyright" libs/javv-common/pyproject.toml \
+  'pyright==\K[0-9.]+' "s/pyright==[0-9.]+/pyright==$pyright/"
 
 if [ "$fail" -ne 0 ]; then
   echo
