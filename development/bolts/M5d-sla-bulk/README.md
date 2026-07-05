@@ -68,3 +68,8 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
     in `docs/CONFIGURATION.md` §6 same PR.
   - New jobs/sweeps use the shared `javv_common.logging` pipeline (#159); async bulk progress is a
     natural INFO line.
+- **2026-07-05 (build ruling):** the **approval list** is a *review queue over ACTIVE risk-accept
+  decisions* (`GET /api/v1/decisions/approvals`, `can_accept_audit_final`, soonest-expiring
+  first) — NOT a pending-approval workflow: creation is already SEC-2-gated and no "pending"
+  state exists in the model. Flagged on #30 at kickoff; revisit only if a two-step approval flow
+  becomes a requirement.
