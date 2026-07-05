@@ -19,10 +19,13 @@ import json
 from dataclasses import dataclass
 from typing import Any
 
+import structlog
 from opensearchpy import AsyncOpenSearch
 
 from backend.core.settings import get_settings
 from backend.tenancy.chokepoint import tenant_query
+
+log = structlog.get_logger()
 
 _SORT_FIELDS = ("severity_rank", "first_seen_at", "last_scan_at", "cvss", "epss")
 
@@ -131,6 +134,7 @@ async def run_search(
         resp = await client.search(body=body)
     except BaseException:
         await client.delete_pit(body={"pit_id": [pit_id]})  # no orphaned PITs (D38)
+        log.warning("search page failed — PIT reclaimed", cluster_id=cluster_id, sort=sort)
         raise
 
     hits = resp["hits"]["hits"]
