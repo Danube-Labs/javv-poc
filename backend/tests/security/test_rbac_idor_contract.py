@@ -128,6 +128,24 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_triage",
         body={"justification": "rbac probe"},
     ),
+    MutatingEndpoint(  # M5d — bulk triage (FR-7/D38-H8)
+        method="POST",
+        path="/api/v1/findings/bulk-triage",
+        route_path="/api/v1/findings/bulk-triage",
+        capability="can_triage",
+        body={
+            "cluster_id": "c-rbac-sample",
+            "selector": {"cve_id": "CVE-1"},
+            "patch": {"state": "acknowledged"},
+        },
+    ),
+    MutatingEndpoint(  # M5d — SLA policy (FR-10; admin-gated settings write)
+        method="PUT",
+        path="/api/v1/settings/sla",
+        route_path="/api/v1/settings/sla",
+        capability="can_manage_settings",
+        body={"crit_days": 2, "high_days": 7, "med_days": 30, "low_days": 90, "kev_days": 1},
+    ),
 )
 
 # mutating routes with their own (tested) auth regime — NOT capability-gated

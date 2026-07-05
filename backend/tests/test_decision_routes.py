@@ -150,3 +150,30 @@ async def test_list_requires_cluster_and_paginates(env) -> None:
         "/api/v1/decisions", params={"cluster_id": CID, "cve_id": cve, "size": 2, "offset": 2}
     )
     assert len(r2.json()["decisions"]) == 1
+
+
+async def test_approval_list_is_accept_final_only_and_sorted_by_expiry(env) -> None:
+    """M5d ruling (#30): the approval list = review queue over ACTIVE risk-accepts (creation is
+    already SEC-2-gated — there is no pending state), soonest-expiring first."""
+    login_with, _ = env
+    lead = await login_with(["can_triage", "can_accept_audit_final"])
+    cve = f"CVE-{uuid.uuid4().hex[:8]}"
+    late = _body(type="risk_accepted", cve_id=cve, expiry="2028-01-01T00:00:00+00:00")
+    soon = _body(type="risk_accepted", cve_id=cve, expiry="2026-12-01T00:00:00+00:00")
+    for body in (late, soon):
+        assert (await lead.post("/api/v1/decisions", json=body)).status_code == 201
+    revoked = (
+        await lead.post("/api/v1/decisions", json=_body(type="risk_accepted", cve_id=cve))
+    ).json()["decision"]
+    await lead.post(f"/api/v1/decisions/{revoked['decision_id']}/revoke")
+
+    triager = await login_with(["can_triage"])
+    assert (
+        await triager.get("/api/v1/decisions/approvals", params={"cluster_id": CID})
+    ).status_code == 403  # accept_final holders only
+
+    r = await lead.get("/api/v1/decisions/approvals", params={"cluster_id": CID})
+    assert r.status_code == 200
+    ours = [a for a in r.json()["approvals"] if a["cve_id"] == cve]
+    assert len(ours) == 2  # the revoked one is out
+    assert [a["expiry"] for a in ours] == [soon["expiry"], late["expiry"]]  # soonest first

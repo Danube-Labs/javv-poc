@@ -100,6 +100,46 @@ async def edit(
     return {"revoked": revoked, "decision": new}
 
 
+@router.get("/approvals")
+async def approval_list(
+    request: Request,
+    principal: Annotated[Principal, Depends(require_capability("can_accept_audit_final"))],
+    cluster_id: ClusterId,
+    size: Annotated[int, Query(ge=1, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
+) -> dict[str, Any]:
+    """M5d/FR-8: the risk-accept review surface for accept_final holders — ACTIVE risk-accept
+    decisions, soonest-expiring first (RULING, #30: creation is already SEC-2-gated, so this is
+    a review queue over standing acceptances, not a pending-approval workflow)."""
+    client = cast(Any, request.app.state.opensearch)
+    await client.indices.refresh(index=DECISIONS_INDEX)
+    resp = await client.search(
+        index=DECISIONS_INDEX,
+        body={
+            "size": size,
+            "from": offset,
+            "track_total_hits": True,
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"cluster_id": cluster_id}},
+                        {"term": {"type": "risk_accepted"}},
+                    ],
+                    "must_not": [{"exists": {"field": "revoked_at"}}],
+                }
+            },
+            # the review queue: expiring soonest at the top; open-ended acceptances last
+            "sort": [{"expiry": {"order": "asc", "missing": "_last"}}],
+        },
+    )
+    return {
+        "approvals": [h["_source"] for h in resp["hits"]["hits"]],
+        "total": resp["hits"]["total"]["value"],
+        "size": size,
+        "offset": offset,
+    }
+
+
 @router.get("")
 async def list_decisions(
     request: Request,
