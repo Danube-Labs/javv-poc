@@ -8,7 +8,8 @@ PIT+search_after search (faceted by scanner, composite aggs); trend endpoints ov
 **Canonical refs:** [`PLAN_v4 §8 M6`](../../../docs/engineering/V4/PLAN_v4.md) · `SPEC_v4` (FRs for M6) · [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (indices touched).
 
 ## Depends on
-M3, M4, M5c, M5b (system-audit-log — Contributors + audit-log replay read it). The T<now
+M3, M4, M5c, M5b (system-audit-log — Contributors + audit-log replay read it), M5d (SLA policy +
+`compute_overdue` — the grid's overdue decoration and Contributors' SLA-hit % read them). The T<now
 time-travel portion additionally depends on M8b (`as_of_t`) — gated, not a blocker for M6's T=now core.
 
 ## Carried-in from M3 — reconcile refresh (audit #117)
@@ -20,6 +21,27 @@ first read load that contends with it, so it's the first time it can storm. Mark
 OpenSearch `refresh` count/time; if flat, close [#117](https://github.com/Danube-Labs/javv-poc/issues/117)
 with the numbers; if it storms, replace the per-envelope refresh with a **bounded reconcile**
 (batch/debounce per `(cluster, scanner)` cycle, or `refresh=wait_for` on the merge writes). Don't fix blind.
+The e2e smoke harness (`development/scripts/e2e-tests/script.sh`) is the natural measurement rig.
+
+## Carried-in from M5c/M5d — what already exists, consume it (don't rebuild)
+- **Tenant chokepoint is built** — `tenancy/chokepoint.py` (`tenant_search`/`tenant_query`, SEC-4): it
+  injects the `cluster_id` filter, refuses raw `?q=` and `global` aggs at any depth. Every M6 read/agg/
+  export routes through it; M6 adds callers, not the chokepoint.
+- **Overdue is read-time (M5d)** — decorate grid/search rows via `sla/overdue.py::compute_overdue`
+  (pure; D21 group clock over `(cve_id, image_digest)`; handled states never overdue) with the policy
+  from `sla/policy.py::read_sla_policy`. Never re-derive SLA logic inline.
+- **Contributors SLA-hit %** computes against the live `SlaPolicy` (system-config `sla`), not
+  hardcoded day thresholds.
+- **Findings carry `state_decision_id` (M5c)** — projection provenance; expose it in search results and
+  offer it as a filter facet (auto-ruled vs directly-triaged). Decisions carry `scanner`
+  (required iff not apply-both).
+- **`GET /api/v1/decisions/approvals` shipped in M5d** — the risk-accept review queue exists; M6's read
+  surface links/consumes it, doesn't rebuild it.
+- **Catalog-read discipline (R-CATALOG/D40):** any "latest state" read resolves the latest committed
+  run via top-1-by-**`scan_order`** from `javv-scan-events-*` (inventory: `inventory_order`), never
+  `@timestamp`, never "latest doc per key".
+- **At kickoff, decide the M8b 1-day spike** (#134): whether to prove the `as_of_t` reconstruction
+  seam early so M6's dispatcher lands against a verified interface.
 
 ## Deliverables
 The actual files/modules this bolt creates — **in the layered tree, not here** (paths proposed):
@@ -27,7 +49,7 @@ The actual files/modules this bolt creates — **in the layered tree, not here**
 - `backend/src/backend/query/aggs.py` — scanner-faceted aggregations; capped `terms` or **composite** aggs paginating via `after_key` (FR-12, NFR pin §). Pure DSL-builder, unit-tested on the emitted body.
 - `backend/src/backend/query/trends.py` — trend endpoints over `javv-scan-events-*` (FR-5/FR-12; "new in 30d"); per-`cluster_id`, always-applied filter. **Dedup rule (audit task B, #139): a retry straddling a rollover leaves byte-identical sibling docs (same `commit_key`) in two backing indices — count committed scans via `cardinality(commit_key)` / dedup by `commit_key`, NEVER raw doc counts or sums over docs** (pinned by `tests/test_rollover_idempotency.py`).
 - `backend/src/backend/query/contributors.py` — **Contributors (expanded)** over `system-audit-log`: resolved-over-time, median TTR, SLA-hit %, leaderboard (FR-15). Reads M5b's audit log.
-- `backend/src/backend/api/search.py` — GET search/agg/trend/contributors endpoints; `extra="forbid"` request models; `cluster_id` via the one `tenant_search` chokepoint (SEC-4), entitlement on every fetch **and export** (IDOR). Follow [`standards/api-design.md`](../../standards/api-design.md) (paths/naming, opaque `next_cursor`, `as_of` param, response shape).
+- `backend/src/backend/api/search.py` — GET search/agg/trend/contributors endpoints; `extra="forbid"` request models; `cluster_id` via the **existing** `tenancy/chokepoint.py` `tenant_search` (SEC-4), entitlement on every fetch **and export** (IDOR). Follow [`standards/api-design.md`](../../standards/api-design.md) (paths/naming, opaque `next_cursor`, `as_of` param, response shape).
 - `backend/src/backend/export/csv_stream.py` — streaming, **CSV-injection-sanitized** export from any lens, constant memory (FR-13 inline "run now" path); PIT+`search_after`, small pages.
 - `backend/src/backend/export/vex.py` — **VEX export** serializing `state`/`vex_justification` → OpenVEX + CycloneDX, consumable by Trivy/Grype `--vex` (FR-22 export-only; import → v1.1).
 - `backend/src/backend/query/as_of.py` — the **as-of-T dispatcher**: `T=now` short-circuits to materialized current-state (M3 cache); `T<now` **delegates to M8b's `backend/src/backend/query/as_of_t.py`** (does NOT reimplement reconstruction — D28/FR-23 boundary).
@@ -62,3 +84,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+- **2026-07-05 (pre-kickoff refresh):** synced against the shipped M5c/M5d + observability work —
+  added M5d to *Depends on*; new *Carried-in from M5c/M5d* section (existing `tenancy/chokepoint.py`,
+  `compute_overdue`/`SlaPolicy` consumption, `state_decision_id` on findings, the shipped
+  `/decisions/approvals` route, the `scan_order` catalog-read rule, the M8b-spike kickoff decision);
+  noted the e2e smoke harness as the #117 measurement rig.
