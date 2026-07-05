@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     # login lockout (M5a): N failures per sliding window locks the username (429)
     login_max_attempts: int = 5
     login_lockout_minutes: float = 15.0
+    # bulk triage (M5d): sets at or under the limit apply inline (200); larger → 202 + async
+    bulk_inline_limit: int = 500
     # bootstrap admin (M5a/SEC-6): password from a mounted k8s Secret; empty = don't seed.
     # Seed-once — rotating the mounted value later has no effect on an existing admin by design.
     bootstrap_admin_username: str = "admin"

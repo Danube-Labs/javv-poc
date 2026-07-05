@@ -1,0 +1,128 @@
+"""Bulk triage (M5d, FR-7/D38-H8/SND-8) — one action over a FROZEN id-set, ONE audit row.
+
+Flow: the selector is resolved to a **frozen `target_ids` set at submit time** (paged
+`search_after`, complete — never a live selector), the single audit row is journaled FIRST
+(journal-before-commit, task A M-3: an orphan row is replay-tolerated, an orphan change never),
+then the patch applies via `_bulk` partial-doc updates with `retry_on_conflict` (SND-8 — a
+concurrent scanner merge or single-triage write retries in place, no lost update). The row
+carries the frozen ids + `result_hash`/`result_count` (D38/H8) — never a selector, never a
+per-finding fan-out of rows.
+
+Bulk is a direct human action: it clears `state_decision_id` (direct action > auto-rule, M5c)
+whenever it sets `state`. Target validation is TARGET-based (FR-7 has no forbidden from→to
+pairs): `stale` is system-only, `vex_justification` iff `not_affected` — validated once for the
+whole action, not per finding.
+"""
+
+import hashlib
+import json
+from typing import Any
+
+import structlog
+from opensearchpy import AsyncOpenSearch
+
+from backend.audit.writer import append_field_change
+from backend.repositories.bulk import bulk_write
+from backend.triage.state_machine import CISA_JUSTIFICATIONS, TransitionError
+
+log = structlog.get_logger()
+
+_FREEZE_PAGE = 10_000
+_SELECTOR_FIELDS = ("cve_id", "image_digest", "severity", "state", "assignee")
+
+
+def validate_bulk_patch(patch: dict[str, Any]) -> None:
+    """Target-based validation, once per action (message is user-facing, 422)."""
+    if not patch:
+        raise TransitionError("empty bulk patch — set at least one field")
+    state = patch.get("state")
+    vex = patch.get("vex_justification")
+    if state == "stale":
+        raise TransitionError("stale is system-only — set by the staleness sweep, never by hand")
+    if state == "not_affected":
+        if vex not in CISA_JUSTIFICATIONS:
+            raise TransitionError("not_affected requires a vex_justification (CISA five)")
+    elif vex is not None:
+        raise TransitionError("vex_justification is only valid with not_affected")
+
+
+async def freeze_targets(
+    client: AsyncOpenSearch, cluster_id: str, selector: dict[str, Any], *, prefix: str = ""
+) -> list[str]:
+    """Resolve the selector to the frozen, complete, sorted id-set (D38/H8)."""
+    filters: list[dict[str, Any]] = [
+        {"term": {"cluster_id": cluster_id}},
+        {"term": {"present": True}},  # bulk acts on the "now" grid, never tombstones
+    ]
+    for field in _SELECTOR_FIELDS:
+        if selector.get(field) is not None:
+            filters.append({"term": {field: selector[field]}})
+    index = f"{prefix}findings"
+    await client.indices.refresh(index=index)
+    body: dict[str, Any] = {
+        "size": _FREEZE_PAGE,
+        "sort": [{"finding_key": "asc"}],
+        "query": {"bool": {"filter": filters}},
+        "_source": False,
+    }
+    ids: list[str] = []
+    while True:
+        resp = await client.search(index=index, body=body)
+        hits = resp["hits"]["hits"]
+        ids += [h["_id"] for h in hits]
+        if len(hits) < _FREEZE_PAGE:
+            return ids
+        body = {**body, "search_after": hits[-1]["sort"]}
+
+
+def result_hash(target_ids: list[str]) -> str:
+    return hashlib.sha256(json.dumps(sorted(target_ids)).encode()).hexdigest()
+
+
+async def apply_bulk_triage(
+    client: AsyncOpenSearch,
+    *,
+    actor: str,
+    cluster_id: str,
+    target_ids: list[str],
+    patch: dict[str, Any],
+    prefix: str = "",
+) -> int:
+    """Journal ONE row (first), then apply the patch to the frozen set. Returns docs updated."""
+    if not target_ids:
+        return 0
+    await append_field_change(
+        client,
+        actor=actor,
+        action="bulk_triage",
+        entity_type="finding",
+        entity_id=f"bulk:{result_hash(target_ids)[:16]}",
+        field="bulk_patch",
+        old_value=None,
+        new_value=None,
+        new_value_json={
+            "patch": patch,
+            "target_ids": sorted(target_ids),  # FROZEN ids, never a selector (D38/H8)
+            "result_count": len(target_ids),
+            "result_hash": result_hash(target_ids),
+        },
+        revision=1,
+        cluster_id=cluster_id,
+        prefix=prefix,
+    )
+    doc = dict(patch)
+    if "state" in doc:
+        doc["state_decision_id"] = None  # a direct human action reclaims state (M5c)
+        if doc["state"] != "not_affected":
+            doc["vex_justification"] = None  # the two-field VEX pairing
+    index = f"{prefix}findings"
+    actions: list[dict[str, Any]] = []
+    for fk in target_ids:
+        actions += (
+            {"update": {"_index": index, "_id": fk, "retry_on_conflict": 3}},  # SND-8
+            {"doc": doc},
+        )
+    written = await bulk_write(client, actions)
+    await client.indices.refresh(index=index)
+    log.info("bulk triage applied", cluster_id=cluster_id, targets=len(target_ids), updated=written)
+    return written

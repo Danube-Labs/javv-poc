@@ -128,6 +128,17 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_triage",
         body={"justification": "rbac probe"},
     ),
+    MutatingEndpoint(  # M5d — bulk triage (FR-7/D38-H8)
+        method="POST",
+        path="/api/v1/findings/bulk-triage",
+        route_path="/api/v1/findings/bulk-triage",
+        capability="can_triage",
+        body={
+            "cluster_id": "c-rbac-sample",
+            "selector": {"cve_id": "CVE-1"},
+            "patch": {"state": "acknowledged"},
+        },
+    ),
     MutatingEndpoint(  # M5d — SLA policy (FR-10; admin-gated settings write)
         method="PUT",
         path="/api/v1/settings/sla",
