@@ -1,0 +1,98 @@
+# JAVV end-to-end smoke — results (2026-07-05)
+
+Level-2 smoke: **real Trivy + Grype scanners run as host processes against the k3d `alpha`
+cluster, pushing to a locally-running backend + fresh OpenSearch.** No CronJobs / Helm (that
+packaging is deferred to M10). This is risk-register #134's ingest smoke.
+
+Environment: OpenSearch 3.7.0 (docker, wiped fresh), backend on `localhost:8000`
+(`JAVV_ENV=dev`), k3d `alpha`, trivy + grype on PATH. Bootstrap admin `admin` / `smoke-admin-pw`
+(rotated to `smoke-admin-rotated-pw` on first login).
+
+Per-component logs live next to this file: `backend.log`, `scanner-trivy.log`,
+`scanner-grype.log`, `jobs.log`, `cluster.log`, `opensearch.log`.
+
+---
+
+## Workloads scanned
+
+Empty scan-scope = **scan everything running**, so all 9 distinct image digests cluster-wide were
+scanned (our 4 `javv-smoke` targets + 5 kube-system system images). The `javv-smoke` targets:
+
+| Deployment | Image | Pods | Distinct digest |
+|---|---|---|---|
+| vuln-nginx | **nginx:1.21.6** | 3 | `sha256:2bcabc…` |
+| nginx-second | **nginx:1.23.4** | 1 | `sha256:f5747a…` |
+| vuln-python | python:3.9.16-slim | 1 | `sha256:5cde4e…` |
+| vuln-alpine | alpine:3.14 | 1 | `sha256:0f2d5c…` |
+
+The two nginx tags were the point of this run — see the tag-comparison result below.
+
+---
+
+## What worked ✅
+
+1. **Fresh bootstrap** — backend startup created all 12 indices + 4 roles + seeded the admin,
+   idempotently, MAPPING_VERSION 7 (`backend.log`, "bootstrap complete").
+2. **Auth lifecycle** — login → forced `must_change` password rotation → server-side session
+   cookie → `/auth/me` shows `must_change:false`, capabilities `["*"]`.
+3. **Two nginx tags behave as distinct targets** (the thing you asked to see):
+   - nginx:1.21.6 (older): **trivy 759 / grype 745**
+   - nginx:1.23.4 (newer): **trivy 634 / grype 620**
+   - ~120 fewer findings on the newer tag — real CVE reduction between tags, tracked per-digest,
+     never collapsed across tags.
+4. **Digest-dedup (D30)** — nginx:1.21.6's 3 pods collapsed to **1 scan / 1 image doc with
+   `replicas: 3`**. N pods → 1 scan, as designed.
+5. **Both scanners delivered all 9 images, 0 dead-lettered** — Trivy and Grype cycles clean.
+6. **Per-scanner separation is sacred** — totals are reported separately (trivy 2064 /
+   grype 2168), never summed or merged.
+7. **Per-image count disagreement (D5b, `count_delta`)** — populated on every image both scanners
+   hit. Most striking: **alpine 3.14 → trivy 0 vs grype 73 (`count_delta -73`)** (see caveat #4).
+8. **Per-finding severity disagreement (D5a, `disagree` flag)** — 701 findings flagged on *each*
+   scanner's side, symmetric, as designed.
+9. **Server-stamped `ingested_at` (task F)** — present on every scan-event and distinct from the
+   client `@timestamp` (e.g. `ingested_at 07:50:24` vs `@timestamp 07:50:07`), which is what makes
+   retention safe against a backdated scanner clock.
+10. **Idempotency / re-scan (watermark CAS)** — a **second** Trivy cycle left the findings count
+    unchanged (2064 → 2064, updated in place by `finding_key`, no duplicates) while `scan_order`
+    advanced monotonically **1 → 2**. Each cycle is its own catalog commit (distinct `commit_key`).
+11. **Background jobs** — `staleness` and `lifecycle` sweeps both ran with **0 errors**
+    (0 staled / 0 rolled / 0 dropped — correct for fresh, tiny indices).
+12. **Logging** — structured JSON per event with a `request_id` correlator; the redaction
+    processor masks token/secret/password keys and scrubs `Bearer …`. Example ingest line:
+    ```json
+    {"scan_run_id":"b24a93…","findings":0,"event":"ingest committed",
+     "request_id":"9eb3a1c1…","cluster_id":"fcbcbe84…","scanner":"trivy",
+     "level":"info","timestamp":"2026-07-05T07:50:22.506991Z"}
+    ```
+
+---
+
+## What didn't work / quirks worth noting ⚠️
+
+1. **Redaction is over-broad on field *names*.** At bootstrap the log line for created indices
+   rendered `"system-tokens": "[REDACTED]"` — the redactor masks any key containing `token`, so it
+   masked the *index name* (a non-secret). Fails safe (never leaks), but it's noisy and can hide
+   harmless values. Candidate follow-up: tighten `_SENSITIVE_KEY` or redact by value shape, not key
+   substring. (`backend/src/backend/core/logging.py:16`)
+2. **`image` docs have no `image_ref` field.** The tag is stored split as `image_repo` + `tag`
+   (e.g. `nginx` + `1.21.6`), not as a combined `image_ref`. Anything on the FE expecting
+   `image_ref` will get null — align the M9x image views to `image_repo`/`tag`.
+3. **Empty scope scans the whole cluster.** With no scan-scope configured, the scanner enumerated
+   kube-system system images too (traefik, coredns, metrics-server, local-path, pause). Expected
+   (empty scope = scan everything), but if you want to smoke *only* `javv-smoke`, set a namespace
+   scan-scope first.
+4. **Trivy reported 0 findings on alpine:3.14** (grype found 73). Not a pipeline failure — both
+   scanned the digest (the catalog has a trivy scan-event with `total=0`) — but alpine 3.14 is EOL
+   and Trivy may skip an EOL secdb. Verify before reading `trivy 0` as "clean". This is exactly the
+   cross-scanner divergence the disagreement flags exist to surface.
+5. **Present=false reconcile was NOT exercised.** The second cycle scanned an unchanged cluster, so
+   nothing flipped `present=false`. To see a real fixed-CVE tombstone, redeploy a workload at a
+   patched tag and re-scan — left for a future run.
+
+---
+
+## Reproduce
+
+`./script.sh` in this directory (assumes OpenSearch + k3d `alpha` + backend are up; see the header
+of the script). It re-runs the workload deploy → token mint → both scan cycles → verification and
+refreshes these logs. The manual first pass that produced this file matched the script step-for-step.
