@@ -80,7 +80,7 @@ doc exists for its full `commit_key` 4-tuple; the point-in-time read resolves th
 ingested_at       date          SERVER-stamped append time - the retention age basis (task F m-4, #143)
 scan_run_id       keyword
 scan_order        long          backend-allocated (D45) monotonic per (cluster,scanner); the catalog ordering key (D40/C-r3)
-commit_key        keyword       hash(cluster_id + scanner + image_digest + scan_run_id) - 4-tuple commit identity (D37/H3)
+commit_key        keyword       hash(cluster_id + scanner + image_digest + scan_run_id) - 4-tuple commit identity (D37/H3); READ RULE: a rollover-straddling retry duplicates docs across backing indices - count/trend reads dedup by commit_key (cardinality), never raw doc counts (task B, #139)
 cluster_id        keyword
 scanner           keyword
 scanner_version   keyword       self-reported binary version (D41); Trivy Trivy.Version / Grype descriptor.version
