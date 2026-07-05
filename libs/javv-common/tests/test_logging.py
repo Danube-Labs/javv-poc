@@ -171,3 +171,25 @@ def test_opensearch_bodies_never_emit_even_at_debug(capsys) -> None:
     configure_logging(level="debug")
     logging.getLogger("opensearch").debug('> {"huge": "request body"}')
     assert _lines(capsys.readouterr().err) == []
+
+
+# --- key order: a line reads timestamp → level → event → detail -----------------
+
+
+def test_lines_lead_with_timestamp_level_event(capsys) -> None:
+    """Operator ask (#158 follow-up): the first things you scan for come first. Key order is
+    dict order under JSONRenderer, on BOTH pipelines (structlog + the stdlib bridge)."""
+    configure_logging(level="info")
+    structlog.contextvars.bind_contextvars(cluster_id="c-order")
+    try:
+        structlog.get_logger().info("native line", detail=1)
+        logging.getLogger("test.bridge").warning("bridged line")
+    finally:
+        structlog.contextvars.clear_contextvars()
+
+    captured = capsys.readouterr()
+    (native,) = _lines(captured.out)
+    (bridged,) = _lines(captured.err)
+    assert list(native)[:3] == ["timestamp", "level", "event"]
+    assert set(native) == {"timestamp", "level", "event", "detail", "cluster_id"}
+    assert list(bridged)[:3] == ["timestamp", "level", "event"]
