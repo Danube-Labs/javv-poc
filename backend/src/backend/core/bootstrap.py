@@ -34,8 +34,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 # History: v2 schema-v2 fields · v3 + javv-scan-watermarks (M3/D40) ·
 #          v4 + system-users/system-roles/system-sessions (M5a/FR-18) ·
 #          v5 + system-audit-log template (M5a appender; writer/replay semantics owned by M5b) ·
-#          v6 + system-decisions (M5b/FR-8 — immutable except revoked_at)
-MAPPING_VERSION = 6
+#          v6 + system-decisions (M5b/FR-8 — immutable except revoked_at) ·
+#          v7 + ingested_at on scan-events/images (task F m-4 — server-side retention clock)
+MAPPING_VERSION = 7
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -239,6 +240,7 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
 
 _SCAN_EVENTS_PROPERTIES: dict[str, Any] = {
     "@timestamp": _DATE,  # display only — NOT the ordering key (D40)
+    "ingested_at": _DATE,  # SERVER-stamped append time — the retention age basis (task F m-4)
     "scan_run_id": _KW,
     "scan_order": {"type": "long"},  # the catalog ordering key (D40/C-r3)
     "commit_key": _KW,  # hash(cluster_id+scanner+image_digest+scan_run_id) (D37/H3)
@@ -261,6 +263,7 @@ _SCAN_EVENTS_PROPERTIES: dict[str, Any] = {
 
 _IMAGES_PROPERTIES: dict[str, Any] = {
     "@timestamp": _DATE,
+    "ingested_at": _DATE,  # SERVER-stamped append time — the retention age basis (task F m-4)
     "scan_run_id": _KW,
     "inventory_run_id": _KW,  # "running now/at T" reads the latest committed run (D37/H5)
     "cluster_id": _KW,

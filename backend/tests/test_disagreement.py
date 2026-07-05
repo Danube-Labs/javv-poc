@@ -238,3 +238,25 @@ async def test_scanners_stay_separate_docs(real_os) -> None:
     )
     assert t_row["scanner"] == "trivy" and t_row["severity"] == "HIGH"
     assert g_row["scanner"] == "grype" and g_row["severity"] == "Critical"
+
+
+@requires_opensearch
+async def test_recompute_pages_past_the_search_window(real_os, monkeypatch) -> None:
+    # task F m-3 (#143): a digest with more findings than one search page must be recomputed
+    # completely — page size shrunk to 2 so five findings need three pages
+    import backend.services.disagreement as dis
+
+    monkeypatch.setattr(dis, "_SEARCH_PAGE", 2)
+    client, prefix = real_os
+    extra = [{**BASE, "vuln_id": f"CVE-2026-{9000 + i}", "severity": "Low"} for i in range(3)]
+    trivy = _env("trivy", 1, "t-r1", [_finding(BASE, severity="HIGH"), *extra])
+    grype = _env("grype", 1, "g-r1", [_finding(BASE, severity="Critical")])
+
+    await ingest_envelope(client, trivy, prefix=prefix)
+    await ingest_envelope(client, grype, prefix=prefix)
+
+    # the shared (cve, pkg) disagrees on BOTH sides even though it spans pages
+    assert (await _row(client, prefix, _key(trivy, 0)))["disagree"] is True
+    assert (await _row(client, prefix, _key(grype, 0)))["disagree"] is True
+    for i in range(1, 4):  # the trivy-only rows never disagree
+        assert not (await _row(client, prefix, _key(trivy, i))).get("disagree")

@@ -13,7 +13,7 @@
 | `javv-scan-events-<cluster_id>-*` | append (trends + **commit catalog**) | cluster (scanner = field, D38) | **yes** | per-cluster drop-whole-index |
 | `javv-images-<cluster_id>-*` | append (inventory snapshots, per `inventory_run_id`) | cluster | **yes** | per-cluster drop-whole-index |
 | `javv-inventory-runs-<cluster_id>-*` | append (**inventory commit manifest**, 1/run) | cluster | **yes** | per-cluster drop-whole-index |
-| `system-audit-log-*` | append (human-state timeline + trail) | time | **yes** | **keep long** (compliance, Contributors, time-travel of triage) |
+| `system-audit-log-*` | append (human-state timeline + trail) | time | **yes** (fleet knobs; rollover-ONLY in the sweep - task F m-6, #143) | **keep long** - the sweep NEVER retention-drops it (no expiry in MVP) |
 | `javv-metrics-*` *(v1.1)* | append (downsample rollup) | cluster | **yes** | keep long (tiny) |
 | `findings` | mutable current-state ("now" cache) | none (field `cluster_id`) | **no** | `stale`/`present` are **flags**; `delete_by_query` only after a **long** window (D37/M12) |
 | `javv-scan-watermarks` | mutable (per-digest commit pointer) | none (field `cluster_id`) | **no** | bounded by live fleet; prune with `findings` |
@@ -77,6 +77,7 @@ doc exists for its full `commit_key` 4-tuple; the point-in-time read resolves th
 (`total:0`). `_id = hash(scan_run_id + image_digest + scanner)`. 1 primary shard, monthly rollover.
 ```
 @timestamp        date          display only - NOT the ordering key (D40)
+ingested_at       date          SERVER-stamped append time - the retention age basis (task F m-4, #143)
 scan_run_id       keyword
 scan_order        long          backend-allocated (D45) monotonic per (cluster,scanner); the catalog ordering key (D40/C-r3)
 commit_key        keyword       hash(cluster_id + scanner + image_digest + scan_run_id) - 4-tuple commit identity (D37/H3)
@@ -103,6 +104,7 @@ uncommitted/partial run; an undeployed image is absent from the next committed r
 (no sweep). `_id = hash(scan_run_id + image_digest)`. 1 primary shard, monthly rollover.
 ```
 @timestamp        date
+ingested_at       date          SERVER-stamped append time - the retention age basis (task F m-4, #143)
 scan_run_id       keyword
 inventory_run_id  keyword       the complete inventory run; "running now" = images in the latest one (D37/H5)
 cluster_id        keyword
