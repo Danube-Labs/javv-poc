@@ -1,0 +1,178 @@
+"""M6 slice 7 — the dispatcher at the routes (DoD: short-circuit + delegate, asserted).
+
+Pins: `T=now` (absent, "now", or future) reads current state and NEVER touches the seam
+(the stub reader records zero calls); a past T routes to the registered reader with the
+EXACT parsed instant + the route's own params, and the reader's payload is the response
+verbatim; with no reader registered a past T is 501 on every surface (grid, facets, groups,
+trends, contributors) and exports stay 501 even WITH a reader (deliberately unrouted until
+M8b+M7); malformed/naive `as_of` is 422, never a silent "now".
+"""
+
+import os
+import uuid
+from datetime import UTC, datetime
+from typing import Any
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.auth.capabilities import seed_default_roles
+from backend.auth.passwords import hash_password
+from backend.core.bootstrap import bootstrap
+from backend.core.settings import get_settings
+from backend.main import create_app
+from backend.query.as_of import register_as_of_t
+
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+PASSWORD = "asof-route-password"
+PAST_T = "2026-01-01T00:00:00+00:00"
+
+
+def _os_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+
+
+class _StubReader:
+    """Satisfies AsOfTReader; records every call so the tests can assert the seam."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, dict[str, Any]]] = []
+
+    async def _record(self, surface: str, kwargs: dict[str, Any]) -> dict[str, Any]:
+        kwargs.pop("client", None)
+        self.calls.append((surface, kwargs))
+        return {"from": "as_of_t", "surface": surface}
+
+    async def findings_page(self, client: Any, **kw: Any) -> dict[str, Any]:
+        return await self._record("findings_page", kw)
+
+    async def findings_facets(self, client: Any, **kw: Any) -> dict[str, Any]:
+        return await self._record("findings_facets", kw)
+
+    async def findings_groups(self, client: Any, **kw: Any) -> dict[str, Any]:
+        return await self._record("findings_groups", kw)
+
+    async def trends_scans(self, client: Any, **kw: Any) -> dict[str, Any]:
+        return await self._record("trends_scans", kw)
+
+    async def trends_findings(self, client: Any, **kw: Any) -> dict[str, Any]:
+        return await self._record("trends_findings", kw)
+
+    async def contributors(self, client: Any, **kw: Any) -> dict[str, Any]:
+        return await self._record("contributors", kw)
+
+
+@pytest.fixture(autouse=True)
+def _clear_settings_cache():
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def _no_reader_leaks():
+    yield
+    register_as_of_t(None)  # whatever a test registered dies with it
+
+
+@pytest.fixture
+async def http():
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    await bootstrap(client)
+    await seed_default_roles(client)
+    app = create_app()
+    app.state.opensearch = client
+    username = f"u-{uuid.uuid4().hex[:12]}"
+    await client.index(
+        index="system-users",
+        id=username,
+        body={
+            "username": username,
+            "password_hash": hash_password(PASSWORD),
+            "role": "viewer",
+            "capabilities": [],
+            "must_change": False,
+            "disabled": False,
+            "auth_source": "local",
+            "external_id": None,
+            "created_at": "2026-07-05T00:00:00+00:00",
+        },
+        params={"refresh": "true"},
+    )
+    session = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://t")
+    r = await session.post("/auth/login", json={"username": username, "password": PASSWORD})
+    assert r.status_code == 200
+    yield session
+    await session.aclose()
+    await client.close()
+
+
+async def test_a_past_t_delegates_each_surface_with_the_parsed_instant(http) -> None:
+    reader = _StubReader()
+    register_as_of_t(reader)
+    cid = f"c-asof-{uuid.uuid4().hex[:8]}"
+
+    surfaces = [
+        ("/api/v1/findings", {}, "findings_page"),
+        ("/api/v1/findings/facets", {}, "findings_facets"),
+        ("/api/v1/findings/groups", {"by": "image_repo"}, "findings_groups"),
+        ("/api/v1/trends/scans", {}, "trends_scans"),
+        ("/api/v1/trends/findings", {}, "trends_findings"),
+        ("/api/v1/contributors", {}, "contributors"),
+    ]
+    for path, extra, surface in surfaces:
+        r = await http.get(path, params={"cluster_id": cid, "as_of": PAST_T, **extra})
+        assert r.status_code == 200, (path, r.text)
+        assert r.json() == {"from": "as_of_t", "surface": surface}  # the reader's payload, verbatim
+
+    assert [s for s, _ in reader.calls] == [s for _, _, s in surfaces]
+    for _, kw in reader.calls:
+        assert kw["t"] == datetime(2026, 1, 1, tzinfo=UTC)  # the EXACT parsed instant
+        assert kw["cluster_id"] == cid
+    # the route's own params ride through the seam untouched
+    assert reader.calls[2][1]["by"] == "image_repo"
+    assert reader.calls[5][1]["days"] == 30
+
+
+async def test_t_now_never_touches_the_seam(http) -> None:
+    reader = _StubReader()
+    register_as_of_t(reader)
+    cid = f"c-asof-{uuid.uuid4().hex[:8]}"
+
+    for as_of in (None, "now", "2030-01-01T00:00:00+00:00"):  # absent / literal / future
+        params: dict[str, Any] = {"cluster_id": cid}
+        if as_of is not None:
+            params["as_of"] = as_of
+        r = await http.get("/api/v1/findings", params=params)
+        assert r.status_code == 200
+        assert r.json()["data"] == []  # the real (empty) current-state grid, not the stub
+    assert reader.calls == []  # the reconstruction path was NEVER touched (D28 short-circuit)
+
+
+async def test_unregistered_seam_is_501_and_bad_as_of_is_422(http) -> None:
+    cid = f"c-asof-{uuid.uuid4().hex[:8]}"
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "as_of": PAST_T})
+    assert r.status_code == 501
+
+    for bad in ("garbage", "2026-01-01T00:00:00"):  # malformed / naive
+        r = await http.get("/api/v1/findings", params={"cluster_id": cid, "as_of": bad})
+        assert r.status_code == 422
+
+
+async def test_exports_stay_501_even_with_a_reader(http) -> None:
+    register_as_of_t(_StubReader())
+    cid = f"c-asof-{uuid.uuid4().hex[:8]}"
+    r = await http.get("/api/v1/findings/export.csv", params={"cluster_id": cid, "as_of": PAST_T})
+    assert r.status_code == 501  # export-at-T is deliberately unrouted until M8b+M7
+    r = await http.get(
+        "/api/v1/findings/export.vex",
+        params={"cluster_id": cid, "scanner": "trivy", "as_of": PAST_T},
+    )
+    assert r.status_code == 501

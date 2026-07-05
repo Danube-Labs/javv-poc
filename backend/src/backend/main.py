@@ -12,6 +12,7 @@ from backend.routers import (
     auth,
     contributors,
     decisions,
+    exports,
     findings,
     health,
     ingest,
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_users.router)
     app.include_router(triage.router)
     app.include_router(findings.router)
+    app.include_router(exports.router)
     app.include_router(trends.router)
     app.include_router(contributors.router)
     app.include_router(decisions.router)

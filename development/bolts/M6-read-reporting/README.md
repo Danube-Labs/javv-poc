@@ -86,7 +86,20 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
-- **2026-07-05 (pre-kickoff refresh):** synced against the shipped M5c/M5d + observability work —
+- **2026-07-06 (slices 5–7, one PR — closes the bolt):** CSV export = `export/sweep.py`
+  (shared constant-memory PIT sweep, PIT deleted in `finally`) + `export/csv_stream.py`
+  (sanitizer neutralizes leading `=`/`+`/`-`/`@`/tab/CR with a leading apostrophe; golden
+  bait fixture) behind `GET /api/v1/findings/export.csv` (grid lens reused). VEX export =
+  `export/vex.py` pure serializers (state→status mapping table + CISA→CycloneDX justification
+  translation recorded in the module docstring) behind `GET /api/v1/findings/export.vex`
+  (`format=openvex|cyclonedx`; **scanner filter required** — per-scanner is sacred); both
+  goldens **validated against a real `trivy --vex` consumer** (OpenVEX via fs scan, CycloneDX
+  via SBOM scan — CycloneDX VEX only applies to CycloneDX SBOM scans in trivy, a consumer
+  restriction, not a document defect). As-of-T = `query/as_of.py`: `parse_as_of` (absent/
+  `now`/**future→clamped-to-now**; naive/malformed→422) + the typed `AsOfTReader` protocol
+  (one method per read surface) + `register_as_of_t` — per the kickoff ruling this seam +
+  its contract tests **replace the M8b spike**. All six read surfaces dispatch; exports stay
+  501 at past T even with a reader (export-at-T lands with M8b+M7). No new config knobs. synced against the shipped M5c/M5d + observability work —
   added M5d to *Depends on*; new *Carried-in from M5c/M5d* section (existing `tenancy/chokepoint.py`,
   `compute_overdue`/`SlaPolicy` consumption, `state_decision_id` on findings, the shipped
   `/decisions/approvals` route, the `scan_order` catalog-read rule, the M8b-spike kickoff decision);
