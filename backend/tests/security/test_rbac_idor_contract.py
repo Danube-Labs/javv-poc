@@ -101,6 +101,33 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_users",
         body={"temp_password": PASSWORD},
     ),
+    MutatingEndpoint(  # M5c — decisions (FR-8; risk-accept additionally needs accept_final)
+        method="POST",
+        path="/api/v1/decisions",
+        route_path="/api/v1/decisions",
+        capability="can_triage",
+        body={
+            "type": "ignore_rule",
+            "cve_id": "CVE-1",
+            "scope": {"namespaces": [], "images": []},
+            "apply_both_scanners": True,
+            "justification": "rbac probe",
+            "cluster_id": "c-rbac-sample",
+        },
+    ),
+    MutatingEndpoint(
+        method="POST",
+        path="/api/v1/decisions/d-rbac-sample/revoke",
+        route_path="/api/v1/decisions/{decision_id}/revoke",
+        capability="can_triage",
+    ),
+    MutatingEndpoint(
+        method="PATCH",
+        path="/api/v1/decisions/d-rbac-sample",
+        route_path="/api/v1/decisions/{decision_id}",
+        capability="can_triage",
+        body={"justification": "rbac probe"},
+    ),
 )
 
 # mutating routes with their own (tested) auth regime — NOT capability-gated
