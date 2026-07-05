@@ -12,7 +12,11 @@ dependencies = [
     "structlog>=24",
     "prometheus-client>=0.25.0",
     "argon2-cffi>=25.1.0",
+    "javv-common",
 ]
+
+[tool.uv.sources]
+javv-common = { path = "../libs/javv-common", editable = true }
 
 [dependency-groups]
 dev = [

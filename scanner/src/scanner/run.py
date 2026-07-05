@@ -6,11 +6,12 @@ cycle is unit-testable; `main()` wires the real kube client, scanner binaries, a
 
 import os
 import re
-import sys
-import traceback
+import time
 from collections.abc import Callable, Iterable
 from pathlib import Path
 from typing import Any, cast
+
+import structlog
 
 from scanner.discovery import ImageTarget, discover
 from scanner.envelope import EffectiveConfig, Envelope, Scanner, build_envelope, new_scan_run
@@ -21,6 +22,8 @@ from scanner.scope import fetch_scan_scope
 
 ScanFn = Callable[[str], ScanResult]
 PushFn = Callable[[Envelope], PushResult]
+
+log = structlog.get_logger()
 
 
 def scan_all(
@@ -34,19 +37,36 @@ def scan_all(
     effective_config: EffectiveConfig | None = None,
 ) -> list[PushResult]:
     run = new_scan_run(scan_order)  # backend-allocated (D45) — the cycle's ordering key
+    structlog.contextvars.bind_contextvars(scan_run_id=run.scan_run_id, scan_order=scan_order)
+    targets = list(targets)
     results: list[PushResult] = []
-    for t in targets:
+    for i, t in enumerate(targets, start=1):
         # D30: scan everything every cycle. One un-pullable image, a scanner non-zero exit, or a
         # subprocess timeout must not abort the rest of the cycle — isolate it, log, and continue.
+        # Per-image progress at INFO (#156): a big image can scan for minutes looking hung.
+        log.info(
+            "scanning image",
+            image_ref=t.image_ref,
+            image_digest=t.image_digest,
+            position=f"{i}/{len(targets)}",
+        )
+        started = time.monotonic()
         try:
             scanned = scan_fn(t.image_ref)
         except Exception:
-            print(
-                f"{scanner}: scan failed for {t.image_ref} ({t.image_digest}) — skipping:",
-                file=sys.stderr,
+            log.warning(
+                "scan failed, image skipped",
+                image_ref=t.image_ref,
+                image_digest=t.image_digest,
+                exc_info=True,
             )
-            traceback.print_exc()
             continue
+        log.info(
+            "scan done",
+            image_ref=t.image_ref,
+            findings=len(scanned.findings),
+            duration_s=round(time.monotonic() - started, 2),
+        )
         envelope = build_envelope(
             run,
             cluster_id=cluster_id,
@@ -65,27 +85,29 @@ def scan_all(
 
 def main() -> int:
     import httpx
+    from javv_common.logging import configure_logging
     from kubernetes import client, config
 
     from scanner.adapters.grype import scan_grype
     from scanner.adapters.trivy import scan_trivy, trivy_db_info
     from scanner.config import GrypeConfig, TrivyConfig
 
+    configure_logging()  # JAVV_LOG_LEVEL, same pipeline as the backend (#156)
+
     scanner_env = os.environ.get("JAVV_SCANNER", "trivy")
     if scanner_env not in ("trivy", "grype"):  # a typo must not silently run grype (#97)
-        print(f"unknown JAVV_SCANNER: {scanner_env!r} (want trivy|grype)", file=sys.stderr)
+        log.error("unknown JAVV_SCANNER", value=scanner_env, want="trivy|grype")
         return 2
     scanner: Scanner = cast(Scanner, scanner_env)
     backend = os.environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
     if not backend.startswith(("http://", "https://")):  # else httpx fails as a silent skip
-        print(f"invalid JAVV_BACKEND_URL: {backend!r} (want http(s)://…)", file=sys.stderr)
+        log.error("invalid JAVV_BACKEND_URL", value=backend, want="http(s)://…")
         return 2
     env_cluster_id = os.environ.get("JAVV_CLUSTER_ID")
     if env_cluster_id and not re.fullmatch(r"[a-z0-9-]{8,64}", env_cluster_id):
         # mirrors the backend's shape rule — garbage here would 422 on every push
-        print(
-            f"invalid JAVV_CLUSTER_ID: {env_cluster_id!r} (want lowercase alnum/hyphen, 8-64)",
-            file=sys.stderr,
+        log.error(
+            "invalid JAVV_CLUSTER_ID", value=env_cluster_id, want="lowercase alnum/hyphen, 8-64"
         )
         return 2
     # bearer token — effectively required: without it the scope fetch 401s and every cycle skips
@@ -102,6 +124,8 @@ def main() -> int:
     # kubernetes-client return types are untyped unions; cast for the attribute access.
     kube_system = cast(Any, api.read_namespace("kube-system"))
     cluster_id = env_cluster_id or str(kube_system.metadata.uid)
+    # every line of this cycle carries who/where (merged by the shared pipeline)
+    structlog.contextvars.bind_contextvars(scanner=scanner, cluster_id=cluster_id)
 
     # scan-behaviour config from JAVV_TRIVY_*/JAVV_GRYPE_* env (#91); defaults = the pinned command.
     scan_fn: ScanFn
@@ -120,18 +144,12 @@ def main() -> int:
         # A fetched *empty* scope means scan everything (handled by the discovery filter).
         scope = fetch_scan_scope(http, token=token)
         if scope is None:
-            print(
-                f"{scanner}: scan scope unavailable (backend unreachable) — skipping cycle",
-                file=sys.stderr,
-            )
+            log.error("scan scope unavailable (backend unreachable) — skipping cycle")
             return 0
         # D45: the backend mints the cycle's ordering key — same fail-closed contract as scope
         scan_order = fetch_scan_order(http, token=token)
         if scan_order is None:
-            print(
-                f"{scanner}: scan_order allocation failed (backend) — skipping cycle",
-                file=sys.stderr,
-            )
+            log.error("scan_order allocation failed (backend) — skipping cycle")
             return 0
         targets = discover(api, scope)
         results = scan_all(
@@ -148,9 +166,10 @@ def main() -> int:
         )
 
     delivered = sum(1 for r in results if r.delivered)
-    print(
-        f"{scanner}: scanned {len(results)} image(s) — "
-        f"{delivered} delivered, {len(results) - delivered} dead-lettered",
-        file=sys.stderr,
+    log.info(
+        "cycle complete",
+        scanned=len(results),
+        delivered=delivered,
+        dead_lettered=len(results) - delivered,
     )
     return 0

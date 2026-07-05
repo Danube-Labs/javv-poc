@@ -204,7 +204,7 @@ def test_main_rejects_unknown_scanner_before_doing_anything(
     # a typo'd JAVV_SCANNER must not silently run grype (#97)
     monkeypatch.setenv("JAVV_SCANNER", "trvy")
     assert run.main() == 2
-    assert "JAVV_SCANNER" in capsys.readouterr().err
+    assert "JAVV_SCANNER" in capsys.readouterr().out  # JSON log line (shared pipeline, #156)
 
 
 def test_main_rejects_garbage_backend_url(
@@ -212,7 +212,7 @@ def test_main_rejects_garbage_backend_url(
 ) -> None:
     monkeypatch.setenv("JAVV_BACKEND_URL", "localhost:8000")  # missing scheme
     assert run.main() == 2
-    assert "JAVV_BACKEND_URL" in capsys.readouterr().err
+    assert "JAVV_BACKEND_URL" in capsys.readouterr().out
 
 
 def test_main_rejects_malformed_cluster_id(
@@ -221,7 +221,7 @@ def test_main_rejects_malformed_cluster_id(
     # mirrors the backend's shape rule — garbage here would 422 on every push
     monkeypatch.setenv("JAVV_CLUSTER_ID", "Bad_Cluster!")
     assert run.main() == 2
-    assert "JAVV_CLUSTER_ID" in capsys.readouterr().err
+    assert "JAVV_CLUSTER_ID" in capsys.readouterr().out
 
 
 # --- trivy vuln-DB provenance (#96) ------------------------------------------
@@ -288,3 +288,65 @@ def test_effective_config_serializes_grype_tuning_distinctly() -> None:
     cfg = EffectiveConfig(tuning=GrypeConfig(only_fixed=True), scope=ScanScope())
     dumped = cfg.model_dump()
     assert dumped["tuning"] == {"only_fixed": True, "scope": None, "scan_timeout": 600}
+
+
+# --- logging (#156): per-image progress is the cycle's observable heartbeat -----
+
+
+def test_scan_all_logs_per_image_progress_at_info() -> None:
+    """Operator ask (#156): a big image can scan for minutes looking hung — every image gets
+    `scanning image` → `scan done` (findings + position) so progress is visible at INFO."""
+    import structlog.testing
+
+    run.log = structlog.get_logger()  # fresh proxy — an earlier main() cached the prod pipeline
+
+    targets = [target("sha256:a", "nginx:1.21.6"), target("sha256:b", "python:3.9.16-slim")]
+
+    def scan_fn(ref: str) -> ScanResult:
+        return ScanResult(
+            findings=[
+                Finding(vuln_id="CVE-1", package_name="p", package_version="1", severity="HIGH")
+            ],
+            provenance=Provenance(scanner_version="0.71.2"),
+        )
+
+    def push_fn(env: Envelope) -> PushResult:
+        return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+    with structlog.testing.capture_logs() as logs:
+        scan_all(
+            targets, scanner="trivy", cluster_id="c", scan_fn=scan_fn, push_fn=push_fn, scan_order=1
+        )
+
+    scanning = [e for e in logs if e["event"] == "scanning image"]
+    done = [e for e in logs if e["event"] == "scan done"]
+    assert [e["image_ref"] for e in scanning] == ["nginx:1.21.6", "python:3.9.16-slim"]
+    assert [e["position"] for e in scanning] == ["1/2", "2/2"]
+    assert all(e["log_level"] == "info" for e in scanning + done)
+    assert [e["findings"] for e in done] == [1, 1]
+    assert all("duration_s" in e for e in done)
+
+
+def test_scan_all_logs_a_failed_image_as_a_warning() -> None:
+    """The skip-and-continue path (D30) must leave a WARNING — today it's a stderr traceback."""
+    import structlog.testing
+
+    run.log = structlog.get_logger()  # fresh proxy — an earlier main() cached the prod pipeline
+
+    targets = [target("sha256:boom", "broken:1")]
+
+    def scan_fn(ref: str) -> ScanResult:
+        raise subprocess.CalledProcessError(1, ["trivy"], stderr="image not found")
+
+    def push_fn(env: Envelope) -> PushResult:  # pragma: no cover — never reached
+        return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+    with structlog.testing.capture_logs() as logs:
+        results = scan_all(
+            targets, scanner="trivy", cluster_id="c", scan_fn=scan_fn, push_fn=push_fn, scan_order=1
+        )
+
+    assert results == []
+    warnings = [e for e in logs if e["event"] == "scan failed, image skipped"]
+    assert warnings and warnings[0]["log_level"] == "warning"
+    assert warnings[0]["image_ref"] == "broken:1"

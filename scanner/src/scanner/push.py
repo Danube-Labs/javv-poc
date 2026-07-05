@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
+import structlog
 
 from scanner.envelope import Envelope
 
@@ -38,10 +39,20 @@ def _is_transient(resp: httpx.Response) -> bool:
     return resp.status_code == 429 or resp.is_server_error
 
 
+log = structlog.get_logger()
+
+
 def _dead_letter(envelope: Envelope, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(envelope.model_dump_json() + "\n")
+    # an envelope falling out of delivery is an operator signal (#156) — replay is manual
+    log.warning(
+        "envelope dead-lettered",
+        image_digest=envelope.image_digest,
+        scan_run_id=envelope.scan_run_id,
+        path=str(path),
+    )
 
 
 def push_envelope(

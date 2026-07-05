@@ -189,6 +189,12 @@ async def run_lifecycle_sweep(
             )
             if resp.get("rolled_over"):
                 rolled += 1
+                log.info(
+                    "index rolled",
+                    alias=alias,
+                    old=resp.get("old_index"),
+                    new=resp.get("new_index"),
+                )
 
             # 2) retention — drop whole expired NON-write indices (never the write index, D8)
             cutoff = now - timedelta(days=knobs.retention_days)
@@ -201,6 +207,14 @@ async def run_lifecycle_sweep(
                 if aged_at < cutoff:
                     await client.indices.delete(index=index_name)
                     dropped += 1
+                    # a destructive op must leave a trace saying WHY (#156): newest data age
+                    # vs the retention window that condemned it
+                    log.info(
+                        "index dropped",
+                        index=index_name,
+                        newest_data_at=aged_at.isoformat(),
+                        retention_days=knobs.retention_days,
+                    )
         except Exception:  # noqa: BLE001 — m-5: isolate the broken cluster, sweep the rest
             log.exception("lifecycle sweep failed for alias", alias=alias, cluster=cluster_id)
             errors += 1
@@ -217,6 +231,12 @@ async def run_lifecycle_sweep(
             )
             if resp.get("rolled_over"):
                 rolled += 1
+                log.info(
+                    "index rolled",
+                    alias=alias,
+                    old=resp.get("old_index"),
+                    new=resp.get("new_index"),
+                )
         except Exception:  # noqa: BLE001 — same isolation rule
             log.exception("lifecycle rollover failed for alias", alias=alias)
             errors += 1

@@ -30,6 +30,7 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
 | `JAVV_ENV` | `dev` | Deployment profile (task C #140). `prod`/`production` turns dev conveniences into **startup failures** — currently: the dev `JAVV_TOKEN_PEPPER` refuses to boot (`assert_production_ready`). Set on any real deployment. | n/a (deploy) |
+| `JAVV_LOG_LEVEL` | `info` | Log threshold for the shared pipeline (`libs/javv-common`, #156): `debug`\|`info`\|`warning`\|`error`; unknown value fails startup. At `debug` the opensearch-py client's **per-request lines** surface (every OpenSearch touch: method/path/status/took); `opensearchpy.trace` (request bodies) is always off. One JSON stream — uvicorn + client libs are bridged through the same redaction. | n/a (deploy) |
 | `JAVV_OPENSEARCH_URL` | `http://localhost:9200` | OpenSearch endpoint the backend connects to | n/a (deploy) |
 | `JAVV_REQUEST_TIMEOUT` | `30.0` | OpenSearch client request timeout (seconds) | n/a (deploy) |
 | `JAVV_BOOTSTRAP_ON_STARTUP` | `true` | Ping OpenSearch + run index bootstrap before serving (fail-fast). Tests set `false`. | n/a (deploy) |
@@ -59,6 +60,7 @@ fallback or a per-image error loop. Unset always means the documented default.
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
 | `JAVV_SCANNER` | `trivy` | Which scanner this pod runs (`trivy`\|`grype`). Also baked into each image's `ENV`. Any other value → exit 2 with an error (never silently falls back, #97). | ⚙️ GitOps (per-image) |
+| `JAVV_LOG_LEVEL` | `info` | Same shared pipeline as the backend (#156). INFO = per-image progress (`scanning image` → `scan done`, findings + duration) + cycle summary; WARNING = skipped image / dead-letter. `scanner`/`cluster_id`/`scan_run_id` are bound on every line. | n/a (deploy) |
 | `JAVV_BACKEND_URL` | `http://localhost:8000` | Backend ingest endpoint | n/a (deploy) |
 | `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). **Effectively required** — since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed). | 🔒 secret |
 | `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity; defaults to the immutable `kube-system` namespace UID (never `cluster_name`). | n/a (deploy) |

@@ -623,6 +623,7 @@ source = { editable = "." }
 dependencies = [
     { name = "argon2-cffi" },
     { name = "fastapi" },
+    { name = "javv-common" },
     { name = "opensearch-py", extra = ["async"] },
     { name = "prometheus-client" },
     { name = "pydantic" },
@@ -644,6 +645,7 @@ dev = [
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "javv-common", editable = "../libs/javv-common" },
     { name = "opensearch-py", extras = ["async"], specifier = ">=2.6" },
     { name = "prometheus-client", specifier = ">=0.25.0" },
     { name = "pydantic", specifier = ">=2.9,<3" },
@@ -658,6 +660,24 @@ dev = [
     { name = "pyright", specifier = "==1.1.411" },
     { name = "pytest", specifier = ">=8" },
     { name = "pytest-asyncio", specifier = ">=0.24" },
+    { name = "ruff", specifier = "==0.15.20" },
+]
+
+[[package]]
+name = "javv-common"
+version = "0.1.0"
+source = { editable = "../libs/javv-common" }
+dependencies = [
+    { name = "structlog" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "structlog", specifier = ">=24" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pyright", specifier = "==1.1.411" },
+    { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = "==0.15.20" },
 ]
 

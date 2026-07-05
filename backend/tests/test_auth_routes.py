@@ -243,3 +243,32 @@ async def test_bootstrap_admin_skips_when_no_secret_is_mounted(auth_client, monk
     monkeypatch.setattr("backend.auth.bootstrap_admin.get_settings", lambda: settings)
 
     assert await seed_bootstrap_admin(client) == "skipped"
+
+
+# --- lockout is observable (#156) ---------------------------------------------
+
+
+async def test_lockout_refusal_emits_a_warning_log(auth_client, monkeypatch) -> None:
+    """A tripped lockout is a security signal an operator alerts on — it must leave a WARNING
+    (the generic-401 discipline hides it from the client, so the log is the ONLY trace)."""
+    import structlog.testing
+
+    from backend.routers import auth as auth_module
+
+    # the module-level proxy may already be BOUND under the cached prod config (an earlier 429
+    # test used it), which capture_logs cannot intercept — swap in a fresh unbound proxy
+    monkeypatch.setattr(auth_module, "log", structlog.get_logger())
+
+    http, client = auth_client
+    user = _u()
+    await _seed_user(client, user)
+    for _ in range(5):  # burn the budget
+        await _login(http, user, "wrong password xx")
+
+    with structlog.testing.capture_logs() as logs:
+        r = await _login(http, user)
+
+    assert r.status_code == 429
+    warnings = [e for e in logs if e["event"] == "login locked out"]
+    assert warnings and warnings[0]["log_level"] == "warning"
+    assert warnings[0]["username"] == user  # username is not a secret; the log is server-side

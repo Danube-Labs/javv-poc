@@ -22,10 +22,12 @@ import random
 from datetime import datetime
 from typing import Any
 
+import structlog
 from opensearchpy import AsyncOpenSearch
 
 # real contention is ~1 (one CronJob per scanner, Forbid); the ceiling covers a merge racing the UBQ
 _CONFLICT_RETRIES = 8
+log = structlog.get_logger()
 
 
 async def reconcile_absent(
@@ -73,7 +75,9 @@ async def reconcile_absent(
         )
         # a flipped doc no longer matches the present=true filter, so retries never double-count
         reconciled += int(resp.get("updated", 0))
-        if int(resp.get("version_conflicts", 0)) == 0:
+        conflicts = int(resp.get("version_conflicts", 0))
+        if conflicts == 0:
             return reconciled
+        log.debug("reconcile: version conflicts, retrying", conflicts=conflicts)
         await asyncio.sleep(random.uniform(0, 0.02))  # jitter so a racing merge can settle
     raise RuntimeError("reconcile: version conflicts did not drain")

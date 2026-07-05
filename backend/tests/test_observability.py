@@ -119,3 +119,19 @@ async def test_readyz_ready_and_degraded() -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app2), base_url="http://t") as c:
         down = await c.get("/readyz")
     assert down.status_code == 503 and down.json()["status"] == "degraded"
+
+
+# --- bootstrap log call site (#156 finding 2) ---------------------------------
+
+
+def test_bootstrap_summary_inverts_results_so_index_names_survive_redaction() -> None:
+    """The e2e smoke saw `"system-tokens": "[REDACTED]"` at startup: bootstrap logged index names
+    as dict KEYS, and the (deliberately broad) redactor masks any key containing `token`. RULING:
+    fix the call site, never the regex — log names as list VALUES keyed by action."""
+    from backend.core.bootstrap import summarize_actions
+
+    results = {"findings": "created", "system-tokens": "created", "javv-images": "unchanged"}
+    summary = summarize_actions(results)
+    assert summary == {"created": ["findings", "system-tokens"], "unchanged": ["javv-images"]}
+    out = redact_processor(None, "info", {"event": "bootstrap complete", **summary})
+    assert out["created"] == ["findings", "system-tokens"]  # names visible, nothing masked

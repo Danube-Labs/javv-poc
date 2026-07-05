@@ -12,6 +12,7 @@ and log out — nothing else. The capability gate (slice 4, `require_capability`
 
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -27,6 +28,8 @@ from backend.auth.sessions import (
     revoke_session,
 )
 from backend.core.settings import get_settings
+
+log = structlog.get_logger()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -86,6 +89,8 @@ async def login(request: Request, creds: LoginCredentials, response: Response) -
     if "application/json" not in request.headers.get("content-type", ""):
         raise HTTPException(415, "login requires application/json")
     if lockout.locked(creds.username):
+        # the client sees only 429 — this warning is the operator's ONLY trace (#156)
+        log.warning("login locked out", username=creds.username)
         raise HTTPException(429, "too many attempts")  # budget spent — credentials unseen
     client = _os(request)
     result = await _provider.authenticate(client, creds)
