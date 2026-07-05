@@ -15,8 +15,9 @@ grid the user is looking at.
 - `GET /api/v1/findings/groups` — high-cardinality grouping via composite `after_key` behind
   the same opaque-cursor contract; every bucket reachable, none silently capped.
 
-`as_of`: absent/`now` reads materialized current-state; `T<now` is 501 until M8b's `as_of_t`
-reconstruction lands behind the slice-7 dispatcher (D28 — these routes never reconstruct).
+`as_of`: absent/`now`/future reads materialized current-state — NEVER the reconstruction
+path; a past T dispatches through `query/as_of.py` to M8b's registered `as_of_t` reader
+(501 at the seam until M8b lands — D28, these routes never reconstruct).
 """
 
 from datetime import UTC, datetime
@@ -32,6 +33,7 @@ from backend.query.aggs import (
     decode_after,
     encode_after,
 )
+from backend.query.as_of import AsOfTReader, AsOfTUnavailable, as_of_t_reader, parse_as_of
 from backend.query.search import SearchFilters, run_search
 from backend.sla.overdue import compute_overdue
 from backend.sla.policy import read_sla_policy
@@ -44,11 +46,22 @@ Authenticated = Annotated[Principal, Depends(get_current_principal)]
 _GROUP_FETCH_SIZE = 10_000  # sibling rows for the page's (cve, digest) pairs — page ≤ 500
 
 
-def _guard_as_of(as_of: Annotated[str | None, Query(max_length=64)] = None) -> None:
-    """The D28 seam, uniform on every read: T<now routes to M8b's as_of_t via the slice-7
-    dispatcher — never reconstructed here."""
-    if as_of is not None and as_of != "now":
-        raise HTTPException(501, "as_of in the past requires historical reconstruction (M8b)")
+def _resolve_as_of(
+    as_of: Annotated[str | None, Query(max_length=64)] = None,
+) -> datetime | None:
+    """The D28 seam, uniform on every read: None = current state; a datetime = the route
+    delegates to M8b's registered reader (`_reader_or_501`) — never reconstructs itself."""
+    try:
+        return parse_as_of(as_of)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+def _reader_or_501() -> AsOfTReader:
+    try:
+        return as_of_t_reader()
+    except AsOfTUnavailable as exc:
+        raise HTTPException(501, str(exc)) from exc
 
 
 def _filters(
@@ -82,7 +95,7 @@ def _filters(
 
 
 Filters = Annotated[SearchFilters, Depends(_filters)]
-AsOfGuard = Annotated[None, Depends(_guard_as_of)]
+AsOf = Annotated[datetime | None, Depends(_resolve_as_of)]
 
 
 async def _decorate_overdue(client: Any, cluster_id: str, page: list[dict[str, Any]]) -> None:
@@ -140,13 +153,24 @@ async def search_findings(
     principal: Authenticated,
     cluster_id: ClusterId,
     filters: Filters,
-    _: AsOfGuard,
+    as_of_t: AsOf,
     sort: Annotated[str, Query(max_length=32)] = "severity_rank",
     order: Annotated[str, Query(max_length=4)] = "desc",
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     cursor: Annotated[str | None, Query(max_length=4096)] = None,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
+    if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
+        return await _reader_or_501().findings_page(
+            client,
+            cluster_id=cluster_id,
+            t=as_of_t,
+            filters=filters,
+            sort=sort,
+            order=order,
+            size=size,
+            cursor=cursor,
+        )
     await client.indices.refresh(index="findings")
     try:
         out = await run_search(
@@ -170,10 +194,14 @@ async def facet_findings(
     principal: Authenticated,
     cluster_id: ClusterId,
     filters: Filters,
-    _: AsOfGuard,
+    as_of_t: AsOf,
     fields: Annotated[list[str] | None, Query()] = None,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
+    if as_of_t is not None:
+        return await _reader_or_501().findings_facets(
+            client, cluster_id=cluster_id, t=as_of_t, filters=filters, fields=fields
+        )
     await client.indices.refresh(index="findings")
     try:
         body = build_facets_body(filters, fields=fields)
@@ -194,12 +222,22 @@ async def group_findings(
     principal: Authenticated,
     cluster_id: ClusterId,
     filters: Filters,
-    _: AsOfGuard,
+    as_of_t: AsOf,
     by: Annotated[str, Query(max_length=32)],
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     cursor: Annotated[str | None, Query(max_length=4096)] = None,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
+    if as_of_t is not None:
+        return await _reader_or_501().findings_groups(
+            client,
+            cluster_id=cluster_id,
+            t=as_of_t,
+            filters=filters,
+            by=by,
+            size=size,
+            cursor=cursor,
+        )
     await client.indices.refresh(index="findings")
     try:
         after = decode_after(cursor) if cursor else None

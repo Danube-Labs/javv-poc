@@ -17,7 +17,7 @@ from backend.query.contributors import (
     build_actions_body,
     compute_ttr_sla,
 )
-from backend.routers.findings import AsOfGuard, Authenticated
+from backend.routers.findings import AsOf, Authenticated, _reader_or_501
 from backend.sla.policy import read_sla_policy
 from backend.tenancy.chokepoint import tenant_search
 
@@ -71,10 +71,14 @@ async def contributors(
     request: Request,
     principal: Authenticated,
     cluster_id: ClusterId,
-    _: AsOfGuard,
+    as_of_t: AsOf,
     days: Annotated[int, Query(ge=1, le=365)] = 30,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
+    if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
+        return await _reader_or_501().contributors(
+            client, cluster_id=cluster_id, t=as_of_t, days=days
+        )
     await client.indices.refresh(index=_AUDIT_PATTERN, params={"ignore_unavailable": "true"})
     resp = await tenant_search(
         client,

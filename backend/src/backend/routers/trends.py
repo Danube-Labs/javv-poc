@@ -18,7 +18,7 @@ from fastapi import APIRouter, Query, Request
 
 from backend.core.identifiers import ClusterId
 from backend.query.trends import build_findings_trend_body, build_scans_trend_body
-from backend.routers.findings import AsOfGuard, Authenticated
+from backend.routers.findings import AsOf, Authenticated, _reader_or_501
 from backend.tenancy.chokepoint import tenant_search
 
 router = APIRouter(prefix="/api/v1/trends", tags=["trends"])
@@ -43,10 +43,14 @@ async def scans_trend(
     request: Request,
     principal: Authenticated,
     cluster_id: ClusterId,
-    _: AsOfGuard,
+    as_of_t: AsOf,
     days: Days = 30,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
+    if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
+        return await _reader_or_501().trends_scans(
+            client, cluster_id=cluster_id, t=as_of_t, days=days
+        )
     index = f"javv-scan-events-{cluster_id}-*"
     resp = await tenant_search(
         client, index=index, cluster_id=cluster_id, body=build_scans_trend_body(days=days)
@@ -62,10 +66,14 @@ async def findings_trend(
     request: Request,
     principal: Authenticated,
     cluster_id: ClusterId,
-    _: AsOfGuard,
+    as_of_t: AsOf,
     days: Days = 30,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
+    if as_of_t is not None:
+        return await _reader_or_501().trends_findings(
+            client, cluster_id=cluster_id, t=as_of_t, days=days
+        )
     await client.indices.refresh(index="findings")
     resp = await tenant_search(
         client,
