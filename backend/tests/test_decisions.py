@@ -267,3 +267,72 @@ def test_payload_requires_scanner_iff_not_apply_both() -> None:
     ok = DecisionPayload.model_validate({**base, "apply_both_scanners": False, "scanner": "grype"})
     assert ok.scanner == "grype"
     assert DecisionPayload.model_validate({**base, "apply_both_scanners": True}).scanner is None
+
+
+# --- M5c: projection round-trip on the findings cache -------------------------------
+
+
+async def _seed_finding(client, prefix: str, **over):
+    doc = {
+        "finding_key": over.get("finding_key", f"fk-{uuid4().hex[:8]}"),
+        "cluster_id": "c-decisions",
+        "scanner": "trivy",
+        "cve_id": "CVE-2026-0001",
+        "image_digest": "sha256:aaa",
+        "namespaces": ["payments"],
+        "state": "open",
+        "vex_justification": None,
+        "state_decision_id": None,
+        "present": True,
+        **over,
+    }
+    await client.index(
+        index=f"{prefix}findings", id=doc["finding_key"], body=doc, params={"refresh": "true"}
+    )
+    return doc["finding_key"]
+
+
+async def _finding(client, prefix: str, key: str) -> dict:
+    return (await client.get(index=f"{prefix}findings", id=key))["_source"]
+
+
+async def test_create_projects_and_revoke_reverts(real_os) -> None:
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix)
+    made = await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
+
+    got = await _finding(client, prefix, fk)
+    assert (got["state"], got["state_decision_id"]) == ("risk_accepted", made["decision_id"])
+
+    await revoke_decision(client, actor="ana", decision_id=made["decision_id"], prefix=prefix)
+    got = await _finding(client, prefix, fk)
+    assert (got["state"], got["state_decision_id"]) == ("open", None)  # fallback: open
+
+
+async def test_projection_never_clobbers_a_direct_human_state(real_os) -> None:
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix, state="acknowledged")  # human-set: provenance null
+    await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
+    got = await _finding(client, prefix, fk)
+    assert got["state"] == "acknowledged"  # direct action > auto-rule
+
+
+async def test_edit_reprojects_once_after_both_writes(real_os) -> None:
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix, namespaces=["web"])
+    made = await create_decision(
+        client, actor="ana", payload=_payload(scope={"namespaces": [], "images": []}), prefix=prefix
+    )
+    assert (await _finding(client, prefix, fk))["state"] == "risk_accepted"
+
+    # edit narrows scope to a namespace the finding is NOT in → projection must release it
+    _, new = await edit_decision(
+        client,
+        actor="ana",
+        decision_id=made["decision_id"],
+        changes={"scope": {"namespaces": ["payments"], "images": []}},
+        prefix=prefix,
+    )
+    got = await _finding(client, prefix, fk)
+    assert (got["state"], got["state_decision_id"]) == ("open", None)
+    assert new["operation_id"]  # the pair landed; projection ran after both (D40/G-r3)

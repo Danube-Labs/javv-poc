@@ -66,6 +66,7 @@ async def create_decision(
     payload: DecisionPayload,
     effective_at: str | None = None,
     operation_id: str | None = None,
+    reproject: bool = True,
     prefix: str = "",
 ) -> dict[str, Any]:
     """Mint an immutable decision doc; returns it. `effective_at`/`operation_id` are only passed
@@ -101,6 +102,10 @@ async def create_decision(
         cluster_id=payload.cluster_id,
         prefix=prefix,
     )
+    if reproject:  # False only inside edit_decision — projection waits for the PAIR (D40/G-r3)
+        from backend.decisions.reproject import reproject_cve
+
+        await reproject_cve(client, payload.cluster_id, payload.cve_id, prefix=prefix)
     return doc
 
 
@@ -110,6 +115,7 @@ async def revoke_decision(
     actor: str,
     decision_id: str,
     effective_at: str | None = None,
+    reproject: bool = True,
     prefix: str = "",
 ) -> dict[str, Any]:
     """Stamp `revoked_at` — the ONLY legal post-hoc mutation. Refuses a second revocation.
@@ -152,6 +158,10 @@ async def revoke_decision(
             cluster_id=current["cluster_id"],
             prefix=prefix,
         )
+        if reproject:  # False only inside edit_decision (the pair reprojects once, at the end)
+            from backend.decisions.reproject import reproject_cve
+
+            await reproject_cve(client, current["cluster_id"], current["cve_id"], prefix=prefix)
         return {**current, "revoked_at": at}
     raise RuntimeError(f"decision revoke: CAS conflicts did not drain for {decision_id}")
 
@@ -185,11 +195,17 @@ async def edit_decision(
         payload=payload,
         effective_at=effective_at,
         operation_id=uuid4().hex,
+        reproject=False,
         prefix=prefix,
     )
     try:
         revoked = await revoke_decision(
-            client, actor=actor, decision_id=decision_id, effective_at=effective_at, prefix=prefix
+            client,
+            actor=actor,
+            decision_id=decision_id,
+            effective_at=effective_at,
+            reproject=False,
+            prefix=prefix,
         )
     except ValueError:
         # A concurrent revoke/edit won the old doc (audit M-2, task A): withdraw our successor —
@@ -203,4 +219,8 @@ async def edit_decision(
             prefix=prefix,
         )
         raise
+    # projection deferred until BOTH writes of the operation_id landed (D40/G-r3)
+    from backend.decisions.reproject import reproject_cve
+
+    await reproject_cve(client, payload.cluster_id, payload.cve_id, prefix=prefix)
     return revoked, new
