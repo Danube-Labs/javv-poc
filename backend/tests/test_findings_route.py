@@ -270,3 +270,64 @@ async def test_reads_require_auth_and_as_of_past_is_501(env) -> None:
         params={"cluster_id": cid, "as_of": "2026-01-01T00:00:00+00:00"},
     )
     assert r.status_code == 501  # T<now reconstruction lands with M8b (D28 seam)
+
+
+# ── slice 2: /facets + /groups ─────────────────────────────────────────────────────────────────
+
+
+async def test_facets_count_per_scanner_and_stay_in_tenant(env) -> None:
+    login, client = env
+    cid_a, cid_b = f"c-aggs-{uuid.uuid4().hex[:8]}", f"c-aggs-{uuid.uuid4().hex[:8]}"
+    await _seed(client, cid_a, _rows(2, severity="crit", severity_rank=5))
+    await _seed(client, cid_a, _rows(1, cve="CVE-2024-9100", scanner="grype"))
+    await _seed(client, cid_b, _rows(4, severity="crit", severity_rank=5))  # other tenant
+    http = await login()
+
+    r = await http.get("/api/v1/findings/facets", params={"cluster_id": cid_a})
+    assert r.status_code == 200
+    facets = r.json()["facets"]
+    sev = {b["key"]: b for b in facets["severity"]}
+    assert sev["crit"]["count"] == 2  # tenant B's 4 crits are invisible (SEC-4)
+    assert sev["crit"]["by_scanner"] == {"trivy": 2}  # per-scanner is sacred
+    assert sev["high"]["by_scanner"] == {"grype": 1}
+    assert {b["key"] for b in facets["scanner"]} == {"trivy", "grype"}
+    # bool facets keep readable keys, not 0/1
+    assert {b["key"] for b in facets["present"]} == {"true"}
+
+    r = await http.get(
+        "/api/v1/findings/facets", params={"cluster_id": cid_a, "fields": ["package_name"]}
+    )
+    assert r.status_code == 422  # not facetable — whitelist enforced at the edge
+
+
+async def test_groups_paginate_via_after_key_to_exhaustion(env) -> None:
+    login, client = env
+    cid = f"c-aggs-{uuid.uuid4().hex[:8]}"
+    for i in range(5):
+        await _seed(client, cid, _rows(2, cve=f"CVE-2024-92{i:02d}", image_repo=f"registry/app{i}"))
+    http = await login()
+
+    keys: list[str] = []
+    cursor: str | None = None
+    for _ in range(10):
+        params: dict[str, Any] = {"cluster_id": cid, "by": "image_repo", "size": 2}
+        if cursor:
+            params["cursor"] = cursor
+        r = await http.get("/api/v1/findings/groups", params=params)
+        assert r.status_code == 200
+        out = r.json()
+        keys += [g["key"] for g in out["data"]]
+        cursor = out["next_cursor"]
+        if cursor is None:
+            break
+    # every bucket reachable — nothing silently capped (DoD)
+    assert keys == sorted(f"registry/app{i}" for i in range(5))
+    assert len(keys) == 5
+
+    r = await http.get("/api/v1/findings/groups", params={"cluster_id": cid, "by": "severity"})
+    assert r.status_code == 422  # facet field, not a group dim
+    r = await http.get(
+        "/api/v1/findings/groups",
+        params={"cluster_id": cid, "by": "image_repo", "as_of": "2026-01-01T00:00:00Z"},
+    )
+    assert r.status_code == 501  # same as_of seam on every read (D28)

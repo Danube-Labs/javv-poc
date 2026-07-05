@@ -150,10 +150,10 @@ async def test_run_search_resumes_from_cursor() -> None:
         pit_id="pit-live", search_after=[4, "fk-1"], sort="severity_rank", order="desc"
     )
     out = await run_search(
-        fake,
+        fake,  # type: ignore[arg-type]
         cluster_id="c-unit-search",
         filters=SearchFilters(),
-        size=2,  # type: ignore[arg-type]
+        size=2,
         cursor=cur,
     )
     assert fake.created == 0  # resumed, not reopened
