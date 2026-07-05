@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from opensearchpy import AsyncOpenSearch
 from opensearchpy.exceptions import ConflictError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.audit.writer import append_field_change
 from backend.core.identifiers import ClusterId
@@ -42,10 +42,21 @@ class DecisionPayload(BaseModel):
     cve_id: str = Field(min_length=1, max_length=256)
     scope: DecisionScope
     apply_both_scanners: bool  # semantics pinned (D22)
+    # D22's scanner dimension needs a subject: which scanner a scanner-specific decision is FOR.
+    # Required iff not apply-both; forbidden with apply-both (contradictory input = reject).
+    scanner: Literal["trivy", "grype"] | None = None
     vex_justification: str | None = Field(default=None, max_length=128)
     justification: str = Field(min_length=1, max_length=10_000)
     expiry: str | None = None  # ISO date; IMMUTABLE after creation — change = revoke+create
     cluster_id: ClusterId  # the ONE shared shape (task E/Codex M2)
+
+    @model_validator(mode="after")
+    def _scanner_iff_specific(self) -> "DecisionPayload":
+        if self.apply_both_scanners and self.scanner is not None:
+            raise ValueError("scanner must be unset when apply_both_scanners is true")
+        if not self.apply_both_scanners and self.scanner is None:
+            raise ValueError("a scanner-specific decision requires `scanner` (trivy|grype)")
+        return self
 
 
 async def create_decision(

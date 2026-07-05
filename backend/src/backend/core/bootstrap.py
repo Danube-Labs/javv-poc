@@ -36,7 +36,8 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #          v5 + system-audit-log template (M5a appender; writer/replay semantics owned by M5b) ·
 #          v6 + system-decisions (M5b/FR-8 — immutable except revoked_at) ·
 #          v7 + ingested_at on scan-events/images (task F m-4 — server-side retention clock)
-MAPPING_VERSION = 7
+#          v8 + scanner on system-decisions (M5c/D22 — a scanner-specific decision needs a subject)
+MAPPING_VERSION = 8
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -185,6 +186,7 @@ _DECISIONS_PROPERTIES: dict[str, Any] = {
     "cve_id": _KW,
     "scope": {"properties": {"namespaces": _KW, "images": _KW}},  # empty = cluster-wide
     "apply_both_scanners": _BOOL,  # semantics pinned (D22)
+    "scanner": _KW,  # required iff NOT apply-both — the D22 scanner-specific subject (M5c)
     "vex_justification": _KW,
     "justification": {"type": "text"},
     "created_by": _KW,  # gated by can_accept_audit_final (SEC-2)

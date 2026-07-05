@@ -13,6 +13,7 @@ from uuid import uuid4
 import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
+from pydantic import ValidationError
 
 from backend.core.bootstrap import bootstrap
 from backend.decisions.lifecycle import (
@@ -244,3 +245,25 @@ async def test_active_at_t_semantics_hold(real_os) -> None:
     )
     assert during["hits"]["total"]["value"] == 1  # visible at its own creation instant
     assert after["hits"]["total"]["value"] == 0  # revoked + expired by then
+
+
+# --- D22 scanner dimension (M5c): scanner-specific vs apply-both ---------------------
+
+
+def test_payload_requires_scanner_iff_not_apply_both() -> None:
+    """A scanner-specific decision must SAY which scanner (the INDEX-MAP lacked the field —
+    added in M5c); an apply-both decision must not carry one (contradictory input = reject)."""
+    base = {
+        "type": "risk_accepted",
+        "cve_id": "CVE-1",
+        "scope": {"namespaces": [], "images": []},
+        "justification": "j",
+        "cluster_id": "c-decisions",
+    }
+    with pytest.raises(ValidationError, match="scanner"):
+        DecisionPayload.model_validate({**base, "apply_both_scanners": False})
+    with pytest.raises(ValidationError, match="scanner"):
+        DecisionPayload.model_validate({**base, "apply_both_scanners": True, "scanner": "trivy"})
+    ok = DecisionPayload.model_validate({**base, "apply_both_scanners": False, "scanner": "grype"})
+    assert ok.scanner == "grype"
+    assert DecisionPayload.model_validate({**base, "apply_both_scanners": True}).scanner is None

@@ -279,6 +279,7 @@ type              keyword       risk_accepted|ignore_rule|not_affected
 cve_id            keyword
 scope             object        { namespaces: keyword[], images: keyword[] }  (empty = cluster-wide)
 apply_both_scanners boolean     semantics pinned (D22)
+scanner           keyword       required iff NOT apply-both — which scanner a scanner-specific decision is for (M5c/D22)
 vex_justification keyword
 justification     text
 created_by        keyword       the accepting user (gated by can_accept_audit_final - SEC-2)
