@@ -94,3 +94,9 @@ as pure units** (Vitest).
   a green "clean" check when the other scanner disagrees — show the pair side-by-side (the D5b
   `count_delta` / D5a `disagree` flags carry this), and a zero-vs-nonzero pair deserves the same
   visual weight as a severity disagreement.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

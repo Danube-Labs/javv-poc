@@ -136,3 +136,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
      pattern (`lifecycle.py`/`staleness.py`) — `rebuild_state.py` follows it.
   7. Baseline: 312 backend tests; `tests/test_decisions.py` already pins the lifecycle incl. the
      revoke/edit race contracts — extend it, don't duplicate it.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

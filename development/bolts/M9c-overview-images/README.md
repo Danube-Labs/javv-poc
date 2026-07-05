@@ -99,3 +99,9 @@ as pure units** (Vitest).
   have **no `image_ref` field** — the tag is stored split as `image_repo` + `tag` (e.g. `nginx` +
   `1.21.6`). Image views must read/compose from those two fields (or this bolt adds a derived
   `image_ref` at read time); anything expecting a combined `image_ref` gets null today.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

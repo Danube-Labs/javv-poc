@@ -7,8 +7,14 @@ and the app **degrades loudly, not blindly** when its datastore is unavailable.
 > Implemented first in **M1** (the skeleton owns `/healthz`, `/readyz`, `/metrics`, structlog, and the error
 > envelope); the frontend degraded banner is **M9a**. Later bolts reuse this contract, never reinvent it.
 
-## 1. Structured logging (structlog)
-- **structlog, JSON in prod**, console-friendly in dev. One event per line; no `print`.
+## 1. Structured logging (structlog via `libs/javv-common`)
+- **The shared library is the ONLY pipeline** (#156/#159): `structlog.get_logger()` + key-value
+  fields, configured ONCE at process start by `javv_common.logging.configure_logging` (backend:
+  `create_app`; scanner: its entrypoint). Redaction, JSON rendering, `timestamp→level→event`
+  ordering, `JAVV_LOG_LEVEL`, and the stdlib bridge (uvicorn/opensearch-py/kubernetes) all come
+  free — **never `print()`, never `logging.getLogger()` in app code, never a private logging
+  setup**. (Operator rigs under `development/e2e/` are the one exception — stdout is their
+  interface.) One event per line.
 - **Bound context on every request:** `request_id` (generate if absent), `cluster_id` (when known), `path`,
   `method`, `status`, `duration_ms`. A single request's lines are greppable by `request_id`.
 - **Levels:** `debug` (dev detail) · `info` (lifecycle + each request) · `warning` (handled-but-notable:

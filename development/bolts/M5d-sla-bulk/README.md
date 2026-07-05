@@ -73,3 +73,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   first) — NOT a pending-approval workflow: creation is already SEC-2-gated and no "pending"
   state exists in the model. Flagged on #30 at kickoff; revisit only if a two-step approval flow
   becomes a requirement.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

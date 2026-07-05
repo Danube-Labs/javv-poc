@@ -87,3 +87,9 @@ is complete at the staleness slice.**
   reconcile → staleness) are the whole M3 implementation. Downstream docs updated: PLAN milestone table
   + §D-r3, CORRECTNESS-CONTRACT §9/#6/ladder, M5c + M8a READMEs. Mirrored on
   [#25](https://github.com/Danube-Labs/javv-poc/issues/25).
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

@@ -26,6 +26,9 @@ demonstrated - by an automated test wherever possible.
 - **No external broker** - coordination via OpenSearch; jobs are k8s CronJobs.
 - Indices touched? **Read [INDEX-MAP_v4.md](../../docs/engineering/V4/INDEX-MAP_v4.md) first**; `dynamic:false`
   + explicit mappings; never aggregate on `text`.
+- **Logging goes through the shared library only** (`libs/javv-common` structlog pipeline,
+  [observability.md §1](observability.md)) - never `print()`, never `logging.getLogger()` in app code,
+  never a private setup. Operator rigs under `development/e2e/` are the one exception.
 
 ## 5. Security
 - Request models use `extra="forbid"`; `cluster_id` shape validated at the edge.

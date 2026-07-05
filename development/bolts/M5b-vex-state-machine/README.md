@@ -101,3 +101,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   `system-decisions` index creation lands here (bootstrap + version bump); added the explicit
   **no-hardcoded-config stamp** (banner under Goal). Scope itself is unchanged — the bolt is
   fully doable on the M0–M5a base.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

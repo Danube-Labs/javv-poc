@@ -80,3 +80,9 @@ See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
   CI as a **compatibility gate** (see the new bolt), not a runtime switch. The envelope now stamps
   **`scanner_version` + vuln-DB version/built** (self-reported by the binary) for read-only version display +
   audit. Full decision: PLAN_v4 **D41**. Deploy mechanics (Helm tag value, per-schema DB cache) → M10.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**

@@ -91,3 +91,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   `compute_overdue`/`SlaPolicy` consumption, `state_decision_id` on findings, the shipped
   `/decisions/approvals` route, the `scan_order` catalog-read rule, the M8b-spike kickoff decision);
   noted the e2e smoke harness as the #117 measurement rig.
+
+## Logging (standing rule)
+> All app-code logging goes through the shared library: `structlog.get_logger()` on the
+> `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
+> `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
+> **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
