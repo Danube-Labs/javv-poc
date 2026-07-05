@@ -52,3 +52,7 @@ development/AUDIT.md
 # Codex (second independent auditor) — local setup, not part of the repo.
 .codex/
 AGENTS.md
+
+# e2e smoke run artifacts — commit script.sh + results.md, not the run logs.
+development/scripts/e2e-tests/*.log
+development/scripts/e2e-tests/*.pid
