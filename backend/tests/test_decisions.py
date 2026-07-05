@@ -384,3 +384,150 @@ async def test_ingest_projects_decisions_onto_newly_created_findings(real_os) ->
     for h in hits:
         assert h["_source"]["state"] == "risk_accepted"
         assert h["_source"]["state_decision_id"] == made["decision_id"]
+
+
+async def test_daily_sweep_reprojects_expired_decisions(real_os) -> None:
+    """SND-9/PLAN §5.7: expiry-refresh is the sweep's fallback arm — an expired decision stops
+    projecting at the NEXT sweep (and the next applicable rule takes over, here: none → open)."""
+    from backend.jobs.staleness import run_staleness_sweep
+
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix)
+    made = await create_decision(
+        client,
+        actor="ana",
+        payload=_payload(expiry="2027-01-01T00:00:00+00:00"),
+        prefix=prefix,
+    )
+    assert (await _finding(client, prefix, fk))["state"] == "risk_accepted"
+
+    # time passes: the decision is now expired (sweep runs with an injected `now` past expiry)
+    from datetime import UTC, datetime
+
+    result = await run_staleness_sweep(client, now=datetime(2027, 6, 1, tzinfo=UTC), prefix=prefix)
+
+    got = await _finding(client, prefix, fk)
+    assert (got["state"], got["state_decision_id"]) == ("open", None)
+    assert result["reprojected"] >= 1
+    assert made["decision_id"]  # the doc itself is untouched (expiry is data, not deletion)
+
+
+async def test_rebuild_state_reconstructs_the_projection_from_source(real_os) -> None:
+    """Self-heal (M5c DoD): corrupt the projected cache directly — rebuild_state reproduces the
+    identical projection from `system-decisions` source (both damage directions: a clobbered
+    projection AND a phantom projection pointing at a decision that no longer wins)."""
+    from backend.jobs.rebuild_state import rebuild_decision_projection
+
+    client, prefix = real_os
+    fk_projected = await _seed_finding(client, prefix)
+    made = await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
+    fk_phantom = await _seed_finding(
+        client, prefix, cve_id="CVE-none", state="risk_accepted", state_decision_id="ghost"
+    )
+
+    # damage 1: wipe the real projection; damage 2 is fk_phantom's ghost provenance
+    await client.update(
+        index=f"{prefix}findings",
+        id=fk_projected,
+        body={"doc": {"state": "open", "state_decision_id": None}},
+        params={"refresh": "true"},
+    )
+
+    result = await rebuild_decision_projection(client, prefix=prefix)
+
+    got = await _finding(client, prefix, fk_projected)
+    assert (got["state"], got["state_decision_id"]) == ("risk_accepted", made["decision_id"])
+    ghost = await _finding(client, prefix, fk_phantom)
+    assert (ghost["state"], ghost["state_decision_id"]) == ("open", None)
+    assert result["reprojected"] >= 2
+
+
+# --- THE M5c GATE (D22, PLAN §8): apply_both independence + scanner override ---------
+
+
+async def test_gate_apply_both_projects_independently_and_scanner_specific_overrides(
+    real_os,
+) -> None:
+    """PLAN M5c gate: a both-scanners decision on (cluster, cve, scope) projects onto EACH
+    scanner's finding independently and each closes on its own; a scanner-specific decision
+    OUTRANKS the both-scanners one for that scanner only."""
+    client, prefix = real_os
+    fk_trivy = await _seed_finding(client, prefix, scanner="trivy")
+    fk_grype = await _seed_finding(client, prefix, scanner="grype")
+
+    both = await create_decision(
+        client,
+        actor="ana",
+        payload=_payload(scope={"namespaces": [], "images": []}),
+        prefix=prefix,
+    )
+    for fk in (fk_trivy, fk_grype):  # projects onto each scanner's finding independently
+        got = await _finding(client, prefix, fk)
+        assert (got["state"], got["state_decision_id"]) == ("risk_accepted", both["decision_id"])
+
+    # a grype-specific not_affected outranks the both-scanners decision — for grype ONLY
+    mine = await create_decision(
+        client,
+        actor="ana",
+        payload=_payload(
+            type="not_affected",
+            apply_both_scanners=False,
+            scanner="grype",
+            vex_justification="component_not_present",
+            scope={"namespaces": [], "images": []},
+            expiry=None,
+        ),
+        prefix=prefix,
+    )
+    got_g = await _finding(client, prefix, fk_grype)
+    assert (got_g["state"], got_g["state_decision_id"]) == ("not_affected", mine["decision_id"])
+    assert got_g["vex_justification"] == "component_not_present"
+    got_t = await _finding(client, prefix, fk_trivy)  # trivy still follows the both-scanners one
+    assert (got_t["state"], got_t["state_decision_id"]) == ("risk_accepted", both["decision_id"])
+
+    # each closes on its own: revoking the grype-specific one releases grype BACK to the
+    # both-scanners decision (next applicable rule — never a gap to open)
+    await revoke_decision(client, actor="ana", decision_id=mine["decision_id"], prefix=prefix)
+    got_g = await _finding(client, prefix, fk_grype)
+    assert (got_g["state"], got_g["state_decision_id"]) == ("risk_accepted", both["decision_id"])
+
+
+async def test_concurrent_edits_leave_one_active_winner_and_a_consistent_projection(
+    real_os,
+) -> None:
+    """DoD concurrency: racing edits on one decision — exactly one pair wins (the loser
+    compensates, task A M-2) and the projection matches the surviving active decision."""
+    from backend.decisions.lifecycle import DECISIONS_INDEX
+
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix)
+    made = await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
+
+    async def racer(justification: str):
+        try:
+            return await edit_decision(
+                client,
+                actor="ana",
+                decision_id=made["decision_id"],
+                changes={"justification": justification},
+                prefix=prefix,
+            )
+        except ValueError:
+            return None  # lost the race — compensated (its successor is revoked)
+
+    results = await asyncio.gather(racer("edit A"), racer("edit B"))
+    winners = [r for r in results if r is not None]
+    assert len(winners) == 1  # exactly one edit landed
+
+    await client.indices.refresh(index=f"{prefix}{DECISIONS_INDEX}")
+    resp = await client.search(
+        index=f"{prefix}{DECISIONS_INDEX}",
+        body={
+            "size": 10,
+            "query": {"bool": {"must_not": [{"exists": {"field": "revoked_at"}}]}},
+        },
+    )
+    active = [h["_source"] for h in resp["hits"]["hits"]]
+    assert len(active) == 1  # never two active decisions for the pair
+    got = await _finding(client, prefix, fk)
+    assert (got["state"], got["state_decision_id"]) == ("risk_accepted", active[0]["decision_id"])

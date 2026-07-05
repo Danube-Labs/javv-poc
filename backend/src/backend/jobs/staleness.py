@@ -209,7 +209,38 @@ async def run_staleness_sweep(
             )
         # else N <= silent < M: HELD — banner only (read-time), no state change
 
-    return {"staled": staled, "reverted": reverted}
+    # decision expiry-refresh (M5c/SND-9, PLAN §5.7): re-project every (cluster, cve) that has an
+    # expired-but-unrevoked decision — the projector drops the dead winner and the next applicable
+    # rule takes over (or the finding reverts to open). Idempotent; the decision doc is untouched.
+    from backend.decisions.lifecycle import DECISIONS_INDEX
+    from backend.decisions.reproject import reproject_cve
+
+    reprojected = 0
+    try:
+        expired = await client.search(
+            index=f"{prefix}{DECISIONS_INDEX}",
+            body={
+                "size": 10_000,
+                "query": {
+                    "bool": {
+                        "filter": [{"range": {"expiry": {"lte": now.isoformat()}}}],
+                        "must_not": [{"exists": {"field": "revoked_at"}}],
+                    }
+                },
+                "_source": ["cluster_id", "cve_id"],
+            },
+        )
+        pairs = {
+            (h["_source"]["cluster_id"], h["_source"]["cve_id"]) for h in expired["hits"]["hits"]
+        }
+        for cluster_id, cve_id in sorted(pairs):
+            reprojected += await reproject_cve(
+                client, cluster_id, cve_id, at=now.isoformat(), prefix=prefix
+            )
+    except NotFoundError:
+        pass  # no decisions index yet (pre-M5b data) — nothing to refresh
+
+    return {"staled": staled, "reverted": reverted, "reprojected": reprojected}
 
 
 if __name__ == "__main__":  # daily CronJob entrypoint + interim timer-config CLI (until M9e UI)

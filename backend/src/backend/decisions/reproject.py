@@ -34,10 +34,16 @@ _PAGE = 10_000  # findings per (cluster, cve) fits one page; guarded by the asse
 
 
 async def reproject_cve(
-    client: AsyncOpenSearch, cluster_id: str, cve_id: str, *, prefix: str = ""
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    cve_id: str,
+    *,
+    at: str | None = None,
+    prefix: str = "",
 ) -> int:
-    """Re-project every finding of `(cluster, cve)`; returns docs updated. Idempotent."""
-    at = datetime.now(UTC).isoformat()
+    """Re-project every finding of `(cluster, cve)` as of `at` (default: now); returns docs
+    updated. Idempotent. `at` is injected by the sweep so expiry is judged at ITS clock."""
+    at = at or datetime.now(UTC).isoformat()
     decisions_resp = await client.search(
         index=f"{prefix}{DECISIONS_INDEX}",
         body={
