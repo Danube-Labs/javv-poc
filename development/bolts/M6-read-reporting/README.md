@@ -21,7 +21,7 @@ first read load that contends with it, so it's the first time it can storm. Mark
 OpenSearch `refresh` count/time; if flat, close [#117](https://github.com/Danube-Labs/javv-poc/issues/117)
 with the numbers; if it storms, replace the per-envelope refresh with a **bounded reconcile**
 (batch/debounce per `(cluster, scanner)` cycle, or `refresh=wait_for` on the merge writes). Don't fix blind.
-The e2e smoke harness (`development/scripts/e2e-tests/script.sh`) is the natural measurement rig.
+The e2e smoke harness (`development/e2e/smoke.sh`) is the natural measurement rig.
 
 ## Carried-in from M5c/M5d — what already exists, consume it (don't rebuild)
 - **Tenant chokepoint is built** — `tenancy/chokepoint.py` (`tenant_search`/`tenant_query`, SEC-4): it

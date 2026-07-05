@@ -11,12 +11,12 @@ cycles: cycle 1 = create path, cycle 2 = merge + reconcile path (same digests, n
 Around each cycle it samples `findings/_stats/refresh` (external refresh count + cumulative time)
 and reports per-envelope latency percentiles + refresh cost.
 
-PREREQUISITES (same as script.sh — this does NOT start them):
+PREREQUISITES (same as smoke.sh — this does NOT start them):
   1. OpenSearch up at :9200
   2. Backend:  cd backend && JAVV_ENV=dev JAVV_BOOTSTRAP_ADMIN_USERNAME=admin \
                  JAVV_BOOTSTRAP_ADMIN_PASSWORD=smoke-admin-pw \
                  uv run uvicorn backend.main:app --port 8000
-Run:  cd backend && uv run python ../development/scripts/e2e-tests/bench_117.py
+Run:  cd backend && uv run python ../development/e2e/bench_refresh.py
 Residue: everything lands under cluster_ids `c-bench-*` (wipe = compose down -v && up -d).
 """
 

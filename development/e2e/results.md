@@ -8,7 +8,7 @@ Environment: OpenSearch 3.7.0 (docker, wiped fresh), backend on `localhost:8000`
 (`JAVV_ENV=dev`), k3d `alpha`, trivy + grype on PATH. Bootstrap admin `admin` / `smoke-admin-pw`
 (rotated to `smoke-admin-rotated-pw` on first login).
 
-Per-component logs live next to this file: `backend.log`, `scanner-trivy.log`,
+Per-component logs live in `./logs/` (gitignored): `backend.log`, `scanner-trivy.log`,
 `scanner-grype.log`, `jobs.log`, `cluster.log`, `opensearch.log`.
 
 ---
@@ -93,7 +93,7 @@ The two nginx tags were the point of this run — see the tag-comparison result 
 
 ## Reproduce
 
-`./script.sh` in this directory (assumes OpenSearch + k3d `alpha` + backend are up; see the header
+`./smoke.sh` in this directory (assumes OpenSearch + k3d `alpha` + backend are up; see the header
 of the script). It re-runs the workload deploy → token mint → both scan cycles → verification and
 refreshes these logs. The manual first pass that produced this file matched the script step-for-step.
 
