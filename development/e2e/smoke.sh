@@ -7,19 +7,20 @@
 #   2. Backend:     cd backend && JAVV_ENV=dev JAVV_BOOTSTRAP_ADMIN_USERNAME=admin \
 #                     JAVV_BOOTSTRAP_ADMIN_PASSWORD=smoke-admin-pw \
 #                     uv run uvicorn backend.main:app --port 8000 \
-#                       > development/scripts/e2e-tests/backend.log 2>&1
+#                       > development/e2e/logs/backend.log 2>&1
 #                   (pipe to backend.log — the log-assertion phase reads it; JAVV_LOG_LEVEL=debug
 #                    additionally surfaces every OpenSearch request, see docs/CONFIGURATION.md)
 #                   (for a clean run, wipe first: docker compose ... down -v && up -d)
 #   3. k3d cluster 'alpha' + trivy/grype on PATH.
 #
-# Writes per-component logs beside this script: backend.log is produced by the backend process
-# itself; this script writes scanner-*.log, cluster.log, jobs.log, opensearch.log and refreshes
-# results.md's underlying data. Run from anywhere.
+# Writes per-component logs into ./logs/ (gitignored): backend.log is produced by the backend
+# process itself; this script writes scanner-*.log, cluster.log, jobs.log, opensearch.log and
+# refreshes results.md's underlying data. Run from anywhere.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT="$(cd "$HERE/../../.." && pwd)"
+ROOT="$(cd "$HERE/../.." && pwd)"
+LOGS="$HERE/logs"; mkdir -p "$LOGS"
 BACKEND="http://localhost:8000"
 OS="http://localhost:9200"
 CTX="k3d-alpha"
@@ -55,7 +56,7 @@ curl -s -b "$COOKIES" "$BACKEND/auth/me" | grep -q '"must_change":false' || fail
 
 # ---- 2. workloads: seed + a SECOND nginx tag --------------------------------
 say "workloads (seed + second nginx tag)"
-CLOG="$HERE/cluster.log"; : > "$CLOG"
+CLOG="$LOGS/cluster.log"; : > "$CLOG"
 {
   echo "########## workloads @ $(date -u +%FT%TZ) ##########"
   kubectl --context "$CTX" apply -f "$ROOT/development/setup/seed-vuln-workloads.yaml"
@@ -86,8 +87,8 @@ run_scanner() { # $1=scanner $2=token $3=logfile $4=label [$5="EXTRA=env EXTRA2=
       uv run python -m scanner ) >> "$3" 2>&1
   tail -1 "$3"
 }
-say "trivy cycle 1";  TLOG="$HERE/scanner-trivy.log"; : > "$TLOG"; run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle 1"
-say "grype cycle 1";  GLOG="$HERE/scanner-grype.log"; : > "$GLOG"; run_scanner grype "$TOK_GRYPE" "$GLOG" "cycle 1"
+say "trivy cycle 1";  TLOG="$LOGS/scanner-trivy.log"; : > "$TLOG"; run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle 1"
+say "grype cycle 1";  GLOG="$LOGS/scanner-grype.log"; : > "$GLOG"; run_scanner grype "$TOK_GRYPE" "$GLOG" "cycle 1"
 say "trivy cycle 2 (idempotency/reconcile)"; run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle 2"
 
 # ---- 5. verify --------------------------------------------------------------
@@ -152,9 +153,9 @@ echo "after full cycle: present=true restored to $RESTORED (baseline $BASE_PRESE
 
 # ---- 6b. log-content assertions (#158/#159): the pipeline itself is a contract ----
 say "log assertions"
-grep -q '"event": "ingest committed"' "$HERE/backend.log" 2>/dev/null \
+grep -q '"event": "ingest committed"' "$LOGS/backend.log" 2>/dev/null \
   || fail "backend.log has no 'ingest committed' JSON line (is the backend logging to it?)"
-grep '"event": "ingest committed"' "$HERE/backend.log" | head -1 | jq -e .cluster_id >/dev/null \
+grep '"event": "ingest committed"' "$LOGS/backend.log" | head -1 | jq -e .cluster_id >/dev/null \
   || fail "backend.log ingest line is not parseable JSON with cluster_id"
 grep -q '"event": "scanning image"' "$TLOG" || fail "scanner log has no per-image progress lines"
 grep -q '"event": "scan done"' "$TLOG" || fail "scanner log has no scan-done lines"
@@ -163,7 +164,7 @@ echo "backend JSON ingest lines + scanner per-image progress: present and parsea
 
 # ---- 7. background jobs -----------------------------------------------------
 say "background jobs"
-JLOG="$HERE/jobs.log"; : > "$JLOG"
+JLOG="$LOGS/jobs.log"; : > "$JLOG"
 {
   echo "########## jobs @ $(date -u +%FT%TZ) ##########"
   ( cd "$ROOT/backend" && JAVV_OPENSEARCH_URL="$OS" uv run python -m backend.jobs.staleness )
@@ -172,7 +173,7 @@ JLOG="$HERE/jobs.log"; : > "$JLOG"
 
 # ---- 8. opensearch log snapshot --------------------------------------------
 say "opensearch log snapshot"
-OLOG="$HERE/opensearch.log"
+OLOG="$LOGS/opensearch.log"
 {
   echo "########## OpenSearch container log @ $(date -u +%FT%TZ) ##########"
   docker logs javv-opensearch 2>&1 | tail -40
@@ -180,4 +181,4 @@ OLOG="$HERE/opensearch.log"
   curl -s "$OS/_cat/indices?v&s=index"
 } > "$OLOG"
 
-say "DONE — smoke green. See results.md and the per-component *.log files in this directory."
+say "DONE — smoke green. See results.md and the per-component logs in ./logs/."
