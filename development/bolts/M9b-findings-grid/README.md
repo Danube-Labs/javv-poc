@@ -85,3 +85,12 @@ as pure units** (Vitest).
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-05 (pre-kickoff, from the first e2e smoke — #156 finding 4):** real-scanner divergence
+  can be total: trivy reported **0** findings on alpine:3.14 where grype found **73** (EOL secdb —
+  both scans committed, the trivy one with `total=0`). UI rule: never render one scanner's zero as
+  a green "clean" check when the other scanner disagrees — show the pair side-by-side (the D5b
+  `count_delta` / D5a `disagree` flags carry this), and a zero-vs-nonzero pair deserves the same
+  visual weight as a severity disagreement.
