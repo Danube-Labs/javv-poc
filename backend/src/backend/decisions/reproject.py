@@ -115,3 +115,35 @@ async def reproject_cve(
             updated=len(actions) // 2,
         )
     return len(actions) // 2
+
+
+async def project_at_ingest(
+    client: AsyncOpenSearch, cluster_id: str, cve_ids: list[str], *, prefix: str = ""
+) -> int:
+    """D19's ingest arm: project decisions onto the CVEs a fresh commit touched. One terms
+    query finds which of the envelope's CVEs have decisions at all (rare) — only those are
+    reprojected, so an ingest with no matching decisions costs a single search. New findings
+    get the cascade; unchanged ones are delta-checked and untouched (delta-only writes)."""
+    if not cve_ids:
+        return 0
+    resp = await client.search(
+        index=f"{prefix}{DECISIONS_INDEX}",
+        body={
+            "size": 0,
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"cluster_id": cluster_id}},
+                        {"terms": {"cve_id": cve_ids}},
+                    ]
+                }
+            },
+            "aggs": {"cves": {"terms": {"field": "cve_id", "size": len(cve_ids)}}},
+        },
+    )
+    buckets = resp.get("aggregations", {}).get("cves", {}).get("buckets", [])
+    decided = [b["key"] for b in buckets]
+    updated = 0
+    for cve_id in decided:
+        updated += await reproject_cve(client, cluster_id, cve_id, prefix=prefix)
+    return updated

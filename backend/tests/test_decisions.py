@@ -336,3 +336,51 @@ async def test_edit_reprojects_once_after_both_writes(real_os) -> None:
     got = await _finding(client, prefix, fk)
     assert (got["state"], got["state_decision_id"]) == ("open", None)
     assert new["operation_id"]  # the pair landed; projection ran after both (D40/G-r3)
+
+
+async def test_ingest_projects_decisions_onto_newly_created_findings(real_os) -> None:
+    """D19: projection-on-new-only at ingest — a pre-existing cluster-wide decision applies to
+    findings a later scan CREATES, without a manual reproject. (Unchanged findings are only
+    delta-checked — reproject writes deltas exclusively, so no-op writes never happen.)"""
+    import json
+    from pathlib import Path
+
+    from backend.models.envelope import IngestEnvelope
+    from backend.services.ingest import ingest_envelope
+
+    client, prefix = real_os
+    golden = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
+    env = IngestEnvelope.model_validate(golden)
+    made = await create_decision(
+        client,
+        actor="ana",
+        payload=_payload(
+            cve_id="CVE-2005-2541",
+            cluster_id=env.cluster_id,
+            scope={"namespaces": [], "images": []},
+        ),
+        prefix=prefix,
+    )
+
+    await ingest_envelope(client, env, prefix=prefix)
+
+    await client.indices.refresh(index=f"{prefix}findings")
+    resp = await client.search(
+        index=f"{prefix}findings",
+        body={
+            "size": 10,
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"cluster_id": env.cluster_id}},
+                        {"term": {"cve_id": "CVE-2005-2541"}},
+                    ]
+                }
+            },
+        },
+    )
+    hits = resp["hits"]["hits"]
+    assert hits, "the golden envelope must create CVE-2005-2541 findings"
+    for h in hits:
+        assert h["_source"]["state"] == "risk_accepted"
+        assert h["_source"]["state_decision_id"] == made["decision_id"]
