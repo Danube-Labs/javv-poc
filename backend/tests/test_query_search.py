@@ -150,10 +150,10 @@ async def test_run_search_resumes_from_cursor() -> None:
         pit_id="pit-live", search_after=[4, "fk-1"], sort="severity_rank", order="desc"
     )
     out = await run_search(
-        fake,
+        fake,  # type: ignore[arg-type]
         cluster_id="c-unit-search",
         filters=SearchFilters(),
-        size=2,  # type: ignore[arg-type]
+        size=2,
         cursor=cur,
     )
     assert fake.created == 0  # resumed, not reopened
@@ -162,12 +162,24 @@ async def test_run_search_resumes_from_cursor() -> None:
     assert out["next_cursor"] is None and fake.deleted == ["pit-live"]
 
 
-async def test_run_search_deletes_a_fresh_pit_on_error() -> None:
+async def test_run_search_deletes_a_fresh_pit_on_error(monkeypatch) -> None:
     class _Boom(_PitOS):
         async def search(self, **kw: Any) -> dict[str, Any]:
             raise RuntimeError("shard exploded")
 
+    # capture_logs can't see a proxy already bound under the cached prod config — swap fresh
+    import structlog
+
+    from backend.query import search as search_module
+
+    monkeypatch.setattr(search_module, "log", structlog.get_logger())
+
     fake = _Boom(pages=[])
-    with pytest.raises(RuntimeError):
+    with structlog.testing.capture_logs() as logs, pytest.raises(RuntimeError):
         await run_search(fake, cluster_id="c-unit-search", filters=SearchFilters(), size=2)  # type: ignore[arg-type]
     assert fake.deleted == ["pit-1"]  # no orphaned PIT on the error path (D38)
+    # the reclaim is observable — a blown-up page is an operational event, not a silent retry
+    assert any(
+        e["event"] == "search page failed — PIT reclaimed" and e["log_level"] == "warning"
+        for e in logs
+    )
