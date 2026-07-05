@@ -10,6 +10,7 @@ from backend.core.logging import configure_logging, install_request_context
 from backend.routers import (
     admin_users,
     auth,
+    contributors,
     decisions,
     findings,
     health,
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(triage.router)
     app.include_router(findings.router)
     app.include_router(trends.router)
+    app.include_router(contributors.router)
     app.include_router(decisions.router)
     app.include_router(sla_routes.router)
     app.include_router(bulk_routes.router)

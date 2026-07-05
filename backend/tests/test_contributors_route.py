@@ -1,0 +1,188 @@
+"""M6 slice 4 — GET /api/v1/contributors against real OpenSearch.
+
+Pins: the leaderboard reads the AUDIT LOG (history-faithful — metrics come from journaled
+rows, not live findings state); machines (`actor=system`) never chart; TTR/SLA against the
+live policy (crit handled in 1d = hit, in 3d = miss); tenant isolation; the uniform as_of seam.
+"""
+
+import os
+import uuid
+from datetime import UTC, datetime, timedelta
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.audit.writer import append_field_change
+from backend.auth.capabilities import seed_default_roles
+from backend.auth.passwords import hash_password
+from backend.core.bootstrap import bootstrap
+from backend.core.settings import get_settings
+from backend.main import create_app
+
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+PASSWORD = "contrib-route-password"
+
+
+def _os_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+
+
+@pytest.fixture(autouse=True)
+def _clear_settings_cache():
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+async def env():
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    await bootstrap(client)
+    await seed_default_roles(client)
+    app = create_app()
+    app.state.opensearch = client
+    transport = httpx.ASGITransport(app=app)
+    jars: list[httpx.AsyncClient] = []
+
+    async def login() -> httpx.AsyncClient:
+        username = f"u-{uuid.uuid4().hex[:12]}"
+        await client.index(
+            index="system-users",
+            id=username,
+            body={
+                "username": username,
+                "password_hash": hash_password(PASSWORD),
+                "role": "viewer",
+                "capabilities": [],
+                "must_change": False,
+                "disabled": False,
+                "auth_source": "local",
+                "external_id": None,
+                "created_at": "2026-07-05T00:00:00+00:00",
+            },
+            params={"refresh": "true"},
+        )
+        http = httpx.AsyncClient(transport=transport, base_url="https://t")
+        jars.append(http)
+        r = await http.post("/auth/login", json={"username": username, "password": PASSWORD})
+        assert r.status_code == 200
+        return http
+
+    yield login, client
+    for http in jars:
+        await http.aclose()
+    await client.close()
+
+
+async def _seed_finding(
+    client: AsyncOpenSearch, cid: str, fk: str, *, first_seen: datetime, severity: str = "crit"
+) -> None:
+    await client.index(
+        index="findings",
+        id=fk,
+        body={
+            "finding_key": fk,
+            "cluster_id": cid,
+            "scanner": "trivy",
+            "cve_id": "CVE-2024-6000",
+            "image_digest": "sha256:contrib01",
+            "namespaces": ["default"],
+            "state": "resolved",
+            "present": True,
+            "severity": severity,
+            "severity_rank": 5,
+            "kev": False,
+            "first_seen_at": first_seen.isoformat(),
+        },
+        params={"refresh": "true"},
+    )
+
+
+async def _journal(
+    client: AsyncOpenSearch, cid: str, actor: str, fk: str, action: str, field: str = "state"
+) -> None:
+    await append_field_change(
+        client,
+        actor=actor,
+        action=action,
+        entity_type="finding",
+        entity_id=fk,
+        field=field,
+        old_value="open",
+        new_value=action,
+        revision=1,
+        cluster_id=cid,
+        finding_key=fk,
+    )
+
+
+async def test_leaderboard_ttr_sla_and_isolation(env) -> None:
+    login, client = env
+    cid = f"c-contrib-{uuid.uuid4().hex[:8]}"
+    ana, bo = f"ana-{uuid.uuid4().hex[:6]}", f"bo-{uuid.uuid4().hex[:6]}"
+    now = datetime.now(UTC)
+
+    # ana: crit first_seen 1d ago, handled now → 1d TTR, inside the 2d crit SLA (hit)
+    await _seed_finding(client, cid, "fk-hit", first_seen=now - timedelta(days=1))
+    await _journal(client, cid, ana, "fk-hit", "resolve")
+    # ana: crit first_seen 3d ago, handled now → SLA missed
+    await _seed_finding(client, cid, "fk-miss", first_seen=now - timedelta(days=3))
+    await _journal(client, cid, ana, "fk-miss", "acknowledge")
+    # ana: an assign — counts as an action, never as handling
+    await _journal(client, cid, ana, "fk-hit", "assign", field="assignee")
+    # bo: one handling row
+    await _seed_finding(client, cid, "fk-bo", first_seen=now - timedelta(days=1))
+    await _journal(client, cid, bo, "fk-bo", "resolve")
+    # the machine journals too — and must never chart
+    await _journal(client, cid, "system", "fk-hit", "resolve")
+    await client.indices.refresh(index="system-audit-log-*")
+
+    http = await login()
+    r = await http.get("/api/v1/contributors", params={"cluster_id": cid, "days": 30})
+    assert r.status_code == 200
+    out = r.json()
+    board = {row["actor"]: row for row in out["leaderboard"]}
+    assert "system" not in board  # machines never make the leaderboard
+    assert board[ana]["actions"] == 3 and board[ana]["handled"] == 2
+    assert board[ana]["by_action"] == {"resolve": 1, "acknowledge": 1, "assign": 1}
+    assert board[ana]["sla_hit_pct"] == 50.0  # one hit, one miss
+    assert board[ana]["median_ttr_seconds"] == pytest.approx(2 * 86400, rel=0.02)
+    assert board[bo]["sla_hit_pct"] == 100.0
+
+    today = now.date().isoformat()
+    handled_today = [p for p in out["handled_over_time"] if p["date"].startswith(today)]
+    assert handled_today and handled_today[0]["count"] == 3  # ana's 2 + bo's 1
+
+    # tenant isolation: a fresh cluster sees an empty board — never these rows
+    other = f"c-contrib-{uuid.uuid4().hex[:8]}"
+    r = await http.get("/api/v1/contributors", params={"cluster_id": other, "days": 30})
+    assert r.status_code == 200
+    assert r.json()["leaderboard"] == []
+
+    r = await http.get(
+        "/api/v1/contributors",
+        params={"cluster_id": cid, "as_of": "2026-01-01T00:00:00Z"},
+    )
+    assert r.status_code == 501  # the uniform D28 seam
+
+
+async def test_vanished_finding_degrades_gracefully(env) -> None:
+    login, client = env
+    cid = f"c-contrib-{uuid.uuid4().hex[:8]}"
+    cy = f"cy-{uuid.uuid4().hex[:6]}"
+    await _journal(client, cid, cy, "fk-retention-dropped", "resolve")  # no finding doc
+    await client.indices.refresh(index="system-audit-log-*")
+
+    http = await login()
+    r = await http.get("/api/v1/contributors", params={"cluster_id": cid, "days": 30})
+    assert r.status_code == 200
+    (row,) = r.json()["leaderboard"]
+    assert row["handled"] == 1  # the work still counts…
+    assert row["median_ttr_seconds"] is None and row["sla_hit_pct"] is None  # …no clock
