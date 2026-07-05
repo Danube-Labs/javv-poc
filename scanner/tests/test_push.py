@@ -108,3 +108,23 @@ def test_exhausted_transient_retries_dead_letter(tmp_path: Path) -> None:
     assert len(requests) == 3
     assert len(sleeps) == 2  # slept between attempts, not after the last
     assert len(dl.read_text().splitlines()) == 1
+
+
+def test_dead_letter_logs_a_warning(tmp_path: Path) -> None:
+    """An envelope falling out of delivery is an operator signal (#156) — WARNING, with the path."""
+    import structlog
+
+    from scanner import push as push_module
+
+    push_module.log = structlog.get_logger()  # fresh proxy (cached-pipeline trap)
+
+    env = make_envelope()
+    dl = tmp_path / "dl.jsonl"
+    client, _ = client_for([400])
+
+    with structlog.testing.capture_logs() as logs:
+        push(env, client, dl)
+
+    warnings = [e for e in logs if e["event"] == "envelope dead-lettered"]
+    assert warnings and warnings[0]["log_level"] == "warning"
+    assert warnings[0]["path"] == str(dl)

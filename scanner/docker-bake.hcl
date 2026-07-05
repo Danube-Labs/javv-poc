@@ -1,7 +1,7 @@
 # Build the compatible, pinned scanner images from one Dockerfile per scanner (M0b / D41).
 # One Dockerfile, built across a matrix of versions → N pinned image tags. The version lists
 # default to the current pins here but are overridden in CI from versions.yaml (single source, D42).
-# Run from the scanner/ dir (context = "."), e.g.:
+# Run from the scanner/ dir (context = ".." — the repo root: the image needs libs/javv-common):
 #   docker buildx bake -f docker-bake.hcl --print
 #   docker buildx bake -f docker-bake.hcl --set '*.platform=linux/amd64'
 variable "REGISTRY" {
@@ -28,8 +28,8 @@ group "default" {
 target "trivy" {
   name       = "trivy-${replace(ver, ".", "-")}"
   matrix     = { ver = split(",", TRIVY_VERSIONS) }
-  context    = "."
-  dockerfile = "Dockerfile.trivy"
+  context    = ".."
+  dockerfile = "scanner/Dockerfile.trivy"
   args       = { TRIVY_VERSION = ver }
   tags = [
     "${REGISTRY}/javv-scanner-trivy:${ver}",            # moving: latest build of this scanner version
@@ -46,8 +46,8 @@ target "trivy" {
 target "grype" {
   name       = "grype-${replace(ver, ".", "-")}"
   matrix     = { ver = split(",", GRYPE_VERSIONS) }
-  context    = "."
-  dockerfile = "Dockerfile.grype"
+  context    = ".."
+  dockerfile = "scanner/Dockerfile.grype"
   args       = { GRYPE_VERSION = ver }
   tags = [
     "${REGISTRY}/javv-scanner-grype:${ver}",
