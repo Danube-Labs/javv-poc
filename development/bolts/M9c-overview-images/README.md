@@ -92,3 +92,10 @@ as pure units** (Vitest).
 > `system-config` key, or a scanner scan flag) to
 > [`docs/CONFIGURATION.md`](../../../docs/CONFIGURATION.md) in the same PR — default · how it's set ·
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
+
+## Updates
+
+- **2026-07-05 (pre-kickoff, from the first e2e smoke — #156 finding 3):** the `javv-images` docs
+  have **no `image_ref` field** — the tag is stored split as `image_repo` + `tag` (e.g. `nginx` +
+  `1.21.6`). Image views must read/compose from those two fields (or this bolt adds a derived
+  `image_ref` at read time); anything expecting a combined `image_ref` gets null today.
