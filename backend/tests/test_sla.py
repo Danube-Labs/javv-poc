@@ -14,8 +14,18 @@ Rulings pinned here:
 - Storage: fleet-wide `system-config` doc (`sla`), LifecycleKnobs pattern, read live per request.
 """
 
+import os
+import uuid
 from datetime import UTC, datetime
 
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.auth.capabilities import seed_default_roles
+from backend.auth.passwords import hash_password
+from backend.core.bootstrap import bootstrap
+from backend.main import create_app
 from backend.sla.overdue import compute_overdue
 from backend.sla.policy import SlaPolicy
 
@@ -85,3 +95,91 @@ def test_boundary_exactly_at_deadline_is_not_overdue() -> None:
     got = compute_overdue([edge], policy=SlaPolicy(), now=NOW)
     assert not got["fk-edge"].overdue
     assert got["fk-edge"].due_at == "2026-07-10T00:00:00+00:00"
+
+
+# --- routes (integration): read for all, write admin-gated + journaled -----------------
+
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+
+
+def _os_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+requires_opensearch = pytest.mark.skipif(
+    not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}"
+)
+
+
+@pytest.fixture
+async def env():
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    await bootstrap(client)
+    await seed_default_roles(client)
+    app = create_app()
+    app.state.opensearch = client
+    transport = httpx.ASGITransport(app=app)
+    jars: list[httpx.AsyncClient] = []
+
+    async def login_with(capabilities: list[str]) -> httpx.AsyncClient:
+        username = f"u-{uuid.uuid4().hex[:12]}"
+        await client.index(
+            index="system-users",
+            id=username,
+            body={
+                "username": username,
+                "password_hash": hash_password("sla-route-password"),
+                "role": "custom",
+                "capabilities": capabilities,
+                "must_change": False,
+                "disabled": False,
+                "auth_source": "local",
+                "external_id": None,
+                "created_at": "2026-07-05T00:00:00+00:00",
+            },
+            params={"refresh": "true"},
+        )
+        http = httpx.AsyncClient(transport=transport, base_url="https://t")
+        jars.append(http)
+        r = await http.post(
+            "/auth/login", json={"username": username, "password": "sla-route-password"}
+        )
+        assert r.status_code == 200
+        return http
+
+    yield login_with, client
+    for http in jars:
+        await http.aclose()
+    await client.close()
+
+
+@requires_opensearch
+async def test_sla_read_for_all_write_admin_gated_and_journaled(env) -> None:
+    login_with, client = env
+    triager = await login_with(["can_triage"])
+
+    r = await triager.get("/api/v1/settings/sla")
+    assert r.status_code == 200 and r.json()["sla"]["crit_days"] == 2  # defaults
+
+    body = {"crit_days": 1, "high_days": 5, "med_days": 20, "low_days": 60, "kev_days": 0.5}
+    assert (await triager.put("/api/v1/settings/sla", json=body)).status_code == 403
+
+    admin = await login_with(["can_manage_settings"])
+    r = await admin.put("/api/v1/settings/sla", json=body)
+    assert r.status_code == 200
+    assert (await triager.get("/api/v1/settings/sla")).json()["sla"]["crit_days"] == 1
+
+    await client.indices.refresh(index="system-audit-log")
+    rows = await client.search(
+        index="system-audit-log*",
+        body={"size": 5, "query": {"term": {"action": "sla_policy_change"}}},
+    )
+    assert rows["hits"]["total"]["value"] >= 1  # the edit is journaled (D17)
+
+    # restore defaults so re-runs and other suites see the documented values
+    from backend.sla.policy import SlaPolicy, write_sla_policy
+
+    await write_sla_policy(client, SlaPolicy(), updated_by="test-restore")

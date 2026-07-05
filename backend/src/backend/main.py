@@ -19,6 +19,7 @@ from backend.routers import (
     tokens,
     triage,
 )
+from backend.sla import routes as sla_routes
 
 
 def create_app() -> FastAPI:
@@ -36,6 +37,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_users.router)
     app.include_router(triage.router)
     app.include_router(decisions.router)
+    app.include_router(sla_routes.router)
     return app
 
 
