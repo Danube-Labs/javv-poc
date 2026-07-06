@@ -18,6 +18,10 @@ things get hardcoded:
 
 **Rule:** credentials never go in ① or ③ — only in a secret store (OpenSearch keystore, k8s Secret).
 
+A **fourth category sits outside configuration entirely: frozen internal constants** (§8) — code-level
+batch sizes and safety ceilings that are deliberately *not* exposed as knobs. See §8 for the motive
+and the frozen-vs-knob test.
+
 Legend for the **UI?** column below: ⚙️ **GitOps** (build-time, never UI, by design) · ✅ **Planned**
 (a bolt owns the UI) · ❌ **Gap** (no owner yet) · 🔒 secret · n/a.
 
@@ -165,3 +169,29 @@ pattern D43 blesses; scanner **tuning** flags deliberately do **not** use it (th
 scan-events for the M9e per-scanner cards and audit. Display, not control: there is no
 `scanner_config` write path; tuning stays env-var/GitOps. The v2→v3 bump is a **flag-day**: scanner
 images and backend deploy in lockstep (older envelopes 422 by design).
+
+---
+
+## 8. Frozen internal constants — deliberately *not* knobs
+
+> Not every literal is configuration. These are code-level **batch sizes** and **safety ceilings**
+> fixed as private module constants (`_UPPER_SNAKE`). They are intentionally **not** `JAVV_*` env vars
+> (§1) or `system-config` policy (§6): exposing them would add operator surface for values nobody
+> should tune, and a "wrong" value would *mask* a bug rather than shape a workload. Cataloged here —
+> with the motive — so the choice is explicit and reviewable (the category was challenged in audit #186).
+>
+> **The frozen-vs-knob test:** does an operator ever have a legitimate reason to change it for *their*
+> workload? If yes → it's a knob (§1). If the only reason to touch it is "a bug is making us hit the
+> bound" → it stays frozen; fix the bug. When a bound genuinely crosses into workload-shaping territory
+> it *does* graduate to a knob — e.g. the bulk freeze **cap** is `JAVV_BULK_MAX_TARGETS` (§1, an
+> operator-relevant DoS limit), while the freeze **page size** (`_FREEZE_PAGE`) stays frozen.
+
+| Family | Constants (value) | Why frozen |
+|---|---|---|
+| **Read page size** — the reader *pages*, so this is a batch size, never a cap on results | `decisions/reproject._PAGE` (10k) · `triage/bulk._FREEZE_PAGE` (10k) · `services/disagreement._SEARCH_PAGE` (10k) · `jobs/rebuild_state._PAGE` (1k) · `export/sweep._PAGE_SIZE` (500) | At/under OpenSearch's `from`/`size` 10k ceiling (smaller for constant-memory sweeps). Because the caller pages to exhaustion, completeness holds for *any* value — it only trades round-trips against memory, never correctness or policy. |
+| **CAS / conflict-drain ceiling** — a livelock guard, not a tuning dial | `decisions/reproject._CONFLICT_RETRIES` (8) · `services/reconcile._CONFLICT_RETRIES` (8) · `decisions/lifecycle._CAS_RETRIES` (8) · `triage/service._CAS_RETRIES` (8) · `services/scan_orders._CAS_RETRIES` (32) · `services/watermarks._CAS_RETRIES` (32) | Real contention is ~1 (one CronJob per scanner, `Forbid`). Reaching the ceiling signals a pathology to investigate — raising it would hide the problem, not serve a workload. |
+| **Fixed agg / vocabulary size** — sized to a known-bounded domain | `query/aggs._FACET_TERMS_SIZE` (16, ≥ the largest facet vocabulary) · `query/contributors._BOARD_SIZE` (100 leaderboard) | Bounded by the data model / product spec, not the workload — a bigger value would return buckets that can't exist. |
+
+> **Not on this list on purpose:** `routers/findings._GROUP_FETCH_SIZE` and
+> `routers/contributors._ROWS_FETCH_SIZE` (both 10k) are *un*guarded fixed fetches whose truncation is
+> a correctness bug, not a deliberate bound — they're being reworked by audit #187 / #190, not frozen.
