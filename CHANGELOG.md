@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.17](https://github.com/Danube-Labs/javv-poc/compare/v0.2.16...v0.2.17) (2026-07-06)
+
+
+### Bug Fixes
+
+* **m5c:** reproject_cve guarded RMW — drain conflicts, re-check ownership (audit [#186](https://github.com/Danube-Labs/javv-poc/issues/186)) ([#197](https://github.com/Danube-Labs/javv-poc/issues/197)) ([87bf402](https://github.com/Danube-Labs/javv-poc/commit/87bf4028f7d378a28845e0ec60dd377e16c60bc3))
+
 ## [0.2.16](https://github.com/Danube-Labs/javv-poc/compare/v0.2.15...v0.2.16) (2026-07-06)
 
 
