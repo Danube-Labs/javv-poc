@@ -20,6 +20,7 @@ from backend.routers import (
     reports,
     scan_runs,
     scan_scope,
+    scanners,
     tokens,
     trends,
     triage,
@@ -48,6 +49,7 @@ def create_app() -> FastAPI:
     app.include_router(reports.router)
     app.include_router(contributors.router)
     app.include_router(decisions.router)
+    app.include_router(scanners.router)
     app.include_router(sla_routes.router)
     app.include_router(bulk_routes.router)
     return app
