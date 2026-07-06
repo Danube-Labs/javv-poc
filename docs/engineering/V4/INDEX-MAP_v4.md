@@ -27,7 +27,8 @@
 | `system-tags` | mutable | none | **no** | none |
 | `system-saved-views` | mutable | none | **no** | none |
 | `system-notifications` | mutable | none | **no** | bounded delete (old/read) |
-| `system-reports` | mutable | none | **no** | short bounded delete |
+| `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h) |
+| `system-report-chunks` | mutable | none | **no** | TTL sweep with its parent report |
 
 **Time-travel horizon = per-cluster, "as far back as the data in OpenSearch allows"** - i.e. the oldest
 retained `javv-finding-occurrences-<cluster_id>-*` / `javv-images-<cluster_id>-*` window, paired with
@@ -336,21 +337,31 @@ expires_at        date          TTL
 revoked           boolean       revoke-on-role-change / logout-all
 ```
 
-### `system-config` · `system-tags` · `system-saved-views` · `system-notifications` · `system-reports`
+### `system-config` · `system-tags` · `system-saved-views` · `system-notifications` · `system-reports` · `system-report-chunks`
 ```
 # system-config        : SLA policy, rollover/retention/staleness knobs, snapshot-repo ref (creds in OS keystore, not here)
 # system-tags          : { tag, kind: team|app|org, ... }
 # system-saved-views   : { user_id, name, filters }   (per-user)
 # system-notifications : { user_id, type: sla_breach|assignment|report_ready, ref, created_at, read }
-# system-reports       : { report_id, status: pending|running|done|failed, params, requested_by,
-#                          run_mode: now|offpeak, scheduled_for, result_location, cluster_id,
-#                          heartbeat_at, lease_expires_at, retry_count, attempt_id }   job claim = optimistic
-#                          concurrency (pending→running via seq_no/primary_term CAS) so replicas/retries can't
-#                          double-run (D38/M17); attempt_id = fencing token - heartbeat + done CAS on it, and
-#                          the result object path includes it (object metadata too), so an expired-then-
-#                          reclaimed slow worker can't double-publish (the bell reads only the done doc's
-#                          result_location); orphan objects from failed/stale attempts are TTL-swept (D40/I-r3);
-#                          per-tenant prefix + signed short-lived URL - SEC-10
+# system-reports       : { report_id, kind: export|bulk_triage, status: pending|running|done|failed,
+#                          params, requested_by, run_mode: now|offpeak, scheduled_for, cluster_id,
+#                          bytes, chunk_count, expires_at, heartbeat_at, lease_expires_at, retry_count,
+#                          attempt_id }   job claim = optimistic concurrency (pending→running via
+#                          seq_no/primary_term CAS) so replicas/retries can't double-run (D38/M17);
+#                          attempt_id = fencing token - heartbeat + done CAS on it, so an expired-then-
+#                          reclaimed slow worker can't double-publish (the bell reads only the done doc).
+# system-report-chunks  : { report_id, attempt_id, seq, data }   the result BLOB, chunked (~5 MiB text
+#                          slices) so a large export never exceeds http.max_content_length / bloats heap;
+#                          `data` is an {enabled:false} un-indexed _source field (never analysed). Written
+#                          under the drain's attempt_id; only the `done` attempt_id's chunks are canonical.
+# -- M7 STORAGE DECISION (2026-07-07, #32): result blobs live IN OpenSearch (chunked), NOT an object
+#    store. Fits the single-store / broker-free hard constraint; download via a backend endpoint
+#    (`GET /api/v1/reports/{id}/download`) gated by the tenant chokepoint + `expires_at` (410 once
+#    expired) + a short-lived signed download token -- this SUPERSEDES SEC-10's S3/MinIO + presigned-URL
+#    model for M7 (the token satisfies SEC-10's per-tenant + time-limited intent without object-store
+#    creds). Retention = a `delete_by_query expires_at < now` sweep on these SMALL bounded ops indices
+#    (the "drop whole indices, never delete_by_query" day-one rule targets the huge occurrence/images
+#    time-series, not these). Orphan chunks (non-`done` attempt_id) swept alongside (D40/I-r3).
 ```
 
 ---

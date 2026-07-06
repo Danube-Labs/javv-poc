@@ -21,7 +21,7 @@ decisions D33 (capabilities not roles), NFR-9 (no broker → polling).
 ## Deliverables
 In the layered tree, not here (paths proposed):
 - `frontend/src/components/GlobalSearch.vue` — server-backed search; results are OpenSearch query hits, server-paged.
-- `frontend/src/components/NotificationBell.vue` + `frontend/src/composables/useNotifications.ts` — polls `system-notifications` (no broker, FR-16); badge count from server; SLA/assignment/ready-export categories.
+- `frontend/src/components/NotificationBell.vue` + `frontend/src/composables/useNotifications.ts` — polls `system-notifications` (no broker, FR-16); badge count from server; SLA/assignment/ready-export categories. A **ready-export** notification links to the backend download endpoint `GET /api/v1/reports/{id}/download` (token-gated, **410 once expired** — see M7/#32 storage decision), NOT an object-store/presigned URL.
 - `frontend/src/components/SavedViews.vue` + `frontend/src/composables/useSavedViews.ts` — named filter sets in `system-saved-views`; deep-link into pre-filtered Findings (FR-17).
 - `frontend/src/composables/useCapabilities.ts` + `frontend/src/router/guards.ts` — capability-based route/action gating mirroring server caps (D33); **client gate is convenience, server is authority**.
 - `frontend/src/components/EmptyState.vue` / cold-start variants — no-data, no-scan-yet, no-cluster states.
@@ -61,3 +61,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
 > `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
+
+## Updates
+- **2026-07-07** — M7 storage decision (#32): a **ready-export** bell notification opens the backend
+  download endpoint `GET /api/v1/reports/{id}/download` (short-lived signed token; **410** once past
+  `JAVV_EXPORT_TTL_HOURS`), not an object-store URL — results are stored in OpenSearch (chunked). The
+  bell UI just needs to render the link + handle the 410-expired case gracefully.

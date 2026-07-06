@@ -23,10 +23,11 @@ The actual files/modules this bolt creates — **in the layered tree, not here**
 - `backend/src/backend/api/reports.py` — enqueue endpoint: writes a `pending` `system-reports` doc (`params`, `requested_by`, `run_mode: now|offpeak`, `scheduled_for`, `cluster_id`); `extra="forbid"`; entitlement + `cluster_id` chokepoint (SEC-4/IDOR).
 - `backend/src/backend/reports/claim.py` — **optimistic-concurrency claim**: `pending→running` via `seq_no`/`primary_term` CAS; stamps a fresh **`attempt_id`** fencing token + `lease_expires_at` (D38/M17).
 - `backend/src/backend/reports/lease.py` — `heartbeat_at` refresh and the `done`/`failed` transition, **both CAS'd on `attempt_id`** so an expired-then-reclaimed slow worker can't publish (D39/M7-r2).
-- `backend/jobs/report_drain.py` — the throttled drain worker: claims a job, streams the export via M6's engine (PIT+`search_after`, small pages, brief sleeps), writes the result to object storage at a path **including `attempt_id`** (object metadata too), CAS-finalizes `done` with `result_location`, then writes a `report_ready` `system-notifications` doc (the bell).
-- `backend/jobs/orphan_sweep.py` — **orphan-object TTL sweep**: deletes result objects from failed/stale/never-finalized attempts whose `attempt_id` is not the `done` doc's (D40/I-r3).
-- `deploy/cronjobs/report-drain.yaml` — CronJob (`concurrencyPolicy: Forbid`) running the off-peak drain; throttle/sleep knobs surfaced.
-- `deploy/cronjobs/report-orphan-sweep.yaml` — periodic TTL sweep CronJob.
+- `backend/src/backend/reports/storage.py` — **OpenSearch chunk store** (2026-07-07 storage decision, see Updates): stream the export → ~5 MiB text chunks → one `system-report-chunks` doc per chunk (`report_id`, `attempt_id`, `seq`, un-indexed `data`); reassemble in order on download. Keeps the drain constant-memory and each write under `http.max_content_length`.
+- `backend/src/backend/api/reports_download.py` — `GET /api/v1/reports/{id}/download`: streams the `done` report's chunks in `seq` order, gated by the tenant chokepoint + `expires_at` (**410** once expired) + a short-lived signed download token (SEC-10 intent, no object store).
+- `backend/jobs/report_drain.py` — the throttled drain worker: claims a job, streams the export via M6's engine (PIT+`search_after`, small pages, `JAVV_REPORT_DRAIN_SLEEP_MS` sleeps), writes chunks under its `attempt_id`, CAS-finalizes `done` (on `attempt_id`) with `bytes`/`chunk_count`/`expires_at`, then writes a `report_ready` `system-notifications` doc (the bell). Fails a job past `JAVV_EXPORT_MAX_BYTES`.
+- `backend/jobs/report_sweep.py` — **TTL + orphan sweep**: `delete_by_query` on `system-reports`/`system-report-chunks` for `expires_at < now` (retention) AND chunks whose `attempt_id` ≠ the `done` doc's (orphans from failed/stale attempts) — small bounded ops indices, so `delete_by_query` is fine here (D40/I-r3).
+- `deploy/helm/…` CronJobs (drain + sweep, `concurrencyPolicy: Forbid`) — **deferred to M10** (the `deploy/helm/` chart is M10's tree); this bolt ships the jobs as runnable `python -m backend.jobs.*`, integration-tested against real OpenSearch.
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test, not a promise):
@@ -35,7 +36,8 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - **No double-publish:** an expired-then-reclaimed slow worker (stale `attempt_id`) cannot CAS the doc to `done` nor have its object treated as canonical — the `done` CAS is on `attempt_id`, and the bell reads only the `done` doc's `result_location` (D39/M7-r2).
 - **Orphan sweep:** result objects from failed/stale attempts (non-`done` `attempt_id`) are TTL-swept; the canonical `done` object survives (D40/I-r3).
 - Lease expiry: a job whose worker dies (no heartbeat past `lease_expires_at`) is reclaimable by the next drain, with `retry_count` incremented.
-- Result objects use a **per-tenant prefix** and are served via **signed short-lived URLs** (SEC-10); `cluster_id` is applied on the export query.
+- Results are stored **in OpenSearch** (chunked, `system-report-chunks`) and served via `GET /api/v1/reports/{id}/download` — gated by the tenant chokepoint + a **short-lived signed download token** + `expires_at` (410 once expired), satisfying SEC-10's per-tenant + time-limited intent without an object store (see Updates 2026-07-07); `cluster_id` is applied on the export query.
+- **Retention:** a completed export is deleted `JAVV_EXPORT_TTL_HOURS` (default 24h) after completion by the TTL sweep; a download attempt past expiry → **410**. Per-export size ceiling `JAVV_EXPORT_MAX_BYTES` → job `failed`.
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:
@@ -62,6 +64,27 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
 - Admin-configurable off-peak windows in the UI → `Settings → Data & OpenSearch` (FR-19, M9e).
 
 ## Updates
+- **2026-07-07** — **storage decision (#32 kickoff):** report result blobs live **in OpenSearch**,
+  chunked (`system-report-chunks`, ~5 MiB un-indexed text slices), **not** an object store. Rationale:
+  honors the single-store / broker-free hard constraint (no MinIO/S3/PVC/blob-client to wire — M2's
+  snapshots use OpenSearch's *native* API, so there is no app-level object client, and M7 would be the
+  first to add one). Chunking preserves the drain's constant-memory streaming and dodges
+  `http.max_content_length`. **This SUPERSEDES SEC-10's S3/MinIO + presigned-URL model for M7:**
+  download is a backend endpoint (`GET /api/v1/reports/{id}/download`) gated by the tenant chokepoint +
+  `expires_at` (410 once expired) + a short-lived signed download token — which satisfies SEC-10's
+  per-tenant + time-limited intent without object-store creds. New index `system-report-chunks`
+  (INDEX-MAP updated). *(Not yet propagated into SPEC_v4 SEC-10 itself — bolt-level decision for now.)*
+- **2026-07-07** — **retention:** a completed export is TTL-swept `JAVV_EXPORT_TTL_HOURS` (default 24h)
+  after completion via a `delete_by_query expires_at < now` on the small bounded `system-reports`/
+  `system-report-chunks` indices (the "drop whole indices, never `delete_by_query`" day-one rule targets
+  the huge occurrence/images time-series, not these ops indices). The same sweep reaps orphan chunks.
+- **2026-07-07** — **new config knobs** (pre-staged ⏳ in `docs/CONFIGURATION.md §1`, land with the code):
+  `JAVV_EXPORT_TTL_HOURS` (24) · `JAVV_EXPORT_MAX_BYTES` (500 MiB per-export ceiling → job `failed`
+  past it) · `JAVV_REPORT_DRAIN_SLEEP_MS` (200, off-peak throttle) · `JAVV_REPORT_LEASE_TTL_SECONDS`
+  (300). The ~5 MiB chunk size + drain page size stay **frozen internal constants** (§8), not knobs.
+- **2026-07-07** — **scope:** k8s CronJob YAML **deferred to M10** (deploy/ is M10's tree — jobs ship
+  runnable + integration-tested now); large-bulk-triage job **included** (A-Mc, same queue shape);
+  export-at-past-T **seam-stubbed** (enqueue accepts it, drain parks/501s until M8b/#34 can feed the sweep).
 - **2026-07-06** — audit A-Mc ruling (#189): M7 additionally owns the **durable large-bulk-triage
   queue** (sets above `JAVV_BULK_INLINE_LIMIT`=5000). M5d is now bounded-synchronous + 413; no
   volatile 202. See the "Also owns" section above.

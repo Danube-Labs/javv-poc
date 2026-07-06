@@ -23,7 +23,7 @@ In the deploy tree, not here (paths proposed):
 - `deploy/helm/javv/` — chart: API Deployment, scanner **CronJobs** (`Forbid` concurrency, D40/NFR-9), OpenSearch values, snapshot-repo config (S3/MinIO). Each scanner's **image tag is a Helm value** (`scanners.trivy.tag` / `scanners.grype.tag`) the operator sets to a published, compatibility-checked pinned image — **version changes are a tag swap (GitOps), never an in-app switch** (D41); JAVV writes to no cluster. **Envelope lockstep (D44):** the envelope is *current-only* (schema v3) — the backend 422s older schema versions, so **scanner images and the backend must upgrade together** on any schema bump; the chart/runbook must upgrade them as one unit (never bump one side alone).
 - `deploy/helm/javv/templates/vulndb-pvc.yaml` + `vulndb-refresh-cronjob.yaml` — **NFR-11 vuln-DB mirror/cache:** a shared **PVC** mounted by Trivy + Grype scanner jobs, refreshed by a **scheduled CronJob** (offline/air-gapped friendly; deterministic scans don't hit upstream DBs mid-run). **Cache is keyed per vuln-DB *schema*, not per binary** (D41): Trivy minors share schema v2, but **Grype v5↔v6 are incompatible** (and Grype <0.88 scans a frozen/EOL DB) — never let two incompatible-schema versions write one cache dir; warn/block EOL-schema picks. *(NFR-11 had no clear earlier home per AUDIT N11 — it lands here.)*
 - `deploy/helm/javv/templates/scanner-rbac.yaml` — least-priv scanner ServiceAccount/Role (read-only workloads; namespace-scoped Secret read — NFR-3).
-- `deploy/helm/javv/templates/cronjob-*.yaml` — staleness/rebuild-state/export/snapshot jobs, all `Forbid`.
+- `deploy/helm/javv/templates/cronjob-*.yaml` — staleness/rebuild-state/snapshot jobs **+ M7's `report-drain` and `report-sweep`** (deferred here from M7/#32 — the jobs ship + are integration-tested in M7 as `python -m backend.jobs.*`; M10 only renders their CronJob manifests), all `Forbid`. **Note:** M7 report *results* live in OpenSearch (chunked, `system-report-chunks`), so **no object store is needed for reports** — the `snapshot-repo config (S3/MinIO)` above is for OpenSearch snapshot/restore only (M2), not reports.
 - `deploy/runbooks/opensearch-sizing.md`, `reindex-migration.md` (D25), `ha-multipod.md` (D23), `rollback.md`. **Restore/rollback note (D45):** restoring a snapshot restores an old `javv-scan-orders` counter — it self-heals **forward only** (`max(committed) > counter` → bump up) on the next allocation; never manually reset it backward (a regressed counter re-issues orders and the watermark CAS then silently drops newer scans).
   **Index bootstrap in k8s:** the API pod runs `backend/core/bootstrap.py` at startup (idempotent,
   version-gated, multi-pod-race-safe) — the default; if least-priv ever demands API pods that can't
@@ -73,3 +73,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
 > `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
+
+## Updates
+- **2026-07-07** — M7 storage decision (#32): M10 now also renders **`report-drain` + `report-sweep`**
+  CronJobs (deferred from M7). Report results are stored **in OpenSearch** (chunked), so M10 provisions
+  **no object store for reports** — S3/MinIO stays snapshot-only (M2). The download is a backend endpoint
+  (`GET /api/v1/reports/{id}/download`), not a presigned object URL; no report-storage secrets/creds.
