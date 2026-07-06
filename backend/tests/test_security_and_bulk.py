@@ -48,10 +48,11 @@ class FakeOS:
         self.calls.append(body)
         statuses = self.rounds[len(self.calls) - 1]
         assert len(body) == 2 * len(statuses)  # action+doc pairs
-        return {
-            "errors": any(s >= 300 for s in statuses),
-            "items": [{"index": {"status": s}} for s in statuses],
-        }
+        items = []
+        for i, s in enumerate(statuses):
+            meta = next(iter(body[2 * i].values()))  # the {"_index":…, "_id":…} of the action line
+            items.append({"index": {"status": s, "_id": meta.get("_id")}})
+        return {"errors": any(s >= 300 for s in statuses), "items": items}
 
 
 def actions(n: int) -> list[dict[str, Any]]:
@@ -97,4 +98,26 @@ async def test_retries_exhausted_raises() -> None:
 async def test_empty_actions_is_a_noop() -> None:
     fake = FakeOS([])
     assert await bulk_write(fake, [], sleep=_sleep) == 0  # type: ignore[arg-type]
-    assert fake.calls == []
+
+
+async def test_409_conflicts_are_collected_not_raised_when_asked() -> None:
+    # audit #186: reproject's guarded RMW needs the conflicted ids back to re-read + re-check
+    # ownership + retry — NOT a BulkError. 409 is collected, not retried inside bulk_write.
+    fake = FakeOS([[201, 409, 201]])
+    written, conflicts = await bulk_write(
+        fake,  # type: ignore[arg-type]
+        actions(3),
+        sleep=_sleep,
+        collect_conflicts=True,
+    )
+    assert written == 2
+    assert [c["_id"] for c in conflicts] == ["k1"]
+    assert len(fake.calls) == 1  # the caller owns the re-read, not bulk_write
+
+
+async def test_409_still_raises_by_default() -> None:
+    # ingest and every other caller must still see a hard failure on a version conflict — the
+    # collect mode is opt-in and scoped to reproject, RETRYABLE is NOT broadened.
+    fake = FakeOS([[201, 409, 201]])
+    with pytest.raises(BulkError):
+        await bulk_write(fake, actions(3), sleep=_sleep)  # type: ignore[arg-type]

@@ -5,7 +5,7 @@ exponential backoff + full jitter; anything else raises. sleep/rng injected for 
 import asyncio
 import random
 from collections.abc import Awaitable, Callable, Sequence
-from typing import Any
+from typing import Any, Literal, overload
 
 from opensearchpy import AsyncOpenSearch
 
@@ -20,6 +20,28 @@ class BulkError(Exception):
         super().__init__(f"bulk write failed for {len(items)} item(s)")
 
 
+@overload
+async def bulk_write(
+    client: AsyncOpenSearch,
+    actions: Sequence[dict[str, Any]],
+    *,
+    max_retries: int = ...,
+    base_delay: float = ...,
+    sleep: Callable[[float], Awaitable[None]] | None = ...,
+    rng: random.Random | None = ...,
+    collect_conflicts: Literal[False] = ...,
+) -> int: ...
+@overload
+async def bulk_write(
+    client: AsyncOpenSearch,
+    actions: Sequence[dict[str, Any]],
+    *,
+    max_retries: int = ...,
+    base_delay: float = ...,
+    sleep: Callable[[float], Awaitable[None]] | None = ...,
+    rng: random.Random | None = ...,
+    collect_conflicts: Literal[True],
+) -> tuple[int, list[dict[str, Any]]]: ...
 async def bulk_write(
     client: AsyncOpenSearch,
     actions: Sequence[dict[str, Any]],
@@ -28,19 +50,28 @@ async def bulk_write(
     base_delay: float = 0.5,
     sleep: Callable[[float], Awaitable[None]] | None = None,
     rng: random.Random | None = None,
-) -> int:
-    """Submit action/doc pairs; return docs written. Retries 429/503 items; raises BulkError."""
+    collect_conflicts: bool = False,
+) -> int | tuple[int, list[dict[str, Any]]]:
+    """Submit action/doc pairs; return docs written. Retries 429/503 items; raises BulkError.
+
+    `collect_conflicts=True` (reproject's guarded RMW, audit #186) returns `(written, conflicts)`
+    where `conflicts` are the per-item results that came back **409 version_conflict** — they are
+    NOT retried here and NOT raised; the caller re-reads them, re-checks ownership, and retries.
+    This is scoped, opt-in behaviour — `RETRYABLE` is unchanged, so ingest still hard-fails on 409.
+    """
     if not actions:
-        return 0
+        return (0, []) if collect_conflicts else 0
     sleep = sleep or asyncio.sleep  # real backoff in prod; tests inject a no-op (M-4)
     rng = rng or random.Random()
     pending = list(actions)
     written = 0
+    conflicts: list[dict[str, Any]] = []
 
     for attempt in range(max_retries + 1):
         response = await client.bulk(body=pending)
         if not response.get("errors"):
-            return written + len(pending) // 2
+            written += len(pending) // 2
+            return (written, conflicts) if collect_conflicts else written
 
         retry: list[dict[str, Any]] = []
         failed: list[dict[str, Any]] = []
@@ -52,12 +83,14 @@ async def bulk_write(
                 written += 1
             elif status in RETRYABLE:
                 retry.extend(pair)
+            elif collect_conflicts and status == 409:
+                conflicts.append(result)  # caller re-reads + re-checks ownership + retries
             else:
                 failed.append(result)
         if failed:
             raise BulkError(failed)
         if not retry:
-            return written
+            return (written, conflicts) if collect_conflicts else written
         if attempt == max_retries:
             raise BulkError([{"status": "retries_exhausted", "count": len(retry) // 2}])
         # exponential backoff + full jitter

@@ -30,7 +30,65 @@ from backend.repositories.bulk import bulk_write
 
 log = structlog.get_logger()
 
-_PAGE = 10_000  # findings per (cluster, cve) fits one page; guarded by the assert below
+_PAGE = 10_000  # findings read per page — reproject PAGES the (cluster, cve) set, so not a cap
+_CONFLICT_RETRIES = 8  # drain ceiling (like reconcile); real contention is ~1
+
+_SOURCE = [
+    "finding_key",
+    "cluster_id",
+    "scanner",
+    "cve_id",
+    "image_digest",
+    "namespaces",
+    "state",
+    "vex_justification",
+    "state_decision_id",
+]
+
+
+def _target_for(
+    doc: dict[str, Any], decisions: list[dict[str, Any]], at: str
+) -> dict[str, Any] | None:
+    """The projected write for an OWNED finding, or None when projection must keep its hands off.
+
+    Ownership (direct action > auto-rule) is re-evaluated against the *given* source, so a
+    guarded-retry that re-reads a doc a human just triaged (provenance cleared) returns None."""
+    owned = doc.get("state_decision_id") is not None or doc.get("state") == "open"
+    if not owned:
+        return None  # direct human action / system stale — untouched
+    won = project(doc, decisions, at=at)
+    if won is None:
+        return {"state": "open", "vex_justification": None, "state_decision_id": None}
+    return {
+        "state": won.state,
+        "vex_justification": won.vex_justification,
+        "state_decision_id": won.decision_id,
+    }
+
+
+def _guarded_updates(
+    hits: list[dict[str, Any]], decisions: list[dict[str, Any]], at: str, index: str
+) -> list[dict[str, Any]]:
+    """CAS-guarded update pairs for the owned findings whose projection differs from their state."""
+    actions: list[dict[str, Any]] = []
+    for hit in hits:
+        target = _target_for(hit["_source"], decisions, at)
+        if target is None:
+            continue
+        current = {k: hit["_source"].get(k) for k in target}
+        if current != target:
+            actions += (
+                {
+                    "update": {
+                        "_index": index,
+                        "_id": hit["_id"],
+                        "if_seq_no": hit["_seq_no"],  # D40/NFR-9: cache = guarded RMW
+                        "if_primary_term": hit["_primary_term"],
+                    }
+                },
+                {"doc": target},
+            )
+    return actions
 
 
 async def reproject_cve(
@@ -42,7 +100,12 @@ async def reproject_cve(
     prefix: str = "",
 ) -> int:
     """Re-project every finding of `(cluster, cve)` as of `at` (default: now); returns docs
-    updated. Idempotent. `at` is injected by the sweep so expiry is judged at ITS clock."""
+    updated. Idempotent. `at` is injected by the sweep so expiry is judged at ITS clock.
+
+    Each cache write is a version-guarded RMW (D40/NFR-9): a write racing a concurrent human
+    triage or reproject conflicts (409) rather than blindly overwriting; the conflict is drained
+    by re-reading the fresh source, re-checking ownership, and retrying to zero — so a decision
+    edit never 500s out of `bulk_write`, and a human triage that lands mid-reproject survives."""
     at = at or datetime.now(UTC).isoformat()
     decisions_resp = await client.search(
         index=f"{prefix}{DECISIONS_INDEX}",
@@ -50,10 +113,7 @@ async def reproject_cve(
             "size": _PAGE,
             "query": {
                 "bool": {
-                    "filter": [
-                        {"term": {"cluster_id": cluster_id}},
-                        {"term": {"cve_id": cve_id}},
-                    ]
+                    "filter": [{"term": {"cluster_id": cluster_id}}, {"term": {"cve_id": cve_id}}]
                 }
             },
         },
@@ -62,65 +122,76 @@ async def reproject_cve(
 
     findings_index = f"{prefix}findings"
     await client.indices.refresh(index=findings_index)
-    findings_resp = await client.search(
-        index=findings_index,
-        body={
-            "size": _PAGE,
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"term": {"cluster_id": cluster_id}},
-                        {"term": {"cve_id": cve_id}},
-                    ]
-                }
-            },
-            "_source": [
-                "finding_key",
-                "cluster_id",
-                "scanner",
-                "cve_id",
-                "image_digest",
-                "namespaces",
-                "state",
-                "vex_justification",
-                "state_decision_id",
-            ],
-        },
-    )
-    hits = findings_resp["hits"]["hits"]
-    assert len(hits) < _PAGE, "reproject page overflow — page like disagreement.py"
+    query = {
+        "bool": {"filter": [{"term": {"cluster_id": cluster_id}}, {"term": {"cve_id": cve_id}}]}
+    }
 
-    actions: list[dict[str, Any]] = []
-    for hit in hits:
-        doc = hit["_source"]
-        owned = doc.get("state_decision_id") is not None or doc.get("state") == "open"
-        if not owned:
-            continue  # direct human action / system stale — projection keeps its hands off
-        won = project(doc, decisions, at=at)
-        if won is None:
-            target = {"state": "open", "vex_justification": None, "state_decision_id": None}
-        else:
-            target = {
-                "state": won.state,
-                "vex_justification": won.vex_justification,
-                "state_decision_id": won.decision_id,
-            }
-        current = {k: doc.get(k) for k in target}
-        if current != target:
-            actions += (
-                {"update": {"_index": findings_index, "_id": hit["_id"]}},
-                {"doc": target},
+    updated = 0
+    conflicts_retried = 0
+    conflicted_ids: list[str] = []
+
+    # phase 1: page the whole finding set (no 10k cap), guarded-write each page, collect conflicts
+    search_after: list[Any] | None = None
+    while True:
+        body: dict[str, Any] = {
+            "size": _PAGE,
+            "sort": [{"finding_key": "asc"}],
+            "query": query,
+            "_source": _SOURCE,
+            "seq_no_primary_term": True,
+        }
+        if search_after is not None:
+            body["search_after"] = search_after
+        resp = await client.search(index=findings_index, body=body)
+        hits = resp["hits"]["hits"]
+        if not hits:
+            break
+        actions = _guarded_updates(hits, decisions, at, findings_index)
+        if actions:
+            written, conflicts = await bulk_write(client, actions, collect_conflicts=True)
+            updated += written
+            conflicted_ids += [c["_id"] for c in conflicts]
+        if len(hits) < _PAGE:
+            break
+        search_after = hits[-1]["sort"]
+
+    # phase 2: drain conflicts — re-read fresh, re-check ownership, retry to zero (bounded)
+    drain = 0
+    while conflicted_ids:
+        if drain >= _CONFLICT_RETRIES:
+            raise RuntimeError(
+                f"reproject: version conflicts did not drain for {cluster_id}/{cve_id}"
             )
-    if actions:
-        await bulk_write(client, actions)
+        drain += 1
+        conflicts_retried += len(conflicted_ids)
+        # mget is a REALTIME get — it sees the conflicting writer's just-committed version (a
+        # `search` would not without a refresh, livelocking the drain on a stale delta). It also
+        # returns `_seq_no`/`_primary_term`, so the guarded retry stays version-fenced.
+        resp = await client.mget(
+            body={
+                "docs": [
+                    {"_index": findings_index, "_id": i, "_source": _SOURCE} for i in conflicted_ids
+                ]
+            }
+        )
+        fresh = [d for d in resp["docs"] if d.get("found")]
+        actions = _guarded_updates(fresh, decisions, at, findings_index)
+        conflicted_ids = []
+        if actions:
+            written, conflicts = await bulk_write(client, actions, collect_conflicts=True)
+            updated += written
+            conflicted_ids = [c["_id"] for c in conflicts]
+
+    if updated or conflicts_retried:
         await client.indices.refresh(index=findings_index)
         log.info(
             "decisions reprojected",
             cluster_id=cluster_id,
             cve_id=cve_id,
-            updated=len(actions) // 2,
+            updated=updated,
+            conflicts_retried=conflicts_retried,
         )
-    return len(actions) // 2
+    return updated
 
 
 async def project_at_ingest(
