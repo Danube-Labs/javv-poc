@@ -35,7 +35,9 @@ Files this bolt creates — **in the layered tree, not here** (paths proposed):
 - `frontend/src/components/system/ScannerFreshnessBanner.vue` — **the "data as of T; scanner silent since
   T′" banner (SPEC FR-6 / D20; audit m-7).** Shown on inventory views when a `(cluster, scanner)` is silent
   (read-time, computed from `system-tokens.last_ingest_at` — **not** written by the M3 staleness sweep).
-  Reads a small M6 freshness read (per-cluster/scanner `last_ingest_at` + derived silent-since); this bolt
+  Reads **`GET /api/v1/scanners/freshness`** (per-cluster/scanner `last_ingest_at` + derived silent-since
+  — built as its own small backend PR *before* this bolt, **issue #218**; the earlier wording implied an
+  existing "M6 freshness read" that never existed — major-audit finding 04 §4); this bolt
   owns the shared banner component (sibling to `BackendHealthBanner`), M9b/M9c mount it. *(Ownership was
   unassigned — the staleness sweep correctly leaves the banner as a read-time view; landed here because
   M9a owns the app-shell global banners.)*
@@ -94,6 +96,14 @@ as pure units** (Vitest).
 - Findings grid + triage → M9b. Overview/images/dashboards → M9c. Audit/approvals → M9d. Settings panels → M9e.
 - Global search, bell notifications, saved views, empty/cold-start states → M9f.
 - OpenAPI **breaking-change** classifier (`oasdiff`, AUDIT I8) → CI/process work, not this bolt.
+
+## Updates
+- **2026-07-07** — **freshness endpoint dependency made concrete (major audit, 04 §4 / 05 §D-1):**
+  the `ScannerFreshnessBanner` deliverable referenced a "small M6 freshness read" that was never
+  built. The real dependency is **`GET /api/v1/scanners/freshness`**, tracked as **#218** and
+  scheduled *before* this bolt (audit execution order, PR 3). Deliverable text amended above.
+  Further M9-wide backend↔UI drift rulings land right before kickoff via #224
+  (`docs/audits/major_audit/05-backend-ui-drift-m9.md` §E).
 
 ## Config tracking
 
