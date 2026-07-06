@@ -24,6 +24,8 @@ from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from opensearchpy.exceptions import ConnectionError as OSConnectionError
+from opensearchpy.exceptions import ConnectionTimeout
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
@@ -35,7 +37,7 @@ from backend.query.aggs import (
     encode_after,
 )
 from backend.query.as_of import AsOfTReader, AsOfTUnavailable, as_of_t_reader, parse_as_of
-from backend.query.search import SearchFilters, run_search
+from backend.query.search import CursorExpired, SearchFilters, run_search
 from backend.sla.overdue import compute_overdue
 from backend.sla.policy import read_sla_policy
 from backend.tenancy.chokepoint import tenant_search
@@ -218,7 +220,9 @@ async def search_findings(
             size=size,
             cursor=cursor,
         )
-    await client.indices.refresh(index="findings")
+    # no read-side refresh (audit A-m2/#191): reads observe what's committed; triage writes with
+    # refresh=wait_for and ingest refreshes post-merge, so a forced per-read Lucene refresh on the
+    # hottest index was belt-and-suspenders that any cheap poll could turn into cluster work.
     opened = cursor is None  # a cursor-less page opens a fresh PIT; a continuation reuses one
     if opened:
         try:
@@ -235,10 +239,18 @@ async def search_findings(
             order=order,
             cursor=cursor,
         )
-    except ValueError as exc:  # bad cursor / sort / order — client error, not a 500
+    except CursorExpired as exc:  # A-m1: idled past keep_alive → 410 Gone, restart the walk
+        if opened:
+            pit_guard.release_one(principal.user_id)
+        raise HTTPException(410, str(exc)) from exc
+    except ValueError as exc:  # tampered/undecodable cursor or bad sort/order — 422, not a 500
         if opened:
             pit_guard.release_one(principal.user_id)  # nothing usable to page — free the slot
         raise HTTPException(422, str(exc)) from exc
+    except (OSConnectionError, ConnectionTimeout) as exc:  # A-m1: cluster down/slow → 503, not 500
+        if opened:
+            pit_guard.release_one(principal.user_id)
+        raise HTTPException(503, "search backend unavailable — retry") from exc
     except BaseException:
         if opened:
             pit_guard.release_one(principal.user_id)
@@ -263,7 +275,7 @@ async def facet_findings(
         return await _reader_or_501().findings_facets(
             client, cluster_id=cluster_id, t=as_of_t, filters=filters, fields=fields
         )
-    await client.indices.refresh(index="findings")
+    # no read-side refresh (audit A-m2/#191) — see search_findings
     try:
         body = build_facets_body(filters, fields=fields)
     except ValueError as exc:  # non-whitelisted facet field
@@ -299,11 +311,11 @@ async def group_findings(
             size=size,
             cursor=cursor,
         )
-    await client.indices.refresh(index="findings")
+    # no read-side refresh (audit A-m2/#191) — see search_findings
     try:
         after = decode_after(cursor) if cursor else None
         body = build_composite_body(filters, by=by, size=size, after=after)
-    except ValueError as exc:  # non-whitelisted dim / unreadable cursor
+    except ValueError as exc:  # non-whitelisted dim / unreadable-or-tampered cursor
         raise HTTPException(422, str(exc)) from exc
     resp = await tenant_search(client, index="findings", cluster_id=cluster_id, body=body)
     groups = resp["aggregations"]["groups"]

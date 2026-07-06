@@ -84,6 +84,10 @@ def decode_after(cursor: str) -> dict[str, Any]:
         after = json.loads(base64.urlsafe_b64decode(cursor.encode()))
         if not isinstance(after, dict):
             raise ValueError("after cursor must decode to an object")
+        # a composite `after_key` is {source: scalar}; a nested/non-scalar value would sail past
+        # decode and blow up inside the aggregation (500) — reject the tampered shape here (A-m1)
+        if not all(v is None or isinstance(v, (str, int, float, bool)) for v in after.values()):
+            raise ValueError("after cursor values must be scalars")
         return after
     except (binascii.Error, json.JSONDecodeError, TypeError, ValueError) as exc:
         raise ValueError("invalid cursor") from exc

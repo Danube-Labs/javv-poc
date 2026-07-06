@@ -7,11 +7,16 @@ raw search_after contract); the PIT is deleted the moment a page is final (final
 last-page short-circuit) — D38.
 """
 
+import base64
+import json
 from typing import Any
 
 import pytest
+from opensearchpy.exceptions import ConnectionError as OSConnectionError
+from opensearchpy.exceptions import NotFoundError
 
 from backend.query.search import (
+    CursorExpired,
     SearchFilters,
     build_search_body,
     decode_cursor,
@@ -88,6 +93,25 @@ def test_cursor_round_trips_and_rejects_garbage() -> None:
     assert (pit_id, search_after, sort, order) == ("pit-abc", [5, "fk-1"], "severity_rank", "desc")
     with pytest.raises(ValueError):
         decode_cursor("not-base64-json!!")
+
+
+def test_decode_cursor_rejects_decodable_but_tampered_fields() -> None:
+    """A-m1 (audit #191): a base64/JSON-valid cursor with tampered fields must be a 422 at decode,
+    not sail through and blow up (500) inside client.search."""
+
+    def cur(**over: Any) -> str:
+        d = {"p": "pit", "a": [5, "fk"], "s": "severity_rank", "o": "desc", **over}
+        return base64.urlsafe_b64encode(json.dumps(d).encode()).decode()
+
+    decode_cursor(cur())  # the baseline shape is fine
+    for bad in (
+        cur(a="notalist"),  # search_after must be a list
+        cur(a=[{"nested": 1}]),  # …of scalars, never nested objects
+        cur(p=123),  # pit_id must be a string
+        cur(s=["severity_rank"]),  # sort must be a string
+    ):
+        with pytest.raises(ValueError):
+            decode_cursor(bad)
 
 
 class _PitOS:
@@ -183,3 +207,49 @@ async def test_run_search_deletes_a_fresh_pit_on_error(monkeypatch) -> None:
         e["event"] == "search page failed — PIT reclaimed" and e["log_level"] == "warning"
         for e in logs
     )
+
+
+def _cursor_for(pit_id: str) -> str:
+    return encode_cursor(
+        pit_id=pit_id, search_after=[4, "fk-1"], sort="severity_rank", order="desc"
+    )
+
+
+async def test_run_search_maps_expired_cursor_pit_to_cursor_expired() -> None:
+    """A-m1 (audit #191): a cursor whose PIT OpenSearch no longer holds (idled past keep_alive)
+    raises CursorExpired (→ 410), never a 500 — and the already-gone PIT is not re-reclaimed."""
+
+    class _Gone(_PitOS):
+        async def search(self, **kw: Any) -> dict[str, Any]:
+            raise NotFoundError(404, "search_context_missing_exception", {})
+
+    fake = _Gone(pages=[])
+    with pytest.raises(CursorExpired):
+        await run_search(
+            fake,  # type: ignore[arg-type]
+            cluster_id="c-unit-search",
+            filters=SearchFilters(),
+            size=2,
+            cursor=_cursor_for("pit-dead"),
+        )
+    assert fake.deleted == []  # a gone PIT is never reclaimed; a fresh walk is unaffected
+
+
+async def test_run_search_keeps_a_cursor_pit_on_a_transient_page_error() -> None:
+    """A-m1 (audit #191): a transient transport hiccup on a cursor page must NOT reclaim the
+    client-owned PIT — the walk can retry. Only a PIT this call opened is reclaimed on error."""
+
+    class _Hiccup(_PitOS):
+        async def search(self, **kw: Any) -> dict[str, Any]:
+            raise OSConnectionError("N/A", "connection refused", None)
+
+    fake = _Hiccup(pages=[])
+    with pytest.raises(OSConnectionError):
+        await run_search(
+            fake,  # type: ignore[arg-type]
+            cluster_id="c-unit-search",
+            filters=SearchFilters(),
+            size=2,
+            cursor=_cursor_for("pit-live"),
+        )
+    assert fake.deleted == []  # the client's PIT survives to keep_alive for a retry

@@ -100,7 +100,8 @@ async def contributors(
         return await _reader_or_501().contributors(
             client, cluster_id=cluster_id, t=as_of_t, days=days
         )
-    await client.indices.refresh(index=_AUDIT_PATTERN, params={"ignore_unavailable": "true"})
+    # no read-side refresh (audit A-m2/#191): the audit log is append-only; the leaderboard is a
+    # metrics view (eventual consistency is fine), and triage writes already refresh
     resp = await tenant_search(
         client,
         index=_AUDIT_PATTERN,
