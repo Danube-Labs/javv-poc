@@ -716,3 +716,68 @@ async def test_reproject_warns_when_it_drains_a_conflict_storm(real_os, monkeypa
     assert forced["done"]  # the stub actually fired
     assert any("conflict" in entry["event"].lower() for entry in logs)  # storm warning emitted
     assert (await _finding(client, prefix, fk))["state"] == "risk_accepted"  # converged anyway
+
+
+# --- A-M5: journal-first — no applied-but-unjournaled decision (audit #188) ----------
+
+
+def _fail_audit_once(monkeypatch) -> dict:
+    """Make the NEXT audit append raise (a transient audit-index hiccup), then heal."""
+    from backend.audit import writer
+
+    real = writer._append
+    state = {"fired": False}
+
+    async def flaky(*args, **kwargs):
+        if not state["fired"]:
+            state["fired"] = True
+            raise RuntimeError("audit index hiccup")
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(writer, "_append", flaky)
+    return state
+
+
+async def test_decision_create_not_left_unjournaled_on_audit_failure(real_os, monkeypatch) -> None:
+    """A-M5: journal-first — an audit-append failure must not leave a live-but-unjournaled decision
+    (which the client's retry would turn into a SECOND active decision). No doc on failure; a retry
+    creates exactly one decision with exactly one create row."""
+    client, prefix = real_os
+    idx = f"{prefix}system-decisions"
+    _fail_audit_once(monkeypatch)
+
+    with pytest.raises(Exception):  # noqa: B017 — the audit hiccup surfaces (500), not swallowed
+        await create_decision(
+            client, actor="ana", payload=_payload(cve_id="CVE-J-1"), prefix=prefix
+        )
+    await client.indices.refresh(index=idx)
+    n = await client.count(index=idx, body={"query": {"term": {"cve_id": "CVE-J-1"}}})
+    assert n["count"] == 0  # no orphan decision — the create never landed
+
+    made = await create_decision(
+        client, actor="ana", payload=_payload(cve_id="CVE-J-1"), prefix=prefix
+    )
+    await client.indices.refresh(index=idx)
+    assert (await client.count(index=idx, body={"query": {"term": {"cve_id": "CVE-J-1"}}}))[
+        "count"
+    ] == 1
+    rows = await _audit(client, prefix, made["decision_id"])
+    assert sum(1 for r in rows if r["action"] == "decision_create") == 1
+
+
+async def test_decision_revoke_not_left_unjournaled_on_audit_failure(real_os, monkeypatch) -> None:
+    """A-M5: journal-first with a deterministic id — an audit failure means the CAS never stamps
+    (still active); a retry revokes it, and even across the failure there is exactly one revoke
+    row (the deterministic id dedups)."""
+    client, prefix = real_os
+    made = await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
+    _fail_audit_once(monkeypatch)
+
+    with pytest.raises(Exception):  # noqa: B017
+        await revoke_decision(client, actor="ana", decision_id=made["decision_id"], prefix=prefix)
+    assert (await _get(client, prefix, made["decision_id"]))["revoked_at"] is None  # never stamped
+
+    await revoke_decision(client, actor="ana", decision_id=made["decision_id"], prefix=prefix)
+    assert (await _get(client, prefix, made["decision_id"]))["revoked_at"] is not None
+    rows = await _audit(client, prefix, made["decision_id"])
+    assert sum(1 for r in rows if r["action"] == "decision_revoke") == 1

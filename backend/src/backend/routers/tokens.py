@@ -9,6 +9,7 @@ suite (`tests/security/test_rbac_idor_contract.py`)."""
 
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from opensearchpy import NotFoundError
@@ -65,10 +66,17 @@ def _public(token_id: str, doc: dict[str, Any]) -> dict[str, Any]:
     return {"id": token_id, **{k: doc.get(k) for k in _PUBLIC_FIELDS}}
 
 
-async def _mint_doc(
-    client: Any, *, cluster_id: str, scanner: str, created_by: str, expiry: str | None = None
-) -> tuple[str, str]:
-    """Create a token doc; returns (doc_id, RAW token) — the raw value's only server-side moment."""
+async def _write_token(
+    client: Any,
+    *,
+    token_id: str,
+    cluster_id: str,
+    scanner: str,
+    created_by: str,
+    expiry: str | None = None,
+) -> str:
+    """Write a token doc under a caller-supplied id (so the id can be journaled BEFORE the write,
+    audit #188); returns the RAW token — the raw value's only server-side moment."""
     raw = mint_token()
     doc = {
         "token_hash": hash_token(raw, pepper=get_settings().token_pepper),
@@ -80,8 +88,10 @@ async def _mint_doc(
         "expiry": expiry,
         "disabled": False,
     }
-    resp = await client.index(index=TOKENS_INDEX, body=doc, params={"refresh": "true"})
-    return resp["_id"], raw
+    await client.index(
+        index=TOKENS_INDEX, id=token_id, body=doc, params={"op_type": "create", "refresh": "true"}
+    )
+    return raw
 
 
 @router.get("")
@@ -116,13 +126,9 @@ async def list_tokens(
 @router.post("", status_code=201)
 async def mint(request: Request, body: MintRequest, principal: ManageTokens) -> dict[str, Any]:
     client = _os(request)
-    token_id, raw = await _mint_doc(
-        client,
-        cluster_id=body.cluster_id,
-        scanner=body.scanner,
-        created_by=principal.user_id,
-        expiry=body.expiry.isoformat() if body.expiry else None,
-    )
+    token_id = uuid4().hex
+    # journal-first (D17, audit #188): strict append before the token exists — an audit failure
+    # 500s without a live-but-unjournaled token; a retry mints a fresh id and re-drives both.
     await append_auth_event(
         client,
         actor=principal.user_id,
@@ -130,6 +136,15 @@ async def mint(request: Request, body: MintRequest, principal: ManageTokens) -> 
         entity_type="token",
         entity_id=token_id,
         cluster_id=body.cluster_id,
+        strict=True,
+    )
+    raw = await _write_token(
+        client,
+        token_id=token_id,
+        cluster_id=body.cluster_id,
+        scanner=body.scanner,
+        created_by=principal.user_id,
+        expiry=body.expiry.isoformat() if body.expiry else None,
     )
     return {"id": token_id, "token": raw}  # shown once — not recoverable
 
@@ -138,12 +153,7 @@ async def mint(request: Request, body: MintRequest, principal: ManageTokens) -> 
 async def revoke(request: Request, token_id: str, principal: ManageTokens) -> dict[str, Any]:
     client = _os(request)
     doc = await _load(client, token_id)
-    await client.update(
-        index=TOKENS_INDEX,
-        id=token_id,
-        body={"doc": {"disabled": True}},
-        params={"refresh": "true"},
-    )
+    # journal-first (D17, audit #188)
     await append_auth_event(
         client,
         actor=principal.user_id,
@@ -151,6 +161,13 @@ async def revoke(request: Request, token_id: str, principal: ManageTokens) -> di
         entity_type="token",
         entity_id=token_id,
         cluster_id=doc.get("cluster_id"),
+        strict=True,
+    )
+    await client.update(
+        index=TOKENS_INDEX,
+        id=token_id,
+        body={"doc": {"disabled": True}},
+        params={"refresh": "true"},
     )
     return {"id": token_id, "disabled": True}
 
@@ -161,8 +178,22 @@ async def rotate(request: Request, token_id: str, principal: ManageTokens) -> di
     The sibling inherits the old token's expiry (rotation is not extension, task E m-7)."""
     client = _os(request)
     old = await _load(client, token_id)
-    new_id, raw = await _mint_doc(
+    new_id = uuid4().hex
+    # journal-first (D17, audit #188): both events land before any mutation, strict — an audit
+    # failure leaves neither the new token nor the disable, and a retry re-drives cleanly.
+    for action, entity in (("token_mint", new_id), ("token_revoke", token_id)):
+        await append_auth_event(
+            client,
+            actor=principal.user_id,
+            action=action,
+            entity_type="token",
+            entity_id=entity,
+            cluster_id=old["cluster_id"],
+            strict=True,
+        )
+    raw = await _write_token(
         client,
+        token_id=new_id,
         cluster_id=old["cluster_id"],
         scanner=old["scanner"],
         created_by=principal.user_id,
@@ -174,15 +205,6 @@ async def rotate(request: Request, token_id: str, principal: ManageTokens) -> di
         body={"doc": {"disabled": True}},
         params={"refresh": "true"},
     )
-    for action, entity in (("token_mint", new_id), ("token_revoke", token_id)):
-        await append_auth_event(
-            client,
-            actor=principal.user_id,
-            action=action,
-            entity_type="token",
-            entity_id=entity,
-            cluster_id=old["cluster_id"],
-        )
     return {"id": new_id, "token": raw}
 
 

@@ -240,3 +240,42 @@ async def test_token_list_paginates(admin_client) -> None:
     assert page1.json()["total"] == page2.json()["total"] == 3
     assert len(page1.json()["tokens"]) == 2
     assert len(page2.json()["tokens"]) == 1
+
+
+# --- audit-log completeness (D17) — journal-first (audit #188) ------------------------
+
+
+def _fail_audit_once(monkeypatch) -> None:
+    from backend.audit import writer
+
+    real = writer._append
+    state = {"fired": False}
+
+    async def flaky(*args, **kwargs):
+        if not state["fired"]:
+            state["fired"] = True
+            raise RuntimeError("audit index hiccup")
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(writer, "_append", flaky)
+
+
+async def test_mint_not_left_unjournaled_on_audit_failure(admin_client, monkeypatch) -> None:
+    """A-M5: journal-first + strict — a failed audit append must not leave a live-but-unjournaled
+    token (the old fire-and-forget swallowed it, minting a usable token with no trail). No token on
+    failure; a retry mints exactly one with exactly one mint row."""
+    http, client, _ = admin_client
+    cluster = _cluster()
+    _fail_audit_once(monkeypatch)
+
+    with pytest.raises(Exception):  # noqa: B017 — the strict audit failure fails the request (500)
+        await http.post("/api/v1/admin/tokens", json={"cluster_id": cluster, "scanner": "trivy"})
+    await client.indices.refresh(index="system-tokens")
+    q = {"query": {"term": {"cluster_id": cluster}}}
+    assert (await client.count(index="system-tokens", body=q))["count"] == 0  # no orphan token
+
+    r = await http.post("/api/v1/admin/tokens", json={"cluster_id": cluster, "scanner": "trivy"})
+    assert r.status_code == 201
+    await client.indices.refresh(index="system-tokens")
+    assert (await client.count(index="system-tokens", body=q))["count"] == 1
+    assert len(await _audit_rows(client, action="token_mint", entity_id=r.json()["id"])) == 1

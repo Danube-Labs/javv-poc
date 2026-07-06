@@ -98,24 +98,25 @@ async def _load_user(client: Any, username: str) -> dict[str, Any]:
         raise HTTPException(404, "user not found") from None
 
 
-async def _assert_not_last_admin(client: Any, username: str) -> None:
-    """Refuse to remove the final enabled admin — another one must exist first."""
+async def _count_enabled_admins(client: Any, *, excluding: str | None = None) -> int:
+    must_not: list[dict[str, Any]] = [{"term": {"disabled": True}}]
+    if excluding is not None:
+        must_not.append({"term": {"username": excluding}})
     hits = await client.search(
         index=USERS_INDEX,
         body={
             "size": 0,
-            "query": {
-                "bool": {
-                    "filter": [{"term": {"role": "admin"}}],
-                    "must_not": [
-                        {"term": {"disabled": True}},
-                        {"term": {"username": username}},
-                    ],
-                }
-            },
+            "query": {"bool": {"filter": [{"term": {"role": "admin"}}], "must_not": must_not}},
         },
     )
-    if hits["hits"]["total"]["value"] == 0:
+    return int(hits["hits"]["total"]["value"])
+
+
+async def _assert_not_last_admin(client: Any, username: str) -> None:
+    """Cheap pre-check: refuse to remove the final enabled admin — another one must exist first.
+    A concurrent pair can both pass this (each sees the other), so the caller ALSO re-checks after
+    the mutation and rolls back on zero admins (A-m3 — the pre-check alone is TOCTOU)."""
+    if await _count_enabled_admins(client, excluding=username) == 0:
         raise HTTPException(409, "cannot demote or disable the last enabled admin")
 
 
@@ -159,6 +160,16 @@ async def create_user(request: Request, body: CreateUser, principal: ManageUsers
         "external_id": None,
         "created_at": datetime.now(UTC).isoformat(),
     }
+    # journal-first (D17, audit #188): the row lands before the create, strict so an audit failure
+    # 500s WITHOUT a silent unjournaled user; a retry re-drives both.
+    await append_auth_event(
+        client,
+        actor=principal.user_id,
+        action="user_create",
+        entity_type="user",
+        entity_id=body.username,
+        strict=True,
+    )
     try:
         await client.index(
             index=USERS_INDEX,
@@ -168,13 +179,6 @@ async def create_user(request: Request, body: CreateUser, principal: ManageUsers
         )
     except ConflictError:
         raise HTTPException(409, "user already exists") from None
-    await append_auth_event(
-        client,
-        actor=principal.user_id,
-        action="user_create",
-        entity_type="user",
-        entity_id=body.username,
-    )
     return {"user": _public(doc)}
 
 
@@ -187,22 +191,36 @@ async def set_role(
     if user.get("role") == body.role:
         return {"user": _public(user)}  # no-op: nothing changes, sessions survive
     capabilities = await _role_capabilities_or_422(client, body.role)
-    if user.get("role") == "admin":
-        await _assert_not_last_admin(client, username)
-    await client.update(
-        index=USERS_INDEX,
-        id=username,
-        body={"doc": {"role": body.role, "capabilities": capabilities}},
-        params={"refresh": "true"},
-    )
-    await revoke_all_for_user(client, username)  # D33: a new role never rides an old session
+    demoting_admin = user.get("role") == "admin"
+    if demoting_admin:
+        await _assert_not_last_admin(client, username)  # cheap pre-check (TOCTOU — see below)
+    # journal-first (D17, audit #188): strict append before the write; a retry finds the role still
+    # old (not a no-op) and re-drives, so the change is never applied-but-unjournaled.
     await append_auth_event(
         client,
         actor=principal.user_id,
         action="role_change",
         entity_type="user",
         entity_id=username,
+        strict=True,
     )
+    await client.update(
+        index=USERS_INDEX,
+        id=username,
+        body={"doc": {"role": body.role, "capabilities": capabilities}},
+        params={"refresh": "true"},
+    )
+    if demoting_admin and await _count_enabled_admins(client) == 0:
+        # A-m3: a concurrent demote raced past both pre-checks and we jointly zeroed the admins —
+        # roll our demotion back and refuse, so at least one admin always survives.
+        await client.update(
+            index=USERS_INDEX,
+            id=username,
+            body={"doc": {"role": user["role"], "capabilities": user.get("capabilities", [])}},
+            params={"refresh": "true"},
+        )
+        raise HTTPException(409, "cannot demote or disable the last enabled admin")
+    await revoke_all_for_user(client, username)  # D33: a new role never rides an old session
     return {"user": _public({**user, "role": body.role, "capabilities": capabilities})}
 
 
@@ -214,23 +232,35 @@ async def set_disabled(
     user = await _load_user(client, username)
     if bool(user.get("disabled")) == body.disabled:
         return {"user": _public(user)}  # no-op
-    if body.disabled and user.get("role") == "admin":
-        await _assert_not_last_admin(client, username)
-    await client.update(
-        index=USERS_INDEX,
-        id=username,
-        body={"doc": {"disabled": body.disabled}},
-        params={"refresh": "true"},
-    )
-    if body.disabled:
-        await revoke_all_for_user(client, username)  # dead account = dead sessions, immediately
+    disabling_admin = body.disabled and user.get("role") == "admin"
+    if disabling_admin:
+        await _assert_not_last_admin(client, username)  # cheap pre-check (TOCTOU — see below)
+    # journal-first (D17, audit #188)
     await append_auth_event(
         client,
         actor=principal.user_id,
         action="user_disable" if body.disabled else "user_enable",
         entity_type="user",
         entity_id=username,
+        strict=True,
     )
+    await client.update(
+        index=USERS_INDEX,
+        id=username,
+        body={"doc": {"disabled": body.disabled}},
+        params={"refresh": "true"},
+    )
+    if disabling_admin and await _count_enabled_admins(client) == 0:
+        # A-m3: a concurrent disable/demote jointly zeroed the admins — roll back and refuse.
+        await client.update(
+            index=USERS_INDEX,
+            id=username,
+            body={"doc": {"disabled": False}},
+            params={"refresh": "true"},
+        )
+        raise HTTPException(409, "cannot demote or disable the last enabled admin")
+    if body.disabled:
+        await revoke_all_for_user(client, username)  # dead account = dead sessions, immediately
     return {"user": _public({**user, "disabled": body.disabled})}
 
 
@@ -243,6 +273,15 @@ async def password_reset(
     if user.get("auth_source", "local") != "local":
         raise HTTPException(403, "password is managed by the identity provider")
     _check_policy_or_422(body.temp_password)
+    # journal-first (D17, audit #188): strict append before the reset lands
+    await append_auth_event(
+        client,
+        actor=principal.user_id,
+        action="pwd_reset",
+        entity_type="user",
+        entity_id=username,
+        strict=True,
+    )
     await client.update(
         index=USERS_INDEX,
         id=username,
@@ -250,11 +289,4 @@ async def password_reset(
         params={"refresh": "true"},
     )
     await revoke_all_for_user(client, username)  # a possibly-compromised account starts clean
-    await append_auth_event(
-        client,
-        actor=principal.user_id,
-        action="pwd_reset",
-        entity_type="user",
-        entity_id=username,
-    )
     return {"user": _public({**user, "must_change": True})}

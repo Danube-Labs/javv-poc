@@ -30,7 +30,8 @@ async def get_sla(request: Request, principal: Authenticated) -> dict[str, Any]:
 async def put_sla(request: Request, policy: SlaPolicy, principal: ManageSettings) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     old = await read_sla_policy(client)
-    await write_sla_policy(client, policy, updated_by=principal.user_id)
+    # journal-first (D17, audit #188): the row lands before the policy write, so an audit failure
+    # leaves NO applied-but-unjournaled change — a retry re-drives both. append_field_change raises.
     await append_field_change(
         client,
         actor=principal.user_id,
@@ -45,4 +46,5 @@ async def put_sla(request: Request, policy: SlaPolicy, principal: ManageSettings
         revision=1,
         cluster_id="fleet",  # fleet-wide config — not a tenant row
     )
+    await write_sla_policy(client, policy, updated_by=principal.user_id)
     return {"sla": policy.model_dump()}
