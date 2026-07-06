@@ -152,6 +152,24 @@ async def test_list_requires_cluster_and_paginates(env) -> None:
     assert len(r2.json()["decisions"]) == 1
 
 
+async def test_invalid_decision_inputs_return_422_not_500(env) -> None:
+    """Audit #185: bad request shapes are client errors at the door — a not_affected decision
+    without a CISA justification (A-M2), garbage expiry (A-m7), and an over-long list `cve_id`
+    query (A-n) must 422, never 500 or a polluted projection."""
+    login_with, _ = env
+    http = await login_with(["can_triage"])
+
+    r = await http.post("/api/v1/decisions", json=_body(type="not_affected"))
+    assert r.status_code == 422  # A-M2: not_affected needs a justification
+    r = await http.post(
+        "/api/v1/decisions",
+        json=_body(type="not_affected", vex_justification="component_not_present", expiry="banana"),
+    )
+    assert r.status_code == 422  # A-m7: expiry must be ISO-8601, not free text
+    r = await http.get("/api/v1/decisions", params={"cluster_id": CID, "cve_id": "x" * 5000})
+    assert r.status_code == 422  # A-n: bounded query string
+
+
 async def test_approval_list_is_accept_final_only_and_sorted_by_expiry(env) -> None:
     """M5d ruling (#30): the approval list = review queue over ACTIVE risk-accepts (creation is
     already SEC-2-gated — there is no pending state), soonest-expiring first."""

@@ -11,7 +11,7 @@ import asyncio
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal
@@ -28,19 +28,27 @@ CanTriage = Annotated[Principal, Depends(require_capability("can_triage"))]
 class BulkSelector(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    cve_id: str | None = None
-    image_digest: str | None = None
-    severity: str | None = None
-    state: str | None = None
-    assignee: str | None = None
+    cve_id: str | None = Field(default=None, max_length=128)
+    image_digest: str | None = Field(default=None, max_length=128)
+    severity: str | None = Field(default=None, max_length=32)
+    state: str | None = Field(default=None, max_length=64)
+    assignee: str | None = Field(default=None, max_length=256)
+
+    @model_validator(mode="after")
+    def _require_a_selector(self) -> "BulkSelector":
+        # A-m8: an all-null selector resolves to every present finding in the cluster — one
+        # malformed call would mass-triage the whole tenant. Require at least one predicate.
+        if all(v is None for v in self.__dict__.values()):
+            raise ValueError("bulk selector requires at least one field (refusing whole-cluster)")
+        return self
 
 
 class BulkPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    state: str | None = None
-    vex_justification: str | None = None
-    assignee: str | None = None
+    state: str | None = Field(default=None, max_length=64)
+    vex_justification: str | None = Field(default=None, max_length=128)
+    assignee: str | None = Field(default=None, max_length=256)
     notes: str | None = Field(default=None, max_length=10_000)
 
 

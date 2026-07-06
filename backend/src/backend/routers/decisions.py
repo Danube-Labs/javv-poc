@@ -145,7 +145,7 @@ async def list_decisions(
     request: Request,
     principal: CanTriage,
     cluster_id: ClusterId,
-    cve_id: str | None = None,
+    cve_id: Annotated[str | None, Query(max_length=128)] = None,  # A-n: bounded query string
     include_revoked: bool = False,
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
