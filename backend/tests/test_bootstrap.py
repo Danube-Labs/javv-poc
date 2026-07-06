@@ -114,6 +114,9 @@ def test_bootstrap_scope() -> None:
         "system-roles",
         "system-sessions",
         "system-decisions",
+        "system-reports",  # M7/#32 — scheduled-export queue
+        "system-report-chunks",  # M7/#32 — chunked result blobs
+        "system-notifications",  # M7/#32 — the bell feed
     }
     # + system-audit-log (M5a appender; M5b owns writer/replay); occurrences/inventory-runs → M8a
     assert set(INDEX_TEMPLATES) == {"javv-scan-events", "javv-images", "system-audit-log"}

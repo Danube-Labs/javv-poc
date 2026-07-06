@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     # Seed-once — rotating the mounted value later has no effect on an existing admin by design.
     bootstrap_admin_username: str = "admin"
     bootstrap_admin_password: str = ""
+    # scheduled reports (M7/#32): results are stored IN OpenSearch (chunked) and TTL-swept.
+    export_ttl_hours: int = 24  # a completed export is deleted this long after completion
+    export_max_bytes: int = 500 * 1024 * 1024  # 500 MiB per-export ceiling — drain fails past it
+    report_drain_sleep_ms: int = 200  # off-peak throttle: sleep between pages so ingest survives
+    report_lease_ttl_seconds: int = 300  # claimed-job lease; past it (no heartbeat) → reclaimable
 
 
 @lru_cache
