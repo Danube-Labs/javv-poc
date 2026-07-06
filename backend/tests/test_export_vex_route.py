@@ -105,6 +105,24 @@ async def _seed_finding(client: AsyncOpenSearch, cid: str, **over: Any) -> None:
     await client.indices.refresh(index="findings")
 
 
+async def test_vex_over_row_cap_is_413(env, monkeypatch) -> None:
+    """A-M6 (audit #189): VEX materializes the whole lens into one JSON document, so a lens over
+    JAVV_EXPORT_MAX_ROWS is refused with a 413 pre-count — never an unbounded in-memory build."""
+    login, client = env
+    monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "2")
+    get_settings.cache_clear()
+    cid = f"c-vex-{uuid.uuid4().hex[:8]}"
+    for i in range(4):  # 4 trivy findings > cap 2
+        await _seed_finding(client, cid, cve_id=f"CVE-2024-02{i:02d}")
+    http = await login()
+
+    r = await http.get(
+        "/api/v1/findings/export.vex", params={"cluster_id": cid, "scanner": "trivy"}
+    )
+    assert r.status_code == 413
+    assert "inline export limit" in r.json()["title"]
+
+
 async def test_vex_round_trips_triage_in_both_formats(env) -> None:
     login, client = env
     cid, other = f"c-vex-{uuid.uuid4().hex[:8]}", f"c-vex-{uuid.uuid4().hex[:8]}"

@@ -35,6 +35,12 @@ _FREEZE_PAGE = 10_000
 _SELECTOR_FIELDS = ("cve_id", "image_digest", "severity", "state", "assignee")
 
 
+class SelectorTooBroad(Exception):
+    """`freeze_targets` aborted mid-paging: the selector matches more than the hard cap
+    (audit A-Mc/#189). Raised the moment the accumulated set exceeds the cap — the freeze never
+    materializes an unbounded id list. The route translates it to 413 ("selector too broad")."""
+
+
 def validate_bulk_patch(patch: dict[str, Any]) -> None:
     """Target-based validation, once per action (message is user-facing, 422)."""
     if not patch:
@@ -53,9 +59,16 @@ def validate_bulk_patch(patch: dict[str, Any]) -> None:
 
 
 async def freeze_targets(
-    client: AsyncOpenSearch, cluster_id: str, selector: dict[str, Any], *, prefix: str = ""
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    selector: dict[str, Any],
+    *,
+    max_targets: int,
+    prefix: str = "",
 ) -> list[str]:
-    """Resolve the selector to the frozen, complete, sorted id-set (D38/H8)."""
+    """Resolve the selector to the frozen, complete, sorted id-set (D38/H8), bounded by
+    `max_targets`: pull at most one-over-cap per page and raise `SelectorTooBroad` the instant the
+    accumulated set exceeds the cap (count-don't-collect — never materialize the whole match)."""
     filters: list[dict[str, Any]] = [
         {"term": {"cluster_id": cluster_id}},
         {"term": {"present": True}},  # bulk acts on the "now" grid, never tombstones
@@ -65,8 +78,9 @@ async def freeze_targets(
             filters.append({"term": {field: selector[field]}})
     index = f"{prefix}findings"
     await client.indices.refresh(index=index)
+    page = min(_FREEZE_PAGE, max_targets + 1)  # never pull more than one-over-cap in a page
     body: dict[str, Any] = {
-        "size": _FREEZE_PAGE,
+        "size": page,
         "sort": [{"finding_key": "asc"}],
         "query": {"bool": {"filter": filters}},
         "_source": False,
@@ -76,7 +90,9 @@ async def freeze_targets(
         resp = await client.search(index=index, body=body)
         hits = resp["hits"]["hits"]
         ids += [h["_id"] for h in hits]
-        if len(hits) < _FREEZE_PAGE:
+        if len(ids) > max_targets:  # bail during paging — the freeze memory stays bounded
+            raise SelectorTooBroad(f"selector too broad — matches more than {max_targets} findings")
+        if len(hits) < page:
             return ids
         body = {**body, "search_after": hits[-1]["sort"]}
 

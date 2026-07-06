@@ -152,6 +152,27 @@ async def test_export_streams_sanitized_lens_and_cleans_pits(env, monkeypatch) -
     assert await _pit_count(client) == pits_before  # the sweep cleaned its PIT (D38)
 
 
+async def test_export_over_row_cap_is_413_before_streaming(env, monkeypatch) -> None:
+    """A-M6 (audit #189): a lens exceeding JAVV_EXPORT_MAX_ROWS is a clean 413 from a cheap
+    pre-count — never a streamed-open giant body / OOM. Under the cap → 200."""
+    login, client = env
+    monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "3")
+    get_settings.cache_clear()
+    cid = f"c-exp-{uuid.uuid4().hex[:8]}"
+    await _seed(client, cid, _rows(5))  # 5 > cap 3
+    http = await login()
+
+    r = await http.get("/api/v1/findings/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 413
+    assert "inline export limit" in r.json()["title"]
+
+    monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "50")  # now comfortably above the lens
+    get_settings.cache_clear()
+    r = await http.get("/api/v1/findings/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 200
+    assert len(r.text.splitlines()) == 1 + 5
+
+
 async def test_export_requires_auth_and_as_of_past_is_501(env) -> None:
     login, client = env
     cid = f"c-exp-{uuid.uuid4().hex[:8]}"
