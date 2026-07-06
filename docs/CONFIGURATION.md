@@ -4,6 +4,11 @@
 > it today**, and **whether it will be UI-controllable**. Kept versioned in-repo (reviewed in PRs) so
 > it can't drift. This documents the **current** state of the code plus the **planned** UI ownership
 > per the bolts; where something is a gap (envisioned but unowned), it says so explicitly.
+>
+> **Backend `JAVV_*` values are validated at boot (#219):** zero/negative limits, a malformed PIT
+> keep-alive, or inverted cap pairs (compressed > decompressed, inline > max-targets) **abort
+> startup** with the offending variable named — a borked deployment crash-loops readably instead of
+> passing `/readyz` while every request fails.
 
 ## Configuration philosophy — three tiers
 

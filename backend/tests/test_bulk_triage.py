@@ -183,6 +183,7 @@ async def test_selector_over_max_targets_is_selector_too_broad_413(env, monkeypa
     broad", and freeze_targets bails DURING paging (count-don't-collect) — never materializes the
     whole match."""
     login_with, client, _ = env
+    monkeypatch.setenv("JAVV_BULK_INLINE_LIMIT", "2")  # keep inline ≤ max_targets (#219 invariant)
     monkeypatch.setenv("JAVV_BULK_MAX_TARGETS", "2")  # 4 docs > the hard freeze cap
     get_settings.cache_clear()
     http = await login_with(["can_triage"])

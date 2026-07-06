@@ -12,6 +12,7 @@ horizon (`keep_alive` + margin), because the abandoned PIT dies there server-sid
 bounded is the accepted MVP shape: the cap is defense against a BURST faster than expiry, not a
 substitute for it. Knob: `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL`; past it the route 429s."""
 
+import re
 import time
 
 from backend.core.settings import get_settings
@@ -26,14 +27,19 @@ class PitCapExceeded(Exception):
     answers 429 with a Retry-After."""
 
 
+_KEEP_ALIVE = re.compile(r"^(\d+)(ms|s|m|h)$")
+_UNIT_S = {"ms": 0.001, "s": 1.0, "m": 60.0, "h": 3600.0}
+
+
 def _keep_alive_s() -> float:
-    """Parse `JAVV_SEARCH_PIT_KEEP_ALIVE` ("2m"/"30s"/"1h") to seconds; the slot horizon."""
+    """Parse `JAVV_SEARCH_PIT_KEEP_ALIVE` to seconds; the slot horizon. The grammar is validated
+    at boot (#219) so a mismatch here is a real config bug — raise loud, no silent 120s fallback
+    (06 §2 ruling: silent fallbacks hide exactly the class of bug the validation exists to kill)."""
     ka = get_settings().search_pit_keep_alive.strip()
-    mult = {"s": 1.0, "m": 60.0, "h": 3600.0}.get(ka[-1:])
-    try:
-        return float(ka[:-1]) * mult if mult is not None else 120.0
-    except ValueError:
-        return 120.0
+    m = _KEEP_ALIVE.match(ka)
+    if m is None:  # unreachable behind Settings validation; loud beats a masked misparse
+        raise ValueError(f"search_pit_keep_alive {ka!r} is not <digits><ms|s|m|h>")
+    return float(m.group(1)) * _UNIT_S[m.group(2)]
 
 
 def _reap(principal: str, now: float) -> list[float]:
