@@ -608,3 +608,77 @@ async def test_concurrent_edits_leave_one_active_winner_and_a_consistent_project
     assert len(active) == 1  # never two active decisions for the pair
     got = await _finding(client, prefix, fk)
     assert (got["state"], got["state_decision_id"]) == ("risk_accepted", active[0]["decision_id"])
+
+
+# --- A-M3 / A-m10: reproject guarded RMW (audit #186) --------------------------------
+
+
+async def test_concurrent_reprojects_do_not_500_and_converge(real_os) -> None:
+    """A-M3 consequence 1 (deterministic): several reprojects race the SAME (cluster, cve).
+    The guarded read-modify-write DRAINS version conflicts instead of raising BulkError out of
+    the decision path — the unguarded write 500'd after the decision docs already committed."""
+    from backend.decisions.reproject import reproject_cve
+
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix)
+    await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)  # → risk_accepted
+    # reset to open so a fresh reproject WANTS to change it, then race N reprojects at once
+    await client.update(
+        index=f"{prefix}findings",
+        id=fk,
+        body={"doc": {"state": "open", "state_decision_id": None, "vex_justification": None}},
+        params={"refresh": "true"},
+    )
+
+    results = await asyncio.gather(
+        *[reproject_cve(client, "c-decisions", "CVE-2026-0001", prefix=prefix) for _ in range(5)],
+        return_exceptions=True,
+    )
+    assert all(not isinstance(r, Exception) for r in results), results  # no BulkError / 500
+    got = await _finding(client, prefix, fk)
+    assert got["state"] == "risk_accepted"  # converged to the projection
+
+
+async def test_reproject_does_not_clobber_a_concurrent_human_triage(real_os) -> None:
+    """A-M3 consequence 2: a direct human triage that lands mid-reproject MUST survive — the
+    guarded RMW re-checks ownership on the fresh source and keeps its hands off (the unguarded
+    write silently overwrote it, breaking 'direct action > auto-rule' and defeating rebuild)."""
+    from backend.triage.service import TriagePatch, apply_triage
+
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix)
+    made = await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
+    assert (await _finding(client, prefix, fk))["state"] == "risk_accepted"
+
+    # race the decision revoke (reprojects toward open) against a human acknowledging the finding
+    await asyncio.gather(
+        revoke_decision(client, actor="ana", decision_id=made["decision_id"], prefix=prefix),
+        apply_triage(
+            client,
+            actor="human",
+            finding_key=fk,
+            patch=TriagePatch(state="acknowledged"),
+            prefix=prefix,
+        ),
+        return_exceptions=True,
+    )
+    got = await _finding(client, prefix, fk)
+    assert got["state"] == "acknowledged"  # the direct human action wins
+    assert got["state_decision_id"] is None  # provenance cleared — not decision-owned
+
+
+async def test_reproject_pages_beyond_one_batch(real_os, monkeypatch) -> None:
+    """A-m10: reproject must not silently truncate at the page bound — the old bare `assert
+    len(hits) < _PAGE` vanished under `python -O`, projecting only the first page. Shrink the
+    page and assert EVERY finding still reprojects."""
+    from backend.decisions import reproject as reproject_mod
+
+    monkeypatch.setattr(reproject_mod, "_PAGE", 2)
+    client, prefix = real_os
+    fks = [
+        await _seed_finding(client, prefix, finding_key=f"fk-page-{i}", image_digest=f"sha256:{i}")
+        for i in range(5)
+    ]
+    await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
+    for fk in fks:
+        assert (await _finding(client, prefix, fk))["state"] == "risk_accepted"  # all 5, not 2
