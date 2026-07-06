@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.16](https://github.com/Danube-Labs/javv-poc/compare/v0.2.15...v0.2.16) (2026-07-06)
+
+
+### Bug Fixes
+
+* **m5c/m6:** validate triage + decision vocabularies (audit [#185](https://github.com/Danube-Labs/javv-poc/issues/185)) ([#195](https://github.com/Danube-Labs/javv-poc/issues/195)) ([b371923](https://github.com/Danube-Labs/javv-poc/commit/b3719238311cc34bdd067424be287b29f1408b17))
+
 ## [0.2.15](https://github.com/Danube-Labs/javv-poc/compare/v0.2.14...v0.2.15) (2026-07-05)
 
 
