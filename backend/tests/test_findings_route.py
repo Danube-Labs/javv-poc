@@ -252,6 +252,104 @@ async def test_overdue_decoration_uses_the_group_clock(env) -> None:
     assert by_cve["CVE-2024-7778"]["due_at"] is None
 
 
+async def test_group_clock_is_exact_across_a_paged_composite(env, monkeypatch) -> None:
+    """A-M4 (audit #187, both passes): the group clock must be the EXACT earliest first_seen_at per
+    (cve, digest), fetched via a composite agg that PAGES to exhaustion — never the old truncatable
+    cve×digest cross-product doc fetch that could drop the earliest holder and under-report overdue.
+    Force the composite page to 1 so the target pair's bucket lands on a later page; its off-page
+    (grype) clock must still make the trivy row overdue."""
+    monkeypatch.setattr("backend.routers.findings._GROUP_CLOCK_PAGE", 1)
+    login, client = env
+    cid = f"c-srch-{uuid.uuid4().hex[:8]}"
+    old = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+    rows: list[dict[str, Any]] = [
+        # noise pairs (present, on-page under a trivy filter) so the composite spans several pages
+        {
+            "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+            "cve_id": f"CVE-N-{i}",
+            "image_digest": f"sha256:noise{i}",
+            "scanner": "trivy",
+        }
+        for i in range(3)
+    ]
+    # the target group: grype saw it 30d ago (hidden by the trivy page filter), trivy fresh
+    rows += [
+        {
+            "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+            "cve_id": "CVE-TGT",
+            "image_digest": "sha256:tgt",
+            "scanner": "grype",
+            "first_seen_at": old,
+            "severity": "crit",
+            "severity_rank": 5,
+        },
+        {
+            "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+            "cve_id": "CVE-TGT",
+            "image_digest": "sha256:tgt",
+            "scanner": "trivy",
+            "severity": "crit",
+            "severity_rank": 5,
+        },
+    ]
+    await _seed(client, cid, rows)
+    http = await login()
+
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "scanner": "trivy"})
+    assert r.status_code == 200
+    by_cve = {d["cve_id"]: d for d in r.json()["data"]}
+    assert by_cve["CVE-TGT"]["overdue"] is True  # exact clock survived the paged composite
+
+
+async def test_group_clock_is_tenant_scoped(env) -> None:
+    """The group-clock fetch carries cluster_id (the chokepoint): an identical (cve, digest) in
+    ANOTHER cluster, however ancient, must never anchor this cluster's clock (audit #187)."""
+    login, client = env
+    cid = f"c-srch-{uuid.uuid4().hex[:8]}"
+    other = f"c-other-{uuid.uuid4().hex[:8]}"
+    ancient = (datetime.now(UTC) - timedelta(days=90)).isoformat()
+    fresh = datetime.now(UTC).isoformat()
+    digest = "sha256:tenantclock"
+    await _seed(
+        client,
+        other,
+        [
+            {
+                "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+                "cve_id": "CVE-TEN",
+                "image_digest": digest,
+                "scanner": "trivy",
+                "first_seen_at": ancient,
+                "severity": "crit",
+                "severity_rank": 5,
+            }
+        ],
+    )
+    await _seed(
+        client,
+        cid,
+        [
+            {
+                "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+                "cve_id": "CVE-TEN",
+                "image_digest": digest,
+                "scanner": "trivy",
+                "first_seen_at": fresh,
+                "severity": "crit",
+                "severity_rank": 5,
+            }
+        ],
+    )
+    http = await login()
+
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid})
+    assert r.status_code == 200
+    by_cve = {d["cve_id"]: d for d in r.json()["data"]}
+    # crit SLA is 2 days; the same-cluster clock is fresh (not overdue). If the other tenant's
+    # 90-day-old sibling leaked in, this would be overdue — it must not.
+    assert by_cve["CVE-TEN"]["overdue"] is False
+
+
 async def test_reads_require_auth_and_as_of_past_is_501(env) -> None:
     login, client = env
     cid = f"c-srch-{uuid.uuid4().hex[:8]}"
