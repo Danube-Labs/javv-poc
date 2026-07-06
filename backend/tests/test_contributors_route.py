@@ -173,6 +173,73 @@ async def test_leaderboard_ttr_sla_and_isolation(env) -> None:
     assert r.status_code == 501  # the uniform D28 seam
 
 
+async def _journal_decision(client: AsyncOpenSearch, cid: str, actor: str, action: str) -> None:
+    """A decision-authorship row (entity_type="decision", no finding clock) — as
+    decisions/lifecycle.py journals create/revoke."""
+    await append_field_change(
+        client,
+        actor=actor,
+        action=action,
+        entity_type="decision",
+        entity_id=f"d-{uuid.uuid4().hex[:8]}",
+        decision_id=f"d-{uuid.uuid4().hex[:8]}",
+        field="state",
+        old_value=None,
+        new_value=action,
+        revision=1,
+        cluster_id=cid,
+    )
+
+
+async def test_decision_authorship_charts_with_null_ttr(env) -> None:
+    """A-m5 (audit #190): decision work (entity_type="decision") is contributor work — it must
+    appear on the leaderboard + by_action, counting as actions but with null TTR/SLA (a decision
+    has no finding clock). A decision row in another cluster never contributes."""
+    login, client = env
+    cid, other = f"c-contrib-{uuid.uuid4().hex[:8]}", f"c-contrib-{uuid.uuid4().hex[:8]}"
+    dec = f"dec-{uuid.uuid4().hex[:6]}"
+    await _journal_decision(client, cid, dec, "decision_create")
+    await _journal_decision(client, cid, dec, "decision_revoke")
+    await _journal_decision(client, other, dec, "decision_create")  # other tenant — never leaks
+    await client.indices.refresh(index="system-audit-log-*")
+
+    http = await login()
+    r = await http.get("/api/v1/contributors", params={"cluster_id": cid, "days": 30})
+    assert r.status_code == 200
+    (row,) = [x for x in r.json()["leaderboard"] if x["actor"] == dec]
+    assert row["actions"] == 2  # exactly this cluster's two decisions, not the other's
+    assert row["by_action"] == {"decision_create": 1, "decision_revoke": 1}
+    assert row["handled"] == 0  # a decision never settles a finding
+    assert row["median_ttr_seconds"] is None and row["sla_hit_pct"] is None
+
+
+async def test_handling_rows_fully_paged_not_truncated(env, monkeypatch) -> None:
+    """A-m4 (audit #190): TTR/SLA must see the FULL window, not a truncated subset. With the page
+    size shrunk below the row count, every handling row is still paged in — `handled` matches the
+    exact leaderboard `actions` count (the old size-capped fetch would silently disagree)."""
+    import backend.routers.contributors as contrib_mod
+
+    monkeypatch.setattr(contrib_mod, "_ROWS_PAGE_SIZE", 2)  # tiny pages force real paging
+    login, client = env
+    cid = f"c-contrib-{uuid.uuid4().hex[:8]}"
+    actor = f"pg-{uuid.uuid4().hex[:6]}"
+    now = datetime.now(UTC)
+    n = 5
+    for _ in range(n):  # 5 handling rows > the 2-row page → 3 pages
+        fk = f"fk-pg-{uuid.uuid4().hex[:8]}"
+        await _seed_finding(client, cid, fk, first_seen=now - timedelta(days=1))
+        await _journal(client, cid, actor, fk, "resolve")
+    await client.indices.refresh(index="system-audit-log-*")
+
+    http = await login()
+    r = await http.get("/api/v1/contributors", params={"cluster_id": cid, "days": 30})
+    assert r.status_code == 200
+    row = {x["actor"]: x for x in r.json()["leaderboard"]}[actor]
+    assert row["actions"] == n  # leaderboard aggregation is exact
+    assert row["handled"] == n  # …and TTR/SLA now cover ALL of them, not just one page
+    assert row["sla_hit_pct"] == 100.0  # every crit handled within the 2d SLA
+
+
 async def test_vanished_finding_degrades_gracefully(env) -> None:
     login, client = env
     cid = f"c-contrib-{uuid.uuid4().hex[:8]}"

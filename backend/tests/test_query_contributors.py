@@ -25,7 +25,7 @@ def test_actions_body_filters_the_human_triage_vocabulary() -> None:
     assert body["size"] == 0
     fl = body["query"]["bool"]["filter"]
     assert {"terms": {"action": sorted(TRIAGE_ACTIONS)}} in fl
-    assert {"term": {"entity_type": "finding"}} in fl
+    assert {"terms": {"entity_type": ["finding", "decision"]}} in fl  # A-m5: decisions count too
     assert {"range": {"@timestamp": {"gte": "now-30d/d"}}} in fl
     # sweeps/projections journal as actor=system — machines never make the leaderboard
     assert body["query"]["bool"]["must_not"] == [{"term": {"actor": "system"}}]
