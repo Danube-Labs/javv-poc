@@ -161,6 +161,21 @@ async def test_create_with_unknown_role_or_weak_password_is_422(admin_env) -> No
     assert r.status_code == 422
 
 
+async def test_reserved_usernames_are_rejected(admin_env) -> None:
+    """A-m6 (audit #192): `system`/`fleet` are machine actor literals (audit log + fleet-wide
+    config) — a human can't claim one, case-insensitively, or it would blur machine-vs-human
+    forensics and do triage that never charts."""
+    make_http, client = admin_env
+    admin = make_http()
+    await _seed_and_login(admin, client, capabilities=["can_manage_users"])
+    for reserved in ("system", "fleet", "SYSTEM", "Fleet"):
+        r = await admin.post(
+            "/api/v1/admin/users",
+            json={"username": reserved, "temp_password": TEMP_PASSWORD, "role": "viewer"},
+        )
+        assert r.status_code == 422, reserved
+
+
 # --- list ------------------------------------------------------------------------------
 
 

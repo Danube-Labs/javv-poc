@@ -10,11 +10,24 @@ import json
 import pathlib
 from datetime import UTC, datetime
 
-from backend.export.vex import image_purl, to_cyclonedx, to_openvex
+from backend.export.vex import image_purl, package_purl, to_cyclonedx, to_openvex
 from backend.triage.state_machine import CISA_JUSTIFICATIONS
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 GENERATED_AT = datetime(2026, 7, 6, 12, 0, 0, tzinfo=UTC)
+
+
+def test_package_purl_percent_encodes_slashy_names_and_versions() -> None:
+    """A-n (audit #192): a Go module path (or a `+`/`@`/`:` in name or version) must not yield a
+    malformed purl — name/version are percent-encoded, mirroring the image_purl digest encoding."""
+    purl = package_purl(
+        {"package_name": "github.com/x/y", "installed_version": "v1.2.3+incompatible"}
+    )
+    assert purl == "pkg:generic/github.com%2Fx%2Fy@v1.2.3%2Bincompatible"
+    # a plain package is unchanged (nothing to encode)
+    assert package_purl({"package_name": "libssl", "installed_version": "3.0.1"}) == (
+        "pkg:generic/libssl@3.0.1"
+    )
 
 
 def _findings() -> list[dict]:

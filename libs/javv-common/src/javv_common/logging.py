@@ -23,7 +23,9 @@ from typing import Any
 import structlog
 from structlog.typing import EventDict, WrappedLogger
 
-_SENSITIVE_KEY = re.compile(r"token|secret|password|authorization|pepper", re.IGNORECASE)
+_SENSITIVE_KEY = re.compile(
+    r"token|secret|password|authorization|pepper|session|cookie", re.IGNORECASE
+)
 _BEARER = re.compile(r"Bearer\s+\S+", re.IGNORECASE)
 
 REDACTED = "[REDACTED]"

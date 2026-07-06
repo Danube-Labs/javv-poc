@@ -28,6 +28,7 @@ Products are purl-identified: the image as `pkg:oci/<name>@<digest>?repository_u
 
 from datetime import datetime
 from typing import Any
+from urllib.parse import quote
 
 _OPENVEX_CONTEXT = "https://openvex.dev/ns/v0.2.0"
 
@@ -68,7 +69,12 @@ def image_purl(doc: dict[str, Any]) -> str:
 
 
 def package_purl(doc: dict[str, Any]) -> str:
-    return f"pkg:generic/{doc.get('package_name')}@{doc.get('installed_version')}"
+    # percent-encode name/version (audit A-n): a slashy package (a Go module path
+    # `github.com/x/y`) or a `@`/`:` in either component would otherwise yield a malformed purl —
+    # mirror the image_purl digest encoding. Ecosystem stays best-effort `generic` (v1.1 tightens).
+    name = quote(str(doc.get("package_name") or ""), safe="")
+    version = quote(str(doc.get("installed_version") or ""), safe="")
+    return f"pkg:generic/{name}@{version}"
 
 
 def to_openvex(

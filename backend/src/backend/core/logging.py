@@ -10,6 +10,7 @@ the backstop, not the excuse. uvicorn's own plain-text access line is silenced â
 never double-log."""
 
 import logging
+import re
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -22,6 +23,10 @@ __all__ = ["REDACTED", "configure_logging", "install_request_context", "redact_p
 
 log = structlog.get_logger()
 
+# an inbound X-Request-ID is echoed on every response + bound to every log line â€” cap it to a safe
+# id shape so a megabyte or control-char header can't ride the whole log stream (audit A-n)
+_REQUEST_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")
+
 
 def install_request_context(app: FastAPI) -> None:
     """Bind a request_id per request + emit the structured request line."""
@@ -32,7 +37,9 @@ def install_request_context(app: FastAPI) -> None:
     async def _request_line(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
-        rid = request.headers.get("x-request-id") or uuid.uuid4().hex[:16]
+        inbound = request.headers.get("x-request-id")
+        # honor a well-formed inbound id (trace continuity); otherwise mint a fresh one
+        rid = inbound if inbound and _REQUEST_ID.match(inbound) else uuid.uuid4().hex[:16]
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(request_id=rid)
         tenant = (

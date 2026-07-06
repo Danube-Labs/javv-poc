@@ -49,3 +49,19 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
 > `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
+
+## Updates
+- **2026-07-06** — audit A-m11 (#192): the M6 kickoff ruling (recorded on #31) replaced the standalone
+  M8b spike with a typed seam — this bolt must **implement the `AsOfTReader` protocol**
+  (`backend/src/backend/query/as_of.py`): the six methods `findings_page` · `findings_facets` ·
+  `findings_groups` · `trends_scans` · `trends_findings` · `contributors` (return shapes MATCH the
+  current-state responses — time-travel changes *when*, never the wire contract, FR-23), and
+  **register it via `register_as_of_t(...)` at startup**. Until then every past-T read is `501`
+  (`AsOfTUnavailable`) at the seam. **Re-validate every delegated input** — the current-state routes
+  validate inside their body builders, but the past-T delegation forwards `filters`/`sort`/`by`/facet
+  `fields` **raw**, so the reader must re-check them (raise `ValueError` → 422) or inherit a 500
+  (the `AsOfTReader` docstring carries this contract). The protocol + its contract tests ARE the
+  verified interface M8b lands against — no separate spike.
+- **export-at-past-T is M7's**, not this bolt's (D28): the inline export routes 501 for a past
+  `as_of_t`; a reconstructed-at-T export lands in M7's scheduled queue once this reader can feed the
+  sweep. See the M7 README Updates.

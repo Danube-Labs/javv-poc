@@ -13,8 +13,11 @@ and the app **degrades loudly, not blindly** when its datastore is unavailable.
   `create_app`; scanner: its entrypoint). Redaction, JSON rendering, `timestamp→level→event`
   ordering, `JAVV_LOG_LEVEL`, and the stdlib bridge (uvicorn/opensearch-py/kubernetes) all come
   free — **never `print()`, never `logging.getLogger()` in app code, never a private logging
-  setup**. (Operator rigs under `development/e2e/` are the one exception — stdout is their
-  interface.) One event per line.
+  setup**. **Two exceptions, both operator interfaces, not app code:** (1) operator rigs under
+  `development/e2e/` — stdout is their interface; (2) job CLI entrypoints — the `__main__` blocks of
+  `python -m backend.jobs.*` (`rebuild_state`, `lifecycle`, `staleness`) may `print()` progress/results
+  to stdout, exactly like the e2e rig (audit A-n). The jobs' *library* code still uses the shared
+  logger; only the operator-facing `__main__` invocation path prints. One event per line.
 - **Bound context on every request:** `request_id` (generate if absent), `cluster_id` (when known), `path`,
   `method`, `status`, `duration_ms`. A single request's lines are greppable by `request_id`.
 - **Levels:** `debug` (dev detail) · `info` (lifecycle + each request) · `warning` (handled-but-notable:
