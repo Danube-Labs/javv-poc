@@ -6,7 +6,9 @@ findings are consulted only for the clocks (`first_seen_at`) and SLA inputs (sev
 a finding since dropped by retention degrades that row's TTR/SLA to None, never an error.
 
 - **Leaderboard**: actions per actor (with a per-action split) over the closed human triage
-  vocabulary. `actor=system` rows (sweeps, projections) never make the board.
+  vocabulary — including decision authorship (`decision_create`/`decision_revoke`, journaled
+  `entity_type="decision"`), which counts as actions but contributes no TTR/SLA sample (a decision
+  has no finding clock). `actor=system` rows (sweeps, projections) never make the board.
 - **Handled-over-time**: the daily series of SETTLING actions (the strict subset that moves a
   finding out of open).
 - **TTR**: handling-row `@timestamp` − the finding's `first_seen_at`; per-actor median.
@@ -53,7 +55,10 @@ def build_actions_body(*, days: int) -> dict[str, Any]:
             "bool": {
                 "filter": [
                     {"terms": {"action": sorted(TRIAGE_ACTIONS)}},
-                    {"term": {"entity_type": "finding"}},
+                    # decision rows are journaled entity_type="decision" (decisions/lifecycle.py);
+                    # include them so decision authorship charts as contributor work (audit A-m5).
+                    # They are not HANDLING_ACTIONS, so they add actions but no TTR/SLA sample.
+                    {"terms": {"entity_type": ["finding", "decision"]}},
                     {"range": {"@timestamp": {"gte": gte}}},
                 ],
                 "must_not": [{"term": {"actor": "system"}}],
