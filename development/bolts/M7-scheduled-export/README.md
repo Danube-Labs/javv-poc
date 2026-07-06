@@ -44,10 +44,27 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - **Concurrency (required, AUDIT M17/M7-r2/I-r3):** two workers race one `pending` job → exactly one `running` (CAS); reclaimed stale-`attempt_id` worker is rejected at `done` CAS and cannot publish; orphan object from the loser is swept while the winner's `done` object is retained.
 - **Golden fixtures:** an enqueued report `params` set → expected streamed export bytes (reusing M6's sanitized-CSV / VEX golden) so the queued path produces byte-identical output to the inline path.
 
+## Also owns — large bulk triage (deferred here by the M5c/M5d/M6 audit, A-Mc)
+The M5d bulk-triage endpoint (`POST /api/v1/findings/bulk-triage`) is **bounded-synchronous** as of
+the 2026-07-06 audit ruling (#189): it applies a frozen set up to `JAVV_BULK_INLINE_LIMIT` (5000)
+synchronously and **413s above it** — there is deliberately **no durable async path in M5d** (the old
+`create_task`/202 was removed; it could lose accepted work on a restart). **Genuinely large bulk
+triage ("risk-accept 50 000 findings off-peak") belongs here**, on the same durable
+`system-reports`-style queue this bolt builds (OCC claim + fencing `attempt_id` + orphan sweep) —
+a bulk-triage *job* is the same shape as an export job. When M7 lands, extend the enqueue surface to
+accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on completion) and lift the
+5000 inline ceiling's 413 for scheduled runs. Track as an M7 deliverable; the guide is
+`development/bolts/AUDIT-M5c-M5d-M6-remediation/task-5-export-dos-bounding.md` (A-Mc).
+
 ## Out of scope (defer)
 - The streaming export **engine** itself (CSV sanitizer, VEX serializers, PIT paging) → owned by M6; M7 only invokes it.
 - The bell **UI** (notification badge/polling) → M9d; M7 only writes the `system-notifications` doc.
 - Admin-configurable off-peak windows in the UI → `Settings → Data & OpenSearch` (FR-19, M9e).
+
+## Updates
+- **2026-07-06** — audit A-Mc ruling (#189): M7 additionally owns the **durable large-bulk-triage
+  queue** (sets above `JAVV_BULK_INLINE_LIMIT`=5000). M5d is now bounded-synchronous + 413; no
+  volatile 202. See the "Also owns" section above.
 
 ## Config tracking
 

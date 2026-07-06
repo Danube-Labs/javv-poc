@@ -25,9 +25,10 @@ layer** — one self-contained guide per task, each ≈ one PR, sized for a sing
 | 7 | [#191](https://github.com/Danube-Labs/javv-poc/issues/191) | Read-path robustness — cursor errors + refresh storm | A-m1, A-m2 | medium | [task-7](task-7-read-robustness.md) |
 | 8 | [#192](https://github.com/Danube-Labs/javv-poc/issues/192) | Hardening & hygiene batch | A-m6, A-m9, A-m11, A-m13, A-n | low | [task-8](task-8-hardening-batch.md) |
 
-**⚠️ Task 5 carries A-Mc, which needs an operator ruling** (durable bulk-job marker vs inline-only
-until M7) before it can be actioned — the guide presents both options; do not start that sub-item
-until the decision is recorded.
+**Task 5's A-Mc was decided (2026-07-06): bounded-synchronous** — delete the async 202 path, apply
+synchronously up to `JAVV_BULK_INLINE_LIMIT` (5000), 413 above, hard-cap the freeze at
+`JAVV_BULK_MAX_TARGETS` (10000). Truly-huge scheduled bulk defers to M7. No open rulings remain; the
+guide is a single concrete path.
 
 ## Recommended order
 

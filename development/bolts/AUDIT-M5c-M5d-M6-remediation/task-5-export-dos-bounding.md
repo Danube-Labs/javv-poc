@@ -60,26 +60,49 @@ rest). Keep it simple; a leaky-but-bounded counter is fine for MVP.
 **accepted result hash with no durable job record, no audit row, and no state change** — and the
 route docstring *claims* the audit row is written before the 202.
 
-**Codex rated this Major; Fable rated it a nit** (the inline path is safe; the large async path is
-"M7-owned but not cleanly"). **This needs your ruling before implementing** — two options:
+Codex rated this Major, Fable a nit. **RULING (2026-07-06 — operator decided): bounded-synchronous.
+Delete the async 202 path entirely.** No durable job doc now (that's premature M7 infra), no
+accepted-but-lost work. The `bulk-triage` UI is M9 (not built yet), so **nothing depends on the
+current 202 contract** — this is a clean cut before any client consumes it.
 
-- **Option A (defer to M7, minimal now):** keep M5d bulk **inline-only** — return **413/409** for a
-  frozen set above `JAVV_BULK_INLINE_LIMIT` with a message that large bulk triage arrives with M7's
-  scheduled/queued jobs. Remove the `create_task` 202 path. Smallest change, no volatile work behind
-  a 202. Fix the docstring. *(Recommended if M7 is near.)*
-- **Option B (durable now):** before returning 202, **synchronously write a durable OpenSearch job
-  marker** for the frozen `target_ids` (a `system-*` job doc with `pending` status + the frozen ids
-  + result hash), then have a resumable worker claim + apply it (optimistic-concurrency claim, like
-  the M7 `system-reports` design). This is essentially building a slice of M7 early — only do it if
-  large bulk is needed before M7.
+### The decided design — two limits, two distinct jobs
+`apply_bulk_triage` already journals **one row first, then applies the `_bulk`** — that ordering is
+correct; keep it. The fix is entirely in `bulk_routes.py::bulk_triage` (the route) + `freeze_targets`:
 
-**Do not start A-Mc until the operator records a choice in this file's Updates / the issue.** The
-other two sub-items (A-M6, A-m12) are unblocked — ship them regardless.
+| knob (new/changed) | default | job |
+|---|---|---|
+| `JAVV_BULK_INLINE_LIMIT` (repurposed) | **5000** (was 500) | **synchronous-apply ceiling.** Frozen set at/under this → apply now, return **200** + result. Above it → **413** ("N findings exceed the inline bulk limit (5000); narrow the selector, or use M7's scheduled bulk"). |
+| `JAVV_BULK_MAX_TARGETS` (new) | **10000** | **hard freeze cap.** `freeze_targets` never materializes more than this many ids — a selector matching more → **413** ("selector too broad — matches >10000 findings"). Bounds the freeze *memory* independently of the apply cost. |
 
-Also fold in **A-n(202-exception)**: the current 202 done-callback only discards the task reference,
-so an exception in `apply_bulk_triage` surfaces only as a GC "exception never retrieved" warning. If
-Option A removes the async path, this is moot; if Option B keeps it, log the task exception in the
-done-callback on the shared logger.
+Why two: 5000 caps how much work one synchronous request does (a 5000-doc `_bulk` + refresh is
+comfortably sub-second-to-a-few-seconds, well under `JAVV_REQUEST_TIMEOUT=30s`); 10000 stops an
+over-broad selector (`severity=negligible` with no image filter could match hundreds of thousands)
+from paging an unbounded id list into memory during the freeze itself. Distinct DoS surfaces,
+distinct limits.
+
+### The change
+1. **`freeze_targets` (`triage/bulk.py`):** stop paging once the accumulated set would exceed
+   `JAVV_BULK_MAX_TARGETS`; signal overflow (return a sentinel / raise) so the route can 413. Do
+   **not** collect all then check — bail during paging (count-don't-collect).
+2. **Route (`triage/bulk_routes.py`):** after freeze:
+   - overflow (> `bulk_max_targets`) → **413** "selector too broad".
+   - `len(target_ids) <= bulk_inline_limit` → `await apply_bulk_triage(...)`, return **200** (exactly
+     today's inline path).
+   - otherwise (between the two limits) → **413** "too many for inline; narrow, or M7 scheduled bulk".
+   - **Delete** the `asyncio.create_task` / `bulk_tasks` / `JSONResponse(202)` block entirely.
+3. **Fix the docstring** — it currently claims a 202/async contract that no longer exists.
+4. **A-n(202-exception) evaporates** — deleting the async path removes the unobserved-task-exception
+   nit (Task 8 notes this; nothing to do there once this lands).
+
+### Config (add BOTH rows to `docs/CONFIGURATION.md` §1 in the fix PR)
+Read them via `core/settings.py` (`bulk_inline_limit` default → 5000; add `bulk_max_targets: int =
+10000`), never `os.environ`. The rows are pre-staged in CONFIGURATION.md marked `⏳ #189` — when this
+lands, change the default in `settings.py` and drop the `⏳ #189` tag from the doc.
+
+### Deferred to M7 (recorded on the M7 README)
+Truly-huge "risk-accept 50k off-peak" bulk triage → M7's durable `system-reports`-style queue (the
+same optimistic-concurrency-claim + fencing-`attempt_id` machinery). Until then a >5000 set gets an
+honest 413. M7's README carries this as an explicit future surface.
 
 ## Gotchas
 - **Count, don't collect.** For every cap here, enforce it by counting as you stream / on a cheap
@@ -91,21 +114,31 @@ done-callback on the shared logger.
   parallel; this task adds the *count/cap*, Task 7 fixes the *error path*.
 
 ## Good practices / logging
-- Shared logger: `log.warning("inline export capped", cluster_id=…, cap=…, format=…)` when a cap
-  fires; `log.warning("PIT cap reached for principal", …)` on 429. Never log the lens filters' raw
+- Shared logger: `log.warning("inline export capped", cluster_id=…, cap=…, format=…)` when an
+  export cap fires; `log.warning("PIT cap reached for principal", …)` on 429; `log.warning("bulk
+  selector too broad", cluster_id=…, cap=…)` on a freeze overflow. Never log the lens/selector raw
   values beyond field names.
-- **Both new knobs go in CONFIGURATION.md §1 in the same PR** — this is the explicit "put everything
-  that can be config in CONFIGURATION.md" instruction. Read them via `core/settings.py` (Pydantic
-  `Settings`), never `os.environ` directly.
+- **All FOUR new/changed knobs go in CONFIGURATION.md §1** — `JAVV_EXPORT_MAX_ROWS`,
+  `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL` (both new here), and the bulk pair
+  `JAVV_BULK_INLINE_LIMIT` (repurposed, default 5000) + `JAVV_BULK_MAX_TARGETS` (new, 10000). This is
+  the explicit "put everything that can be config in CONFIGURATION.md" instruction. Read them via
+  `core/settings.py` (Pydantic `Settings`), never `os.environ`. The bulk pair is pre-staged in
+  CONFIGURATION.md marked `⏳ #189` — drop the tag when the code lands.
 
 ## Tests to write (TDD)
 - VEX export over a lens exceeding a (test-shrunk) `JAVV_EXPORT_MAX_ROWS` → 413/422, not an OOM /
   giant body; under the cap → valid document. Same for CSV.
 - PIT cap: open `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL`+1 concurrent cursor walks as one principal →
   the last gets 429; a different principal is unaffected; releasing one frees a slot.
-- (Option A) bulk over the inline limit → 413/409, no `create_task`. (Option B) job marker exists
-  durably before the 202 and a killed worker's job is resumable.
+- **Bulk (A-Mc, decided):** a frozen set ≤ `JAVV_BULK_INLINE_LIMIT` (test-shrunk) → **200**, applied,
+  one audit row; a set between the inline limit and `JAVV_BULK_MAX_TARGETS` → **413** "narrow / M7";
+  a selector matching > `JAVV_BULK_MAX_TARGETS` → **413** "selector too broad" AND `freeze_targets`
+  never materialized more than the cap (assert it bailed during paging, didn't collect-then-check).
+  Assert **no `asyncio.create_task`** remains and there is no 202 response. The existing bulk tests
+  (`test_bulk_triage.py`) must stay green with the inline path.
 
 ## Definition of Done
-DoD floor + A-M6 and A-m12 shipped with their two CONFIGURATION.md rows + tests. A-Mc only after the
-operator ruling is recorded here; whichever option, the bulk-route docstring must match reality.
+DoD floor + A-M6, A-m12, and A-Mc all shipped with their CONFIGURATION.md rows + tests. The async
+202 path is gone; the bulk-route docstring matches the new synchronous-with-413 reality; `freeze_targets`
+is bounded by `JAVV_BULK_MAX_TARGETS`. M7's README records the deferred huge-bulk surface (already done
+in the planning PR — verify it's there).
