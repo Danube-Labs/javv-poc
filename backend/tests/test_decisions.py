@@ -682,3 +682,37 @@ async def test_reproject_pages_beyond_one_batch(real_os, monkeypatch) -> None:
     await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
     for fk in fks:
         assert (await _finding(client, prefix, fk))["state"] == "risk_accepted"  # all 5, not 2
+
+
+async def test_reproject_warns_when_it_drains_a_conflict_storm(real_os, monkeypatch) -> None:
+    """Observability nicety (#186): a (cluster, cve) that has to DRAIN conflicts is contention-hot;
+    reproject emits a warning above the info line so ops can spot it. Force one drain round (stub
+    the guarded write to 409 once) with the threshold at 1, and assert the warning fires — while
+    the finding still converges via the re-read + retry."""
+    import structlog
+
+    from backend.decisions import reproject as reproject_mod
+
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix)  # open → projects to risk_accepted
+    monkeypatch.setattr(reproject_mod, "_HOT_PAIR_CONFLICTS", 1)
+    monkeypatch.setattr(reproject_mod, "log", structlog.get_logger())  # capture the module logger
+
+    real_bulk = reproject_mod.bulk_write
+    forced = {"done": False}
+
+    async def _bulk_conflict_once(client, actions, **kw):
+        # reproject writes pass collect_conflicts=True; force the first to 409 to drive a drain
+        if kw.get("collect_conflicts") and not forced["done"]:
+            forced["done"] = True
+            return 0, [{"_id": actions[0]["update"]["_id"], "status": 409}]
+        return await real_bulk(client, actions, **kw)
+
+    monkeypatch.setattr(reproject_mod, "bulk_write", _bulk_conflict_once)
+
+    with structlog.testing.capture_logs() as logs:
+        await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
+
+    assert forced["done"]  # the stub actually fired
+    assert any("conflict" in entry["event"].lower() for entry in logs)  # storm warning emitted
+    assert (await _finding(client, prefix, fk))["state"] == "risk_accepted"  # converged anyway
