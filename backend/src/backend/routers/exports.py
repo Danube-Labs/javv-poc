@@ -70,7 +70,7 @@ async def export_csv(
         # the AsOfTReader protocol carries no export surface yet — deliberate, not a gap
         raise HTTPException(501, "export at a past as_of lands with M8b reconstruction")
     client = cast(Any, request.app.state.opensearch)
-    await client.indices.refresh(index="findings")
+    # no read-side refresh (audit A-m2/#191): reads observe committed state; writers refresh
     await _enforce_export_bounds(
         client, cluster_id=cluster_id, filters=filters, principal=principal, fmt="csv"
     )
@@ -110,7 +110,7 @@ async def export_vex(
         # scanners' verdicts are never merged into one advisory (hard constraint)
         raise HTTPException(422, "VEX export requires a scanner filter (per-scanner is sacred)")
     client = cast(Any, request.app.state.opensearch)
-    await client.indices.refresh(index="findings")
+    # no read-side refresh (audit A-m2/#191): reads observe committed state; writers refresh
     await _enforce_export_bounds(
         client, cluster_id=cluster_id, filters=filters, principal=principal, fmt=format
     )

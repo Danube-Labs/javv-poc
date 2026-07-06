@@ -208,6 +208,77 @@ async def test_pit_cap_429s_per_principal_and_release_frees_a_slot(env, monkeypa
     assert r.status_code == 200  # a slot freed up — the open fits again
 
 
+async def test_tampered_but_decodable_cursor_is_422_not_500(env) -> None:
+    """A-m1 (audit #191): a base64/JSON-valid cursor with a bad shape is a 422 at the door, never
+    a 500 from inside client.search — on both the grid and the groups routes."""
+    import base64
+    import json
+
+    login, client = env
+    cid = f"c-srch-{uuid.uuid4().hex[:8]}"
+    await _seed(client, cid, _rows(2))
+    http = await login()
+
+    bad = base64.urlsafe_b64encode(
+        json.dumps({"p": "x", "a": "notalist", "s": "severity_rank", "o": "asc"}).encode()
+    ).decode()
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "cursor": bad})
+    assert r.status_code == 422
+
+    bad_after = base64.urlsafe_b64encode(json.dumps({"key": {"nested": 1}}).encode()).decode()
+    r = await http.get(
+        "/api/v1/findings/groups",
+        params={"cluster_id": cid, "by": "image_repo", "cursor": bad_after},
+    )
+    assert r.status_code == 422
+
+
+async def test_expired_pit_cursor_is_410_and_a_fresh_walk_is_unaffected(env) -> None:
+    """A-m1 (audit #191): a client that idled past keep_alive gets a clear 410 "restart", not a
+    500 — and a brand-new walk (its own fresh PIT) still works."""
+    login, client = env
+    cid = f"c-srch-{uuid.uuid4().hex[:8]}"
+    await _seed(client, cid, _rows(3))
+    http = await login()
+
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "size": 1})
+    assert r.status_code == 200
+    cursor = r.json()["next_cursor"]
+    assert cursor  # a live multi-page walk
+
+    # kill the PIT out-of-band → the client's next page references a context that's gone
+    await client.transport.perform_request("DELETE", "/_search/point_in_time/_all")
+
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "size": 1, "cursor": cursor})
+    assert r.status_code == 410
+    assert "restart" in r.json()["title"].lower()
+
+    # a fresh walk opens its own PIT — unaffected by the expiry above
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "size": 1})
+    assert r.status_code == 200
+
+
+async def test_read_route_forces_no_refresh(env, monkeypatch) -> None:
+    """A-m2 (audit #191): the read path must not force a Lucene refresh (the #117 storm relocated
+    to reads). Seeding refreshes explicitly; the route itself calls refresh zero times."""
+    login, client = env
+    cid = f"c-srch-{uuid.uuid4().hex[:8]}"
+    await _seed(client, cid, _rows(1))  # _seed already refreshes findings
+    http = await login()
+
+    calls: list[Any] = []
+    orig = client.indices.refresh
+
+    async def _spy(*a: Any, **k: Any) -> Any:
+        calls.append((a, k))
+        return await orig(*a, **k)
+
+    monkeypatch.setattr(client.indices, "refresh", _spy)
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid})
+    assert r.status_code == 200
+    assert calls == []  # the read forced no refresh
+
+
 async def test_facets_filter_the_grid(env) -> None:
     login, client = env
     cid = f"c-srch-{uuid.uuid4().hex[:8]}"

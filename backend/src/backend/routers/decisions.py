@@ -112,7 +112,8 @@ async def approval_list(
     decisions, soonest-expiring first (RULING, #30: creation is already SEC-2-gated, so this is
     a review queue over standing acceptances, not a pending-approval workflow)."""
     client = cast(Any, request.app.state.opensearch)
-    await client.indices.refresh(index=DECISIONS_INDEX)
+    # no read-side refresh (audit A-m2/#191): decision writes use refresh=true, so read-your-writes
+    # holds without forcing a Lucene refresh on every read
     resp = await client.search(
         index=DECISIONS_INDEX,
         body={
@@ -156,7 +157,7 @@ async def list_decisions(
         filters.append({"term": {"cve_id": cve_id}})
     if not include_revoked:
         filters.append({"bool": {"must_not": [{"exists": {"field": "revoked_at"}}]}})
-    await client.indices.refresh(index=DECISIONS_INDEX)
+    # no read-side refresh (audit A-m2/#191): decision writes use refresh=true (read-your-writes)
     resp = await client.search(
         index=DECISIONS_INDEX,
         body={

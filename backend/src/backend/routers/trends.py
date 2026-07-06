@@ -74,7 +74,7 @@ async def findings_trend(
         return await _reader_or_501().trends_findings(
             client, cluster_id=cluster_id, t=as_of_t, days=days
         )
-    await client.indices.refresh(index="findings")
+    # no read-side refresh (audit A-m2/#191): reads observe committed state; writers refresh
     resp = await tenant_search(
         client,
         index="findings",

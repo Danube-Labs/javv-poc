@@ -21,6 +21,7 @@ from typing import Any
 
 import structlog
 from opensearchpy import AsyncOpenSearch
+from opensearchpy.exceptions import NotFoundError, RequestError
 
 from backend.core.settings import get_settings
 from backend.tenancy.chokepoint import tenant_query
@@ -28,6 +29,14 @@ from backend.tenancy.chokepoint import tenant_query
 log = structlog.get_logger()
 
 _SORT_FIELDS = ("severity_rank", "first_seen_at", "last_scan_at", "cvss", "epss")
+_SCALAR = (str, int, float, bool)
+
+
+class CursorExpired(Exception):
+    """A decodable cursor whose PIT OpenSearch no longer holds — the client idled past
+    `JAVV_SEARCH_PIT_KEEP_ALIVE`. The route maps this to 410 Gone ("restart the search"), never a
+    500. Distinct from a structurally-invalid cursor (ValueError → 422) and a cluster outage
+    (transport error → 503)."""
 
 
 @dataclass(frozen=True)
@@ -101,9 +110,19 @@ def encode_cursor(*, pit_id: str, search_after: list[Any], sort: str, order: str
 def decode_cursor(cursor: str) -> tuple[str, list[Any], str, str]:
     try:
         c = json.loads(base64.urlsafe_b64decode(cursor.encode()))
-        return c["p"], c["a"], c["s"], c["o"]
+        pit_id, search_after, sort, order = c["p"], c["a"], c["s"], c["o"]
     except (binascii.Error, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise ValueError("invalid cursor") from exc
+    # a base64/JSON-valid cursor can still carry tampered fields that would sail past decode and
+    # blow up inside client.search (500) — type-check them here so a bad shape is a 422 (A-m1).
+    # sort/order are re-validated by build_search_body against their whitelists (also → 422).
+    if not (isinstance(pit_id, str) and isinstance(sort, str) and isinstance(order, str)):
+        raise ValueError("invalid cursor")
+    if not isinstance(search_after, list) or not all(
+        v is None or isinstance(v, _SCALAR) for v in search_after
+    ):
+        raise ValueError("invalid cursor")
+    return pit_id, search_after, sort, order
 
 
 async def run_search(
@@ -127,14 +146,30 @@ async def run_search(
             await client.create_pit(index=f"{prefix}findings", params={"keep_alive": keep_alive})
         )["pit_id"]
 
+    opened_here = cursor is None  # this call created the PIT (vs. a client-owned cursor PIT)
     body = build_search_body(filters, size=size, sort=sort, order=order, search_after=search_after)
     body = tenant_query(cluster_id, body)  # SEC-4 — the only guard on the index-less PIT path
     body["pit"] = {"id": pit_id, "keep_alive": keep_alive}
     try:
         resp = await client.search(body=body)
-    except BaseException:
-        await client.delete_pit(body={"pit_id": [pit_id]})  # no orphaned PITs (D38)
-        log.warning("search page failed — PIT reclaimed", cluster_id=cluster_id, sort=sort)
+    except NotFoundError as exc:  # the PIT is gone — expired past keep_alive, or a tampered id
+        if opened_here:  # our just-created PIT vanished — reclaim (near-impossible) and surface
+            await client.delete_pit(body={"pit_id": [pit_id]})
+            raise
+        # a client-owned cursor PIT expired: 410, not 500 — and never reclaim it (already gone)
+        log.info("cursor PIT expired — client should restart", cluster_id=cluster_id)
+        raise CursorExpired(
+            f"cursor expired — restart the search (PIT keep-alive is {keep_alive})"
+        ) from exc
+    except RequestError as exc:  # a decodable cursor OpenSearch rejects (tampered pit_id/fields)
+        if opened_here:  # a server-built query shouldn't 400 — reclaim our PIT and surface as-is
+            await client.delete_pit(body={"pit_id": [pit_id]})
+            raise
+        raise ValueError("invalid cursor") from exc
+    except BaseException:  # transient transport/cluster hiccup (or a cursorless re-raise above)
+        if opened_here:  # reclaim ONLY the PIT we opened — a cursor PIT is the client's walk, let
+            await client.delete_pit(body={"pit_id": [pit_id]})  # it live to keep_alive for a retry
+            log.warning("search page failed — PIT reclaimed", cluster_id=cluster_id, sort=sort)
         raise
 
     hits = resp["hits"]["hits"]
