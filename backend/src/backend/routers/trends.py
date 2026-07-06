@@ -5,7 +5,12 @@
   are accepted in storage, NEVER counted twice at read).
 - `/trends/findings` — the "new in Nd" series and its burn-down twin (resolved), per scanner,
   over the findings cache. No `present` filter: a finding that appeared and was tombstoned
-  inside the window still counts as new that day.
+  inside the window still counts as new that day. **`resolved` = SCAN-resolved** (audit A-m9):
+  the series buckets `resolved_at`, which is stamped ONLY by reconcile (a finding the scanner
+  stopped reporting) — a human `state=resolved` triage does NOT set it, so a manually-resolved
+  finding is not in this burn-down. The response carries `resolved_semantics="scan_resolved"` so
+  the M9c burn-down chart labels it honestly; human-resolution counting is a product decision
+  deferred to M9c, not a bug.
 
 Tenancy: scan-events routing pins the per-cluster index pattern AND the chokepoint forces the
 `cluster_id` body filter; findings reads carry it through the chokepoint alone. Same uniform
@@ -85,5 +90,6 @@ async def findings_trend(
     return {
         "new": _series(aggs["new"]["by_scanner"]),
         "resolved": _series(aggs["resolved"]["by_scanner"]),
+        "resolved_semantics": "scan_resolved",  # A-m9: resolved_at is reconcile-only, not triage
         "days": days,
     }

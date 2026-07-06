@@ -29,7 +29,13 @@ class AsOfTUnavailable(LookupError):
 class AsOfTReader(Protocol):
     """The M8b contract: one method per M6 read surface, mirroring the route's own
     parameters plus the parsed T. Return shapes match the current-state responses —
-    time-travel changes WHEN, never the wire contract (FR-23)."""
+    time-travel changes WHEN, never the wire contract (FR-23).
+
+    Input-validation contract (audit A-n): the current-state routes validate their inputs
+    (the facet `fields` whitelist, sort/order, `by` dimension) INSIDE the body builders, but the
+    past-T delegation forwards those parameters RAW. The reader MUST re-validate every delegated
+    input — especially `findings_facets`'s `fields` — and raise `ValueError` on a non-whitelisted
+    value (the route maps it to 422), never pass it unchecked into an aggregation (a 500)."""
 
     async def findings_page(
         self,

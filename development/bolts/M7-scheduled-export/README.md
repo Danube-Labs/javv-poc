@@ -65,6 +65,10 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
 - **2026-07-06** — audit A-Mc ruling (#189): M7 additionally owns the **durable large-bulk-triage
   queue** (sets above `JAVV_BULK_INLINE_LIMIT`=5000). M5d is now bounded-synchronous + 413; no
   volatile 202. See the "Also owns" section above.
+- **2026-07-06** — audit A-m11 (#192): M7 also owns **export-at-a-past-T**. The inline export routes
+  (`export.csv`/`export.vex`) return **501** for `as_of_t` in the past (D28 — the `AsOfTReader` seam
+  carries no export surface); the scheduled export queue is where a reconstructed-at-T export lands,
+  once M8b's `as_of_t` can feed the sweep. Track as an M7 deliverable alongside the drain worker.
 
 ## Config tracking
 

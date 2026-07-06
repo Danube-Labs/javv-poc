@@ -104,6 +104,18 @@ def test_redaction_is_broad_by_design_a_nonsecret_key_containing_token_is_masked
     assert out["system-tokens"] == REDACTED  # masked even though the value is harmless
 
 
+def test_redaction_covers_session_and_cookie_keys() -> None:
+    """A-n (audit #192): `session`/`cookie` join the broad-by-design key match. Extending the regex
+    with a new sensitive KEY CLASS is exactly its job — unlike a call-site leak, which is fixed at
+    the call site, never by loosening the regex."""
+    out = redact_processor(
+        None, "info", {"event": "x", "session": "sid-abc", "set-cookie": "c=1", "ok": "fine"}
+    )
+    assert out["session"] == REDACTED
+    assert out["set-cookie"] == REDACTED
+    assert out["ok"] == "fine"
+
+
 def test_redaction_applies_to_emitted_structlog_lines(capsys) -> None:
     configure_logging(level="info")
     structlog.get_logger().info("mint", token="raw-secret-value")

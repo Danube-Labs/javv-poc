@@ -17,7 +17,7 @@ from typing import Annotated, Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from opensearchpy import NotFoundError
 from opensearchpy.exceptions import ConflictError
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.audit.writer import append_auth_event
 from backend.auth.capabilities import ROLES_INDEX, require_capability
@@ -41,12 +41,24 @@ _PUBLIC_FIELDS = (  # never password_hash — the hash never leaves the server
 ManageUsers = Annotated[Principal, Depends(require_capability("can_manage_users"))]
 
 
+_RESERVED_USERNAMES = frozenset({"system", "fleet"})  # machine actor literals (audit A-m6)
+
+
 class CreateUser(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     username: str = Field(min_length=3, max_length=64, pattern=r"^[a-zA-Z0-9._-]+$")
     temp_password: str = Field(min_length=1, max_length=256)
     role: str = Field(min_length=1, max_length=64)
+
+    @field_validator("username")
+    @classmethod
+    def _not_reserved(cls, v: str) -> str:
+        # `system`/`fleet` are machine actor literals (audit log + fleet-wide config): a human so
+        # named would do triage that never charts AND blur machine-vs-human audit forensics (A-m6)
+        if v.lower() in _RESERVED_USERNAMES:
+            raise ValueError(f"username {v!r} is reserved")
+        return v
 
 
 class RolePatch(BaseModel):

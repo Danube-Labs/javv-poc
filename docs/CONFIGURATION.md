@@ -190,10 +190,11 @@ images and backend deploy in lockstep (older envelopes 422 by design).
 
 | Family | Constants (value) | Why frozen |
 |---|---|---|
-| **Read page size** — the reader *pages*, so this is a batch size, never a cap on results | `decisions/reproject._PAGE` (10k) · `triage/bulk._FREEZE_PAGE` (10k) · `services/disagreement._SEARCH_PAGE` (10k) · `jobs/rebuild_state._PAGE` (1k) · `export/sweep._PAGE_SIZE` (500) | At/under OpenSearch's `from`/`size` 10k ceiling (smaller for constant-memory sweeps). Because the caller pages to exhaustion, completeness holds for *any* value — it only trades round-trips against memory, never correctness or policy. |
+| **Read page size** — the reader *pages*, so this is a batch size, never a cap on results | `decisions/reproject._PAGE` (10k) · `triage/bulk._FREEZE_PAGE` (10k) · `services/disagreement._SEARCH_PAGE` (10k) · `jobs/rebuild_state._PAGE` (1k) · `export/sweep._PAGE_SIZE` (500) · `routers/findings._GROUP_CLOCK_PAGE` (1k, audit #187) · `routers/contributors._ROWS_PAGE_SIZE` (10k, audit #190) | At/under OpenSearch's `from`/`size` 10k ceiling (smaller for constant-memory sweeps). Because the caller pages to exhaustion, completeness holds for *any* value — it only trades round-trips against memory, never correctness or policy. |
 | **CAS / conflict-drain ceiling** — a livelock guard, not a tuning dial | `decisions/reproject._CONFLICT_RETRIES` (8) · `services/reconcile._CONFLICT_RETRIES` (8) · `decisions/lifecycle._CAS_RETRIES` (8) · `triage/service._CAS_RETRIES` (8) · `services/scan_orders._CAS_RETRIES` (32) · `services/watermarks._CAS_RETRIES` (32) | Real contention is ~1 (one CronJob per scanner, `Forbid`). Reaching the ceiling signals a pathology to investigate — raising it would hide the problem, not serve a workload. |
 | **Fixed agg / vocabulary size** — sized to a known-bounded domain | `query/aggs._FACET_TERMS_SIZE` (16, ≥ the largest facet vocabulary) · `query/contributors._BOARD_SIZE` (100 leaderboard) | Bounded by the data model / product spec, not the workload — a bigger value would return buckets that can't exist. |
 
-> **Not on this list on purpose:** `routers/findings._GROUP_FETCH_SIZE` and
-> `routers/contributors._ROWS_FETCH_SIZE` (both 10k) are *un*guarded fixed fetches whose truncation is
-> a correctness bug, not a deliberate bound — they're being reworked by audit #187 / #190, not frozen.
+> **History:** `routers/findings._GROUP_FETCH_SIZE` and `routers/contributors._ROWS_FETCH_SIZE` were
+> once *un*guarded fixed 10k fetches whose truncation was a correctness bug — audit #187 and #190
+> reworked them into the properly-paged reads now listed under **Read page size** above (composite
+> `after_key` paging and PIT + `search_after` respectively), so they're frozen page sizes now, not caps.

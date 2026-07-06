@@ -1,6 +1,7 @@
 """Observability (D9): redaction (tokens never reach a log line), /metrics exposure, startup
 fail-fast, and the /readyz degrade flip."""
 
+import re
 from typing import Any
 
 import httpx
@@ -49,6 +50,22 @@ async def test_request_id_is_echoed_in_response_header() -> None:
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
         r = await c.get("/healthz", headers={"X-Request-ID": "abc123"})
     assert r.headers["x-request-id"] == "abc123"
+
+
+async def test_request_id_is_clamped_or_replaced_when_malformed() -> None:
+    """A-n (audit #192): an inbound X-Request-ID rides every log line + the response — an over-long
+    or unsafe one is rejected and a fresh minted id is used instead, so a megabyte/control-char
+    header can't pollute the log stream. A well-formed inbound id is still honored (continuity)."""
+    app = create_app()
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        overlong = await c.get("/healthz", headers={"X-Request-ID": "x" * 500})
+        injected = await c.get("/healthz", headers={"X-Request-ID": "bad id!$%"})
+        good = await c.get("/healthz", headers={"X-Request-ID": "trace-01"})
+    for bad in (overlong, injected):
+        echoed = bad.headers["x-request-id"]
+        assert echoed != "x" * 500 and len(echoed) <= 64
+        assert re.fullmatch(r"[A-Za-z0-9-]+", echoed)  # a safe minted id
+    assert good.headers["x-request-id"] == "trace-01"  # a valid inbound id is preserved
 
 
 # --- startup contract -------------------------------------------------------
