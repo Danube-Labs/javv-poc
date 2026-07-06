@@ -45,6 +45,10 @@ demonstrated - by an automated test wherever possible.
   [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md) in the **same PR**: its default, how it's set,
   and whether it's UI-controllable. That file is the single tracker for every knob; leaving a new key
   out is config drift.
+- **Routes are tracked.** A route added, changed (method/params/auth/capability), or removed →
+  [`docs/API.md`](../../docs/API.md) updated in the **same PR** (same rule as config keys; the major
+  audit found API.md at 6 of 34 routes because this line didn't exist). The capability column's source
+  of truth is `tests/security/test_rbac_idor_contract.py` — the doc says what the registry says.
 
 ## 7. Review & CI
 - `code-review-and-quality` skill pass on the diff.
