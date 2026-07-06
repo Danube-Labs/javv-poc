@@ -64,8 +64,13 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
 
 ### From the 2026-07-06 M5c/M5d/M6 audit (Codex + Fable union) — fast-follow before M7
 
-> Full evidence + reconciliation in `docs/audits/audit-2026-07-06-m5c-m5d-m6-UNION.md`. Recommend a
-> bolt-style remediation tracker grouping these into ~6 PRs (like the #138–#144 wave) before M7.
+> Full evidence + reconciliation in `docs/audits/audit-2026-07-06-m5c-m5d-m6-UNION.md`.
+> **Now tracked as 8 remediation tasks** with per-task implementation guides in
+> `development/bolts/AUDIT-M5c-M5d-M6-remediation/` — GitHub issues **#185–#192**:
+> #185 input validation (A-M1/A-M2/A-m7/A-m8) · #186 reproject CAS (A-M3/A-m10) · #187 D21 clock
+> (A-M4) · #188 audit completeness (A-M5/A-m3) · #189 export DoS (A-M6/A-Mc/A-m12) · #190
+> Contributors (A-m4/A-m5) · #191 read robustness (A-m1/A-m2) · #192 hardening batch
+> (A-m6/A-m9/A-m11/A-m13/A-n). The items below map into those issues.
 
 **Majors (fast-follow on `main`):**
 - [ ] **A-M1 — enforce the closed state vocabulary on bulk triage.** `validate_bulk_patch`
