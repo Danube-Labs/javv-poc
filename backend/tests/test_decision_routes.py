@@ -176,21 +176,31 @@ async def test_approval_list_is_accept_final_only_and_sorted_by_expiry(env) -> N
     login_with, _ = env
     lead = await login_with(["can_triage", "can_accept_audit_final"])
     cve = f"CVE-{uuid.uuid4().hex[:8]}"
-    late = _body(type="risk_accepted", cve_id=cve, expiry="2028-01-01T00:00:00+00:00")
-    soon = _body(type="risk_accepted", cve_id=cve, expiry="2026-12-01T00:00:00+00:00")
+    # #203: a UNIQUE cluster per run — /approvals is size-capped and has no cve filter, so on the
+    # shared module CID the decisions other tests leave behind (this index is not prefix-isolated)
+    # accumulate and page this test's own rows out. A fresh cluster scopes the query to just ours.
+    cid = f"c-appr-{uuid.uuid4().hex[:8]}"
+    late = _body(
+        type="risk_accepted", cve_id=cve, cluster_id=cid, expiry="2028-01-01T00:00:00+00:00"
+    )
+    soon = _body(
+        type="risk_accepted", cve_id=cve, cluster_id=cid, expiry="2026-12-01T00:00:00+00:00"
+    )
     for body in (late, soon):
         assert (await lead.post("/api/v1/decisions", json=body)).status_code == 201
     revoked = (
-        await lead.post("/api/v1/decisions", json=_body(type="risk_accepted", cve_id=cve))
+        await lead.post(
+            "/api/v1/decisions", json=_body(type="risk_accepted", cve_id=cve, cluster_id=cid)
+        )
     ).json()["decision"]
     await lead.post(f"/api/v1/decisions/{revoked['decision_id']}/revoke")
 
     triager = await login_with(["can_triage"])
     assert (
-        await triager.get("/api/v1/decisions/approvals", params={"cluster_id": CID})
+        await triager.get("/api/v1/decisions/approvals", params={"cluster_id": cid})
     ).status_code == 403  # accept_final holders only
 
-    r = await lead.get("/api/v1/decisions/approvals", params={"cluster_id": CID})
+    r = await lead.get("/api/v1/decisions/approvals", params={"cluster_id": cid})
     assert r.status_code == 200
     ours = [a for a in r.json()["approvals"] if a["cve_id"] == cve]
     assert len(ours) == 2  # the revoked one is out
