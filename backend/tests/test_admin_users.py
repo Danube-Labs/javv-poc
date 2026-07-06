@@ -6,6 +6,7 @@ role change updates role + denormalized capabilities together and REVOKES the us
 (D33 — `revoke_all_for_user` finally has a caller); the LAST enabled admin can be neither demoted
 nor disabled (no self-bricking). Real OpenSearch."""
 
+import asyncio
 import os
 import uuid
 from typing import Any
@@ -371,3 +372,129 @@ async def test_user_list_paginates(admin_env) -> None:
     assert r.status_code == 200
     assert len(r.json()["users"]) == 1
     assert r.json()["total"] >= 1
+
+
+# --- audit-log completeness (D17) + last-admin race (audit #188) ------------------------
+
+
+def _fail_audit_once(monkeypatch) -> dict:
+    """Make the NEXT audit append raise (a transient audit-index hiccup), then heal."""
+    from backend.audit import writer
+
+    real = writer._append
+    state = {"fired": False}
+
+    async def flaky(*args, **kwargs):
+        if not state["fired"]:
+            state["fired"] = True
+            raise RuntimeError("audit index hiccup")
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(writer, "_append", flaky)
+    return state
+
+
+async def test_create_user_not_left_unjournaled_on_audit_failure(admin_env, monkeypatch) -> None:
+    """A-M5: journal-first + strict — a failed audit append must not leave a live-but-unjournaled
+    user (the old fire-and-forget swallowed it silently). No user on failure; a retry creates it
+    with exactly one create row."""
+    make_http, client = admin_env
+    admin = make_http()
+    await _seed_and_login(admin, client, capabilities=["can_manage_users"])
+    username = _name()
+    body = {"username": username, "temp_password": TEMP_PASSWORD, "role": "viewer"}
+    _fail_audit_once(monkeypatch)
+
+    with pytest.raises(Exception):  # noqa: B017 — a strict audit failure fails the request (500)
+        await admin.post("/api/v1/admin/users", json=body)
+    assert not await client.exists(index="system-users", id=username)  # never created
+
+    assert (await admin.post("/api/v1/admin/users", json=body)).status_code == 201
+    assert (await _audit_actions(client, username)).count("user_create") == 1
+
+
+async def test_role_change_not_left_unjournaled_on_audit_failure(admin_env, monkeypatch) -> None:
+    """A-M5: the role mutation must not land without its audit row — journal-first means a failed
+    append leaves the role unchanged, and a retry re-drives it (the no-op guard can't swallow)."""
+    make_http, client = admin_env
+    admin = make_http()
+    await _seed_and_login(admin, client, capabilities=["can_manage_users"])
+    username = _name()
+    assert (
+        await admin.post(
+            "/api/v1/admin/users",
+            json={"username": username, "temp_password": TEMP_PASSWORD, "role": "viewer"},
+        )
+    ).status_code == 201
+    _fail_audit_once(monkeypatch)
+
+    with pytest.raises(Exception):  # noqa: B017 — strict audit failure fails the request (500)
+        await admin.patch(f"/api/v1/admin/users/{username}/role", json={"role": "triager"})
+    assert (await _doc(client, username))["role"] == "viewer"  # journal-first: unchanged
+
+    r = await admin.patch(f"/api/v1/admin/users/{username}/role", json={"role": "triager"})
+    assert r.status_code == 200
+    assert (await _doc(client, username))["role"] == "triager"
+    assert (await _audit_actions(client, username)).count("role_change") == 1
+
+
+async def test_concurrent_admin_demotes_never_zero_admins(admin_env) -> None:
+    """A-m3: two racing demotes of the last two admins must not self-brick. Pre-check is TOCTOU;
+    the post-mutation re-check + rollback guarantees at least one enabled admin survives and at
+    most one demote succeeds."""
+    make_http, client = admin_env
+    # isolate: disable every pre-existing enabled admin (restore in finally), then seed exactly two
+    hits = await client.search(
+        index="system-users",
+        body={
+            "size": 1000,
+            "query": {
+                "bool": {"filter": [{"term": {"role": "admin"}}, {"term": {"disabled": False}}]}
+            },
+        },
+    )
+    pre_existing = [h["_id"] for h in hits["hits"]["hits"]]
+
+    async def _disable(ids: list[str], value: bool) -> None:
+        if not ids:
+            return
+        await client.update_by_query(
+            index="system-users",
+            body={
+                "query": {"ids": {"values": ids}},
+                "script": {
+                    "lang": "painless",
+                    "source": f"ctx._source.disabled = {'true' if value else 'false'};",
+                },
+            },
+            params={"conflicts": "proceed", "refresh": "true"},
+        )
+
+    await _disable(pre_existing, True)
+    a_http = make_http()
+    admin_a = await _seed_and_login(a_http, client, capabilities=["*"], role="admin")
+    admin_b = await _seed_and_login(make_http(), client, capabilities=["*"], role="admin")
+    try:
+        results = await asyncio.gather(
+            a_http.patch(f"/api/v1/admin/users/{admin_a}/role", json={"role": "viewer"}),
+            a_http.patch(f"/api/v1/admin/users/{admin_b}/role", json={"role": "viewer"}),
+            return_exceptions=True,
+        )
+        codes = [r.status_code for r in results if isinstance(r, httpx.Response)]
+        assert sum(c == 200 for c in codes) <= 1  # at most one demote won
+
+        await client.indices.refresh(index="system-users")
+        survivors = await client.count(
+            index="system-users",
+            body={
+                "query": {
+                    "bool": {
+                        "filter": [{"term": {"role": "admin"}}, {"term": {"disabled": False}}],
+                        "must": [{"ids": {"values": [admin_a, admin_b]}}],
+                    }
+                }
+            },
+        )
+        assert survivors["count"] >= 1  # never zero — no self-brick
+    finally:
+        await _disable(pre_existing, False)  # leave the shared index as we found it

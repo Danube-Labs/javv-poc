@@ -123,12 +123,9 @@ async def create_decision(
         "revoked_at": None,
         "schema_version": DECISION_SCHEMA_VERSION,
     }
-    await client.index(
-        index=f"{prefix}{DECISIONS_INDEX}",
-        id=doc["decision_id"],
-        body=doc,
-        params={"op_type": "create", "refresh": "true"},  # immutable — never an overwrite
-    )
+    # journal-first (D17, audit #188): the row lands before the decision doc, so an audit failure
+    # 500s WITHOUT a live-but-unjournaled decision — the client retry mints a fresh id and re-drives
+    # (no orphan CHANGE; an orphan ROW for a doc that never landed is the tolerated direction).
     await append_field_change(
         client,
         actor=actor,
@@ -142,6 +139,12 @@ async def create_decision(
         revision=1,
         cluster_id=payload.cluster_id,
         prefix=prefix,
+    )
+    await client.index(
+        index=f"{prefix}{DECISIONS_INDEX}",
+        id=doc["decision_id"],
+        body=doc,
+        params={"op_type": "create", "refresh": "true"},  # immutable — never an overwrite
     )
     if reproject:  # False only inside edit_decision — projection waits for the PAIR (D40/G-r3)
         from backend.decisions.reproject import reproject_cve
@@ -172,6 +175,25 @@ async def revoke_decision(
         if current.get("revoked_at") is not None:
             raise ValueError(f"decision {decision_id} is already revoked")
         at = effective_at or datetime.now(UTC).isoformat()
+        # journal-first with a DETERMINISTIC id (audit #188): the row lands before the CAS, so an
+        # audit failure means the revoke never stamps and a retry re-drives it; and the id dedups
+        # so concurrent revokes + retries yield EXACTLY ONE row (op_type=create), preserving the
+        # single-writer invariant (`test_concurrent_revokes_cannot_double_stamp_revoked_at`).
+        await append_field_change(
+            client,
+            actor=actor,
+            action="decision_revoke",
+            entity_type="decision",
+            entity_id=decision_id,
+            decision_id=decision_id,
+            field="lifecycle",
+            old_value="active",
+            new_value="revoked",
+            revision=2,
+            cluster_id=current["cluster_id"],
+            event_id=f"decision-revoke:{decision_id}",
+            prefix=prefix,
+        )
         try:
             await client.update(
                 index=index,
@@ -185,20 +207,6 @@ async def revoke_decision(
             )
         except ConflictError:
             continue  # a racer stamped first — the re-read above raises "already revoked"
-        await append_field_change(
-            client,
-            actor=actor,
-            action="decision_revoke",
-            entity_type="decision",
-            entity_id=decision_id,
-            decision_id=decision_id,
-            field="lifecycle",
-            old_value="active",
-            new_value="revoked",
-            revision=2,
-            cluster_id=current["cluster_id"],
-            prefix=prefix,
-        )
         if reproject:  # False only inside edit_decision (the pair reprojects once, at the end)
             from backend.decisions.reproject import reproject_cve
 

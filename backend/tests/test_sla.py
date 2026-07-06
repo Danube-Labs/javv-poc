@@ -183,3 +183,42 @@ async def test_sla_read_for_all_write_admin_gated_and_journaled(env) -> None:
     from backend.sla.policy import SlaPolicy, write_sla_policy
 
     await write_sla_policy(client, SlaPolicy(), updated_by="test-restore")
+
+
+def _fail_audit_once(monkeypatch) -> None:
+    from backend.audit import writer
+
+    real = writer._append
+    state = {"fired": False}
+
+    async def flaky(*args, **kwargs):
+        if not state["fired"]:
+            state["fired"] = True
+            raise RuntimeError("audit index hiccup")
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(writer, "_append", flaky)
+
+
+@requires_opensearch
+async def test_sla_put_not_left_unjournaled_on_audit_failure(env, monkeypatch) -> None:
+    """A-M5: journal-first — a failed audit append must not leave the policy changed without a
+    trail; the policy is unchanged on failure and a retry re-drives it."""
+    login_with, client = env
+    admin = await login_with(["can_manage_settings"])
+    before = (await admin.get("/api/v1/settings/sla")).json()["sla"]["crit_days"]
+    body = {"crit_days": before + 5, "high_days": 7, "med_days": 30, "low_days": 90, "kev_days": 1}
+    _fail_audit_once(monkeypatch)
+
+    with pytest.raises(Exception):  # noqa: B017 — strict audit failure fails the request (500)
+        await admin.put("/api/v1/settings/sla", json=body)
+    assert (await admin.get("/api/v1/settings/sla")).json()["sla"][
+        "crit_days"
+    ] == before  # unchanged
+
+    assert (await admin.put("/api/v1/settings/sla", json=body)).status_code == 200
+    assert (await admin.get("/api/v1/settings/sla")).json()["sla"]["crit_days"] == before + 5
+
+    from backend.sla.policy import SlaPolicy, write_sla_policy  # restore defaults for other suites
+
+    await write_sla_policy(client, SlaPolicy(), updated_by="test-restore")
