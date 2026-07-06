@@ -192,6 +192,40 @@ async def test_bulk_risk_accept_is_sec2_gated_and_stale_rejected(env) -> None:
     assert r.status_code == 422  # empty patch
 
 
+async def test_bulk_unknown_state_is_rejected(env) -> None:
+    """A-M1 (audit #185): a bogus target state must 422 at the door — never mass-write junk
+    that later 500s the VEX export on an unknown OpenVEX/CycloneDX status."""
+    login_with, client, _ = env
+    http = await login_with(["can_triage"])
+    cve = f"CVE-{uuid.uuid4().hex[:8]}"
+    keys = await _seed(client, cve, 2)
+
+    r = await http.post("/api/v1/findings/bulk-triage", json=_body(cve, state="fixed"))
+    assert r.status_code == 422
+    for fk in keys:  # nothing was written — the freeze/apply never ran
+        assert (await client.get(index="findings", id=fk))["_source"]["state"] == "open"
+
+
+async def test_bulk_empty_selector_is_rejected(env) -> None:
+    """A-m8 (audit #185): an all-null selector must not resolve to the entire cluster."""
+    login_with, _, _ = env
+    http = await login_with(["can_triage"])
+    r = await http.post(
+        "/api/v1/findings/bulk-triage",
+        json={"cluster_id": CID, "selector": {}, "patch": {"state": "acknowledged"}},
+    )
+    assert r.status_code == 422
+
+
+async def test_bulk_overlong_assignee_is_rejected(env) -> None:
+    """A-n caps (audit #185): unbounded request strings are rejected (NFR-7)."""
+    login_with, _, _ = env
+    http = await login_with(["can_triage"])
+    cve = f"CVE-{uuid.uuid4().hex[:8]}"
+    r = await http.post("/api/v1/findings/bulk-triage", json=_body(cve, assignee="x" * 5000))
+    assert r.status_code == 422
+
+
 async def test_bulk_racing_single_triage_loses_no_update(env) -> None:
     """SND-8: bulk (assignee) races single-triage (state) on the SAME finding — retry_on_conflict
     resolves both; the final doc carries BOTH writes."""

@@ -23,7 +23,11 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.audit.writer import append_field_change
 from backend.repositories.bulk import bulk_write
-from backend.triage.state_machine import CISA_JUSTIFICATIONS, TransitionError
+from backend.triage.state_machine import (
+    CISA_JUSTIFICATIONS,
+    HUMAN_TARGET_STATES,
+    TransitionError,
+)
 
 log = structlog.get_logger()
 
@@ -39,6 +43,8 @@ def validate_bulk_patch(patch: dict[str, Any]) -> None:
     vex = patch.get("vex_justification")
     if state == "stale":
         raise TransitionError("stale is system-only — set by the staleness sweep, never by hand")
+    if state is not None and state not in HUMAN_TARGET_STATES:
+        raise TransitionError(f"unknown target state {state!r}")  # A-M1: closed vocabulary
     if state == "not_affected":
         if vex not in CISA_JUSTIFICATIONS:
             raise TransitionError("not_affected requires a vex_justification (CISA five)")

@@ -10,16 +10,17 @@ where a risk-acceptance silently lapses; M5c's projection runs only once both ar
 (pair-detected via `operation_id` + the shared timestamp). Every lifecycle event is journaled
 (D17). Precedence/expiry-refresh/projection itself is M5c."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any, Literal
 from uuid import uuid4
 
 from opensearchpy import AsyncOpenSearch
 from opensearchpy.exceptions import ConflictError
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.audit.writer import append_field_change
 from backend.core.identifiers import ClusterId
+from backend.triage.state_machine import CISA_JUSTIFICATIONS
 
 DECISIONS_INDEX = "system-decisions"
 DECISION_SCHEMA_VERSION = 1  # the decision DOC contract — this module owns bumps
@@ -50,12 +51,52 @@ class DecisionPayload(BaseModel):
     expiry: str | None = None  # ISO date; IMMUTABLE after creation — change = revoke+create
     cluster_id: ClusterId  # the ONE shared shape (task E/Codex M2)
 
+    @field_validator("expiry")
+    @classmethod
+    def _expiry_is_iso_8601(cls, v: str | None) -> str | None:
+        # A-m7: `expiry` maps to a `date` — free text either 500s the create or (epoch-millis)
+        # compares lexicographically wrong against ISO stamps in is_active_at. Require a bare ISO
+        # date (YYYY-MM-DD) or a tz-aware ISO-8601 datetime; reject naive/garbage at the door.
+        if v is None:
+            return v
+        msg = "expiry must be an ISO-8601 date (YYYY-MM-DD) or a timezone-aware datetime"
+        if len(v) == 10:  # bare date shape
+            try:
+                date.fromisoformat(v)
+            except ValueError:
+                raise ValueError(msg) from None
+            return v
+        try:
+            parsed = datetime.fromisoformat(v)
+        except ValueError:
+            raise ValueError(msg) from None
+        if parsed.tzinfo is None:
+            raise ValueError("expiry datetime must be timezone-aware")
+        return v
+
     @model_validator(mode="after")
     def _scanner_iff_specific(self) -> "DecisionPayload":
         if self.apply_both_scanners and self.scanner is not None:
             raise ValueError("scanner must be unset when apply_both_scanners is true")
         if not self.apply_both_scanners and self.scanner is None:
             raise ValueError("a scanner-specific decision requires `scanner` (trivy|grype)")
+        return self
+
+    @model_validator(mode="after")
+    def _vex_iff_not_affected(self) -> "DecisionPayload":
+        # A-M2: mirror the triage state machine — a not_affected decision REQUIRES a CISA-five
+        # justification (the projector copies it verbatim into findings → VEX export), and a
+        # justification on any other type is a contradiction, rejected rather than dropped.
+        if self.type == "not_affected":
+            if self.vex_justification is None:
+                raise ValueError("a not_affected decision requires a vex_justification (CISA five)")
+            if self.vex_justification not in CISA_JUSTIFICATIONS:
+                raise ValueError(
+                    "vex_justification must be one of the CISA five, "
+                    f"got {self.vex_justification!r}"
+                )
+        elif self.vex_justification is not None:
+            raise ValueError("vex_justification is only valid on a not_affected decision")
         return self
 
 

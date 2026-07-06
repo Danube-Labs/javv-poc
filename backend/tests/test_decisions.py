@@ -269,6 +269,54 @@ def test_payload_requires_scanner_iff_not_apply_both() -> None:
     assert DecisionPayload.model_validate({**base, "apply_both_scanners": True}).scanner is None
 
 
+# --- A-M2 / A-m7: decision input validation (audit #185) -----------------------------
+
+
+def _vex_base(**over) -> dict:
+    return {
+        "type": "not_affected",
+        "cve_id": "CVE-1",
+        "scope": {"namespaces": [], "images": []},
+        "apply_both_scanners": True,
+        "justification": "j",
+        "cluster_id": "c-decisions",
+        **over,
+    }
+
+
+def test_not_affected_decision_requires_a_cisa_justification() -> None:
+    """A-M2: a not_affected decision without a CISA-five justification would project a null
+    justification → invalid OpenVEX / a 500 on CycloneDX. Reject it at the model."""
+    with pytest.raises(ValidationError, match="not_affected"):
+        DecisionPayload.model_validate(_vex_base(vex_justification=None))
+    with pytest.raises(ValidationError, match="CISA"):
+        DecisionPayload.model_validate(_vex_base(vex_justification="because"))
+    ok = DecisionPayload.model_validate(_vex_base(vex_justification="component_not_present"))
+    assert ok.vex_justification == "component_not_present"
+
+
+def test_justification_rejected_on_a_non_not_affected_decision() -> None:
+    """A-M2: a justification only means something for not_affected — reject it elsewhere rather
+    than silently drop it (mirrors the triage state machine)."""
+    with pytest.raises(ValidationError, match="not_affected"):
+        DecisionPayload.model_validate(
+            _vex_base(type="risk_accepted", vex_justification="component_not_present")
+        )
+
+
+def test_expiry_must_be_iso_8601_date_or_aware_datetime() -> None:
+    """A-m7: unvalidated expiry free-text either 500s the create (bad `date` mapping input) or,
+    as epoch-millis, compares lexicographically wrong against ISO stamps in is_active_at."""
+    base = _vex_base(type="risk_accepted", vex_justification=None)
+    for bad in ("banana", "1800000000000", "2026-13-01", "2026-01-01T00:00:00"):  # last = naive
+        with pytest.raises(ValidationError, match="expiry"):
+            DecisionPayload.model_validate({**base, "expiry": bad})
+    assert DecisionPayload.model_validate({**base, "expiry": "2026-12-31"}).expiry == "2026-12-31"
+    aware = "2026-12-31T00:00:00+00:00"
+    assert DecisionPayload.model_validate({**base, "expiry": aware}).expiry == aware
+    assert DecisionPayload.model_validate({**base, "expiry": None}).expiry is None
+
+
 # --- M5c: projection round-trip on the findings cache -------------------------------
 
 
@@ -307,6 +355,35 @@ async def test_create_projects_and_revoke_reverts(real_os) -> None:
     await revoke_decision(client, actor="ana", decision_id=made["decision_id"], prefix=prefix)
     got = await _finding(client, prefix, fk)
     assert (got["state"], got["state_decision_id"]) == ("open", None)  # fallback: open
+
+
+async def test_not_affected_decision_round_trips_to_valid_vex(real_os) -> None:
+    """A-M2 end-to-end (audit #185): a valid not_affected decision projects a CISA justification
+    onto the finding, and both VEX serializers emit it — never a null status/justification and
+    never a KeyError."""
+    from datetime import UTC, datetime
+
+    from backend.export.vex import to_cyclonedx, to_openvex
+
+    client, prefix = real_os
+    fk = await _seed_finding(client, prefix)
+    await create_decision(
+        client,
+        actor="ana",
+        payload=_payload(
+            type="not_affected", vex_justification="component_not_present", expiry=None
+        ),
+        prefix=prefix,
+    )
+    got = await _finding(client, prefix, fk)
+    assert (got["state"], got["vex_justification"]) == ("not_affected", "component_not_present")
+
+    at = datetime(2026, 7, 6, tzinfo=UTC)
+    ov = to_openvex([got], cluster_id="c-decisions", scanner="trivy", generated_at=at)
+    assert ov["statements"][0]["status"] == "not_affected"
+    assert ov["statements"][0]["justification"] == "component_not_present"
+    cdx = to_cyclonedx([got], cluster_id="c-decisions", scanner="trivy", generated_at=at)
+    assert cdx["vulnerabilities"][0]["analysis"]["justification"] == "code_not_present"
 
 
 async def test_projection_never_clobbers_a_direct_human_state(real_os) -> None:
