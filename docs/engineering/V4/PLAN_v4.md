@@ -191,7 +191,8 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   helper + negative test - SEC-4); **bootstrap admin** mounted-secret/seed-once/server-`must_change` (SEC-6);
   **replay protection** (reject envelope older than the latest committed run for `(cluster,scanner,digest)` -
   SEC-7); **TLS** on all hops + OpenSearch security plugin on in prod (SEC-8); snapshot/export creds in OS
-  keystore + per-tenant export prefixes + signed short-lived URLs + download entitlement (SEC-10);
+  keystore; export results stored in OpenSearch (chunked) + a tenant-chokepoint-gated backend download
+  endpoint with a short-lived signed token + `expires_at` + download entitlement (SEC-10, revised by M7/#32);
   **decompression-ratio kill-switch** (~100:1 abort + per-token abort rate-limit - SEC-11). (`SPEC_v4` NFR-7;
   M1/M5a/M10.)
 - **D35 - MVP simplifications.** `severity_rank` on `findings` only, not occurrences (OE-5); ingest accepts

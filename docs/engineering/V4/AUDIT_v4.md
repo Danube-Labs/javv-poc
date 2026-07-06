@@ -149,8 +149,14 @@ also delete security/soundness findings** - simplification and hardening point t
   Admin); FR-18/M5a name 4 (Admin/Security-Lead/Triager/Viewer). Reconcile to one list + publish an
   endpoint×role matrix; destructive ops (restore, drop-index, rebuild, retention) Admin-only + journaled.
 - **SEC-10 [Med] Snapshot-repo + export-artifact credentials/access.** Repo creds via OpenSearch keystore
-  (not a plaintext config doc); export results need per-tenant prefixes + signed short-lived URLs + download
-  entitlement (IDOR).
+  (not a plaintext config doc). **Export-artifact access — REVISED by the M7 storage decision (2026-07-07,
+  #32):** export results are stored **in OpenSearch** (chunked `system-report-chunks`), **not** an object
+  store, so there is no per-tenant object prefix / presigned-URL model. Download is a backend endpoint
+  (`GET /api/v1/reports/{id}/download`) enforcing the same intent — **per-tenant isolation** via the
+  `cluster_id` chokepoint (SEC-4), **time-limited access** via a short-lived signed download token +
+  `expires_at` (410 once past `JAVV_EXPORT_TTL_HOURS`), and **download entitlement** (IDOR) checked
+  server-side. The keystore/snapshot-repo half of SEC-10 is unchanged (OpenSearch snapshot/restore, M2).
+  *(Original model: per-tenant object prefixes + signed short-lived URLs on an S3/MinIO store.)*
 - **SEC-11 [Med] Decompression-ratio kill-switch** - meter exists; add an inline abort at an anomalous ratio
   (e.g. >100:1) on top of the absolute 50 MB cap.
 - **Low/Nit:** `total = Σ buckets` invariant unchecked at ingest (add golden assertion); CSV-injection rule
