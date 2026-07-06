@@ -43,7 +43,7 @@ router = APIRouter(prefix="/api/v1/findings", tags=["findings"])
 
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
-_GROUP_FETCH_SIZE = 10_000  # sibling rows for the page's (cve, digest) pairs — page ≤ 500
+_GROUP_CLOCK_PAGE = 1_000  # composite agg page for the exact min(first_seen_at) per (cve, digest)
 
 
 def _resolve_as_of(
@@ -101,36 +101,82 @@ AsOf = Annotated[datetime | None, Depends(_resolve_as_of)]
 async def _decorate_overdue(client: Any, cluster_id: str, page: list[dict[str, Any]]) -> None:
     if not page:
         return
-    siblings = await tenant_search(
-        client,
-        index="findings",
-        cluster_id=cluster_id,
-        body={
-            "size": _GROUP_FETCH_SIZE,
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"terms": {"cve_id": sorted({d["cve_id"] for d in page})}},
-                        {"terms": {"image_digest": sorted({d["image_digest"] for d in page})}},
-                    ]
-                }
-            },
-            "_source": [
-                "finding_key",
-                "cve_id",
-                "image_digest",
-                "first_seen_at",
-                "severity",
-                "state",
-                "kev",
+    # The D21 group clock = the EARLIEST first_seen_at across each row's (cve_id, image_digest)
+    # group, including siblings OFF this page (a scanner the page filter hid). Fetch it as an EXACT
+    # min per pair via a bounded composite aggregation over just the page's actual pairs — never the
+    # old truncatable doc fetch of the cve×digest cross-product, which at scale could drop the
+    # earliest holder and silently under-report overdue (audit A-M4).
+    pairs = sorted({(d["cve_id"], d["image_digest"]) for d in page})
+    should = [
+        {"bool": {"filter": [{"term": {"cve_id": c}}, {"term": {"image_digest": d}}]}}
+        for c, d in pairs
+    ]
+    clocks: dict[tuple[str, str], str] = {}
+    after: dict[str, str] | None = None
+    while True:  # composite paging is bounded and never silently caps (unlike a terms agg)
+        composite: dict[str, Any] = {
+            "size": _GROUP_CLOCK_PAGE,
+            "sources": [
+                {"cve_id": {"terms": {"field": "cve_id"}}},
+                {"image_digest": {"terms": {"field": "image_digest"}}},
             ],
-        },
-    )
-    # page rows are authoritative; siblings only widen the group clock (D21)
-    rows = {h["_source"]["finding_key"]: h["_source"] for h in siblings["hits"]["hits"]}
-    rows.update({d["finding_key"]: d for d in page})
+        }
+        if after is not None:
+            composite["after"] = after
+        resp = await tenant_search(
+            client,
+            index="findings",
+            cluster_id=cluster_id,
+            body={
+                "size": 0,
+                "query": {
+                    "bool": {
+                        "filter": [{"term": {"present": True}}],
+                        "should": should,
+                        "minimum_should_match": 1,
+                    }
+                },
+                "aggs": {
+                    "groups": {
+                        "composite": composite,
+                        "aggregations": {
+                            "clock": {
+                                "min": {
+                                    "field": "first_seen_at",
+                                    "format": "strict_date_optional_time",
+                                }
+                            }
+                        },
+                    }
+                },
+            },
+        )
+        groups = resp["aggregations"]["groups"]
+        buckets = groups["buckets"]
+        for b in buckets:
+            seen = b["clock"].get("value_as_string")
+            if seen is not None:
+                clocks[(b["key"]["cve_id"], b["key"]["image_digest"])] = seen
+        after = groups.get("after_key")
+        if after is None or not buckets:
+            break
+
+    # feed the true per-group min as a synthetic clock row (compute_overdue derives `earliest`
+    # across the rows it's given; page rows stay authoritative for their own fields — D21)
+    clock_rows: list[dict[str, Any]] = [
+        {
+            "finding_key": f"__clock__:{c}:{d}",
+            "cve_id": c,
+            "image_digest": d,
+            "first_seen_at": seen,
+            "severity": "critical",  # ignored — a synthetic row's own verdict is never read
+            "state": "open",
+            "kev": False,
+        }
+        for (c, d), seen in clocks.items()
+    ]
     verdicts = compute_overdue(
-        list(rows.values()), policy=await read_sla_policy(client), now=datetime.now(UTC)
+        clock_rows + page, policy=await read_sla_policy(client), now=datetime.now(UTC)
     )
     for doc in page:
         v = verdicts[doc["finding_key"]]
