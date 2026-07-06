@@ -170,6 +170,44 @@ async def test_deep_paging_leaves_zero_pits_behind(env) -> None:
     assert r.status_code == 422  # an unreadable cursor is a client error, not a 500
 
 
+async def test_pit_cap_429s_per_principal_and_release_frees_a_slot(env, monkeypatch) -> None:
+    """A-m12 (audit #189): a principal that piles up open cursors past the cap gets a 429; a
+    different principal is unaffected; finishing a walk (its final page) frees a slot."""
+    import backend.query.pit_guard as pit_guard
+
+    login, client = env
+    monkeypatch.setenv("JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL", "2")
+    get_settings.cache_clear()
+    pit_guard._slots.clear()
+    cid = f"c-srch-{uuid.uuid4().hex[:8]}"
+    await _seed(client, cid, _rows(3))
+    http, other = await login(), await login()
+
+    # each cursor-less size=1 page over 3 docs returns a next_cursor → the PIT + its slot persist
+    cursors: list[str] = []
+    for _ in range(2):
+        r = await http.get("/api/v1/findings", params={"cluster_id": cid, "size": 1})
+        assert r.status_code == 200 and r.json()["next_cursor"] is not None
+        cursors.append(r.json()["next_cursor"])
+
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "size": 1})
+    assert r.status_code == 429 and r.headers.get("retry-after") == "5"
+
+    r = await other.get("/api/v1/findings", params={"cluster_id": cid, "size": 1})
+    assert r.status_code == 200  # a different principal has its own budget
+
+    cursor: str | None = cursors[0]  # drive one walk to its final page → releases that slot
+    while cursor:
+        r = await http.get(
+            "/api/v1/findings", params={"cluster_id": cid, "size": 1, "cursor": cursor}
+        )
+        assert r.status_code == 200
+        cursor = r.json()["next_cursor"]
+
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "size": 1})
+    assert r.status_code == 200  # a slot freed up — the open fits again
+
+
 async def test_facets_filter_the_grid(env) -> None:
     login, client = env
     cid = f"c-srch-{uuid.uuid4().hex[:8]}"

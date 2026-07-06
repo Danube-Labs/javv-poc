@@ -5,6 +5,8 @@ client error maps 1:1 to logs via `request_id`. `request_id` binding into struct
 observability slice; for now it's threaded through the response shape so the contract is set early.
 """
 
+from collections.abc import Mapping
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -23,11 +25,18 @@ class Problem(BaseModel):
 
 
 def problem_response(
-    status: int, title: str, detail: str | None = None, request_id: str | None = None
+    status: int,
+    title: str,
+    detail: str | None = None,
+    request_id: str | None = None,
+    headers: Mapping[str, str] | None = None,
 ) -> JSONResponse:
     body = Problem(title=title, status=status, detail=detail, request_id=request_id)
     return JSONResponse(
-        status_code=status, content=body.model_dump(), media_type=PROBLEM_MEDIA_TYPE
+        status_code=status,
+        content=body.model_dump(),
+        media_type=PROBLEM_MEDIA_TYPE,
+        headers=headers,
     )
 
 
@@ -38,8 +47,12 @@ def _request_id(request: Request) -> str | None:
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def _http(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        # preserve response headers a route attached to the exception (e.g. Retry-After on a 429)
         return problem_response(
-            exc.status_code, title=str(exc.detail), request_id=_request_id(request)
+            exc.status_code,
+            title=str(exc.detail),
+            request_id=_request_id(request),
+            headers=exc.headers,
         )
 
     @app.exception_handler(RequestValidationError)

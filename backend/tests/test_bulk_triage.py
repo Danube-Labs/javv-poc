@@ -2,8 +2,10 @@
 
 Pins: a bulk action over N findings appends EXACTLY ONE `system-audit-log` row carrying the
 frozen `target_ids` (+`result_hash`/`result_count`) — never a selector, never a per-finding
-fan-out; large sets 202 + async with the SAME contract; risk-accept patch is SEC-2-gated; a
-bulk write racing a single-triage on an overlapping finding loses no update (SND-8)."""
+fan-out; the apply is bounded-synchronous (audit A-Mc/#189): a set over `JAVV_BULK_INLINE_LIMIT`
+→ 413 (narrow / M7), a selector matching over `JAVV_BULK_MAX_TARGETS` → 413 ("selector too broad",
+bailed during freeze paging), NO async 202; risk-accept patch is SEC-2-gated; a bulk write racing
+a single-triage on an overlapping finding loses no update (SND-8)."""
 
 import asyncio
 import os
@@ -157,25 +159,41 @@ async def test_bulk_applies_and_journals_exactly_one_row_with_frozen_ids(env) ->
     assert row["result_hash"]
 
 
-async def test_large_set_returns_202_and_completes_async(env, monkeypatch) -> None:
-    login_with, client, app = env
-    monkeypatch.setenv("JAVV_BULK_INLINE_LIMIT", "2")  # force the async path with 3 docs
+async def test_set_over_inline_limit_is_413_not_async(env, monkeypatch) -> None:
+    """A-Mc (audit #189): a frozen set larger than the inline limit but within the freeze cap →
+    413 (narrow, or M7's scheduled bulk). NO 202/async path exists any more, and NOTHING is
+    applied — a rejected bulk leaves the findings untouched."""
+    login_with, client, _ = env
+    monkeypatch.setenv("JAVV_BULK_INLINE_LIMIT", "2")  # 3 docs > inline limit, < max_targets
+    monkeypatch.setenv("JAVV_BULK_MAX_TARGETS", "100")
     get_settings.cache_clear()
     http = await login_with(["can_triage"])
     cve = f"CVE-{uuid.uuid4().hex[:8]}"
     keys = await _seed(client, cve, 3)
 
     r = await http.post("/api/v1/findings/bulk-triage", json=_body(cve))
-    assert r.status_code == 202
-    assert r.json()["count"] == 3 and r.json()["applied"] is False
+    assert r.status_code == 413
+    assert "inline bulk limit" in r.json()["title"]
+    for fk in keys:  # nothing applied — no volatile background write
+        assert (await client.get(index="findings", id=fk))["_source"]["state"] == "open"
 
-    for _ in range(50):  # the background task finishes fast against a local OpenSearch
-        await asyncio.sleep(0.1)
-        docs = [(await client.get(index="findings", id=fk))["_source"] for fk in keys]
-        if all(d["state"] == "acknowledged" for d in docs):
-            break
-    else:
-        raise AssertionError("async bulk did not complete")
+
+async def test_selector_over_max_targets_is_selector_too_broad_413(env, monkeypatch) -> None:
+    """A-Mc (audit #189): a selector matching more than the hard freeze cap → 413 "selector too
+    broad", and freeze_targets bails DURING paging (count-don't-collect) — never materializes the
+    whole match."""
+    login_with, client, _ = env
+    monkeypatch.setenv("JAVV_BULK_MAX_TARGETS", "2")  # 4 docs > the hard freeze cap
+    get_settings.cache_clear()
+    http = await login_with(["can_triage"])
+    cve = f"CVE-{uuid.uuid4().hex[:8]}"
+    keys = await _seed(client, cve, 4)
+
+    r = await http.post("/api/v1/findings/bulk-triage", json=_body(cve))
+    assert r.status_code == 413
+    assert "selector too broad" in r.json()["title"]
+    for fk in keys:
+        assert (await client.get(index="findings", id=fk))["_source"]["state"] == "open"
 
 
 async def test_bulk_risk_accept_is_sec2_gated_and_stale_rejected(env) -> None:

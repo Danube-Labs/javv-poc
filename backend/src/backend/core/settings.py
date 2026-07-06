@@ -28,10 +28,20 @@ class Settings(BaseSettings):
     # login lockout (M5a): N failures per sliding window locks the username (429)
     login_max_attempts: int = 5
     login_lockout_minutes: float = 15.0
-    # bulk triage (M5d): sets at or under the limit apply inline (200); larger → 202 + async
-    bulk_inline_limit: int = 500
+    # bulk triage (M5d, audit A-Mc/#189): bounded-synchronous. A frozen set at/under the inline
+    # limit applies now (200 + result); above it → 413 (narrow, or M7's scheduled bulk). The freeze
+    # itself never materializes more than bulk_max_targets ids (413 "selector too broad") — bounds
+    # the freeze memory independently of the apply cost. No volatile 202/async path.
+    bulk_inline_limit: int = 5000
+    bulk_max_targets: int = 10000
     # findings search (M6): PIT keep-alive per page — an abandoned cursor's PIT self-expires
     search_pit_keep_alive: str = "2m"
+    # read-path DoS bounds (audit A-M6/A-m12/#189). Inline "run now" export (CSV + VEX) hard row
+    # cap — past it the request 413s and points at narrower filters / M7 scheduled export. And a
+    # per-principal concurrent-PIT cap (search cursors + exports) — past it → 429; in-memory per
+    # pod like the ingest/login limiters (N replicas ⇒ N× budget).
+    export_max_rows: int = 50000
+    max_concurrent_pits_per_principal: int = 10
     # bootstrap admin (M5a/SEC-6): password from a mounted k8s Secret; empty = don't seed.
     # Seed-once — rotating the mounted value later has no effect on an existing admin by design.
     bootstrap_admin_username: str = "admin"

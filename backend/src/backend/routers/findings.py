@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
+from backend.query import pit_guard
 from backend.query.aggs import (
     build_composite_body,
     build_facets_body,
@@ -218,6 +219,12 @@ async def search_findings(
             cursor=cursor,
         )
     await client.indices.refresh(index="findings")
+    opened = cursor is None  # a cursor-less page opens a fresh PIT; a continuation reuses one
+    if opened:
+        try:
+            pit_guard.acquire(principal.user_id)  # A-m12/#189: bound concurrent PITs per principal
+        except pit_guard.PitCapExceeded as exc:
+            raise HTTPException(429, str(exc), headers={"Retry-After": "5"}) from exc
     try:
         out = await run_search(
             client,
@@ -229,7 +236,15 @@ async def search_findings(
             cursor=cursor,
         )
     except ValueError as exc:  # bad cursor / sort / order — client error, not a 500
+        if opened:
+            pit_guard.release_one(principal.user_id)  # nothing usable to page — free the slot
         raise HTTPException(422, str(exc)) from exc
+    except BaseException:
+        if opened:
+            pit_guard.release_one(principal.user_id)
+        raise
+    if out["next_cursor"] is None:  # PIT closed this request (final page) — release its slot
+        pit_guard.release_one(principal.user_id)
     await _decorate_overdue(client, cluster_id, out["data"])
     return out
 

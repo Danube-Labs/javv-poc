@@ -1,13 +1,15 @@
 """`POST /api/v1/findings/bulk-triage` (M5d) — selector in → frozen id-set → apply.
 
-Small sets apply inline (200 + the result); a set larger than `JAVV_BULK_INLINE_LIMIT` returns
-**202** immediately and completes on a background task — both paths produce the SAME single
-journaled row over the SAME frozen ids (the row is written before 202 returns, so the audit
-trail never depends on the task surviving). Capability regime mirrors single triage:
-`can_triage`, plus `can_accept_audit_final` when the patch risk-accepts (SEC-2).
+Bounded-synchronous (audit A-Mc/#189): the frozen set applies **inline** and returns **200** + the
+result, always over the SAME single journaled row (written first, before the `_bulk`). Two hard
+bounds, two distinct DoS surfaces: `freeze_targets` never materializes more than
+`JAVV_BULK_MAX_TARGETS` ids (an over-broad selector → **413** "selector too broad"), and a frozen
+set larger than `JAVV_BULK_INLINE_LIMIT` → **413** (narrow the selector, or use M7's scheduled
+bulk). There is **no async 202 path** — a volatile background task could accept work then lose it
+(no durable job record), and the durable large-bulk queue is M7. Capability regime mirrors single
+triage: `can_triage`, plus `can_accept_audit_final` when the patch risk-accepts (SEC-2).
 """
 
-import asyncio
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -17,7 +19,13 @@ from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal
 from backend.core.identifiers import ClusterId
 from backend.core.settings import get_settings
-from backend.triage.bulk import apply_bulk_triage, freeze_targets, result_hash, validate_bulk_patch
+from backend.triage.bulk import (
+    SelectorTooBroad,
+    apply_bulk_triage,
+    freeze_targets,
+    result_hash,
+    validate_bulk_patch,
+)
 from backend.triage.state_machine import TransitionError
 
 router = APIRouter(prefix="/api/v1/findings", tags=["triage"])
@@ -73,43 +81,32 @@ async def bulk_triage(request: Request, body: BulkTriageRequest, principal: CanT
         raise HTTPException(422, str(exc)) from exc
 
     client = cast(Any, request.app.state.opensearch)
-    target_ids = await freeze_targets(
-        client, body.cluster_id, body.selector.model_dump(exclude_unset=True)
-    )
+    settings = get_settings()
+    try:
+        target_ids = await freeze_targets(
+            client,
+            body.cluster_id,
+            body.selector.model_dump(exclude_unset=True),
+            max_targets=settings.bulk_max_targets,
+        )
+    except SelectorTooBroad as exc:
+        raise HTTPException(413, str(exc)) from exc
     if not target_ids:
         return {"count": 0, "applied": True, "result_hash": None}
 
-    limit = get_settings().bulk_inline_limit
-    if len(target_ids) <= limit:
-        updated = await apply_bulk_triage(
-            client,
-            actor=principal.user_id,
-            cluster_id=body.cluster_id,
-            target_ids=target_ids,
-            patch=patch,
+    limit = settings.bulk_inline_limit
+    if len(target_ids) > limit:
+        raise HTTPException(
+            413,
+            f"{len(target_ids)} findings exceed the inline bulk limit ({limit}) — "
+            "narrow the selector, or use M7's scheduled bulk",
         )
-        return {"count": updated, "applied": True, "result_hash": result_hash(target_ids)}
 
-    # large set: 202 + async completion — same frozen ids, same single audit row
-    task = asyncio.create_task(
-        apply_bulk_triage(
-            client,
-            actor=principal.user_id,
-            cluster_id=body.cluster_id,
-            target_ids=target_ids,
-            patch=patch,
-        )
+    updated = await apply_bulk_triage(
+        client,
+        actor=principal.user_id,
+        cluster_id=body.cluster_id,
+        target_ids=target_ids,
+        patch=patch,
     )
-    request.app.state.bulk_tasks = getattr(request.app.state, "bulk_tasks", set())
-    request.app.state.bulk_tasks.add(task)  # keep a reference — GC'd tasks silently vanish
-    task.add_done_callback(request.app.state.bulk_tasks.discard)
-    from fastapi.responses import JSONResponse
-
-    return JSONResponse(
-        status_code=202,
-        content={
-            "count": len(target_ids),
-            "applied": False,
-            "result_hash": result_hash(target_ids),
-        },
-    )
+    return {"count": updated, "applied": True, "result_hash": result_hash(target_ids)}

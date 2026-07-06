@@ -12,22 +12,49 @@ like any fetch (IDOR, api-design tenant rule). `as_of`: exports describe current
 a past T is 501 until the M8b reconstruction can feed an export (D28).
 """
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated, Any, Literal, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
+from backend.core.settings import get_settings
 from backend.export.csv_stream import stream_csv
-from backend.export.sweep import sweep_findings
+from backend.export.sweep import count_lens, sweep_findings
 from backend.export.vex import to_cyclonedx, to_openvex
+from backend.query import pit_guard
 from backend.routers.findings import AsOf, Filters
 
 router = APIRouter(prefix="/api/v1/findings", tags=["exports"])
+log = structlog.get_logger()
 
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
+
+
+async def _enforce_export_bounds(
+    client: Any, *, cluster_id: str, filters: Any, principal: Principal, fmt: str
+) -> None:
+    """Shared inline-export guards (audit A-M6/A-m12/#189): 413 if the lens exceeds the row cap
+    (checked BEFORE any PIT/stream via a cheap count), then reserve a per-principal PIT slot (429
+    if the principal is at its concurrent-PIT cap). The caller releases the slot when done."""
+    max_rows = get_settings().export_max_rows
+    n = await count_lens(client, cluster_id=cluster_id, filters=filters)
+    if n > max_rows:
+        log.warning("inline export capped", cluster_id=cluster_id, cap=max_rows, format=fmt)
+        raise HTTPException(
+            413,
+            f"{n} findings exceed the inline export limit ({max_rows}) — "
+            "narrow the filters, or use M7's scheduled export",
+        )
+    try:
+        pit_guard.acquire(principal.user_id)
+    except pit_guard.PitCapExceeded as exc:
+        log.warning("PIT cap reached for principal", format=fmt)
+        raise HTTPException(429, str(exc), headers={"Retry-After": "5"}) from exc
 
 
 @router.get("/export.csv")
@@ -44,8 +71,21 @@ async def export_csv(
         raise HTTPException(501, "export at a past as_of lands with M8b reconstruction")
     client = cast(Any, request.app.state.opensearch)
     await client.indices.refresh(index="findings")
+    await _enforce_export_bounds(
+        client, cluster_id=cluster_id, filters=filters, principal=principal, fmt="csv"
+    )
+
+    async def _guarded() -> AsyncIterator[str]:
+        # the slot reserved above is held for the life of the stream and freed when it ends —
+        # success, error, or a client that disconnects mid-stream (the generator's finally runs)
+        try:
+            async for line in stream_csv(client, cluster_id=cluster_id, filters=filters):
+                yield line
+        finally:
+            pit_guard.release_one(principal.user_id)
+
     return StreamingResponse(
-        stream_csv(client, cluster_id=cluster_id, filters=filters),
+        _guarded(),
         media_type="text/csv; charset=utf-8",
         headers={
             # cluster_id shape is edge-validated (lowercase alnum/hyphen) — header-safe
@@ -71,11 +111,19 @@ async def export_vex(
         raise HTTPException(422, "VEX export requires a scanner filter (per-scanner is sacred)")
     client = cast(Any, request.app.state.opensearch)
     await client.indices.refresh(index="findings")
-    findings = [doc async for doc in sweep_findings(client, cluster_id=cluster_id, filters=filters)]
-    serialize = to_openvex if format == "openvex" else to_cyclonedx
-    return serialize(
-        findings,
-        cluster_id=cluster_id,
-        scanner=filters.scanner,
-        generated_at=datetime.now(UTC),
+    await _enforce_export_bounds(
+        client, cluster_id=cluster_id, filters=filters, principal=principal, fmt=format
     )
+    try:
+        findings = [
+            doc async for doc in sweep_findings(client, cluster_id=cluster_id, filters=filters)
+        ]
+        serialize = to_openvex if format == "openvex" else to_cyclonedx
+        return serialize(
+            findings,
+            cluster_id=cluster_id,
+            scanner=filters.scanner,
+            generated_at=datetime.now(UTC),
+        )
+    finally:
+        pit_guard.release_one(principal.user_id)

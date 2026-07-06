@@ -24,6 +24,22 @@ log = structlog.get_logger()
 _PAGE_SIZE = 500  # small pages (FR-13) — constant memory whatever the lens size
 
 
+async def count_lens(
+    client: AsyncOpenSearch,
+    *,
+    cluster_id: str,
+    filters: SearchFilters,
+    prefix: str = "",
+) -> int:
+    """Cheap pre-count of the lens through the tenant chokepoint (audit A-M6/#189) — lets an
+    export enforce its row cap with a clean 413 BEFORE opening a PIT / streaming a body."""
+    body = build_search_body(filters, size=0, sort="first_seen_at", order="asc")
+    del body["track_total_hits"]  # count has its own total; drop the search-only knob
+    body = tenant_query(cluster_id, body)  # SEC-4 — the cluster filter is forced in
+    resp = await client.count(index=f"{prefix}findings", body={"query": body["query"]})
+    return int(resp["count"])
+
+
 async def sweep_findings(
     client: AsyncOpenSearch,
     *,
