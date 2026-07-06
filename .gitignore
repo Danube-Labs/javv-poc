@@ -41,7 +41,6 @@ Thumbs.db
 .claude/settings.local.json
 
 # Local-only audit/working tracker (temporary; never committed)
-development/AUDIT.md
 
 # Session handoffs — local snapshots by default (commit the infra, not the snapshots).
 # git add -f a specific one to share it.

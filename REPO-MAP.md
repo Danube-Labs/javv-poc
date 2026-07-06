@@ -39,6 +39,7 @@
 | `docs/engineering/UI-GUIDELINES.md`, `UI-tools.md` | Dashboard UI target + tooling |
 | `.deprecated/` | Frozen V1/V2/V3 docs + original notes (evolution trail; `.deprecated/docs/deprecated/original_notes_for_app.md` is **read-only**) |
 | **`docs/research/`** | Backing research. `STACK-BEST-PRACTICES` (day-one engineering rules) · `TOOLING-AND-MCP` (MCP servers + install) · `K8S-DEV-CLUSTER` (k3d/remote options) · `INDEPENDENT-AUDIT-v3` · `SNAPSHOT-MODEL-VALIDATION` |
+| **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog** (all past audits consolidated 2026-07-06); the point-in-time reports are archived in `docs/audits/deprecated/` |
 
 ## `development/` - how to build it
 
@@ -48,7 +49,6 @@
 | `development/setup/setup-dev.sh` | Idempotent toolchain installer (uv/ruff/pyright/node/k8s/scanners/gh); **pinned gate-tool versions** at top |
 | `development/setup/preflight.sh` | Host readiness check (tools+versions, Docker daemon, k3d cluster, OpenSearch reachable) |
 | `development/setup/setup-branch-protection.sh` | Reproducible `gh api` branch protection for `main` (deferred - free-plan private repo can't enforce; ready when org→Team/public) |
-| `development/AUDIT.md` | **Temporary** working tracker from the `development/` review; delete once items close |
 | **`development/bolts/`** | One folder per milestone unit M0-M10 (the **execution briefs**) - see milestone map below |
 | **`development/standards/`** | Process rules: `definition-of-done` · `testing` · `git-workflow` · `releases` · `bolt-readme-template` · `README` |
 
