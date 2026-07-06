@@ -1,0 +1,150 @@
+"""M7 slice 1 (#32) — POST /api/v1/reports enqueue + GET status, against real OpenSearch.
+
+Pins: enqueue writes a `pending` `system-reports` doc (auth required — a scheduled export is a read,
+same regime as the M6 inline export); bad request shapes 422 at the door; the status view never
+leaks the params blob; an unknown id is 404; tenant `cluster_id` is stored for the drain/download.
+"""
+
+import os
+import uuid
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.auth.capabilities import seed_default_roles
+from backend.auth.passwords import hash_password
+from backend.core.bootstrap import bootstrap
+from backend.main import create_app
+from backend.reports.models import REPORTS_INDEX
+
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+PASSWORD = "reports-route-password"
+
+
+def _os_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+
+
+@pytest.fixture
+async def env():
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    await bootstrap(client)
+    await seed_default_roles(client)
+    app = create_app()
+    app.state.opensearch = client
+    transport = httpx.ASGITransport(app=app)
+    jars: list[httpx.AsyncClient] = []
+
+    async def login() -> httpx.AsyncClient:
+        username = f"u-{uuid.uuid4().hex[:12]}"
+        await client.index(
+            index="system-users",
+            id=username,
+            body={
+                "username": username,
+                "password_hash": hash_password(PASSWORD),
+                "role": "viewer",
+                "capabilities": [],
+                "must_change": False,
+                "disabled": False,
+                "auth_source": "local",
+                "external_id": None,
+                "created_at": "2026-07-05T00:00:00+00:00",
+            },
+            params={"refresh": "true"},
+        )
+        http = httpx.AsyncClient(transport=transport, base_url="https://t")
+        jars.append(http)
+        r = await http.post("/auth/login", json={"username": username, "password": PASSWORD})
+        assert r.status_code == 200
+        return http
+
+    yield login, client
+    for http in jars:
+        await http.aclose()
+    await client.close()
+
+
+def _body(**over) -> dict:
+    return {"cluster_id": f"c-rep-{uuid.uuid4().hex[:8]}", **over}
+
+
+async def test_enqueue_writes_a_pending_doc_and_status_reads_it_back(env) -> None:
+    login, client = env
+    http = await login()
+    body = _body(run_mode="offpeak", params={"format": "csv", "severity": ["critical"]})
+
+    r = await http.post("/api/v1/reports", json=body)
+    assert r.status_code == 201
+    report_id = r.json()["report_id"]
+    assert r.json()["status"] == "pending"
+
+    # the doc is durable with the right shape
+    doc = (await client.get(index=REPORTS_INDEX, id=report_id))["_source"]
+    assert doc["status"] == "pending" and doc["kind"] == "export"
+    assert doc["cluster_id"] == body["cluster_id"] and doc["run_mode"] == "offpeak"
+    assert doc["params"] == {
+        "format": "csv",
+        "severity": ["critical"],
+        "state": None,
+        "scanner": None,
+        "assignee": None,
+        "kev": None,
+        "fixable": None,
+        "disagree": None,
+        "cve_id": None,
+        "image_digest": None,
+        "image_repo": None,
+        "namespace": None,
+        "present": True,
+    }
+
+    # the status view returns the public shape, never the params blob or claim internals
+    s = await http.get(f"/api/v1/reports/{report_id}")
+    assert s.status_code == 200
+    got = s.json()
+    assert got["report_id"] == report_id and got["status"] == "pending"
+    assert "params" not in got and "attempt_id" not in got
+
+
+async def test_bad_request_shapes_are_422(env) -> None:
+    login, _ = env
+    http = await login()
+    # missing cluster_id
+    assert (await http.post("/api/v1/reports", json={})).status_code == 422
+    # extra field (extra=forbid)
+    assert (await http.post("/api/v1/reports", json=_body(nope=1))).status_code == 422
+    # unknown format
+    assert (
+        await http.post("/api/v1/reports", json=_body(params={"format": "pdf"}))
+    ).status_code == 422
+    # VEX without a scanner (per-scanner is sacred)
+    assert (
+        await http.post("/api/v1/reports", json=_body(params={"format": "openvex"}))
+    ).status_code == 422
+    # a scanner-scoped VEX is fine
+    assert (
+        await http.post(
+            "/api/v1/reports", json=_body(params={"format": "openvex", "scanner": "trivy"})
+        )
+    ).status_code == 201
+
+
+async def test_unknown_report_is_404_and_auth_is_required(env) -> None:
+    login, _ = env
+    http = await login()
+    assert (await http.get("/api/v1/reports/nope")).status_code == 404
+
+    bare = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=http._transport.app),  # type: ignore[attr-defined]
+        base_url="https://t",
+    )
+    assert (await bare.post("/api/v1/reports", json=_body())).status_code == 401
+    await bare.aclose()

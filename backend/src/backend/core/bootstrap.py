@@ -38,7 +38,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #          v7 + ingested_at on scan-events/images (task F m-4 — server-side retention clock)
 #          v8 + scanner on system-decisions + state_decision_id on findings (M5c/D22 — the
 #             scanner-specific subject + projection provenance for direct-action-wins/expiry)
-MAPPING_VERSION = 8
+#          v9 + system-reports/system-report-chunks/system-notifications (M7/#32 — the scheduled
+#             export queue + chunked-in-OpenSearch result blobs + the bell)
+MAPPING_VERSION = 9
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -201,6 +203,54 @@ _DECISIONS_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# M7/#32 scheduled-export queue. system-reports = the job doc (OCC claim + fencing attempt_id);
+# `params` is an opaque request blob (enabled:false — never indexed/aggregated). Result blobs do NOT
+# ride this doc: they live in system-report-chunks so a large export stays queryable + small.
+_REPORTS_PROPERTIES: dict[str, Any] = {
+    "report_id": _KW,
+    "kind": _KW,  # export|bulk_triage
+    "status": _KW,  # pending|running|done|failed
+    "cluster_id": _KW,
+    "requested_by": _KW,
+    "run_mode": _KW,  # now|offpeak
+    "params": {"type": "object", "enabled": False},  # opaque request lens/format — not indexed
+    "scheduled_for": _DATE,
+    "as_of_t": _DATE,  # export-at-past-T seam (parked until M8b/#34)
+    "created_at": _DATE,
+    "attempt_id": _KW,  # fencing token — heartbeat + done CAS on it (D38/D40)
+    "heartbeat_at": _DATE,
+    "lease_expires_at": _DATE,
+    "retry_count": _INT,
+    "bytes": {"type": "long"},  # result size (done)
+    "chunk_count": _INT,
+    "expires_at": _DATE,  # TTL-sweep boundary (created_at + JAVV_EXPORT_TTL_HOURS at completion)
+    "error": {"type": "text"},  # failure reason (failed)
+    "schema_version": {"type": "short"},
+}
+
+# system-report-chunks = the result BLOB, chunked (~5 MiB text slices). `data` is un-indexed text
+# (index:false → no inverted index, no keyword 32 KB term cap) so a chunk holds MiBs; in _source
+# and streamed back on download in `seq` order. Written under the attempt_id; only the `done`
+# doc's attempt_id chunks are canonical (orphans swept).
+_REPORT_CHUNKS_PROPERTIES: dict[str, Any] = {
+    "report_id": _KW,
+    "attempt_id": _KW,
+    "seq": _INT,
+    "data": {"type": "text", "index": False},  # un-indexed blob slice — stored in _source only
+}
+
+# system-notifications (FR-16): the bell feed — one doc per user event. report_ready points `ref` at
+# a report_id; the M9f bell polls this (no broker). read=false until dismissed.
+_NOTIFICATIONS_PROPERTIES: dict[str, Any] = {
+    "notification_id": _KW,
+    "user_id": _KW,
+    "type": _KW,  # sla_breach|assignment|report_ready
+    "ref": _KW,  # referenced entity id (e.g. report_id)
+    "cluster_id": _KW,
+    "created_at": _DATE,
+    "read": _BOOL,
+}
+
 MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "findings": {
         "settings": {"index": {**_BASE_SETTINGS, "analysis": _LC_ANALYSIS}},
@@ -237,6 +287,18 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "system-decisions": {  # M5b/FR-8 — immutable except revoked_at
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_DECISIONS_PROPERTIES),
+    },
+    "system-reports": {  # M7/#32 — scheduled-export job queue (OCC claim + fencing attempt_id)
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_REPORTS_PROPERTIES),
+    },
+    "system-report-chunks": {  # M7/#32 — chunked result blobs (un-indexed text)
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_REPORT_CHUNKS_PROPERTIES),
+    },
+    "system-notifications": {  # M7/#32 (FR-16) — the bell feed
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_NOTIFICATIONS_PROPERTIES),
     },
 }
 

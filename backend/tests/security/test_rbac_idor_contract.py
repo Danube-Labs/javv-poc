@@ -156,6 +156,10 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/auth/password"),  # session regime + must_change escape hatch
         ("POST", "/api/v1/ingest"),  # machine token + SEC-3 binding (test_ingest_route)
         ("POST", "/api/v1/scan-runs"),  # machine token (test_scan_orders route tests)
+        # M7/#32 — a scheduled export is a READ (any authenticated user can already read findings),
+        # so enqueue is authenticated-only, not capability-gated (mirrors the M6 inline export; auth
+        # asserted in test_reports_route). The bulk_triage kind gains can_triage in a later slice.
+        ("POST", "/api/v1/reports"),
     }
 )
 
