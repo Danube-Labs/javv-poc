@@ -101,12 +101,12 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
   Python list before serializing → unbounded backend memory on a broad single-scanner lens. Cap the
   statement count (413/422 above it) until M7's queued export. *(BOTH: Codex M-3 + Fable m-9)*
 
-**Major-contested (needs an operator ruling):**
-- [ ] **A-Mc — large bulk-triage 202 durability.** The `asyncio.create_task` path returns 202 with
-  no durable job/audit marker; a restart/crash loses the work. Codex rated Major, Fable nit (inline
-  path journals-before-commit; large path M7-owned but not cleanly). **Ruling:** write a durable OS
-  job marker before the 202, OR keep bulk inline-only (413/409 above the limit) until M7's queue.
-  *(Codex M-2 / Fable n-6)*
+**Major — A-Mc (RULING RECORDED 2026-07-06: bounded-synchronous):**
+- [ ] **A-Mc — large bulk-triage durability.** The `asyncio.create_task`/202 path could lose accepted
+  work on a restart (no durable marker). **Decided: delete the async path.** Apply synchronously up to
+  `JAVV_BULK_INLINE_LIMIT` (500→**5000**), **413** above it, hard-cap `freeze_targets` at
+  `JAVV_BULK_MAX_TARGETS` (**10000**). Truly-huge scheduled bulk → M7's durable queue (recorded on the
+  M7 README). Tracked in #189; guide task-5. *(Codex M-2 / Fable n-6)*
 
 **Minors/nits (batch alongside the next bolt touching each area):**
 - [ ] **A-m1 — cursor robustness:** type-check decoded cursor fields; expired/bogus PIT → 410/422 not

@@ -26,13 +26,15 @@ Legend for the **UI?** column below: ⚙️ **GitOps** (build-time, never UI, by
 ## 1. JAVV Backend (FastAPI) — `JAVV_*` env vars
 
 Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefixed; unknown env vars ignored.
+**⏳ = decided but not yet shipped** — the row describes the target state, gated on the linked PR; the running code still uses the old value until it merges.
 
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
 | `JAVV_ENV` | `dev` | Deployment profile (task C #140). `prod`/`production` turns dev conveniences into **startup failures** — currently: the dev `JAVV_TOKEN_PEPPER` refuses to boot (`assert_production_ready`). Set on any real deployment. | n/a (deploy) |
 | `JAVV_LOG_LEVEL` | `info` | Log threshold for the shared pipeline (`libs/javv-common`, #156): `debug`\|`info`\|`warning`\|`error`; unknown value fails startup. At `debug` the opensearch-py client's **per-request lines** surface (every OpenSearch touch: method/path/status/took); request/response **bodies** never emit at any level — both the client logger's own DEBUG body dump and `opensearchpy.trace` are capped (one cycle of bodies = 6 MB of log, #158). One JSON stream — uvicorn + client libs are bridged through the same redaction. | n/a (deploy) |
 | `JAVV_OPENSEARCH_URL` | `http://localhost:9200` | OpenSearch endpoint the backend connects to | n/a (deploy) |
-| `JAVV_BULK_INLINE_LIMIT` | `500` | Bulk triage (M5d): a frozen target set at/under this applies inline (200); larger returns **202** and completes async — same single-audit-row contract either way | n/a (deploy) |
+| `JAVV_BULK_INLINE_LIMIT` | `5000` ⏳ | Bulk triage (M5d): **synchronous-apply ceiling** — a frozen target set at/under this applies now (200 + result, one audit row). Above it → **413** (narrow the selector, or use M7's scheduled bulk). ⏳ *changes from the shipped `500`/async-202 behavior when [#189](https://github.com/Danube-Labs/javv-poc/issues/189) lands — audit A-Mc, ruling: bounded-synchronous, no volatile 202* | n/a (deploy) |
+| `JAVV_BULK_MAX_TARGETS` | `10000` ⏳ | Bulk triage **hard cap**: `freeze_targets` never materializes more than this many ids — a selector matching more → **413** ("selector too broad"). Bounds the freeze *memory* independently of the apply cost. ⏳ *added by [#189](https://github.com/Danube-Labs/javv-poc/issues/189) (audit A-Mc)* | n/a (deploy) |
 | `JAVV_SEARCH_PIT_KEEP_ALIVE` | `2m` | Findings search (M6): PIT keep-alive per page of the cursor walk — each page renews it; an abandoned cursor's PIT self-expires after this. Longer = clients can idle between pages; shorter = fewer lingering PITs. | n/a (deploy) |
 | `JAVV_REQUEST_TIMEOUT` | `30.0` | OpenSearch client request timeout (seconds) | n/a (deploy) |
 | `JAVV_BOOTSTRAP_ON_STARTUP` | `true` | Ping OpenSearch + run index bootstrap before serving (fail-fast). Tests set `false`. | n/a (deploy) |
