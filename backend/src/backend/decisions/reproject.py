@@ -32,6 +32,7 @@ log = structlog.get_logger()
 
 _PAGE = 10_000  # findings read per page — reproject PAGES the (cluster, cve) set, so not a cap
 _CONFLICT_RETRIES = 8  # drain ceiling (like reconcile); real contention is ~1
+_HOT_PAIR_CONFLICTS = 50  # draining this many conflicts flags a contention-hot (cluster, cve)
 
 _SOURCE = [
     "finding_key",
@@ -191,6 +192,13 @@ async def reproject_cve(
             updated=updated,
             conflicts_retried=conflicts_retried,
         )
+        if conflicts_retried >= _HOT_PAIR_CONFLICTS:  # elevate a contention-hot pair for alerting
+            log.warning(
+                "reproject drained an unusual number of conflicts — hot (cluster, cve)",
+                cluster_id=cluster_id,
+                cve_id=cve_id,
+                conflicts_retried=conflicts_retried,
+            )
     return updated
 
 
