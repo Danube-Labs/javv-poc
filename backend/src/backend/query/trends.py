@@ -18,43 +18,52 @@ The tenant filter is forced by the chokepoint at execution; scan-events routing 
 pins the per-cluster index pattern.
 """
 
+from datetime import datetime, timedelta
 from typing import Any
 
 _MAX_DAYS = 365
 _BY_SCANNER_TERMS = {"field": "scanner", "size": 4}
 
 
-def _window(days: int) -> str:
+def _window(days: int, anchor: datetime | None = None) -> tuple[str, str]:
+    """(gte, upper-bound) — now-relative date math, or absolute ISO when anchored at a past T
+    (M8b: a trend at T is the SAME aggregation with the window ending at T, D28)."""
     if not 1 <= days <= _MAX_DAYS:
         raise ValueError(f"days must be 1..{_MAX_DAYS}")
-    return f"now-{days}d/d"
+    if anchor is None:
+        return f"now-{days}d/d", "now/d"
+    day = anchor.date()
+    return (day - timedelta(days=days)).isoformat(), day.isoformat()
 
 
-def _timeline(date_field: str, gte: str) -> dict[str, Any]:
+def _timeline(date_field: str, gte: str, upper: str) -> dict[str, Any]:
     return {
         "date_histogram": {
             "field": date_field,
             "calendar_interval": "day",
             "min_doc_count": 0,  # quiet days are real data points — a continuous axis
-            "extended_bounds": {"min": gte, "max": "now/d"},
+            "extended_bounds": {"min": gte, "max": upper},
         }
     }
 
 
-def build_scans_trend_body(*, days: int) -> dict[str, Any]:
-    gte = _window(days)
-    timeline = _timeline("ingested_at", gte)
+def build_scans_trend_body(*, days: int, anchor: datetime | None = None) -> dict[str, Any]:
+    gte, upper = _window(days, anchor)
+    timeline = _timeline("ingested_at", gte, upper)
     # THE dedup rule (task B, #139): committed scans = cardinality(commit_key), never doc counts
     timeline["aggs"] = {"scans": {"cardinality": {"field": "commit_key"}}}
+    window: dict[str, Any] = {"gte": gte}
+    if anchor is not None:  # the ≤ T cut — an anchored window must not see later appends
+        window["lte"] = anchor.isoformat()
     return {
         "size": 0,
-        "query": {"bool": {"filter": [{"range": {"ingested_at": {"gte": gte}}}]}},
+        "query": {"bool": {"filter": [{"range": {"ingested_at": window}}]}},
         "aggs": {"by_scanner": {"terms": dict(_BY_SCANNER_TERMS), "aggs": {"timeline": timeline}}},
     }
 
 
 def build_findings_trend_body(*, days: int) -> dict[str, Any]:
-    gte = _window(days)
+    gte, upper = _window(days)
 
     def series(date_field: str) -> dict[str, Any]:
         return {
@@ -62,7 +71,7 @@ def build_findings_trend_body(*, days: int) -> dict[str, Any]:
             "aggs": {
                 "by_scanner": {
                     "terms": dict(_BY_SCANNER_TERMS),
-                    "aggs": {"timeline": _timeline(date_field, gte)},
+                    "aggs": {"timeline": _timeline(date_field, gte, upper)},
                 }
             },
         }

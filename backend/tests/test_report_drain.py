@@ -179,16 +179,60 @@ async def test_over_the_byte_ceiling_fails_the_job(client, monkeypatch) -> None:
     assert doc["status"] == FAILED and "exceeds" in doc["error"]
 
 
-async def test_as_of_t_job_fails_loud_with_the_m8b_pointer(client) -> None:
+async def test_as_of_t_export_reconstructs_history(client) -> None:
+    """UNPARKED by M8b slice 4 (#34): an as_of_t export drains to DONE with rows reconstructed
+    from the append logs at T — not the parked FAILED of the M7 era."""
+    import json as _json
+    from pathlib import Path
+
+    from backend.models.envelope import IngestEnvelope
+    from backend.services.ingest import ingest_envelope
+
+    golden = _json.loads(
+        (Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text()
+    )
     cluster_id = f"c-drainasof-{uuid.uuid4().hex[:8]}"
+    golden["cluster_id"] = cluster_id
+    await ingest_envelope(client, IngestEnvelope.model_validate(golden))
+    for index in (f"javv-scan-events-{cluster_id}-*", "javv-finding-occurrences-*"):
+        await client.indices.refresh(index=index, params={"ignore_unavailable": "true"})
+
+    report_id = await _enqueue(client, cluster_id, as_of_t=datetime.now(UTC).isoformat())
+    job = await claim_next(client, worker="w-drain", report_id=report_id)
+    assert job is not None
+    assert await run_job(client, job) is True
+    doc = await _report(client, report_id)
+    assert doc["status"] == DONE and doc["chunk_count"] >= 1
+
+    await client.indices.refresh(index="system-report-chunks")
+    chunks = await client.search(
+        index="system-report-chunks",
+        body={
+            "query": {"term": {"report_id": report_id}},
+            "sort": [{"seq": "asc"}],
+            "size": 10,
+        },
+    )
+    csv_text = "".join(h["_source"]["data"] for h in chunks["hits"]["hits"])
+    lines = [ln for ln in csv_text.splitlines() if ln]
+    assert len(lines) == 1 + golden["counts"]["total"]  # header + one line per as-of-T row
+    assert "CVE-2005-2541" in csv_text  # a golden CVE made it through the reconstruction
+
+
+async def test_as_of_t_export_with_an_unanswerable_filter_fails_loud(client) -> None:
+    # kev is not recorded in per-scan history — the reader raises, the job fails with the reason
+    cluster_id = f"c-drainasofkev-{uuid.uuid4().hex[:8]}"
     report_id = await _enqueue(
-        client, cluster_id, as_of_t=(datetime.now(UTC) - timedelta(days=7)).isoformat()
+        client,
+        cluster_id,
+        as_of_t=(datetime.now(UTC) - timedelta(days=7)).isoformat(),
+        params={**ExportParams().model_dump(), "kev": True},
     )
     job = await claim_next(client, worker="w-drain", report_id=report_id)
     assert job is not None
     assert await run_job(client, job) is False
     doc = await _report(client, report_id)
-    assert doc["status"] == FAILED and "M8b" in doc["error"]
+    assert doc["status"] == FAILED and "kev" in doc["error"]
 
 
 async def test_fenced_drain_publishes_nothing_and_rings_nothing(client) -> None:

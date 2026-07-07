@@ -64,6 +64,11 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
 - Admin-configurable off-peak windows in the UI → `Settings → Data & OpenSearch` (FR-19, M9e).
 
 ## Updates
+- **2026-07-08 (post-bolt, by M8b slice 4/#34)** — the **as_of_t export unparked**: the drain's
+  FAIL-LOUD branch is gone; a queued export with a past `as_of_t` now reconstructs its rows at T
+  through the `AsOfTReader` (paged, throttled like any export) into the same CSV/VEX pipeline.
+  Unanswerable filters at a past T (e.g. `kev` — not recorded in per-scan history) still fail
+  the job loud with the reason. Inline export routes remain current-state-only (501 for past T).
 - **2026-07-07** — **storage decision (#32 kickoff):** report result blobs live **in OpenSearch**,
   chunked (`system-report-chunks`, ~5 MiB un-indexed text slices), **not** an object store. Rationale:
   honors the single-store / broker-free hard constraint (no MinIO/S3/PVC/blob-client to wire — M2's

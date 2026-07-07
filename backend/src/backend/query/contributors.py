@@ -45,10 +45,16 @@ HANDLING_ACTIONS = frozenset({"acknowledge", "not_affected", "risk_accept", "res
 _BOARD_SIZE = 100
 
 
-def build_actions_body(*, days: int) -> dict[str, Any]:
+def build_actions_body(*, days: int, anchor: datetime | None = None) -> dict[str, Any]:
     if not 1 <= days <= 365:
         raise ValueError("days must be 1..365")
-    gte = f"now-{days}d/d"
+    # anchored at a past T (M8b/D28): the audit log is append-only, so the historical
+    # leaderboard IS the same aggregation with the window ending at T
+    gte = f"now-{days}d/d" if anchor is None else (anchor.date() - timedelta(days=days)).isoformat()
+    upper = "now/d" if anchor is None else anchor.date().isoformat()
+    window: dict[str, Any] = {"gte": gte}
+    if anchor is not None:
+        window["lte"] = anchor.isoformat()
     return {
         "size": 0,
         "query": {
@@ -59,7 +65,7 @@ def build_actions_body(*, days: int) -> dict[str, Any]:
                     # include them so decision authorship charts as contributor work (audit A-m5).
                     # They are not HANDLING_ACTIONS, so they add actions but no TTR/SLA sample.
                     {"terms": {"entity_type": ["finding", "decision"]}},
-                    {"range": {"@timestamp": {"gte": gte}}},
+                    {"range": {"@timestamp": window}},
                 ],
                 "must_not": [{"term": {"actor": "system"}}],
             }
@@ -77,7 +83,7 @@ def build_actions_body(*, days: int) -> dict[str, Any]:
                             "field": "@timestamp",
                             "calendar_interval": "day",
                             "min_doc_count": 0,
-                            "extended_bounds": {"min": gte, "max": "now/d"},
+                            "extended_bounds": {"min": gte, "max": upper},
                         }
                     }
                 },

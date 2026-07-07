@@ -51,6 +51,23 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-07-08 (slice 4 — BOLT COMPLETE)** — trends + contributors at T land; the reader
+  registers in lifespan (all six protocol methods live; past-T reads stop being 501). Scans
+  trend + contributors board = the SAME builders anchored at T (append logs are immutable —
+  single source, no fork); the findings trend derives new/resolved from occurrences (the
+  cache's `resolved_at` clears on reappearance, so the cache cannot answer history). **M7's
+  as_of_t export unparked**: the drain reconstructs rows at T through the reader (paged,
+  throttled) into the same CSV/VEX pipeline; an unanswerable filter (e.g. `kev`) fails the job
+  loud with the reason. As-scanned labeling: unrecorded fields are null by construction —
+  see the API.md note.
+- **2026-07-08 (slice 3)** — the reader's findings trio + the I11 keystone (T=now
+  reconstruction == materialized cache, field-for-field). Registration deferred to slice 4 so
+  past-T trends stayed clean 501s. `pit.py` hardened for the empty-catalog wildcard shape.
+- **2026-07-07 (slices 1–2)** — R-CATALOG primitives (#263: catalog-first two-step, symmetric
+  CVE-at-T, running-images-at-T; top_hits/composite for #257-exact `scan_order`) + the human
+  dimension (#264: audit replay under the revision/(@timestamp,event_id) contract, bulk
+  target_ids expansion, state/vex pairing; decisions-active-at-T as a pure lifecycle filter).
+  Store dates truncate to MILLISECONDS — captured instants in tests are padded 2ms.
 - **2026-07-06** — audit A-m11 (#192): the M6 kickoff ruling (recorded on #31) replaced the standalone
   M8b spike with a typed seam — this bolt must **implement the `AsOfTReader` protocol**
   (`backend/src/backend/query/as_of.py`): the six methods `findings_page` · `findings_facets` ·
