@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.2](https://github.com/Danube-Labs/javv-poc/compare/v0.3.1...v0.3.2) (2026-07-07)
+
+
+### Features
+
+* **m7:** bulk_triage report kind — capability-gated, frozen at enqueue (slice 5) ([#252](https://github.com/Danube-Labs/javv-poc/issues/252)) ([6c4c442](https://github.com/Danube-Labs/javv-poc/commit/6c4c44227cf71d5bf0f41c7eeb7d79e8e562c907)), closes [#32](https://github.com/Danube-Labs/javv-poc/issues/32)
+* **m7:** drain worker, chunked results, signed download, notifications bell (slice 3) ([#248](https://github.com/Danube-Labs/javv-poc/issues/248)) ([83ca734](https://github.com/Danube-Labs/javv-poc/commit/83ca73491be849d5528e41472c8224b4d13254f0)), closes [#32](https://github.com/Danube-Labs/javv-poc/issues/32)
+* **m7:** occ claim + fenced lease for the report queue (slice 2) ([#246](https://github.com/Danube-Labs/javv-poc/issues/246)) ([8a7d71b](https://github.com/Danube-Labs/javv-poc/commit/8a7d71b36b9f0ce82fcf09a17713eb4c3663bf28)), closes [#32](https://github.com/Danube-Labs/javv-poc/issues/32)
+* **m7:** ttl + orphan sweep for the report queue (slice 4) ([#251](https://github.com/Danube-Labs/javv-poc/issues/251)) ([b7b99d7](https://github.com/Danube-Labs/javv-poc/commit/b7b99d7b53b1fddef3f6249fd28b928765be5b93)), closes [#32](https://github.com/Danube-Labs/javv-poc/issues/32)
+
+
+### Bug Fixes
+
+* **ci:** serialize the store-exclusive admin demote race — it 401'd concurrent tests ([#250](https://github.com/Danube-Labs/javv-poc/issues/250)) ([49ce86a](https://github.com/Danube-Labs/javv-poc/commit/49ce86ae255fca9b0998b9aacb2815cf4c306bbf)), closes [#245](https://github.com/Danube-Labs/javv-poc/issues/245)
+
 ## [0.3.1](https://github.com/Danube-Labs/javv-poc/compare/v0.3.0...v0.3.1) (2026-07-07)
 
 
