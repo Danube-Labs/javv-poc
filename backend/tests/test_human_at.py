@@ -18,7 +18,12 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.audit.writer import append_field_change
 from backend.core.bootstrap import bootstrap
-from backend.decisions.lifecycle import DecisionPayload, create_decision, revoke_decision
+from backend.decisions.lifecycle import (
+    DecisionPayload,
+    DecisionScope,
+    create_decision,
+    revoke_decision,
+)
 from backend.query.human_at import HUMAN_DEFAULTS, decisions_active_at, finding_states_at
 from backend.triage.bulk import apply_bulk_triage
 
@@ -216,7 +221,7 @@ async def test_decisions_active_at_walks_the_lifecycle(
         return DecisionPayload(
             type="risk_accepted",
             cve_id=cve,
-            scope={"namespaces": [], "images": []},
+            scope=DecisionScope(),
             apply_both_scanners=True,
             justification="test",
             cluster_id=CLUSTER,
