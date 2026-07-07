@@ -56,4 +56,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        # the registry is process-global — unregister on shutdown so the reader's lifetime is
+        # exactly the app's (a lifespan-running TEST otherwise leaves it registered for every
+        # later test in the same worker: the #266 CI leak — 501-seam tests saw 200)
+        register_as_of_t(None)
         await client.close()
