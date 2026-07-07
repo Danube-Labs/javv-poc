@@ -57,6 +57,20 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Any write beyond the registry rename; notifications (M7 slice 3 / D-3); scan-scope session read (M9e / D-2).
 
 ## Updates
+- **2026-07-08 · slice 2 (images + cluster registry)** — `GET /api/v1/images`
+  (`routers/images.py`): the M8b overlap resolved as REUSE — `query/pit.py`'s
+  `running_images_at` split into `latest_committed_inventory` + `images_for_inventory_run`
+  (behavior unchanged; both gained an explicit `cluster_id` term on top of the per-cluster index
+  name), the route composes them at `t=now`, and a parity test pins route rows == reader rows.
+  `inventory: null` (no committed run — unknown) stays distinct from a committed-empty run.
+  Cluster registry (`routers/clusters.py`, D-5): ONE `system-config` doc
+  (`_id="cluster-registry"`, `value` = `{cluster_id → cluster_name}` inside the enabled:false
+  blob — zero mapping churn, no new index); `GET /api/v1/clusters` = token-derived ids ∪
+  registry, name defaults to the id; `PUT /api/v1/clusters/{cluster_id}/name` =
+  `can_manage_settings`, journal-FIRST (D17/#188, `action=cluster_rename` with the old→new
+  pair), and the registry write is a **seq_no-CAS guarded RMW** (D40 rule — two concurrent
+  renames of different clusters both land; contended past 5 retries → 503, journaled, retry
+  re-drives). RBAC/IDOR registry row added for the rename; `cluster_name` stays display-only.
 - **2026-07-08 · slice 1 (audit + provenance)** — `GET /api/v1/audit` (`query/audit.py` +
   `routers/audit.py`): plain-session, fixed `(@timestamp, event_id)` pair-sort in ONE direction
   (`?order=`, desc default — replay stays asc in `query/human_at.py`), A-m1 machinery reused

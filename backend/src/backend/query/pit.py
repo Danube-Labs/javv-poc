@@ -165,6 +165,69 @@ async def images_with_cve_at(
     return rows
 
 
+async def latest_committed_inventory(
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    t: datetime,
+    *,
+    prefix: str = "",
+) -> dict[str, Any] | None:
+    """The manifest of the latest `status=committed` inventory run ≤ T, by `inventory_order`
+    (D40/F-r3) — a partial run is never the answer; `None` = no committed inventory ≤ T.
+    Split out of `running_images_at` for M8c's `GET /api/v1/images` (its T=now case), which
+    needs the manifest itself on the wire, not just the rows."""
+    try:
+        manifest = await client.search(
+            index=f"{prefix}javv-inventory-runs-{cluster_id}-*",
+            body={
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"cluster_id": cluster_id}},
+                            {"term": {"status": "committed"}},
+                            _lte(t),
+                        ]
+                    }
+                },
+                "sort": [{"inventory_order": "desc"}],
+                "size": 1,
+            },
+        )
+    except NotFoundError:
+        return None
+    hits = manifest["hits"]["hits"]
+    if not hits:
+        return None
+    return hits[0]["_source"]
+
+
+async def images_for_inventory_run(
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    inventory_run_id: str,
+    *,
+    prefix: str = "",
+) -> list[dict[str, Any]]:
+    """The image docs of one inventory run, ordered by `image_digest` (deterministic)."""
+    resp = await client.search(
+        index=f"{prefix}javv-images-{cluster_id}-*",
+        body={
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"cluster_id": cluster_id}},
+                        {"term": {"inventory_run_id": inventory_run_id}},
+                    ]
+                }
+            },
+            "size": _MAX_ROWS,
+            "sort": [{"image_digest": "asc"}],
+        },
+        params={"ignore_unavailable": "true"},
+    )
+    return [h["_source"] for h in resp["hits"]["hits"]]
+
+
 async def running_images_at(
     client: AsyncOpenSearch,
     cluster_id: str,
@@ -175,28 +238,9 @@ async def running_images_at(
     """ "Running images at T" = the image docs of the latest `status=committed` inventory run
     ≤ T, ordered by `inventory_order` (D40/F-r3) — a partial or zero-image run is never the
     answer; it falls back to the prior committed run. `None` = no committed inventory ≤ T."""
-    try:
-        manifest = await client.search(
-            index=f"{prefix}javv-inventory-runs-{cluster_id}-*",
-            body={
-                "query": {"bool": {"filter": [{"term": {"status": "committed"}}, _lte(t)]}},
-                "sort": [{"inventory_order": "desc"}],
-                "size": 1,
-            },
-        )
-    except NotFoundError:
+    manifest = await latest_committed_inventory(client, cluster_id, t, prefix=prefix)
+    if manifest is None:
         return None
-    hits = manifest["hits"]["hits"]
-    if not hits:
-        return None
-    run_id = hits[0]["_source"]["inventory_run_id"]
-    resp = await client.search(
-        index=f"{prefix}javv-images-{cluster_id}-*",
-        body={
-            "query": {"term": {"inventory_run_id": run_id}},
-            "size": _MAX_ROWS,
-            "sort": [{"image_digest": "asc"}],
-        },
-        params={"ignore_unavailable": "true"},
+    return await images_for_inventory_run(
+        client, cluster_id, manifest["inventory_run_id"], prefix=prefix
     )
-    return [h["_source"] for h in resp["hits"]["hits"]]
