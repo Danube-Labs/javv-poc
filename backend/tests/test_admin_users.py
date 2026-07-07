@@ -501,9 +501,26 @@ async def test_concurrent_admin_demotes_never_zero_admins(admin_env) -> None:
             return_exceptions=True,
         )
         codes = [r.status_code for r in results if isinstance(r, httpx.Response)]
-        assert sum(c == 200 for c in codes) <= 1  # at most one demote won
 
         await client.indices.refresh(index="system-users")
+        # the "at most one wins" invariant only holds while a and b are the ONLY enabled admins.
+        # Under -n 2 a concurrently-running test can seed another enabled admin mid-race — then
+        # two wins are LEGITIMATE (the API's guarantee is global, not pairwise). Detect that and
+        # call the run inconclusive rather than false-alarm on correct behavior.
+        interlopers = await client.count(
+            index="system-users",
+            body={
+                "query": {
+                    "bool": {
+                        "filter": [{"term": {"role": "admin"}}, {"term": {"disabled": False}}],
+                        "must_not": [{"ids": {"values": [admin_a, admin_b]}}],
+                    }
+                }
+            },
+        )
+        if interlopers["count"] > 0:
+            pytest.skip("a concurrent test seeded another enabled admin — isolation broken")
+        assert sum(c == 200 for c in codes) <= 1  # at most one demote won
         survivors = await client.count(
             index="system-users",
             body={

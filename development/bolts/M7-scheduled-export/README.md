@@ -102,6 +102,15 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
   `javv_cas_conflicts_total{site="report_claim"}` (#220) is now live. 14 concurrency tests incl.
   the no-double-publish keystone (A claims → lease expires → B reclaims → A's publish rejected,
   B's lands, terminal state immutable).
+- **2026-07-07 — slice 3 landed (drain + chunks + download + bell):** `jobs/report_drain.py`
+  (claim → M6 engine stream, throttled per page → ~5 MiB chunks via `reports/storage.py`,
+  heartbeat-on-flush aborts a fenced stream → CAS-publish → `report_ready` bell),
+  `GET /api/v1/reports/{id}/download` (session + short-lived signed `download_token` minted by
+  the status view — HMAC over the pepper, 15 min, `reports/download_token.py` — + **410** past
+  `expires_at`), and `GET/PATCH /api/v1/notifications` (FR-16/D-3: own-only, server-computed
+  unread, IDOR-404 mark-read). **Decision:** an `as_of_t` job fails LOUD ("requires M8b, #34")
+  instead of clogging the queue forever-pending — re-enqueue once M8b ships. Golden-parity gate:
+  queued CSV == inline CSV byte-identical. Orphaned loser chunks verified present → slice 4 sweeps.
 
 ## Config tracking
 
