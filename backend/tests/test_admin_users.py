@@ -179,7 +179,16 @@ async def test_list_returns_public_fields_only(admin_env) -> None:
     make_http, client = admin_env
     admin = make_http()
     await _seed_and_login(admin, client, capabilities=["can_manage_users"])
-    username = _name()
+    # Flake fix (#223): the shared dev store accumulates thousands of `u-…`/`nu-…` test users
+    # across runs, so a fresh name may not land on page 1 of the asc-sorted list. Use a
+    # digit-prefixed name (sorts before every letter) and sweep THIS test's own leftovers
+    # first, so page 1 deterministically contains it — forever, not until the next 100 runs.
+    await client.delete_by_query(
+        index="system-users",
+        body={"query": {"prefix": {"username": "0-list-"}}},
+        params={"refresh": "true", "conflicts": "proceed"},
+    )
+    username = f"0-list-{uuid.uuid4().hex[:12]}"
     await admin.post(
         "/api/v1/admin/users",
         json={"username": username, "temp_password": TEMP_PASSWORD, "role": "viewer"},
