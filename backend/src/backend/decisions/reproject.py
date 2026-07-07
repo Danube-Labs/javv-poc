@@ -24,6 +24,7 @@ from typing import Any
 import structlog
 from opensearchpy import AsyncOpenSearch
 
+from backend.core.metrics import CAS_CONFLICTS
 from backend.decisions.lifecycle import DECISIONS_INDEX
 from backend.decisions.projection import project
 from backend.repositories.bulk import bulk_write
@@ -151,6 +152,7 @@ async def reproject_cve(
         if actions:
             written, conflicts = await bulk_write(client, actions, collect_conflicts=True)
             updated += written
+            CAS_CONFLICTS.labels("reproject").inc(len(conflicts))  # M-3 (#220)
             conflicted_ids += [c["_id"] for c in conflicts]
         if len(hits) < _PAGE:
             break

@@ -29,6 +29,7 @@ from opensearchpy.exceptions import ConnectionTimeout
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
+from backend.core.metrics import OS_REQUEST_ERRORS
 from backend.query import pit_guard
 from backend.query.aggs import (
     build_composite_body,
@@ -250,6 +251,8 @@ async def search_findings(
     except (OSConnectionError, ConnectionTimeout) as exc:  # A-m1: cluster down/slow → 503, not 500
         if opened:
             pit_guard.release_one(principal.user_id)
+        kind = "timeout" if isinstance(exc, ConnectionTimeout) else "conn"
+        OS_REQUEST_ERRORS.labels(kind).inc()  # M-2 (#220)
         raise HTTPException(503, "search backend unavailable — retry") from exc
     except BaseException:
         if opened:

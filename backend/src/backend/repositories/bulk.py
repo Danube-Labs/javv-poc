@@ -9,6 +9,8 @@ from typing import Any, Literal, overload
 
 from opensearchpy import AsyncOpenSearch
 
+from backend.core.metrics import OS_BACKOFF_RETRIES, OS_REQUEST_ERRORS
+
 RETRYABLE = {429, 503}
 
 
@@ -82,6 +84,7 @@ async def bulk_write(
             if status < 300:
                 written += 1
             elif status in RETRYABLE:
+                OS_REQUEST_ERRORS.labels(str(status)).inc()  # M-2 (#220): 429 rate = saturation
                 retry.extend(pair)
             elif collect_conflicts and status == 409:
                 conflicts.append(result)  # caller re-reads + re-checks ownership + retries
@@ -94,6 +97,7 @@ async def bulk_write(
         if attempt == max_retries:
             raise BulkError([{"status": "retries_exhausted", "count": len(retry) // 2}])
         # exponential backoff + full jitter
+        OS_BACKOFF_RETRIES.inc(len(retry) // 2)  # M-2 (#220): per retried item
         await sleep(rng.uniform(0, base_delay * (2**attempt)))
         pending = retry
 

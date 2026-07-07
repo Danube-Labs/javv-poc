@@ -10,6 +10,7 @@ from fastapi import HTTPException, Request
 from opensearchpy import NotFoundError
 
 from backend.auth.sessions import COOKIE_NAME, lookup_session
+from backend.core.metrics import AUTH_FAILURES
 
 USERS_INDEX = "system-users"
 
@@ -29,6 +30,7 @@ async def get_current_principal(request: Request) -> Principal:
     client: Any = request.app.state.opensearch
     session = await lookup_session(client, request.cookies.get(COOKIE_NAME, ""))
     if session is None:
+        AUTH_FAILURES.labels("expired_session").inc()  # M-5 (#220): no/dead session on a route
         raise HTTPException(401, "invalid credentials")
     try:
         user = (await client.get(index=USERS_INDEX, id=session["user_id"]))["_source"]

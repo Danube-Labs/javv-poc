@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal
 from backend.core.identifiers import ClusterId
+from backend.core.metrics import LIMIT_REJECTIONS
 from backend.core.settings import get_settings
 from backend.triage.bulk import (
     SelectorTooBroad,
@@ -90,12 +91,14 @@ async def bulk_triage(request: Request, body: BulkTriageRequest, principal: CanT
             max_targets=settings.bulk_max_targets,
         )
     except SelectorTooBroad as exc:
+        LIMIT_REJECTIONS.labels("bulk_targets").inc()  # M-4 (#220)
         raise HTTPException(413, str(exc)) from exc
     if not target_ids:
         return {"count": 0, "applied": True, "result_hash": None}
 
     limit = settings.bulk_inline_limit
     if len(target_ids) > limit:
+        LIMIT_REJECTIONS.labels("bulk_inline").inc()  # M-4 (#220)
         raise HTTPException(
             413,
             f"{len(target_ids)} findings exceed the inline bulk limit ({limit}) — "

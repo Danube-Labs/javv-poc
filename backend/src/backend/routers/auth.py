@@ -27,6 +27,7 @@ from backend.auth.sessions import (
     revoke_all_for_user,
     revoke_session,
 )
+from backend.core.metrics import AUTH_FAILURES
 from backend.core.settings import get_settings
 
 log = structlog.get_logger()
@@ -91,11 +92,13 @@ async def login(request: Request, creds: LoginCredentials, response: Response) -
     if lockout.locked(creds.username):
         # the client sees only 429 — this warning is the operator's ONLY trace (#156)
         log.warning("login locked out", username=creds.username)
+        AUTH_FAILURES.labels("locked_out").inc()  # M-5 (#220): reason only, never a username
         raise HTTPException(429, "too many attempts")  # budget spent — credentials unseen
     client = _os(request)
     result = await _provider.authenticate(client, creds)
     if result is None:
         lockout.record_failure(creds.username)
+        AUTH_FAILURES.labels("bad_credentials").inc()  # M-5 (#220)
         raise _GENERIC_401
     lockout.clear(creds.username)
     # task C m-10 (#140): a login that arrives with a still-valid session cookie is this
