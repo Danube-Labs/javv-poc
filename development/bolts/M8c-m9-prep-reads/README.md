@@ -57,7 +57,20 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Any write beyond the registry rename; notifications (M7 slice 3 / D-3); scan-scope session read (M9e / D-2).
 
 ## Updates
-- _none yet_
+- **2026-07-08 · slice 1 (audit + provenance)** — `GET /api/v1/audit` (`query/audit.py` +
+  `routers/audit.py`): plain-session, fixed `(@timestamp, event_id)` pair-sort in ONE direction
+  (`?order=`, desc default — replay stays asc in `query/human_at.py`), A-m1 machinery reused
+  verbatim (`encode_cursor`/`decode_cursor` from `query/search.py`; a findings cursor is rejected
+  as an audit cursor via the `s` field), per-principal PIT slots (A-m12). `GET
+  /api/v1/scanners/provenance` extends `routers/scanners.py`: latest = terms-on-scanner +
+  `top_hits` sorted on the exact `scan_order` long (a scan-events doc IS the commit marker, so
+  scan-events reads ARE committed-only by construction — the DoD "uncommitted never surfaces"
+  test plants ghost occurrence rows with a newer order and proves them invisible); last-N runs =
+  composite over `(scanner, scan_run_id)` with sum/min/max sub-aggs (dates are epoch-ms < 2^53 —
+  exact in metric aggs) + the run's exact order via `top_hits` `_source`, sorted in Python
+  (**never a `max` agg on `scan_order`**, #257 — pinned by an adjacent-giant-orders test at
+  ~1.75e18). No registry rows needed: both reads are non-mutating (the registry gates mutations);
+  slice 2's rename registers under `can_manage_settings`.
 
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
