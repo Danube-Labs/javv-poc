@@ -346,7 +346,7 @@ revoked           boolean       revoke-on-role-change / logout-all
 # system-reports       : { report_id, kind: export|bulk_triage, status: pending|running|done|failed,
 #                          params, requested_by, run_mode: now|offpeak, scheduled_for, cluster_id,
 #                          bytes, chunk_count, expires_at, heartbeat_at, lease_expires_at, retry_count,
-#                          attempt_id }   job claim = optimistic concurrency (pending→running via
+#                          attempt_id, worker, started_at, finished_at }   job claim = optimistic concurrency (pending→running via
 #                          seq_no/primary_term CAS) so replicas/retries can't double-run (D38/M17);
 #                          attempt_id = fencing token - heartbeat + done CAS on it, so an expired-then-
 #                          reclaimed slow worker can't double-publish (the bell reads only the done doc).

@@ -94,6 +94,14 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
   (`export.csv`/`export.vex`) return **501** for `as_of_t` in the past (D28 — the `AsOfTReader` seam
   carries no export surface); the scheduled export queue is where a reconstructed-at-T export lands,
   once M8b's `as_of_t` can feed the sweep. Track as an M7 deliverable alongside the drain worker.
+- **2026-07-07 — slice 2 landed (claim + lease):** `reports/claim.py` (targeted + oldest-first
+  queue-scan claim; pending→running CAS; fresh `attempt_id`; expired-lease reclaim with
+  `retry_count`++) and `reports/lease.py` (heartbeat + done/failed finalize, both fenced on
+  `attempt_id` — one-shot CAS, a fenced writer stands down). MAPPING_VERSION v10 adds
+  `worker`/`started_at`/`finished_at` claim diagnostics (INDEX-MAP updated same PR).
+  `javv_cas_conflicts_total{site="report_claim"}` (#220) is now live. 14 concurrency tests incl.
+  the no-double-publish keystone (A claims → lease expires → B reclaims → A's publish rejected,
+  B's lands, terminal state immutable).
 
 ## Config tracking
 

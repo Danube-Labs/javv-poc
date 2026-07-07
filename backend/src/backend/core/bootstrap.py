@@ -40,7 +40,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             scanner-specific subject + projection provenance for direct-action-wins/expiry)
 #          v9 + system-reports/system-report-chunks/system-notifications (M7/#32 — the scheduled
 #             export queue + chunked-in-OpenSearch result blobs + the bell)
-MAPPING_VERSION = 9
+#          v10 + worker/started_at/finished_at on system-reports (M7 slice 2/#32 — claim/lease
+#             diagnostics: which drain holds the lease, attempt timing for reclaim debugging)
+MAPPING_VERSION = 10
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -218,6 +220,9 @@ _REPORTS_PROPERTIES: dict[str, Any] = {
     "as_of_t": _DATE,  # export-at-past-T seam (parked until M8b/#34)
     "created_at": _DATE,
     "attempt_id": _KW,  # fencing token — heartbeat + done CAS on it (D38/D40)
+    "worker": _KW,  # claim diagnostics: which drain holds the lease
+    "started_at": _DATE,
+    "finished_at": _DATE,
     "heartbeat_at": _DATE,
     "lease_expires_at": _DATE,
     "retry_count": _INT,
