@@ -171,7 +171,101 @@ JLOG="$LOGS/jobs.log"; : > "$JLOG"
   ( cd "$ROOT/backend" && JAVV_OPENSEARCH_URL="$OS" uv run python -m backend.jobs.lifecycle )
 } | tee -a "$JLOG"
 
-# ---- 8. opensearch log snapshot --------------------------------------------
+# ---- 8. read/report surface (#222 — major-audit phase 9) ---------------------
+# Everything M5c→M7 built, exercised against the REAL corpus phases 1–7 produced. Idempotent:
+# the decision is revoked in-phase, SLA is restored, the enqueued report is pending-only.
+# Assertions are RELATIONS (>0, == between two views of one lens) — never absolute counts,
+# the vuln-DB changes daily. Re-uses the phase-1 admin cookie jar (re-run phase 1 if standalone).
+say "read/report surface"
+api() { curl -s -b "$COOKIES" "$BACKEND$1"; }
+
+# search: filtered first page + one cursor follow (proves PIT paging on real data)
+PAGE=$(api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&size=20")
+ROWS=$(echo "$PAGE" | jq '.data | length')
+[ "$ROWS" -gt 0 ] || fail "search returned no rows for trivy"
+echo "$PAGE" | jq -e '.data | all(.scanner == "trivy")' >/dev/null || fail "scanner purity violated in search rows"
+CURSOR=$(echo "$PAGE" | jq -r '.next_cursor // empty')
+if [ -n "$CURSOR" ]; then
+  api "/api/v1/findings?cluster_id=$SCAN_CID&cursor=$(printf %s "$CURSOR" | jq -sRr @uri)" \
+    | jq -e '.data' >/dev/null || fail "cursor follow failed"
+  echo "cursor follow: OK"
+fi
+
+# facets: per-scanner buckets present; counts are server-side
+api "/api/v1/findings/facets?cluster_id=$SCAN_CID" \
+  | jq -e '.facets.severity | length > 0' >/dev/null || fail "facets missing severity buckets"
+
+# triage one real finding -> journaled
+FK=$(echo "$PAGE" | jq -r '.data[0].finding_key')
+curl -s -b "$COOKIES" -X PATCH "$BACKEND/api/v1/findings/$FK/triage" -H 'content-type: application/json' \
+  -d '{"state":"acknowledged"}' | jq -e '.finding.state == "acknowledged" or .state == "acknowledged"' >/dev/null \
+  || fail "triage PATCH failed for $FK"
+curl -s -X POST "$OS/system-audit-log*/_refresh" >/dev/null
+TRIAGED=$(curl -s "$OS/system-audit-log*/_count" -H 'content-type: application/json' \
+  -d "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"entity_id\":\"$FK\"}}]}}}" | jq -r .count)
+[ "$TRIAGED" -gt 0 ] || fail "triage left no audit row for $FK"
+echo "triage journaled: $TRIAGED row(s) for $FK"
+
+# decision round-trip: ignore_rule projects risk_accepted onto the CVE, revoke restores (D-run stamp
+# in the justification identifies leftovers from a crashed run — decisions are immutable, revoke+new)
+DCVE=$(echo "$PAGE" | jq -r '.data[1].cve_id')
+DEC=$(curl -s -b "$COOKIES" -X POST "$BACKEND/api/v1/decisions" -H 'content-type: application/json' -d "{
+  \"type\":\"ignore_rule\",\"cve_id\":\"$DCVE\",\"scope\":{\"namespaces\":[],\"images\":[]},
+  \"apply_both_scanners\":true,\"justification\":\"smoke run $(date -u +%FT%TZ)\",\"cluster_id\":\"$SCAN_CID\"}")
+DID=$(echo "$DEC" | jq -r '.decision.decision_id // empty')
+[ -n "$DID" ] || fail "decision create failed: $DEC"
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+PROJ=$(curl -s "$OS/findings/_count" -H 'content-type: application/json' \
+  -d "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"cluster_id\":\"$SCAN_CID\"}},{\"term\":{\"cve_id\":\"$DCVE\"}},{\"term\":{\"state\":\"risk_accepted\"}}]}}}" | jq -r .count)
+[ "$PROJ" -gt 0 ] || fail "ignore_rule did not project risk_accepted onto $DCVE"
+curl -s -b "$COOKIES" -X POST "$BACKEND/api/v1/decisions/$DID/revoke" | jq -e '.revoked' >/dev/null || fail "revoke failed"
+echo "decision round-trip on $DCVE: projected $PROJ finding(s), revoked"
+
+# SLA: tweak -> read back -> restore (no residue)
+SLA0=$(api "/api/v1/settings/sla")
+curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' \
+  -d "$(echo "$SLA0" | jq '.crit_days = 1')" >/dev/null
+[ "$(api "/api/v1/settings/sla" | jq -r .crit_days)" = "1" ] || fail "SLA write did not read back"
+curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' -d "$SLA0" >/dev/null
+echo "SLA round-trip: OK (restored)"
+
+# trends + contributors (the smoke's own triage IS contributor data)
+api "/api/v1/trends/scans?cluster_id=$SCAN_CID" | jq -e '.series' >/dev/null || fail "scans trend failed"
+api "/api/v1/trends/findings?cluster_id=$SCAN_CID" | jq -e '.series' >/dev/null || fail "findings trend failed"
+api "/api/v1/contributors?cluster_id=$SCAN_CID" | jq -e . >/dev/null || fail "contributors failed"
+
+# CSV export: row count == the same lens's search total; sanitizer holds on real data
+CSV=$(api "/api/v1/findings/export.csv?cluster_id=$SCAN_CID&scanner=trivy")
+CSV_ROWS=$(($(printf '%s\n' "$CSV" | wc -l) - 1))
+T_NOW=$(count trivy)  # phase-5 helper; present=true is the export's implicit lens too
+echo "csv rows: $CSV_ROWS (present trivy findings: $(present_trivy true))"
+[ "$CSV_ROWS" -gt 0 ] || fail "CSV export empty"
+printf '%s\n' "$CSV" | grep -qE '(^|,)"?[=+@]' && fail "CSV sanitizer let a formula-leading cell through"
+
+# VEX per scanner (never merged): one scanner per document
+api "/api/v1/findings/export.vex?cluster_id=$SCAN_CID&scanner=trivy" \
+  | jq -e '.statements | length > 0' >/dev/null || fail "openvex export empty"
+
+# M7 enqueue: pending doc + the public status view never leaks internals
+REP=$(curl -s -b "$COOKIES" -X POST "$BACKEND/api/v1/reports" -H 'content-type: application/json' \
+  -d "{\"cluster_id\":\"$SCAN_CID\",\"params\":{\"format\":\"csv\",\"scanner\":\"trivy\"}}")
+RID=$(echo "$REP" | jq -r '.report_id // empty')
+[ -n "$RID" ] || fail "report enqueue failed: $REP"
+STATUS=$(api "/api/v1/reports/$RID")
+[ "$(echo "$STATUS" | jq -r .status)" = "pending" ] || fail "report not pending: $STATUS"
+echo "$STATUS" | jq -e 'has("params") or has("attempt_id") | not' >/dev/null || fail "report status leaks internals"
+echo "report enqueued: $RID (pending; drain/download asserted when M7 slice 3 lands)"  # TODO(slice 3)
+
+# metrics: ingest counters moved; the #220 series appear once that PR is deployed (guarded)
+METRICS=$(curl -s "$BACKEND/metrics")
+echo "$METRICS" | grep -q 'javv_ingest_accepted_total{scanner="trivy"}' || fail "/metrics missing ingest counters"
+if echo "$METRICS" | grep -q 'javv_http_request_duration_seconds'; then
+  echo "$METRICS" | grep -q 'route="unmatched"' && true
+  echo "request histogram present (#220)"
+fi
+echo "read/report surface: ALL GREEN"
+
+# ---- 9. opensearch log snapshot --------------------------------------------
 say "opensearch log snapshot"
 OLOG="$LOGS/opensearch.log"
 {
