@@ -86,6 +86,8 @@ routes stay current-state-only).
 | GET | `/api/v1/trends/scans` · `/api/v1/trends/findings` | Time series from scan-events; `resolved_semantics: "scan_resolved"` (A-m9 — *scan-observed* resolution, not human `state=resolved`) |
 | GET | `/api/v1/contributors` | Triage-work leaderboard + TTR/SLA-hit from `system-audit-log` (FR-15) |
 | GET | `/api/v1/scanners/freshness` | Per-(cluster, scanner) `last_ingest_at` + `silent_for_seconds` (FR-6/D20 banner; #218). Max across tokens; disabled tokens count; never-ingested → nulls |
+| GET | `/api/v1/scanners/provenance` | Per-(cluster, scanner) versions/`effective_config` of the latest **committed** run + last-N runs (`?runs=`, ≤50). Catalog-first (R-CATALOG); latest = max `scan_order`, never `@timestamp` (M8c/#240) |
+| GET | `/api/v1/audit` | The journaled history, plain-session read (M8c/#240): filters `entity_type`/`action`/`actor`, ordered `(@timestamp, event_id)` (`?order=`, desc default), same opaque-cursor paging + A-m1 semantics as `/findings` |
 
 **Cursor errors (A-m1):** expired PIT → **410** (re-run the search); tampered/invalid cursor →
 **422**; OpenSearch transport failure → **503**. The PIT slot is released on every error path.
