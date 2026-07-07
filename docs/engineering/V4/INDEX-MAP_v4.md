@@ -44,6 +44,7 @@ retention.
 primary shard, monthly rollover.
 ```
 @timestamp        date          scan time (one value per scan_run_id); display only - not the ordering key (D40)
+ingested_at       date          SERVER-stamped append time - the retention age basis (task F m-4, same rule as scan-events/images)
 scan_run_id       keyword       the snapshot's run (valid only if a scan-events commit doc exists)
 scan_order        long          backend-allocated (D45) monotonic per (cluster,scanner); ordering key (D40/C-r3)
 commit_key        keyword       = scan-events commit_key; exact-tuple membership for the symmetric query (D39)

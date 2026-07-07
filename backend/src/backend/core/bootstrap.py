@@ -42,7 +42,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             export queue + chunked-in-OpenSearch result blobs + the bell)
 #          v10 + worker/started_at/finished_at on system-reports (M7 slice 2/#32 — claim/lease
 #             diagnostics: which drain holds the lease, attempt timing for reclaim debugging)
-MAPPING_VERSION = 10
+#          v11 + javv-finding-occurrences template (M8a/#33 — full per-scan snapshot rows; the
+#             point-in-time history the D28 time-travel reconstructs from)
+MAPPING_VERSION = 11
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -352,6 +354,31 @@ _IMAGES_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# javv-finding-occurrences-* (M8a/FR-5b): 1 immutable row per finding per scan — the full
+# per-scan snapshot history point-in-time reads reconstruct from. `_id = hash(scan_run_id +
+# finding_key)` (D18). Ordered by `scan_order`, read ONLY via the scan-events catalog (R-CATALOG,
+# D37/D40). No `severity_rank` (OE-5) and no state field — absence in a later snapshot = resolved.
+_OCCURRENCES_PROPERTIES: dict[str, Any] = {
+    "@timestamp": _DATE,  # scan time — display only, NOT the ordering key (D40)
+    "ingested_at": _DATE,  # SERVER-stamped append time — the retention age basis (task F m-4)
+    "scan_run_id": _KW,  # valid only if a scan-events commit doc exists for the run
+    "scan_order": {"type": "long"},  # the ordering key (D40/C-r3)
+    "commit_key": _KW,  # = scan-events commit_key; symmetric-query membership (D39)
+    "cluster_id": _KW,
+    "scanner": _KW,
+    "image_digest": _KW,  # reconstruction identity (content-addressed)
+    "namespaces": _KW,
+    "vuln_id": _KW,  # CVE pivot (= cve_id elsewhere)
+    "package_name": _KW,
+    "package_version": _KW,  # = findings.installed_version
+    "finding_key": _KW,  # per-row identity
+    "severity": {"type": "keyword", "normalizer": "lc"},  # as-of-then, verbatim in _source (D16)
+    "cvss": {"type": "float"},
+    "fixable": _BOOL,
+    "fixed_version": _KW,
+    "schema_version": {"type": "short"},
+}
+
 # system-audit-log-* (SND-2/D38-H8): 1 immutable structured row per field change / auth event.
 # Template landed with M5a's thin appender so auth events never write into a dynamic-mapped index;
 # **M5b owns the writer + replay semantics** (latest-entry-per-field, revision ordering). Append
@@ -404,6 +431,15 @@ INDEX_TEMPLATES: dict[str, dict[str, Any]] = {
         "template": {
             "settings": {"index": _BASE_SETTINGS},
             "mappings": _mappings(_IMAGES_PROPERTIES),
+        },
+    },
+    "javv-finding-occurrences": {  # M8a/#33 — per-scan snapshot rows
+        "index_patterns": ["javv-finding-occurrences-*"],
+        "priority": 10,
+        "template": {
+            # the lc normalizer must ship with the template — `severity` aggs fold on it (D16)
+            "settings": {"index": {**_BASE_SETTINGS, "analysis": _LC_ANALYSIS}},
+            "mappings": _mappings(_OCCURRENCES_PROPERTIES),
         },
     },
 }

@@ -107,6 +107,17 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - `javv-images` inventory **row** writes (M8a writes only the *manifest* certifying them) → the image
   ingest path; M8a depends on that bulk having landed before the manifest commits.
 
+## Updates
+- **2026-07-07 (slice 1)** — occurrences append landed in the D39 spine: rows are built FROM
+  `build_docs` output (identity single-sourced with the cache path, never re-derived), appended
+  between the images bulk and the catalog commit doc. Spec addition: occurrences carry
+  **`ingested_at`** (server-stamped) like scan-events/images — the lifecycle sweep ages by
+  `max(@timestamp, ingested_at)` and the retention clock must not trust a client timestamp
+  (task F m-4); INDEX-MAP updated in the same change. `MAPPING_VERSION` → 11.
+- **2026-07-07 (kickoff)** — slice plan + the S2 wire note (cycle-end `POST /api/v1/inventory-runs`
+  + scanner entrypoint change, `inventory_run_id := scan_run_id`) recorded on
+  [#33](https://github.com/Danube-Labs/javv-poc/issues/33).
+
 ## Config tracking
 
 > **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
