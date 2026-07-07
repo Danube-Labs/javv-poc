@@ -35,6 +35,7 @@ from backend.reports.claim import ClaimedJob, claim_next
 from backend.reports.lease import finalize, heartbeat
 from backend.reports.models import DONE, FAILED, NOTIFICATIONS_INDEX
 from backend.reports.storage import ExportTooLarge, FencedOut, write_chunks
+from backend.triage.bulk import apply_bulk_triage
 
 log = structlog.get_logger()
 
@@ -114,9 +115,53 @@ async def run_job(client: AsyncOpenSearch, job: ClaimedJob, *, prefix: str = "")
         return False
 
     params = doc.get("params") or {}
+    cluster_id = doc["cluster_id"]
+
+    if doc.get("kind") == "bulk_triage":
+        # slice 5 (A-Mc): apply the ENQUEUE-frozen set — never a live selector at drain time.
+        # apply_bulk_triage journals first (one row, frozen ids + result_hash); the partial-doc
+        # patch is idempotent, so a reclaimed retry re-applies safely (a second audit row with
+        # the same result_hash is replay-tolerated — an orphan CHANGE is what's forbidden).
+        try:
+            updated = await apply_bulk_triage(
+                client,
+                actor=doc["requested_by"],
+                cluster_id=cluster_id,
+                target_ids=params.get("target_ids") or [],
+                patch=params.get("patch") or {},
+                prefix=prefix,
+            )
+        except Exception as exc:
+            await finalize(
+                client,
+                job.report_id,
+                job.attempt_id,
+                status=FAILED,
+                error=f"{type(exc).__name__}: {exc}",
+                prefix=prefix,
+            )
+            boundlog.error("report drain: bulk_triage job failed", error=str(exc))
+            return False
+        expires_at = (datetime.now(UTC) + timedelta(hours=settings.export_ttl_hours)).isoformat()
+        published = await finalize(
+            client,
+            job.report_id,
+            job.attempt_id,
+            status=DONE,
+            bytes_=None,
+            chunk_count=updated,  # for bulk jobs the count IS the result (no chunks)
+            expires_at=expires_at,
+            prefix=prefix,
+        )
+        if not published:
+            boundlog.warning("report drain: bulk publish fenced out — a reclaimer won, no bell")
+            return False
+        await _ring_bell(client, job, prefix=prefix)
+        boundlog.info("report drain: bulk_triage applied", updated=updated)
+        return True
+
     fmt = params.get("format", "csv")
     filters = _filters_from_params(params)
-    cluster_id = doc["cluster_id"]
     if fmt == "csv":
         pieces = stream_csv(client, cluster_id=cluster_id, filters=filters)
     elif fmt in ("openvex", "cyclonedx"):

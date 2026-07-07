@@ -145,6 +145,22 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"crit_days": 2, "high_days": 7, "med_days": 30, "low_days": 90, "kev_days": 1},
     ),
+    MutatingEndpoint(  # M7 slice 5 — the bulk_triage report kind (A-Mc): a scheduled bulk is a
+        # WRITE, gated like the inline bulk. The export kind on the same route stays session-only
+        # (still exempt-listed below) — the gate is per-kind, checked before any store work.
+        method="POST",
+        path="/api/v1/reports",
+        route_path="/api/v1/reports",
+        capability="can_triage",
+        body={
+            "kind": "bulk_triage",
+            "cluster_id": "c-rbac-sample",
+            "bulk_params": {
+                "selector": {"cve_id": "CVE-1"},
+                "patch": {"state": "acknowledged"},
+            },
+        },
+    ),
 )
 
 # mutating routes with their own (tested) auth regime — NOT capability-gated
@@ -155,9 +171,10 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/auth/password"),  # session regime + must_change escape hatch
         ("POST", "/api/v1/ingest"),  # machine token + SEC-3 binding (test_ingest_route)
         ("POST", "/api/v1/scan-runs"),  # machine token (test_scan_orders route tests)
-        # M7/#32 — a scheduled export is a READ (any authenticated user can already read findings),
-        # so enqueue is authenticated-only, not capability-gated (mirrors the M6 inline export; auth
-        # asserted in test_reports_route). The bulk_triage kind gains can_triage in a later slice.
+        # M7/#32 — the EXPORT kind is a READ (any authenticated user can already read findings),
+        # so that kind stays authenticated-only (auth asserted in test_reports_route). The
+        # bulk_triage kind on this same route IS capability-gated — registered above with a
+        # bulk_triage body (slice 5); the gate is per-kind inside the handler.
         ("POST", "/api/v1/reports"),
         # M7 slice 3 — mark-read is strictly OWN-notification (user_id filter server-side; someone
         # else's id 404s, IDOR-tested in test_notifications_route). No capability: your own bell.

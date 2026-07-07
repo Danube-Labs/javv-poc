@@ -55,21 +55,51 @@ class ExportParams(BaseModel):
         return self
 
 
+class BulkTriageParams(BaseModel):
+    """The scheduled-bulk request (slice 5, audit A-Mc): selector + patch, exactly the inline
+    bulk-triage shapes. The selector freezes to `target_ids` AT ENQUEUE (never a live selector
+    in a queue — D38/H8); the drain applies the frozen set."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    selector: dict[str, Any]  # validated by the route via the inline BulkSelector model
+    patch: dict[str, Any]  # validated by the route via validate_bulk_patch
+
+
 class EnqueueReport(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    kind: Literal["export"] = "export"  # bulk_triage lands in a later M7 slice
+    kind: Literal["export", "bulk_triage"] = "export"
     cluster_id: ClusterId
     run_mode: Literal["now", "offpeak"] = "offpeak"
     params: ExportParams = Field(default_factory=ExportParams)
+    bulk_params: BulkTriageParams | None = None  # required iff kind=bulk_triage
     scheduled_for: datetime | None = None
     as_of_t: datetime | None = None  # export-at-past-T seam — the drain 501s/parks until M8b (#34)
+
+    @model_validator(mode="after")
+    def _kind_shapes(self) -> "EnqueueReport":
+        if self.kind == "bulk_triage":
+            if self.bulk_params is None:
+                raise ValueError("bulk_triage requires bulk_params (selector + patch)")
+            if self.as_of_t is not None:
+                raise ValueError("bulk_triage acts on current state — as_of_t is not applicable")
+        elif self.bulk_params is not None:
+            raise ValueError("bulk_params is only valid with kind=bulk_triage")
+        return self
 
 
 def new_report_doc(body: EnqueueReport, *, requested_by: str) -> tuple[str, dict[str, Any]]:
     """Build the initial `pending` `system-reports` doc + its id. Pure — no I/O. `expires_at` is
-    stamped by the drain at completion (not now — a pending job has no result to expire)."""
+    stamped by the drain at completion (not now — a pending job has no result to expire).
+    For `bulk_triage` the route freezes the selector and adds `params["target_ids"]` before
+    indexing (frozen at enqueue — the queue never carries a live selector, D38/H8)."""
     report_id = uuid4().hex
+    if body.kind == "bulk_triage":
+        assert body.bulk_params is not None  # the model validator guarantees the pairing
+        params = body.bulk_params.model_dump()
+    else:
+        params = body.params.model_dump()
     doc: dict[str, Any] = {
         "report_id": report_id,
         "kind": body.kind,
@@ -77,7 +107,7 @@ def new_report_doc(body: EnqueueReport, *, requested_by: str) -> tuple[str, dict
         "cluster_id": body.cluster_id,
         "requested_by": requested_by,
         "run_mode": body.run_mode,
-        "params": body.params.model_dump(),
+        "params": params,
         "scheduled_for": body.scheduled_for.isoformat() if body.scheduled_for else None,
         "as_of_t": body.as_of_t.isoformat() if body.as_of_t else None,
         "created_at": datetime.now(UTC).isoformat(),

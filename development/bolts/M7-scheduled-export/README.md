@@ -118,8 +118,21 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
   chunks whose `attempt_id` ≠ their report's current one or whose report vanished. **Fencing-aware:**
   a running job's live attempt is never touched. Idempotent; runnable
   `python -m backend.jobs.report_sweep` (CronJob YAML → M10).
-
-## Config tracking
+- **2026-07-07 — slice 5 landed (bulk_triage kind) — BOLT COMPLETE:** `kind: bulk_triage` on
+  `POST /api/v1/reports` — capability-gated like the inline bulk (can_triage; +accept_final for
+  risk-accepts; SEC-6 must_change blocked), validated at the door (closed state vocabulary,
+  whole-cluster-selector refusal), and **frozen at enqueue** (`params.target_ids` — the queue
+  never carries a live selector, D38/H8). The drain applies the frozen set via
+  `apply_bulk_triage` (journal-first, ONE row with result_hash; idempotent patch → a reclaimed
+  retry is safe), finalizes done (`chunk_count` = updated count), rings the bell. **The A-Mc
+  lift is real:** inline 413s past `JAVV_BULK_INLINE_LIMIT`, the queue takes the same selector
+  (bounded by the `JAVV_BULK_MAX_TARGETS` freeze cap, still 413 past that). Registry: the
+  export kind stays exempt (session-only), the bulk kind is a registered `can_triage` entry.
+  **Honest gate note:** the PLAN "no ingest starvation" measurement is delegated to the
+  operator rig (`bench_read.py`/`bench_refresh.py`) + the M0→M8 e2e gate (#249) — the throttle
+  *mechanics* (sleep-per-page, byte ceiling, fencing) are test-pinned here; the *measurement*
+  needs real infra. Remaining M7 leftovers by design: Helm CronJobs → M10; export-at-past-T →
+  fails loud until M8b (#34).
 
 > **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
 > `system-config` key, or a scanner scan flag) to
