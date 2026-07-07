@@ -111,9 +111,11 @@ jobs:
           echo "grype=$(echo "$json" | jq -r '([.scanners.grype.current] + (.scanners.grype.also_supported // [])) | join(",")')" >> "$GITHUB_OUTPUT"
       # Build LOCALLY first (--load), smoke the actual image, and only push if the smoke passes —
       # a broken image never gets a public tag (M0b). --load needs single-platform (amd64), which we are.
+      # --allow=fs.read=..: the bake context is the repo root (images need libs/javv-common);
+      # buildx ≥0.17 (runner drift, 2026-07-07) enforces fs entitlements outside the bake-file dir
       - name: Bake the compatible matrix locally
         working-directory: scanner
-        run: docker buildx bake -f docker-bake.hcl --load
+        run: docker buildx bake --allow=fs.read=.. -f docker-bake.hcl --load
         env:
           REGISTRY: ${{ steps.vars.outputs.registry }}
           TRIVY_VERSIONS: ${{ steps.vars.outputs.trivy }}
@@ -141,7 +143,7 @@ jobs:
 
       - name: Push the smoked matrix
         working-directory: scanner
-        run: docker buildx bake -f docker-bake.hcl --push   # cache hit — just pushes the smoked layers
+        run: docker buildx bake --allow=fs.read=.. -f docker-bake.hcl --push   # cache hit — just pushes the smoked layers
         env:
           REGISTRY: ${{ steps.vars.outputs.registry }}
           TRIVY_VERSIONS: ${{ steps.vars.outputs.trivy }}
