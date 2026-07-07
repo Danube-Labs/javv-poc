@@ -35,16 +35,16 @@ surface. **The live route table, dumped from `create_app().openapi()` 2026-07-07
 the same way when implementing, do not trust this snapshot:**
 
 ```
-GET,POST  /api/v1/admin/tokens                                POST: can_manage_tokens
+GET,POST  /api/v1/admin/tokens                                can_manage_tokens (both)
 POST      /api/v1/admin/tokens/{token_id}/revoke              can_manage_tokens
 POST      /api/v1/admin/tokens/{token_id}/rotate              can_manage_tokens
-GET,POST  /api/v1/admin/users                                 POST: can_manage_users
+GET,POST  /api/v1/admin/users                                 can_manage_users (both)
 PATCH     /api/v1/admin/users/{username}/disabled             can_manage_users
 POST      /api/v1/admin/users/{username}/password-reset       can_manage_users
 PATCH     /api/v1/admin/users/{username}/role                 can_manage_users
 GET       /api/v1/contributors                                session
-POST,GET  /api/v1/decisions                                   POST: can_triage (risk-accept also can_accept_audit_final)
-GET       /api/v1/decisions/approvals                         session
+POST,GET  /api/v1/decisions                                   can_triage (both; risk-accept also can_accept_audit_final)
+GET       /api/v1/decisions/approvals                         can_accept_audit_final
 PATCH     /api/v1/decisions/{decision_id}                     can_triage
 POST      /api/v1/decisions/{decision_id}/revoke              can_triage
 GET       /api/v1/findings                                    session
@@ -60,7 +60,7 @@ GET       /api/v1/reports/{report_id}                         session
 POST      /api/v1/scan-runs                                   bearer (machine)
 GET       /api/v1/scan-scope                                  bearer (machine)
 GET,PUT   /api/v1/settings/sla                                PUT: can_manage_settings
-GET,POST  /api/v1/trends/findings · /api/v1/trends/scans      session
+GET       /api/v1/trends/findings · /api/v1/trends/scans      session
 POST      /auth/login · /auth/logout · /auth/password         the session regime itself
 GET       /auth/me                                            session
 GET       /healthz · /readyz · /metrics                       none
