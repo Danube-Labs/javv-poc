@@ -5,9 +5,11 @@ actually running in your clusters, scans it with **Trivy and Grype**, and gives 
 lifecycle** plus **rich exploratory dashboards and one-click CSV** - without the weight of a full
 ASPM platform.
 
-> Status: **backend + scanner built through M5b** (ingest → merge/reconcile → disagreement flags,
-> lifecycle jobs, sessions/RBAC/token auth, triage state machine, append-only audit log, decision
-> lifecycle) — releases cut via release-please. Frontend (M9x) and Helm deploy (M10) not started.
+> Status: **backend + scanner built through M7 slice 1** (v0.3.1: ingest → merge/reconcile →
+> disagreement flags, lifecycle jobs, sessions/RBAC/token auth, triage state machine + decisions,
+> append-only audit log, read/reporting API with exports + trends + contributors, scheduled-report
+> queue, validated settings, Prometheus metrics) — releases cut via release-please. Next: M8
+> (time-travel), then the Vue frontend (M9x) and Helm deploy (M10).
 > Canonical design lives in [docs/engineering/V4/](docs/engineering/V4/) - start with
 > [PLAN_v4.md](docs/engineering/V4/PLAN_v4.md) and [SPEC_v4.md](docs/engineering/V4/SPEC_v4.md).
 
@@ -39,9 +41,10 @@ seam between them.
 | Path | What |
 |---|---|
 | [REPO-MAP.md](REPO-MAP.md) | **Repository map** — what every folder is + reading order |
-| [docs/engineering/UI-GUIDELINES.md](docs/engineering/UI-GUIDELINES.md) | Dashboard UI target |
+| [docs/API.md](docs/API.md) | The shipped HTTP surface at a glance (auth regimes, capabilities) |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration knob: default, tier, UI-controllability |
 | [docs/research/](docs/research/) | Stack best-practices, tooling/MCP, audits backing v4 |
-| [handoff/v4/](handoff/v4/) | UI reference: prototype + UI docs + brand (reference point, not a 1:1 contract) |
+| [handoff/v5/](handoff/v5/) | UI design handoff refreshed against the shipped backend (v4 frozen as the trail) |
 | [design/](design/) | Brand source of record (logos, tokens, guide) |
 | [.deprecated/](.deprecated/) | Frozen evolution trail — superseded V1/V2/V3 docs + the original UI handoff |
 

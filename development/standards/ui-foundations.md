@@ -10,8 +10,8 @@ How JAVV keeps **one** visual system instead of a thousand ad-hoc fonts, sizes, 
 ## Single source of truth = tokens
 - **`frontend/src/styles/tokens.css` + `tokens.ts` (M9a) are the binding source.** Components reference
   **tokens only** - never a raw `#hex`, never a literal `font-family`, never an arbitrary `font-size`.
-- **Provenance:** the *values* come from [`docs/engineering/UI-GUIDELINES.md`](../../docs/engineering/UI-GUIDELINES.md)
-  (canonical UI target) + [`handoff/v4/docs/DESIGN_SYSTEM.md`](../../handoff/v4/docs/DESIGN_SYSTEM.md)
+- **Provenance:** the *values* come from [`.deprecated/docs/engineering/UI-GUIDELINES.md`](../../.deprecated/docs/engineering/UI-GUIDELINES.md)
+  (the original v1 UI target, archived) + [`handoff/v4/docs/DESIGN_SYSTEM.md`](../../handoff/v4/docs/DESIGN_SYSTEM.md)
   (reference fidelity). They are **promoted into the tokens once**; this doc does **not** re-host hex values
   (re-hosting drifts - point, don't copy). Tokens carry light **and** dark variants.
 - PrimeVue is themed **through** the tokens (theme bridge), so component chrome and custom CSS share one scale.

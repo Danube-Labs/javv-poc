@@ -3,8 +3,8 @@
 The canonical engineering specification for JAVV v4 lives **only** here:
 
 ```
-projects/javv/docs/engineering/V4/
-├── PLAN_v4.md            milestones, decisions (D1–D40), scope
+docs/engineering/V4/
+├── PLAN_v4.md            milestones, decisions (D1–D45), scope
 ├── SPEC_v4.md            functional + non-functional requirements (FR/NFR)
 ├── ARCHITECTURE_v4.md    layers, data flow, diagrams
 ├── INDEX-MAP_v4.md       source of truth for every OpenSearch index + mapping
