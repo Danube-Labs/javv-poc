@@ -58,6 +58,12 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   (M6 slice 4) incl. `resolved_semantics: "scan_resolved"` (A-m9) — label resolution counts as
   scan-observed, not human-resolved.
 
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §§9–12. The Audit screen's
+  read is **scheduled: M8c `GET /api/v1/audit`** — ruled **plain session** (not capability-gated);
+  cursor-paged, ordered `(@timestamp, event_id)`. The Contributors activity feed uses the same
+  read. Scanner-status provenance cards (D41 read-only version/DB lines + last-N runs) read the
+  **M8c provenance endpoint** (latest *committed* scan-event, catalog-first). Depends-on grows: M8c.
+
 ## Config tracking
 
 > **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a

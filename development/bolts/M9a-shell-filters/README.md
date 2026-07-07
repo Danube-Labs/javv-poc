@@ -111,6 +111,13 @@ as pure units** (Vitest).
   Further M9-wide backend↔UI drift rulings land right before kickoff via #224
   (`docs/audits/major_audit/05-backend-ui-drift-m9.md` §E).
 
+- **2026-07-07 — v5 design rulings (#237) + handoff/v5 landed (#235):** the design contract for
+  this bolt is now `handoff/v5/docs/SCREENS-v5.md` (Global chrome, Login) — v4 stays the visual
+  base (DESIGN_SYSTEM/BRAND/ui-foundations unchanged). Rulings touching M9a: **A-1** severity
+  vocabulary in the reusable filter module is lowercase + a **`negligible`** bucket (muted, never
+  red); **A-4** all gating from `/auth/me` capabilities (settled). The topbar cluster switcher
+  reads the **M8c cluster registry** (`GET /api/v1/clusters`, D-5 ruling) for display names.
+
 ## Config tracking
 
 > **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a
