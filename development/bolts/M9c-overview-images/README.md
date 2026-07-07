@@ -94,6 +94,14 @@ as pure units** (Vitest).
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §B/§C):** **(B-1)** there is no
+  `package_type` field — the packageTypes donut is **cut for MVP** (leave the layout slot; post-MVP
+  enhancement issue if wanted); **(B-6)** `languageBinaries[]`/`topComponents[]` widgets have no
+  backing aggregation — cut for MVP; **(C-5)** historical **all-clusters** dashboards are
+  limited/unavailable until the v1.1 metrics rollup (D39 ruling) — the screen states this rather than
+  showing wrong numbers; cluster list = distinct `cluster_id`s from data; **[DECIDE at kickoff]
+  (D-5)** where the relabelable `cluster_name` lives (recommend: a small `system-config` doc — a tiny
+  backend addition) or MVP shows raw ids.
 
 - **2026-07-05 (pre-kickoff, from the first e2e smoke — #156 finding 3):** the `javv-images` docs
   have **no `image_ref` field** — the tag is stored split as `image_repo` + `tag` (e.g. `nginx` +

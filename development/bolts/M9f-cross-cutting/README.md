@@ -63,6 +63,18 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §A/§C):** **(A-4)** the UI gates on
+  **capabilities from `/auth/me`**, never role names — real roles are `viewer/triager/security_lead/
+  admin` (D33 bundles; the prototype's 5-role matrix maps onto them; [DECIDE at kickoff] if a 5th
+  seeded role is wanted); **(A-6)** export is session-only on the backend (any authenticated user) —
+  the prototype matrix's "Viewer cannot export" is dropped unless a `can_export` capability is
+  explicitly decided ([DECIDE], not recommended for MVP); **(C-6)** saved views: no backend
+  persistence exists — [DECIDE]: localStorage-only for MVP (recommended) vs a new `system-views`
+  index (INDEX-MAP + MAPPING_VERSION + bootstrap + tests); **(C-7/D-3)** the bell needs
+  `GET /api/v1/notifications` (+ mark-read) — ship it with M7 slice 3 (the writer's PR), the
+  mark-read PATCH goes in the RBAC registry as a session-only exemption; **(A-5)** the audit screen
+  renders the structured log (`entity_type`+`action`, ordered `(@timestamp, event_id)`) —
+  click-through only for `entity_type=="finding"` rows.
 - **2026-07-07** — M7 storage decision (#32): a **ready-export** bell notification opens the backend
   download endpoint `GET /api/v1/reports/{id}/download` (short-lived signed token; **410** once past
   `JAVV_EXPORT_TTL_HOURS`), not an object-store URL — results are stored in OpenSearch (chunked). The

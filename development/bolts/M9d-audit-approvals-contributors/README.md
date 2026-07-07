@@ -48,6 +48,16 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - Writing/owning `system-audit-log` ingest → M5b. Decision-record write path + lifecycle stamp → M5d.
 - VEX import (decision-from-VEX) → v1.1.
 
+## Updates
+- **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §A-5):** the audit log is the
+  structured D32 stream — `event_id`, `entity_type` (finding/decision/token/user/settings…),
+  `action`, frozen `target_ids`, `revision`, ordered by `(@timestamp, event_id)` — not the
+  prototype's 8-string `AuditAction` enum. Click-through only where `entity_type=="finding"`.
+  Approvals reads `GET /api/v1/decisions/approvals` (**`can_accept_audit_final`-gated** — hide the
+  nav item without the capability, per `/auth/me`). Contributors already matches FR-15 as built
+  (M6 slice 4) incl. `resolved_semantics: "scan_resolved"` (A-m9) — label resolution counts as
+  scan-observed, not human-resolved.
+
 ## Config tracking
 
 > **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a

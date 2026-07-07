@@ -98,6 +98,12 @@ as pure units** (Vitest).
 - OpenAPI **breaking-change** classifier (`oasdiff`, AUDIT I8) → CI/process work, not this bolt.
 
 ## Updates
+- **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §C-1/§A-4):** the global time
+  picker ships here but **`T<now` works only after M8b** — if M9 starts before M8b lands, the
+  picker needs a "history available after M8b" state (the `as_of` seam 501s cleanly today; check
+  the milestone order at kickoff, currently M8→M9 makes this moot). And the shell's RBAC gating
+  reads **capabilities from `/auth/me`** (`viewer/triager/security_lead/admin` bundles, D33) —
+  never role names.
 - **2026-07-07** — **freshness endpoint dependency made concrete (major audit, 04 §4 / 05 §D-1):**
   the `ScannerFreshnessBanner` deliverable referenced a "small M6 freshness read" that was never
   built. The real dependency is **`GET /api/v1/scanners/freshness`**, tracked as **#218** and

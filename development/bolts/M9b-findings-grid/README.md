@@ -87,6 +87,21 @@ as pure units** (Vitest).
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-07 — backend↔UI drift rulings (major audit #224, `docs/audits/major_audit/05-backend-ui-drift-m9.md`):**
+  the grid + detail + triage flow follow the SHIPPED backend, not the v4 prototype where they differ:
+  **(A-1)** filters/aggs send lowercase severities and the `negligible` bucket exists (display may
+  uppercase; [DECIDE at kickoff]: show `negligible` — recommended — or fold into `unknown`);
+  **(A-2)** all **6 states** (`open/acknowledged/not_affected/risk_accepted/resolved/stale`) with the
+  CISA-five justification chip required iff `not_affected`; `present` is orthogonal — every "now" view
+  is implicitly `present=true`; **(A-3)** `disagree` is a **bool** + images carry `count_delta` — the
+  other scanner's severity comes from querying the sibling row (which also builds the per-scanner
+  evidence table, B-2); **(B-2/B-3)** no `cvssVector`/`cwe`/`description`/`refs`/`epssPct` fields exist
+  — detail renders what the doc has (`cvss` float, raw `epss`, `kev`); **(B-4)** per-finding "images
+  affected" is an aggregation (verify the `groups` shape covers it at kickoff, else extend it);
+  **(B-5)** SLA deadline/overdue are server-computed on the findings read — never client math;
+  **(C-2)** the export dialog gains the M7 states: run-now 413 past `JAVV_EXPORT_MAX_ROWS` → offer
+  "schedule"; scheduled results expire (`JAVV_EXPORT_TTL_HOURS`, default 24 h) → "expires in Xh"
+  affordance + a 410-expired state.
 
 - **2026-07-05 (pre-kickoff, from the first e2e smoke — #156 finding 4):** real-scanner divergence
   can be total: trivy reported **0** findings on alpine:3.14 where grype found **73** (EOL secdb —
