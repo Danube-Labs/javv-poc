@@ -34,13 +34,8 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Serena MCP — project.yml is committed (shared config); .serena/.gitignore handles
-# the local cache + project.local.yml, so no blanket ignore here.
-
 # Claude Code — personal local settings (team config lives in .claude/settings.json)
 .claude/settings.local.json
-
-# Local-only audit/working tracker (temporary; never committed)
 
 # Session handoffs — local snapshots by default (commit the infra, not the snapshots).
 # git add -f a specific one to share it.
