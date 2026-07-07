@@ -118,12 +118,13 @@ def test_bootstrap_scope() -> None:
         "system-report-chunks",  # M7/#32 — chunked result blobs
         "system-notifications",  # M7/#32 — the bell feed
     }
-    # + system-audit-log (M5a appender; M5b owns writer/replay) + occurrences (M8a slice 1);
-    # inventory-runs → M8a slice 2
+    # + system-audit-log (M5a appender; M5b owns writer/replay) + occurrences + inventory-runs
+    # (M8a slices 1–2)
     assert set(INDEX_TEMPLATES) == {
         "javv-scan-events",
         "javv-images",
         "javv-finding-occurrences",
+        "javv-inventory-runs",
         "system-audit-log",
     }
 

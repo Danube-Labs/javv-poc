@@ -108,6 +108,15 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   ingest path; M8a depends on that bulk having landed before the manifest commits.
 
 ## Updates
+- **2026-07-07 (slice 2)** — inventory manifest landed: `inventory_run_id := scan_run_id` (no
+  second identity), new machine route `POST /api/v1/inventory-runs` called at cycle END (the
+  scanner's `scan_all` gained an injectable `commit_fn`; best-effort — a failed commit just leaves
+  the run uncertified). `written_count` is counted **server-side** from `javv-images` docs, never
+  client-reported. Manifests are **immutable + idempotent**: a retry returns the original manifest
+  with its original `inventory_order` (no partial→committed upgrade — runs are certified once).
+  `inventory_order` = per-cluster counter in `javv-scan-orders` under the reserved key
+  `__inventory__` (committed-manifest self-heal floor); INDEX-MAP notes it. `MAPPING_VERSION` → 12.
+  **Scanner images need a republish** (entrypoint change) via the normal tag flow.
 - **2026-07-07 (slice 1)** — occurrences append landed in the D39 spine: rows are built FROM
   `build_docs` output (identity single-sourced with the cache path, never re-derived), appended
   between the images bulk and the catalog commit doc. Spec addition: occurrences carry

@@ -8,6 +8,7 @@ import os
 import re
 import time
 from collections.abc import Callable, Iterable
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
@@ -15,6 +16,7 @@ import structlog
 
 from scanner.discovery import ImageTarget, discover
 from scanner.envelope import EffectiveConfig, Envelope, Scanner, build_envelope, new_scan_run
+from scanner.inventory import commit_inventory
 from scanner.models import ScanResult
 from scanner.orders import fetch_scan_order
 from scanner.push import PushResult, push_envelope
@@ -22,6 +24,8 @@ from scanner.scope import fetch_scan_scope
 
 ScanFn = Callable[[str], ScanResult]
 PushFn = Callable[[Envelope], PushResult]
+# cycle-end inventory certification (M8a slice 2): (scan_run_id, expected_count, started_at)
+CommitFn = Callable[[str, int, datetime], object]
 
 log = structlog.get_logger()
 
@@ -35,9 +39,11 @@ def scan_all(
     push_fn: PushFn,
     scan_order: int,
     effective_config: EffectiveConfig | None = None,
+    commit_fn: CommitFn | None = None,
 ) -> list[PushResult]:
     run = new_scan_run(scan_order)  # backend-allocated (D45) — the cycle's ordering key
     structlog.contextvars.bind_contextvars(scan_run_id=run.scan_run_id, scan_order=scan_order)
+    cycle_started_at = datetime.now(UTC)
     targets = list(targets)
     results: list[PushResult] = []
     for i, t in enumerate(targets, start=1):
@@ -80,6 +86,10 @@ def scan_all(
             effective_config=effective_config,
         )
         results.append(push_fn(envelope))
+    if commit_fn is not None:
+        # cycle-end inventory certification (M8a slice 2, D39): expected = every DISCOVERED image
+        # — a scan failure or dead-letter leaves the run partial, deliberately never "committed"
+        commit_fn(run.scan_run_id, len(targets), cycle_started_at)
     return results
 
 
@@ -163,6 +173,14 @@ def main() -> int:
             scan_order=scan_order,
             # D44/FR-25: stamp what this cycle ran with (tuning flags + the applied scope)
             effective_config=EffectiveConfig(tuning=tuning, scope=scope),
+            # M8a slice 2: certify the cycle's inventory at the end (best-effort — see inventory.py)
+            commit_fn=lambda run_id, expected, started: commit_inventory(
+                http,
+                token=token,
+                scan_run_id=run_id,
+                expected_count=expected,
+                started_at=started,
+            ),
         )
 
     delivered = sum(1 for r in results if r.delivered)

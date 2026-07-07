@@ -350,3 +350,39 @@ def test_scan_all_logs_a_failed_image_as_a_warning() -> None:
     warnings = [e for e in logs if e["event"] == "scan failed, image skipped"]
     assert warnings and warnings[0]["log_level"] == "warning"
     assert warnings[0]["image_ref"] == "broken:1"
+
+
+def test_scan_all_certifies_the_cycle_inventory_at_the_end() -> None:
+    # M8a slice 2: commit_fn fires once with the cycle's shared run id and the DISCOVERED count —
+    # a failing image still counts as expected (its envelope never lands → the run stays partial)
+    targets = [
+        target("sha256:a", "good-1:1"),
+        target("sha256:boom", "broken:1"),
+    ]
+    pushed: list[Envelope] = []
+    commits: list[tuple[str, int, datetime]] = []
+
+    def scan_fn(ref: str) -> ScanResult:
+        if ref == "broken:1":
+            raise subprocess.CalledProcessError(1, ["trivy"], stderr="image not found")
+        return ScanResult(provenance=Provenance(scanner_version="0.71.2"))
+
+    def push_fn(env: Envelope) -> PushResult:
+        pushed.append(env)
+        return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+    scan_all(
+        targets,
+        scanner="trivy",
+        cluster_id="c",
+        scan_fn=scan_fn,
+        push_fn=push_fn,
+        scan_order=1,
+        commit_fn=lambda run_id, expected, started: commits.append((run_id, expected, started)),
+    )
+
+    assert len(commits) == 1
+    run_id, expected, started = commits[0]
+    assert run_id == pushed[0].scan_run_id  # the cycle's ONE shared identity
+    assert expected == 2  # discovered, not delivered — the broken image keeps the run honest
+    assert started.tzinfo is not None

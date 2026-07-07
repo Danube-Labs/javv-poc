@@ -17,6 +17,7 @@ from backend.routers import (
     findings,
     health,
     ingest,
+    inventory_runs,
     metrics,
     notifications,
     reports,
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
     app.include_router(ingest.router)
     app.include_router(scan_scope.router)
     app.include_router(scan_runs.router)
+    app.include_router(inventory_runs.router)
     app.include_router(tokens.router)
     app.include_router(admin_users.router)
     app.include_router(triage.router)
