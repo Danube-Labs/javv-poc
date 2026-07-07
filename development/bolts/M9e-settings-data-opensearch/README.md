@@ -63,6 +63,13 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §C-4):** the v4 prototype's Settings
+  shows **editable** trivy/grype config, schedule, vuln-DB settings and a `config.versions` scanner
+  version **selector — that selector violates D41** (version is build-time, operator-swapped via
+  image tag; JAVV never writes to monitored clusters). Ruling: Settings→Scanning is **read-only
+  display** of the latest envelope's `effective_config` + provenance, with an "operator-managed
+  (GitOps)" affordance; editable in MVP = SLA policy, users/roles/tokens, scan scope (the existing
+  D43 deliverable above), retention windows. No version picker anywhere.
 
 - **2026-07-03 — scan-scope UI + tuning display added to deliverables.** D43/FR-24 (PR #95) made scan
   scope UI-configurable and named M9e the UI owner: this bolt now delivers `ScanScopeView.vue` + the
