@@ -40,7 +40,7 @@ from pydantic import BaseModel, ConfigDict, Field
 log = structlog.get_logger()
 
 LIFECYCLE_KEY = "lifecycle"  # fleet-wide default doc _id; per-cluster is `lifecycle:<cluster_id>`
-SERIES = ("javv-scan-events", "javv-images")
+SERIES = ("javv-scan-events", "javv-images", "javv-finding-occurrences")
 ROLLOVER_ONLY = ("system-audit-log",)  # rolls, NEVER retention-dropped (task F m-6)
 
 

@@ -25,6 +25,7 @@ from backend.services.disagreement import (
 from backend.services.merge import merge_action
 from backend.services.reconcile import reconcile_absent
 from backend.services.watermarks import advance_watermark
+from backend.snapshots.occurrences import OCCURRENCES_SERIES, build_occurrence_rows
 
 
 def _h(*parts: str) -> str:
@@ -158,6 +159,17 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
     )
     docs["image"] |= count_pair(env.scanner, env.counts.total, other_total)
     await bulk_write(client, [{"index": {"_index": img, "_id": docs["image_id"]}}, docs["image"]])
+    # 1b) history append: the per-scan occurrence snapshot (M8a/FR-5b) — BEFORE the catalog doc,
+    #     so a partial bulk failure (bulk_write raises) leaves the snapshot uncommitted and it is
+    #     never read as "latest" (D39). Idempotent `_id`s (D18); a clean scan appends nothing.
+    rows = build_occurrence_rows(docs)
+    if rows:
+        occ = f"{prefix}{OCCURRENCES_SERIES}-{env.cluster_id}"
+        await ensure_write_alias(client, occ)
+        occ_actions: list[dict[str, Any]] = []
+        for row_id, row in rows:
+            occ_actions += [{"index": {"_index": occ, "_id": row_id}}, row]
+        await bulk_write(client, occ_actions)
     # 2) the commit doc — the catalog marker; a clean scan (0 findings) still commits (D30)
     await bulk_write(
         client,

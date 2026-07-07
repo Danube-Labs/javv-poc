@@ -103,12 +103,16 @@ async def test_happy_path_writes_in_commit_then_cache_order() -> None:
     async with app_with(fake) as c:
         r = await post(c, gz(GOLDEN), t)
     assert r.status_code == 202 and r.json()["findings"] == 29
-    assert len(fake.bulks) == 3  # images → scan-events → findings (D39 order)
+    # images → occurrences → scan-events commit → findings (D39: appends BEFORE the catalog doc,
+    # cache last; the occurrence snapshot landed between images and commit in M8a slice 1)
+    assert len(fake.bulks) == 4
     assert fake.bulks[0][0]["index"]["_index"].startswith(f"javv-images-{CLUSTER}")
-    assert fake.bulks[1][0]["index"]["_index"].startswith(f"javv-scan-events-{CLUSTER}")
+    assert fake.bulks[1][0]["index"]["_index"].startswith(f"javv-finding-occurrences-{CLUSTER}")
+    assert len(fake.bulks[1]) == 2 * 29  # one (action, row) pair per finding
+    assert fake.bulks[2][0]["index"]["_index"].startswith(f"javv-scan-events-{CLUSTER}")
     # findings are scripted-merge updates (D31 + M-1 guard) — update ops, never full index
-    assert fake.bulks[2][0]["update"]["_index"] == "findings"
-    fields = fake.bulks[2][1]["script"]["params"]["f"]
+    assert fake.bulks[3][0]["update"]["_index"] == "findings"
+    fields = fake.bulks[3][1]["script"]["params"]["f"]
     assert "state" not in fields  # human fields never in the scanner-field params
     assert fake.updates[0]["body"]["doc"]["last_ingest_at"]  # scanner-down guard stamped
     assert fake.updates[0]["params"] == {"retry_on_conflict": "3"}  # racing pushes self-resolve
