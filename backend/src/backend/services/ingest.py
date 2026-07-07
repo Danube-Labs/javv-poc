@@ -117,6 +117,7 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
         "@timestamp": ts,
         "ingested_at": ingested_at,
         "scan_run_id": env.scan_run_id,
+        "inventory_run_id": env.scan_run_id,  # = the cycle's run (M8a slice 2/#33, D37/H5)
         "cluster_id": env.cluster_id,
         "image_digest": env.image_digest,
         "image_repo": repo,

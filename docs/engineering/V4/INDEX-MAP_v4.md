@@ -261,7 +261,10 @@ watermarks are *derived* (rebuild-state wipes + recomputes them from the catalog
 *authoritative* - an allocated-but-uncommitted order is invisible to the catalog, so a naive rebuild
 could re-issue it. **rebuild-state never touches this index**; the only self-heal is forward
 (`max(committed) > counter` → bump up, never down). Mutable, no rollover, **no retention ever**;
-snapshot/restored with everything else (M2).
+snapshot/restored with everything else (M2). **Also holds the per-cluster `inventory_order` counter**
+(M8a slice 2/#33): one doc per cluster under the reserved scanner key `__inventory__`
+(`_id = <cluster_id>:__inventory__`, same shape/CAS; self-heal floor = max committed
+`inventory_order` in `javv-inventory-runs`, allocated at cycle-END commit).
 ```
 cluster_id               keyword   tenant filter
 scanner                  keyword

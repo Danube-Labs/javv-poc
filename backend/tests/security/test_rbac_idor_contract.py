@@ -171,6 +171,9 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/auth/password"),  # session regime + must_change escape hatch
         ("POST", "/api/v1/ingest"),  # machine token + SEC-3 binding (test_ingest_route)
         ("POST", "/api/v1/scan-runs"),  # machine token (test_scan_orders route tests)
+        # M8a slice 2 — machine token + SEC-3 binding: the manifest is always for the token's own
+        # cluster; written_count is counted server-side, never client-reported (test_inventory_runs)
+        ("POST", "/api/v1/inventory-runs"),
         # M7/#32 — the EXPORT kind is a READ (any authenticated user can already read findings),
         # so that kind stays authenticated-only (auth asserted in test_reports_route). The
         # bulk_triage kind on this same route IS capability-gated — registered above with a

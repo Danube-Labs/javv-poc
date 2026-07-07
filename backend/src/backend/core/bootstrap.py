@@ -44,7 +44,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             diagnostics: which drain holds the lease, attempt timing for reclaim debugging)
 #          v11 + javv-finding-occurrences template (M8a/#33 — full per-scan snapshot rows; the
 #             point-in-time history the D28 time-travel reconstructs from)
-MAPPING_VERSION = 11
+#          v12 + javv-inventory-runs template (M8a slice 2/#33 — the inventory commit manifest;
+#             "running images now/at T" reads only status=committed runs by inventory_order)
+MAPPING_VERSION = 12
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -379,6 +381,23 @@ _OCCURRENCES_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# javv-inventory-runs-* (M8a slice 2, D39/H4-r2): 1 immutable manifest per inventory cycle — the
+# catalog for inventory COMPLETENESS (the images analog of scan-events). Written last; "running
+# images now/at T" reads only `status=committed` runs ordered by `inventory_order` (D40/F-r3).
+# `_id = inventory_run_id` (= the cycle's scan_run_id, #33).
+_INVENTORY_RUNS_PROPERTIES: dict[str, Any] = {
+    "@timestamp": _DATE,  # run completion time (display)
+    "inventory_run_id": _KW,
+    "inventory_order": {"type": "long"},  # backend-allocated (D45 basis), per cluster
+    "cluster_id": _KW,
+    "started_at": _DATE,
+    "completed_at": _DATE,
+    "expected_count": _INT,  # images discovered this run
+    "written_count": _INT,  # image docs that landed (== expected when committed)
+    "status": _KW,  # committed | partial | failed — only committed is read
+    "schema_version": {"type": "short"},
+}
+
 # system-audit-log-* (SND-2/D38-H8): 1 immutable structured row per field change / auth event.
 # Template landed with M5a's thin appender so auth events never write into a dynamic-mapped index;
 # **M5b owns the writer + replay semantics** (latest-entry-per-field, revision ordering). Append
@@ -440,6 +459,14 @@ INDEX_TEMPLATES: dict[str, dict[str, Any]] = {
             # the lc normalizer must ship with the template — `severity` aggs fold on it (D16)
             "settings": {"index": {**_BASE_SETTINGS, "analysis": _LC_ANALYSIS}},
             "mappings": _mappings(_OCCURRENCES_PROPERTIES),
+        },
+    },
+    "javv-inventory-runs": {  # M8a slice 2/#33 — inventory commit manifests
+        "index_patterns": ["javv-inventory-runs-*"],
+        "priority": 10,
+        "template": {
+            "settings": {"index": _BASE_SETTINGS},
+            "mappings": _mappings(_INVENTORY_RUNS_PROPERTIES),
         },
     },
 }

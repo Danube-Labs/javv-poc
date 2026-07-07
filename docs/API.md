@@ -44,6 +44,7 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 | POST | `/api/v1/ingest/scan` | machine | Ingest one schema-v3 scanner envelope → findings/scan-events/images (details below) |
 | GET | `/api/v1/scan-scope` | machine | The scanner reads its own cluster's scan scope; scoped to the token's `cluster_id` (D43) |
 | POST | `/api/v1/scan-runs` | machine | Allocates the next `scan_order` (strictly increasing per `(cluster_id, scanner)`; CAS + forward self-heal, D45) |
+| POST | `/api/v1/inventory-runs` | machine | Cycle-END inventory certification (M8a/#33): body `{scan_run_id, expected_count, started_at}` → the backend counts landed image docs server-side, allocates `inventory_order` (per-cluster D45 counter), writes the immutable manifest (`committed` iff complete; retry returns the original manifest). Token-bound to its own `cluster_id` (SEC-3) |
 
 ### Auth & sessions (M5a)
 
