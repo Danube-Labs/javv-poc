@@ -153,11 +153,13 @@ async def test_claim_scans_the_queue_when_no_id_is_given(client) -> None:
     hour_ago = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
     await client.delete_by_query(
         index=REPORTS_INDEX,
+        # pending AND running leftovers: a previous run's epoch-seeded doc comes back as a
+        # reclaimable expired lease and would tie with ours on the created_at sort
         body={
             "query": {
                 "bool": {
                     "filter": [
-                        {"term": {"status": PENDING}},
+                        {"terms": {"status": [PENDING, RUNNING]}},
                         {"range": {"created_at": {"lt": hour_ago}}},
                     ]
                 }

@@ -109,12 +109,17 @@ and the global `as_of` (T<now dispatches to the M8b reader; until it lands → 5
 | GET | `/api/v1/findings/export.csv` | session | Streaming, **CSV-injection-sanitized** export of any lens. > `JAVV_EXPORT_MAX_ROWS` (50k) → **413** (narrow the lens or schedule) |
 | GET | `/api/v1/findings/export.vex` | session | OpenVEX/CycloneDX per **one scanner** (`scanner` required — per-scanner is sacred); same row cap |
 | POST | `/api/v1/reports` | session | Enqueue a scheduled export (`kind: export`, M7). Session-only *by design* — a scheduled export is a read, same regime as the inline export. The `bulk_triage` kind (M7 slice 5) will be `can_triage`-gated |
-| GET | `/api/v1/reports/{report_id}` | session | Job status (public view — never leaks `params`/`attempt_id`/lease fields). 404 unknown |
+| GET | `/api/v1/reports/{report_id}` | session | Job status (public view — never leaks `params`/`attempt_id`/lease fields). 404 unknown. For a `done`, unexpired report also mints the short-lived (15 min) signed `download_token` — refetch for a fresh one |
+| GET | `/api/v1/reports/{report_id}/download` | session + `token` | Streams the result chunks in order (CSV or VEX JSON). **410** past `expires_at` (re-run the export) · 404 no result yet · 403 bad/stale token |
+| GET | `/api/v1/notifications` | session | The bell (FR-16, polled — no broker): own notifications only, newest 50, + server-computed `unread` count |
+| PATCH | `/api/v1/notifications/{notification_id}/read` | session | Mark one of **your own** read — anyone else's id is 404 (IDOR-indistinguishable from missing) |
 
 Exports + search cursors share a **per-principal concurrent-PIT cap**
 (`JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL`, 10) → **429 + `Retry-After`** past it. Scheduled-report
-results are stored in OpenSearch chunks with `expires_at` (default 24 h) — the download endpoint
-(M7 slice 3) returns **410** past expiry.
+results are stored in OpenSearch chunks with `expires_at` (default 24 h); the drain worker
+(`python -m backend.jobs.report_drain`, k8s CronJob in M10) claims jobs via OCC + fencing
+`attempt_id`, throttles with `JAVV_REPORT_DRAIN_SLEEP_MS`, fails jobs past `JAVV_EXPORT_MAX_BYTES`,
+and rings a `report_ready` bell on completion.
 
 ### POST `/api/v1/ingest/scan` (the hardened surface)
 

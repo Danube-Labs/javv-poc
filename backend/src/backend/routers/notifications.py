@@ -1,0 +1,65 @@
+"""`/api/v1/notifications` (M7 slice 3, FR-16/D-3) — the bell feed, polled (no broker, NFR-9).
+
+Strictly OWN-notifications: every query filters `user_id = principal` server-side, and mark-read
+404s on anyone else's id (indistinguishable from missing — the IDOR rule). The badge count is
+server-computed (`unread`) — the client never counts. The drain writes `report_ready` docs here;
+`sla_breach`/`assignment` writers land with their owning bolts.
+"""
+
+from typing import Annotated, Any, cast
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from opensearchpy import NotFoundError
+
+from backend.auth.principal import Principal, get_current_principal
+from backend.reports.models import NOTIFICATIONS_INDEX
+
+router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
+
+Authenticated = Annotated[Principal, Depends(get_current_principal)]
+
+_PAGE = 50  # newest N — the bell is a feed, not an archive
+_PUBLIC = ("notification_id", "type", "ref", "cluster_id", "created_at", "read")
+
+
+@router.get("")
+async def list_notifications(request: Request, principal: Authenticated) -> dict[str, Any]:
+    client = cast(Any, request.app.state.opensearch)
+    own = {"term": {"user_id": principal.user_id}}
+    result = await client.search(
+        index=NOTIFICATIONS_INDEX,
+        body={
+            "size": _PAGE,
+            "sort": [{"created_at": "desc"}],
+            "query": {"bool": {"filter": [own]}},
+        },
+        params={"ignore_unavailable": "true"},
+    )
+    unread = await client.count(
+        index=NOTIFICATIONS_INDEX,
+        body={"query": {"bool": {"filter": [own, {"term": {"read": False}}]}}},
+        params={"ignore_unavailable": "true"},
+    )
+    items = [{k: hit["_source"].get(k) for k in _PUBLIC} for hit in result["hits"]["hits"]]
+    return {"unread": int(unread["count"]), "items": items}
+
+
+@router.patch("/{notification_id}/read")
+async def mark_read(
+    request: Request, notification_id: str, principal: Authenticated
+) -> dict[str, Any]:
+    client = cast(Any, request.app.state.opensearch)
+    try:
+        got = await client.get(index=NOTIFICATIONS_INDEX, id=notification_id)
+    except NotFoundError:
+        raise HTTPException(404, "notification not found") from None
+    if got["_source"].get("user_id") != principal.user_id:
+        # someone else's — indistinguishable from missing (IDOR rule)
+        raise HTTPException(404, "notification not found")
+    await client.update(
+        index=NOTIFICATIONS_INDEX,
+        id=notification_id,
+        body={"doc": {"read": True}},
+        params={"refresh": "true"},
+    )
+    return {"notification_id": notification_id, "read": True}

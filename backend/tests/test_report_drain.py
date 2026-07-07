@@ -1,0 +1,248 @@
+"""M7 slice 3 (#32) — the drain: claim → stream → chunk → publish → bell, against real OpenSearch.
+
+Pins: the queued CSV path produces byte-identical output to the inline export for the same lens
+(the golden-parity gate); results land chunked under the winning attempt_id; `done` carries
+bytes/chunk_count/expires_at; the bell rings for the requester; over-ceiling → `failed`; an
+`as_of_t` job fails loud with the M8b pointer; a fenced drain publishes nothing and rings nothing.
+"""
+
+import os
+import uuid
+from datetime import UTC, datetime, timedelta
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.jobs.report_drain import run_job
+from backend.query.search import SearchFilters
+from backend.reports.claim import claim_next
+from backend.reports.models import (
+    DONE,
+    FAILED,
+    NOTIFICATIONS_INDEX,
+    REPORT_CHUNKS_INDEX,
+    REPORTS_INDEX,
+    RUNNING,
+    ExportParams,
+)
+from backend.reports.storage import stream_chunks
+
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+
+
+def _os_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+
+
+@pytest.fixture
+async def client():
+    c = AsyncOpenSearch(hosts=[OS_URL])
+    yield c
+    await c.close()
+
+
+def _finding(cluster_id: str, i: int) -> dict:
+    now = datetime.now(UTC).isoformat()
+    return {
+        "finding_key": f"fk-{cluster_id}-{i}",
+        "cluster_id": cluster_id,
+        "scanner": "trivy",
+        "cve_id": f"CVE-2026-{1000 + i}",
+        "severity": "high",
+        "severity_rank": 3,
+        "state": "open",
+        "vex_justification": None,
+        "package_name": "libx",
+        "installed_version": "1.0.0",
+        "fixed_version": "1.0.1",
+        "fixable": True,
+        "kev": False,
+        "epss": None,
+        "cvss": 7.5,
+        "image_repo": "nginx",
+        "tag": "1.21",
+        "image_digest": f"sha256:{i:064x}",
+        "namespaces": ["default"],
+        "assignee": None,
+        "first_seen_at": now,
+        "last_seen_at": now,
+        "last_scan_at": now,
+        "present": True,
+        "state_decision_id": None,
+        "schema_version": 2,
+    }
+
+
+async def _seed_findings(client, cluster_id: str, n: int) -> None:
+    for i in range(n):
+        doc = _finding(cluster_id, i)
+        await client.index(index="findings", id=doc["finding_key"], body=doc)
+    await client.indices.refresh(index="findings")
+
+
+async def _enqueue(client, cluster_id: str, **over) -> str:
+    report_id = uuid.uuid4().hex
+    doc = {
+        "report_id": report_id,
+        "kind": "export",
+        "status": "pending",
+        "cluster_id": cluster_id,
+        "requested_by": f"u-drain-{uuid.uuid4().hex[:8]}",
+        "run_mode": "offpeak",
+        "params": ExportParams().model_dump(),
+        "scheduled_for": None,
+        "as_of_t": None,
+        "created_at": datetime.now(UTC).isoformat(),
+        "retry_count": 0,
+        "schema_version": 1,
+    }
+    doc.update(over)
+    await client.index(index=REPORTS_INDEX, id=report_id, body=doc, params={"refresh": "true"})
+    return report_id
+
+
+async def _report(client, report_id: str) -> dict:
+    return (await client.get(index=REPORTS_INDEX, id=report_id))["_source"]
+
+
+async def test_drain_publishes_a_csv_identical_to_the_inline_export(client) -> None:
+    """The golden-parity gate: queued path bytes == inline path bytes for the same lens."""
+    from backend.export.csv_stream import stream_csv
+
+    cluster_id = f"c-drain-{uuid.uuid4().hex[:8]}"
+    await _seed_findings(client, cluster_id, 3)
+    report_id = await _enqueue(client, cluster_id)
+
+    job = await claim_next(client, worker="w-drain", report_id=report_id)
+    assert job is not None
+    assert await run_job(client, job) is True
+
+    doc = await _report(client, report_id)
+    assert doc["status"] == DONE
+    assert doc["chunk_count"] == 1 and doc["bytes"] > 0
+    assert datetime.fromisoformat(doc["expires_at"]) > datetime.now(UTC)
+
+    queued = "".join([d async for d in stream_chunks(client, report_id, doc["attempt_id"])])
+    inline = "".join(
+        [line async for line in stream_csv(client, cluster_id=cluster_id, filters=SearchFilters())]
+    )
+    assert queued == inline  # byte-identical to the inline path (bolt README golden gate)
+    assert queued.count("\n") == 4  # header + 3 findings
+
+    # the bell rang for the requester
+    bell = await client.search(
+        index=NOTIFICATIONS_INDEX, body={"query": {"term": {"ref": report_id}}}
+    )
+    assert bell["hits"]["total"]["value"] == 1
+    note = bell["hits"]["hits"][0]["_source"]
+    assert note["type"] == "report_ready" and note["user_id"] == doc["requested_by"]
+    assert note["read"] is False
+
+
+async def test_drain_vex_export_is_valid_json_per_scanner(client) -> None:
+    import json
+
+    cluster_id = f"c-drainvex-{uuid.uuid4().hex[:8]}"
+    await _seed_findings(client, cluster_id, 2)
+    report_id = await _enqueue(
+        client, cluster_id, params=ExportParams(format="openvex", scanner="trivy").model_dump()
+    )
+    job = await claim_next(client, worker="w-drain", report_id=report_id)
+    assert job is not None and await run_job(client, job) is True
+
+    doc = await _report(client, report_id)
+    body = "".join([d async for d in stream_chunks(client, report_id, doc["attempt_id"])])
+    vex = json.loads(body)
+    assert len(vex["statements"]) == 2  # one per finding, single scanner (sacred)
+
+
+async def test_over_the_byte_ceiling_fails_the_job(client, monkeypatch) -> None:
+    from backend.core.settings import get_settings
+
+    cluster_id = f"c-drainbig-{uuid.uuid4().hex[:8]}"
+    await _seed_findings(client, cluster_id, 5)
+    report_id = await _enqueue(client, cluster_id)
+    settings = get_settings()
+    monkeypatch.setattr(settings, "export_max_bytes", 64)  # absurdly small ceiling
+
+    job = await claim_next(client, worker="w-drain", report_id=report_id)
+    assert job is not None
+    assert await run_job(client, job) is False
+    doc = await _report(client, report_id)
+    assert doc["status"] == FAILED and "exceeds" in doc["error"]
+
+
+async def test_as_of_t_job_fails_loud_with_the_m8b_pointer(client) -> None:
+    cluster_id = f"c-drainasof-{uuid.uuid4().hex[:8]}"
+    report_id = await _enqueue(
+        client, cluster_id, as_of_t=(datetime.now(UTC) - timedelta(days=7)).isoformat()
+    )
+    job = await claim_next(client, worker="w-drain", report_id=report_id)
+    assert job is not None
+    assert await run_job(client, job) is False
+    doc = await _report(client, report_id)
+    assert doc["status"] == FAILED and "M8b" in doc["error"]
+
+
+async def test_fenced_drain_publishes_nothing_and_rings_nothing(client) -> None:
+    """A reclaimed job's original worker finishes its stream — but its publish is rejected and
+    no bell rings (the M7-r2 rule carried through the whole pipeline)."""
+    cluster_id = f"c-drainfence-{uuid.uuid4().hex[:8]}"
+    await _seed_findings(client, cluster_id, 1)
+    report_id = await _enqueue(client, cluster_id)
+
+    job_a = await claim_next(client, worker="wA", report_id=report_id)
+    assert job_a is not None
+    # A stalls; its lease is force-expired and B reclaims
+    stale = (datetime.now(UTC) - timedelta(minutes=10)).isoformat()
+    await client.update(
+        index=REPORTS_INDEX,
+        id=report_id,
+        body={"doc": {"lease_expires_at": stale, "heartbeat_at": stale}},
+        params={"refresh": "true"},
+    )
+    job_b = await claim_next(client, worker="wB", report_id=report_id)
+    assert job_b is not None
+
+    # A wakes and runs its (stale) job to the end — publish must be fenced, no bell
+    assert await run_job(client, job_a) is False
+    doc = await _report(client, report_id)
+    assert doc["status"] == RUNNING and doc["attempt_id"] == job_b.attempt_id
+    bell = await client.search(
+        index=NOTIFICATIONS_INDEX, body={"query": {"term": {"ref": report_id}}}
+    )
+    assert bell["hits"]["total"]["value"] == 0
+
+    # B runs and publishes normally; only B's chunks are canonical
+    assert await run_job(client, job_b) is True
+    doc = await _report(client, report_id)
+    assert doc["status"] == DONE and doc["attempt_id"] == job_b.attempt_id
+    orphans = await client.count(
+        index=REPORT_CHUNKS_INDEX,
+        body={
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"report_id": report_id}},
+                        {"term": {"attempt_id": job_a.attempt_id}},
+                    ]
+                }
+            }
+        },
+    )
+    assert orphans["count"] >= 1  # A's orphans exist — slice 4's sweep reaps them
+
+
+def test_export_params_mirror_search_filters_one_to_one() -> None:
+    """The stored params blob must keep mapping onto the M6 lens — drift here silently drops
+    filters from queued exports (a tenant-scoping hazard)."""
+    param_fields = set(ExportParams.model_fields) - {"format"}
+    filter_fields = {f for f in SearchFilters.__dataclass_fields__}
+    assert param_fields == filter_fields

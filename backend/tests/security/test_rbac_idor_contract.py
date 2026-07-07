@@ -159,6 +159,9 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         # so enqueue is authenticated-only, not capability-gated (mirrors the M6 inline export; auth
         # asserted in test_reports_route). The bulk_triage kind gains can_triage in a later slice.
         ("POST", "/api/v1/reports"),
+        # M7 slice 3 — mark-read is strictly OWN-notification (user_id filter server-side; someone
+        # else's id 404s, IDOR-tested in test_notifications_route). No capability: your own bell.
+        ("PATCH", "/api/v1/notifications/{notification_id}/read"),
     }
 )
 
