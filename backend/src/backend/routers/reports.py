@@ -19,8 +19,11 @@ from typing import Annotated, Any, cast
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from opensearchpy import NotFoundError
+from pydantic import ValidationError
 
 from backend.auth.principal import Principal, get_current_principal
+from backend.core.metrics import LIMIT_REJECTIONS
+from backend.core.settings import get_settings
 from backend.reports import download_token
 from backend.reports.models import (
     DONE,
@@ -30,6 +33,9 @@ from backend.reports.models import (
     public_report,
 )
 from backend.reports.storage import stream_chunks
+from backend.triage.bulk import SelectorTooBroad, freeze_targets, validate_bulk_patch
+from backend.triage.bulk_routes import BulkSelector
+from backend.triage.state_machine import TransitionError
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
@@ -42,12 +48,55 @@ async def enqueue_report(
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     report_id, doc = new_report_doc(body, requested_by=principal.user_id)
+
+    if body.kind == "bulk_triage":
+        # slice 5 (audit A-Mc): a scheduled bulk is a WRITE — capability regime mirrors the
+        # inline bulk exactly (can_triage; +can_accept_audit_final when the patch risk-accepts;
+        # SEC-6: a must_change session may not mutate), checked BEFORE any store work.
+        if principal.must_change:
+            raise HTTPException(403, "password change required before any action")
+        caps = principal.capabilities
+        if "*" not in caps and "can_triage" not in caps:
+            raise HTTPException(403, "bulk_triage reports require can_triage")
+        assert body.bulk_params is not None  # the model validator guarantees the pairing
+        patch = {k: v for k, v in body.bulk_params.patch.items() if v is not None}
+        if patch.get("state") == "risk_accepted" and not (
+            "*" in caps or "can_accept_audit_final" in caps
+        ):
+            raise HTTPException(403, "risk-accept requires can_accept_audit_final")
+        try:
+            selector = BulkSelector(**body.bulk_params.selector).model_dump(exclude_none=True)
+            validate_bulk_patch(patch)
+        except (ValidationError, TransitionError) as exc:
+            raise HTTPException(422, str(exc)) from exc
+        # freeze AT ENQUEUE (D38/H8 — a queue never carries a live selector). The freeze cap
+        # still applies (bounded memory); the INLINE ceiling deliberately does not — scheduled
+        # runs are the sanctioned path past it (the A-Mc lift).
+        try:
+            target_ids = await freeze_targets(
+                client,
+                body.cluster_id,
+                selector,
+                max_targets=get_settings().bulk_max_targets,
+            )
+        except SelectorTooBroad as exc:
+            LIMIT_REJECTIONS.labels("bulk_targets").inc()
+            raise HTTPException(413, str(exc)) from exc
+        doc["params"] = {
+            "selector": selector,
+            "patch": patch,
+            "target_ids": target_ids,  # FROZEN — the drain applies exactly this set
+        }
+
     # op_type=create: the id is fresh (uuid4), so this can't clobber; refresh so a status read /
     # the drain sees it immediately (a single small ops write, not the read-side refresh storm)
     await client.index(
         index=REPORTS_INDEX, id=report_id, body=doc, params={"op_type": "create", "refresh": "true"}
     )
-    return {"report_id": report_id, "status": doc["status"]}
+    out: dict[str, Any] = {"report_id": report_id, "status": doc["status"]}
+    if body.kind == "bulk_triage":
+        out["target_count"] = len(doc["params"]["target_ids"])
+    return out
 
 
 def _expired(doc: dict[str, Any]) -> bool:
