@@ -84,7 +84,11 @@ async def latest_committed_runs(
             )
         except NotFoundError:
             return runs
-        agg = resp["aggregations"]["d"]
+        # a non-matching wildcard returns 200 with NO aggregations key (vs NotFoundError for a
+        # concrete missing index) — an unscanned cluster is a real, empty answer
+        agg = (resp.get("aggregations") or {}).get("d")
+        if agg is None:
+            return runs
         for b in agg["buckets"]:
             runs.append(b["latest"]["hits"]["hits"][0]["_source"])
         after = agg.get("after_key")
