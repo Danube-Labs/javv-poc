@@ -53,7 +53,11 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Any UI work → M9b (facet/column) / M9c (donut).
 
 ## Updates
-- _none yet_
+- **2026-07-07** — hidden test coupling to check when bumping `schema_version`: the M7 report tests
+  seed findings docs directly with a hardcoded `schema_version: 2` (the `_finding()` helpers in
+  `backend/tests/test_report_drain.py` and `test_report_bulk_kind.py`) — grep for `schema_version`
+  under `backend/tests/` and update every direct-seed helper in the same PR, or the suite breaks on
+  the bump.
 
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
