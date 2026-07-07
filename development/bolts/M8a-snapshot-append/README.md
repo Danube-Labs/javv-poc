@@ -108,6 +108,14 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   ingest path; M8a depends on that bulk having landed before the manifest commits.
 
 ## Updates
+- **2026-07-07 (slice 4 — BOLT COMPLETE)** — the AUDIT I10 keystone, whole-spine edition
+  (`test_commit_race_keystone.py`): two full `ingest_envelope` runs for one digest with inverted
+  `scan_order`, both deterministic inversion and true concurrency. Invariants regardless of
+  arrival order: the stale run commits zero cache-visible state, the newer run owns presence,
+  occurrence history is complete (both snapshots) + both catalog docs committed, the watermark
+  lands on the newer order, and slice-3's rebuild writes exactly nothing over the post-race cache
+  (incremental and reconstruction can't disagree). DoD sweep: all brief items covered by
+  automated tests across slices 1–4; no new config knobs introduced by this bolt.
 - **2026-07-07 (slice 3)** — rebuild-state scanner-presence arm landed (`rebuild_scanner_presence`
   alongside M5c's decision arm; `__main__` runs both). Derivation, not replay: per digest the
   latest committed run R defines presence, a finding's last appearance L freezes its presence
