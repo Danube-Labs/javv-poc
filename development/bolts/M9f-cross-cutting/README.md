@@ -79,3 +79,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   download endpoint `GET /api/v1/reports/{id}/download` (short-lived signed token; **410** once past
   `JAVV_EXPORT_TTL_HOURS`), not an object-store URL — results are stored in OpenSearch (chunked). The
   bell UI just needs to render the link + handle the 410-expired case gracefully.
+
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §§6, 14–15. **C-6 ruled
+  SERVER-SIDE saved views** (selling point): this bolt's Saved-views screen consumes the **M8e**
+  `/api/v1/views` CRUD (owner column returns; edit/delete affordances hidden unless owner-or-admin;
+  the localStorage variant is dead). **A-6 ruled**: export stays session-only — a `can_export`
+  capability is parked as a tracked idea, do NOT build gating for it. Depends-on grows: M8e.

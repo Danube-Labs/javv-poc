@@ -17,10 +17,12 @@ Conventions used below:
   `present=true`.
 - **Capability gating** reads `capabilities` from `GET /auth/me` — never role names (A-4). A
   `must_change` session is routed to the password screen; everything else 403s.
-- **DECIDE** flags are open operator rulings — the recommended option is drawn on the screen and
-  visibly badged "DECIDE".
-- **BLOCKED: needs backend** marks data no shipped endpoint provides. §D of the drift table is the
-  only sanctioned additions list; anything else blocked is called out as *not yet planned*.
+- **DECIDE flags: ALL RULED 2026-07-07** (operator, #237) — see the RESOLVED register at the
+  bottom. Where a ruling flipped the drawn recommendation (B-1 donut kept, C-6 views server-side)
+  the sections below are amended in place.
+- **BLOCKED: needs backend** items are now **scheduled**: the pre-M9 backend bolts **M8c**
+  (session reads: audit log · scanner provenance · inventory · cluster registry), **M8d**
+  (envelope `ptype`), **M8e** (server-side saved views).
 
 ---
 
@@ -75,10 +77,9 @@ oracle), forced password change (SEC-6: bootstrap admin / temp password).
 Fleet landing page; layout preserved (KPI strip → cluster table with MixBar).
 
 **Data**
-- Cluster list: no endpoint enumerates clusters. **DECIDE (D-5/C-5)** — recommended (drawn):
-  a small `system-config` cluster-registry doc providing `cluster_id` + relabelable
-  `cluster_name`; fallback if declined: MVP shows raw `cluster_id`s from deploy config.
-  Until decided/built: **BLOCKED: needs backend** (cluster enumeration + display names).
+- Cluster list: **RULED (D-5/C-5, 2026-07-07)** — the `system-config` cluster-registry doc
+  (`cluster_id` + relabelable `cluster_name`) ships in **M8c** with its session read; the UI
+  renders display names from it. Until M8c lands this stays blocked.
 - Per-cluster severity mix + KPI strip: `GET /api/v1/findings/facets?cluster_id=<id>` — one call
   per cluster row; buckets are **per-scanner** — the MixBar renders one bar per scanner (or a
   scanner toggle), never a merged bar.
@@ -92,9 +93,8 @@ expensive query.
 **Changed vs SCREENS.md**
 - Fleet KPI strip severity buckets: lowercase + `negligible` (A-1); per-scanner, never summed.
 - Historical all-clusters explicitly limited (C-5).
-- Cluster name source flagged DECIDE (D-5).
-- "Replicas" column: no inventory read endpoint is shipped — **BLOCKED: needs backend** (see
-  Running images); column shows the blocked note or is dropped until the inventory read exists.
+- Cluster name source ruled: `system-config` registry (D-5 → **M8c**).
+- "Replicas" column: fed by the **M8c** inventory read (see Running images).
 
 ---
 
@@ -112,9 +112,10 @@ expensive query.
   filtered by ns; deep-link preserved).
 
 **Cut / changed widgets**
-- **Package-type donut — DECIDE (B-1)**, recommended (drawn): **cut for MVP**, layout slot kept
-  with a subtle "post-MVP" placeholder; alternative is a schema-v4 envelope change (lockstep
-  deploy, not recommended).
+- **Package-type donut — RULED (B-1, 2026-07-07): KEEP, per the v4 design.** Backed by the
+  **M8d** envelope change (`ptype` field + facet bucket). Until M8d lands + a rescan cycle
+  repopulates, the donut shows the "awaiting package-type data" placeholder; pre-M8d findings
+  aggregate as `unknown` ptype until re-observed by a scan.
 - **Top components** + **Language-specific binaries** tables — **cut** (B-6, no backing agg);
   layout slots left.
 - **Newly published** bar chart — **cut** (B-2: no `published` field exists); slot reused by the
@@ -124,9 +125,9 @@ expensive query.
 scanner-silent banner; `T<now` history banner (single-cluster rewind is fully supported once M8b
 lands; 501-state before that, C-1).
 
-**Changed vs SCREENS.md:** A-1 (lowercase + negligible), B-1/B-2/B-6 (widget cuts), A-m9
-(trend semantics label), C-1 (time-travel states). Scanner-type filter stays (it maps to the
-`scanner` filter param).
+**Changed vs SCREENS.md:** A-1 (lowercase + negligible), B-1 (donut kept, fed by M8d ptype),
+B-2/B-6 (widget cuts), A-m9 (trend semantics label), C-1 (time-travel states). Scanner-type
+filter stays (it maps to the `scanner` filter param).
 
 ---
 
@@ -150,10 +151,10 @@ Layout preserved: facet rail + toolbar (FilterBar + Save view + ColumnsMenu) + b
 **Facet rail** (top→bottom): Severity (critical/high/medium/low/**negligible**/unknown — muted
 treatment for negligible+unknown, never red) · Scanner (trivy/grype) · Attributes (KEV /
 Fix available / Scanners disagree) · State (**6**: open, acknowledged, not_affected,
-risk_accepted, resolved, stale) · Assignee (incl. Unassigned) · Namespace.
-**Removed:** Package type facet (B-1 cut).
-> **DECIDE (A-1), drawn on the rail:** show `negligible` as its own muted bucket (recommended —
-> Grype emits it; hiding it breaks "counts sum") vs folding into `unknown`.
+risk_accepted, resolved, stale) · Assignee (incl. Unassigned) · Namespace · **Package type**
+(returns per B-1 ruling — buckets from the M8d `ptype` facet; hidden until M8d lands).
+> **RULED (A-1, 2026-07-07):** `negligible` IS its own muted bucket — Grype emits it; hiding it
+> breaks "counts sum". Display muted grey, never red.
 
 **Table columns:** checkbox · Vulnerability (`cve_id`, mono) · Severity (verbatim word, display
 uppercase) · EPSS (raw `epss` 0–1 bar; **Grype rows only**, em-dash on Trivy — B-3: no
@@ -183,8 +184,8 @@ dropped (contract is cursor paging).
 
 **Changed vs SCREENS.md:** A-1 (lowercase + negligible), A-2 (6 states + implicit
 `present=true`), A-3 (disagree is a bool; tooltip queries sibling row), B-1 (ptype column/facet
-cut), B-3 (raw EPSS only), B-4 (images count = agg), B-5 (SLA server-computed), A-m1 (cursor
-error states), C-2 (export entry point → Export dialog, below).
+KEPT per ruling — after M8d), B-3 (raw EPSS only), B-4 (images count = agg), B-5 (SLA
+server-computed), A-m1 (cursor error states), C-2 (export entry point → Export dialog, below).
 
 ---
 
@@ -251,32 +252,33 @@ scheduled-pending → bell on done · **"expires in Xh"** on the bell item and t
 (`JAVV_EXPORT_TTL_HOURS`, default 24 h) · **410 expired** → "download expired — re-run the
 export" · 429 PIT cap with `Retry-After`.
 
-**Changed vs SCREENS.md:** C-2 (TTL/expiry affordances + 410 state — new), A-6 (export is
-session-only: available to every authenticated user; the v4 "Viewer cannot export" matrix row is
-dropped. **DECIDE**, drawn as available-to-all: add a `can_export` capability? — backend change,
-not recommended for MVP).
+**Changed vs SCREENS.md:** C-2 (TTL/expiry affordances + 410 state — new), A-6 **RULED
+(2026-07-07): export stays session-only** — available to every authenticated user; the v4
+"Viewer cannot export" matrix row is dropped. A `can_export` capability is parked as a tracked
+idea (issue), deliberately not scheduled.
 
 ---
 
-## 6. Saved views (bolt: **M9f**)
+## 6. Saved views (bolt: **M9f**; backend in **M8e**)
 
 Card grid preserved.
 
-> **DECIDE (C-6), drawn on screen:** **localStorage-only for MVP (recommended)** — cards carry a
-> "stored in this browser" hint; alternative is a new `system-views` index ([BE]: INDEX-MAP +
-> MAPPING_VERSION + bootstrap + tests). No shipped endpoint exists — server-side views are
-> **BLOCKED: needs backend** if chosen.
+> **RULED (C-6, 2026-07-07): server-side.** Saved views are a selling point — they must be
+> durable and shareable. New `system-views` index + CRUD endpoints ship in **M8e**
+> (INDEX-MAP + MAPPING_VERSION + bootstrap + RBAC rows + API.md). The **owner column returns**
+> (v4 design); views are visible to all authenticated users, mutable by their owner (+admin).
 
-**Data:** view definitions from localStorage; the per-card **live count** is
+**Data:** `GET/POST /api/v1/views` · `PATCH/DELETE /api/v1/views/{view_id}` (**M8e**, session;
+mutations owner-or-admin). The per-card **live count** is
 `GET /api/v1/findings/facets?<view's filter params>` (server agg — fetched lazily per visible
 card; never counted client-side). Card → Findings with the filter preset (deep-link round-trip
 must reproduce identical query params).
 
 **States:** empty ("save a filter set from Findings"); count-loading per card; degraded (counts
-show em-dash).
+show em-dash); 403 on mutating someone else's view (edit/delete affordances hidden unless owner
+or admin).
 
-**Changed vs SCREENS.md:** C-6 (persistence DECIDE + storage hint); owner column dropped in the
-localStorage variant (there is no server-side owner).
+**Changed vs SCREENS.md:** C-6 ruled server-side (M8e); owner column kept per the v4 design.
 
 ---
 
@@ -287,23 +289,23 @@ localStorage variant (there is no server-side owner).
   — per-scanner counts side-by-side + the `trivy_count`/`grype_count`/`count_delta`
   count-disagreement pair (D5b; per-image, distinct from per-finding `disagree` — V4-DELTA
   conflict 7). Facets for the rail via `GET /api/v1/findings/facets`.
-- Inventory metadata (replicas at last sweep, app, first/last seen): **BLOCKED: needs backend** —
-  no session read over `javv-images`/inventory runs is shipped; the M8b point-in-time query API
-  is the planned reader (check at M9c kickoff whether it covers `T=now` inventory or a small read
-  is needed; *not* in drift-table §D — flag to the operator).
+- Inventory metadata (replicas at last sweep, app, first/last seen): **scheduled — M8c**
+  inventory read (latest complete `inventory_run_id`, `status=committed`, ordered by
+  `inventory_order`). M8c must check overlap with M8b's point-in-time API first (this read is
+  the `T=now` special case).
 - Image naming: compose from `image_repo` + `tag` (no `image_ref` field exists — M9c update,
   #156-3).
 
-**Columns:** Image (`image_repo` + registry mono) · Tag · Namespace · Replicas (blocked note
-until the inventory read lands) · per-scanner finding counts (`T n / G n / Δ` — never a merged
-total) · Severity mix (labeled MixBar, per scanner) · Scanners · Last seen.
+**Columns:** Image (`image_repo` + registry mono) · Tag · Namespace · Replicas (M8c inventory
+read) · per-scanner finding counts (`T n / G n / Δ` — never a merged total) · Severity mix
+(labeled MixBar, per scanner) · Scanners · Last seen.
 
 **States:** loading; empty/first-run; **scanner-silent** banner ("Inventory as of T; scanner
 silent since…"); **last-run-incomplete** banner ("showing the last complete inventory"); `T<now`
 history banner; degraded. Never shows partial/stale inventory as live (V4-DELTA).
 
-**Changed vs SCREENS.md:** A-3/D5b (count-disagreement pair per image), B-1 (ptype facet cut),
-#156-3 (repo+tag composition), inventory read flagged BLOCKED.
+**Changed vs SCREENS.md:** A-3/D5b (count-disagreement pair per image), B-1 (ptype facet after
+M8d), #156-3 (repo+tag composition), inventory read scheduled (M8c).
 
 ---
 
@@ -356,9 +358,10 @@ Renders the structured D32 stream (A-5): `event_id`, `entity_type`
 (finding/decision/token/user/settings/…), `action`, frozen `target_ids`, `revision`, ordered by
 `(@timestamp, event_id)`; same-field edits order by `revision` (causal replay, D38/H8).
 
-**Data:** **BLOCKED: needs backend** — no session read over `system-audit-log` is shipped and
-none is in drift-table §D. The M9d README anticipates `GET /audit` "if not already in M5d" —
-flag to the operator that this read must land before M9d. (Spec drawn against the D32 doc shape.)
+**Data:** **scheduled — M8c**: `GET /api/v1/audit?cluster_id=…&entity_type=…&actor=…&cursor=…` —
+**plain session** (ruled 2026-07-07: read-only history of actions every user can already see;
+Contributors already exposes derived views of it), cursor-paged, ordered `(@timestamp, event_id)`.
+(Spec drawn against the D32 doc shape.)
 
 **Layout:** facet rail (entity_type, action, actor) + filter bar + timeline table: When · Actor ·
 entity_type+action tag pair · Target (frozen `target_ids`, rendered verbatim — never a
@@ -369,7 +372,7 @@ Task column dropped (no field; Jira linkage is v1.1 — V4-DELTA-1).
 `system-audit-log` retention").
 
 **Changed vs SCREENS.md:** A-5 (structured entity_type+action replaces the 8-string enum;
-click-through rule; Task column dropped); endpoint BLOCKED.
+click-through rule; Task column dropped); endpoint scheduled (M8c).
 
 ---
 
@@ -384,8 +387,8 @@ TTR/SLA-hit computed server-side from `system-audit-log`. Scoped by the global t
 `state=resolved` triage counts from the audit log. Don't conflate the two on one chart.
 
 **Layout preserved:** team KPI strip → podium → leaderboard → resolved-over-time
-(`GET /api/v1/trends/findings`, labeled per A-m9) → activity feed (from the audit read — same
-BLOCKED note as screen 10 for the feed only).
+(`GET /api/v1/trends/findings`, labeled per A-m9) → activity feed (from the M8c audit read —
+same dependency as screen 10, feed only).
 
 **States:** loading; empty (no triage activity in window); degraded; `T<now` fine (audit-log ≤T
 is supported, C-1).
@@ -405,9 +408,9 @@ The v4 per-file ingest feed is gone. New composition per C-3:
 - **Provenance (read-only, D41):** `scanner_version` · `scanner_db_version` · `scanner_db_built`
   from the latest committed scan-event — displayed as mono provenance lines with an
   "operator-managed (GitOps): change by swapping the image tag" affordance. **Never a control.**
-  **BLOCKED: needs backend** — no session read of latest scan-event provenance is shipped (not
-  in §D; flag — M9e's ScanningView has the same need, one small read serves both).
-- **Last-N scan runs** (counts, durations): same blocked read.
+  **Scheduled — M8c** provenance read (latest *committed* scan-event via the commit catalog;
+  M9e's ScanningView shares the same read).
+- **Last-N scan runs** (counts, durations): same M8c read.
 
 **Trend:** `GET /api/v1/trends/scans?cluster_id=…&range=…` — scans over time per scanner
 (replaces "ingested vs failed": accepted/rejected are Prometheus counters, not a UI API).
@@ -442,7 +445,7 @@ kinds.
 Per-scanner cards display, from the latest committed scan-event's `effective_config` stamp
 (D44, landed) + provenance (D41): running `scanner_version`, DB version/built (Trivy OCI /
 Grype listing.json sub-tabs kept as **display**), effective tuning flags, applied scope.
-**No version picker anywhere. No editable schedule/tuning.** Same blocked provenance read as
+**No version picker anywhere. No editable schedule/tuning.** Same M8c provenance read as
 screen 12. Banner kept: "results kept per-scanner, never merged".
 **Staleness timers** are the one editable control here (M3 backend shipped;
 `PUT /settings/staleness` is the M9e deliverable — planned): `freshness_days` /
@@ -470,8 +473,8 @@ inline error), `POST …/{username}/password-reset` (temp password + must_change
 **Roles panel (A-4):** renders the 4 roles as **capability bundles** (viewer — none · triager —
 can_triage · security_lead — + can_accept_audit_final · admin — *), from `system-roles` content.
 The v4 5-role permission matrix is gone.
-> **DECIDE (A-4), drawn with 4 roles:** seed a 5th role? Backend supports adding one; default —
-> keep 4 (recommended).
+> **RULED (A-4, 2026-07-07): keep 4 roles.** A 5th can be seeded later as a `system-roles` data
+> change, no migration.
 
 ### 13.7 Data & OpenSearch — editable (Admin)
 Per-cluster retention days, rollover knobs, snapshot repo/schedule + manual snapshot/restore —
@@ -482,8 +485,8 @@ retention/rollover offered **only** for time-partitioned append families; the mu
 `can_manage_retention` / `can_restore_snapshot` / `can_drop_index`, journaled.
 
 ### 13.8 Cluster
-`cluster_id` immutable (mono). `cluster_name` editable **iff** D-5 decides the registry doc
-(DECIDE badge, same as screen 1).
+`cluster_id` immutable (mono). `cluster_name` **editable** — the D-5 registry doc was ruled in
+(**M8c**); rename is a `system-config` write, journaled, display-only (never a query key).
 
 **States (all sections):** loading; 403-capability-hidden (section hidden from sub-nav without
 its capability); save-bar dirty/saved; degraded; 409/422 inline errors as noted.
@@ -534,25 +537,27 @@ endpoint; package group conditional.
 - All timestamps/IDs/versions in Space Mono; severity colors from the token map only; coral/amber
   never encode severity (ui-foundations).
 
-## DECIDE register (all drawn on-screen, recommended option shown)
+## RESOLVED register (all six DECIDEs ruled by the operator 2026-07-07, #237)
 
-| Id | Where | Recommendation drawn |
+| Id | Where | Ruling |
 |---|---|---|
-| A-1 | Findings rail, Overview KPIs | Show `negligible` as its own muted bucket |
-| A-4 | Settings → Users & roles | Keep 4 seeded roles |
-| A-6 | Export dialog | Export stays session-only; no `can_export` capability |
-| B-1 | Overview donut slot | Cut package-type donut for MVP |
-| C-6 | Saved views | localStorage-only for MVP |
-| D-5/C-5 | All clusters, Settings → Cluster | Small `system-config` cluster registry for `cluster_name` |
+| A-1 | Findings rail, Overview KPIs | **Show** `negligible` as its own muted bucket |
+| A-4 | Settings → Users & roles | **Keep 4** seeded roles (5th = later data change) |
+| A-6 | Export dialog | **Session-only stays**; `can_export` parked as a tracked idea (issue, unscheduled) |
+| B-1 | Overview donut, Findings facet/column | **KEEP the donut** per v4 design — envelope `ptype` ships in **M8d** |
+| C-6 | Saved views | **Server-side** — `system-views` index + CRUD in **M8e**; owner column returns |
+| D-5/C-5 | All clusters, Settings → Cluster | **Build** the `system-config` cluster registry — **M8c** |
 
-## BLOCKED register (needs backend; §D-planned items marked)
+## BLOCKED register (all scheduled)
 
-| Screen | Needs | Status |
+| Screen | Needs | Scheduled |
 |---|---|---|
-| Export schedule download, Bell | `GET /api/v1/reports/{id}/download` · `GET /api/v1/notifications` + mark-read | **Planned** (M7 slice 3 / D-3) |
-| Settings → Scan scope | Session read of the scan-scope doc | **Planned** (D-2) |
-| All clusters, Settings → Cluster | Cluster registry / display names | **Planned decision** (D-5) |
-| Audit log, Contributors activity feed | Session read over `system-audit-log` | **Not in §D — flag** (M9d README anticipates it) |
-| Scanner status, Settings → Scanning provenance | Session read of latest scan-event (provenance + effective_config + last-N runs) | **Not in §D — flag** (one small read serves both screens) |
-| Running images inventory metadata | Session read over image/inventory runs (replicas, seen) | **Not in §D — flag**; check M8b coverage at M9c kickoff |
-| Image detail point-in-time | M8b point-in-time query API | **Planned** (M8b milestone) |
+| Export schedule download, Bell | `GET /api/v1/reports/{id}/download` · `GET /api/v1/notifications` + mark-read | **M7 slice 3** (D-3) |
+| Settings → Scan scope | Session read of the scan-scope doc | **M9e** (D-2) |
+| All clusters, Settings → Cluster | Cluster registry read (+ rename write) | **M8c** |
+| Audit log, Contributors activity feed | `GET /api/v1/audit` (plain session, cursor-paged) | **M8c** |
+| Scanner status, Settings → Scanning provenance | Latest committed scan-event read (provenance + effective_config + last-N runs) | **M8c** |
+| Running images inventory metadata | Latest-complete-inventory read (replicas, seen) | **M8c** (check M8b overlap first) |
+| Overview donut, Findings ptype facet/column | `ptype` in envelope + mapping + facets | **M8d** |
+| Saved views CRUD | `system-views` index + `/api/v1/views` endpoints | **M8e** |
+| Image detail point-in-time | M8b point-in-time query API | **M8b** |

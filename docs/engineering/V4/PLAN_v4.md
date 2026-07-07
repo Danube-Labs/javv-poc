@@ -757,7 +757,18 @@ Each ends on a verifiable check + Confirm gate.
      image-set-for-CVE-at-T resolved via the catalog (**not** "latest snapshot per digest"); **a digest that
      dropped CVE-Y by T does NOT appear** (false-positive guard); a failed scan never makes a vuln look fixed;
      results labelled **as-scanned** with `repo:tag`→digest navigation (F3/F4).
-10. **M9 - Frontend (reusable-first; per `handoff/v4`, reference not 1:1):**
+   - **M8c - M9-prep session reads** *(v5 design rulings 2026-07-07, #237)*: `GET /api/v1/audit`
+     (plain session, D32 shape) · latest-committed scan-event provenance/`effective_config` read
+     (catalog-first, D41/D44) · latest-complete-inventory read (`GET /api/v1/images`; the `T=now`
+     case of M8b - spec the overlap) · `system-config` **cluster registry** (D-5 ruling:
+     `cluster_id`+`cluster_name` doc, read + journaled rename; display-only, never a query key).
+   - **M8d - Envelope `ptype`** *(B-1 ruling: keep the v4 package-type donut)*: both adapters emit
+     package type, `schema_version` bump (backward-compat window), findings/occurrences mappings +
+     facets/groups support; pre-M8d rows heal on the next sweep (D30).
+   - **M8e - Server-side saved views** *(C-6 ruling: selling point, durable + shareable)*: new
+     `system-views` index (INDEX-MAP first) + `/api/v1/views` CRUD, owner-or-admin mutations,
+     journaled (D17); view **counts** stay server aggregations via `/findings/facets`.
+10. **M9 - Frontend (reusable-first; per `handoff/v5` current / `handoff/v4` visual base, reference not 1:1):**
     - **M9a - Shell + tokens + reusable filter module** (the `fields`-config driving FacetRail + FilterBar).
     - **M9b - Findings grid + detail/triage (core loop). Gate** before the long tail.
     - **M9c - Overview / all-clusters / images** (incl. **point-in-time image view** via the time picker).

@@ -86,6 +86,13 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   `PUT /settings/staleness`. Depends-on updated M4→M3. Mirrored on
   [#39](https://github.com/Danube-Labs/javv-poc/issues/39).
 
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §13. Settings→Scanning's
+  read-only provenance/`effective_config` display shares the **M8c provenance read** with M9d's
+  scanner-status screen (one endpoint, two consumers). §13.8 Cluster: **`cluster_name` is
+  editable** — D-5 ruled the `system-config` registry in (**M8c** ships read + journaled rename;
+  display-only, never a query key). **A-4 ruled**: Users & roles panel renders exactly 4
+  capability bundles; no 5th role seeded.
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and

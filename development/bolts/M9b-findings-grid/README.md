@@ -110,6 +110,13 @@ as pure units** (Vitest).
   `count_delta` / D5a `disagree` flags carry this), and a zero-vs-nonzero pair deserves the same
   visual weight as a severity disagreement.
 
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §§3–5. **B-1 ruled: the
+  package-type facet + column RETURN** (v4 design kept) — fed by the **M8d** envelope `ptype`;
+  hide the facet until M8d lands + a sweep repopulates (`ptype: null` → "unknown" meanwhile).
+  **A-1**: `negligible` is its own muted rail bucket. **C-6 ruled server-side**: the toolbar
+  "Save view" button POSTs to **M8e** `/api/v1/views` (not localStorage). **A-6 ruled**: export
+  stays session-only — no capability gate on the Export dialog.
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and

@@ -108,6 +108,13 @@ as pure units** (Vitest).
   `1.21.6`). Image views must read/compose from those two fields (or this bolt adds a derived
   `image_ref` at read time); anything expecting a combined `image_ref` gets null today.
 
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §§1–2, 7–8. **B-1 ruled:
+  the Overview package-type donut is KEPT** per the v4 design — backed by **M8d** (`ptype` facet);
+  placeholder state until M8d + one sweep. The All-clusters list + `cluster_name` come from the
+  **M8c cluster registry** (D-5 ruled: `system-config` doc). Running-images Replicas/first-last
+  seen come from the **M8c inventory read** (`GET /api/v1/images`, latest complete run — clean
+  zero-finding images must appear). Depends-on grows: M8c, M8d.
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and

@@ -92,6 +92,7 @@ Each bolt README is a self-contained brief (Goal · Canonical refs · Depends on
 | **M6** ✅ | Read/reporting API (T=now): search/facets/groups, exports, trends, contributors |
 | **M7** ◐ | Scheduled export - slice 1 (enqueue/status) shipped; slices 2-5 open (#32) |
 | **M8a / M8b** | Snapshot append (occurrences) / point-in-time query API (T<now) |
+| **M8c / M8d / M8e** | M9-prep (v5 rulings #237): session reads (audit·provenance·inventory·cluster registry) / envelope `ptype` / server-side saved views |
 | **M9a-f** | Frontend: shell+filters · findings grid · overview+images · audit/approvals · settings/data · cross-cutting |
 | **M10** | Polish + deploy (Helm→k3s, scanner CronJobs, vuln-DB cache) |
 | AUDIT-M5c-M5d-M6-remediation ✅ | The #185-#192 audit wave (shipped v0.3.0) |

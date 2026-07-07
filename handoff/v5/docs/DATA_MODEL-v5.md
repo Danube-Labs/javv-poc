@@ -23,8 +23,7 @@ severity   (filter/agg values, lowercase — A-1/D16):
            — stored verbatim-from-scanner in _source; a lowercase normalizer serves
              filters/aggs; display MAY uppercase. Sort by severity_rank (byte), never
              alphabetically. `negligible` is a real bucket (Grype emits it) —
-             [DECIDE A-1]: show it (recommended) or fold into `unknown` for display only
-             (the filter value still exists either way).
+             RULED (A-1, 2026-07-07): shown as its own muted bucket, never folded.
 
 state      (6, A-2): "open" | "acknowledged" | "not_affected" | "risk_accepted"
            | "resolved" | "stale"
@@ -46,7 +45,12 @@ scanner    "trivy" | "grype" (lowercase in filters; display capitalized). Read-o
 
 role       (4, A-4): "viewer" | "triager" | "security_lead" | "admin"
            — the UI NEVER gates on these strings; gate on `capabilities` from
-             /auth/me. [DECIDE A-4]: a 5th seeded role is possible; default keep 4.
+             /auth/me. RULED (A-4, 2026-07-07): keep 4; a 5th is a later data change.
+
+ptype      (returns per B-1 ruling, after M8d): package type from the scanner
+           ("os" | ecosystem strings, verbatim-from-scanner lowercase — exact
+            vocabulary pinned in the M8d bolt). Pre-M8d findings carry no ptype
+            and aggregate as "unknown" until re-observed by a scan.
 
 capability "can_triage" | "can_accept_audit_final" | "can_manage_tokens"
            | "can_manage_users" | "can_manage_settings" | admin = "*"
@@ -58,9 +62,9 @@ audit      structured D32 events (A-5) — entity_type ∈ finding | decision | 
            AuditAction enum is GONE.
 ```
 
-**Removed v4 enums:** `IngestStatus` (A-7/D-4 — no dead-letter store), `PackageType` (B-1 — no
-field; donut cut), the 5-role `Role` + 9-row permission matrix (A-4), uppercase `Severity` (A-1),
-4-state `State` (A-2).
+**Removed v4 enums:** `IngestStatus` (A-7/D-4 — no dead-letter store), the 5-role `Role` +
+9-row permission matrix (A-4), uppercase `Severity` (A-1), 4-state `State` (A-2). *(v4's
+`PackageType` returns as `ptype` after M8d — see above.)*
 
 SLA defaults (server-side policy doc, editable via `/api/v1/settings/sla`): critical 2d, high 7d,
 medium 30d, low 90d, KEV override hours. Deadlines are **server-computed at read time** (B-5) —
@@ -87,7 +91,9 @@ rows + opaque `cursor`). Real fields (drift §B, from `bootstrap.py`):
   kev: boolean,
 
   app: string,                // v4 `component`
-  package_name: string,       // v4 `pkg`      — NO `ptype` field exists (B-1)
+  package_name: string,       // v4 `pkg`
+  ptype: string | null,       // package type — lands with M8d (B-1 ruled: keep);
+                              // null on pre-M8d rows until a rescan re-observes them
   installed_version: string,  // v4 `current`
   fixed_version: string | null, // v4 `fixed`; null = "no fix"
   fixable: boolean,
@@ -119,10 +125,10 @@ rows + opaque `cursor`). Real fields (drift §B, from `bootstrap.py`):
 read response (not in the index mapping by design) — **verify exact field names against live
 OpenAPI at M9b kickoff**. Never client math.
 
-**Gone from v4 (do not design against):** `ptype` (B-1), `cvssVector`/`cwe`/`description`/
+**Gone from v4 (do not design against):** `cvssVector`/`cwe`/`description`/
 `refs[]`/`published` (B-2), `epssPct` (B-3), `images: number` (B-4 — it's an aggregation, below),
 `sla`/`slaDeadline`/`overdue` as stored fields (B-5 — server-computed), `disagree: Severity`
-(A-3 — now bool).
+(A-3 — now bool). *(`ptype` was on this list; B-1 ruling brings it back via M8d.)*
 
 **Cursor semantics (A-m1):** `cursor` is opaque. `410` = PIT expired → re-run the search;
 `422` = tampered/invalid → reset; `503` = OpenSearch transport → degraded state. Exports + cursors
@@ -216,7 +222,7 @@ justification/impact/action/task shape is gone (V4-DELTA-2).
 
 ## Audit events (structured, D32 — A-5)
 
-Shape (read endpoint **BLOCKED: needs backend** — see SCREENS-v5 §10):
+Shape (read endpoint scheduled — **M8c** `GET /api/v1/audit`, plain session; see SCREENS-v5 §10):
 
 ```ts
 { event_id: string, "@timestamp": string,
@@ -295,21 +301,25 @@ there is no client-side permission matrix (the v4 `rbac.permissions` table is go
 ## Cluster
 
 `cluster_id` — immutable key, always-applied read filter (tenant chokepoint). `cluster_name` —
-relabelable display name, **[DECIDE D-5]**: recommended home is a small `system-config` cluster
-registry doc; until then the UI shows raw ids. There is no shipped cluster-enumeration endpoint
-(SCREENS-v5 §1).
+relabelable display name, **RULED (D-5, 2026-07-07)**: lives in a `system-config` cluster-registry
+doc, shipped with its session read (+ journaled rename write) in **M8c** — which also solves
+cluster enumeration for the All-clusters screen. Display-only, never a query key.
 
 ---
 
-## Saved views (C-6 [DECIDE], recommended: localStorage)
+## Saved views (C-6 RULED 2026-07-07: server-side — M8e)
+
+`GET/POST /api/v1/views` · `PATCH/DELETE /api/v1/views/{view_id}` (M8e; session read, mutations
+owner-or-admin), backed by the new `system-views` index:
 
 ```ts
-{ id, name, description, preset: { filters, q },  // serializes LOWERCASE severities +
-  created_at }                                    // 6-state values (A-1/A-2)
+{ view_id: string, name, description,
+  preset: { filters, q },     // serializes LOWERCASE severities + 6-state values (A-1/A-2)
+  owner: string,              // username; the v4 owner column returns
+  created_at, updated_at }
 ```
-Stored per-browser; live card counts come from `GET /api/v1/findings/facets` with the view's
-params (server agg — never a client count). If the operator chooses server-side views instead, a
-new `system-views` index is a [BE] addition.
+Views are visible to all authenticated users; live card counts come from
+`GET /api/v1/findings/facets` with the view's params (server agg — never a client count).
 
 ---
 
