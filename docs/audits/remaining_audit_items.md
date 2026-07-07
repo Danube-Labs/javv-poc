@@ -41,10 +41,11 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
   bootstrap tests; what's missing is a vN→vN+1 `_reindex` round-trip test preserving data + triage
   state (D25). Pairs with the M10 DoD item "dry-run-validate the `_reindex` runbook" — make that a
   real check, not a doc.
-- [ ] **C2 — branch protection.** ⛔ **Blocked on GitHub plan** (private repo on a free org; both
-  rulesets and classic protection are 403-gated). Interim: local `pre-push` hook + PR discipline.
-  When the org upgrades or the repo goes public (Phase 3): `bash development/setup-branch-protection.sh`
-  (idempotent; the CI contexts already match).
+- [x] **C2 — branch protection.** ✅ **Applied 2026-07-07** — repo flipped public (#236), then
+  `bash development/setup/setup-branch-protection.sh` run: all six always-run CI checks required
+  + strict up-to-date, no force-pushes/deletions, conversation resolution required, 0 approving
+  reviews while solo (raise `REVIEWS` in the script when a second reviewer exists). Idempotent —
+  re-run to re-assert.
 - [ ] **Renovate app is inert.** The config is merged and `versions.yaml` is watched on paper, but
   zero Renovate PRs have ever arrived — enable `github.com/apps/renovate` on the repo.
 
