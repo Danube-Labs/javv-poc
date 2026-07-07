@@ -108,6 +108,15 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   ingest path; M8a depends on that bulk having landed before the manifest commits.
 
 ## Updates
+- **2026-07-07 (slice 3)** — rebuild-state scanner-presence arm landed (`rebuild_scanner_presence`
+  alongside M5c's decision arm; `__main__` runs both). Derivation, not replay: per digest the
+  latest committed run R defines presence, a finding's last appearance L freezes its presence
+  fields, and `resolved_at` = the timestamp of the first committed run after L — provably
+  identical to the incremental merge+reconcile output (golden test). Watermarks overwrite
+  in-place (no gap for the NotFound/create race) with a fail-safe: an empty catalog never
+  mass-drops watermarks. Found + filed **#257**: `max` metric aggs return doubles, so pre-D45
+  `time.time_ns()`-scale scan_orders collapse (53-bit mantissa) — the arm uses exact composite
+  keys; `scan_orders._max_committed` has the same latent bug.
 - **2026-07-07 (slice 2)** — inventory manifest landed: `inventory_run_id := scan_run_id` (no
   second identity), new machine route `POST /api/v1/inventory-runs` called at cycle END (the
   scanner's `scan_all` gained an injectable `commit_fn`; best-effort — a failed commit just leaves

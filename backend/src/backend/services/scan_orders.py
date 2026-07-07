@@ -41,18 +41,24 @@ def _doc(cluster_id: str, scanner: str, order: int) -> dict[str, Any]:
 async def _max_committed(
     client: AsyncOpenSearch, cluster_id: str, scanner: str, *, prefix: str = ""
 ) -> int:
-    """The highest committed `scan_order` in the catalog (0 if none) — the self-heal floor."""
+    """The highest committed `scan_order` in the catalog (0 if none) — the self-heal floor.
+
+    Read via sort + `_source`, NEVER a `max` metric agg (#257): metric aggs return doubles, and a
+    pre-D45 `time.time_ns()`-era order (~1.75e18) exceeds float64's 53-bit mantissa — the floor
+    could round DOWN and re-issue a committed order after a stale-counter restore. Sort compares
+    the long field natively and `_source` returns the exact JSON integer."""
     resp = await client.search(
         index=f"{prefix}javv-scan-events-{cluster_id}-*",
         body={
-            "size": 0,
+            "size": 1,
             "query": {"term": {"scanner": scanner}},
-            "aggs": {"m": {"max": {"field": "scan_order"}}},
+            "sort": [{"scan_order": "desc"}],
+            "_source": ["scan_order"],
         },
         params={"ignore_unavailable": "true"},
     )
-    value = (resp.get("aggregations") or {}).get("m", {}).get("value")
-    return int(value) if value else 0
+    hits = resp["hits"]["hits"]
+    return int(hits[0]["_source"]["scan_order"]) if hits else 0
 
 
 async def allocate_scan_order(
