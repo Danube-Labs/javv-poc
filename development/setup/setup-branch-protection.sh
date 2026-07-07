@@ -18,9 +18,12 @@ set -euo pipefail
 # --- tunables ---------------------------------------------------------------
 REPO="Danube-Labs/javv-poc"
 BRANCH="main"
-REVIEWS=1                       # required approving reviews. Set 0 for solo work (CI + PR only).
+REVIEWS=0                       # required approving reviews. 0 while solo/2-dev (CI + PR only;
+                                # you can't approve your own PR) — raise to 1 with a second reviewer.
 ENFORCE_ADMINS=false            # true = even admins must go through PRs (no break-glass).
-REQUIRED_CHECKS=("Backend" "Frontend")
+# Must match the job `name:` fields in ci.yml exactly. All six always run (detect-step
+# pattern), so all six can be required.
+REQUIRED_CHECKS=("Backend" "Backend static" "Frontend" "Scanner" "javv-common (shared lib)" "Commitlint")
 # ----------------------------------------------------------------------------
 
 if ! gh auth status >/dev/null 2>&1; then
