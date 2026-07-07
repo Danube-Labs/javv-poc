@@ -15,6 +15,7 @@ from opensearchpy import AsyncOpenSearch, NotFoundError
 from opensearchpy.exceptions import ConflictError
 
 from backend.auth.principal import Principal, get_current_principal
+from backend.core.metrics import AUTH_FAILURES
 
 ROLES_INDEX = "system-roles"
 
@@ -36,6 +37,7 @@ def require_capability(capability: str):
         if principal.must_change:
             raise HTTPException(403, "password change required")  # SEC-6 restricted session
         if "*" not in principal.capabilities and capability not in principal.capabilities:
+            AUTH_FAILURES.labels("missing_capability").inc()  # M-5 (#220)
             raise HTTPException(403, "missing capability")
         return principal
 

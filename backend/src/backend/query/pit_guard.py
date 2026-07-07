@@ -15,6 +15,7 @@ substitute for it. Knob: `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL`; past it the r
 import re
 import time
 
+from backend.core.metrics import LIMIT_REJECTIONS, PITS_OPEN
 from backend.core.settings import get_settings
 
 _MAX_KEYS = 100_000  # bound the map so a spray of principals can't leak it (login-lockout m-1)
@@ -53,16 +54,22 @@ def _reap(principal: str, now: float) -> list[float]:
     return live
 
 
+def _publish_gauge() -> None:
+    PITS_OPEN.set(sum(len(q) for q in _slots.values()))  # per pod, like the guard itself (#220)
+
+
 def acquire(principal: str) -> None:
     """Reserve a PIT slot for the principal; raise `PitCapExceeded` if it is at the cap."""
     now = time.monotonic()
     live = _reap(principal, now)
     if len(live) >= get_settings().max_concurrent_pits_per_principal:
+        LIMIT_REJECTIONS.labels("pit_cap").inc()  # M-4 (#220)
         raise PitCapExceeded("too many concurrent open cursors/exports for this principal")
     if len(_slots) >= _MAX_KEYS and principal not in _slots:
         while len(_slots) >= _MAX_KEYS:  # FIFO hard-evict — the map can never exceed the cap
             del _slots[next(iter(_slots))]
     _slots.setdefault(principal, []).append(now)
+    _publish_gauge()
 
 
 def release_one(principal: str) -> None:
@@ -74,3 +81,4 @@ def release_one(principal: str) -> None:
         q.pop(0)
         if not q:
             del _slots[principal]
+    _publish_gauge()

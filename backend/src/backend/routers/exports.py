@@ -22,6 +22,7 @@ from fastapi.responses import StreamingResponse
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
+from backend.core.metrics import EXPORT_BYTES, EXPORT_ROWS, LIMIT_REJECTIONS
 from backend.core.settings import get_settings
 from backend.export.csv_stream import stream_csv
 from backend.export.sweep import count_lens, sweep_findings
@@ -45,6 +46,7 @@ async def _enforce_export_bounds(
     n = await count_lens(client, cluster_id=cluster_id, filters=filters)
     if n > max_rows:
         log.warning("inline export capped", cluster_id=cluster_id, cap=max_rows, format=fmt)
+        LIMIT_REJECTIONS.labels("export_rows").inc()  # M-4 (#220)
         raise HTTPException(
             413,
             f"{n} findings exceed the inline export limit ({max_rows}) — "
@@ -77,12 +79,19 @@ async def export_csv(
 
     async def _guarded() -> AsyncIterator[str]:
         # the slot reserved above is held for the life of the stream and freed when it ends —
-        # success, error, or a client that disconnects mid-stream (the generator's finally runs)
+        # success, error, or a client that disconnects mid-stream (the generator's finally runs).
+        # M-4 (#220): rows/bytes counted in the same finally — a disconnected client's export
+        # reports what was ACTUALLY streamed, not what was asked for.
+        rows, size = 0, 0
         try:
             async for line in stream_csv(client, cluster_id=cluster_id, filters=filters):
+                rows += 1
+                size += len(line)
                 yield line
         finally:
             pit_guard.release_one(principal.user_id)
+            EXPORT_ROWS.labels("csv").inc(max(0, rows - 1))  # minus the header line
+            EXPORT_BYTES.labels("csv").inc(size)
 
     return StreamingResponse(
         _guarded(),
@@ -119,6 +128,7 @@ async def export_vex(
             doc async for doc in sweep_findings(client, cluster_id=cluster_id, filters=filters)
         ]
         serialize = to_openvex if format == "openvex" else to_cyclonedx
+        EXPORT_ROWS.labels(format).inc(len(findings))  # M-4 (#220); bytes n/a — JSON response
         return serialize(
             findings,
             cluster_id=cluster_id,

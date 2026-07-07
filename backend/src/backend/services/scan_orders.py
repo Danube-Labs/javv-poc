@@ -16,6 +16,8 @@ from typing import Any
 
 from opensearchpy import AsyncOpenSearch, ConflictError, NotFoundError
 
+from backend.core.metrics import CAS_CONFLICTS
+
 INDEX = "javv-scan-orders"
 # generous: real contention is ~1 (one CronJob per scanner, Forbid), but the CAS must also
 # survive pathological races (the keystone test runs 10 allocators at once)
@@ -92,6 +94,7 @@ async def allocate_scan_order(
             )
             return order
         except ConflictError:
+            CAS_CONFLICTS.labels("scan_orders").inc()  # M-3 (#220)
             await asyncio.sleep(random.uniform(0, 0.02))  # jitter so racers don't lockstep
             continue  # lost the CAS race — re-read and retry
     raise RuntimeError("scan-order allocation: CAS retries exhausted")

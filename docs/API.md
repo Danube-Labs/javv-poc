@@ -144,10 +144,20 @@ token↔payload scope binding → commit-then-cache writes (D39, deterministic `
 | `javv_ingest_accepted_total` | counter | `scanner` | Envelopes accepted + committed |
 | `javv_ingest_rejected_total` | counter | `reason` | Envelopes rejected — `reason` ∈ `bad_token`, `rate_limited`, `too_large`, `bad_gzip`, `bad_json`, `invalid_envelope`, `scope_mismatch`, `storage_error` |
 | `javv_ingest_findings_written_total` | counter | `scanner` | Finding docs written |
+| `javv_http_request_duration_seconds` | histogram | `method`, `route`, `status` | Route-TEMPLATE labels (unrouted → one `unmatched` series); `/metrics` + probes excluded (#220 M-1) |
+| `javv_opensearch_request_errors_total` | counter | `kind` | `conn`, `timeout`, `429`, `503` — dependency failures on read + bulk paths (M-2) |
+| `javv_opensearch_backoff_retries_total` | counter | — | Per-item 429/503 bulk retries — the saturation signal (the only flow control without a broker) |
+| `javv_cas_conflicts_total` | counter | `site` | `watermarks`, `scan_orders`, `reproject` (+ `report_claim`, M7 slice 2) — multi-writer contention early warning (M-3) |
+| `javv_limit_rejections_total` | counter | `limit` | `pit_cap`, `export_rows`, `bulk_targets`, `bulk_inline` (M-4) |
+| `javv_pits_open` | gauge | — | Open PIT slots (per pod, like the guard) |
+| `javv_export_rows_total` / `javv_export_bytes_total` | counter | `format` | What was **actually** streamed (a disconnected client counts what it got) |
+| `javv_auth_failures_total` | counter | `reason` | `bad_credentials`, `locked_out`, `expired_session`, `missing_capability` — never a username label (M-5) |
 
-Plus the default `prometheus_client` process/GC gauges. Read-path/auth/queue metrics are the
-major-audit expansion (`docs/audits/major_audit/02-metrics-endpoint.md`, issue #220) — this table
-grows in that PR. SLO/alerting rules on top are **owned by M10** (`prometheus-rules.yaml`).
+Plus the default `prometheus_client` process/GC gauges. The scrape is **storage-free** (no
+OpenSearch call) — it keeps working during an outage, exactly when it's needed. Single-process
+registry (one uvicorn worker); multi-worker needs the multiprocess mode (noted in
+`core/metrics.py` for M10). SLO/alerting rules on top are **owned by M10**
+(`prometheus-rules.yaml`).
 
 ## Logging
 

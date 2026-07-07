@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from backend.core.errors import register_error_handlers
 from backend.core.lifespan import lifespan
 from backend.core.logging import configure_logging, install_request_context
+from backend.core.metrics import install_http_metrics
 from backend.routers import (
     admin_users,
     auth,
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     configure_logging()
     app = FastAPI(title="JAVV backend", version="0.1.0", lifespan=lifespan)
     install_request_context(app)
+    install_http_metrics(app)  # M-1 (#220): route-template request histogram
     register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
