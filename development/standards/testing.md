@@ -53,3 +53,7 @@ drives the same browser interactively during dev (authoring/debugging these spec
 - A bug fix starts with a **failing test that reproduces it**, then the fix (TDD).
 - Tests assert **behavior/contract**, not internal call shapes, except for DSL-builder unit tests (whose
   contract *is* the emitted body).
+- **Suite budget (#221):** full backend suite **< 90 s local / < 3 min in CI**. Bootstrap runs ONCE per
+  session (`tests/conftest.py`); a new test file must not re-run `bootstrap()`/`seed_default_roles()` per
+  test on the shared indices. If the suite drifts past the bar, that's a named regression — profile with
+  `--durations=25` before adding capacity.

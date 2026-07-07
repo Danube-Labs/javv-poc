@@ -76,6 +76,56 @@ jobs:
         working-directory: libs/javv-common
         run: uv run pytest
 
+  backend-static:
+    # S-2 (#221): ruff+pyright split from pytest — no service container, starts instantly,
+    # fails fast on lint-only mistakes, and runs CONCURRENTLY with the pytest job below.
+    # Always-run (detect-step, never `if:`-skipped) so it stays valid for branch protection (C2).
+    name: Backend static
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Detect backend
+        id: detect
+        run: |
+          if [ -f backend/pyproject.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No backend/pyproject.toml yet — skipping backend gates (scaffold)."
+          fi
+
+      - name: Read uv pin from versions.yaml (D42)
+        if: steps.detect.outputs.present == 'true'
+        id: uv
+        run: echo "version=$(yq -r '.toolchain.uv' versions.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Set up uv
+        if: steps.detect.outputs.present == 'true'
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ steps.uv.outputs.version }}
+          enable-cache: true
+
+      - name: Install dependencies
+        if: steps.detect.outputs.present == 'true'
+        working-directory: backend
+        run: uv sync --all-extras --dev
+
+      - name: Ruff lint
+        if: steps.detect.outputs.present == 'true'
+        working-directory: backend
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        if: steps.detect.outputs.present == 'true'
+        working-directory: backend
+        run: uv run ruff format --check .
+
+      - name: Pyright
+        if: steps.detect.outputs.present == 'true'
+        working-directory: backend
+        run: uv run pyright
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
@@ -125,25 +175,14 @@ jobs:
         working-directory: backend
         run: uv sync --all-extras --dev
 
-      - name: Ruff lint
-        if: steps.detect.outputs.present == 'true'
-        working-directory: backend
-        run: uv run ruff check .
-
-      - name: Ruff format check
-        if: steps.detect.outputs.present == 'true'
-        working-directory: backend
-        run: uv run ruff format --check .
-
-      - name: Pyright
-        if: steps.detect.outputs.present == 'true'
-        working-directory: backend
-        run: uv run pyright
-
+      # ruff/pyright live in the parallel `backend-static` job (S-2, #221).
+      # -n 2 (S-3): xdist across the 2 runner vCPUs — safe post-S-1 (session bootstrap;
+      # tests use unique cluster_ids/usernames; prefix-isolated files stay isolated).
+      # NOT in addopts — local single-process debugging stays the default.
       - name: Pytest
         if: steps.detect.outputs.present == 'true'
         working-directory: backend
-        run: uv run pytest
+        run: uv run pytest -n 2
 
   scanner:
     name: Scanner
