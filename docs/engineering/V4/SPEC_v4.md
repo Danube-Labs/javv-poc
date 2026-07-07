@@ -115,14 +115,17 @@ from an env/secret and must change the password on first login - FR-18.)
   from `first_seen_at`. Severity filters/aggs are case-insensitive (normalizer, D16).
 - **FR-13 Reporting (scheduled/throttled, D24).** Streaming, **CSV-injection-sanitized** export from any
   lens (constant memory). Large exports become **`system-reports`** jobs: the export dialog offers **"run
-  now"** or **"schedule off-peak"** (throttled - PIT+`search_after`, small pages, brief sleeps); result lands
-  in object storage; user is notified via the **bell**. Broker-free (CronJob drain). **Each job is claimed by
-  optimistic concurrency** (`pending→running` via `seq_no`/`primary_term` CAS + `heartbeat_at` +
+  now"** or **"schedule off-peak"** (throttled - PIT+`search_after`, small pages, brief sleeps); the result
+  is stored **in OpenSearch**, chunked into `system-report-chunks` (un-indexed slices; amended 2026-07-07,
+  #32/#212 - supersedes the earlier object-storage model, single-store constraint honored), downloaded via a
+  backend endpoint gated by the tenant chokepoint + a short-lived token, and **TTL-expired** (`expires_at`,
+  default 24 h - 410 after); user is notified via the **bell**. Broker-free (CronJob drain). **Each job is
+  claimed by optimistic concurrency** (`pending→running` via `seq_no`/`primary_term` CAS + `heartbeat_at` +
   `lease_expires_at` + `retry_count` - D38/M17) plus a **fencing `attempt_id`** (heartbeat + `done` CAS on it,
-  result path + object metadata include it - D39/M7-r2) so neither API replicas/retries nor an
-  expired-then-reclaimed slow worker can double-run or double-publish (the bell reads only the `done` doc's
-  `result_location`); **orphan objects from failed/stale attempts are TTL-swept** (D40/I-r3). Retires the
-  reporting-vs-ingest contention risk.
+  result chunks + the report doc include it - D39/M7-r2) so neither API replicas/retries nor an
+  expired-then-reclaimed slow worker can double-run or double-publish (the bell reads only the `done` doc);
+  **orphan chunks from failed/stale attempts are TTL-swept** (D40/I-r3). Retires the reporting-vs-ingest
+  contention risk.
 - **FR-14 Per-image report.** Image drill-down with Trivy/Grype **scanner dropdown**; severity-summary +
   per-scanner finding table (verbatim scanner severity from `_source`). Fully **time-travelable** via the
   global picker (FR-23): at a past T it shows the image's exact CVE list + as-of-then severities from

@@ -73,7 +73,9 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
   download is a backend endpoint (`GET /api/v1/reports/{id}/download`) gated by the tenant chokepoint +
   `expires_at` (410 once expired) + a short-lived signed download token — which satisfies SEC-10's
   per-tenant + time-limited intent without object-store creds. New index `system-report-chunks`
-  (INDEX-MAP updated). *(Not yet propagated into SPEC_v4 SEC-10 itself — bolt-level decision for now.)*
+  (INDEX-MAP updated). *(Propagated into SPEC_v4 FR-13 on 2026-07-07 via the major-audit PR —
+  the #212 pass amended AUDIT_v4/PLAN_v4/INDEX-MAP but missed SPEC_v4; see
+  `docs/audits/major_audit/04-docs-and-tracker-freshness.md` §2.)*
 - **2026-07-07** — **retention:** a completed export is TTL-swept `JAVV_EXPORT_TTL_HOURS` (default 24h)
   after completion via a `delete_by_query expires_at < now` on the small bounded `system-reports`/
   `system-report-chunks` indices (the "drop whole indices, never `delete_by_query`" day-one rule targets
