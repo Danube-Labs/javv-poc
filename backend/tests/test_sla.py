@@ -22,9 +22,7 @@ import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.auth.capabilities import seed_default_roles
 from backend.auth.passwords import hash_password
-from backend.core.bootstrap import bootstrap
 from backend.main import create_app
 from backend.sla.overdue import compute_overdue
 from backend.sla.policy import SlaPolicy
@@ -117,8 +115,6 @@ requires_opensearch = pytest.mark.skipif(
 @pytest.fixture
 async def env():
     client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client)
-    await seed_default_roles(client)
     app = create_app()
     app.state.opensearch = client
     transport = httpx.ASGITransport(app=app)

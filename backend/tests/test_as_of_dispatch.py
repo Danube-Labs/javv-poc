@@ -17,9 +17,7 @@ import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.auth.capabilities import seed_default_roles
 from backend.auth.passwords import hash_password
-from backend.core.bootstrap import bootstrap
 from backend.core.settings import get_settings
 from backend.main import create_app
 from backend.query.as_of import register_as_of_t
@@ -85,8 +83,6 @@ def _no_reader_leaks():
 @pytest.fixture
 async def http():
     client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client)
-    await seed_default_roles(client)
     app = create_app()
     app.state.opensearch = client
     username = f"u-{uuid.uuid4().hex[:12]}"

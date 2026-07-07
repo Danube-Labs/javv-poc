@@ -15,9 +15,7 @@ import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.auth.capabilities import seed_default_roles
 from backend.auth.passwords import hash_password
-from backend.core.bootstrap import bootstrap
 from backend.main import create_app
 
 OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
@@ -39,8 +37,6 @@ pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable 
 async def admin_env():
     """(make_http, os_client) — make_http() mints an isolated cookie jar (one per 'browser')."""
     client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client)
-    await seed_default_roles(client)
     app = create_app()
     app.state.opensearch = client
     transport = httpx.ASGITransport(app=app)

@@ -14,9 +14,7 @@ import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.auth.capabilities import seed_default_roles
 from backend.auth.passwords import hash_password
-from backend.core.bootstrap import bootstrap
 from backend.core.settings import get_settings
 from backend.main import create_app
 
@@ -44,8 +42,6 @@ def _clear_settings_cache():
 @pytest.fixture
 async def env():
     client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client)
-    await seed_default_roles(client)
     app = create_app()
     app.state.opensearch = client
     transport = httpx.ASGITransport(app=app)

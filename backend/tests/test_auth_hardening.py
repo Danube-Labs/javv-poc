@@ -21,7 +21,6 @@ from opensearchpy import AsyncOpenSearch
 from backend.auth import lockout
 from backend.auth.passwords import hash_password
 from backend.auth.sessions import lookup_session, revoke_all_for_user
-from backend.core.bootstrap import bootstrap
 from backend.core.settings import Settings, assert_production_ready, get_settings
 from backend.main import create_app
 
@@ -111,7 +110,6 @@ def test_real_pepper_or_dev_profile_is_fine() -> None:
 @pytest.fixture
 async def auth_env():
     client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client)
     app = create_app()
     app.state.opensearch = client
     transport = httpx.ASGITransport(app=app)

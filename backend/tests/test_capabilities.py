@@ -15,7 +15,6 @@ from opensearchpy import AsyncOpenSearch
 from backend.auth.capabilities import ROLE_BUNDLES, require_capability, seed_default_roles
 from backend.auth.passwords import hash_password
 from backend.auth.principal import Principal
-from backend.core.bootstrap import bootstrap
 from backend.main import create_app
 
 OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
@@ -35,7 +34,6 @@ pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable 
 @pytest.fixture
 async def auth_client():
     client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client)
     app = create_app()
     app.state.opensearch = client
 
@@ -121,7 +119,6 @@ async def test_must_change_session_is_403_even_with_the_capability(auth_client) 
 async def test_capabilities_fall_back_to_the_role_bundle(auth_client) -> None:
     # user doc without denormalized capabilities → resolve the role's bundle from system-roles
     http, client = auth_client
-    await seed_default_roles(client)
     await _seed_and_login(http, client, role="triager", capabilities=None)
 
     assert (await http.get("/test-triage")).status_code == 200

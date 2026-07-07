@@ -12,9 +12,7 @@ import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.auth.capabilities import seed_default_roles
 from backend.auth.passwords import hash_password
-from backend.core.bootstrap import bootstrap
 from backend.main import create_app
 
 OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
@@ -36,8 +34,6 @@ CID = "c-decision-routes"
 @pytest.fixture
 async def env():
     client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client)
-    await seed_default_roles(client)
     app = create_app()
     app.state.opensearch = client
     transport = httpx.ASGITransport(app=app)
