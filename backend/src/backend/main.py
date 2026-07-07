@@ -12,11 +12,13 @@ from backend.routers import (
     admin_users,
     audit,
     auth,
+    clusters,
     contributors,
     decisions,
     exports,
     findings,
     health,
+    images,
     ingest,
     inventory_runs,
     metrics,
@@ -58,6 +60,8 @@ def create_app() -> FastAPI:
     app.include_router(decisions.router)
     app.include_router(scanners.router)
     app.include_router(audit.router)
+    app.include_router(images.router)
+    app.include_router(clusters.router)
     app.include_router(sla_routes.router)
     app.include_router(bulk_routes.router)
     return app

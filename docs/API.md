@@ -88,6 +88,8 @@ routes stay current-state-only).
 | GET | `/api/v1/scanners/freshness` | Per-(cluster, scanner) `last_ingest_at` + `silent_for_seconds` (FR-6/D20 banner; #218). Max across tokens; disabled tokens count; never-ingested → nulls |
 | GET | `/api/v1/scanners/provenance` | Per-(cluster, scanner) versions/`effective_config` of the latest **committed** run + last-N runs (`?runs=`, ≤50). Catalog-first (R-CATALOG); latest = max `scan_order`, never `@timestamp` (M8c/#240) |
 | GET | `/api/v1/audit` | The journaled history, plain-session read (M8c/#240): filters `entity_type`/`action`/`actor`, ordered `(@timestamp, event_id)` (`?order=`, desc default), same opaque-cursor paging + A-m1 semantics as `/findings` |
+| GET | `/api/v1/images` | Running images = the latest **committed** inventory run's image docs (M8c/#240; the T=now case of M8b's `running_images_at` — shared primitives). Partial runs never leak; clean (zero-finding) images appear; `inventory: null` = no committed inventory yet (unknown ≠ empty) |
+| GET | `/api/v1/clusters` | Cluster listing (D-5): token-derived `cluster_id`s ∪ registry names; `cluster_name` defaults to the id. **Display-only** — never a query key |
 
 **Cursor errors (A-m1):** expired PIT → **410** (re-run the search); tampered/invalid cursor →
 **422**; OpenSearch transport failure → **503**. The PIT slot is released on every error path.
@@ -109,6 +111,7 @@ routes stay current-state-only).
 |---|---|---|---|
 | GET | `/api/v1/settings/sla` | session | Read SLA policy (crit/high/med/low/KEV days) |
 | PUT | `/api/v1/settings/sla` | `can_manage_settings` | Replace SLA policy |
+| PUT | `/api/v1/clusters/{cluster_id}/name` | `can_manage_settings` | Rename a cluster's display name (M8c/#240): journaled per D17 (journal-first), stored in the `system-config` `cluster-registry` doc via a seq_no-CAS write. `cluster_id` itself is immutable |
 
 ### Exports (M6) & scheduled reports (M7)
 

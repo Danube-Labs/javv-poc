@@ -145,6 +145,13 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"crit_days": 2, "high_days": 7, "med_days": 30, "low_days": 90, "kev_days": 1},
     ),
+    MutatingEndpoint(  # M8c slice 2 — cluster rename (D-5 ruling; display-only cluster_name)
+        method="PUT",
+        path="/api/v1/clusters/c-rbac-sample1/name",
+        route_path="/api/v1/clusters/{cluster_id}/name",
+        capability="can_manage_settings",
+        body={"cluster_name": "RBAC probe"},
+    ),
     MutatingEndpoint(  # M7 slice 5 — the bulk_triage report kind (A-Mc): a scheduled bulk is a
         # WRITE, gated like the inline bulk. The export kind on the same route stays session-only
         # (still exempt-listed below) — the gate is per-kind, checked before any store work.
