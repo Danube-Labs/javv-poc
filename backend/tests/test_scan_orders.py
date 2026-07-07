@@ -35,8 +35,8 @@ class FakeOS:
         self.created: dict[str, Any] | None = None
 
     async def search(self, **kw: Any) -> dict[str, Any]:
-        if "javv-scan-events" in str(kw.get("index", "")):  # self-heal base query
-            return {"aggregations": {"m": {"value": None}}}
+        if "javv-scan-events" in str(kw.get("index", "")):  # self-heal floor query (exact, #257)
+            return {"hits": {"hits": []}}
         hits = [{"_id": "t1", "_source": self.token_doc}] if self.token_doc else []
         return {"hits": {"hits": hits}}
 
@@ -151,3 +151,23 @@ async def test_forward_self_heal_continues_above_committed_orders(
         params={"refresh": "true"},
     )
     assert await allocate_scan_order(client, "cluster-aaaa", "trivy", prefix=prefix) == 1_000_001
+
+
+@requires_opensearch
+async def test_self_heal_floor_is_exact_for_giant_pre_d45_orders(
+    real_os: tuple[AsyncOpenSearch, str],
+) -> None:
+    # #257: a max METRIC agg returns a double — two adjacent time_ns-era orders (~1.75e18)
+    # collapse into one float64, rounding the floor DOWN and re-issuing a committed order.
+    # The floor must be read exactly (sort + _source), so allocation lands strictly above.
+    client, prefix = real_os
+    for order in (1_751_500_000_000_000_000, 1_751_500_000_000_000_001):
+        await client.index(
+            index=f"{prefix}javv-scan-events-cluster-aaaa-000001",
+            body={"scanner": "trivy", "scan_order": order, "cluster_id": "cluster-aaaa"},
+            params={"refresh": "true"},
+        )
+    assert (
+        await allocate_scan_order(client, "cluster-aaaa", "trivy", prefix=prefix)
+        == 1_751_500_000_000_000_002
+    )
