@@ -7,6 +7,7 @@ go through the tenant chokepoint; the SLA verdicts use the LIVE policy (M5d). Sa
 `as_of` seam as every read (D28).
 """
 
+from datetime import datetime, timedelta
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Query, Request
@@ -28,16 +29,20 @@ _AUDIT_PATTERN = "system-audit-log-*"
 _ROWS_PAGE_SIZE = 10_000  # PIT page size for the handling-row walk (NOT a truncation ceiling)
 
 
-async def _handling_rows(client: Any, cluster_id: str, days: int) -> list[dict[str, Any]]:
+async def _handling_rows(
+    client: Any, cluster_id: str, days: int, anchor: datetime | None = None, prefix: str = ""
+) -> list[dict[str, Any]]:
     """Every handling-action row in the window, PIT + `search_after` paged so TTR/SLA see the FULL
     window — never a silent 10k-truncated subset that would disagree with the exact leaderboard
     count (audit A-m4). Deterministic sort on `(@timestamp, event_id)`; PIT deleted in `finally`
     (the sweep pattern). The tenant filter is forced by `tenant_query` (SEC-4 — the PIT search
     carries no index name, so the body filter is the only guard)."""
     keep_alive = get_settings().search_pit_keep_alive
-    pit_id = (await client.create_pit(index=_AUDIT_PATTERN, params={"keep_alive": keep_alive}))[
-        "pit_id"
-    ]
+    pit_id = (
+        await client.create_pit(
+            index=f"{prefix}{_AUDIT_PATTERN}", params={"keep_alive": keep_alive}
+        )
+    )["pit_id"]
     rows: list[dict[str, Any]] = []
     try:
         search_after: list[Any] | None = None
@@ -49,7 +54,21 @@ async def _handling_rows(client: Any, cluster_id: str, days: int) -> list[dict[s
                         "filter": [
                             {"terms": {"action": sorted(HANDLING_ACTIONS)}},
                             {"term": {"entity_type": "finding"}},
-                            {"range": {"@timestamp": {"gte": f"now-{days}d/d"}}},
+                            # anchored at a past T (M8b/D28): same walk, window ending at T
+                            {
+                                "range": {
+                                    "@timestamp": (
+                                        {"gte": f"now-{days}d/d"}
+                                        if anchor is None
+                                        else {
+                                            "gte": (
+                                                anchor.date() - timedelta(days=days)
+                                            ).isoformat(),
+                                            "lte": anchor.isoformat(),
+                                        }
+                                    )
+                                }
+                            },
                         ],
                         "must_not": [{"term": {"actor": "system"}}],
                     }
@@ -71,12 +90,14 @@ async def _handling_rows(client: Any, cluster_id: str, days: int) -> list[dict[s
         await client.delete_pit(body={"pit_id": [pit_id]})  # the walk owns the PIT (D38)
 
 
-async def _findings_for(client: Any, cluster_id: str, keys: list[str]) -> dict[str, dict[str, Any]]:
+async def _findings_for(
+    client: Any, cluster_id: str, keys: list[str], prefix: str = ""
+) -> dict[str, dict[str, Any]]:
     if not keys:
         return {}
     resp = await tenant_search(
         client,
-        index="findings",
+        index=f"{prefix}findings",
         cluster_id=cluster_id,
         body={
             "size": len(keys),

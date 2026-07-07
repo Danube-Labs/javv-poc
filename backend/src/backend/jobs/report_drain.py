@@ -9,9 +9,11 @@ hand: `uv run python -m backend.jobs.report_drain`. Each cycle drains due jobs o
   the reclaimer owns the job now, our chunks are orphans for the sweep) → CAS-finalize `done`
   on our attempt_id (M7-r2: a fenced publish is rejected) → ring the bell (`report_ready`).
 
-Failures finalize `failed` with the reason — over the byte ceiling, an unknown format, or an
-`as_of_t` export (parked decision: fail loud with "requires M8b" rather than clog the queue as
-forever-pending; re-enqueue once M8b ships).
+Failures finalize `failed` with the reason — over the byte ceiling, an unknown format, or a
+filter history cannot answer. An `as_of_t` export is UNPARKED (M8b slice 4, #34): the drain
+reconstructs the rows at T through the AsOfTReader (paged, throttled like any export) and
+serializes them through the same CSV/VEX pipeline — results labelled as-scanned by construction
+(occurrence-era fields; `kev`/`epss`/`image_repo` are null at a past T).
 """
 
 import asyncio
@@ -57,8 +59,52 @@ async def _throttled(pieces: AsyncIterator[str], sleep_ms: int) -> AsyncIterator
             await asyncio.sleep(sleep_ms / 1000)
 
 
+async def _rows_at(
+    client: AsyncOpenSearch, *, cluster_id: str, t: datetime, filters: SearchFilters, prefix: str
+) -> AsyncIterator[dict[str, Any]]:
+    """The as-of-T export sweep: reconstructed rows via the reader's stateless pages — the
+    reader re-validates the filters (a `kev` filter at past T raises → the job fails loud)."""
+    from backend.query.as_of_t import AsOfTQuery
+
+    reader = AsOfTQuery()  # the drain is its own process — no app lifespan/registry here
+    cursor: str | None = None
+    while True:
+        page = await reader.findings_page(
+            client,
+            cluster_id=cluster_id,
+            t=t,
+            filters=filters,
+            sort="severity_rank",
+            order="desc",
+            size=_THROTTLE_EVERY_ROWS,
+            cursor=cursor,
+            prefix=prefix,
+        )
+        for row in page["data"]:
+            yield row
+        cursor = page["next_cursor"]
+        if cursor is None:
+            return
+
+
+async def _csv_pieces_at(
+    client: AsyncOpenSearch, *, cluster_id: str, t: datetime, filters: SearchFilters, prefix: str
+) -> AsyncIterator[str]:
+    from backend.export.csv_stream import CSV_COLUMNS, csv_line
+
+    yield csv_line(CSV_COLUMNS)
+    async for doc in _rows_at(client, cluster_id=cluster_id, t=t, filters=filters, prefix=prefix):
+        yield csv_line([doc.get(col) for col in CSV_COLUMNS])
+
+
 async def _vex_pieces(
-    client: AsyncOpenSearch, *, cluster_id: str, filters: SearchFilters, fmt: str
+    client: AsyncOpenSearch,
+    *,
+    cluster_id: str,
+    filters: SearchFilters,
+    fmt: str,
+    t: datetime | None = None,
+    prefix: str = "",
 ) -> AsyncIterator[str]:
     # a VEX document is one JSON object — built in memory (statements are small), then chunked.
     # The byte ceiling still bounds the OUTPUT; CSV is the huge-export path.
@@ -66,7 +112,17 @@ async def _vex_pieces(
         filters.scanner is None
     ):  # enqueue validates this (per-scanner is sacred) — hand-written docs
         raise ValueError("VEX export requires a scanner filter (per-scanner is sacred)")
-    findings = [doc async for doc in sweep_findings(client, cluster_id=cluster_id, filters=filters)]
+    if t is not None:  # as-of-T: the reconstructed rows feed the same serializers (M8b)
+        findings = [
+            doc
+            async for doc in _rows_at(
+                client, cluster_id=cluster_id, t=t, filters=filters, prefix=prefix
+            )
+        ]
+    else:
+        findings = [
+            doc async for doc in sweep_findings(client, cluster_id=cluster_id, filters=filters)
+        ]
     serialize = to_openvex if fmt == "openvex" else to_cyclonedx
     yield json.dumps(
         serialize(
@@ -102,18 +158,7 @@ async def run_job(client: AsyncOpenSearch, job: ClaimedJob, *, prefix: str = "")
     doc = job.doc
     boundlog = log.bind(report_id=job.report_id, kind=doc.get("kind"))
 
-    if doc.get("as_of_t"):
-        await finalize(
-            client,
-            job.report_id,
-            job.attempt_id,
-            status=FAILED,
-            error="export at a past as_of requires M8b reconstruction (#34) — re-enqueue then",
-            prefix=prefix,
-        )
-        boundlog.info("report drain: as_of_t export parked as failed (needs M8b)")
-        return False
-
+    as_of_t = datetime.fromisoformat(doc["as_of_t"]) if doc.get("as_of_t") else None
     params = doc.get("params") or {}
     cluster_id = doc["cluster_id"]
 
@@ -163,9 +208,17 @@ async def run_job(client: AsyncOpenSearch, job: ClaimedJob, *, prefix: str = "")
     fmt = params.get("format", "csv")
     filters = _filters_from_params(params)
     if fmt == "csv":
-        pieces = stream_csv(client, cluster_id=cluster_id, filters=filters)
+        # as-of-T (M8b, #34): the reconstructed sweep; current-state: the M6 engine
+        if as_of_t is not None:
+            pieces = _csv_pieces_at(
+                client, cluster_id=cluster_id, t=as_of_t, filters=filters, prefix=prefix
+            )
+        else:
+            pieces = stream_csv(client, cluster_id=cluster_id, filters=filters)
     elif fmt in ("openvex", "cyclonedx"):
-        pieces = _vex_pieces(client, cluster_id=cluster_id, filters=filters, fmt=fmt)
+        pieces = _vex_pieces(
+            client, cluster_id=cluster_id, filters=filters, fmt=fmt, t=as_of_t, prefix=prefix
+        )
     else:  # enqueue validates the Literal — belt and braces for hand-written docs
         await finalize(
             client,

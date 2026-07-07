@@ -26,7 +26,7 @@ the MVP read path; measure before optimizing (#134 bench).
 
 import base64
 import json
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from opensearchpy import AsyncOpenSearch, NotFoundError
@@ -189,11 +189,11 @@ def _finding_row(raw: dict[str, Any], human: dict[str, Any]) -> dict[str, Any]:
 class AsOfTQuery:
     """The registered reader (slice 3: findings trio; slice 4 adds trends + contributors)."""
 
-    async def _reconstruct(
+    async def _raws(
         self, client: AsyncOpenSearch, cluster_id: str, t: datetime, *, prefix: str = ""
     ) -> list[dict[str, Any]]:
-        """Every finding row of the cluster as it stood at T (present AND tombstones) —
-        filters/facets/groups are applied over this one reconstruction."""
+        """The cluster's raw scanner facts at T (occurrence + presence + first/resolved clocks)
+        — shared by the findings reconstruction and the findings-trend derivation."""
         runs = await latest_committed_runs(client, cluster_id, t, prefix=prefix)
         by_digest: dict[tuple[str, str], list[dict[str, Any]]] = {}
         for r in runs:
@@ -210,7 +210,14 @@ class AsOfTQuery:
             raws.extend(
                 await _last_rows_per_key(client, cluster_id, scanner, digest, committed, prefix)
             )
+        return raws
 
+    async def _reconstruct(
+        self, client: AsyncOpenSearch, cluster_id: str, t: datetime, *, prefix: str = ""
+    ) -> list[dict[str, Any]]:
+        """Every finding row of the cluster as it stood at T (present AND tombstones) —
+        filters/facets/groups are applied over this one reconstruction."""
+        raws = await self._raws(client, cluster_id, t, prefix=prefix)
         keys = [r["occurrence"]["finding_key"] for r in raws]
         humans = await finding_states_at(client, cluster_id, t, finding_keys=keys, prefix=prefix)
         decisions = await decisions_active_at(client, cluster_id, t, prefix=prefix)
@@ -438,19 +445,135 @@ class AsOfTQuery:
         next_cursor = _encode({"a": page[-1]["key"]}) if len(ordered) > size else None
         return {"data": page, "next_cursor": next_cursor}
 
-    # --- slice 4 lands these — until then a past-T trends/contributors read stays a 501 ----
+    # --- trends + contributors at T (slice 4) ---------------------------------
+    # The scans trend and the contributors board read APPEND logs (scan-events, audit-log) —
+    # immutable, so the historical answer IS the same aggregation with the window ending at T
+    # (the anchored builders; single source with the current-state routes). The FINDINGS trend
+    # buckets on the mutable cache in current-state — at a past T it derives from occurrences
+    # instead (a reappearance clears the cache's `resolved_at`, so the cache cannot answer
+    # history); same limitation class as the cache, one direction stricter.
 
     async def trends_scans(
-        self, client: AsyncOpenSearch, *, cluster_id: str, t: datetime, days: int
+        self,
+        client: AsyncOpenSearch,
+        *,
+        cluster_id: str,
+        t: datetime,
+        days: int,
+        prefix: str = "",
     ) -> dict[str, Any]:
-        raise NotImplementedError("M8b slice 4")  # pragma: no cover — never registered before S4
+        from backend.query.trends import build_scans_trend_body
+        from backend.routers.trends import _series
+        from backend.tenancy.chokepoint import tenant_search
+
+        body = build_scans_trend_body(days=days, anchor=t)  # ValueError on bad days → 422
+        resp = await tenant_search(
+            client,
+            index=f"{prefix}javv-scan-events-{cluster_id}-*",
+            cluster_id=cluster_id,
+            body=body,
+        )
+        aggs = resp.get("aggregations")
+        series = _series(aggs["by_scanner"], metric="scans") if aggs else {}
+        return {"series": series, "days": days}
 
     async def trends_findings(
-        self, client: AsyncOpenSearch, *, cluster_id: str, t: datetime, days: int
+        self,
+        client: AsyncOpenSearch,
+        *,
+        cluster_id: str,
+        t: datetime,
+        days: int,
+        prefix: str = "",
     ) -> dict[str, Any]:
-        raise NotImplementedError("M8b slice 4")  # pragma: no cover
+        if not 1 <= days <= 365:
+            raise ValueError("days must be 1..365")
+        raws = await self._raws(client, cluster_id, t, prefix=prefix)
+        start = t.date() - timedelta(days=days)
+        end = t.date()
+
+        def _day(iso: str | None) -> date | None:
+            if iso is None:
+                return None
+            return datetime.fromisoformat(iso).date()
+
+        new: dict[str, dict[date, int]] = {}
+        resolved: dict[str, dict[date, int]] = {}
+        for raw in raws:
+            scanner = raw["occurrence"]["scanner"]
+            first = _day(raw["first_seen_at"])
+            if first is not None and start <= first <= end:
+                bucket = new.setdefault(scanner, {})
+                bucket[first] = bucket.get(first, 0) + 1
+            gone = _day(raw["resolved_at"])
+            if gone is not None and start <= gone <= end:
+                bucket = resolved.setdefault(scanner, {})
+                bucket[gone] = bucket.get(gone, 0) + 1
+
+        def _axis(per_scanner: dict[str, dict[date, int]]) -> dict[str, list[dict[str, Any]]]:
+            # the continuous zero-filled day axis, matching the date_histogram wire format
+            days_axis = [start + timedelta(days=i) for i in range((end - start).days + 1)]
+            return {
+                scanner: [
+                    {"date": f"{d.isoformat()}T00:00:00.000Z", "count": buckets.get(d, 0)}
+                    for d in days_axis
+                ]
+                for scanner, buckets in sorted(per_scanner.items())
+            }
+
+        return {
+            "new": _axis(new),
+            "resolved": _axis(resolved),
+            "resolved_semantics": "scan_resolved",  # same A-m9 label as current-state
+            "days": days,
+        }
 
     async def contributors(
-        self, client: AsyncOpenSearch, *, cluster_id: str, t: datetime, days: int
+        self,
+        client: AsyncOpenSearch,
+        *,
+        cluster_id: str,
+        t: datetime,
+        days: int,
+        prefix: str = "",
     ) -> dict[str, Any]:
-        raise NotImplementedError("M8b slice 4")  # pragma: no cover
+        from backend.query.contributors import build_actions_body, compute_ttr_sla
+        from backend.routers.contributors import _findings_for, _handling_rows
+        from backend.sla.policy import read_sla_policy as _policy
+        from backend.tenancy.chokepoint import tenant_search
+
+        body = build_actions_body(days=days, anchor=t)  # ValueError on bad days → 422
+        resp = await tenant_search(
+            client, index=f"{prefix}system-audit-log-*", cluster_id=cluster_id, body=body
+        )
+        aggs = resp.get("aggregations")
+        if not aggs:
+            return {"days": days, "leaderboard": [], "handled_over_time": []}
+
+        rows = await _handling_rows(client, cluster_id, days, anchor=t, prefix=prefix)
+        findings = await _findings_for(
+            client,
+            cluster_id,
+            sorted({r["finding_key"] for r in rows if r.get("finding_key")}),
+            prefix=prefix,
+        )
+        verdicts = compute_ttr_sla(rows, findings, policy=await _policy(client, prefix=prefix))
+        leaderboard = []
+        for bucket in aggs["by_actor"]["buckets"]:
+            actor = bucket["key"]
+            v = verdicts.get(actor, {})
+            leaderboard.append(
+                {
+                    "actor": actor,
+                    "actions": bucket["doc_count"],
+                    "by_action": {a["key"]: a["doc_count"] for a in bucket["by_action"]["buckets"]},
+                    "handled": v.get("handled", 0),
+                    "median_ttr_seconds": v.get("median_ttr_seconds"),
+                    "sla_hit_pct": v.get("sla_hit_pct"),
+                }
+            )
+        timeline = [
+            {"date": b["key_as_string"], "count": b["doc_count"]}
+            for b in aggs["handled_over_time"]["timeline"]["buckets"]
+        ]
+        return {"days": days, "leaderboard": leaderboard, "handled_over_time": timeline}

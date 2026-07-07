@@ -20,6 +20,8 @@ from backend.auth.bootstrap_admin import seed_bootstrap_admin
 from backend.auth.capabilities import seed_default_roles
 from backend.core.bootstrap import bootstrap, summarize_actions
 from backend.core.settings import assert_production_ready, get_settings
+from backend.query.as_of import register_as_of_t
+from backend.query.as_of_t import AsOfTQuery
 
 log = structlog.get_logger()
 
@@ -47,7 +49,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         roles_created = await seed_default_roles(client)
         log.info("bootstrap admin", outcome=await seed_bootstrap_admin(client), roles=roles_created)
 
+    # D28/FR-23: the whole-app time-travel reader goes live with the app (M8b slice 4 — the
+    # protocol is fully implemented; before this, a past-T read was 501 at the seam)
+    register_as_of_t(AsOfTQuery())
+
     try:
         yield
     finally:
+        # the registry is process-global — unregister on shutdown so the reader's lifetime is
+        # exactly the app's (a lifespan-running TEST otherwise leaves it registered for every
+        # later test in the same worker: the #266 CI leak — 501-seam tests saw 200)
+        register_as_of_t(None)
         await client.close()

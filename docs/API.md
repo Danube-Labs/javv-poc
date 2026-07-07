@@ -71,7 +71,12 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 
 All session-auth, no capability (reads). All take the filter family (`cluster_id` **required**,
 `scanner`, `severity`, `state`, `namespace`, `image`, `cve_id`, `kev`, `fixable`, `disagree`, …)
-and the global `as_of` (T<now dispatches to the M8b reader; until it lands → 501).
+and the global `as_of`. **T<now dispatches to the M8b reader (live since #34)** — results are
+reconstructed from the append logs as-scanned: fields history deliberately does not record
+(`kev`, `epss`, `disagree`, `image_repo`, `tag`, `app`) come back `null`; a filter/sort/group on
+one of them at a past T is a 422; whitelisted facets on them return empty buckets. Queued exports
+(`POST /api/v1/reports`) accept a past `as_of_t` too — the drain reconstructs at T (inline export
+routes stay current-state-only).
 
 | Method | Path | Purpose |
 |---|---|---|
