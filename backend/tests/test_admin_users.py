@@ -458,6 +458,8 @@ async def test_role_change_not_left_unjournaled_on_audit_failure(admin_env, monk
     assert (await _audit_actions(client, username)).count("role_change") == 1
 
 
+@pytest.mark.serial  # disables EVERY enabled admin for its window — kills concurrent tests'
+# admin sessions under -n N (this broke CI on main 2026-07-07). CI runs `-m serial` separately.
 async def test_concurrent_admin_demotes_never_zero_admins(admin_env) -> None:
     """A-m3: two racing demotes of the last two admins must not self-brick. Pre-check is TOCTOU;
     the post-mutation re-check + rollback guarantees at least one enabled admin survives and at

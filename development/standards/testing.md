@@ -57,3 +57,9 @@ drives the same browser interactively during dev (authoring/debugging these spec
   session (`tests/conftest.py`); a new test file must not re-run `bootstrap()`/`seed_default_roles()` per
   test on the shared indices. If the suite drifts past the bar, that's a named regression — profile with
   `--durations=25` before adding capacity.
+- **Store-exclusive tests get `@pytest.mark.serial`.** A test that mutates GLOBAL store state other
+  tests depend on (disabling every enabled admin, wiping a shared index) poisons concurrent tests
+  under `-n N` — this broke main's CI 2026-07-07 (an admin demote-race test 401'd a concurrent
+  test's session). CI runs `-n 2 -m "not serial"` then `-m serial` alone; a plain local `pytest`
+  is serial anyway. Prefer NOT needing the marker (unique users/cluster_ids, self-scoped sweeps) —
+  it's for tests whose semantics genuinely require store-wide exclusivity.

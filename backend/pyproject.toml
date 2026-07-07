@@ -54,3 +54,10 @@ venv = ".venv"
 testpaths = ["tests"]
 addopts = "-q"
 asyncio_mode = "auto"
+markers = [
+    # store-exclusive tests: they mutate GLOBAL store state other tests depend on (e.g. disable
+    # every enabled admin), so they poison concurrent tests under -n N. CI runs them in a
+    # separate serial step (`-m serial` after `-n 2 -m "not serial"`); a plain local `pytest`
+    # is serial anyway and runs everything.
+    "serial: must not run concurrently with other tests (global store mutation)",
+]
