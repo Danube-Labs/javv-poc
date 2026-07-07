@@ -182,7 +182,12 @@ jobs:
       - name: Pytest
         if: steps.detect.outputs.present == 'true'
         working-directory: backend
-        run: uv run pytest -n 2
+        # store-exclusive tests (marker `serial`, e.g. the admin demote race that disables every
+        # enabled admin) run AFTER the parallel pass, alone — under -n N they poison concurrent
+        # tests' sessions (broke main 2026-07-07). A plain local `pytest` runs everything serially.
+        run: |
+          uv run pytest -n 2 -m "not serial"
+          uv run pytest -m serial
 
   scanner:
     name: Scanner
