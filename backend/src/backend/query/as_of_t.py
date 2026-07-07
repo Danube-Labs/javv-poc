@@ -1,0 +1,456 @@
+"""The M8b `AsOfTReader` (D28/FR-23) — findings surfaces reconstructed at a past T.
+
+Composition per row (the D28 recipe): the scanner facts come from the digest's occurrence
+history (last committed appearance ≤ T, catalog-ordered — `query/pit.py` rules); the human
+fields from the audit replay (`query/human_at.py`); decisions active at T project through
+M5c's OWN precedence engine (`decisions/projection.project` — single source, never a copy).
+Ownership at T mirrors `_target_for`: a direct human state ≠ open owns the finding; otherwise
+the winning active decision projects.
+
+Return shapes MATCH the current-state responses (FR-23: time-travel changes WHEN, never the
+wire contract). Two honest deviations, both spec-rooted:
+- fields history deliberately does not record (OE-5/D38: `kev`, `epss`, `disagree`,
+  `image_repo`, `tag`, `app`) come back `null`; a FILTER or SORT or GROUP on them at past T is a
+  422 (`ValueError` at the seam) — silently mis-filtering would be worse; whitelisted FACETS on
+  them return empty buckets.
+- paging is stateless (an opaque `search_after`-style cursor, no PIT): history is immutable, so
+  a walk is consistent by construction.
+
+Input re-validation (the protocol's contract): the routes forward `filters`/`sort`/`order`/
+`by`/facet `fields` RAW past the seam — everything is re-checked here; `ValueError` → the
+route's 422, never an unchecked aggregation (a 500).
+
+Scale note: reconstruction is per-call and cluster-wide (bounded by per-digest row caps) —
+the MVP read path; measure before optimizing (#134 bench).
+"""
+
+import base64
+import json
+from datetime import datetime
+from typing import Any
+
+from opensearchpy import AsyncOpenSearch, NotFoundError
+
+from backend.decisions.projection import project
+from backend.models.envelope import SEVERITY_RANK, canonical_severity
+from backend.query.human_at import decisions_active_at, finding_states_at
+from backend.query.pit import latest_committed_runs
+from backend.query.search import SearchFilters
+from backend.sla.overdue import compute_overdue
+from backend.sla.policy import read_sla_policy
+
+_PAGE = 1_000
+# whitelists at past T — the reconstructable subset of the current-state vocabularies
+_SORT_FIELDS = ("severity_rank", "first_seen_at", "last_scan_at", "cvss")  # epss: not recorded
+_FACET_FIELDS = ("severity", "state", "scanner", "fixable", "kev", "disagree", "present")
+_EMPTY_FACETS = ("kev", "disagree")  # whitelisted, but history has no values → empty buckets
+_GROUP_FIELDS = ("image_digest", "namespaces", "cve_id", "assignee")  # image_repo/app: not recorded
+
+
+def _unrecorded(name: str) -> ValueError:
+    return ValueError(
+        f"{name} is not recorded in per-scan history — not available for a past as_of"
+    )
+
+
+def _encode(payload: dict[str, Any]) -> str:
+    return base64.urlsafe_b64encode(json.dumps(payload).encode()).decode()
+
+
+def _decode(cursor: str) -> dict[str, Any]:
+    try:
+        out = json.loads(base64.urlsafe_b64decode(cursor.encode()))
+    except Exception as exc:
+        raise ValueError("invalid cursor") from exc
+    if not isinstance(out, dict):
+        raise ValueError("invalid cursor")
+    return out
+
+
+async def _last_rows_per_key(
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    scanner: str,
+    digest: str,
+    committed: list[dict[str, Any]],
+    prefix: str,
+) -> list[dict[str, Any]]:
+    """One digest's reconstructed scanner rows at T: the LAST committed occurrence per
+    finding_key (top_hits by `scan_order` — exact), plus the first-appearance clock. Present ⟺
+    that last appearance IS the digest's latest run; otherwise the row is a tombstone whose
+    `resolved_at` is the first committed run after it (the rebuild arm's derivation, §9)."""
+    orders = [r["scan_order"] for r in committed]
+    latest = committed[-1]
+    rows: list[dict[str, Any]] = []
+    after: dict[str, Any] | None = None
+    while True:
+        composite: dict[str, Any] = {
+            "size": _PAGE,
+            "sources": [{"key": {"terms": {"field": "finding_key"}}}],
+        }
+        if after is not None:
+            composite["after"] = after
+        try:
+            resp = await client.search(
+                index=f"{prefix}javv-finding-occurrences-{cluster_id}-*",
+                body={
+                    "size": 0,
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"scanner": scanner}},
+                                {"term": {"image_digest": digest}},
+                                {"terms": {"scan_order": orders}},  # committed runs only
+                            ]
+                        }
+                    },
+                    "aggs": {
+                        "k": {
+                            "composite": composite,
+                            "aggs": {
+                                "last": {"top_hits": {"size": 1, "sort": [{"scan_order": "desc"}]}},
+                                # dates are epoch-ms (< 2^53) — a min agg is exact here
+                                "first": {
+                                    "min": {
+                                        "field": "@timestamp",
+                                        "format": "strict_date_optional_time",
+                                    }
+                                },
+                            },
+                        }
+                    },
+                },
+            )
+        except NotFoundError:
+            return rows
+        agg = resp["aggregations"]["k"]
+        for b in agg["buckets"]:
+            src = b["last"]["hits"]["hits"][0]["_source"]
+            present = src["scan_order"] == latest["scan_order"]
+            resolved_at = None
+            if not present:
+                resolved_at = next(
+                    r["@timestamp"] for r in committed if r["scan_order"] > src["scan_order"]
+                )
+            rows.append(
+                {
+                    "occurrence": src,
+                    "present": present,
+                    "resolved_at": resolved_at,
+                    "first_seen_at": b["first"].get("value_as_string"),
+                }
+            )
+        after = agg.get("after_key")
+        if after is None or not agg["buckets"]:
+            return rows
+
+
+def _finding_row(raw: dict[str, Any], human: dict[str, Any]) -> dict[str, Any]:
+    """One wire row in the findings-grid vocabulary. History-less fields are explicit nulls
+    (as-scanned: the envelope-era values were deliberately not snapshotted, OE-5/D38)."""
+    occ = raw["occurrence"]
+    return {
+        "finding_key": occ["finding_key"],
+        "cluster_id": occ["cluster_id"],
+        "scanner": occ["scanner"],
+        "image_digest": occ["image_digest"],
+        "image_repo": None,
+        "tag": None,
+        "namespaces": occ.get("namespaces") or [],
+        "app": None,
+        "cve_id": occ["vuln_id"],
+        "package_name": occ["package_name"],
+        "installed_version": occ["package_version"],
+        "severity": occ["severity"],  # verbatim, as-of-then (D16)
+        "severity_rank": SEVERITY_RANK[canonical_severity(occ["severity"] or "")],
+        "cvss": occ.get("cvss"),
+        "fixable": occ.get("fixable"),
+        "fixed_version": occ.get("fixed_version"),
+        "epss": None,
+        "kev": None,
+        "disagree": None,
+        "first_seen_at": raw["first_seen_at"],
+        "last_seen_at": occ["@timestamp"],
+        "last_scan_run_id": occ["scan_run_id"],
+        "last_scan_order": occ["scan_order"],
+        "last_scan_at": occ["@timestamp"],
+        "present": raw["present"],
+        "resolved_at": raw["resolved_at"],
+        "state": human["state"],
+        "vex_justification": human["vex_justification"],
+        "assignee": human["assignee"],
+        "notes": human["notes"],
+        "pre_stale_status": None,
+        "state_decision_id": human.get("state_decision_id"),
+        "schema_version": occ.get("schema_version"),
+    }
+
+
+class AsOfTQuery:
+    """The registered reader (slice 3: findings trio; slice 4 adds trends + contributors)."""
+
+    async def _reconstruct(
+        self, client: AsyncOpenSearch, cluster_id: str, t: datetime, *, prefix: str = ""
+    ) -> list[dict[str, Any]]:
+        """Every finding row of the cluster as it stood at T (present AND tombstones) —
+        filters/facets/groups are applied over this one reconstruction."""
+        runs = await latest_committed_runs(client, cluster_id, t, prefix=prefix)
+        by_digest: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        for r in runs:
+            by_digest.setdefault((r["scanner"], r["image_digest"]), []).append(r)
+
+        raws: list[dict[str, Any]] = []
+        for (scanner, digest), latest_only in sorted(by_digest.items()):
+            # committed runs ≤ T for the digest (ascending) — resolved_at needs the successor
+            committed = await self._committed_asc(
+                client, cluster_id, t, scanner, digest, prefix=prefix
+            )
+            if not committed:
+                committed = latest_only
+            raws.extend(
+                await _last_rows_per_key(client, cluster_id, scanner, digest, committed, prefix)
+            )
+
+        keys = [r["occurrence"]["finding_key"] for r in raws]
+        humans = await finding_states_at(client, cluster_id, t, finding_keys=keys, prefix=prefix)
+        decisions = await decisions_active_at(client, cluster_id, t, prefix=prefix)
+        iso = t.isoformat()
+
+        rows: list[dict[str, Any]] = []
+        for raw in raws:
+            fk = raw["occurrence"]["finding_key"]
+            human = dict(humans[fk])
+            human["state_decision_id"] = None
+            row = _finding_row(raw, human)
+            # ownership at T mirrors reproject._target_for: a direct human state ≠ open owns
+            # the finding; an un-owned one takes the winning active decision's projection
+            if row["state"] == "open" and decisions:
+                won = project(row, decisions, at=iso)
+                if won is not None:
+                    row["state"] = won.state
+                    row["vex_justification"] = won.vex_justification
+                    row["state_decision_id"] = won.decision_id
+            rows.append(row)
+
+        await self._decorate_overdue(client, rows, t, prefix=prefix)
+        return rows
+
+    async def _committed_asc(
+        self,
+        client: AsyncOpenSearch,
+        cluster_id: str,
+        t: datetime,
+        scanner: str,
+        digest: str,
+        *,
+        prefix: str,
+    ) -> list[dict[str, Any]]:
+        try:
+            resp = await client.search(
+                index=f"{prefix}javv-scan-events-{cluster_id}-*",
+                body={
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"term": {"scanner": scanner}},
+                                {"term": {"image_digest": digest}},
+                                {"range": {"@timestamp": {"lte": t.isoformat()}}},
+                            ]
+                        }
+                    },
+                    "sort": [{"scan_order": "asc"}],
+                    "size": _PAGE,
+                    "_source": ["scan_run_id", "scan_order", "@timestamp", "commit_key"],
+                },
+            )
+        except NotFoundError:
+            return []
+        return [h["_source"] for h in resp["hits"]["hits"]]
+
+    async def _decorate_overdue(
+        self, client: AsyncOpenSearch, rows: list[dict[str, Any]], t: datetime, *, prefix: str
+    ) -> None:
+        if not rows:
+            return
+        # the D21 group clock across the WHOLE reconstruction (siblings included), judged at T;
+        # kev is unrecorded at T (null) → the kev fast-lane can't apply, treat as False
+        judged = [dict(r, kev=bool(r["kev"])) for r in rows]
+        verdicts = compute_overdue(
+            judged, policy=await read_sla_policy(client, prefix=prefix), now=t
+        )
+        for row in rows:
+            v = verdicts[row["finding_key"]]
+            row["overdue"] = v.overdue
+            row["due_at"] = v.due_at
+
+    # --- the protocol surface ------------------------------------------------
+
+    @staticmethod
+    def _apply_filters(rows: list[dict[str, Any]], f: SearchFilters) -> list[dict[str, Any]]:
+        if f.kev is not None:
+            raise _unrecorded("kev")
+        if f.disagree is not None:
+            raise _unrecorded("disagree")
+        if f.image_repo is not None:
+            raise _unrecorded("image_repo")
+        sev = {s.lower() for s in f.severity} if f.severity else None
+        out = []
+        for r in rows:
+            if r["present"] != f.present:
+                continue
+            if sev and (r["severity"] or "").lower() not in sev:
+                continue
+            if f.state and r["state"] not in f.state:
+                continue
+            checks = (
+                (f.scanner, r["scanner"]),
+                (f.assignee, r["assignee"]),
+                (f.fixable, r["fixable"]),
+                (f.cve_id, r["cve_id"]),
+                (f.image_digest, r["image_digest"]),
+            )
+            if any(want is not None and want != got for want, got in checks):
+                continue
+            if f.namespace is not None and f.namespace not in (r["namespaces"] or []):
+                continue
+            out.append(r)
+        return out
+
+    async def findings_page(
+        self,
+        client: AsyncOpenSearch,
+        *,
+        cluster_id: str,
+        t: datetime,
+        filters: SearchFilters,
+        sort: str,
+        order: str,
+        size: int,
+        cursor: str | None,
+        prefix: str = "",
+    ) -> dict[str, Any]:
+        # re-validate EVERYTHING before reconstructing — a bad input must cost a 422, not a
+        # cluster-wide reconstruction (and never reach an evaluation, per the seam contract)
+        if sort not in _SORT_FIELDS:
+            raise ValueError(f"sort must be one of {_SORT_FIELDS} for a past as_of")
+        if order not in ("asc", "desc"):
+            raise ValueError("order must be asc or desc")
+        self._apply_filters([], filters)  # filter re-validation, before any work
+        if cursor is not None:
+            _decode(cursor)
+        rows = self._apply_filters(
+            await self._reconstruct(client, cluster_id, t, prefix=prefix), filters
+        )
+        desc = order == "desc"
+
+        def _key(r: dict[str, Any]) -> Any:
+            v = r.get(sort)
+            return (v is None, v)  # nulls last on asc; stable + comparable
+
+        rows.sort(key=lambda r: r["finding_key"])
+        rows.sort(key=_key, reverse=desc)
+        if cursor is not None:
+            c = _decode(cursor)
+            if c.get("s") != sort or c.get("o") != order:
+                raise ValueError("invalid cursor")  # a cursor is bound to its walk's ordering
+            last_key = c.get("k")
+            idx = next((i for i, r in enumerate(rows) if r["finding_key"] == last_key), None)
+            rows_after = rows[idx + 1 :] if idx is not None else rows
+        else:
+            rows_after = rows
+        page = rows_after[:size]
+        next_cursor = (
+            _encode({"k": page[-1]["finding_key"], "s": sort, "o": order})
+            if len(rows_after) > size
+            else None
+        )
+        return {
+            "data": page,
+            "next_cursor": next_cursor,
+            "total": {"value": len(rows), "relation": "eq"},
+        }
+
+    async def findings_facets(
+        self,
+        client: AsyncOpenSearch,
+        *,
+        cluster_id: str,
+        t: datetime,
+        filters: SearchFilters,
+        fields: list[str] | None,
+        prefix: str = "",
+    ) -> dict[str, Any]:
+        chosen = list(fields) if fields is not None else list(_FACET_FIELDS)
+        bad = [f for f in chosen if f not in _FACET_FIELDS]
+        if bad:
+            raise ValueError(f"not facetable (whitelist {_FACET_FIELDS}): {bad}")
+        rows = self._apply_filters(
+            await self._reconstruct(client, cluster_id, t, prefix=prefix), filters
+        )
+        facets: dict[str, list[dict[str, Any]]] = {}
+        for field in chosen:
+            if field in _EMPTY_FACETS:  # whitelisted but unrecorded at T — honest empty
+                facets[field] = []
+                continue
+            counts: dict[Any, dict[str, Any]] = {}
+            for r in rows:
+                key = r[field]
+                if key is None:
+                    continue
+                key = str(key).lower() if isinstance(key, bool) else key
+                b = counts.setdefault(key, {"key": key, "count": 0, "by_scanner": {}})
+                b["count"] += 1
+                b["by_scanner"][r["scanner"]] = b["by_scanner"].get(r["scanner"], 0) + 1
+            facets[field] = sorted(counts.values(), key=lambda b: (-b["count"], str(b["key"])))
+        return {"facets": facets}
+
+    async def findings_groups(
+        self,
+        client: AsyncOpenSearch,
+        *,
+        cluster_id: str,
+        t: datetime,
+        filters: SearchFilters,
+        by: str,
+        size: int,
+        cursor: str | None,
+        prefix: str = "",
+    ) -> dict[str, Any]:
+        if by not in _GROUP_FIELDS:
+            raise ValueError(f"not groupable at a past as_of (whitelist {_GROUP_FIELDS}): {by!r}")
+        rows = self._apply_filters(
+            await self._reconstruct(client, cluster_id, t, prefix=prefix), filters
+        )
+        buckets: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            keys = r[by] if by == "namespaces" else [r[by]]
+            for key in keys or []:
+                if key is None:
+                    continue
+                b = buckets.setdefault(key, {"key": key, "count": 0, "by_scanner": {}})
+                b["count"] += 1
+                b["by_scanner"][r["scanner"]] = b["by_scanner"].get(r["scanner"], 0) + 1
+        ordered = sorted(buckets.values(), key=lambda b: b["key"])  # composite order: key asc
+        if cursor is not None:
+            after = _decode(cursor).get("a")
+            ordered = [b for b in ordered if b["key"] > after]
+        page = ordered[:size]
+        next_cursor = _encode({"a": page[-1]["key"]}) if len(ordered) > size else None
+        return {"data": page, "next_cursor": next_cursor}
+
+    # --- slice 4 lands these — until then a past-T trends/contributors read stays a 501 ----
+
+    async def trends_scans(
+        self, client: AsyncOpenSearch, *, cluster_id: str, t: datetime, days: int
+    ) -> dict[str, Any]:
+        raise NotImplementedError("M8b slice 4")  # pragma: no cover — never registered before S4
+
+    async def trends_findings(
+        self, client: AsyncOpenSearch, *, cluster_id: str, t: datetime, days: int
+    ) -> dict[str, Any]:
+        raise NotImplementedError("M8b slice 4")  # pragma: no cover
+
+    async def contributors(
+        self, client: AsyncOpenSearch, *, cluster_id: str, t: datetime, days: int
+    ) -> dict[str, Any]:
+        raise NotImplementedError("M8b slice 4")  # pragma: no cover

@@ -1,0 +1,385 @@
+"""M8b slice 3 (#34): the AsOfTReader findings surfaces. The centerpiece is the **I11
+consistency keystone**: after real ingests + real triage + a real decision, the reconstruction
+at T=just-now must agree with the MATERIALIZED current-state read on every field history can
+answer — the two read paths (cache vs replay) may never tell different stories. Around it: the
+timeline walk through the same surfaces, the re-validation contract (raw delegated inputs →
+ValueError), tombstone parity, and stateless paging."""
+
+import asyncio
+import contextlib
+import json
+import os
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+from uuid import uuid4
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.core.bootstrap import bootstrap
+from backend.decisions.lifecycle import DecisionPayload, DecisionScope, create_decision
+from backend.models.envelope import IngestEnvelope, canonical_severity
+from backend.query.as_of_t import AsOfTQuery
+from backend.query.search import SearchFilters, run_search
+from backend.services.ingest import build_docs, ingest_envelope
+from backend.triage.bulk import apply_bulk_triage
+
+GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
+OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+CLUSTER = GOLDEN["cluster_id"]
+DIGEST = GOLDEN["image_digest"]
+ORDER = GOLDEN["scan_order"]
+
+# every findings-doc field the per-scan history records — the I11 comparison surface
+RECONSTRUCTABLE = (
+    "finding_key",
+    "cluster_id",
+    "scanner",
+    "image_digest",
+    "cve_id",
+    "package_name",
+    "installed_version",
+    "severity",
+    "severity_rank",
+    "cvss",
+    "fixable",
+    "fixed_version",
+    "present",
+    "state",
+    "assignee",
+    "notes",
+    "vex_justification",
+    "last_scan_run_id",
+    "last_scan_order",
+)
+
+
+def _envelope(keep: int, scan_order: int, run_id: str, seen_at: str) -> IngestEnvelope:
+    e = dict(GOLDEN)
+    findings = GOLDEN["findings"][:keep]
+    counts: dict[str, int] = dict.fromkeys(
+        ("crit", "high", "med", "low", "negligible", "unknown"), 0
+    )
+    for f in findings:
+        counts[canonical_severity(f["severity"])] += 1
+    e |= {
+        "findings": findings,
+        "counts": {
+            **counts,
+            "total": len(findings),
+            "fixable": sum(1 for f in findings if f.get("fixable")),
+        },
+        "scan_order": scan_order,
+        "scan_run_id": run_id,
+        "last_seen_at": seen_at,
+    }
+    return IngestEnvelope.model_validate(e)
+
+
+def _opensearch_up() -> bool:
+    try:
+        return httpx.get(OS_URL, timeout=2.0).status_code == 200
+    except Exception:
+        return False
+
+
+requires_opensearch = pytest.mark.skipif(
+    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
+)
+
+
+@pytest.fixture
+async def real_os():
+    prefix = f"t-{uuid4().hex[:8]}-"
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    await bootstrap(client, prefix=prefix)
+    yield client, prefix
+    with contextlib.suppress(Exception):
+        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
+    await client.close()
+
+
+async def _now(client: AsyncOpenSearch, prefix: str) -> datetime:
+    """A padded instant (ms truncation — see test_human_at) with the read indices refreshed."""
+    for index in (
+        f"{prefix}findings",
+        f"{prefix}javv-scan-events-*",
+        f"{prefix}javv-finding-occurrences-*",
+        f"{prefix}system-audit-log-*",
+    ):
+        await client.indices.refresh(index=index, params={"ignore_unavailable": "true"})
+    t = datetime.now(UTC)
+    await asyncio.sleep(0.002)
+    return t
+
+
+READER = AsOfTQuery()
+
+
+async def _seed(client: AsyncOpenSearch, prefix: str) -> dict[str, Any]:
+    """Real history: full scan → triage (direct + bulk) + a decision → rescan resolving 5."""
+    run1 = IngestEnvelope.model_validate(GOLDEN)
+    await ingest_envelope(client, run1, prefix=prefix)
+    fks = [f["finding_key"] for f in build_docs(run1)["findings"]]
+
+    # direct triage on one finding + a bulk risk-accept on two others (real writers)
+    from backend.triage.service import TriagePatch, apply_triage
+
+    await apply_triage(
+        client,
+        finding_key=fks[0],
+        patch=TriagePatch(state="acknowledged"),
+        actor="alice",
+        prefix=prefix,
+    )
+    await apply_bulk_triage(
+        client,
+        actor="bob",
+        cluster_id=CLUSTER,
+        target_ids=[fks[1], fks[2]],
+        patch={"state": "risk_accepted"},
+        prefix=prefix,
+    )
+    # a cluster-wide decision on a CVE nobody touched directly (projection territory)
+    decided_cve = GOLDEN["findings"][5]["vuln_id"]
+    await create_decision(
+        client,
+        actor="carol",
+        payload=DecisionPayload(
+            type="risk_accepted",
+            cve_id=decided_cve,
+            scope=DecisionScope(),
+            apply_both_scanners=True,
+            justification="accepted for the demo window",
+            cluster_id=CLUSTER,
+        ),
+        prefix=prefix,
+    )
+    t_triaged = await _now(client, prefix)
+
+    # run 2's scan time must sit BETWEEN t1 and t2 on the WALL clock — the ≤ T cut compares
+    # @timestamp, so a fixed logical date here would leak the rescan into t1's view
+    run2 = _envelope(24, ORDER + 1, "goldenrun0002", datetime.now(UTC).isoformat())
+    await ingest_envelope(client, run2, prefix=prefix)
+    t_final = await _now(client, prefix)
+    return {"fks": fks, "decided_cve": decided_cve, "t1": t_triaged, "t2": t_final}
+
+
+@requires_opensearch
+async def test_i11_keystone_replay_to_now_matches_materialized_state(
+    real_os: tuple[AsyncOpenSearch, str],
+) -> None:
+    client, prefix = real_os
+    seeded = await _seed(client, prefix)
+
+    # materialized current state (the cache path, exactly what the route serves)
+    current = await run_search(
+        client,
+        cluster_id=CLUSTER,
+        filters=SearchFilters(present=True),
+        size=500,
+        prefix=prefix,
+    )
+    materialized = {d["finding_key"]: d for d in current["data"]}
+
+    # reconstructed at T=just-now (the replay path)
+    page = await READER.findings_page(
+        client,
+        cluster_id=CLUSTER,
+        t=seeded["t2"],
+        filters=SearchFilters(present=True),
+        sort="severity_rank",
+        order="desc",
+        size=500,
+        cursor=None,
+        prefix=prefix,
+    )
+    reconstructed = {d["finding_key"]: d for d in page["data"]}
+
+    assert set(reconstructed) == set(materialized)  # identical membership — no ghosts, no loss
+    for fk, cache_doc in materialized.items():
+        replay_doc = reconstructed[fk]
+        for field in RECONSTRUCTABLE:
+            assert replay_doc[field] == cache_doc.get(field), (
+                f"I11 divergence on {field} for {fk}: "
+                f"replay={replay_doc[field]!r} cache={cache_doc.get(field)!r}"
+            )
+
+
+@requires_opensearch
+async def test_the_timeline_walks_through_the_page_surface(
+    real_os: tuple[AsyncOpenSearch, str],
+) -> None:
+    client, prefix = real_os
+    seeded = await _seed(client, prefix)
+    fks = seeded["fks"]
+
+    at1 = await READER.findings_page(
+        client,
+        cluster_id=CLUSTER,
+        t=seeded["t1"],
+        filters=SearchFilters(present=True),
+        sort="severity_rank",
+        order="desc",
+        size=500,
+        cursor=None,
+        prefix=prefix,
+    )
+    assert at1["total"] == {"value": 29, "relation": "eq"}  # before the resolving rescan
+    by_key = {d["finding_key"]: d for d in at1["data"]}
+    assert by_key[fks[0]]["state"] == "acknowledged"  # direct triage visible at T1
+    assert by_key[fks[1]]["state"] == "risk_accepted"  # bulk visible at T1
+    decided = [d for d in at1["data"] if d["cve_id"] == seeded["decided_cve"]]
+    assert decided and all(d["state"] == "risk_accepted" for d in decided)  # projection at T1
+    assert all(d["state_decision_id"] for d in decided)
+
+    at2 = await READER.findings_page(
+        client,
+        cluster_id=CLUSTER,
+        t=seeded["t2"],
+        filters=SearchFilters(present=True),
+        sort="severity_rank",
+        order="desc",
+        size=500,
+        cursor=None,
+        prefix=prefix,
+    )
+    assert at2["total"]["value"] == 24  # the rescan resolved 5 — as-scanned at T2
+
+    # tombstone parity: the 5 resolved findings are the present=false view at T2
+    gone = await READER.findings_page(
+        client,
+        cluster_id=CLUSTER,
+        t=seeded["t2"],
+        filters=SearchFilters(present=False),
+        sort="last_scan_at",
+        order="desc",
+        size=500,
+        cursor=None,
+        prefix=prefix,
+    )
+    assert gone["total"]["value"] == 5
+    assert all(d["resolved_at"] is not None for d in gone["data"])
+
+
+@requires_opensearch
+async def test_facets_and_groups_reconstruct_with_scanner_split(
+    real_os: tuple[AsyncOpenSearch, str],
+) -> None:
+    client, prefix = real_os
+    seeded = await _seed(client, prefix)
+    facets = await READER.findings_facets(
+        client,
+        cluster_id=CLUSTER,
+        t=seeded["t1"],
+        filters=SearchFilters(present=True),
+        fields=None,
+        prefix=prefix,
+    )
+    states = {b["key"]: b["count"] for b in facets["facets"]["state"]}
+    assert states["acknowledged"] == 1 and states["risk_accepted"] >= 3  # 2 bulk + projection
+    assert sum(states.values()) == 29
+    for b in facets["facets"]["state"]:
+        assert b["by_scanner"] == {"trivy": b["count"]}  # per-scanner is sacred
+    assert facets["facets"]["kev"] == []  # whitelisted but unrecorded at T — honest empty
+
+    groups = await READER.findings_groups(
+        client,
+        cluster_id=CLUSTER,
+        t=seeded["t1"],
+        filters=SearchFilters(present=True),
+        by="cve_id",
+        size=10,
+        cursor=None,
+        prefix=prefix,
+    )
+    assert len(groups["data"]) == 10 and groups["next_cursor"] is not None
+    # walk the rest — every bucket reachable, none silently capped
+    seen = [b["key"] for b in groups["data"]]
+    cursor = groups["next_cursor"]
+    while cursor:
+        nxt = await READER.findings_groups(
+            client,
+            cluster_id=CLUSTER,
+            t=seeded["t1"],
+            filters=SearchFilters(present=True),
+            by="cve_id",
+            size=10,
+            cursor=cursor,
+            prefix=prefix,
+        )
+        seen += [b["key"] for b in nxt["data"]]
+        cursor = nxt["next_cursor"]
+    assert len(seen) == len(set(seen)) == len({f["vuln_id"] for f in GOLDEN["findings"]})
+
+
+@requires_opensearch
+async def test_delegated_inputs_are_revalidated(real_os: tuple[AsyncOpenSearch, str]) -> None:
+    # the raw-forwarding contract: every non-answerable input is a ValueError (→ the route's
+    # 422), never an unchecked pass-through
+    client, prefix = real_os
+    t = datetime.now(UTC)
+    base: dict[str, Any] = dict(cluster_id=CLUSTER, t=t, prefix=prefix)
+    with pytest.raises(ValueError, match="sort"):
+        await READER.findings_page(
+            client,
+            **base,
+            filters=SearchFilters(),
+            sort="epss",
+            order="desc",
+            size=10,
+            cursor=None,
+        )
+    with pytest.raises(ValueError, match="kev"):
+        await READER.findings_page(
+            client,
+            **base,
+            filters=SearchFilters(kev=True),
+            sort="cvss",
+            order="desc",
+            size=10,
+            cursor=None,
+        )
+    with pytest.raises(ValueError, match="not facetable"):
+        await READER.findings_facets(client, **base, filters=SearchFilters(), fields=["nope; DROP"])
+    with pytest.raises(ValueError, match="not groupable"):
+        await READER.findings_groups(
+            client, **base, filters=SearchFilters(), by="image_repo", size=10, cursor=None
+        )
+    with pytest.raises(ValueError, match="cursor"):
+        await READER.findings_page(
+            client,
+            **base,
+            filters=SearchFilters(),
+            sort="cvss",
+            order="desc",
+            size=10,
+            cursor="garbage!!",
+        )
+
+
+@requires_opensearch
+async def test_page_walk_is_stateless_and_complete(real_os: tuple[AsyncOpenSearch, str]) -> None:
+    client, prefix = real_os
+    seeded = await _seed(client, prefix)
+    seen: list[str] = []
+    cursor = None
+    while True:
+        page = await READER.findings_page(
+            client,
+            cluster_id=CLUSTER,
+            t=seeded["t1"],
+            filters=SearchFilters(present=True),
+            sort="severity_rank",
+            order="desc",
+            size=7,
+            cursor=cursor,
+            prefix=prefix,
+        )
+        seen += [d["finding_key"] for d in page["data"]]
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    assert len(seen) == 29 and len(set(seen)) == 29  # every row exactly once
