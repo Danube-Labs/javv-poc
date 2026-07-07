@@ -111,6 +111,13 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
   unread, IDOR-404 mark-read). **Decision:** an `as_of_t` job fails LOUD ("requires M8b, #34")
   instead of clogging the queue forever-pending — re-enqueue once M8b ships. Golden-parity gate:
   queued CSV == inline CSV byte-identical. Orphaned loser chunks verified present → slice 4 sweeps.
+- **2026-07-07 — slice 4 landed (TTL/orphan sweep):** `jobs/report_sweep.py` — three reap classes
+  via `delete_by_query` (sanctioned: small bounded ops indices): expired `done` results (doc +
+  chunks; chunks first, so a crash leaves re-sweepable orphans, never a chunkless zombie),
+  `failed` docs past the TTL (kept until then for operator visibility of the error), and orphan
+  chunks whose `attempt_id` ≠ their report's current one or whose report vanished. **Fencing-aware:**
+  a running job's live attempt is never touched. Idempotent; runnable
+  `python -m backend.jobs.report_sweep` (CronJob YAML → M10).
 
 ## Config tracking
 
