@@ -51,6 +51,9 @@
   --text-table-header: 10.5px; /* mono, uppercase, +.05em */
   --text-facet-label: 10px; /* mono 700, uppercase, +.06–.14em */
   --text-mono-cell: 12.5px;
+  --text-brand-word: 21px; /* the sidebar/login "javv" word, weight bold, -.03em */
+  --text-nav-item: 13.5px; /* sidebar nav items */
+  --text-sweep-strong: 11.5px; /* sidebar footer sweep headline */
 
   /* -- severity (DATA ONLY — six D46 canonicals; never brand) ----------- */
   /* negligible is the one bucket beyond the v4 sheet (D46/A-1): muted, never red. */
@@ -105,6 +108,22 @@
   --scanner-trivy-bg: #e7f0ef;
   --scanner-grype-fg: #5a4f9e;
   --scanner-grype-bg: #eaeaf3;
+
+  /* -- dark chrome (sidebar) — promoted from the prototype's shell CSS ----- */
+  --side-fg: #aeb9c2; /* nav item text */
+  --side-fg-hover: #e4eaef;
+  --side-hover-bg: rgba(255, 255, 255, 0.05);
+  --side-on-bg: rgba(236, 126, 84, 0.14); /* active item — coral wash */
+  --side-on-fg: #fbe6d8;
+  --side-label: #5c6975; /* group labels */
+  --side-brand-fg: #f3eee6; /* the "javv" word */
+  --side-credit: #6e7c86; /* "by Danube Labs" */
+  --side-foot-line: rgba(255, 255, 255, 0.07);
+  --side-foot-fg: #9aa6af;
+  --side-foot-strong: #cfe3d8;
+  --side-foot-dim: #5f6d78;
+  --side-version: #4e5c68;
+  --sweep-ok-ring: rgba(63, 179, 127, 0.18);
 
   /* -- layout ------------------------------------------------------------ */
   --sidebar-w: 226px;

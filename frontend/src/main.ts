@@ -1,6 +1,5 @@
 import './styles/tokens.css'
 import './styles/base.css'
-import 'primeicons/primeicons.css'
 
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'

@@ -32,6 +32,16 @@ primary text   var(--ink)         secondary    var(--soft)   tertiary: var(--mut
 row hover      var(--row-hover)   dark chrome  var(--slate)
 ```
 
+### Sidebar chrome (dark slate — its own text/hover ramp, promoted from the prototype shell)
+```
+nav text       var(--side-fg)  hover var(--side-fg-hover) on var(--side-on-fg)/(--side-on-bg)
+group label    var(--side-label)      brand word   var(--side-brand-fg)  credit var(--side-credit)
+hover wash     var(--side-hover-bg)   footer       var(--side-foot-*)    version var(--side-version)
+sweep dot      var(--health-ok-dot) + ring var(--sweep-ok-ring)
+```
+Icons in chrome: `<AppIcon name="…">` — the javv stroke set ported verbatim from the prototype.
+Never an icon font / emoji / other icon library in app chrome.
+
 ## 3. Typography — two families, fixed scale
 
 **Space Grotesk** (`var(--font-ui)`) = all UI text. **Space Mono** (`var(--font-mono)`) =
@@ -43,6 +53,7 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 --text-kpi 34px/600          --text-detail-mono 26px mono/700
 --text-table-header 10.5px mono UPPERCASE   --text-facet-label 10px mono/700 UPPERCASE
 --text-sm 11px               --text-mono-cell 12.5px mono
+--text-brand-word 21px       --text-nav-item 13.5px       --text-sweep-strong 11.5px
 ```
 
 ## 4. Layout & density
@@ -76,6 +87,11 @@ Transitions short and functional (`.12–.15s`), no decorative animation. Row ho
 - No purple/indigo defaults, no gradients, no rounded-everything, no shadow stacking — this app has
   a specific look; PrimeVue chrome is themed through `theme/preset.ts`, don't fight it inline.
 - Don't hand-roll a severity/state/scanner chip — use (or create in M9b) the shared chip components.
+- Don't build the same panel/control twice: **anything that appears on two screens is built ONCE,
+  owned by the earliest bolt that needs it, and imported everywhere else** — the filter module
+  (one `fields` config drives both FacetRail and FilterBar, M9a), the lazy-grid adapter (M9f),
+  the chip set (M9b), the banners (M9a). If you're copying a component to a second screen,
+  stop and extract it instead.
 
 ## 7. Quick reference
 
@@ -123,7 +139,26 @@ Focus:          outline: var(--focus-ring); outline-offset: 1px
 </style>
 ```
 
-## 8. Keeping this file honest
+## 8. Fidelity protocol — how we stop drifting from the prototype
+
+The gates (stylelint/ratchet) pin token *values*; they cannot see layout, icons, spacing rhythm, or
+copy. Structural fidelity is a process rule:
+
+1. **Build with the prototype open.** The reference is
+   `handoff/v4/standalone/JAVV Prototype v4 (standalone).html` (open it in a browser) and its
+   readable source `handoff/v4/prototype/app/*.jsx` + the CSS in `JAVV Prototype.html`. When
+   building a screen/panel, extract the prototype's exact markup + CSS for that section FIRST
+   (grep the class names), then port it onto tokens — don't restyle from memory.
+2. **Name the source in the PR.** A screen PR states which prototype component/classes it ports
+   (e.g. "Sidebar → main.jsx `Sidebar` + `.side-*` CSS") so review can diff against it.
+3. **Screenshots in every screen PR.** `/visual-test` captures the implementation; put them in the
+   PR next to the prototype's rendering of the same section. (Needs the Playwright MCP wired —
+   until then the operator eyeballs the dev server against the prototype tab.)
+4. **Deviations are rulings, not taste.** Departing from the prototype requires a recorded reason
+   (a SCREENS-v5 ruling, a shipped-backend constraint) noted in the PR — same discipline as the
+   DECIDE register.
+
+## 9. Keeping this file honest
 
 This file mirrors `tokens.css` — when a token is added/renamed, update both in the same PR (the
 tokens unit test pins `CHART_SEV` to the CSS; the M9a DoD spot-check is "every token family in the
