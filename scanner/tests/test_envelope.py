@@ -21,7 +21,7 @@ from scanner.envelope import (
     build_envelope,
     new_scan_run,
 )
-from scanner.normalize import SEVERITIES
+from scanner.normalize import COUNT_COLUMN, SEVERITIES
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -55,8 +55,8 @@ def test_counts_bucket_every_finding_and_total_is_the_sum() -> None:
     )
     tally = Counter(f.severity_canonical for f in findings)
     for sev in SEVERITIES:
-        assert getattr(env.counts, sev) == tally.get(sev, 0)
-    bucket_sum = sum(getattr(env.counts, s) for s in SEVERITIES)
+        assert getattr(env.counts, COUNT_COLUMN.get(sev, sev)) == tally.get(sev, 0)
+    bucket_sum = sum(getattr(env.counts, COUNT_COLUMN.get(s, s)) for s in SEVERITIES)
     assert env.counts.total == bucket_sum == len(findings)
     assert env.counts.fixable == sum(1 for f in findings if f.fixable)
 
@@ -72,7 +72,7 @@ def test_clean_scan_still_emits_a_full_envelope_with_zero_counts() -> None:
     )
     assert env.counts.total == 0
     assert env.findings == []
-    assert all(getattr(env.counts, s) == 0 for s in SEVERITIES)
+    assert all(getattr(env.counts, COUNT_COLUMN.get(s, s)) == 0 for s in SEVERITIES)
 
 
 # --- identity / payload ----------------------------------------------------

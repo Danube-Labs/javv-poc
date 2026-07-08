@@ -14,7 +14,7 @@ from scanner.adapters.grype import scan_grype
 from scanner.adapters.trivy import scan_trivy
 from scanner.envelope import Scanner, build_envelope, new_scan_run
 from scanner.models import ScanResult
-from scanner.normalize import SEVERITIES
+from scanner.normalize import COUNT_COLUMN, SEVERITIES
 
 _DRIVERS = {"trivy": scan_trivy, "grype": scan_grype}
 
@@ -43,7 +43,8 @@ def contract_violations(
             findings=result.findings,
             provenance=result.provenance,
         )
-        if env.counts.total != sum(getattr(env.counts, s) for s in SEVERITIES):
+        # count COLUMN names keep the short form (D46/COUNT_COLUMN) — map before getattr
+        if env.counts.total != sum(getattr(env.counts, COUNT_COLUMN.get(s, s)) for s in SEVERITIES):
             violations.append("severity bucket invariant violated")
     except Exception as exc:  # noqa: BLE001 — any build failure means the contract broke
         violations.append(f"envelope build failed: {exc!r}")
