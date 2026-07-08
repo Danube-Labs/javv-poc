@@ -117,6 +117,7 @@ def test_bootstrap_scope() -> None:
         "system-reports",  # M7/#32 — scheduled-export queue
         "system-report-chunks",  # M7/#32 — chunked result blobs
         "system-notifications",  # M7/#32 — the bell feed
+        "system-views",  # M8e/#242 — server-side saved filter views
     }
     # + system-audit-log (M5a appender; M5b owns writer/replay) + occurrences + inventory-runs
     # (M8a slices 1–2)

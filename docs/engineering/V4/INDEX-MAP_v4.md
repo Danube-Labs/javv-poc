@@ -25,7 +25,7 @@
 | `system-sessions` | mutable | none | **no** | TTL expiry |
 | `system-config` | mutable | none | **no** | none |
 | `system-tags` | mutable | none | **no** | none |
-| `system-saved-views` | mutable | none | **no** | none |
+| `system-views` | mutable | none | **no** | none |
 | `system-notifications` | mutable | none | **no** | bounded delete (old/read) |
 | `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h) |
 | `system-report-chunks` | mutable | none | **no** | TTL sweep with its parent report |
@@ -343,11 +343,16 @@ expires_at        date          TTL
 revoked           boolean       revoke-on-role-change / logout-all
 ```
 
-### `system-config` · `system-tags` · `system-saved-views` · `system-notifications` · `system-reports` · `system-report-chunks`
+### `system-config` · `system-tags` · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks`
 ```
 # system-config        : SLA policy, rollover/retention/staleness knobs, snapshot-repo ref (creds in OS keystore, not here)
 # system-tags          : { tag, kind: team|app|org, ... }
-# system-saved-views   : { user_id, name, filters }   (per-user)
+# system-views         : { view_id, name, description, preset, owner, created_at, updated_at }
+#                          (M8e/C-6 ruling, 2026-07-07: renamed from the pre-ruling `system-saved-views`
+#                          per-user sketch — views are visible to ALL authenticated users; mutations are
+#                          owner-or-admin. `preset` = the SearchFilters mirror, {enabled:false} in _source
+#                          — presets are fetched by _id/list, never queried by their innards; card counts
+#                          come from /findings/facets at render time, never stored.)
 # system-notifications : { user_id, type: sla_breach|assignment|report_ready, ref, created_at, read }
 # system-reports       : { report_id, kind: export|bulk_triage, status: pending|running|done|failed,
 #                          params, requested_by, run_mode: now|offpeak, scheduled_for, cluster_id,

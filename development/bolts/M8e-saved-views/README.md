@@ -50,7 +50,20 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - View folders/tags; default-view-per-user; UI → M9f.
 
 ## Updates
-- _none yet_
+- **2026-07-08 · slice 1 (store + create/list)** — **naming ruling:** the brief +
+  DATA_MODEL-v5 (C-6 docs) say `system-views`; INDEX-MAP carried a pre-ruling
+  `system-saved-views` per-user sketch — the ruled name **`system-views`** wins and the
+  INDEX-MAP row was rewritten first (design-integrity rule), with the real shape (all-visible,
+  owner-or-admin, `preset` `{enabled:false}` — fetched by `_id`/list, never queried by innards).
+  **`preset: {filters, q}`** (DATA_MODEL-v5 sketch): `q` deliberately dropped — no server text
+  query exists (the chokepoint refuses `q=`, SEC-4) and the §6 deep-link contract is
+  query-params-only; preset = the **SearchFilters mirror** (mirror-tested, the ExportParams
+  pattern — `ptype` from M8d joins automatically). Closed-vocabulary validation at the edge
+  (lowercase canonical severities incl. `negligible` via `SEVERITY_RANK`, the 6 `STATES`,
+  `Literal` scanners, the M8d ptype shape; `extra="forbid"`); garbage 422, never stored.
+  Create is journal-first (`view_create` row, D17/A-M5, `cluster_id="fleet"` — a preset carries
+  no cluster). MAPPING_VERSION **14**. POST is EXEMPT-listed (any authenticated user saves;
+  owner = principal); slice 2's PATCH/DELETE carry the owner-or-admin IDOR matrix.
 
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the

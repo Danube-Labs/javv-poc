@@ -116,6 +116,13 @@ routes stay current-state-only).
 | PUT | `/api/v1/settings/sla` | `can_manage_settings` | Replace SLA policy |
 | PUT | `/api/v1/clusters/{cluster_id}/name` | `can_manage_settings` | Rename a cluster's display name (M8c/#240): journaled per D17 (journal-first), stored in the `system-config` `cluster-registry` doc via a seq_no-CAS write. `cluster_id` itself is immutable |
 
+### Saved views (M8e, C-6)
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/views` | session | List saved views — visible to **all** authenticated users (C-6; per-view ACLs post-MVP). Card counts come from `/findings/facets` at render time, never stored |
+| POST | `/api/v1/views` | session | Save a view (`owner` = principal, immutable). `preset` mirrors the findings filter family 1:1 and is validated against the **closed vocabularies** (lowercase canonical severities incl. `negligible`, the 6 states, scanner, ptype shape) — garbage → 422, never stored. Journaled (D17, journal-first) |
+
 ### Exports (M6) & scheduled reports (M7)
 
 | Method | Path | Auth | Purpose |
@@ -152,7 +159,7 @@ token↔payload scope binding → commit-then-cache writes (D39, deterministic `
 | `401` | Missing/invalid/disabled token (generic — no existence oracle) |
 | `403` | Token scope ≠ payload `cluster_id`/`scanner` (SEC-3) |
 | `413` | Compressed body > cap, or decompressed > cap (zip bomb) |
-| `422` | Envelope failed validation (extra field, bad `cluster_id` shape, counts invariant, non-current `schema_version`) |
+| `422` | Envelope failed validation (extra field, bad `cluster_id` shape, counts invariant, `schema_version` outside the accepted window — v3/v4 during the M8d rollout) |
 | `429` | Per-token rate limit exceeded |
 | `503` | Storage temporarily unavailable (bulk retries exhausted) |
 

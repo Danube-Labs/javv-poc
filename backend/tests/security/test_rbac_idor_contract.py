@@ -189,6 +189,10 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         # M7 slice 3 — mark-read is strictly OWN-notification (user_id filter server-side; someone
         # else's id 404s, IDOR-tested in test_notifications_route). No capability: your own bell.
         ("PATCH", "/api/v1/notifications/{notification_id}/read"),
+        # M8e (#242) — any authenticated user may save a view (owner = principal, C-6 ruling);
+        # session-required asserted in test_views_route. Mutations of EXISTING views are the
+        # owner-or-admin regime (slice 2, IDOR-tested there).
+        ("POST", "/api/v1/views"),
     }
 )
 

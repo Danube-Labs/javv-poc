@@ -30,6 +30,7 @@ from backend.routers import (
     tokens,
     trends,
     triage,
+    views,
 )
 from backend.sla import routes as sla_routes
 from backend.triage import bulk_routes
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(audit.router)
     app.include_router(images.router)
     app.include_router(clusters.router)
+    app.include_router(views.router)
     app.include_router(sla_routes.router)
     app.include_router(bulk_routes.router)
     return app
