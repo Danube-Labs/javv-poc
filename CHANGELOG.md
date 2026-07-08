@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.4](https://github.com/Danube-Labs/javv-poc/compare/v0.3.3...v0.3.4) (2026-07-08)
+
+
+### Features
+
+* **m8c:** audit read + catalog-first scanner provenance (slice 1) ([#267](https://github.com/Danube-Labs/javv-poc/issues/267)) ([b5d322b](https://github.com/Danube-Labs/javv-poc/commit/b5d322b8fe53e745c9c675af385a50a9df459c1e)), closes [#240](https://github.com/Danube-Labs/javv-poc/issues/240)
+* **m8c:** running-images read + cluster registry — the m9-prep reads close (slice 2) ([#269](https://github.com/Danube-Labs/javv-poc/issues/269)) ([#270](https://github.com/Danube-Labs/javv-poc/issues/270)) ([73ef41b](https://github.com/Danube-Labs/javv-poc/commit/73ef41b7deef44c23ce88a5bddc42de44609f8be)), closes [#240](https://github.com/Danube-Labs/javv-poc/issues/240)
+* **m8d:** ptype through every read surface — filter, facets, groups, as-of-t (slice 2) ([#272](https://github.com/Danube-Labs/javv-poc/issues/272)) ([dea5136](https://github.com/Danube-Labs/javv-poc/commit/dea5136bb51d47527c1490142618cdafe635ff30)), closes [#241](https://github.com/Danube-Labs/javv-poc/issues/241)
+* **m8d:** ptype through the write path — envelope v4 with a v3 acceptance window (slice 1) ([#271](https://github.com/Danube-Labs/javv-poc/issues/271)) ([9ee1fea](https://github.com/Danube-Labs/javv-poc/commit/9ee1fea89287d5152b423dbe92e3977bc5505b40)), closes [#241](https://github.com/Danube-Labs/javv-poc/issues/241)
+
 ## [0.3.3](https://github.com/Danube-Labs/javv-poc/compare/v0.3.2...v0.3.3) (2026-07-07)
 
 
