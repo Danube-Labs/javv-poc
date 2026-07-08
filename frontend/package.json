@@ -14,7 +14,8 @@
     "lint:oxlint": "oxlint . --fix",
     "lint:eslint": "eslint . --fix --cache",
     "lint:styles": "stylelint \"src/**/*.{css,vue}\"",
-    "test": "run-s type-check \"test:unit -- --run\""
+    "test": "run-s type-check \"test:unit -- --run\"",
+    "gen:api": "openapi-ts"
   },
   "dependencies": {
     "@primeuix/themes": "^2.0.3",
@@ -25,6 +26,7 @@
     "vue-router": "^5.1.0"
   },
   "devDependencies": {
+    "@hey-api/openapi-ts": "^0.99.0",
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.13.2",
