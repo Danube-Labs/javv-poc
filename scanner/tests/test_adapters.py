@@ -119,8 +119,9 @@ def test_parse_grype_extracts_fields_including_epss() -> None:
 
 
 def test_parse_grype_every_severity_canonicalizes() -> None:
+    buckets = {"critical", "high", "medium", "low", "negligible", "unknown"}
     for f in parse_grype(load("grype-python-3.9.16-slim.json")):
-        assert f.severity_canonical in {"crit", "high", "med", "low", "negligible", "unknown"}
+        assert f.severity_canonical in buckets
 
 
 # --- defensive (untrusted input) ------------------------------------------

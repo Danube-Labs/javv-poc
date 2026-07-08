@@ -105,7 +105,7 @@
       "fixed_version": null,
       "epss": null,
       "kev": false,
-      "severity_canonical": "crit",
+      "severity_canonical": "critical",
       "ptype": "os"
     },
     {
@@ -118,7 +118,7 @@
       "fixed_version": null,
       "epss": null,
       "kev": false,
-      "severity_canonical": "crit",
+      "severity_canonical": "critical",
       "ptype": "os"
     },
     {
@@ -131,7 +131,7 @@
       "fixed_version": "1.18.3-6+deb11u5",
       "epss": null,
       "kev": false,
-      "severity_canonical": "crit",
+      "severity_canonical": "critical",
       "ptype": "os"
     },
     {
@@ -144,7 +144,7 @@
       "fixed_version": "1.18.3-6+deb11u5",
       "epss": null,
       "kev": false,
-      "severity_canonical": "crit",
+      "severity_canonical": "critical",
       "ptype": "os"
     },
     {
@@ -209,7 +209,7 @@
       "fixed_version": "1.1.1n-0+deb11u5",
       "epss": null,
       "kev": false,
-      "severity_canonical": "med",
+      "severity_canonical": "medium",
       "ptype": "os"
     },
     {
@@ -222,7 +222,7 @@
       "fixed_version": "1.1.1n-0+deb11u5",
       "epss": null,
       "kev": false,
-      "severity_canonical": "med",
+      "severity_canonical": "medium",
       "ptype": "os"
     },
     {
@@ -235,7 +235,7 @@
       "fixed_version": "1.1.1n-0+deb11u5",
       "epss": null,
       "kev": false,
-      "severity_canonical": "med",
+      "severity_canonical": "medium",
       "ptype": "os"
     },
     {
@@ -248,7 +248,7 @@
       "fixed_version": "1.1.1n-0+deb11u5",
       "epss": null,
       "kev": false,
-      "severity_canonical": "med",
+      "severity_canonical": "medium",
       "ptype": "os"
     },
     {
@@ -365,7 +365,7 @@
       "fixed_version": "23.3",
       "epss": null,
       "kev": false,
-      "severity_canonical": "med",
+      "severity_canonical": "medium",
       "ptype": "os"
     },
     {
@@ -378,7 +378,7 @@
       "fixed_version": "25.3",
       "epss": null,
       "kev": false,
-      "severity_canonical": "med",
+      "severity_canonical": "medium",
       "ptype": "os"
     },
     {
@@ -391,7 +391,7 @@
       "fixed_version": "26.1",
       "epss": null,
       "kev": false,
-      "severity_canonical": "med",
+      "severity_canonical": "medium",
       "ptype": "os"
     },
     {
@@ -404,7 +404,7 @@
       "fixed_version": "26.1",
       "epss": null,
       "kev": false,
-      "severity_canonical": "med",
+      "severity_canonical": "medium",
       "ptype": "os"
     },
     {

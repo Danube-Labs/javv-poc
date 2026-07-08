@@ -192,8 +192,18 @@ if [ -n "$CURSOR" ]; then
 fi
 
 # facets: per-scanner buckets present; counts are server-side
-api "/api/v1/findings/facets?cluster_id=$SCAN_CID" \
-  | jq -e '.facets.severity | length > 0' >/dev/null || fail "facets missing severity buckets"
+FACETS=$(api "/api/v1/findings/facets?cluster_id=$SCAN_CID")
+echo "$FACETS" | jq -e '.facets.severity | length > 0' >/dev/null || fail "facets missing severity buckets"
+# D46 (#274): bucket keys are the FULL-WORD canonical vocabulary, never crit/med or verbatim-case
+echo "$FACETS" | jq -e '[.facets.severity[].key]
+  | all(IN("critical","high","medium","low","negligible","unknown"))' >/dev/null \
+  || fail "severity facet keys are not the D46 full-word vocabulary"
+# ... and a full-word filter matches REAL ingested rows (the #274 regression: crit/med used to
+# match nothing real, and only synthetic test seeds kept the old vocabulary green)
+SEV=$(echo "$FACETS" | jq -r '.facets.severity[0].key')
+SEV_ROWS=$(api "/api/v1/findings?cluster_id=$SCAN_CID&severity=$SEV&size=5" | jq '.data | length')
+[ "$SEV_ROWS" -gt 0 ] || fail "severity=$SEV filter matched no real rows (D46/#274 regression)"
+echo "severity vocabulary: OK ($SEV matches $SEV_ROWS real rows)"
 
 # triage one real finding -> journaled
 FK=$(echo "$PAGE" | jq -r '.data[0].finding_key')

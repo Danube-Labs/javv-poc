@@ -15,22 +15,22 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def test_severities_are_the_fixed_order_map_highest_first() -> None:
     # AUDIT-RESPONSE_v4: crit > high > med > low > negligible > unknown
-    assert SEVERITIES == ("crit", "high", "med", "low", "negligible", "unknown")
+    assert SEVERITIES == ("critical", "high", "medium", "low", "negligible", "unknown")
 
 
 @pytest.mark.parametrize(
     ("raw", "expected"),
     [
         # Trivy ramp (UPPERCASE; no "negligible")
-        ("CRITICAL", "crit"),
+        ("CRITICAL", "critical"),
         ("HIGH", "high"),
-        ("MEDIUM", "med"),
+        ("MEDIUM", "medium"),
         ("LOW", "low"),
         ("UNKNOWN", "unknown"),
         # Grype ramp (TitleCase; adds Negligible)
-        ("Critical", "crit"),
+        ("Critical", "critical"),
         ("High", "high"),
-        ("Medium", "med"),
+        ("Medium", "medium"),
         ("Low", "low"),
         ("Negligible", "negligible"),
         ("Unknown", "unknown"),
@@ -42,7 +42,7 @@ def test_maps_each_scanner_word_to_canonical(raw: str, expected: str) -> None:
 
 @pytest.mark.parametrize("raw", ["critical", "Critical", "CRITICAL", "cRiTiCaL", " critical "])
 def test_is_case_and_whitespace_insensitive(raw: str) -> None:
-    assert canonical_severity(raw) == "crit"
+    assert canonical_severity(raw) == "critical"
 
 
 @pytest.mark.parametrize("raw", ["", "   ", "moderate", "severe", "bogus", "none", "0"])

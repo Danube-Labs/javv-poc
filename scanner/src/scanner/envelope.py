@@ -19,7 +19,7 @@ from pydantic import BaseModel, ConfigDict
 
 from scanner.config import GrypeConfig, TrivyConfig
 from scanner.models import Finding, Provenance
-from scanner.normalize import SEVERITIES
+from scanner.normalize import COUNT_COLUMN, SEVERITIES
 from scanner.scope import ScanScope
 
 # v2: observed topology (image_ref, namespaces[], replicas) replaced the vestigial null namespace
@@ -67,7 +67,9 @@ class SeverityCounts(BaseModel):
 def _count(findings: Sequence[Finding]) -> SeverityCounts:
     tally = Counter(f.severity_canonical for f in findings)
     return SeverityCounts(
-        **{sev: tally.get(sev, 0) for sev in SEVERITIES},
+        # D46 (#274): canonical buckets are full words; the count COLUMN names keep the
+        # historical short form (COUNT_COLUMN) — a wire/mapping constant, not a vocabulary
+        **{COUNT_COLUMN.get(sev, sev): tally.get(sev, 0) for sev in SEVERITIES},
         total=len(findings),
         fixable=sum(1 for f in findings if f.fixable),
     )
