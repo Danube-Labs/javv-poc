@@ -82,6 +82,7 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
                 "fixed_version": f.fixed_version,
                 "epss": f.epss,
                 "kev": f.kev,
+                "ptype": f.ptype,  # M8d/B-1: null on v3 envelopes until the next sweep (D30)
                 "first_seen_at": ts,  # naive in M1; M3's partial-merge preserves it
                 "last_seen_at": ts,
                 "last_scan_run_id": env.scan_run_id,

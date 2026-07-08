@@ -24,7 +24,9 @@ from scanner.scope import ScanScope
 
 # v2: observed topology (image_ref, namespaces[], replicas) replaced the vestigial null namespace
 # v3: effective_config (tuning flags + applied scope) for read-only display/audit (D44/FR-25)
-SCHEMA_VERSION = 3
+# v4: per-finding ptype — "os" or the verbatim-lowercase ecosystem (M8d/B-1, #241); the backend
+#     accepts v3 AND v4 during the rollout (no flag day — operators swap images at their own pace)
+SCHEMA_VERSION = 4
 
 Scanner = Literal["trivy", "grype"]
 

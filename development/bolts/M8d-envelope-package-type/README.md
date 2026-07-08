@@ -53,6 +53,21 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Any UI work → M9b (facet/column) / M9c (donut).
 
 ## Updates
+- **2026-07-08 · slice 1 (write path)** — the lockstep core. **Vocabulary ruling (the PR
+  table):** `ptype` = `"os"` (Trivy `Class == "os-pkgs"`) or the scanner's verbatim-lowercase
+  ecosystem string (Trivy `Type` → `python-pkg`/`node-pkg`/…; Grype `artifact.type` →
+  `apk`/`deb`/`rpm`/`python`/…); **no cross-scanner folding of language ecosystems** — per-scanner
+  is sacred and facet buckets never merge, so name alignment is cosmetic; the D16 normalizer
+  extension stays unneeded until a real UI collision appears. Scanner `SCHEMA_VERSION` 3→4;
+  backend accepts **`Literal[3, 4]`** — the one deliberate departure from current-envelope-only
+  (D25/D35; v3 was a flag day, D44), because operators swap images at their own pace (D41):
+  a v3 envelope stays green with `ptype: null`, and the next v4 sweep heals the cache nulls via
+  the D31 merge (proven by a store test, not narrated). `ptype` is shape-constrained at the edge
+  (`^[a-z0-9][a-z0-9+._-]*$`, ≤64 — untrusted input into a keyword facet). Mappings: findings +
+  occurrences gain the keyword, MAPPING_VERSION **13**, INDEX-MAP rows same change. Golden
+  regenerated at v4 (+ `envelope-trivy-v3-golden.json` pinned for the backcompat test). The
+  2026-07-07/08 `schema_version` test-coupling notes below are **defused by dual acceptance** —
+  v3-seeding helpers stay green, nothing broke on the bump.
 - **2026-07-07** — hidden test coupling to check when bumping `schema_version`: the M7 report tests
   seed findings docs directly with a hardcoded `schema_version: 2` (the `_finding()` helpers in
   `backend/tests/test_report_drain.py` and `test_report_bulk_kind.py`) — grep for `schema_version`

@@ -60,6 +60,7 @@ severity          keyword/lc    as-of-then (verbatim in _source)
 cvss              float         as-of-then
 fixable           boolean
 fixed_version     keyword
+ptype             keyword       package type (M8d/B-1): "os" | ecosystem string; null on v3-era rows
 schema_version    short
 ```
 *(No `severity_rank` here - OE-5/D38; as-of-T severity sort uses a fixed order map
@@ -219,6 +220,7 @@ fixable           boolean
 fixed_version     keyword
 epss              float          grype only (null for trivy)
 kev               boolean        grype only
+ptype             keyword        package type (M8d/B-1): "os" | verbatim-lowercase ecosystem; null until a v4 scan observes (D30 heals)
 disagree          boolean        precomputed severity disagreement (D5a)
 first_seen_at     date           full precision (not day-grain - D37/M13)
 last_seen_at      date           full precision; freshness/stale timer reads this

@@ -77,6 +77,9 @@ def parse_grype(data: Mapping[str, Any]) -> list[Finding]:
             continue
         fix = vuln.get("fix") or {}
         versions = fix.get("versions") or []
+        # package type (M8d/B-1): Grype's artifact.type, verbatim-lowercase (apk/deb/rpm/python/…)
+        raw_ptype = artifact.get("type")
+        ptype = raw_ptype.lower() if isinstance(raw_ptype, str) and raw_ptype else None
         findings.append(
             Finding(
                 vuln_id=vuln_id,
@@ -88,6 +91,7 @@ def parse_grype(data: Mapping[str, Any]) -> list[Finding]:
                 fixed_version=versions[0] if versions else None,
                 epss=_epss(vuln.get("epss")),
                 kev=bool(vuln.get("knownExploited")),
+                ptype=ptype,
             )
         )
     return findings

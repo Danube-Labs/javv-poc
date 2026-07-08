@@ -52,11 +52,21 @@ def _cvss(cvss: Any) -> float | None:
     return None
 
 
+def _ptype(result: Mapping[str, Any]) -> str | None:
+    """Package type (M8d/B-1): `Class == "os-pkgs"` → `"os"`; otherwise the ecosystem string
+    (`Type`, lowercased — e.g. `python-pkg`, `node-pkg`). Missing/garbage → None, never fatal."""
+    if result.get("Class") == "os-pkgs":
+        return "os"
+    ptype = result.get("Type")
+    return ptype.lower() if isinstance(ptype, str) and ptype else None
+
+
 def parse_trivy(data: Mapping[str, Any]) -> list[Finding]:
     findings: list[Finding] = []
     for result in data.get("Results") or []:
         if not isinstance(result, Mapping):
             continue
+        ptype = _ptype(result)
         for v in result.get("Vulnerabilities") or []:
             if not isinstance(v, Mapping):
                 continue
@@ -74,6 +84,7 @@ def parse_trivy(data: Mapping[str, Any]) -> list[Finding]:
                     cvss=_cvss(v.get("CVSS")),
                     fixable=bool(fixed_version),
                     fixed_version=fixed_version,
+                    ptype=ptype,
                 )
             )
     return findings
