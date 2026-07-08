@@ -190,9 +190,12 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         # else's id 404s, IDOR-tested in test_notifications_route). No capability: your own bell.
         ("PATCH", "/api/v1/notifications/{notification_id}/read"),
         # M8e (#242) — any authenticated user may save a view (owner = principal, C-6 ruling);
-        # session-required asserted in test_views_route. Mutations of EXISTING views are the
-        # owner-or-admin regime (slice 2, IDOR-tested there).
+        # session-required asserted in test_views_route. PATCH/DELETE are the OWNER-OR-ADMIN
+        # regime, not a capability gate: non-owner 403, admin override, owner immutable —
+        # the IDOR matrix lives in test_views_route.
         ("POST", "/api/v1/views"),
+        ("PATCH", "/api/v1/views/{view_id}"),
+        ("DELETE", "/api/v1/views/{view_id}"),
     }
 )
 

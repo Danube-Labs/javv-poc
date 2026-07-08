@@ -1,0 +1,37 @@
+{
+  "default": {
+    "assignee": null,
+    "cve_id": null,
+    "disagree": null,
+    "fixable": null,
+    "image_digest": null,
+    "image_repo": null,
+    "kev": null,
+    "namespace": null,
+    "present": true,
+    "ptype": null,
+    "scanner": null,
+    "severity": null,
+    "state": null
+  },
+  "populated": {
+    "assignee": null,
+    "cve_id": null,
+    "disagree": null,
+    "fixable": null,
+    "image_digest": null,
+    "image_repo": null,
+    "kev": true,
+    "namespace": "team-a",
+    "present": true,
+    "ptype": "os",
+    "scanner": "trivy",
+    "severity": [
+      "crit",
+      "high"
+    ],
+    "state": [
+      "open"
+    ]
+  }
+}
