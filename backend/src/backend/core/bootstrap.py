@@ -48,7 +48,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             "running images now/at T" reads only status=committed runs by inventory_order)
 #          v13 + ptype on findings + javv-finding-occurrences (M8d/B-1/#241 — package type,
 #             "os" | verbatim-lowercase ecosystem; envelope v4, v3 still accepted → null)
-MAPPING_VERSION = 13
+#          v14 + system-views (M8e/C-6/#242 — server-side saved filter views; preset =
+#             SearchFilters mirror, enabled:false; all-visible, owner-or-admin mutations)
+MAPPING_VERSION = 14
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -263,6 +265,21 @@ _NOTIFICATIONS_PROPERTIES: dict[str, Any] = {
     "read": _BOOL,
 }
 
+# system-views (M8e/C-6, #242): server-side saved filter views — visible to ALL authenticated
+# users, mutations owner-or-admin. `preset` is the SearchFilters mirror, {enabled:false}: views
+# are fetched by _id / listed, never queried by preset innards (card counts come from
+# /findings/facets at render time — server-side-everything holds).
+_VIEWS_PROPERTIES: dict[str, Any] = {
+    "view_id": _KW,
+    "name": _KW,
+    "description": {"type": "text"},
+    "preset": {"type": "object", "enabled": False},  # opaque filter blob, in _source only
+    "owner": _KW,  # username; immutable after create
+    "created_at": _DATE,
+    "updated_at": _DATE,
+    "schema_version": {"type": "short"},
+}
+
 MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "findings": {
         "settings": {"index": {**_BASE_SETTINGS, "analysis": _LC_ANALYSIS}},
@@ -311,6 +328,10 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "system-notifications": {  # M7/#32 (FR-16) — the bell feed
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_NOTIFICATIONS_PROPERTIES),
+    },
+    "system-views": {  # M8e/C-6 (#242) — server-side saved filter views
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_VIEWS_PROPERTIES),
     },
 }
 
