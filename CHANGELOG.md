@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.3.5](https://github.com/Danube-Labs/javv-poc/compare/v0.3.4...v0.3.5) (2026-07-08)
+
+
+### Features
+
+* **274:** full-word canonical severity — severity_canonical query key + sla fix (slice 1) ([#277](https://github.com/Danube-Labs/javv-poc/issues/277)) ([5a74dc8](https://github.com/Danube-Labs/javv-poc/commit/5a74dc85074d1ca2f9293a5dee677c1bcd7030a6)), closes [#274](https://github.com/Danube-Labs/javv-poc/issues/274)
+* **274:** scanner full-word severities + count-column shim, smoke vocabulary pin (slice 2) ([#278](https://github.com/Danube-Labs/javv-poc/issues/278)) ([7c8ffb8](https://github.com/Danube-Labs/javv-poc/commit/7c8ffb8bd2f252267343f024e4e4dccbdd5c7bb9)), closes [#274](https://github.com/Danube-Labs/javv-poc/issues/274)
+* **m8e:** system-views store + create/list — the saved-views foundation (slice 1) ([#273](https://github.com/Danube-Labs/javv-poc/issues/273)) ([050b23a](https://github.com/Danube-Labs/javv-poc/commit/050b23ade6afd2e4aa6650eb157190528978716a)), closes [#242](https://github.com/Danube-Labs/javv-poc/issues/242)
+* **m8e:** views mutations — owner-or-admin, cas, and the deep-link round-trip (slice 2) ([#276](https://github.com/Danube-Labs/javv-poc/issues/276)) ([b7e80da](https://github.com/Danube-Labs/javv-poc/commit/b7e80dacf39b53e934f585dc42ba575fd7305198)), closes [#242](https://github.com/Danube-Labs/javv-poc/issues/242)
+
+
+### Bug Fixes
+
+* **trends:** absolute window bounds — kill the createWeight now-datemath ci flake ([#279](https://github.com/Danube-Labs/javv-poc/issues/279)) ([fd81951](https://github.com/Danube-Labs/javv-poc/commit/fd81951dd9ccbd74fea691c7e641e9443576455e))
+
 ## [0.3.4](https://github.com/Danube-Labs/javv-poc/compare/v0.3.3...v0.3.4) (2026-07-08)
 
 
