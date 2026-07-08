@@ -25,8 +25,9 @@ How JAVV keeps **one** visual system instead of a thousand ad-hoc fonts, sizes, 
 Three **separate** buckets; using one where another belongs is a bug:
 1. **Brand** (coral / amber / teal) - chrome, accents, info only. **Coral/amber must NEVER encode severity;
    teal is info-only.**
-2. **Severity** (`crit/high/med/low/unknown`) - **DATA ONLY**, from the severity token map (`fg/bg/line/solid`
-   + chart series). Never brand chrome.
+2. **Severity** (`critical/high/medium/low/negligible/unknown` - the six D46 full-word canonicals;
+   `negligible` renders muted, never red, per the A-1 ruling) - **DATA ONLY**, from the severity token
+   map (`fg/bg/line/solid` + chart series). Never brand chrome.
 3. **Status / semantic** - finding state (open/stale/acknowledged/resolved), **health (ok/degraded/down -
    the same ramp the OpenSearch-degraded banner uses, see [`observability.md`](observability.md))**, KEV tag,
    scanner tags (Trivy/Grype).
@@ -37,4 +38,4 @@ Three **separate** buckets; using one where another belongs is a bug:
   values must come from a token. This is what stops the "10 000 style variants" drift.
 - Severity/status colors are only ever read from the token map (lint/grep guard against literal severity hex).
 - **Tested:** a component using a raw hex or a non-token font fails lint; the severity token map round-trips
-  to the five buckets.
+  to the six buckets.
