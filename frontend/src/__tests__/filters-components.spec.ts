@@ -1,0 +1,118 @@
+import { mount } from '@vue/test-utils'
+import { describe, expect, it } from 'vitest'
+
+import FacetRail from '@/components/filters/FacetRail.vue'
+import FilterBar from '@/components/filters/FilterBar.vue'
+import type { FacetsResponse } from '@/filters/facets'
+import { FINDINGS_FIELDS, emptySelections, type FilterField } from '@/filters/fields.config'
+
+const FACETS: FacetsResponse = {
+  severity: [
+    { key: 'critical', count: 194, by_scanner: { grype: 135, trivy: 59 } },
+    { key: 'negligible', count: 360, by_scanner: { grype: 360 } },
+  ],
+  scanner: [{ key: 'trivy', count: 2080, by_scanner: { trivy: 2080 } }],
+  kev: [{ key: 'true', count: 41, by_scanner: { trivy: 22, grype: 19 } }],
+  os: [{ key: 'alpine', count: 999, by_scanner: { trivy: 1, grype: 2 } }],
+}
+
+const mountBoth = (fields: readonly FilterField[]) => {
+  const props = { fields, selections: emptySelections(fields), facets: FACETS }
+  return { rail: mount(FacetRail, { props }), bar: mount(FilterBar, { props }) }
+}
+
+describe('one config drives both components (PLAN gate)', () => {
+  it('a field added to the config surfaces in FacetRail AND FilterBar with no component edits', async () => {
+    const extended: FilterField[] = [
+      ...FINDINGS_FIELDS,
+      { key: 'os', label: 'Operating system', type: 'terms', param: 'os_name', facetKey: 'os' },
+    ]
+    const { rail, bar } = mountBoth(extended)
+
+    expect(rail.text()).toContain('Operating system')
+    expect(rail.text()).toContain('alpine')
+
+    await bar.find('.add-filter').trigger('click')
+    const fieldItems = bar.findAll('.filter-field').map((b) => b.text())
+    expect(fieldItems.some((t) => t.includes('Operating system'))).toBe(true)
+  })
+
+  it('renders every listable findings field in both, and text fields only in the bar', async () => {
+    const { rail, bar } = mountBoth(FINDINGS_FIELDS)
+
+    for (const label of ['Severity', 'Scanner', 'Attribute', 'State', 'Package type']) {
+      expect(rail.text()).toContain(label)
+    }
+    expect(rail.text()).not.toContain('Namespace') // text field: no buckets, bar-only
+
+    await bar.find('.add-filter').trigger('click')
+    const fieldItems = bar.findAll('.filter-field').map((b) => b.text())
+    for (const f of FINDINGS_FIELDS) {
+      expect(fieldItems.some((t) => t.includes(f.label))).toBe(true)
+    }
+  })
+})
+
+describe('FacetRail per-scanner display (FR-12)', () => {
+  it('shows the server count verbatim and the split as tooltip — no client-side arithmetic', () => {
+    const fields: FilterField[] = [
+      { key: 'os', label: 'OS', type: 'terms', param: 'os_name', facetKey: 'os' },
+    ]
+    const rail = mount(FacetRail, {
+      props: { fields, selections: emptySelections(fields), facets: FACETS },
+    })
+    const row = rail.find('.facet-row')
+    // 999 ≠ 1+2: proves the displayed number is the server's, never a client sum
+    expect(row.find('.facet-count').text()).toBe('999')
+    expect(row.attributes('title')).toBe('trivy 1 · grype 2')
+  })
+
+  it('emits toggle with field key and value on row click', async () => {
+    const { rail } = mountBoth(FINDINGS_FIELDS)
+    await rail.find('.facet-row').trigger('click')
+    expect(rail.emitted('toggle')?.[0]).toEqual(['severity', 'critical'])
+  })
+})
+
+describe('FilterBar interactions', () => {
+  it('shows pills for active selections and emits clearField / clearAll', async () => {
+    const selections = { ...emptySelections(FINDINGS_FIELDS), severity: ['critical', 'high'] }
+    const bar = mount(FilterBar, {
+      props: { fields: FINDINGS_FIELDS, selections, facets: FACETS },
+    })
+
+    const pill = bar.find('.fpill')
+    expect(pill.text()).toContain('Severity')
+    expect(pill.text()).toContain('is one of')
+
+    await pill.find('.fpill-x').trigger('click')
+    expect(bar.emitted('clearField')?.[0]).toEqual(['severity'])
+
+    await bar.find('.clear-all').trigger('click')
+    expect(bar.emitted('clearAll')).toHaveLength(1)
+  })
+
+  it('drills into a field and emits toggle for a picked value', async () => {
+    const bar = mount(FilterBar, {
+      props: { fields: FINDINGS_FIELDS, selections: emptySelections(FINDINGS_FIELDS), facets: FACETS },
+    })
+    await bar.find('.add-filter').trigger('click')
+    const sevItem = bar.findAll('.filter-field').find((b) => b.text().includes('Severity'))
+    await sevItem?.trigger('click')
+    await bar.find('.facet-row').trigger('click')
+    expect(bar.emitted('toggle')?.[0]).toEqual(['severity', 'critical'])
+  })
+
+  it('gives text fields an input and emits setText on Enter', async () => {
+    const bar = mount(FilterBar, {
+      props: { fields: FINDINGS_FIELDS, selections: emptySelections(FINDINGS_FIELDS), facets: FACETS },
+    })
+    await bar.find('.add-filter').trigger('click')
+    const nsItem = bar.findAll('.filter-field').find((b) => b.text().includes('Namespace'))
+    await nsItem?.trigger('click')
+    const input = bar.find('.filter-vsearch input')
+    await input.setValue('payments')
+    await input.trigger('keydown.enter')
+    expect(bar.emitted('setText')?.[0]).toEqual(['namespace', 'payments'])
+  })
+})

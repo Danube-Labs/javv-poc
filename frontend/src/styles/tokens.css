@@ -54,6 +54,20 @@
   --text-brand-word: 21px; /* the sidebar/login "javv" word, weight bold, -.03em */
   --text-nav-item: 13.5px; /* sidebar nav items */
   --text-sweep-strong: 11.5px; /* sidebar footer sweep headline */
+  --text-control: 12px; /* facet rows, filter pills, add-filter, value search */
+  --text-facet-count: 10.5px; /* facet bucket counts, mono */
+  --text-dd-item: 12.5px; /* dropdown menu items */
+  --text-dd-head: 9.5px; /* dropdown group heads, mono uppercase */
+  --text-quiet-action: 11.5px; /* clear-all / clear-field text buttons */
+
+  /* -- filter chrome — promoted from the prototype's filters CSS --------- */
+  --facet-check-line: #cfc8ba;
+  --fpill-line: #e0d2c5;
+  --fpill-x-hover-bg: #f3e2d9;
+  --add-filter-line: #cfc4b5;
+  --add-filter-hover-bg: #fdf4ef;
+  --dd-on-bg: rgba(236, 126, 84, 0.1);
+  --dd-shadow: 0 14px 40px -16px rgba(22, 35, 47, 0.4);
 
   /* -- severity (DATA ONLY — six D46 canonicals; never brand) ----------- */
   /* negligible is the one bucket beyond the v4 sheet (D46/A-1): muted, never red. */

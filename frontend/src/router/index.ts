@@ -57,8 +57,7 @@ const router = createRouter({
         {
           path: 'findings',
           name: 'findings',
-          component: () => import('@/views/PlaceholderView.vue'),
-          props: { title: 'Findings', bolt: 'M9b' },
+          component: () => import('@/views/FindingsView.vue'),
         },
         {
           path: 'images',
