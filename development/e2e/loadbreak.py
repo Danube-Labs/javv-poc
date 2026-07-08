@@ -328,11 +328,16 @@ async def phase_load(
     accepted = status_tally[202]
     result = {
         "cycles": CYCLES,
-        "envelopes": sum(status_tally.values()),
+        # envelopes_sent = unique envelopes (each terminates exactly one way: accepted / shed /
+        # hard-failure). http_attempts includes retries, so status_tally is ATTEMPT-level: a 429
+        # there may belong to an envelope that was later accepted — only shed_after_backoff counts
+        # envelopes that never landed.
+        "envelopes_sent": accepted + len(shed) + len(failures),
+        "http_attempts": sum(status_tally.values()),
         "wall_s": round(wall, 1),
         "status_tally": dict(status_tally),
         "accepted_202": accepted,
-        "shed_429_503": status_tally[429] + status_tally[503],
+        "backpressure_429_503": status_tally[429] + status_tally[503],
         "shed_after_backoff": len(shed),
         "server_errors_5xx": server_errors,
         "lat_p50_ms": round(statistics.median(lat) * 1000, 1),

@@ -161,7 +161,7 @@ robustness rig, both perf benches, and the full pytest suite — all against a w
 | Component | Result | Real data it asserted on |
 |---|---|---|
 | `smoke.sh` (M0→M8 + D46) | ✅ green | trivy=2080 / grype=2211 findings; disagree=1426; as-of reconstructs present=2080 vs now=59; SLA overdue 100/100 under a 1-day policy; ptype facet = os,deb,go-module,gobinary,apk,python…; CSV severities = CRITICAL/HIGH/MEDIUM/LOW/UNKNOWN |
-| `loadbreak.py` (all phases) | ✅ green | LOAD 8000 envelopes → 4400×202, 3600 shed (429/503), **0×5xx**; CAPTURE 25 endpoints, 0 D46 vocab leaks (quiet + under load); BREAK all abuse cases pass incl. D40 stale-replay → present=1; LIFECYCLE bootstrap idempotent @ MAPPING_VERSION 15; INVARIANTS PIT/as-of/metrics/secret all pass |
+| `loadbreak.py` (all phases) | ✅ green | LOAD 5000 envelopes / 8000 HTTP attempts (retries incl.) → 4400 accepted (88%), 600 shed after 6-attempt backoff, 3600 attempt-level 429s, **0×5xx**; CAPTURE 25 endpoints, 0 D46 vocab leaks (quiet + under load); BREAK all abuse cases pass incl. D40 stale-replay → present=1; LIFECYCLE bootstrap idempotent @ MAPPING_VERSION 15; INVARIANTS PIT/as-of/metrics/secret all pass |
 | `bench_refresh.py` | ✅ | per-envelope refresh 10.7–12.4 ms — matches the #117 baseline, no regression |
 | `bench_read.py` | ✅ | reads under write contention p50 29 ms / p95 90 ms / p99 110 ms, **no 5xx** |
 | full pytest (645 tests) | ✅ green | non-serial + serial, both exit 0, zero failures |
@@ -186,6 +186,7 @@ BEFORE touching the assertion; none masked a product defect.
 9. scope tests used an uppercase cluster_id / a trivy body with scanner flipped → both 422 on validation *before* the 403 scope check. With valid-shape inputs both correctly 403.
 10. D40 ordering replay ran on a load-hammered token (setup pushes 429'd) and built a `shrunk` envelope with inconsistent counts (422). On a fresh token with consistent counts: stale replay → present=1 (watermark held).
 11. LOAD classified persistent-429 (correct load-shedding) as a hard failure. Reclassified: fail only on 5xx / non-2xx-non-429 / no-accepts; shed is reported, not fatal.
+12. (post-run review) LOAD's summary labeled ATTEMPT counts as envelope counts — "8000 envelopes, 3600 shed" was really 5000 envelopes / 8000 HTTP attempts, with 3600 attempt-level 429s and only 600 envelopes actually shed (each of those after 6 backoff attempts; the other 429s belonged to envelopes that retried and landed). Reporting fixed (`envelopes_sent` vs `http_attempts`); verdict logic was unaffected. The shed itself is arithmetic, not a bug: 20 tokens pushed 250 envelopes each in ~108 s (~139/min demand) against the 120/min/token limiter — no in-window retry can beat a rate limit; the real scanner's next CronJob cycle (D30 rescans everything) is the system-level retry.
 
 Bench idempotency note (pre-existing, not blocking): `bench_read.py` rotates its reader passwords on
 first run (must_change), so a second run on the same store can't re-login — run it against a fresh store.
