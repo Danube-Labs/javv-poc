@@ -76,3 +76,6 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
 > `JAVV_LOG_LEVEL` come free ([observability.md §1](../../standards/observability.md)).
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
+> **Frontend analog (M9a+):** `logger` from `frontend/src/lib/logger.ts` — structured, leveled,
+> backend-shaped lines; raw `console.*` in app code is ESLint-banned. Threshold: `VITE_LOG_LEVEL`
+> ([CONFIGURATION.md §2b](../../../docs/CONFIGURATION.md)); never log tokens/cookies/bodies (NFR-5).

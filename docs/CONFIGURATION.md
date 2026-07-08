@@ -87,6 +87,17 @@ fallback or a per-image error loop. Unset always means the documented default.
 
 ---
 
+## 2b. JAVV Frontend (Vue/Vite) — `VITE_*` build-time env
+
+Source: `frontend/src/lib/logger.ts` (tier ① — Vite inlines `VITE_*` at build; changing it means a
+rebuild, not a restart). The FE has exactly one knob so far — added M9a slice 1.
+
+| Env var | Default | Meaning | UI? |
+|---|---|---|---|
+| `VITE_LOG_LEVEL` | `debug` (dev) / `warn` (prod build) | Browser-console threshold for the frontend structured logger (`debug`\|`info`\|`warn`\|`error`) — the FE analog of `JAVV_LOG_LEVEL` (observability.md §1: same `timestamp→level→event` line shape; raw `console.*` is ESLint-banned in app code). Unknown value falls back to the default. | n/a (build) |
+
+---
+
 ## 3. Trivy — scan parameters ⚠️ (the hardcoding gap)
 
 Source: `scanner/src/scanner/config.py` + `adapters/trivy.py`. **Phase 1 of #91 done:** scan flags are

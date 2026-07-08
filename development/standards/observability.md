@@ -26,6 +26,13 @@ and the app **degrades loudly, not blindly** when its datastore is unavailable.
 - **Never log** (NFR-5): passwords, ingest tokens, session cookies, raw `Authorization` headers, full scanner
   payloads. Log *shapes/sizes/ids*, not secrets. A redaction processor enforces this — tested.
 
+- **Frontend (M9a+):** same discipline, browser-side — `logger` from `frontend/src/lib/logger.ts`
+  is the ONLY pipeline (leveled, structured, `timestamp→level→event` lines shaped like backend.log);
+  raw `console.*` in app code is **ESLint-banned** (the FE "never `print()`"), with the logger module
+  as the single sanctioned touchpoint. Threshold via `VITE_LOG_LEVEL` (build-time; `debug` dev /
+  `warn` prod — see `docs/CONFIGURATION.md` §2b). The never-log list applies unchanged: no tokens,
+  no cookie values, no raw response bodies — shapes/sizes/ids.
+
 ## 2. Health endpoints — `/healthz` vs `/readyz`
 | Endpoint | Means | Depends on OpenSearch? | Used by |
 |---|---|---|---|
