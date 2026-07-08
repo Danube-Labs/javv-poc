@@ -23,11 +23,15 @@ from typing import Any
 from backend.query.search import SearchFilters, build_search_body
 
 # bounded-vocabulary fields — capped terms cannot truncate these (NFR-1: keyword/bool only)
-FACET_FIELDS = ("severity", "state", "scanner", "fixable", "kev", "disagree", "present")
-_FACET_TERMS_SIZE = 16  # ≥ the largest facet vocabulary (state has 6)
+FACET_FIELDS = ("severity", "state", "scanner", "fixable", "kev", "disagree", "present", "ptype")
+_FACET_TERMS_SIZE = 32  # ≥ the largest facet vocabulary (ptype's ecosystem strings are widest)
+
+# pre-M8d findings carry ptype: null until a v4 sweep re-observes them (D30) — the facet shows
+# them as an explicit "unknown" bucket rather than silently dropping the rows (the B-1 caveat)
+_FACET_MISSING = {"ptype": "unknown"}
 
 # high-cardinality keyword dims — composite/after_key territory, never a capped terms
-GROUP_FIELDS = ("image_repo", "image_digest", "namespaces", "cve_id", "assignee", "app")
+GROUP_FIELDS = ("image_repo", "image_digest", "namespaces", "cve_id", "assignee", "app", "ptype")
 
 _BY_SCANNER = {"by_scanner": {"terms": {"field": "scanner", "size": 4}}}
 
@@ -47,7 +51,11 @@ def build_facets_body(filters: SearchFilters, fields: list[str] | None = None) -
     body = _base(filters)
     body["aggs"] = {
         f: {
-            "terms": {"field": f, "size": _FACET_TERMS_SIZE},
+            "terms": {
+                "field": f,
+                "size": _FACET_TERMS_SIZE,
+                **({"missing": _FACET_MISSING[f]} if f in _FACET_MISSING else {}),
+            },
             "aggs": dict(_BY_SCANNER),
         }
         for f in chosen

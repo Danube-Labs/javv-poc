@@ -41,7 +41,7 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| POST | `/api/v1/ingest/scan` | machine | Ingest one schema-v3 scanner envelope → findings/scan-events/images (details below) |
+| POST | `/api/v1/ingest/scan` | machine | Ingest one scanner envelope (schema **v3 or v4** — the M8d ptype rollout window; v3 findings get `ptype: null`) → findings/scan-events/images (details below) |
 | GET | `/api/v1/scan-scope` | machine | The scanner reads its own cluster's scan scope; scoped to the token's `cluster_id` (D43) |
 | POST | `/api/v1/scan-runs` | machine | Allocates the next `scan_order` (strictly increasing per `(cluster_id, scanner)`; CAS + forward self-heal, D45) |
 | POST | `/api/v1/inventory-runs` | machine | Cycle-END inventory certification (M8a/#33): body `{scan_run_id, expected_count, started_at}` → the backend counts landed image docs server-side, allocates `inventory_order` (per-cluster D45 counter), writes the immutable manifest (`committed` iff complete; retry returns the original manifest). Token-bound to its own `cluster_id` (SEC-3) |
@@ -70,8 +70,11 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 ### Findings — read (M6)
 
 All session-auth, no capability (reads). All take the filter family (`cluster_id` **required**,
-`scanner`, `severity`, `state`, `namespace`, `image`, `cve_id`, `kev`, `fixable`, `disagree`, …)
-and the global `as_of`. **T<now dispatches to the M8b reader (live since #34)** — results are
+`scanner`, `severity`, `state`, `namespace`, `image`, `cve_id`, `kev`, `fixable`, `disagree`,
+`ptype`, …) and the global `as_of`. `ptype` (M8d/#241) is also a facet (pre-v4 rows bucket as
+`"unknown"` until a sweep heals them, D30) and a group dim — and unlike `kev`/`epss` it IS
+recorded on occurrences, so it stays filterable/facetable at a past `as_of` (v3-era rows are
+honestly `null` there). **T<now dispatches to the M8b reader (live since #34)** — results are
 reconstructed from the append logs as-scanned: fields history deliberately does not record
 (`kev`, `epss`, `disagree`, `image_repo`, `tag`, `app`) come back `null`; a filter/sort/group on
 one of them at a past T is a 422; whitelisted facets on them return empty buckets. Queued exports

@@ -42,9 +42,9 @@ from backend.sla.policy import read_sla_policy
 _PAGE = 1_000
 # whitelists at past T — the reconstructable subset of the current-state vocabularies
 _SORT_FIELDS = ("severity_rank", "first_seen_at", "last_scan_at", "cvss")  # epss: not recorded
-_FACET_FIELDS = ("severity", "state", "scanner", "fixable", "kev", "disagree", "present")
+_FACET_FIELDS = ("severity", "state", "scanner", "fixable", "kev", "disagree", "present", "ptype")
 _EMPTY_FACETS = ("kev", "disagree")  # whitelisted, but history has no values → empty buckets
-_GROUP_FIELDS = ("image_digest", "namespaces", "cve_id", "assignee")  # image_repo/app: not recorded
+_GROUP_FIELDS = ("image_digest", "namespaces", "cve_id", "assignee", "ptype")  # no image_repo/app
 
 
 def _unrecorded(name: str) -> ValueError:
@@ -166,6 +166,7 @@ def _finding_row(raw: dict[str, Any], human: dict[str, Any]) -> dict[str, Any]:
         "cvss": occ.get("cvss"),
         "fixable": occ.get("fixable"),
         "fixed_version": occ.get("fixed_version"),
+        "ptype": occ.get("ptype"),  # recorded from M8d on; honest null on v3-era rows
         "epss": None,
         "kev": None,
         "disagree": None,
@@ -315,6 +316,9 @@ class AsOfTQuery:
                 (f.fixable, r["fixable"]),
                 (f.cve_id, r["cve_id"]),
                 (f.image_digest, r["image_digest"]),
+                # ptype IS recorded on occurrences from M8d on — a filter at a past T matches
+                # rows as-scanned; v3-era rows carry null and honestly drop out
+                (f.ptype, r["ptype"]),
             )
             if any(want is not None and want != got for want, got in checks):
                 continue
@@ -403,7 +407,9 @@ class AsOfTQuery:
             for r in rows:
                 key = r[field]
                 if key is None:
-                    continue
+                    if field != "ptype":
+                        continue
+                    key = "unknown"  # mirrors the live facet's missing-bucket (the B-1 caveat)
                 key = str(key).lower() if isinstance(key, bool) else key
                 b = counts.setdefault(key, {"key": key, "count": 0, "by_scanner": {}})
                 b["count"] += 1

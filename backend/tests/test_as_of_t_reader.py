@@ -46,6 +46,7 @@ RECONSTRUCTABLE = (
     "cvss",
     "fixable",
     "fixed_version",
+    "ptype",  # M8d/B-1 — recorded on occurrences, reconstructable like the other scanner facts
     "present",
     "state",
     "assignee",

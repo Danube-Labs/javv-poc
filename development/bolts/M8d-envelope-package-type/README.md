@@ -53,6 +53,15 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Any UI work → M9b (facet/column) / M9c (donut).
 
 ## Updates
+- **2026-07-08 · slice 2 (read path)** — `SearchFilters.ptype` term → `/findings?ptype=` (route
+  param + `ExportParams` mirror, forced by the one-to-one test). Facets: `ptype` joins
+  `FACET_FIELDS` with a per-field **`missing: "unknown"`** bucket (the B-1 reingest caveat made
+  visible — pre-v4 nulls surface instead of vanishing; `_FACET_TERMS_SIZE` 16→32, ptype's
+  ecosystem vocabulary is the widest). Groups: `ptype` joins `GROUP_FIELDS` (nulls skipped —
+  drill-down semantics). As-of-T: unlike `kev`/`epss`, ptype **is recorded on occurrences**, so
+  the reader treats it as a real reconstructed field — `_finding_row` passthrough, filterable
+  (v3-era rows honestly drop out), facetable (unknown-bucket mirrored), groupable; `ptype`
+  added to the I11 keystone's RECONSTRUCTABLE set (T=now reconstruction == cache on it too).
 - **2026-07-08 · slice 1 (write path)** — the lockstep core. **Vocabulary ruling (the PR
   table):** `ptype` = `"os"` (Trivy `Class == "os-pkgs"`) or the scanner's verbatim-lowercase
   ecosystem string (Trivy `Type` → `python-pkg`/`node-pkg`/…; Grype `artifact.type` →

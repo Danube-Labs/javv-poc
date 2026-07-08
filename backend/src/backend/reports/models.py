@@ -45,6 +45,7 @@ class ExportParams(BaseModel):
     image_digest: str | None = Field(default=None, max_length=128)
     image_repo: str | None = Field(default=None, max_length=512)
     namespace: str | None = Field(default=None, max_length=256)
+    ptype: str | None = Field(default=None, max_length=64)
     present: bool = True
 
     @model_validator(mode="after")
