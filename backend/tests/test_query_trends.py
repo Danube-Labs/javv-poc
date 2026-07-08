@@ -9,9 +9,17 @@ axis is the SERVER-stamped `ingested_at` (client `@timestamp` is display-only an
 `size:0` — counts come from aggregations only.
 """
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from backend.query.trends import build_findings_trend_body, build_scans_trend_body
+
+
+def _gte(days: int) -> str:
+    """The absolute window floor — the builders never emit `now`-date-math (the createWeight
+    flake, #271/#278 CI); expected == the same day-floored UTC computation the code does."""
+    return (datetime.now(UTC).date() - timedelta(days=days)).isoformat()
 
 
 def test_scans_trend_counts_committed_scans_by_cardinality_never_docs() -> None:
@@ -27,7 +35,7 @@ def test_scans_trend_counts_committed_scans_by_cardinality_never_docs() -> None:
     # THE dedup rule (task B, #139): cardinality(commit_key), never a raw doc count
     assert timeline["aggs"]["scans"] == {"cardinality": {"field": "commit_key"}}
     # the window is a query filter, not a client-side trim
-    assert body["query"]["bool"]["filter"] == [{"range": {"ingested_at": {"gte": "now-30d/d"}}}]
+    assert body["query"]["bool"]["filter"] == [{"range": {"ingested_at": {"gte": _gte(30)}}}]
 
 
 def test_scans_trend_days_is_bounded() -> None:
@@ -43,12 +51,12 @@ def test_findings_trend_builds_new_and_resolved_series_per_scanner() -> None:
     assert "query" not in body or body.get("query") is None or "bool" in body["query"]
 
     new = body["aggs"]["new"]
-    assert new["filter"] == {"range": {"first_seen_at": {"gte": "now-30d/d"}}}
+    assert new["filter"] == {"range": {"first_seen_at": {"gte": _gte(30)}}}
     new_tl = new["aggs"]["by_scanner"]["aggs"]["timeline"]["date_histogram"]
     assert new_tl["field"] == "first_seen_at"
 
     resolved = body["aggs"]["resolved"]
-    assert resolved["filter"] == {"range": {"resolved_at": {"gte": "now-30d/d"}}}
+    assert resolved["filter"] == {"range": {"resolved_at": {"gte": _gte(30)}}}
     res_tl = resolved["aggs"]["by_scanner"]["aggs"]["timeline"]["date_histogram"]
     assert res_tl["field"] == "resolved_at"
 

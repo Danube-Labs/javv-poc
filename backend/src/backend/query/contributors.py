@@ -19,7 +19,7 @@ The tenant filter is forced by the chokepoint at execution (audit rows carry `cl
 """
 
 import statistics
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from backend.sla.policy import SlaPolicy
@@ -49,9 +49,11 @@ def build_actions_body(*, days: int, anchor: datetime | None = None) -> dict[str
     if not 1 <= days <= 365:
         raise ValueError("days must be 1..365")
     # anchored at a past T (M8b/D28): the audit log is append-only, so the historical
-    # leaderboard IS the same aggregation with the window ending at T
-    gte = f"now-{days}d/d" if anchor is None else (anchor.date() - timedelta(days=days)).isoformat()
-    upper = "now/d" if anchor is None else anchor.date().isoformat()
+    # leaderboard IS the same aggregation with the window ending at T. Unanchored = anchored
+    # at now — ALWAYS absolute dates, never `now`-math (the createWeight flake, see trends.py)
+    day = (anchor or datetime.now(UTC)).date()
+    gte = (day - timedelta(days=days)).isoformat()
+    upper = day.isoformat()
     window: dict[str, Any] = {"gte": gte}
     if anchor is not None:
         window["lte"] = anchor.isoformat()

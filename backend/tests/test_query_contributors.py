@@ -20,13 +20,19 @@ from backend.query.contributors import (
 from backend.sla.policy import SlaPolicy
 
 
+def _gte(days: int) -> str:
+    """The absolute window floor — the builders never emit `now`-date-math (the createWeight
+    flake, #271/#278 CI); expected == the same day-floored UTC computation the code does."""
+    return (datetime.now(UTC).date() - timedelta(days=days)).isoformat()
+
+
 def test_actions_body_filters_the_human_triage_vocabulary() -> None:
     body = build_actions_body(days=30)
     assert body["size"] == 0
     fl = body["query"]["bool"]["filter"]
     assert {"terms": {"action": sorted(TRIAGE_ACTIONS)}} in fl
     assert {"terms": {"entity_type": ["finding", "decision"]}} in fl  # A-m5: decisions count too
-    assert {"range": {"@timestamp": {"gte": "now-30d/d"}}} in fl
+    assert {"range": {"@timestamp": {"gte": _gte(30)}}} in fl
     # sweeps/projections journal as actor=system — machines never make the leaderboard
     assert body["query"]["bool"]["must_not"] == [{"term": {"actor": "system"}}]
 
