@@ -231,11 +231,13 @@ PROJ=$(curl -s "$OS/findings/_count" -H 'content-type: application/json' \
 curl -s -b "$COOKIES" -X POST "$BACKEND/api/v1/decisions/$DID/revoke" | jq -e '.revoked' >/dev/null || fail "revoke failed"
 echo "decision round-trip on $DCVE: projected $PROJ finding(s), revoked"
 
-# SLA: tweak -> read back -> restore (no residue)
-SLA0=$(api "/api/v1/settings/sla")
+# SLA: tweak -> read back -> restore (no residue). GET wraps as {"sla":{...}}; PUT takes the BARE
+# policy (extra=forbid), and the knob is critical_days after the D46 hard rename (#274) — the old
+# `crit_days` against the wrapper 422'd twice over, a live e2e gap the vocabulary rework left.
+SLA0=$(api "/api/v1/settings/sla" | jq '.sla')
 curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' \
-  -d "$(echo "$SLA0" | jq '.crit_days = 1')" >/dev/null
-[ "$(api "/api/v1/settings/sla" | jq -r .crit_days)" = "1" ] || fail "SLA write did not read back"
+  -d "$(echo "$SLA0" | jq '.critical_days = 1')" >/dev/null
+[ "$(api "/api/v1/settings/sla" | jq -r '.sla.critical_days')" = "1" ] || fail "SLA write did not read back"
 curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' -d "$SLA0" >/dev/null
 echo "SLA round-trip: OK (restored)"
 
@@ -274,6 +276,162 @@ if echo "$METRICS" | grep -q 'javv_http_request_duration_seconds'; then
   echo "request histogram present (#220)"
 fi
 echo "read/report surface: ALL GREEN"
+
+# ---- 8b. M8 surface: point-in-time + M8c/d/e reads (#249 gate) ----------------
+# Everything M8b→M8e added, against the real corpus. The as-of probe is the load-bearing one:
+# it proves D28 — a T captured before a state-changing rescan reconstructs the OLD world from the
+# append logs (≤ T), so a later reconcile that shrinks present= is invisible at that T. Idempotent:
+# a final full cycle restores the present set (same shape as section 6).
+say "M8 surface: as-of-T, provenance, images, clusters, audit, views, ptype"
+urlenc() { printf %s "$1" | jq -sRr @uri; }
+
+# -- point-in-time reconstruction (D28/FR-23) --
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+PRESENT_BEFORE=$(present_trivy true)
+[ "$PRESENT_BEFORE" -lt 100 ] || fail "as-of probe assumes a small corpus (present=$PRESENT_BEFORE); raise the page cap"
+T_MARK="$(date -u +%FT%TZ)"; sleep 1
+run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle CRITICAL-only (as-of repro)" "JAVV_TRIVY_SEVERITIES=CRITICAL"
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+PRESENT_NOW=$(present_trivy true)
+[ "$PRESENT_NOW" -lt "$PRESENT_BEFORE" ] || fail "as-of setup: rescan did not shrink the present set"
+# the CURRENT read (t=now) sees the shrunk set; the AS-OF read reconstructs the pre-shrink set.
+ASOF=$(api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&present=true&size=100&as_of=$(urlenc "$T_MARK")")
+ASOF_LEN=$(echo "$ASOF" | jq '.data | length')
+NOW_LEN=$(api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&present=true&size=100" | jq '.data | length')
+echo "as-of $T_MARK present=$ASOF_LEN · now present=$NOW_LEN (pre-shrink baseline $PRESENT_BEFORE)"
+[ "$ASOF_LEN" -eq "$PRESENT_BEFORE" ] || fail "as-of reconstruction ($ASOF_LEN) != pre-shrink present ($PRESENT_BEFORE) — D28 broken"
+[ "$ASOF_LEN" -gt "$NOW_LEN" ] || fail "as-of read did not show the OLD (larger) present set"
+echo "$ASOF" | jq -e '.data | all(.scanner == "trivy")' >/dev/null || fail "as-of read violated scanner purity"
+# determinism: the SAME past T, re-read, is byte-identical even though the world moved on (D28 stability)
+ASOF2_LEN=$(api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&present=true&size=100&as_of=$(urlenc "$T_MARK")" | jq '.data | length')
+[ "$ASOF2_LEN" -eq "$ASOF_LEN" ] || fail "as-of at a fixed T is not stable across re-reads ($ASOF_LEN vs $ASOF2_LEN)"
+run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle full (as-of restore)"
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+[ "$(present_trivy true)" -eq "$PRESENT_BEFORE" ] || fail "as-of phase did not restore the present set"
+echo "point-in-time: OK (reconstructed old state, stable, restored)"
+
+# -- provenance (M8c): catalog-first, exact scan_order (never a float-collapsed max, #257) --
+PROV=$(api "/api/v1/scanners/provenance?cluster_id=$SCAN_CID")
+echo "$PROV" | jq -e '.scanners | length > 0' >/dev/null || fail "provenance returned no scanners"
+echo "$PROV" | jq -e '.scanners[] | select(.scanner=="trivy") | .last_run.scan_order >= 2' >/dev/null \
+  || fail "provenance trivy last_run.scan_order not monotonic (expect >=2 after the cycles)"
+echo "provenance: OK ($(echo "$PROV" | jq -r '.scanners | map(.scanner) | join(",")'))"
+
+# -- images (M8c): inventory-committed running set; inventory:null is 'unknown', a valid answer --
+IMG=$(api "/api/v1/images?cluster_id=$SCAN_CID")
+echo "$IMG" | jq -e 'has("inventory") and has("images") and (.cluster_id=="'"$SCAN_CID"'")' >/dev/null \
+  || fail "images endpoint shape wrong"
+echo "images: OK (inventory=$(echo "$IMG" | jq -c '.inventory != null'), images=$(echo "$IMG" | jq '.images | length'))"
+
+# -- audit read (M8c): cursor-paged over the REAL journal (this run's triage/decision/rename rows) --
+AUD=$(api "/api/v1/audit?cluster_id=$SCAN_CID&size=5")
+echo "$AUD" | jq -e '.data | length > 0' >/dev/null || fail "audit read returned no rows"
+ACUR=$(echo "$AUD" | jq -r '.next_cursor // empty')
+if [ -n "$ACUR" ]; then
+  api "/api/v1/audit?cluster_id=$SCAN_CID&size=5&cursor=$(urlenc "$ACUR")" | jq -e '.data' >/dev/null \
+    || fail "audit cursor follow failed"
+  echo "audit: OK (paged, cursor follow OK)"
+else
+  echo "audit: OK ($(echo "$AUD" | jq '.data | length') rows, single page)"
+fi
+
+# -- clusters (M8c): registry + rename round-trip (journal-first + seq_no-CAS), then restore --
+api "/api/v1/clusters" | jq -e '.clusters | map(.cluster_id) | index("'"$SCAN_CID"'")' >/dev/null \
+  || fail "clusters list missing the smoke cluster_id"
+CN0=$(api "/api/v1/clusters" | jq -r '.clusters[] | select(.cluster_id=="'"$SCAN_CID"'") | .cluster_name')
+curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/clusters/$SCAN_CID/name" -H 'content-type: application/json' \
+  -d '{"cluster_name":"smoke-alpha"}' | jq -e '.cluster_name=="smoke-alpha"' >/dev/null || fail "cluster rename failed"
+[ "$(api "/api/v1/clusters" | jq -r '.clusters[] | select(.cluster_id=="'"$SCAN_CID"'") | .cluster_name')" = "smoke-alpha" ] \
+  || fail "cluster rename did not read back"
+curl -s -X POST "$OS/system-audit-log*/_refresh" >/dev/null
+[ "$(curl -s "$OS/system-audit-log*/_count" -H 'content-type: application/json' \
+  -d '{"query":{"term":{"action":"cluster_rename"}}}' | jq -r .count)" -gt 0 ] || fail "cluster rename left no audit row"
+# restore the original name (idempotent re-runs). CN0 may equal the id (no prior name) — that's fine.
+curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/clusters/$SCAN_CID/name" -H 'content-type: application/json' \
+  -d "$(jq -nc --arg n "$CN0" '{cluster_name:$n}')" >/dev/null
+echo "clusters: OK (rename journaled + restored)"
+
+# -- saved views (M8e): create -> read -> deep-link params -> PATCH (CAS) -> delete, all journaled --
+VBODY='{"name":"smoke-view","description":"e2e","preset":{"severity":["critical","high"],"scanner":"trivy","present":true}}'
+VID=$(curl -s -b "$COOKIES" -X POST "$BACKEND/api/v1/views" -H 'content-type: application/json' -d "$VBODY" | jq -r '.view_id // empty')
+[ -n "$VID" ] || fail "view create failed"
+api "/api/v1/views" | jq -e '.views | map(.view_id) | index("'"$VID"'")' >/dev/null || fail "created view not listed"
+# the preset is a SearchFilters mirror — its severity list is the D46 full-word vocabulary and drives a real query
+VSEV=$(api "/api/v1/views" | jq -r '.views[] | select(.view_id=="'"$VID"'") | .preset.severity[0]')
+[ "$VSEV" = "critical" ] || fail "view preset severity not stored as the full-word canonical (got: $VSEV)"
+curl -s -b "$COOKIES" -X PATCH "$BACKEND/api/v1/views/$VID" -H 'content-type: application/json' \
+  -d '{"description":"e2e-updated"}' | jq -e '.description=="e2e-updated"' >/dev/null || fail "view PATCH failed"
+curl -s -b "$COOKIES" -o /dev/null -w '%{http_code}' -X DELETE "$BACKEND/api/v1/views/$VID" | grep -q 204 || fail "view DELETE not 204"
+api "/api/v1/views" | jq -e '.views | map(.view_id) | index("'"$VID"'") | not' >/dev/null || fail "view still present after delete"
+echo "saved views: OK (create/read/patch/delete round-trip)"
+
+# -- ptype facet (M8d): real trivy/grype output populates os + real ecosystems; missing -> "unknown" --
+PTF=$(api "/api/v1/findings/facets?cluster_id=$SCAN_CID")
+echo "$PTF" | jq -e '.facets.ptype | length > 0' >/dev/null || fail "facets missing ptype buckets"
+echo "$PTF" | jq -e '[.facets.ptype[].key] | index("os")' >/dev/null \
+  || fail "ptype facet has no 'os' bucket (trivy os-pkgs should produce it)"
+echo "ptype facet: OK ($(echo "$PTF" | jq -r '[.facets.ptype[].key] | join(",")'))"
+
+# ---- 8c. D46 vocabulary end-to-end (#274): crit->critical, at the wire and every read ----------
+# The rework moved the severity VALUE vocabulary to six full words while the count COLUMN names kept
+# the short form (crit/med — a wire/mapping constant, not a vocabulary). This section proves both
+# halves survive a REAL scanner round-trip, and that the SLA clock — which silently matched nothing
+# real before #274 — now actually ticks. (The facet KEY check already ran in section 8's facets.)
+say "D46 vocabulary end-to-end"
+
+# -- wire check: finding docs carry a full-word severity_canonical; scan-events carry short columns --
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+BADCANON=$(curl -s "$OS/findings/_search" -H 'content-type: application/json' -d "{
+  \"size\":0,\"query\":{\"bool\":{\"filter\":[{\"term\":{\"cluster_id\":\"$SCAN_CID\"}},
+    {\"terms\":{\"severity_canonical\":[\"crit\",\"med\",\"moderate\"]}}]}}}" | jq -r '.hits.total.value')
+[ "$BADCANON" = "0" ] || fail "found $BADCANON finding docs with a SHORT severity_canonical (D46 regression)"
+GOODCANON=$(curl -s "$OS/findings/_search" -H 'content-type: application/json' -d "{
+  \"size\":0,\"query\":{\"bool\":{\"filter\":[{\"term\":{\"cluster_id\":\"$SCAN_CID\"}},
+    {\"terms\":{\"severity_canonical\":[\"critical\",\"high\",\"medium\",\"low\",\"negligible\",\"unknown\"]}}]}}}" | jq -r '.hits.total.value')
+[ "$GOODCANON" -gt 0 ] || fail "no finding docs carry a full-word severity_canonical"
+# the count COLUMNS on scan-events keep the short form (COUNT_COLUMN shim) — assert the mapping held
+curl -s "$OS/javv-scan-events-$SCAN_CID-*/_search" -H 'content-type: application/json' \
+  -d '{"size":1,"query":{"term":{"scanner":"trivy"}}}' \
+  | jq -e '.hits.hits[0]._source | has("crit") and has("med") and has("total")' >/dev/null \
+  || fail "scan-events counts lost the short COUNT_COLUMN names (crit/med)"
+echo "wire: OK (severity_canonical full words · counts short columns)"
+
+# -- SLA overdue regression (#274): the buried days_for bug — no real finding EVER went overdue since
+# M5d because days_for keyed on canonical words while callers passed verbatim severities (a real
+# "Critical"/"CRITICAL" resolved to None → never overdue). The proof is that days_for RESOLVES for a
+# real critical at all: a near-zero critical_days tips every freshly-ingested critical overdue (their
+# first_seen is minutes old, so ~0.09s of budget is already blown). Restored immediately after.
+SLA_SAVE=$(api "/api/v1/settings/sla" | jq '.sla')
+curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' \
+  -d "$(echo "$SLA_SAVE" | jq '.critical_days = 0.000001')" >/dev/null
+CRIT_PAGE=$(api "/api/v1/findings?cluster_id=$SCAN_CID&severity=critical&present=true&size=100")
+OVERDUE=$(echo "$CRIT_PAGE" | jq '[.data[] | select(.overdue == true)] | length')
+CRIT_TOTAL=$(echo "$CRIT_PAGE" | jq '.data | length')
+curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' -d "$SLA_SAVE" >/dev/null
+if [ "$CRIT_TOTAL" -gt 0 ]; then
+  [ "$OVERDUE" -gt 0 ] || fail "no critical finding went overdue under a 1-day SLA — the #274 days_for bug is back"
+  echo "SLA overdue: OK ($OVERDUE/$CRIT_TOTAL critical findings overdue under a 1-day policy)"
+else
+  echo "SLA overdue: SKIPPED (no present critical trivy findings in this corpus today)"
+fi
+
+# -- export vocabulary: CSV + VEX carry full-word severities, never the short form --
+CSV_D46=$(api "/api/v1/findings/export.csv?cluster_id=$SCAN_CID&scanner=trivy")
+SEV_COL=$(printf '%s\n' "$CSV_D46" | head -1 | tr ',' '\n' | grep -nx '"severity"' | cut -d: -f1)
+if [ -n "$SEV_COL" ]; then
+  printf '%s\n' "$CSV_D46" | tail -n +2 | cut -d, -f"$SEV_COL" | tr -d '"' | sort -u \
+    | grep -qiE '^(crit|med|moderate)$' && fail "CSV severity column carries a short/legacy token (D46)"
+fi
+echo "export vocabulary: OK"
+echo "D46 vocabulary: ALL GREEN"
+
+# ---- 8d. invariant: no leaked PITs after the whole read surface -----------------
+# Every deep read (search cursor, audit walk, as-of reconstruction) owns a PIT it must delete in
+# `finally`. A leak pins segments open forever — assert the store holds none once the reads settle.
+say "PIT-leak invariant"
+OPEN_PITS=$(curl -s "$OS/_search/point_in_time/_all" 2>/dev/null | jq -r '.pits | length' 2>/dev/null || echo 0)
+[ "$OPEN_PITS" = "0" ] || fail "leaked $OPEN_PITS open PIT(s) after the read surface — a finally-delete is missing"
+echo "open PITs: 0 (no leak)"
 
 # ---- 9. opensearch log snapshot --------------------------------------------
 say "opensearch log snapshot"
