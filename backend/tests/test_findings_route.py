@@ -19,6 +19,7 @@ from opensearchpy import AsyncOpenSearch
 from backend.auth.passwords import hash_password
 from backend.core.settings import get_settings
 from backend.main import create_app
+from backend.models.envelope import canonical_severity
 
 OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "findings-route-password"
@@ -100,6 +101,9 @@ async def _seed(client: AsyncOpenSearch, cluster_id: str, rows: list[dict[str, A
             "first_seen_at": now,
             **row,
         }
+        # D46/#274 hygiene: derive the canonical query key exactly like the server does — a
+        # vocabulary drift can never again be self-consistent with hand-seeded docs
+        doc.setdefault("severity_canonical", canonical_severity(doc["severity"]))
         await client.index(index="findings", id=doc["finding_key"], body=doc)
     await client.indices.refresh(index="findings")
 
@@ -278,17 +282,17 @@ async def test_read_route_forces_no_refresh(env, monkeypatch) -> None:
 async def test_facets_filter_the_grid(env) -> None:
     login, client = env
     cid = f"c-srch-{uuid.uuid4().hex[:8]}"
-    await _seed(client, cid, _rows(2, severity="crit", severity_rank=5, state="open"))
+    await _seed(client, cid, _rows(2, severity="CRITICAL", severity_rank=5, state="open"))
     await _seed(client, cid, _rows(3, cve="CVE-2024-9001", state="acknowledged"))
     http = await login()
 
     r = await http.get(
         "/api/v1/findings",
-        params={"cluster_id": cid, "severity": ["crit"], "state": ["open"]},
+        params={"cluster_id": cid, "severity": ["critical"], "state": ["open"]},
     )
     assert r.status_code == 200
     assert r.json()["total"]["value"] == 2
-    assert all(d["severity"] == "crit" for d in r.json()["data"])
+    assert all(d["severity"] == "CRITICAL" for d in r.json()["data"])
 
 
 async def test_tombstone_view_is_opt_in(env) -> None:
@@ -321,7 +325,7 @@ async def test_overdue_decoration_uses_the_group_clock(env) -> None:
                 "image_digest": digest,
                 "scanner": "grype",
                 "first_seen_at": old,
-                "severity": "crit",
+                "severity": "CRITICAL",
                 "severity_rank": 5,
             },
             {
@@ -329,7 +333,7 @@ async def test_overdue_decoration_uses_the_group_clock(env) -> None:
                 "cve_id": "CVE-2024-7777",
                 "image_digest": digest,
                 "scanner": "trivy",
-                "severity": "crit",
+                "severity": "CRITICAL",
                 "severity_rank": 5,
             },
             # a handled row is never overdue, however old (M5d)
@@ -340,7 +344,7 @@ async def test_overdue_decoration_uses_the_group_clock(env) -> None:
                 "scanner": "trivy",
                 "first_seen_at": old,
                 "state": "risk_accepted",
-                "severity": "crit",
+                "severity": "CRITICAL",
                 "severity_rank": 5,
             },
         ],
@@ -385,7 +389,7 @@ async def test_group_clock_is_exact_across_a_paged_composite(env, monkeypatch) -
             "image_digest": "sha256:tgt",
             "scanner": "grype",
             "first_seen_at": old,
-            "severity": "crit",
+            "severity": "CRITICAL",
             "severity_rank": 5,
         },
         {
@@ -393,7 +397,7 @@ async def test_group_clock_is_exact_across_a_paged_composite(env, monkeypatch) -
             "cve_id": "CVE-TGT",
             "image_digest": "sha256:tgt",
             "scanner": "trivy",
-            "severity": "crit",
+            "severity": "CRITICAL",
             "severity_rank": 5,
         },
     ]
@@ -425,7 +429,7 @@ async def test_group_clock_is_tenant_scoped(env) -> None:
                 "image_digest": digest,
                 "scanner": "trivy",
                 "first_seen_at": ancient,
-                "severity": "crit",
+                "severity": "CRITICAL",
                 "severity_rank": 5,
             }
         ],
@@ -440,7 +444,7 @@ async def test_group_clock_is_tenant_scoped(env) -> None:
                 "image_digest": digest,
                 "scanner": "trivy",
                 "first_seen_at": fresh,
-                "severity": "crit",
+                "severity": "CRITICAL",
                 "severity_rank": 5,
             }
         ],
@@ -481,17 +485,17 @@ async def test_reads_require_auth_and_as_of_past_is_501(env) -> None:
 async def test_facets_count_per_scanner_and_stay_in_tenant(env) -> None:
     login, client = env
     cid_a, cid_b = f"c-aggs-{uuid.uuid4().hex[:8]}", f"c-aggs-{uuid.uuid4().hex[:8]}"
-    await _seed(client, cid_a, _rows(2, severity="crit", severity_rank=5))
+    await _seed(client, cid_a, _rows(2, severity="CRITICAL", severity_rank=5))
     await _seed(client, cid_a, _rows(1, cve="CVE-2024-9100", scanner="grype"))
-    await _seed(client, cid_b, _rows(4, severity="crit", severity_rank=5))  # other tenant
+    await _seed(client, cid_b, _rows(4, severity="CRITICAL", severity_rank=5))  # other tenant
     http = await login()
 
     r = await http.get("/api/v1/findings/facets", params={"cluster_id": cid_a})
     assert r.status_code == 200
     facets = r.json()["facets"]
     sev = {b["key"]: b for b in facets["severity"]}
-    assert sev["crit"]["count"] == 2  # tenant B's 4 crits are invisible (SEC-4)
-    assert sev["crit"]["by_scanner"] == {"trivy": 2}  # per-scanner is sacred
+    assert sev["critical"]["count"] == 2  # tenant B's 4 crits are invisible (SEC-4)
+    assert sev["critical"]["by_scanner"] == {"trivy": 2}  # per-scanner is sacred
     assert sev["high"]["by_scanner"] == {"grype": 1}
     assert {b["key"] for b in facets["scanner"]} == {"trivy", "grype"}
     # bool facets keep readable keys, not 0/1

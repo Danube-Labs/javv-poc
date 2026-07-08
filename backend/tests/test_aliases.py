@@ -27,9 +27,9 @@ CLUSTER = GOLDEN["cluster_id"]
 def _counts(findings: list[dict]) -> dict[str, int]:
     c = Counter(canonical_severity(f["severity"]) for f in findings)
     return {
-        "crit": c["crit"],
+        "crit": c["critical"],  # D46/#274: full-word canonical keys, short COLUMN names
         "high": c["high"],
-        "med": c["med"],
+        "med": c["medium"],
         "low": c["low"],
         "negligible": c["negligible"],
         "unknown": c["unknown"],

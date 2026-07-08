@@ -78,7 +78,7 @@ async def env():
 
 
 async def _seed_finding(
-    client: AsyncOpenSearch, cid: str, fk: str, *, first_seen: datetime, severity: str = "crit"
+    client: AsyncOpenSearch, cid: str, fk: str, *, first_seen: datetime, severity: str = "critical"
 ) -> None:
     await client.index(
         index="findings",

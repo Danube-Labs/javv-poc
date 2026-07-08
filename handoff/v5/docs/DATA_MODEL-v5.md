@@ -18,12 +18,15 @@ Replaces `handoff/v4/docs/DATA_MODEL.md`. Every shape below is an **API response
 ## Enums & vocabulary
 
 ```
-severity   (filter/agg values, lowercase — A-1/D16):
+severity   (filter/agg values, lowercase — A-1/D16, implemented by D46/#274):
            "critical" | "high" | "medium" | "low" | "negligible" | "unknown"
-           — stored verbatim-from-scanner in _source; a lowercase normalizer serves
-             filters/aggs; display MAY uppercase. Sort by severity_rank (byte), never
-             alphabetically. `negligible` is a real bucket (Grype emits it) —
-             RULED (A-1, 2026-07-07): shown as its own muted bucket, never folded.
+           — stored verbatim-from-scanner in _source (display/evidence); filters and
+             facets are served by the server-derived `severity_canonical` keyword
+             (D46 — the lowercase normalizer only folds case and could not map
+             non-standard words like `Moderate`); display MAY uppercase. Sort by
+             severity_rank (byte), never alphabetically. `negligible` is a real
+             bucket (Grype emits it) — RULED (A-1, 2026-07-07): its own muted
+             bucket, never folded.
 
 state      (6, A-2): "open" | "acknowledged" | "not_affected" | "risk_accepted"
            | "resolved" | "stale"

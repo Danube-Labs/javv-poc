@@ -39,7 +39,7 @@ def test_default_body_filters_present_true_and_sorts_stably() -> None:
 
 def test_every_facet_filter_is_a_filter_clause_never_scoring() -> None:
     f = SearchFilters(
-        severity=["crit", "high"],
+        severity=["critical", "high"],
         state=["open"],
         scanner="trivy",
         assignee="ana",
@@ -53,7 +53,8 @@ def test_every_facet_filter_is_a_filter_clause_never_scoring() -> None:
     )
     body = build_search_body(f, size=10)
     fl = body["query"]["bool"]["filter"]
-    assert {"terms": {"severity": ["crit", "high"]}} in fl
+    # D46/#274: the filter targets the canonical query key, never the verbatim word
+    assert {"terms": {"severity_canonical": ["critical", "high"]}} in fl
     assert {"terms": {"state": ["open"]}} in fl
     assert {"term": {"scanner": "trivy"}} in fl
     assert {"term": {"assignee": "ana"}} in fl

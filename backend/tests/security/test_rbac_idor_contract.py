@@ -143,7 +143,7 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         path="/api/v1/settings/sla",
         route_path="/api/v1/settings/sla",
         capability="can_manage_settings",
-        body={"crit_days": 2, "high_days": 7, "med_days": 30, "low_days": 90, "kev_days": 1},
+        body={"critical_days": 2, "high_days": 7, "medium_days": 30, "low_days": 90, "kev_days": 1},
     ),
     MutatingEndpoint(  # M8c slice 2 — cluster rename (D-5 ruling; display-only cluster_name)
         method="PUT",

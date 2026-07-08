@@ -405,6 +405,18 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   **flag-day** - scanner images and backend upgrade in lockstep (a deploy constraint, noted in M10); the
   backend 422s non-current envelopes by design. Supersedes the old "phase-2 `scanner_config` doc in
   `system-config`" idea. (Closes the #91 arc; joint with #94's effective scope.)
+- **D46 - full-word canonical severity vocabulary (#274, ruled 2026-07-08).** The canonical severity
+  vocabulary is the six FULL words - `critical, high, medium, low, negligible, unknown` - everywhere a
+  severity **value** appears (API filters, facet bucket keys, saved-view presets, SLA knobs
+  `critical_days`/`medium_days`, the stored canonical field). The historical `crit`/`med` shorthand
+  survives only as count **column names** on the envelope/scan-events/images (documented physical names -
+  they live in the immutable append history; renaming them buys nothing a human ever types). Findings +
+  occurrences carry a server-derived **`severity_canonical`** keyword: the QUERY key filters/facets
+  target; the verbatim scanner word (D16) stays display/evidence-only. `SlaPolicy.days_for` canonicalizes
+  its input (before this, a real ingested `CRITICAL` matched nothing and no real finding ever went
+  overdue). For every standard scanner word canonical == verbatim-lc, so the two vocabularies coincide on
+  the normal path; the stored field is the correctness net for non-standard words. Dev-store ruling: past
+  data disposable - hard renames, no aliases/backfills.
 - **D45 - `scan_order` is backend-allocated (amends D40's *source*; the intent - never a clock - stands).**
   The M0 scanner minted `scan_order` from wall-clock `time.time_ns()`; monotonic on one host, but CronJob
   pods reschedule across nodes, and a skewed/stepped node clock could make a **newer** run's order regress -

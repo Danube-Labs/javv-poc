@@ -50,7 +50,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             "os" | verbatim-lowercase ecosystem; envelope v4, v3 still accepted → null)
 #          v14 + system-views (M8e/C-6/#242 — server-side saved filter views; preset =
 #             SearchFilters mirror, enabled:false; all-visible, owner-or-admin mutations)
-MAPPING_VERSION = 14
+#          v15 + severity_canonical on findings + javv-finding-occurrences (D46/#274 — the
+#             full-word canonical query key; verbatim severity stays display-only)
+MAPPING_VERSION = 15
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -89,7 +91,8 @@ _FINDINGS_PROPERTIES: dict[str, Any] = {
     "cve_id": _KW,
     "package_name": _KW,
     "installed_version": _KW,
-    "severity": {"type": "keyword", "normalizer": "lc"},  # verbatim in _source (D16)
+    "severity": {"type": "keyword", "normalizer": "lc"},  # verbatim in _source (D16) — display
+    "severity_canonical": _KW,  # D46/#274: the full-word QUERY key (filters + facets target this)
     "severity_rank": {"type": "byte"},  # 5..0 sort/range key — findings only (OE-5)
     "cvss": {"type": "float"},
     "fixable": _BOOL,
@@ -399,6 +402,7 @@ _OCCURRENCES_PROPERTIES: dict[str, Any] = {
     "package_version": _KW,  # = findings.installed_version
     "finding_key": _KW,  # per-row identity
     "severity": {"type": "keyword", "normalizer": "lc"},  # as-of-then, verbatim in _source (D16)
+    "severity_canonical": _KW,  # D46/#274: the full-word query key, as-of-then
     "cvss": {"type": "float"},
     "fixable": _BOOL,
     "fixed_version": _KW,

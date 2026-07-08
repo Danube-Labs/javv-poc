@@ -74,7 +74,10 @@ def build_search_body(
         raise ValueError("order must be asc or desc")
     fl: list[dict[str, Any]] = [{"term": {"present": filters.present}}]
     for field, value in (
-        ("severity", filters.severity),
+        # D46/#274: the severity FILTER targets the server-derived full-word canonical key —
+        # the verbatim field only lc-folds case, so `critical` used to work while the canonical
+        # vocabulary silently matched nothing on real rows
+        ("severity_canonical", filters.severity),
         ("state", filters.state),
     ):
         if value:

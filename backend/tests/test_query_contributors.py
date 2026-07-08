@@ -49,7 +49,7 @@ def _row(actor: str, fk: str, at: datetime, action: str = "resolve") -> dict:
     return {"actor": actor, "finding_key": fk, "action": action, "@timestamp": at.isoformat()}
 
 
-def _finding(fk: str, first_seen: datetime, severity: str = "crit", kev: bool = False) -> dict:
+def _finding(fk: str, first_seen: datetime, severity: str = "critical", kev: bool = False) -> dict:
     return {
         "finding_key": fk,
         "first_seen_at": first_seen.isoformat(),

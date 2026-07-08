@@ -16,23 +16,26 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from backend.core.identifiers import CLUSTER_ID_RE as _CLUSTER_ID
 
-# canonical buckets (D16) + the fixed rank order (OE-5): crit>high>med>low>negligible>unknown
+# canonical buckets (D16) + the fixed rank order (OE-5). D46 (#274): the canonical vocabulary
+# is the FULL words — for every standard scanner word canonical == verbatim-lc, and no released
+# artifact ever speaks the historical crit/med shorthand as a VALUE (the short names survive
+# only as count COLUMN names on the envelope/scan-events/images, documented physical names).
 SEVERITY_RANK: dict[str, int] = {
-    "crit": 5,
+    "critical": 5,
     "high": 4,
-    "med": 3,
+    "medium": 3,
     "low": 2,
     "negligible": 1,
     "unknown": 0,
 }
 
 _CANONICAL = {
-    "critical": "crit",
-    "crit": "crit",
+    "critical": "critical",
+    "crit": "critical",
     "high": "high",
-    "medium": "med",
-    "med": "med",
-    "moderate": "med",
+    "medium": "medium",
+    "med": "medium",
+    "moderate": "medium",
     "low": "low",
     "negligible": "negligible",
     "unknown": "unknown",

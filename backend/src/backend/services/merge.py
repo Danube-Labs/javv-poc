@@ -18,6 +18,7 @@ SCANNER_FIELDS = frozenset(
         "tag",
         "namespaces",
         "severity",
+        "severity_canonical",  # server-derived query key (D46/#274) — refreshed per scan
         "severity_rank",  # server-derived, but from scanner data — refreshed per scan
         "cvss",
         "fixable",

@@ -27,7 +27,7 @@
     "ptype": "os",
     "scanner": "trivy",
     "severity": [
-      "crit",
+      "critical",
       "high"
     ],
     "state": [

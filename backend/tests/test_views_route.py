@@ -92,13 +92,13 @@ async def test_created_view_is_visible_to_everyone_and_journaled(env) -> None:
         json={
             "name": name,
             "description": "critical + kev, trivy lens",
-            "preset": {"severity": ["crit"], "kev": True, "scanner": "trivy"},
+            "preset": {"severity": ["critical"], "kev": True, "scanner": "trivy"},
         },
     )
     assert r.status_code == 201
     view = r.json()
     assert view["owner"] == username  # owner = the creating principal
-    assert view["preset"]["severity"] == ["crit"] and view["preset"]["present"] is True
+    assert view["preset"]["severity"] == ["critical"] and view["preset"]["present"] is True
 
     # a DIFFERENT authenticated user sees it (C-6: all views visible to all users)
     app = create_app()
@@ -175,7 +175,7 @@ async def test_owner_or_admin_mutation_matrix(env) -> None:
     """The IDOR case (bolt DoD): non-owner PATCH/DELETE → 403; the owner edits; an admin
     overrides; `owner` is unrepresentable in the patch body (immutable after create)."""
     http, client, owner = env
-    view = await _create(http, f"matrix-{uuid.uuid4().hex[:8]}", severity=["crit"])
+    view = await _create(http, f"matrix-{uuid.uuid4().hex[:8]}", severity=["critical"])
     vid = view["view_id"]
 
     app = create_app()
@@ -295,7 +295,7 @@ def test_golden_preset_serialization_is_pinned() -> None:
     golden = _json.loads((Path(__file__).parent / "fixtures/view-preset-golden.json").read_text())
     assert ViewPreset().model_dump() == golden["default"]
     populated = ViewPreset(
-        severity=["crit", "high"],
+        severity=["critical", "high"],
         state=["open"],
         scanner="trivy",
         kev=True,

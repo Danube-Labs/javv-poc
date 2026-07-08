@@ -71,7 +71,10 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 
 All session-auth, no capability (reads). All take the filter family (`cluster_id` **required**,
 `scanner`, `severity`, `state`, `namespace`, `image`, `cve_id`, `kev`, `fixable`, `disagree`,
-`ptype`, …) and the global `as_of`. `ptype` (M8d/#241) is also a facet (pre-v4 rows bucket as
+`ptype`, …) and the global `as_of`. `severity` values are the **full-word canonical vocabulary**
+(D46/#274: `critical|high|medium|low|negligible|unknown`) served by the server-derived
+`severity_canonical` key — facet bucket keys are the same words; the verbatim scanner word stays
+display-only in rows. `ptype` (M8d/#241) is also a facet (pre-v4 rows bucket as
 `"unknown"` until a sweep heals them, D30) and a group dim — and unlike `kev`/`epss` it IS
 recorded on occurrences, so it stays filterable/facetable at a past `as_of` (v3-era rows are
 honestly `null` there). **T<now dispatches to the M8b reader (live since #34)** — results are
@@ -112,7 +115,7 @@ routes stay current-state-only).
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/settings/sla` | session | Read SLA policy (crit/high/med/low/KEV days) |
+| GET | `/api/v1/settings/sla` | session | Read SLA policy (`critical_days`/`high_days`/`medium_days`/`low_days`/`kev_days` — full-word knobs, D46/#274) |
 | PUT | `/api/v1/settings/sla` | `can_manage_settings` | Replace SLA policy |
 | PUT | `/api/v1/clusters/{cluster_id}/name` | `can_manage_settings` | Rename a cluster's display name (M8c/#240): journaled per D17 (journal-first), stored in the `system-config` `cluster-registry` doc via a seq_no-CAS write. `cluster_id` itself is immutable |
 
