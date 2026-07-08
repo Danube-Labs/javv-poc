@@ -6,8 +6,8 @@
 > are added or repurposed.
 
 **Status:** backend + scanner shipped through **M7 slice 1** (v0.3.1, releases via release-please).
-Next: M8 (time-travel reads), then the Vue frontend (M9a-f) and Helm deploy (M10). There is no
-`frontend/` or `deploy/` yet - those land at M9/M10.
+Next: the Vue frontend (M9a-f, in progress - `frontend/` landed with M9a slice 1) and Helm
+deploy (M10). There is no `deploy/` yet - that lands at M10.
 
 ## Start here (reading order)
 1. [`README.md`](README.md) - what JAVV is, stack, toolchain table, license.
@@ -115,4 +115,12 @@ commitlint; detect-step jobs always run for branch protection) · `workflows/rel
 `workflows/versions.yml` (versions.yaml drift gate).
 
 ---
-*Planned code layout still to land:* `frontend/` (Vue 3, M9) · `deploy/` (Helm charts, M10).
+## `frontend/` - the Vue 3 SPA (M9a-f, in progress)
+Vue 3 `<script setup lang="ts">` + PrimeVue 4 + Pinia + Vue Router, built with Vite; tests Vitest,
+gates ESLint/oxlint + stylelint + vue-tsc (`npm run lint` / `npm run test`, the CI `Frontend` job).
+**Read [`frontend/DESIGN.md`](frontend/DESIGN.md) before touching any screen** - the agent-facing
+design contract over `src/styles/tokens.css` (the binding token source, ui-foundations.md).
+`src/lib/logger.ts` is the only logging pipeline (raw `console.*` is ESLint-banned).
+
+---
+*Planned code layout still to land:* `deploy/` (Helm charts, M10).

@@ -69,7 +69,7 @@ are pinned to a supported set** in the same file (D41/D42; see **Supported versi
 | [pyright](https://microsoft.github.io/pyright/) | Type check (backend) | 1.1.411 *(pinned)* |
 | pytest | Backend + scanner tests | from `backend/pyproject.toml` / `scanner/pyproject.toml` |
 | Node.js | Frontend runtime / toolchain | 22 LTS *(pinned major)* |
-| ESLint + Vitest | Lint + tests (frontend) | from `frontend/package.json` (once it exists) |
+| Vite + Vitest + ESLint/oxlint + stylelint + vue-tsc | Build, tests, lint + style/type gates (frontend) | from [`frontend/package.json`](frontend/package.json) (native, like pyproject — D42) |
 | OpenSearch | Single datastore | pinned in [`versions.yaml`](versions.yaml) |
 | [Trivy](https://trivy.dev/) · [Grype](https://github.com/anchore/grype) | Scanners (per-scanner, never merged) | pinned in [`versions.yaml`](versions.yaml) |
 | kubectl · helm · [k3d](https://k3d.io/) | Local k8s (k3s-in-Docker) | latest |

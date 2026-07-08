@@ -79,7 +79,7 @@ Invoke the matching skill before starting that kind of work:
   them into FastAPI. The agent should read the schema, not guess it.
 - **Context7 MCP** - pull version-current docs for Pydantic v2 / PrimeVue / vue-echarts / AsyncOpenSearch
   before generating API code.
-- **Static floor:** ruff + pyright (Python), Volar + ESLint (Vue). Run them; fix what they flag.
+- **Static floor:** ruff + pyright (Python); vue-tsc (Volar) + ESLint/oxlint + stylelint + the style-ratchet test (Vue — all via `npm run lint` / `npm run test`). Run them; fix what they flag.
 - **@hey-api/openapi-ts** - regenerate the Vue TS client from FastAPI's OpenAPI so types can't drift.
 - **Kubernetes MCP / Playwright MCP** - once there's a deploy loop / UI to drive.
 
