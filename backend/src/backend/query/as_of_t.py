@@ -161,7 +161,10 @@ def _finding_row(raw: dict[str, Any], human: dict[str, Any]) -> dict[str, Any]:
         "cve_id": occ["vuln_id"],
         "package_name": occ["package_name"],
         "installed_version": occ["package_version"],
-        "severity": occ["severity"],  # verbatim, as-of-then (D16)
+        "severity": occ["severity"],  # verbatim, as-of-then (D16) — display
+        # D46/#274: derived, not read from the row — pre-D46 occurrence rows never stored it,
+        # and deriving keeps the whole history uniform (canonical_severity is deterministic)
+        "severity_canonical": canonical_severity(occ["severity"] or ""),
         "severity_rank": SEVERITY_RANK[canonical_severity(occ["severity"] or "")],
         "cvss": occ.get("cvss"),
         "fixable": occ.get("fixable"),
@@ -301,12 +304,13 @@ class AsOfTQuery:
             raise _unrecorded("disagree")
         if f.image_repo is not None:
             raise _unrecorded("image_repo")
-        sev = {s.lower() for s in f.severity} if f.severity else None
+        sev = set(f.severity) if f.severity else None
         out = []
         for r in rows:
             if r["present"] != f.present:
                 continue
-            if sev and (r["severity"] or "").lower() not in sev:
+            # D46/#274: compare the CANONICAL bucket, mirroring the live filter's target field
+            if sev and r["severity_canonical"] not in sev:
                 continue
             if f.state and r["state"] not in f.state:
                 continue
@@ -405,7 +409,9 @@ class AsOfTQuery:
                 continue
             counts: dict[Any, dict[str, Any]] = {}
             for r in rows:
-                key = r[field]
+                # D46/#274: the severity facet counts the canonical bucket (mirrors the live
+                # facet's field alias — bucket keys are critical/medium/…, never verbatim)
+                key = r["severity_canonical" if field == "severity" else field]
                 if key is None:
                     if field != "ptype":
                         continue

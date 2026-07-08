@@ -93,13 +93,13 @@ def test_server_rederives_severity_never_trusts_the_client_bucket() -> None:
 
 
 def test_canonical_severity_maps_both_scanners_and_defends_garbage() -> None:
-    assert canonical_severity("CRITICAL") == canonical_severity("Critical") == "crit"
+    assert canonical_severity("CRITICAL") == canonical_severity("Critical") == "critical"
     assert canonical_severity("Negligible") == "negligible"
     assert canonical_severity("weird") == canonical_severity("") == "unknown"
     assert SEVERITY_RANK == {
-        "crit": 5,
+        "critical": 5,
         "high": 4,
-        "med": 3,
+        "medium": 3,
         "low": 2,
         "negligible": 1,
         "unknown": 0,

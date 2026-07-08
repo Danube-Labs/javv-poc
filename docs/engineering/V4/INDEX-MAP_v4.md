@@ -56,7 +56,8 @@ vuln_id           keyword       CVE pivot (= cve_id elsewhere)
 package_name      keyword
 package_version   keyword       (= findings.installed_version)
 finding_key       keyword       per-row identity
-severity          keyword/lc    as-of-then (verbatim in _source)
+severity          keyword/lc    as-of-then (verbatim in _source) - display/evidence only
+severity_canonical keyword      D46 (#274): the full-word canonical query key, as-of-then
 cvss              float         as-of-then
 fixable           boolean
 fixed_version     keyword
@@ -213,7 +214,8 @@ app               keyword
 cve_id            keyword
 package_name      keyword
 installed_version keyword
-severity          keyword/lc    verbatim in _source
+severity          keyword/lc    verbatim in _source (D16) - display/evidence only
+severity_canonical keyword      D46 (#274): the full-word canonical QUERY key (critical|high|medium|low|negligible|unknown) - filters+facets target this
 severity_rank     byte          5..0 - sort/range key (findings only - OE-5)
 cvss              float
 fixable           boolean

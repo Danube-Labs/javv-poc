@@ -45,11 +45,17 @@ def f(key: str, **over):
 
 def test_policy_defaults_and_days_resolution() -> None:
     p = SlaPolicy()
-    assert (p.crit_days, p.high_days, p.med_days, p.low_days, p.kev_days) == (2, 7, 30, 90, 1)
-    assert p.days_for(severity="crit", kev=False) == 2
+    days = (p.critical_days, p.high_days, p.medium_days, p.low_days, p.kev_days)
+    assert days == (2, 7, 30, 90, 1)
+    assert p.days_for(severity="critical", kev=False) == 2
     assert p.days_for(severity="low", kev=True) == 1  # KEV override beats severity
     assert p.days_for(severity="negligible", kev=False) is None  # no SLA
     assert p.days_for(severity="unknown", kev=False) is None
+    # D46/#274 regression: days_for canonicalizes VERBATIM scanner words — before the fix a
+    # real ingested CRITICAL matched nothing and real findings never went overdue
+    assert p.days_for(severity="CRITICAL", kev=False) == 2
+    assert p.days_for(severity="Medium", kev=False) == 30
+    assert p.days_for(severity="crit", kev=False) == 2  # legacy alias still folds in
 
 
 def test_overdue_uses_the_group_earliest_first_seen_d21() -> None:
@@ -158,15 +164,15 @@ async def test_sla_read_for_all_write_admin_gated_and_journaled(env) -> None:
     triager = await login_with(["can_triage"])
 
     r = await triager.get("/api/v1/settings/sla")
-    assert r.status_code == 200 and r.json()["sla"]["crit_days"] == 2  # defaults
+    assert r.status_code == 200 and r.json()["sla"]["critical_days"] == 2  # defaults
 
-    body = {"crit_days": 1, "high_days": 5, "med_days": 20, "low_days": 60, "kev_days": 0.5}
+    body = {"critical_days": 1, "high_days": 5, "medium_days": 20, "low_days": 60, "kev_days": 0.5}
     assert (await triager.put("/api/v1/settings/sla", json=body)).status_code == 403
 
     admin = await login_with(["can_manage_settings"])
     r = await admin.put("/api/v1/settings/sla", json=body)
     assert r.status_code == 200
-    assert (await triager.get("/api/v1/settings/sla")).json()["sla"]["crit_days"] == 1
+    assert (await triager.get("/api/v1/settings/sla")).json()["sla"]["critical_days"] == 1
 
     await client.indices.refresh(index="system-audit-log")
     rows = await client.search(
@@ -202,18 +208,24 @@ async def test_sla_put_not_left_unjournaled_on_audit_failure(env, monkeypatch) -
     trail; the policy is unchanged on failure and a retry re-drives it."""
     login_with, client = env
     admin = await login_with(["can_manage_settings"])
-    before = (await admin.get("/api/v1/settings/sla")).json()["sla"]["crit_days"]
-    body = {"crit_days": before + 5, "high_days": 7, "med_days": 30, "low_days": 90, "kev_days": 1}
+    before = (await admin.get("/api/v1/settings/sla")).json()["sla"]["critical_days"]
+    body = {
+        "critical_days": before + 5,
+        "high_days": 7,
+        "medium_days": 30,
+        "low_days": 90,
+        "kev_days": 1,
+    }
     _fail_audit_once(monkeypatch)
 
     with pytest.raises(Exception):  # noqa: B017 — strict audit failure fails the request (500)
         await admin.put("/api/v1/settings/sla", json=body)
     assert (await admin.get("/api/v1/settings/sla")).json()["sla"][
-        "crit_days"
+        "critical_days"
     ] == before  # unchanged
 
     assert (await admin.put("/api/v1/settings/sla", json=body)).status_code == 200
-    assert (await admin.get("/api/v1/settings/sla")).json()["sla"]["crit_days"] == before + 5
+    assert (await admin.get("/api/v1/settings/sla")).json()["sla"]["critical_days"] == before + 5
 
     from backend.sla.policy import SlaPolicy, write_sla_policy  # restore defaults for other suites
 

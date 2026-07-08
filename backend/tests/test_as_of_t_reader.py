@@ -64,7 +64,9 @@ def _envelope(keep: int, scan_order: int, run_id: str, seen_at: str) -> IngestEn
         ("crit", "high", "med", "low", "negligible", "unknown"), 0
     )
     for f in findings:
-        counts[canonical_severity(f["severity"])] += 1
+        # D46/#274: canonical is full-word; count COLUMN names stay short (Option A)
+        bucket = canonical_severity(f["severity"])
+        counts[{"critical": "crit", "medium": "med"}.get(bucket, bucket)] += 1
     e |= {
         "findings": findings,
         "counts": {

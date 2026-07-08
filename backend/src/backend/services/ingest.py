@@ -75,7 +75,10 @@ def build_docs(env: IngestEnvelope) -> dict[str, Any]:
                 "cve_id": f.vuln_id,
                 "package_name": f.package_name,
                 "installed_version": f.package_version,
-                "severity": f.severity,  # verbatim (D16); lc normalizer folds for aggs
+                "severity": f.severity,  # verbatim (D16) — evidence/display only
+                # D46 (#274): the QUERY key — the server-derived full-word canonical bucket;
+                # filters + facets target this, never the verbatim word
+                "severity_canonical": f.severity_server,
                 "severity_rank": f.severity_rank,  # server-derived, never the client's
                 "cvss": f.cvss,
                 "fixable": f.fixable,

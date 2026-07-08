@@ -30,6 +30,10 @@ _FACET_TERMS_SIZE = 32  # ≥ the largest facet vocabulary (ptype's ecosystem st
 # them as an explicit "unknown" bucket rather than silently dropping the rows (the B-1 caveat)
 _FACET_MISSING = {"ptype": "unknown"}
 
+# D46/#274: the API keeps `severity` as the facet NAME, but the agg targets the full-word
+# canonical query key — bucket keys are `critical`/`medium`/…, never the verbatim scanner word
+_FACET_FIELD_ALIAS = {"severity": "severity_canonical"}
+
 # high-cardinality keyword dims — composite/after_key territory, never a capped terms
 GROUP_FIELDS = ("image_repo", "image_digest", "namespaces", "cve_id", "assignee", "app", "ptype")
 
@@ -52,7 +56,7 @@ def build_facets_body(filters: SearchFilters, fields: list[str] | None = None) -
     body["aggs"] = {
         f: {
             "terms": {
-                "field": f,
+                "field": _FACET_FIELD_ALIAS.get(f, f),
                 "size": _FACET_TERMS_SIZE,
                 **({"missing": _FACET_MISSING[f]} if f in _FACET_MISSING else {}),
             },

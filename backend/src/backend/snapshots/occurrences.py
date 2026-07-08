@@ -32,6 +32,7 @@ _ROW_FIELDS = (
     "package_version",
     "finding_key",
     "severity",
+    "severity_canonical",
     "cvss",
     "fixable",
     "fixed_version",
@@ -68,7 +69,8 @@ def build_occurrence_rows(docs: dict[str, Any]) -> list[tuple[str, dict[str, Any
             "package_name": f["package_name"],
             "package_version": f["installed_version"],
             "finding_key": f["finding_key"],
-            "severity": f["severity"],  # as-of-then, verbatim (D16); lc normalizer folds for aggs
+            "severity": f["severity"],  # as-of-then, verbatim (D16) — evidence/display
+            "severity_canonical": f["severity_canonical"],  # the query key (D46/#274)
             "cvss": f["cvss"],
             "fixable": f["fixable"],
             "fixed_version": f["fixed_version"],
