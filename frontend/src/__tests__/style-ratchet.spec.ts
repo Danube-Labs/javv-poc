@@ -24,7 +24,8 @@ const COLOR_LITERAL = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(/
 function walk(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const p = join(dir, name)
-    if (statSync(p).isDirectory()) return name === '__tests__' ? [] : walk(p)
+    if (statSync(p).isDirectory())
+      return name === '__tests__' || p.endsWith('api/generated') ? [] : walk(p)
     return /\.(vue|ts|css)$/.test(name) ? [p] : []
   })
 }

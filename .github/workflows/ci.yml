@@ -279,3 +279,28 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         working-directory: frontend
         run: npm run test
+
+      # I4/I7 contract gate: the committed schema snapshot must match the backend code, and the
+      # committed generated client must match the snapshot — a backend Pydantic/route change
+      # without `python -m backend.tools.export_openapi frontend/openapi.json` + `npm run gen:api`
+      # breaks the build here, not at runtime.
+      - name: Set up uv (contract gate)
+        if: steps.detect.outputs.present == 'true'
+        uses: astral-sh/setup-uv@v7
+
+      - name: Contract gate — schema snapshot matches backend code
+        if: steps.detect.outputs.present == 'true'
+        working-directory: backend
+        run: |
+          uv sync --all-extras --dev
+          uv run python -m backend.tools.export_openapi ../frontend/openapi.json
+          git diff --exit-code ../frontend/openapi.json \
+            || { echo '::error::frontend/openapi.json is stale — run: (cd backend && uv run python -m backend.tools.export_openapi ../frontend/openapi.json)'; exit 1; }
+
+      - name: Contract gate — generated client matches the schema
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: |
+          npm run gen:api
+          git diff --exit-code src/api/generated \
+            || { echo '::error::src/api/generated is stale — run: (cd frontend && npm run gen:api)'; exit 1; }
