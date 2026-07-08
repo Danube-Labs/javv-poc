@@ -16,6 +16,13 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 - **Never** `--no-verify` / skip hooks. If a hook fails, fix the cause. Hooks are wired by
   [`.pre-commit-config.yaml`](../../.pre-commit-config.yaml) (ruff + the conventional-commit check, same
   6 types as CI commitlint); `setup-dev.sh` installs them.
+- **Pre-commit trap — the first commit of a new/reformatted file can silently NOT land:** when the
+  `ruff format` hook reformats a staged file it exits non-zero and **aborts the commit with HEAD
+  unmoved** (the reformatted file is left unstaged). Always `git log --oneline -1` after committing;
+  if the commit is missing, re-`git add` and commit again. Running `uv run ruff format <file>` before
+  staging avoids it entirely.
+- Commit **subjects are all-lowercase even for identifiers** (`d21`, `m5c`, `opensearch`) — CI
+  commitlint enforces it even where the local hook is lenient.
 
 ## Pull requests
 - Target `main`; keep them reviewable (small > big).

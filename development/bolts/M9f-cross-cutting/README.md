@@ -85,3 +85,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   `/api/v1/views` CRUD (owner column returns; edit/delete affordances hidden unless owner-or-admin;
   the localStorage variant is dead). **A-6 ruled**: export stays session-only — a `can_export`
   capability is parked as a tracked idea, do NOT build gating for it. Depends-on grows: M8e.
+
+- **2026-07-08 — authoring loop vs CI suite (#284):** the repo-level **`/visual-test`** command
+  (Playwright-MCP screenshot loop against the live dev stack, used while *building* M9a–f screens)
+  is **not** this bolt's E2E suite and doesn't reduce its scope — the Playwright specs in CI
+  (app-loads/login, core triage round-trip, degraded banner, server-side paging) remain M9f
+  deliverables. The command exists so visual verification doesn't wait for M9f.

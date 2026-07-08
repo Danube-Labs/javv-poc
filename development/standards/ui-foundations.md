@@ -37,5 +37,12 @@ Three **separate** buckets; using one where another belongs is a bug:
   **fail on raw `#hex`/`rgb()`, non-token `font-family`, and arbitrary `font-size`** in components - hard-coded
   values must come from a token. This is what stops the "10 000 style variants" drift.
 - Severity/status colors are only ever read from the token map (lint/grep guard against literal severity hex).
+- **Style ratchet (M9a):** a pinned test fails CI when a component **adds** a hand-rolled severity/status
+  color that bypasses the token map/badge helpers; the recorded baseline may only shrink, never grow.
+  stylelint catches raw hex/fonts - the ratchet catches *semantic* bypasses (a literal red where the
+  severity token belongs).
 - **Tested:** a component using a raw hex or a non-token font fails lint; the severity token map round-trips
   to the six buckets.
+- **Agent-facing condensation:** `frontend/DESIGN.md` (an M9a deliverable) is the one file a session reads
+  before writing FE code - token tables (light+dark), do's/don'ts, quick reference, example patterns. It
+  *derives from* the tokens and this doc; on disagreement, `tokens.css` + this doc win.
