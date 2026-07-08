@@ -61,7 +61,10 @@
       "Bash(gh issue view:*)",
       "Bash(gh issue list:*)",
       "Bash(gh issue comment:*)",
-      "Bash(gh repo view:*)"
+      "Bash(gh repo view:*)",
+      "Bash(gh run watch:*)",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_snapshot"
     ]
   }
 }
