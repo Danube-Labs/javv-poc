@@ -52,6 +52,9 @@ development/e2e/logs/
 development/e2e/old_logs/
 backend/cookies.txt
 
+# /visual-test run artifacts (screenshots + state env) — per-run, never staged
+.playwright-mcp/
+
 # serena mcp project config — machine-local, never staged
 .serena/
 

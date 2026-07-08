@@ -50,6 +50,17 @@ Files this bolt creates — **in the layered tree, not here** (paths proposed):
   components use tokens only). Also wire **stylelint** into the `Frontend` CI gate to fail on raw
   hex / non-token fonts. design tokens (color/space/type/severity palette),
   PrimeVue theme bridge. Single source for severity colors used by M9b/M9c.
+- `frontend/DESIGN.md` — the **agent-facing design contract**, written once the tokens are promoted:
+  token tables (light + dark values side by side), do's/don'ts naming the exact anti-patterns
+  (raw hex → token; hand-rolled severity color string → the badge/token helpers; `dark:`-style
+  overrides where a token already handles theming), an **agent quick reference** of the ~15
+  most-used tokens, and copy-pasteable component patterns. The substance already lives in
+  `ui-foundations.md` + `DESIGN_SYSTEM.md` + `SCREENS-v5.md` — this is the operational condensation
+  a cold session reads before touching any screen, kept in lockstep with `tokens.css`.
+- `frontend/tests/style-ratchet.test.ts` — the **style ratchet** (sibling to the stylelint gate):
+  fails CI when a component **adds** a hand-rolled severity/status color that bypasses the token
+  map / badge helpers; the recorded baseline may only shrink, never grow. stylelint catches raw
+  hex/fonts — the ratchet catches *semantic* bypasses (a literal red where the severity token belongs).
 - **Filter module (the reusable core):**
   - `frontend/src/filters/fields.config.ts` — the `fields` config: per-filter `{ key, label, type
     (terms|range|date|bool), facetable, scanner_faceted }` for namespace / image / tag / severity /
@@ -78,6 +89,8 @@ Everything in [`definition-of-done.md`](../../standards/definition-of-done.md), 
 - Global time picker sets `T` in the Pinia store; changing it re-triggers dependent fetches (`T=now` vs `T<now`
   branch is observable in the emitted params).
 - App shell renders, routes lazy-load, ruff-equivalent FE gates pass (ESLint + Volar + Vitest green).
+- `frontend/DESIGN.md` exists and matches `tokens.css` (spot-check: every token family in the CSS has
+  a table row); the **style ratchet** test is wired into the `Frontend` CI gate with an empty baseline.
 
 ## Tests to write
 See [`testing.md`](../../standards/testing.md). FE rule: **unit-test the option-builders + emitted query params
@@ -117,6 +130,13 @@ as pure units** (Vitest).
   vocabulary in the reusable filter module is lowercase + a **`negligible`** bucket (muted, never
   red); **A-4** all gating from `/auth/me` capabilities (settled). The topbar cluster switcher
   reads the **M8c cluster registry** (`GET /api/v1/clusters`, D-5 ruling) for display names.
+
+- **2026-07-08 — dev-workflow deliverables added (#284):** two new deliverables —
+  **`frontend/DESIGN.md`** (the agent-facing design contract condensed from the tokens) and the
+  **style-ratchet test** (CI fails on *added* hand-rolled severity/status colors; baseline only
+  shrinks) — plus a DoD line for each. Repo-level **`/visual-test`** (authoring-time Playwright-MCP
+  screenshot loop against the live dev stack) and **`/qa`** (delta-scoped verification) commands
+  landed with #284 and apply to every M9 bolt from this one on.
 
 ## Config tracking
 

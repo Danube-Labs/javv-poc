@@ -8,6 +8,27 @@
 > **Resuming a session?** Read the newest file in `.claude/sessions/` (the last handoff) before acting;
 > save one with `/save-context` before ending or compacting.
 
+## Read this FIRST (per task area)
+Not everything is in this file — these are the sources of truth per area. Read the matching file
+before changing anything in that area; don't guess or work from memory.
+
+| When you are... | Read FIRST |
+|---|---|
+| Touching **any index / mapping / rollover / retention** | `docs/engineering/V4/INDEX-MAP_v4.md` |
+| Adding/changing **HTTP endpoints** or their contracts | `docs/API.md` (+ the router in `backend/src/backend/routers/`) |
+| Working a **bolt** (any milestone slice) | that bolt's `development/bolts/<bolt>/README.md` — the spec of record, incl. its `## Updates` |
+| Writing/modifying **frontend UI / styling** | `frontend/DESIGN.md` (once M9a lands) → `development/standards/ui-foundations.md` · `handoff/v5/docs/SCREENS-v5.md` |
+| **Committing / branching / PRs** | `development/standards/git-workflow.md` (bolt tracking, housekeeping, the pre-commit trap) |
+| Running/extending the **e2e rigs** | `development/e2e/README.md` |
+| Verifying a change | `/qa` (delta-scoped) · UI deltas: `/visual-test` |
+| Lost in the tree | `REPO-MAP.md` |
+
+## Code comments
+Default to none; add one only when the WHY is non-obvious (hidden constraint, subtle invariant,
+workaround). Never explain WHAT well-named code already says, and **never reference tickets, PRs, or
+review history in comments** ("fixes #123", "audit caught this") — that context belongs in the PR/issue
+and rots in code. Applies to every tool and human alike.
+
 ## Stack (fixed)
 Backend: **Python 3.12 · FastAPI (async) · AsyncOpenSearch (opensearch-py) · Pydantic v2**. Frontend:
 **Vue 3 (`<script setup lang="ts">`) · PrimeVue · vue-echarts · Pinia · Vue Router**. Store: **OpenSearch,
