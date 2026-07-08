@@ -259,7 +259,12 @@ async def phase_load(
     sem = asyncio.Semaphore(CONCURRENCY)
     status_tally: Counter[int] = Counter()
     latencies: list[float] = []
-    failures: list[dict[str, Any]] = []
+    failures: list[
+        dict[str, Any]
+    ] = []  # real errors: 5xx (non-503), connection drops, odd codes
+    shed: list[
+        dict[str, Any]
+    ] = []  # persistent 429/503 after backoff — correct load-shedding
 
     async def push(
         cid: str, scanner: str, digest_i: int, order: int, schema: int
@@ -297,14 +302,10 @@ async def phase_load(
                 }
             )
             return
-        failures.append(
-            {
-                "cid": cid,
-                "scanner": scanner,
-                "status": "exhausted-backoff",
-                "digest": digest_i,
-            }
-        )
+        # persistent 429/503 after all retries — the rate limiter shedding excess. Under a
+        # DELIBERATE overload (250 pushes/token in ~100s vs a 120/min limit) shedding is CORRECT
+        # backpressure, not failure: a real scanner CronJob retries next cycle. Reported, not fatal.
+        shed.append({"cid": cid, "scanner": scanner, "digest": digest_i})
 
     t0 = time.perf_counter()
     for c in range(CYCLES):
@@ -319,17 +320,28 @@ async def phase_load(
     wall = time.perf_counter() - t0
 
     lat = sorted(latencies) or [0.0]
+    # the real robustness bar: NO 5xx and NO hard failures under overload. The system must shed
+    # (429), never break (500) — and at least some pushes must land (it kept serving, didn't wedge).
+    server_errors = sum(
+        n for code, n in status_tally.items() if 500 <= code < 600 and code != 503
+    )
+    accepted = status_tally[202]
     result = {
         "cycles": CYCLES,
         "envelopes": sum(status_tally.values()),
         "wall_s": round(wall, 1),
         "status_tally": dict(status_tally),
-        "backpressure_429_503": status_tally[429] + status_tally[503],
+        "accepted_202": accepted,
+        "shed_429_503": status_tally[429] + status_tally[503],
+        "shed_after_backoff": len(shed),
+        "server_errors_5xx": server_errors,
         "lat_p50_ms": round(statistics.median(lat) * 1000, 1),
         "lat_p95_ms": round(lat[int(len(lat) * 0.95)] * 1000, 1),
         "lat_max_ms": round(lat[-1] * 1000, 1),
         "hard_failures": failures,
-        "verdict": "PASS" if not failures else "FAIL",
+        "verdict": "PASS"
+        if (not failures and server_errors == 0 and accepted > 0)
+        else "FAIL",
     }
     log_line("loadbreak-load.jsonl", result)
     return result
@@ -418,8 +430,16 @@ async def phase_break(
     """Named abuse cases. Each records (name, expected, actual, PASS/FAIL). A 500 anywhere, or an
     internals leak in an error body, is a FAIL."""
     results: list[dict[str, Any]] = []
-    token = tokens[(cid, "trivy")]
-    auth = {"authorization": f"Bearer {token}"}
+    # a FRESH cluster+token, not the load-phase fleet: its rate-limit bucket is empty, so setup
+    # pushes (esp. the ordering keystone) land as 202 instead of 429'd by leftover load pressure
+    bcid = "c-load-break"
+    r = await http.post(
+        f"{BACKEND}/api/v1/admin/tokens",
+        headers=hdr,
+        json={"cluster_id": bcid, "scanner": "trivy"},
+    )
+    r.raise_for_status()
+    auth = {"authorization": f"Bearer {r.json()['token']}"}
 
     def record(name: str, ok: bool, detail: str) -> None:
         results.append({"name": name, "pass": ok, "detail": detail})
@@ -427,11 +447,12 @@ async def phase_break(
     async def ingest(
         body: Any, headers: dict[str, str] | None = None
     ) -> httpx.Response:
-        return await http.post(
-            f"{BACKEND}/api/v1/ingest/scan", json=body, headers=headers or auth
-        )
+        # headers=None → the valid break token; headers={} → send NO auth header (the no-auth case).
+        # (NOT `headers or auth`: an empty dict is falsy, so that would wrongly re-send the token.)
+        h = auth if headers is None else headers
+        return await http.post(f"{BACKEND}/api/v1/ingest/scan", json=body, headers=h)
 
-    good = envelope(cid, "trivy", 0, "break-good", base_order + 100, 4)
+    good = envelope(bcid, "trivy", 0, "break-good", base_order + 100, 4)
 
     # 1. malformed: extra field (extra=forbid), bad type, illegal ptype pattern, bad schema_version
     for name, mutate in [
@@ -483,11 +504,14 @@ async def phase_break(
             f"{r.status_code} (expect 401){' LEAK' if leak else ''}",
         )
 
-    # 4. tenant / scope binding: a trivy-cluster-A token pushing an envelope for cluster B or grype
-    other = envelope("c-load-OTHER", "trivy", 0, "break-tenant", base_order + 101, 4)
+    # 4. tenant / scope binding (SEC-3): the break token is scoped to (bcid, trivy). Push VALID
+    # envelopes for a different cluster / scanner — they must 403 on the scope check. Inputs
+    # must be otherwise-valid or they'd 422 on validation BEFORE reaching authz (a valid-shape cid,
+    # and a real grype envelope — not a trivy body with scanner flipped (fails tuning validation).
+    other = envelope("c-load-other", "trivy", 0, "break-tenant", base_order + 101, 4)
     r = await ingest(other)
     record("scope:wrong_cluster", r.status_code == 403, f"{r.status_code} (expect 403)")
-    r = await ingest({**good, "scanner": "grype"})
+    r = await ingest(envelope(bcid, "grype", 0, "break-scanner", base_order + 102, 4))
     record("scope:wrong_scanner", r.status_code == 403, f"{r.status_code} (expect 403)")
 
     # 5. cursor tampering on the read surface: garbage cursor → 422, never a 500
@@ -512,36 +536,46 @@ async def phase_break(
         f"{r.status_code} (expect 422)",
     )
 
-    # 6. ordering replay (D40 keystone): commit a high scan_order that RETIRES a finding, then
-    # replay a LOWER order re-including it. The stale scan must NOT resurrect/create — per-digest
-    # state can't guard a create, so the watermark does. Assert via observable present=, not 202.
+    # 6. ordering replay (D40 keystone): commit a high scan_order that RETIRES all-but-one finding,
+    # then replay a LOWER order re-including them. The stale scan must NOT resurrect — per-digest
+    # state can't guard a create, so the watermark does. On the FRESH break token (no load noise),
+    # so the setup pushes land; assert each committed (202) before trusting the observable present=.
     d_digest = 7
     hi = base_order + 200
-    full = envelope(cid, "trivy", d_digest, f"replay-hi-{hi}", hi, 4)
+    full = envelope(bcid, "trivy", d_digest, f"replay-hi-{hi}", hi, 4)
+    # keep ONE finding — and rebuild counts to match it (the envelope validates counts vs findings,
+    # so a total=1 with the old per-severity tallies would 422 before ever reaching the watermark)
+    kept = full["findings"][:1]
+    kept_counts = {
+        c: 0 for c in ("crit", "high", "med", "low", "negligible", "unknown")
+    }
+    for f in kept:
+        kept_counts[
+            COUNT_COLUMN.get(f["severity_canonical"], f["severity_canonical"])
+        ] += 1
+    kept_counts |= {"total": len(kept), "fixable": sum(1 for f in kept if f["fixable"])}
     shrunk = {
         **full,
         "scan_run_id": f"replay-hi2-{hi + 1}",
         "scan_order": hi + 1,
-        "findings": full["findings"][:1],
-        "counts": {**full["counts"], "total": 1},
+        "findings": kept,
+        "counts": kept_counts,
     }
-    await ingest(full)
-    await ingest(shrunk)  # retires all but the first finding for this digest
     stale = {
         **full,
         "scan_run_id": f"replay-stale-{hi - 50}",
         "scan_order": hi - 50,
     }  # old order
+    setup = [(await ingest(full)).status_code, (await ingest(shrunk)).status_code]
     r = await ingest(stale)
     await http.post(f"{OS_URL}/findings/_refresh")
-    digest_id = full["image_digest"]
     count_body = {
         "query": {
             "bool": {
                 "filter": [
-                    {"term": {"cluster_id": cid}},
+                    {"term": {"cluster_id": bcid}},
                     {"term": {"scanner": "trivy"}},
-                    {"term": {"image_digest": digest_id}},
+                    {"term": {"image_digest": full["image_digest"]}},
                     {"term": {"present": True}},
                 ]
             }
@@ -552,12 +586,14 @@ async def phase_break(
         .json()
         .get("count")
     )
-    # the stale replay tried to re-present the retired findings; the watermark must keep present==1
+    # only meaningful if the setup actually committed (202,202); else it's an inconclusive test, not
+    # a product failure. The watermark must keep present==1 despite the stale replay of all rows.
+    setup_ok = setup == [202, 202] and r.status_code == 202
     record(
         "ordering:stale_replay_no_resurrect",
-        present_after == 1,
-        f"present={present_after} after stale replay (expect 1 — watermark held), "
-        f"ingest={r.status_code}",
+        setup_ok and present_after == 1,
+        f"present={present_after} (expect 1 — watermark held); setup={setup} stale={r.status_code}"
+        + ("" if setup_ok else " [INCONCLUSIVE: a setup push did not commit]"),
     )
 
     # 7. CAS hammer: N concurrent renames of ONE cluster → all resolve (200/409/503), final
@@ -673,11 +709,30 @@ async def phase_invariants(
     def add(name: str, ok: bool, detail: str) -> None:
         checks.append({"name": name, "pass": ok, "detail": detail})
 
-    # 1. PIT-leak zero — every deep read owns a PIT it deletes in `finally`
-    pits = len(
-        (await http.get(f"{OS_URL}/_search/point_in_time/_all")).json().get("pits", [])
+    # 1. PIT-leak on COMPLETED reads — a read that RUNS TO COMPLETION deletes its PIT in `finally`.
+    # NOT a raw "0 PITs" check: a cursor read abandoned mid-walk (the capture opens first-page
+    # cursors) legitimately holds its PIT until keep_alive — inherent to pagination, not a leak.
+    # Snapshot, drive two completing reads (contributors = a full PIT walk; facets), assert +0.
+    async def pit_count() -> int:
+        r = await http.get(f"{OS_URL}/_search/point_in_time/_all")
+        return len(r.json().get("pits", []))
+
+    before = await pit_count()
+    await http.get(
+        f"{BACKEND}/api/v1/contributors",
+        headers=hdr,
+        params={"cluster_id": cid, "days": 30},
     )
-    add("pit_leak_zero", pits == 0, f"{pits} open PITs (expect 0)")
+    await http.get(
+        f"{BACKEND}/api/v1/findings/facets", headers=hdr, params={"cluster_id": cid}
+    )
+    after = await pit_count()
+    add(
+        "pit_leak_completed_reads",
+        after <= before,
+        f"completed reads added {after - before} PIT(s) (before={before} after={after}; "
+        f"abandoned-cursor PITs drain at keep_alive)",
+    )
 
     # 2. as-of-T determinism (D28 stability) — the same past T re-read is byte-identical, even after
     # more data lands (httpx encodes the as_of param itself)

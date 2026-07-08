@@ -155,7 +155,9 @@ echo "after full cycle: present=true restored to $RESTORED (baseline $BASE_PRESE
 say "log assertions"
 grep -q '"event": "ingest committed"' "$LOGS/backend.log" 2>/dev/null \
   || fail "backend.log has no 'ingest committed' JSON line (is the backend logging to it?)"
-grep '"event": "ingest committed"' "$LOGS/backend.log" | head -1 | jq -e .cluster_id >/dev/null \
+# grep -m1 (not `| head -1`): head closes the pipe early and grep dies with SIGPIPE, which `set -o
+# pipefail` turns into a spurious failure once backend.log is large. -m1 stops grep itself, exit 0.
+grep -m1 '"event": "ingest committed"' "$LOGS/backend.log" | jq -e .cluster_id >/dev/null \
   || fail "backend.log ingest line is not parseable JSON with cluster_id"
 grep -q '"event": "scanning image"' "$TLOG" || fail "scanner log has no per-image progress lines"
 grep -q '"event": "scan done"' "$TLOG" || fail "scanner log has no scan-done lines"
@@ -228,7 +230,7 @@ curl -s -X POST "$OS/findings/_refresh" >/dev/null
 PROJ=$(curl -s "$OS/findings/_count" -H 'content-type: application/json' \
   -d "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"cluster_id\":\"$SCAN_CID\"}},{\"term\":{\"cve_id\":\"$DCVE\"}},{\"term\":{\"state\":\"risk_accepted\"}}]}}}" | jq -r .count)
 [ "$PROJ" -gt 0 ] || fail "ignore_rule did not project risk_accepted onto $DCVE"
-curl -s -b "$COOKIES" -X POST "$BACKEND/api/v1/decisions/$DID/revoke" | jq -e '.revoked' >/dev/null || fail "revoke failed"
+curl -s -b "$COOKIES" -X POST "$BACKEND/api/v1/decisions/$DID/revoke" | jq -e '.decision.revoked_at' >/dev/null || fail "revoke failed"
 echo "decision round-trip on $DCVE: projected $PROJ finding(s), revoked"
 
 # SLA: tweak -> read back -> restore (no residue). GET wraps as {"sla":{...}}; PUT takes the BARE
@@ -237,13 +239,18 @@ echo "decision round-trip on $DCVE: projected $PROJ finding(s), revoked"
 SLA0=$(api "/api/v1/settings/sla" | jq '.sla')
 curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' \
   -d "$(echo "$SLA0" | jq '.critical_days = 1')" >/dev/null
-[ "$(api "/api/v1/settings/sla" | jq -r '.sla.critical_days')" = "1" ] || fail "SLA write did not read back"
+# critical_days is a float — it reads back as 1.0, so compare NUMERICALLY (jq ==), never a string match
+api "/api/v1/settings/sla" | jq -e '.sla.critical_days == 1' >/dev/null || fail "SLA write did not read back"
 curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' -d "$SLA0" >/dev/null
 echo "SLA round-trip: OK (restored)"
 
 # trends + contributors (the smoke's own triage IS contributor data)
 api "/api/v1/trends/scans?cluster_id=$SCAN_CID" | jq -e '.series' >/dev/null || fail "scans trend failed"
-api "/api/v1/trends/findings?cluster_id=$SCAN_CID" | jq -e '.series' >/dev/null || fail "findings trend failed"
+# trends/findings is the new/resolved burn-down twin — no .series (scans-only). Assert the twin
+# series are real per-scanner objects, and that `new` actually recorded this run's ingest (non-empty)
+api "/api/v1/trends/findings?cluster_id=$SCAN_CID" \
+  | jq -e '(.new | type == "object") and (.resolved | type == "object") and (.new | length > 0)' >/dev/null \
+  || fail "findings trend missing/empty new+resolved series"
 api "/api/v1/contributors?cluster_id=$SCAN_CID" | jq -e . >/dev/null || fail "contributors failed"
 
 # CSV export: row count == the same lens's search total; sanitizer holds on real data
@@ -285,26 +292,26 @@ echo "read/report surface: ALL GREEN"
 say "M8 surface: as-of-T, provenance, images, clusters, audit, views, ptype"
 urlenc() { printf %s "$1" | jq -sRr @uri; }
 
-# -- point-in-time reconstruction (D28/FR-23) --
+# -- point-in-time reconstruction (D28/FR-23) --. Counts use the server-side `.total.value` (the real
+# Trivy corpus is thousands of findings, far past any page cap), never a page-length count.
 curl -s -X POST "$OS/findings/_refresh" >/dev/null
 PRESENT_BEFORE=$(present_trivy true)
-[ "$PRESENT_BEFORE" -lt 100 ] || fail "as-of probe assumes a small corpus (present=$PRESENT_BEFORE); raise the page cap"
 T_MARK="$(date -u +%FT%TZ)"; sleep 1
 run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle CRITICAL-only (as-of repro)" "JAVV_TRIVY_SEVERITIES=CRITICAL"
 curl -s -X POST "$OS/findings/_refresh" >/dev/null
 PRESENT_NOW=$(present_trivy true)
 [ "$PRESENT_NOW" -lt "$PRESENT_BEFORE" ] || fail "as-of setup: rescan did not shrink the present set"
 # the CURRENT read (t=now) sees the shrunk set; the AS-OF read reconstructs the pre-shrink set.
-ASOF=$(api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&present=true&size=100&as_of=$(urlenc "$T_MARK")")
-ASOF_LEN=$(echo "$ASOF" | jq '.data | length')
-NOW_LEN=$(api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&present=true&size=100" | jq '.data | length')
-echo "as-of $T_MARK present=$ASOF_LEN · now present=$NOW_LEN (pre-shrink baseline $PRESENT_BEFORE)"
-[ "$ASOF_LEN" -eq "$PRESENT_BEFORE" ] || fail "as-of reconstruction ($ASOF_LEN) != pre-shrink present ($PRESENT_BEFORE) — D28 broken"
-[ "$ASOF_LEN" -gt "$NOW_LEN" ] || fail "as-of read did not show the OLD (larger) present set"
-echo "$ASOF" | jq -e '.data | all(.scanner == "trivy")' >/dev/null || fail "as-of read violated scanner purity"
-# determinism: the SAME past T, re-read, is byte-identical even though the world moved on (D28 stability)
-ASOF2_LEN=$(api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&present=true&size=100&as_of=$(urlenc "$T_MARK")" | jq '.data | length')
-[ "$ASOF2_LEN" -eq "$ASOF_LEN" ] || fail "as-of at a fixed T is not stable across re-reads ($ASOF_LEN vs $ASOF2_LEN)"
+asof_total() { api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&present=true&size=1${1:+&as_of=$(urlenc "$1")}" | jq -r '.total.value'; }
+ASOF_TOTAL=$(asof_total "$T_MARK")
+NOW_TOTAL=$(asof_total)
+echo "as-of $T_MARK present=$ASOF_TOTAL · now present=$NOW_TOTAL (pre-shrink baseline $PRESENT_BEFORE)"
+[ "$ASOF_TOTAL" -eq "$PRESENT_BEFORE" ] || fail "as-of reconstruction ($ASOF_TOTAL) != pre-shrink present ($PRESENT_BEFORE) — D28 broken"
+[ "$ASOF_TOTAL" -gt "$NOW_TOTAL" ] || fail "as-of read did not show the OLD (larger) present set"
+api "/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy&present=true&size=20&as_of=$(urlenc "$T_MARK")" \
+  | jq -e '.data | all(.scanner == "trivy")' >/dev/null || fail "as-of read violated scanner purity"
+# determinism: the SAME past T, re-read, returns the SAME total even though the world moved on (D28)
+[ "$(asof_total "$T_MARK")" -eq "$ASOF_TOTAL" ] || fail "as-of at a fixed T is not stable across re-reads"
 run_scanner trivy "$TOK_TRIVY" "$TLOG" "cycle full (as-of restore)"
 curl -s -X POST "$OS/findings/_refresh" >/dev/null
 [ "$(present_trivy true)" -eq "$PRESENT_BEFORE" ] || fail "as-of phase did not restore the present set"
@@ -416,22 +423,36 @@ else
 fi
 
 # -- export vocabulary: CSV + VEX carry full-word severities, never the short form --
+# Capture the DISTINCT severity values into a var and test that (never a `... | grep -q && fail`
+# pipeline: under pipefail an early-closing grep can SIGPIPE `sort`, making `&& fail` short-circuit
+# and SILENTLY MISS a real violation). Here grep reads the whole column, so a bad token is caught.
 CSV_D46=$(api "/api/v1/findings/export.csv?cluster_id=$SCAN_CID&scanner=trivy")
-SEV_COL=$(printf '%s\n' "$CSV_D46" | head -1 | tr ',' '\n' | grep -nx '"severity"' | cut -d: -f1)
-if [ -n "$SEV_COL" ]; then
-  printf '%s\n' "$CSV_D46" | tail -n +2 | cut -d, -f"$SEV_COL" | tr -d '"' | sort -u \
-    | grep -qiE '^(crit|med|moderate)$' && fail "CSV severity column carries a short/legacy token (D46)"
-fi
+HDR="${CSV_D46%%$'\n'*}"
+# CSV header uses BARE column names (severity), not quoted — match accordingly
+SEV_COL=$(printf '%s\n' "$HDR" | tr ',' '\n' | grep -nx 'severity' | cut -d: -f1 || true)
+[ -n "$SEV_COL" ] || fail "CSV export has no severity column to check (header: $HDR)"
+SEV_VALS=$(printf '%s\n' "$CSV_D46" | tail -n +2 | cut -d, -f"$SEV_COL" | tr -d '"' | sort -u)
+BAD_SEV=$(printf '%s\n' "$SEV_VALS" | grep -iE '^(crit|med|moderate)$' || true)
+[ -z "$BAD_SEV" ] || fail "CSV severity column carries a short/legacy token (D46): $BAD_SEV"
+echo "CSV severity values: $(printf '%s' "$SEV_VALS" | tr '\n' ' ')"
 echo "export vocabulary: OK"
 echo "D46 vocabulary: ALL GREEN"
 
-# ---- 8d. invariant: no leaked PITs after the whole read surface -----------------
-# Every deep read (search cursor, audit walk, as-of reconstruction) owns a PIT it must delete in
-# `finally`. A leak pins segments open forever — assert the store holds none once the reads settle.
-say "PIT-leak invariant"
-OPEN_PITS=$(curl -s "$OS/_search/point_in_time/_all" 2>/dev/null | jq -r '.pits | length' 2>/dev/null || echo 0)
-[ "$OPEN_PITS" = "0" ] || fail "leaked $OPEN_PITS open PIT(s) after the read surface — a finally-delete is missing"
-echo "open PITs: 0 (no leak)"
+# ---- 8d. invariant: a COMPLETED read must delete its PIT (finally-delete) --------
+# NOT a raw "0 PITs" check: a cursor-paginated read the client ABANDONS mid-walk (e.g. the search /
+# audit first-page reads above) legitimately holds its PIT until keep_alive (2m) — the server can't
+# force-delete a PIT the client may still resume. That's inherent to pagination, not a leak. The real
+# invariant is that a read which RUNS TO COMPLETION releases its PIT at once. So we snapshot the count,
+# drive two completing reads (contributors = a full PIT walk; facets), and assert they add nothing.
+say "PIT-leak invariant (completed reads must finally-delete)"
+pit_count() { curl -s "$OS/_search/point_in_time/_all" 2>/dev/null | jq -r '.pits | length' 2>/dev/null || echo 0; }
+PIT_BEFORE=$(pit_count)
+api "/api/v1/contributors?cluster_id=$SCAN_CID" >/dev/null   # opens + finally-deletes a full PIT walk
+api "/api/v1/findings/facets?cluster_id=$SCAN_CID" >/dev/null
+PIT_AFTER=$(pit_count)
+[ "$PIT_AFTER" -le "$PIT_BEFORE" ] \
+  || fail "a completed read leaked $((PIT_AFTER - PIT_BEFORE)) PIT(s) — a finally-delete is missing (before=$PIT_BEFORE after=$PIT_AFTER)"
+echo "completed reads leaked 0 PITs (before=$PIT_BEFORE after=$PIT_AFTER; abandoned-cursor PITs drain at keep_alive)"
 
 # ---- 9. opensearch log snapshot --------------------------------------------
 say "opensearch log snapshot"

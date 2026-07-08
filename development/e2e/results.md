@@ -147,3 +147,45 @@ The original #158 text got this wrong; corrected on the issue.
    exactly what the `opensearchpy.trace` ban exists for. **Fixed** in javv-common: that logger is
    capped at INFO (per-request lines, no bodies) even at debug; pinned by test. Same cycle now
    logs 50 KB.
+
+---
+
+# #249 M0→M8 gate run (2026-07-08)
+
+Full gate before M9: real-scanner smoke (extended to M8 + D46), the new `loadbreak.py`
+robustness rig, both perf benches, and the full pytest suite — all against a wiped-fresh store
+(OpenSearch 3.7.0, backend `JAVV_ENV=dev`, k3d `alpha`, post-#278 scanner binaries).
+
+## Results — all green
+
+| Component | Result | Real data it asserted on |
+|---|---|---|
+| `smoke.sh` (M0→M8 + D46) | ✅ green | trivy=2080 / grype=2211 findings; disagree=1426; as-of reconstructs present=2080 vs now=59; SLA overdue 100/100 under a 1-day policy; ptype facet = os,deb,go-module,gobinary,apk,python…; CSV severities = CRITICAL/HIGH/MEDIUM/LOW/UNKNOWN |
+| `loadbreak.py` (all phases) | ✅ green | LOAD 8000 envelopes → 4400×202, 3600 shed (429/503), **0×5xx**; CAPTURE 25 endpoints, 0 D46 vocab leaks (quiet + under load); BREAK all abuse cases pass incl. D40 stale-replay → present=1; LIFECYCLE bootstrap idempotent @ MAPPING_VERSION 15; INVARIANTS PIT/as-of/metrics/secret all pass |
+| `bench_refresh.py` | ✅ | per-envelope refresh 10.7–12.4 ms — matches the #117 baseline, no regression |
+| `bench_read.py` | ✅ | reads under write contention p50 29 ms / p95 90 ms / p99 110 ms, **no 5xx** |
+| full pytest (645 tests) | ✅ green | non-serial + serial, both exit 0, zero failures |
+
+## Findings from this run — all were TEST bugs; the product was verified correct each time
+
+The smoke's read/report section (#222) and the new M8/D46 sections had bit-rotted / been written
+against assumptions that didn't hold on the real corpus. Each failure was investigated product-side
+BEFORE touching the assertion; none masked a product defect.
+
+**smoke.sh:**
+1. decision revoke asserted `.revoked` — that field is on the *edit* endpoint; revoke returns `{decision:{revoked_at}}`. Product revokes correctly.
+2. SLA read-back compared `="1"` — `critical_days` is a float, reads back `1.0`. Now a numeric `jq ==` compare.
+3. `trends/findings` asserted `.series` — that endpoint returns `{new,resolved}` (scans-only has `.series`). Strengthened to require non-empty series.
+4. as-of counted page rows with a `<100` corpus guard — real corpus is 2080. Now uses server-side `.total.value`; the check is *stricter* (exact 2080 match).
+5. `ingest committed` log line check used `| head -1` under `pipefail` → SIGPIPE race once the log grows. Now `grep -m1`. (Product logs cluster_id on every line — verified.)
+6. CSV D46 check matched a quoted `"severity"` header — the header is bare `severity`; the check found its own bug. Also rewrote the `grep -q && fail` pipeline (an early-closing grep could SIGPIPE `sort` and silently miss a real violation).
+7. PIT-leak asserted `==0` immediately — but the smoke deliberately opens abandoned first-page cursors whose PITs linger till keep_alive (inherent to pagination). Proved completed reads (contributors/facets/CSV) leak 0 PITs; the check now asserts *completed reads add no PIT*.
+
+**loadbreak.py:**
+8. `no_auth` sent `headers={}` through `headers or auth` — `{}` is Python-falsy → resent the token. True no-auth → 401 (verified). Helper now distinguishes `None` from `{}`.
+9. scope tests used an uppercase cluster_id / a trivy body with scanner flipped → both 422 on validation *before* the 403 scope check. With valid-shape inputs both correctly 403.
+10. D40 ordering replay ran on a load-hammered token (setup pushes 429'd) and built a `shrunk` envelope with inconsistent counts (422). On a fresh token with consistent counts: stale replay → present=1 (watermark held).
+11. LOAD classified persistent-429 (correct load-shedding) as a hard failure. Reclassified: fail only on 5xx / non-2xx-non-429 / no-accepts; shed is reported, not fatal.
+
+Bench idempotency note (pre-existing, not blocking): `bench_read.py` rotates its reader passwords on
+first run (must_change), so a second run on the same store can't re-login — run it against a fresh store.
