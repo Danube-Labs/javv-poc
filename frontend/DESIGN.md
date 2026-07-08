@@ -42,6 +42,16 @@ sweep dot      var(--health-ok-dot) + ring var(--sweep-ok-ring)
 Icons in chrome: `<AppIcon name="…">` — the javv stroke set ported verbatim from the prototype.
 Never an icon font / emoji / other icon library in app chrome.
 
+### Filter chrome (promoted from the prototype's filters CSS)
+```
+facet checkbox   var(--facet-check-line)      pill border   var(--fpill-line)
+pill × hover     var(--fpill-x-hover-bg)      add-filter    var(--add-filter-line) / var(--add-filter-hover-bg)
+dropdown         shadow var(--dd-shadow)      active item   var(--dd-on-bg)
+```
+The filter module itself (`FacetRail`/`FilterBar` + `filters/fields.config.ts` +
+`buildFilterQuery`) is M9a-owned — screens import it and pass their own `fields` config,
+never re-implement it.
+
 ## 3. Typography — two families, fixed scale
 
 **Space Grotesk** (`var(--font-ui)`) = all UI text. **Space Mono** (`var(--font-mono)`) =
@@ -54,6 +64,9 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 --text-table-header 10.5px mono UPPERCASE   --text-facet-label 10px mono/700 UPPERCASE
 --text-sm 11px               --text-mono-cell 12.5px mono
 --text-brand-word 21px       --text-nav-item 13.5px       --text-sweep-strong 11.5px
+--text-control 12px (facet rows, pills, add-filter)       --text-facet-count 10.5px mono
+--text-dd-item 12.5px        --text-dd-head 9.5px mono UPPERCASE
+--text-quiet-action 11.5px (clear-all/clear-field text buttons)
 ```
 
 ## 4. Layout & density

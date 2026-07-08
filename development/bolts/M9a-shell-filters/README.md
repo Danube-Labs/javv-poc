@@ -138,6 +138,16 @@ as pure units** (Vitest).
   screenshot loop against the live dev stack) and **`/qa`** (delta-scoped verification) commands
   landed with #284 and apply to every M9 bolt from this one on.
 
+- **2026-07-09 — filter-module contract rulings (slice 4):** the `fields` config mirrors the
+  **shipped M6 contract**, not the prototype's local filtering — only `severity`/`state` are
+  multi-value params; `scanner`/`ptype`/`namespace`/`image_repo`/`assignee` are **single-valued**
+  (multi-select in the prototype → single-select here; a second selection *replaces*, and
+  `buildFilterQuery` throws rather than silently joining). KEV / fix-available / disagree are
+  three boolean params grouped as the prototype's one "Attribute" facet. Facet counts render the
+  **server's numbers verbatim** (per-scanner split as tooltip, never combined client-side, FR-12).
+  Fields without a backend aggregation (namespace/image/assignee) are FilterBar-only free-text —
+  no invented client-side buckets.
+
 ## Config tracking
 
 > **When this bolt introduces config**, add each new knob (a `JAVV_*` / OpenSearch env var, a

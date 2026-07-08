@@ -1,0 +1,450 @@
+<script setup lang="ts">
+/**
+ * Kibana-style filter bar (prototype filters.jsx `FilterBar` + `.fpill`/`.add-filter`/`.dd-menu`
+ * CSS): active-filter pills, a two-level add-filter dropdown (field list → value picker, with a
+ * value search above 8 entries; text fields get an input), clear-all. Keyboard: Esc closes,
+ * arrows walk the menu. Lists values through the same `facetItems()` the FacetRail uses — one
+ * config drives both.
+ */
+import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
+
+import AppIcon from '@/components/ui/AppIcon.vue'
+import { facetItems, type FacetsResponse } from '@/filters/facets'
+import type { FilterField, Selections } from '@/filters/fields.config'
+
+const props = defineProps<{
+  fields: readonly FilterField[]
+  selections: Selections
+  facets: FacetsResponse
+}>()
+
+const emit = defineEmits<{
+  toggle: [fieldKey: string, value: string]
+  setText: [fieldKey: string, value: string]
+  clearField: [fieldKey: string]
+  clearAll: []
+}>()
+
+const open = ref(false)
+const editKey = ref<string | null>(null)
+const valueQuery = ref('')
+const textDraft = ref('')
+const wrap = useTemplateRef<HTMLElement>('wrap')
+
+const active = computed(() => props.fields.filter((f) => (props.selections[f.key] ?? []).length > 0))
+const editField = computed(() => props.fields.find((f) => f.key === editKey.value) ?? null)
+const editItems = computed(() => {
+  const field = editField.value
+  if (!field) return null
+  const items = facetItems(field, props.facets)
+  if (!items) return null
+  const q = valueQuery.value.toLowerCase()
+  return q ? items.filter((it) => it.label.toLowerCase().includes(q)) : items
+})
+
+function valueLabel(field: FilterField, value: string): string {
+  if (field.type === 'flags') return field.values.find((v) => v.key === value)?.label ?? value
+  return value
+}
+
+function pillText(field: FilterField): string {
+  const vals = (props.selections[field.key] ?? []).map((v) => valueLabel(field, v))
+  return vals.length <= 2 ? vals.join(', ') : `${vals.slice(0, 2).join(', ')} +${vals.length - 2}`
+}
+
+function openPicker() {
+  editKey.value = null
+  valueQuery.value = ''
+  open.value = true
+}
+function openField(key: string) {
+  editKey.value = key
+  valueQuery.value = ''
+  textDraft.value = (props.selections[key] ?? [])[0] ?? ''
+  open.value = true
+}
+function close() {
+  open.value = false
+  editKey.value = null
+}
+
+function applyText() {
+  if (!editField.value) return
+  emit('setText', editField.value.key, textDraft.value)
+  close()
+}
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    close()
+    return
+  }
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    const menu = wrap.value?.querySelector('.dd-menu')
+    if (!menu) return
+    e.preventDefault()
+    const items = [...menu.querySelectorAll('button')]
+    const idx = items.indexOf(document.activeElement as HTMLButtonElement)
+    const next = e.key === 'ArrowDown' ? Math.min(idx + 1, items.length - 1) : Math.max(idx - 1, 0)
+    items[next]?.focus()
+  }
+}
+
+function onDocMousedown(e: MouseEvent) {
+  if (wrap.value && !wrap.value.contains(e.target as Node)) close()
+}
+onMounted(() => document.addEventListener('mousedown', onDocMousedown))
+onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
+</script>
+
+<template>
+  <div ref="wrap" class="filter-bar" @keydown="onKeydown">
+    <button v-for="f in active" :key="f.key" class="fpill" @click="openField(f.key)">
+      <span class="fpill-field">{{ f.label }}</span>
+      <span class="fpill-op">{{ (selections[f.key] ?? []).length > 1 ? 'is one of' : 'is' }}</span>
+      <span class="fpill-vals">{{ pillText(f) }}</span>
+      <span
+        class="fpill-x"
+        role="button"
+        :aria-label="`Clear ${f.label}`"
+        @click.stop="emit('clearField', f.key)"
+        >×</span
+      >
+    </button>
+
+    <div class="dropdown">
+      <button class="add-filter" @click="open ? close() : openPicker()">
+        <AppIcon name="plus" :size="13" />Add filter
+      </button>
+      <div v-if="open" class="dd-menu filter-menu">
+        <template v-if="!editField">
+          <div class="dd-head">Filter by field</div>
+          <button
+            v-for="f in fields"
+            :key="f.key"
+            class="dd-item filter-field"
+            @click="openField(f.key)"
+          >
+            <span>{{ f.label }}</span>
+            <span v-if="(selections[f.key] ?? []).length > 0" class="field-badge">
+              {{ (selections[f.key] ?? []).length }}
+            </span>
+            <AppIcon name="chevron" :size="13" />
+          </button>
+        </template>
+
+        <template v-else>
+          <button class="filter-back" @click="editKey = null">
+            <AppIcon name="arrowback" :size="13" />{{ editField.label }}
+          </button>
+
+          <template v-if="editItems">
+            <div v-if="editItems.length > 8 || valueQuery" class="filter-vsearch">
+              <AppIcon name="search" :size="13" />
+              <input v-model="valueQuery" placeholder="Filter values…" />
+            </div>
+            <div class="filter-values">
+              <button
+                v-for="it in editItems"
+                :key="it.value"
+                class="facet-row"
+                :class="{ 'facet-on': (selections[editField.key] ?? []).includes(it.value) }"
+                @click="emit('toggle', editField.key, it.value)"
+              >
+                <span class="facet-check" />
+                <span class="facet-label">{{ it.label }}</span>
+                <span v-if="it.count !== null" class="facet-count">{{
+                  it.count.toLocaleString('en-US')
+                }}</span>
+              </button>
+            </div>
+          </template>
+
+          <div v-else class="filter-vsearch">
+            <AppIcon name="search" :size="13" />
+            <input
+              v-model="textDraft"
+              :placeholder="`${editField.label}…`"
+              @keydown.enter="applyText"
+            />
+          </div>
+
+          <button
+            v-if="(selections[editField.key] ?? []).length > 0"
+            class="filter-clear-field"
+            @click="emit('clearField', editField.key)"
+          >
+            Clear {{ editField.label.toLowerCase() }}
+          </button>
+        </template>
+      </div>
+    </div>
+
+    <button v-if="active.length > 0" class="clear-all" @click="emit('clearAll')">Clear all</button>
+    <slot name="extra" />
+  </div>
+</template>
+
+<style scoped>
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.fpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--card);
+  border: 1px solid var(--fpill-line);
+  border-radius: var(--r-sm);
+  padding: 5px 6px 5px 10px;
+  font-size: var(--text-control);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+.fpill:hover {
+  border-color: var(--coral);
+}
+.fpill:focus-visible,
+.add-filter:focus-visible,
+.facet-row:focus-visible,
+.dd-item:focus-visible,
+.clear-all:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+.fpill-field {
+  font-weight: 600;
+}
+.fpill-op {
+  color: var(--muted);
+  font-style: italic;
+  font-size: var(--text-sm);
+}
+.fpill-vals {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--coral-d);
+  max-width: 230px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fpill-x {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: var(--text-card-title);
+  line-height: 1;
+}
+.fpill-x:hover {
+  background: var(--fpill-x-hover-bg);
+  color: var(--coral);
+}
+.add-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px dashed var(--add-filter-line);
+  background: transparent;
+  color: var(--soft);
+  border-radius: var(--r-sm);
+  padding: 6px 11px;
+  font-size: var(--text-control);
+  font-weight: 500;
+  cursor: pointer;
+}
+.add-filter:hover {
+  border-color: var(--coral);
+  color: var(--coral-d);
+  background: var(--add-filter-hover-bg);
+}
+.clear-all {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-quiet-action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 4px;
+  cursor: pointer;
+}
+.clear-all:hover {
+  color: var(--coral-d);
+}
+.dropdown {
+  position: relative;
+}
+.dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--dd-shadow);
+  padding: 6px;
+  min-width: 230px;
+}
+.filter-menu {
+  min-width: 248px;
+  max-width: 280px;
+}
+.dd-head {
+  font-family: var(--font-mono);
+  font-size: var(--text-dd-head);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 12px 6px;
+}
+.dd-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  text-align: left;
+  color: var(--ink);
+  font-size: var(--text-dd-item);
+  cursor: pointer;
+}
+.dd-item:hover {
+  background: var(--panel);
+}
+.filter-field {
+  justify-content: space-between;
+}
+.filter-field > span:first-child {
+  flex: 1;
+}
+.field-badge {
+  background: var(--coral);
+  color: var(--kev-fg);
+  font-size: var(--text-facet-label);
+  font-weight: 700;
+  font-family: var(--font-mono);
+  min-width: 17px;
+  height: 17px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+}
+.filter-back {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: var(--text-dd-item);
+  padding: 7px 9px;
+  border-bottom: 1px solid var(--line2);
+  margin-bottom: 4px;
+  cursor: pointer;
+}
+.filter-back:hover {
+  color: var(--coral-d);
+}
+.filter-back svg {
+  color: var(--muted);
+}
+.filter-vsearch {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 6px 9px;
+  margin: 0 4px 6px;
+  color: var(--muted);
+}
+.filter-vsearch input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  font-size: var(--text-control);
+  color: var(--ink);
+  font-family: inherit;
+}
+.filter-values {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.filter-clear-field {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line2);
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--text-quiet-action);
+  padding: 8px;
+  margin-top: 4px;
+  cursor: pointer;
+}
+.filter-clear-field:hover {
+  color: var(--coral-d);
+}
+
+/* value rows inside the picker (same look as the rail's facet rows) */
+.facet-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 5px 8px;
+  border-radius: 7px;
+  text-align: left;
+  color: var(--soft);
+  font-size: var(--text-control);
+  cursor: pointer;
+}
+.facet-row:hover {
+  background: var(--panel);
+}
+.facet-check {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1.5px solid var(--facet-check-line);
+  flex: none;
+  transition: 0.1s;
+}
+.facet-on .facet-check {
+  background: var(--coral);
+  border-color: var(--coral);
+  box-shadow: inset 0 0 0 2px var(--card);
+}
+.facet-on {
+  color: var(--ink);
+  font-weight: 500;
+}
+.facet-label {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.facet-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-facet-count);
+  color: var(--muted);
+}
+</style>
