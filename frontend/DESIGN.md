@@ -76,6 +76,11 @@ Transitions short and functional (`.12–.15s`), no decorative animation. Row ho
 - No purple/indigo defaults, no gradients, no rounded-everything, no shadow stacking — this app has
   a specific look; PrimeVue chrome is themed through `theme/preset.ts`, don't fight it inline.
 - Don't hand-roll a severity/state/scanner chip — use (or create in M9b) the shared chip components.
+- Don't build the same panel/control twice: **anything that appears on two screens is built ONCE,
+  owned by the earliest bolt that needs it, and imported everywhere else** — the filter module
+  (one `fields` config drives both FacetRail and FilterBar, M9a), the lazy-grid adapter (M9f),
+  the chip set (M9b), the banners (M9a). If you're copying a component to a second screen,
+  stop and extract it instead.
 
 ## 7. Quick reference
 
