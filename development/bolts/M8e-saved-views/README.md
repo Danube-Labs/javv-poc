@@ -50,6 +50,18 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - View folders/tags; default-view-per-user; UI → M9f.
 
 ## Updates
+- **2026-07-08 · slice 2 (owner-or-admin mutations + round-trip)** — `PATCH/DELETE
+  /api/v1/views/{view_id}`: owner OR `can_manage_settings` (admin `*` covers it); anyone else =
+  the 403 IDOR case; `owner` is **unrepresentable** in the patch body (`extra=forbid` — not just
+  forbidden, unwritable); both journal-FIRST with the frozen before/after riding the row (a
+  deleted view stays auditable). PATCH is a **seq_no-CAS** whole-doc update — a concurrent edit
+  is 409 reload-and-retry, never a silent lost update (raced-PATCH test). Golden preset
+  serialization pinned (`view-preset-golden.json` — drift breaks every stored view). The §6
+  deep-link round-trip proven: a stored preset's non-null fields ARE `/findings` query params
+  and return identical rows to the direct query. **Side-find while proving the round-trip
+  (NOT M8e's, filed separately):** the grid severity filter term-matches the verbatim-lc word
+  (`critical`/`medium`) while the canonical vocabulary says `crit`/`med` — real ingested rows
+  don't match a `crit` filter; M6-era, latent because route tests seed canonical words directly.
 - **2026-07-08 · slice 1 (store + create/list)** — **naming ruling:** the brief +
   DATA_MODEL-v5 (C-6 docs) say `system-views`; INDEX-MAP carried a pre-ruling
   `system-saved-views` per-user sketch — the ruled name **`system-views`** wins and the

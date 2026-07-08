@@ -122,6 +122,8 @@ routes stay current-state-only).
 |---|---|---|---|
 | GET | `/api/v1/views` | session | List saved views — visible to **all** authenticated users (C-6; per-view ACLs post-MVP). Card counts come from `/findings/facets` at render time, never stored |
 | POST | `/api/v1/views` | session | Save a view (`owner` = principal, immutable). `preset` mirrors the findings filter family 1:1 and is validated against the **closed vocabularies** (lowercase canonical severities incl. `negligible`, the 6 states, scanner, ptype shape) — garbage → 422, never stored. Journaled (D17, journal-first) |
+| PATCH | `/api/v1/views/{view_id}` | session, **owner-or-admin** | Edit name/description/preset (partial; preset replaces whole). Non-owner without `can_manage_settings` → 403 (the IDOR case); `owner` is unrepresentable in the body. seq_no-CAS write → **409** on a concurrent edit. Journaled |
+| DELETE | `/api/v1/views/{view_id}` | session, **owner-or-admin** | Delete (204). Journal row carries the frozen doc, so deleted views stay auditable |
 
 ### Exports (M6) & scheduled reports (M7)
 

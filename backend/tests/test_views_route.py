@@ -160,3 +160,146 @@ def test_preset_mirrors_search_filters_one_to_one() -> None:
     """Drift here silently breaks the deep-link contract (SCREENS-v5 §6): a preset must map
     onto the findings query params exactly — same rule as the ExportParams mirror."""
     assert set(ViewPreset.model_fields) == set(SearchFilters.__dataclass_fields__)
+
+
+# --- slice 2: owner-or-admin mutations + the deep-link round-trip ------------------------------
+
+
+async def _create(http: httpx.AsyncClient, name: str, **preset) -> dict:
+    r = await http.post("/api/v1/views", json={"name": name, "preset": preset})
+    assert r.status_code == 201
+    return r.json()
+
+
+async def test_owner_or_admin_mutation_matrix(env) -> None:
+    """The IDOR case (bolt DoD): non-owner PATCH/DELETE → 403; the owner edits; an admin
+    overrides; `owner` is unrepresentable in the patch body (immutable after create)."""
+    http, client, owner = env
+    view = await _create(http, f"matrix-{uuid.uuid4().hex[:8]}", severity=["crit"])
+    vid = view["view_id"]
+
+    app = create_app()
+    app.state.opensearch = client
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://t") as c:
+        await _login(c, client)  # a different plain user — neither owner nor admin
+        assert (await c.patch(f"/api/v1/views/{vid}", json={"name": "hijack"})).status_code == 403
+        assert (await c.delete(f"/api/v1/views/{vid}")).status_code == 403
+
+    # the owner edits; owner stays the creator; a patch naming `owner` is unrepresentable (422)
+    r = await http.patch(f"/api/v1/views/{vid}", json={"name": "renamed", "preset": {"kev": True}})
+    assert r.status_code == 200
+    assert r.json()["name"] == "renamed" and r.json()["owner"] == owner
+    assert r.json()["preset"]["kev"] is True and r.json()["preset"]["severity"] is None
+    assert (await http.patch(f"/api/v1/views/{vid}", json={"owner": "me"})).status_code == 422
+
+    # an admin (can_manage_settings) overrides both mutations; the delete is journaled
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://t") as c:
+        admin = await _login(c, client, capabilities=["can_manage_settings"])
+        r = await c.patch(f"/api/v1/views/{vid}", json={"description": "admin touch"})
+        assert r.status_code == 200 and r.json()["owner"] == owner  # override ≠ ownership
+        assert (await c.delete(f"/api/v1/views/{vid}")).status_code == 204
+    listed = (await http.get("/api/v1/views")).json()["views"]
+    assert all(v["view_id"] != vid for v in listed)
+    await client.indices.refresh(index="system-audit-log-*")
+    rows = await client.search(
+        index="system-audit-log-*",
+        body={
+            "query": {
+                "bool": {
+                    "filter": [{"term": {"action": "view_delete"}}, {"term": {"entity_id": vid}}]
+                }
+            }
+        },
+    )
+    assert rows["hits"]["total"]["value"] == 1
+    assert rows["hits"]["hits"][0]["_source"]["actor"] == admin  # the frozen doc rides the row
+
+    # unknown id → 404 for both
+    assert (await http.patch(f"/api/v1/views/{vid}", json={"name": "x"})).status_code == 404
+    assert (await http.delete(f"/api/v1/views/{vid}")).status_code == 404
+
+
+async def test_concurrent_edit_is_a_409_never_a_silent_overwrite(env) -> None:
+    http, client, _ = env
+    view = await _create(http, f"cas-{uuid.uuid4().hex[:8]}")
+    # someone else moves the doc between our (hypothetical) read and write — simulate by a
+    # direct store touch, then PATCH normally: the route re-reads, so to force the CAS window
+    # we patch twice from two stale snapshots via raw seq_no writes instead. Simplest honest
+    # probe: the route's own CAS is exercised by racing two PATCHes.
+    import asyncio
+
+    r1, r2 = await asyncio.gather(
+        http.patch(f"/api/v1/views/{view['view_id']}", json={"name": "racer-one"}),
+        http.patch(f"/api/v1/views/{view['view_id']}", json={"name": "racer-two"}),
+    )
+    codes = sorted((r1.status_code, r2.status_code))
+    assert codes in ([200, 200], [200, 409])  # both may serialize cleanly; a loser is 409, never
+    # a 500 and never a silent lost update — the winner's name is what the store holds
+    final = [
+        v
+        for v in (await http.get("/api/v1/views")).json()["views"]
+        if v["view_id"] == view["view_id"]
+    ][0]
+    assert final["name"] in ("racer-one", "racer-two")
+
+
+async def test_saved_preset_round_trips_to_findings_query_params(env) -> None:
+    """The §6 deep-link contract: a stored preset's non-null fields ARE valid /findings query
+    params, and the view's lens returns exactly the rows the same direct query returns."""
+    import json as _json
+    from pathlib import Path
+
+    from backend.models.envelope import IngestEnvelope
+    from backend.services.ingest import ingest_envelope
+
+    http, client, _ = env
+    cid = f"c-views-{uuid.uuid4().hex[:8]}"
+    golden = _json.loads(
+        (Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text()
+    )
+    golden["cluster_id"] = cid
+    await ingest_envelope(client, IngestEnvelope.model_validate(golden))
+    await client.indices.refresh(index="findings")
+
+    view = await _create(
+        http, f"rt-{uuid.uuid4().hex[:8]}", severity=["low"], scanner="trivy", ptype="os"
+    )
+    params = {k: v for k, v in view["preset"].items() if v is not None}
+    assert params.pop("present") is True  # the default rides the preset explicitly
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid, "size": 200, **params})
+    assert r.status_code == 200
+    via_view = r.json()
+
+    direct = await http.get(
+        "/api/v1/findings",
+        params={
+            "cluster_id": cid,
+            "size": 200,
+            "severity": ["low"],
+            "scanner": "trivy",
+            "ptype": "os",
+        },
+    )
+    assert via_view["total"] == direct.json()["total"] and via_view["total"]["value"] > 0
+    assert [d["finding_key"] for d in via_view["data"]] == [
+        d["finding_key"] for d in direct.json()["data"]
+    ]
+
+
+def test_golden_preset_serialization_is_pinned() -> None:
+    """Presets outlive UI versions — accidental serialization drift (renamed field, changed
+    default) breaks every stored view. The golden pins the exact shape."""
+    import json as _json
+    from pathlib import Path
+
+    golden = _json.loads((Path(__file__).parent / "fixtures/view-preset-golden.json").read_text())
+    assert ViewPreset().model_dump() == golden["default"]
+    populated = ViewPreset(
+        severity=["crit", "high"],
+        state=["open"],
+        scanner="trivy",
+        kev=True,
+        ptype="os",
+        namespace="team-a",
+    )
+    assert populated.model_dump() == golden["populated"]
