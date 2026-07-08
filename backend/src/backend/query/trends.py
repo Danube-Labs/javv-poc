@@ -18,7 +18,7 @@ The tenant filter is forced by the chokepoint at execution; scan-events routing 
 pins the per-cluster index pattern.
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 _MAX_DAYS = 365
@@ -26,13 +26,16 @@ _BY_SCANNER_TERMS = {"field": "scanner", "size": 4}
 
 
 def _window(days: int, anchor: datetime | None = None) -> tuple[str, str]:
-    """(gte, upper-bound) — now-relative date math, or absolute ISO when anchored at a past T
-    (M8b: a trend at T is the SAME aggregation with the window ending at T, D28)."""
+    """(gte, upper-bound) — ALWAYS absolute ISO dates; unanchored = anchored at now (M8b: a
+    trend at T is the SAME aggregation with the window ending at T, D28).
+
+    Never `now`-date-math: OpenSearch intermittently 500s on DateRangeIncludingNowQuery under
+    concurrent segment search ("does not implement createWeight" — hit CI on #271 and #278).
+    Absolute day-floored UTC bounds are semantically identical to the old `now-{days}d/d` /
+    `now/d` pair and never reach the buggy rewrite."""
     if not 1 <= days <= _MAX_DAYS:
         raise ValueError(f"days must be 1..{_MAX_DAYS}")
-    if anchor is None:
-        return f"now-{days}d/d", "now/d"
-    day = anchor.date()
+    day = (anchor or datetime.now(UTC)).date()
     return (day - timedelta(days=days)).isoformat(), day.isoformat()
 
 

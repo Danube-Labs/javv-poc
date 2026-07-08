@@ -7,7 +7,7 @@ go through the tenant chokepoint; the SLA verdicts use the LIVE policy (M5d). Sa
 `as_of` seam as every read (D28).
 """
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Query, Request
@@ -54,11 +54,17 @@ async def _handling_rows(
                         "filter": [
                             {"terms": {"action": sorted(HANDLING_ACTIONS)}},
                             {"term": {"entity_type": "finding"}},
-                            # anchored at a past T (M8b/D28): same walk, window ending at T
+                            # anchored at a past T (M8b/D28): same walk, window ending at T.
+                            # ALWAYS absolute dates, never `now`-math (the createWeight flake,
+                            # see query/trends.py)
                             {
                                 "range": {
                                     "@timestamp": (
-                                        {"gte": f"now-{days}d/d"}
+                                        {
+                                            "gte": (
+                                                datetime.now(UTC).date() - timedelta(days=days)
+                                            ).isoformat()
+                                        }
                                         if anchor is None
                                         else {
                                             "gte": (
