@@ -20,6 +20,8 @@ repos:
       - id: check-yaml
         args: [--allow-multiple-documents]   # k8s manifests are multi-doc
       - id: check-json
+        # tsconfig*.json are JSONC (comments allowed by TypeScript) — not strict JSON
+        exclude: 'tsconfig.*\.json$'
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=1024]

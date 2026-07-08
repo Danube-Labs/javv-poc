@@ -1,0 +1,117 @@
+/**
+ * javv design tokens — THE binding source of truth (ui-foundations.md).
+ *
+ * Values are promoted once from handoff/v4/docs/DESIGN_SYSTEM.md (§2–§4, prototype fidelity);
+ * components reference tokens only — never a raw hex, font-family, or ad-hoc font-size
+ * (stylelint enforces this; tokens.ts + the style-ratchet test guard the severity map).
+ *
+ * Three color buckets — using one where another belongs is a bug:
+ *   brand    coral/amber/teal — chrome, accents, info. NEVER severity.
+ *   severity DATA ONLY — the six D46 canonicals, each with fg/bg/line/solid.
+ *   status   finding state, health ramp, KEV, scanner tags.
+ *
+ * The v4/v5 design contract is a single warm-light theme with dark-slate chrome; a full dark
+ * theme is not part of it. Add a `[data-theme='dark']` block here if that ever changes.
+ */
+:root {
+  /* -- brand / surface ------------------------------------------------- */
+  --slate: #16232f;
+  --slate2: #21384a;
+  --slate3: #2c4257;
+  --bg: #f4f1ea;
+  --card: #ffffff;
+  --panel: #fbfaf6;
+  --line: #e7e0d3;
+  --line2: #f0ebe0;
+  --ink: #1b2935;
+  --soft: #64727c;
+  --muted: #9aa3aa;
+  --coral: #ec7e54;
+  --coral-d: #d96a41;
+  --amber: #f4a368;
+  --teal: #1f8e84;
+
+  /* -- radius / elevation ---------------------------------------------- */
+  --r: 12px; /* cards */
+  --r-sm: 8px; /* controls */
+  --r-chip: 6px; /* chips/tags (5–7px band) */
+  --shadow:
+    0 1px 2px rgba(22, 35, 47, 0.04),
+    0 8px 24px -18px rgba(22, 35, 47, 0.28);
+
+  /* -- typography (two families, fixed scale) --------------------------- */
+  --font-ui: 'Space Grotesk', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --text-page-title: 23px; /* h1, weight 600, -.01em */
+  --text-card-title: 14px; /* h3, weight 600 */
+  --text-body: 13px; /* base, line-height 1.5 */
+  --text-sm: 11px;
+  --text-kpi: 34px; /* weight 600, -.03em */
+  --text-detail-mono: 26px; /* finding-detail CVE h1, mono 700 */
+  --text-table-header: 10.5px; /* mono, uppercase, +.05em */
+  --text-facet-label: 10px; /* mono 700, uppercase, +.06–.14em */
+  --text-mono-cell: 12.5px;
+
+  /* -- severity (DATA ONLY — six D46 canonicals; never brand) ----------- */
+  /* negligible is the one bucket beyond the v4 sheet (D46/A-1): muted, never red. */
+  --sev-critical-fg: #b5231a;
+  --sev-critical-bg: #fbe7e4;
+  --sev-critical-line: #e7c0bb;
+  --sev-critical-solid: #c0271d;
+  --sev-high-fg: #c2540d;
+  --sev-high-bg: #fcebdd;
+  --sev-high-line: #edd0b6;
+  --sev-high-solid: #e2640f;
+  --sev-medium-fg: #9a6b05;
+  --sev-medium-bg: #fbf1d6;
+  --sev-medium-line: #ebddae;
+  --sev-medium-solid: #c68a12;
+  --sev-low-fg: #2f6e96;
+  --sev-low-bg: #e4f0f6;
+  --sev-low-line: #c2dce8;
+  --sev-low-solid: #3d7da6;
+  --sev-negligible-fg: #55675f;
+  --sev-negligible-bg: #e9eeeb;
+  --sev-negligible-line: #d3ddd7;
+  --sev-negligible-solid: #6f8378;
+  --sev-unknown-fg: #5b6770;
+  --sev-unknown-bg: #ecedee;
+  --sev-unknown-line: #d8dcdf;
+  --sev-unknown-solid: #74808a;
+
+  /* -- status / semantic ------------------------------------------------ */
+  --state-open-fg: #c2540d;
+  --state-open-bg: #fcebdd;
+  --state-open-line: #efd3b7;
+  --state-stale-fg: #7a7468;
+  --state-stale-bg: #edeae4;
+  --state-stale-line: #ded9cf;
+  --state-ack-fg: #2f6e96;
+  --state-ack-bg: #e4f0f6;
+  --state-ack-line: #c5dde9;
+  --state-resolved-fg: #2e7d4f;
+  --state-resolved-bg: #e3f1e7;
+  --state-resolved-line: #c3e2cc;
+  --kev-fg: #ffffff;
+  --kev-bg: #8b1e16;
+  --health-ok-fg: #2e7d4f;
+  --health-ok-bg: #e3f1e7;
+  --health-ok-dot: #3fb37f;
+  --health-degraded-fg: #9a6b05;
+  --health-degraded-bg: #fbf1d6;
+  --health-down-fg: #b5231a;
+  --health-down-bg: #fbe7e4;
+  --scanner-trivy-fg: #1c7a70;
+  --scanner-trivy-bg: #e7f0ef;
+  --scanner-grype-fg: #5a4f9e;
+  --scanner-grype-bg: #eaeaf3;
+
+  /* -- layout ------------------------------------------------------------ */
+  --sidebar-w: 226px;
+  --facet-rail-w: 218px;
+  --screen-max-w: 1380px;
+  --content-pad: 22px 26px;
+  --grid-gap: 16px;
+  --row-hover: #fbf7f0;
+  --focus-ring: 2px solid var(--coral);
+}
