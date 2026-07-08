@@ -49,6 +49,7 @@ AGENTS.md
 
 # e2e run artifacts — commit the harness + results.md, never the run logs.
 development/e2e/logs/
+development/e2e/old_logs/
 backend/cookies.txt
 
 # serena mcp project config — machine-local, never staged
