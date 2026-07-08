@@ -54,6 +54,7 @@ class SearchFilters:
     image_digest: str | None = None
     image_repo: str | None = None
     namespace: str | None = None
+    ptype: str | None = None  # package type (M8d/B-1): "os" | ecosystem string
     present: bool = True  # the "now" grid; tombstones are opt-in
 
 
@@ -88,6 +89,7 @@ def build_search_body(
         ("image_digest", filters.image_digest),
         ("image_repo", filters.image_repo),
         ("namespaces", filters.namespace),  # keyword[] — array-contains
+        ("ptype", filters.ptype),
     ):
         if term is not None:
             fl.append({"term": {field: term}})

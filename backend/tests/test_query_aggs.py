@@ -27,7 +27,7 @@ def test_facets_body_aggregates_each_whitelisted_field_by_scanner() -> None:
     body = build_facets_body(SearchFilters(), fields=["severity", "state"])
     assert body["size"] == 0  # aggregation-only — raw findings never ship to the client
     sev = body["aggs"]["severity"]
-    assert sev["terms"] == {"field": "severity", "size": 16}
+    assert sev["terms"] == {"field": "severity", "size": 32}  # ≥ ptype's ecosystem vocabulary
     assert sev["aggs"]["by_scanner"]["terms"]["field"] == "scanner"
     assert set(body["aggs"]) == {"severity", "state"}
     # the filter context applies — facet counts reflect the current grid view
