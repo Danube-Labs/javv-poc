@@ -6,6 +6,7 @@
  */
 import { computed, ref } from 'vue'
 
+import AppIcon from '@/components/ui/AppIcon.vue'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 
 const timeTravel = useTimeTravelStore()
@@ -39,7 +40,7 @@ function jump() {
   <div class="picker" role="group" aria-label="Time travel">
     <span class="label">viewing</span>
     <button class="t-value" :class="{ past: !timeTravel.isNow }" @click="showJump = !showJump">
-      <i class="pi pi-history" aria-hidden="true" /> {{ tLabel }}
+      <AppIcon name="rewind" :size="14" /> {{ tLabel }}
     </button>
     <div v-if="showJump" class="menu">
       <button v-for="r in REWINDS" :key="r.label" class="item" @click="rewindBy(r.seconds)">

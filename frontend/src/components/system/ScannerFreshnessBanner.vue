@@ -8,6 +8,7 @@
  */
 import { computed, ref, watch } from 'vue'
 
+import AppIcon from '@/components/ui/AppIcon.vue'
 import { client } from '@/api/client'
 import { scannerFreshnessApiV1ScannersFreshnessGet } from '@/api/generated'
 import { useClusterStore } from '@/stores/cluster'
@@ -48,7 +49,7 @@ function since(row: FreshnessRow): string {
 
 <template>
   <div v-if="silent.length" class="banner" role="status">
-    <i class="pi pi-clock" aria-hidden="true" />
+    <AppIcon name="clock" :size="15" />
     <span>
       Data may be stale —
       <template v-for="(row, i) in silent" :key="row.scanner">

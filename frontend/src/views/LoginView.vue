@@ -44,8 +44,10 @@ async function submitChange() {
 <template>
   <main class="login-page">
     <form class="card" @submit.prevent="mode === 'login' ? submitLogin() : submitChange()">
-      <img :src="icon" alt="" class="mark" />
-      <h1>javv</h1>
+      <div class="login-brand">
+        <img :src="icon" alt="" width="44" height="44" />
+        <span class="brand-word"><b>javv</b><span>by Danube Labs</span></span>
+      </div>
       <p class="tagline">just another vulnerability viewer</p>
 
       <template v-if="mode === 'login'">
@@ -91,12 +93,26 @@ async function submitChange() {
   border-radius: var(--r);
   box-shadow: var(--shadow);
 }
-.mark {
-  width: 46px;
-  margin-bottom: 10px;
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
 }
-h1 {
-  margin: 0;
+.brand-word {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.brand-word b {
+  font-size: var(--text-brand-word);
+  letter-spacing: -0.03em;
+}
+.brand-word span {
+  font-family: var(--font-mono);
+  font-size: var(--text-facet-label);
+  color: var(--soft);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
 }
 .tagline {
   margin: 2px 0 18px;

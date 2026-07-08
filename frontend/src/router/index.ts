@@ -18,6 +18,37 @@ const router = createRouter({
       children: [
         { path: '', redirect: '/overview' },
         {
+          path: 'clusters',
+          name: 'clusters',
+          component: () => import('@/views/PlaceholderView.vue'),
+          props: { title: 'All clusters', bolt: 'M9c' },
+        },
+        {
+          path: 'views',
+          name: 'views',
+          component: () => import('@/views/PlaceholderView.vue'),
+          props: { title: 'Saved views', bolt: 'M9f' },
+        },
+        {
+          path: 'scanner-status',
+          name: 'scanner-status',
+          component: () => import('@/views/PlaceholderView.vue'),
+          props: { title: 'Scanner status', bolt: 'M9d' },
+        },
+        {
+          path: 'approvals',
+          name: 'approvals',
+          component: () => import('@/views/PlaceholderView.vue'),
+          props: { title: 'Approval list', bolt: 'M9d' },
+          meta: { capability: 'can_accept_audit_final' },
+        },
+        {
+          path: 'contributors',
+          name: 'contributors',
+          component: () => import('@/views/PlaceholderView.vue'),
+          props: { title: 'Contributors', bolt: 'M9d' },
+        },
+        {
           path: 'overview',
           name: 'overview',
           component: () => import('@/views/PlaceholderView.vue'),

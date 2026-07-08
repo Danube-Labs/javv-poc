@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import AppIcon from '@/components/ui/AppIcon.vue'
 import { useHealthStore } from '@/stores/health'
 
 const health = useHealthStore()
@@ -6,10 +7,10 @@ const health = useHealthStore()
 
 <template>
   <div v-if="health.bannerVisible" class="banner" role="alert">
-    <i class="pi pi-exclamation-triangle" aria-hidden="true" />
+    <AppIcon name="alert" :size="15" />
     <span>Search backend unavailable — check OpenSearch health.</span>
     <button class="dismiss" aria-label="Dismiss" @click="health.dismiss()">
-      <i class="pi pi-times" aria-hidden="true" />
+      ×
     </button>
   </div>
 </template>
