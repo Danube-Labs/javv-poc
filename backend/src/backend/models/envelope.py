@@ -58,6 +58,10 @@ class IngestFinding(BaseModel):
     fixed_version: str | None = Field(default=None, max_length=256)
     epss: float | None = Field(default=None, ge=0, le=1)  # grype only
     kev: bool = False  # grype only
+    # package type (M8d/B-1, #241): "os" or the scanner's verbatim-lowercase ecosystem string.
+    # Absent in v3 envelopes → None (aggregates as "unknown" until the next sweep re-observes,
+    # D30). Untrusted input, lands in a keyword facet field — shape-constrained at the edge.
+    ptype: str | None = Field(default=None, max_length=64, pattern=r"^[a-z0-9][a-z0-9+._-]*$")
     severity_canonical: str  # sent by the scanner; NOT trusted — see severity_server
 
     @property
@@ -129,7 +133,11 @@ class IngestEffectiveConfig(BaseModel):
 class IngestEnvelope(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    schema_version: Literal[3]  # current-envelope-only acceptance (D25/D35); v3 flag-day = D44
+    # v3 + v4 dual acceptance (M8d/B-1, #241) — the ONE deliberate departure from the
+    # current-envelope-only rule (D25/D35; v3 itself was a flag day, D44): scanner images are
+    # operator-swapped (D41), so the ptype rollout must not brick un-swapped scanners. v3
+    # findings simply have no ptype (→ null). Drop back to a single Literal when v3 retires.
+    schema_version: Literal[3, 4]
     cluster_id: str
     scanner: Literal["trivy", "grype"]  # per-scanner is sacred — no other value exists
     image_digest: str = Field(pattern=r"^sha256:[a-fA-F0-9]{6,64}$", max_length=128)

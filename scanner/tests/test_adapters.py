@@ -22,6 +22,30 @@ def load(name: str) -> dict[str, Any]:
 # --- Trivy -----------------------------------------------------------------
 
 
+def test_ptype_trivy_os_pkgs_folds_to_os_and_lang_keeps_the_ecosystem() -> None:
+    """M8d/B-1: `Class == "os-pkgs"` → "os"; a lang result carries its lowercased `Type`;
+    a result with neither Class nor Type yields None — never a crash."""
+    data = load("trivy-python-3.9.16-slim.json")  # real scan with BOTH classes
+    ptypes = {f.ptype for f in parse_trivy(data)}
+    assert ptypes == {"os", "python-pkg"}  # os-pkgs folded; lang keeps its ecosystem string
+
+    vuln = {"VulnerabilityID": "CVE-1", "PkgName": "flask", "Severity": "LOW"}
+    lang = {"Results": [{"Class": "lang-pkgs", "Type": "Python-Pkg", "Vulnerabilities": [vuln]}]}
+    assert parse_trivy(lang)[0].ptype == "python-pkg"  # verbatim-lowercase ecosystem
+    bare = {"Results": [{"Vulnerabilities": [vuln]}]}
+    assert parse_trivy(bare)[0].ptype is None
+
+
+def test_ptype_grype_is_the_verbatim_lowercase_artifact_type() -> None:
+    """M8d/B-1: Grype's `artifact.type` verbatim-lowercase — per-scanner vocabulary, never
+    folded across scanners (buckets never merge; "apk" stays "apk")."""
+    data = load("grype-alpine-3.14.json")
+    assert {f.ptype for f in parse_grype(data)} == {"apk"}
+
+    m = {"vulnerability": {"id": "CVE-1", "severity": "Low"}, "artifact": {"name": "x"}}
+    assert parse_grype({"matches": [m]})[0].ptype is None  # missing type → None, never fatal
+
+
 def test_parse_trivy_yields_one_finding_per_vuln_entry() -> None:
     data = load("trivy-python-3.9.16-slim.json")
     expected = sum(

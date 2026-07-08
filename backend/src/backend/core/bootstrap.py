@@ -46,7 +46,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             point-in-time history the D28 time-travel reconstructs from)
 #          v12 + javv-inventory-runs template (M8a slice 2/#33 — the inventory commit manifest;
 #             "running images now/at T" reads only status=committed runs by inventory_order)
-MAPPING_VERSION = 12
+#          v13 + ptype on findings + javv-finding-occurrences (M8d/B-1/#241 — package type,
+#             "os" | verbatim-lowercase ecosystem; envelope v4, v3 still accepted → null)
+MAPPING_VERSION = 13
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -92,6 +94,7 @@ _FINDINGS_PROPERTIES: dict[str, Any] = {
     "fixed_version": _KW,
     "epss": {"type": "float"},  # grype only (null for trivy)
     "kev": _BOOL,  # grype only
+    "ptype": _KW,  # package type (M8d/B-1): "os" | ecosystem string; null = pre-v4 observation
     "disagree": _BOOL,  # precomputed severity disagreement (D5a)
     "first_seen_at": _DATE,  # full precision (D37/M13)
     "last_seen_at": _DATE,
@@ -378,6 +381,7 @@ _OCCURRENCES_PROPERTIES: dict[str, Any] = {
     "cvss": {"type": "float"},
     "fixable": _BOOL,
     "fixed_version": _KW,
+    "ptype": _KW,  # package type (M8d/B-1): "os" | ecosystem string; null on v3-era rows
     "schema_version": {"type": "short"},
 }
 

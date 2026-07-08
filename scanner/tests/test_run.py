@@ -131,7 +131,7 @@ def test_scan_all_stamps_observed_topology_from_discovery() -> None:
     assert env.image_ref == "nginx:1.21.6"
     assert env.namespaces == ["team-a", "team-b"]  # sorted distinct
     assert env.replicas == 3  # three running pods
-    assert env.schema_version == 3
+    assert env.schema_version == 4
 
 
 def test_scan_all_isolates_a_failing_image_and_finishes_the_cycle() -> None:
@@ -277,7 +277,7 @@ def test_scan_all_stamps_effective_config_and_schema_v3() -> None:
         effective_config=cfg,
     )
     env = pushed[0]
-    assert env.schema_version == 3
+    assert env.schema_version == 4
     assert env.effective_config is not None
     dumped = env.effective_config.model_dump()
     assert dumped["tuning"]["severities"] == "CRITICAL,HIGH"

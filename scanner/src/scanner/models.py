@@ -38,6 +38,10 @@ class Finding(BaseModel):
     fixed_version: str | None = None
     epss: float | None = None  # Grype-only; None when the scanner doesn't provide it
     kev: bool = False  # Grype-only (Known Exploited Vulnerabilities)
+    # package type (M8d/B-1): "os" (Trivy os-pkgs) or the scanner's verbatim-lowercase ecosystem
+    # string (Trivy Type / Grype artifact.type) — per-scanner vocabulary, never folded across
+    # scanners (per-scanner is sacred; facet buckets never merge)
+    ptype: str | None = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property

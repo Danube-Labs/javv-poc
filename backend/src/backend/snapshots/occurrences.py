@@ -35,6 +35,7 @@ _ROW_FIELDS = (
     "cvss",
     "fixable",
     "fixed_version",
+    "ptype",
     "schema_version",
 )
 
@@ -71,6 +72,7 @@ def build_occurrence_rows(docs: dict[str, Any]) -> list[tuple[str, dict[str, Any
             "cvss": f["cvss"],
             "fixable": f["fixable"],
             "fixed_version": f["fixed_version"],
+            "ptype": f["ptype"],  # M8d/B-1: as-of-then package type; null on v3-era rows
             "schema_version": f["schema_version"],
         }
         assert tuple(row) == _ROW_FIELDS  # spec drift guard — INDEX-MAP is the row contract

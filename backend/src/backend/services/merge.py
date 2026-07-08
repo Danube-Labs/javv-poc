@@ -24,6 +24,7 @@ SCANNER_FIELDS = frozenset(
         "fixed_version",
         "epss",
         "kev",
+        "ptype",  # M8d/B-1 — re-observed per scan; a v4 sweep heals v3-era nulls (D30)
         "last_seen_at",
         "last_scan_run_id",
         "last_scan_order",
