@@ -21,12 +21,20 @@ import ScannerTag from '@/components/chips/ScannerTag.vue'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import type { FindingRow } from '@/stores/findings'
 
-const props = defineProps<{
-  rows: FindingRow[]
-  sort: SortField
-  order: SortOrder
-  loading: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    rows: FindingRow[]
+    sort: SortField
+    order: SortOrder
+    loading: boolean
+    /** keys from FINDINGS_COLUMNS hidden via the Columns menu (cve/severity/state are fixed) */
+    hidden?: ReadonlySet<string>
+    dense?: boolean
+  }>(),
+  { hidden: () => new Set<string>(), dense: true },
+)
+
+const show = (key: string) => !props.hidden.has(key)
 
 const emit = defineEmits<{
   sort: [field: SortField]
@@ -49,7 +57,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
       :sort-order="props.order === 'desc' ? -1 : 1"
       :loading="props.loading"
       data-key="finding_key"
-      :pt="{ table: { class: 'tbl tbl-hover tbl-dense' } }"
+      :pt="{ table: { class: `tbl tbl-hover ${props.dense ? 'tbl-dense' : ''}` } }"
       @sort="onSort"
       @row-click="(e) => emit('rowClick', e.data as FindingRow)"
     >
@@ -63,7 +71,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
           <SevChip :level="data.severity_canonical" />
         </template>
       </Column>
-      <Column field="epss" sortable class="r">
+      <Column v-if="show('epss')" field="epss" sortable class="r">
         <template #header>
           <span>EPSS<span class="th-note">via Grype</span></span>
         </template>
@@ -71,35 +79,35 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
           <EpssBar :v="data.epss" />
         </template>
       </Column>
-      <Column header="KEV" class="c">
+      <Column v-if="show('kev')" header="KEV" class="c">
         <template #body="{ data }">
           <KevTag :on="data.kev" />
         </template>
       </Column>
-      <Column header="Package">
+      <Column v-if="show('package')" header="Package">
         <template #body="{ data }">
           <span class="pkg"
             >{{ data.package_name }}<i class="pkg-type">{{ data.ptype ?? 'unknown' }}</i></span
           >
         </template>
       </Column>
-      <Column header="Current">
+      <Column v-if="show('current')" header="Current">
         <template #body="{ data }">
           <span class="mono-cell sm ver-cur">{{ data.installed_version ?? '-' }}</span>
         </template>
       </Column>
-      <Column header="Fixed">
+      <Column v-if="show('fixed')" header="Fixed">
         <template #body="{ data }">
           <span v-if="data.fixed_version" class="mono-cell sm ver-fix">{{ data.fixed_version }}</span>
           <span v-else class="ver-none">no fix</span>
         </template>
       </Column>
-      <Column header="Image">
+      <Column v-if="show('image')" header="Image">
         <template #body="{ data }">
           <span class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
         </template>
       </Column>
-      <Column header="Scanner">
+      <Column v-if="show('scanner')" header="Scanner">
         <template #body="{ data }">
           <span class="scanner-stack">
             <ScannerTag :name="data.scanner" />
@@ -107,7 +115,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
           </span>
         </template>
       </Column>
-      <Column header="SLA" class="c">
+      <Column v-if="show('sla')" header="SLA" class="c">
         <template #body="{ data }">
           <SlaCell :due-at="data.due_at" :overdue="data.overdue" />
         </template>
@@ -146,16 +154,22 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
   font-size: var(--text-table-header);
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 8px 12px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
   white-space: nowrap;
   font-family: var(--font-mono);
 }
 :deep(.tbl tbody td) {
-  padding: 7px 12px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--line2);
   vertical-align: middle;
+}
+:deep(.tbl-dense thead th) {
+  padding: 8px 12px;
+}
+:deep(.tbl-dense tbody td) {
+  padding: 7px 12px;
 }
 :deep(.tbl tbody tr:last-child td) {
   border-bottom: 0;

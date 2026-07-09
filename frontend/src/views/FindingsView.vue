@@ -17,6 +17,7 @@ import type {
 import SevChip from '@/components/chips/SevChip.vue'
 import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
+import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -25,6 +26,7 @@ import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FacetsResponse } from '@/filters/facets'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { buildFindingsQuery } from '@/findings/buildFindingsQuery'
+import { FINDINGS_COLUMNS } from '@/findings/columns'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useFindingsStore, type FindingRow } from '@/stores/findings'
@@ -131,6 +133,24 @@ function openFinding(row: FindingRow) {
   // detail panel lands in M9b slice 2
   logger.debug('finding_row_clicked', { finding_key: row.finding_key })
 }
+
+/* ---- column visibility + density (Columns menu), persisted per browser ---- */
+const COLS_KEY = 'javv.findings.hidden_cols'
+const DENSE_KEY = 'javv.findings.dense'
+const hiddenCols = ref<Set<string>>(new Set(JSON.parse(localStorage.getItem(COLS_KEY) ?? '[]')))
+const dense = ref(localStorage.getItem(DENSE_KEY) !== 'false')
+
+function toggleCol(key: string) {
+  const next = new Set(hiddenCols.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  hiddenCols.value = next
+  localStorage.setItem(COLS_KEY, JSON.stringify([...next]))
+}
+function setDense(value: boolean) {
+  dense.value = value
+  localStorage.setItem(DENSE_KEY, String(value))
+}
 </script>
 
 <template>
@@ -158,15 +178,24 @@ function openFinding(row: FindingRow) {
       </FacetRail>
 
       <div class="findings-main">
-        <FilterBar
-          :fields="FINDINGS_FIELDS"
-          :selections="filters.selections"
-          :facets="facets"
-          @toggle="filters.toggle"
-          @set-text="filters.setText"
-          @clear-field="filters.clearField"
-          @clear-all="filters.clearAll"
-        />
+        <div class="toolbar-row">
+          <FilterBar
+            :fields="FINDINGS_FIELDS"
+            :selections="filters.selections"
+            :facets="facets"
+            @toggle="filters.toggle"
+            @set-text="filters.setText"
+            @clear-field="filters.clearField"
+            @clear-all="filters.clearAll"
+          />
+          <ColumnsMenu
+            :cols="FINDINGS_COLUMNS"
+            :hidden="hiddenCols"
+            :dense="dense"
+            @toggle-col="toggleCol"
+            @update:dense="setDense"
+          />
+        </div>
         <div class="server-note">
           <AppIcon name="layers" :size="13" />
           All sort / filter / facet counts computed server-side via OpenSearch aggregations
@@ -180,6 +209,8 @@ function openFinding(row: FindingRow) {
           :sort="grid.sort"
           :order="grid.order"
           :loading="grid.loading"
+          :hidden="hiddenCols"
+          :dense="dense"
           @sort="grid.setSort"
           @row-click="openFinding"
         />
@@ -219,6 +250,14 @@ function openFinding(row: FindingRow) {
 .findings-main {
   flex: 1;
   min-width: 0;
+}
+.toolbar-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.toolbar-row > :first-child {
+  flex: 1;
 }
 .server-note {
   display: flex;
