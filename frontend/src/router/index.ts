@@ -58,6 +58,7 @@ const router = createRouter({
           path: 'findings',
           name: 'findings',
           component: () => import('@/views/FindingsView.vue'),
+          meta: { wide: true },
         },
         {
           path: 'images',

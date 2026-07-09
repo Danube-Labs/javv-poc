@@ -142,7 +142,7 @@ onUnmounted(() => health.stopPolling())
         <button class="back-to-now" @click="timeTravel.backToNow()">Back to now</button>
       </div>
 
-      <main class="content">
+      <main class="content" :class="{ 'content-wide': $route.meta.wide }">
         <RouterView />
       </main>
     </div>
@@ -399,5 +399,10 @@ onUnmounted(() => health.stopPolling())
   margin: 0 auto;
   padding: var(--content-pad);
   padding-bottom: 60px;
+}
+/* data-dense screens (route meta `wide`) use the full viewport instead of the 1380px cap —
+   an internal table scrollbar beside dead margin is worse than a wide table (operator ruling). */
+.content-wide {
+  max-width: none;
 }
 </style>

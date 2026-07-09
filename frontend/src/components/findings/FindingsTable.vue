@@ -55,7 +55,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
     >
       <Column header="Vulnerability">
         <template #body="{ data }">
-          <span class="mono-cell strong">{{ data.cve_id }}</span>
+          <span class="mono-cell strong nowrap">{{ data.cve_id }}</span>
         </template>
       </Column>
       <Column field="severity_rank" header="Severity" sortable>
@@ -96,7 +96,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
       </Column>
       <Column header="Image">
         <template #body="{ data }">
-          <span class="mono-cell sm" :title="data.image_repo">{{ shortImage(data) }}</span>
+          <span class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
         </template>
       </Column>
       <Column header="Scanner">
@@ -180,6 +180,17 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
 }
 :deep(.strong) {
   font-weight: 700;
+}
+:deep(.nowrap) {
+  white-space: nowrap;
+}
+:deep(.img-cell) {
+  display: inline-block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 :deep(.tbl .sm) {
   font-size: var(--text-sm);
