@@ -61,6 +61,12 @@ const router = createRouter({
           meta: { wide: true },
         },
         {
+          // identity = (cve_id, image_digest); scanner query = the clicked row, for header continuity
+          path: 'findings/:cveId',
+          name: 'finding',
+          component: () => import('@/views/FindingDetailView.vue'),
+        },
+        {
           path: 'images',
           name: 'images',
           component: () => import('@/views/PlaceholderView.vue'),

@@ -44,6 +44,11 @@ color words or numbers.
 - **Coral as text = `--coral-text`** (pills, selected states, hover text); `--coral`/`--coral-d`
   are fills only — both fail AA as small text on light surfaces.
 - **Times display 24-hour** (`hour12: false` / strict `HH:mm` inputs) — never AM/PM.
+- **Solid severity chips are critical-only** (2026-07-09, finding-detail header): white text
+  passes AA only on `--sev-critical-solid` (5.9:1) — every other solid fill fails with both
+  white and ink. Default to the tinted chip (its pairs are gate-tested); reach for `solid`
+  only for critical-grade emphasis. Side-stripe accents (the prototype's 4px `border-left`)
+  stay banned — severity on a panel is carried by the chip, not a stripe.
 
 ### Sidebar chrome (dark slate — its own text/hover ramp, promoted from the prototype shell)
 ```
