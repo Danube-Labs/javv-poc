@@ -163,3 +163,12 @@ as pure units** (Vitest).
 > **Frontend analog (M9a+):** `logger` from `frontend/src/lib/logger.ts` — structured, leveled,
 > backend-shaped lines; raw `console.*` in app code is ESLint-banned. Threshold: `VITE_LOG_LEVEL`
 > ([CONFIGURATION.md §2b](../../../docs/CONFIGURATION.md)); never log tokens/cookies/bodies (NFR-5).
+
+- **2026-07-09 — global time control re-ruled (operator, PR #300): ONE Kibana-style RANGE.**
+  The two-concept design (time-travel T + trend window, audit C-1 "visibly distinct controls")
+  confused in practice — two lookalike time menus, one driving nothing until M9c. Re-ruled as a
+  single range: the range END is the whole-app `as_of` (minute-precise; amber control + banner
+  when in the past), the SPAN is the trends `days` param (whole days 1–365 — sub-day quick-selects
+  round the chart span up to 1 day; the label keeps the exact choice). C-1's intent (don't
+  conflate state-at-T with the window) is carried by the control's own copy: "tables show state
+  at the end of the range; charts aggregate the span." All time display is 24-hour.

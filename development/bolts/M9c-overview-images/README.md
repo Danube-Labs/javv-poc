@@ -135,3 +135,8 @@ as pure units** (Vitest).
 > and run **`npx impeccable detect`** on rendered-HTML dumps of changed screens (fix real
 > findings; §9 exceptions stand). The **`/impeccable`** skill (critique · typeset · layout ·
 > harden) is available for design decisions — its product register applies.
+
+- **2026-07-09 — trend window comes from the RANGE control (operator re-ruling, PR #300):** the
+  dashboards consume `windowDays`/`windowLabel` from the timeTravel store — set by the single
+  Kibana-style range picker (M9a-owned), not a separate window control. Charts aggregate the
+  range's span; a past range end also sets `as_of`. Audit C-1 superseded (see M9a README).

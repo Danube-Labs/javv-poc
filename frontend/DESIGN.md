@@ -35,6 +35,16 @@ row hover      var(--row-hover)   dark chrome  var(--slate)
 decorative/disabled only (dashes, gauge fills, placeholder glyphs): it fails AA and must never
 color words or numbers.
 
+**Text color rules (operator rulings 2026-07-09 — verify ratios by computation, never by eye):**
+- **Never same-hue text on its own tint** ("green on green"): prose/sentences on a tinted panel
+  or banner are `--ink`; the hue lives in the icon, border, and background only. Chips/tags
+  (short bold data labels) keep their hue pair, but every fg is AA-computed against its bg.
+- **Interactive text is `--ink`** (facet rows, menu items, buttons, control labels) — `--soft`
+  is for genuinely secondary annotations (counts, pager info, captions).
+- **Coral as text = `--coral-text`** (pills, selected states, hover text); `--coral`/`--coral-d`
+  are fills only — both fail AA as small text on light surfaces.
+- **Times display 24-hour** (`hour12: false` / strict `HH:mm` inputs) — never AM/PM.
+
 ### Sidebar chrome (dark slate — its own text/hover ramp, promoted from the prototype shell)
 ```
 nav text       var(--side-fg)  hover var(--side-fg-hover) on var(--side-on-fg)/(--side-on-bg)
