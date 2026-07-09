@@ -9,6 +9,31 @@ import type { FindingRow } from '@/stores/findings'
 
 export const SCANNER_ORDER = ['trivy', 'grype'] as const
 
+/**
+ * A (cve_id, image_digest) query returns one row per PACKAGE per scanner — finding identity
+ * includes the package. The evidence table compares like with like: scope to one package
+ * (the clicked row's, carried in the URL; deep links without it scope to the first row's) and
+ * surface the rest as "also affects".
+ */
+export function scopeToPackage(
+  rows: FindingRow[],
+  pkg?: string | null,
+  ver?: string | null,
+): { scoped: FindingRow[]; otherPackages: string[] } {
+  const ordered = orderEvidence(rows)
+  const anchor =
+    (pkg ? ordered.find((r) => r.package_name === pkg && (!ver || r.installed_version === ver)) : null) ??
+    ordered[0]
+  if (!anchor) return { scoped: [], otherPackages: [] }
+  const scoped = ordered.filter(
+    (r) => r.package_name === anchor.package_name && r.installed_version === anchor.installed_version,
+  )
+  const otherPackages = [
+    ...new Set(rows.map((r) => r.package_name).filter((p) => p !== anchor.package_name)),
+  ]
+  return { scoped, otherPackages }
+}
+
 /** Evidence rows in fixed scanner order — verbatim rows, never merged. */
 export function orderEvidence(rows: FindingRow[]): FindingRow[] {
   const rank = (s: string) => {

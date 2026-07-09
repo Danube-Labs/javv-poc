@@ -89,6 +89,27 @@ async function main() {
   await page.locator('.cols-dd .btn-mini').click()
   await page.waitForSelector('.cols-menu')
   await shot(page, '07-columns-menu')
+  await page.keyboard.press('Escape')
+
+  // finding detail — row click navigates (cve + digest + scanner identity)
+  await page.locator('.tbl tbody tr').first().click()
+  await page.waitForSelector('.detail-head', { timeout: 10_000 })
+  await page.waitForLoadState('networkidle')
+  await shot(page, '08-finding-detail', { dump: true })
+
+  // FORCED STATE: a disagreeing finding (severity or zero-vs-nonzero surfaces differ)
+  await page.goto(`${BASE}/findings?attr=disagree`)
+  const hasRows = await page
+    .waitForSelector('.tbl tbody tr', { timeout: 10_000 })
+    .catch(() => null)
+  if (hasRows) {
+    await page.locator('.tbl tbody tr').first().click()
+    await page.waitForSelector('.detail-head', { timeout: 10_000 })
+    await page.waitForLoadState('networkidle')
+    await shot(page, '09-finding-detail-disagree', { dump: true })
+  } else {
+    console.log('  (no disagreeing findings in this corpus — 09 skipped)')
+  }
 
   await browser.close()
   console.log(issues.length ? `issues:\n  ${issues.join('\n  ')}` : 'issues: none')

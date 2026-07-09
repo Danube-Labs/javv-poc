@@ -29,9 +29,9 @@ import {
   epssOf,
   imageGroupRows,
   kevOn,
-  orderEvidence,
   primaryRow,
   SCANNER_ORDER,
+  scopeToPackage,
   severityDisagrees,
   type ImageGroupRow,
 } from '@/findings/detailViewModel'
@@ -108,14 +108,20 @@ watch(
   { immediate: true },
 )
 
-/* ---- view-model ---- */
-const evidence = computed(() => orderEvidence(rows.value))
-const primary = computed(() => primaryRow(rows.value, clickedScanner.value))
-const kev = computed(() => kevOn(rows.value))
-const epss = computed(() => epssOf(rows.value))
-const disagrees = computed(() => severityDisagrees(rows.value))
+/* ---- view-model: everything reads the PACKAGE-scoped set (one row per scanner) ---- */
+const pkg = computed(() => (typeof route.query.pkg === 'string' ? route.query.pkg : null))
+const ver = computed(() =>
+  typeof route.query.ver === 'string' && route.query.ver ? route.query.ver : null,
+)
+const scope = computed(() => scopeToPackage(rows.value, pkg.value, ver.value))
+const evidence = computed(() => scope.value.scoped)
+const otherPackages = computed(() => scope.value.otherPackages)
+const primary = computed(() => primaryRow(evidence.value, clickedScanner.value))
+const kev = computed(() => kevOn(evidence.value))
+const epss = computed(() => epssOf(evidence.value))
+const disagrees = computed(() => severityDisagrees(evidence.value))
 const missingScanners = computed(() =>
-  SCANNER_ORDER.filter((s) => !rows.value.some((r) => r.scanner === s)),
+  SCANNER_ORDER.filter((s) => !evidence.value.some((r) => r.scanner === s)),
 )
 
 /* ---- display helpers (24h everywhere, null-tolerant) ---- */
@@ -160,18 +166,18 @@ function goBack() {
     </div>
 
     <p v-else-if="failed" class="load-error" role="alert">
-      Finding unavailable — check the backend connection.
+      Finding unavailable. Check the backend connection.
     </p>
 
     <div v-else-if="!digest" class="not-found">
       <h1 class="mono">{{ cveId }}</h1>
-      <p>This link is missing the image identity — open the finding from the grid.</p>
+      <p>This link is missing the image identity. Open the finding from the grid.</p>
     </div>
 
     <div v-else-if="rows.length === 0" class="not-found">
       <h1 class="mono">{{ cveId }}</h1>
       <p>
-        No current finding for this CVE on this image — it may have been resolved by a newer
+        No current finding for this CVE on this image. It may have been resolved by a newer
         scan, or the selected range ends before it was first seen.
       </p>
     </div>
@@ -181,7 +187,7 @@ function goBack() {
         <div class="detail-head-main">
           <div class="detail-cve">
             <h1>{{ cveId }}</h1>
-            <SevChip v-if="primary" :level="primary.severity_canonical" solid />
+            <SevChip v-if="primary" :level="primary.severity_canonical" />
             <DisagreementBadge v-if="disagrees" title="Scanners disagree on severity" />
             <span v-if="kev" class="kev-lg">KEV · known-exploited</span>
           </div>
@@ -213,7 +219,7 @@ function goBack() {
           <div class="card-head">
             <div>
               <h3>Per-scanner evidence</h3>
-              <p class="card-sub">raw results — no black box</p>
+              <p class="card-sub">raw results, no black box</p>
             </div>
             <span class="card-tag">no cross-scanner merge</span>
           </div>
@@ -251,12 +257,17 @@ function goBack() {
               </tbody>
             </table>
             <p v-if="disagrees" class="evidence-note evidence-warn">
-              <AppIcon name="alert" :size="12" /> The scanners disagree — both verdicts shown
+              <AppIcon name="alert" :size="12" /> The scanners disagree. Both verdicts shown
               verbatim; JAVV never picks a winner.
             </p>
             <p v-else class="evidence-note">
               Scanners agree on severity. Dashboards facet by scanner so this finding is never
               double-counted.
+            </p>
+            <p v-if="otherPackages.length" class="evidence-note">
+              This CVE also affects
+              <span class="mono-cell sm">{{ otherPackages.join(', ') }}</span> on this image;
+              open those rows from the grid.
             </p>
           </div>
         </section>
@@ -265,7 +276,7 @@ function goBack() {
           <div class="card-head">
             <div>
               <h3>Images affected</h3>
-              <p class="card-sub">per-scanner finding counts for {{ cveId }} — never summed</p>
+              <p class="card-sub">per-scanner finding counts for {{ cveId }}, never summed</p>
             </div>
           </div>
           <div class="card-body">

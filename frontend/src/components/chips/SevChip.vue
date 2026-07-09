@@ -42,7 +42,10 @@ const sev = computed<Severity>(() =>
   height: 7px;
   border-radius: 50%;
 }
-.sev-solid {
+/* AA note: white passes only on the critical solid (5.9:1) — use `solid` for critical-grade
+   emphasis only; every other level keeps the tinted chip. The [data-sev] selector keeps this
+   fg from losing specificity to the per-severity color rules below. */
+.sev.sev-solid[data-sev] {
   color: var(--kev-fg);
   border: 0;
   padding: 3px 9px;

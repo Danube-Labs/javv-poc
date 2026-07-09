@@ -11,6 +11,7 @@ import {
   kevOn,
   orderEvidence,
   primaryRow,
+  scopeToPackage,
   severityDisagrees,
 } from '@/findings/detailViewModel'
 import type { FindingRow } from '@/stores/findings'
@@ -76,6 +77,22 @@ describe('detail view-model (per-scanner sacred)', () => {
     const enriched = [row({}), row({ scanner: 'grype', kev: true, epss: 0.53 })]
     expect(kevOn(enriched)).toBe(true)
     expect(epssOf(enriched)).toEqual({ value: 0.53, scanner: 'grype' })
+  })
+
+  it('scopes evidence to one package — the clicked one, or the first row on deep links', () => {
+    const rows = [
+      row({ finding_key: 'a', package_name: 'libcurl4', scanner: 'trivy' }),
+      row({ finding_key: 'b', package_name: 'curl', scanner: 'trivy' }),
+      row({ finding_key: 'c', package_name: 'libcurl4', scanner: 'grype' }),
+      row({ finding_key: 'd', package_name: 'curl', scanner: 'grype' }),
+    ]
+    const clicked = scopeToPackage(rows, 'curl', '3.0.1')
+    expect(clicked.scoped.map((r) => r.finding_key)).toEqual(['b', 'd'])
+    expect(clicked.otherPackages).toEqual(['libcurl4'])
+
+    const deepLink = scopeToPackage(rows, null)
+    expect(deepLink.scoped.map((r) => r.package_name)).toEqual(['libcurl4', 'libcurl4'])
+    expect(scopeToPackage([], 'curl').scoped).toEqual([])
   })
 
   it('image groups keep per-scanner counts side-by-side; zero-vs-nonzero gets the flag', () => {
