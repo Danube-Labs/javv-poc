@@ -50,7 +50,7 @@ export interface ImageGroupRow {
   grype: number | null
   /** |trivy − grype| for display only (absent side counts as 0) — never a merged total. */
   delta: number
-  /** #156: one scanner at zero/absent while the other reports — disagreement-grade weight. */
+  /** One scanner at zero/absent while the other reports — disagreement-grade weight. */
   zeroVsNonzero: boolean
 }
 

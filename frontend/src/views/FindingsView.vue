@@ -130,8 +130,13 @@ watch(
 )
 
 function openFinding(row: FindingRow) {
-  // detail panel lands in M9b slice 2
   logger.debug('finding_row_clicked', { finding_key: row.finding_key })
+  void router.push({
+    name: 'finding',
+    params: { cveId: row.cve_id },
+    // identity = (cve_id, image_digest); scanner keeps header continuity with the clicked row
+    query: { digest: String(row.image_digest ?? ''), scanner: row.scanner },
+  })
 }
 
 /* ---- column visibility + density (Columns menu), persisted per browser ---- */

@@ -1,7 +1,7 @@
 /**
  * The N10 contract for the detail screen: per-scanner rows are ordered and compared but NEVER
  * merged; KEV/EPSS surface with their source scanner; image count pairs stay side-by-side with
- * zero-vs-nonzero flagged at disagreement grade (#156). Null-tolerant for historical rows.
+ * zero-vs-nonzero flagged at disagreement grade. Null-tolerant for historical rows.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -78,10 +78,10 @@ describe('detail view-model (per-scanner sacred)', () => {
     expect(epssOf(enriched)).toEqual({ value: 0.53, scanner: 'grype' })
   })
 
-  it('image groups keep per-scanner counts side-by-side; zero-vs-nonzero gets the flag (#156)', () => {
+  it('image groups keep per-scanner counts side-by-side; zero-vs-nonzero gets the flag', () => {
     const rows = imageGroupRows([
       { key: 'nginx', count: 8, by_scanner: { trivy: 4, grype: 4 } },
-      { key: 'alpine', count: 73, by_scanner: { grype: 73 } }, // trivy silent — the #156 case
+      { key: 'alpine', count: 73, by_scanner: { grype: 73 } }, // trivy silent — real-scanner divergence can be total
       { key: 'redis', count: 5, by_scanner: { trivy: 3, grype: 2 } },
     ])
     expect(rows[0]).toMatchObject({ repo: 'nginx', trivy: 4, grype: 4, delta: 0, zeroVsNonzero: false })
