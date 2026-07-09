@@ -43,7 +43,7 @@ const emit = defineEmits<{ select: [state: string] }>()
   font-family: var(--font-ui);
   color: var(--ink);
   font-weight: 500;
-  cursor: pointer;
+  cursor: default;
 }
 .state-opt:hover:not(:disabled) {
   border-color: var(--control-hover-line);

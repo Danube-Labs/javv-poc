@@ -101,7 +101,7 @@ function scopeLabel(d: DecisionRow): string {
   border-radius: var(--r);
   box-shadow: var(--shadow);
   overflow: hidden;
-  margin-top: 16px;
+  margin-top: var(--space-6); /* its own page band, not part of the evidence cluster */
 }
 .card-head {
   display: flex;
@@ -208,7 +208,7 @@ function scopeLabel(d: DecisionRow): string {
   font-size: var(--text-sm);
   font-family: var(--font-ui);
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
 }
 .btn-mini:hover:not(:disabled) {
   border-color: var(--control-hover-line);

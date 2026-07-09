@@ -90,7 +90,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   text-align: left;
   color: var(--ink);
   font-size: var(--text-control);
-  cursor: pointer;
+  cursor: default;
 }
 .facet-row:hover {
   background: var(--panel);

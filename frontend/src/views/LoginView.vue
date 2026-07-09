@@ -161,7 +161,7 @@ button {
   font-family: var(--font-ui);
   font-size: var(--text-body);
   font-weight: 600;
-  cursor: pointer;
+  cursor: default;
   transition: background 0.12s;
 }
 button:hover:not(:disabled) {

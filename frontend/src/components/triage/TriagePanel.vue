@@ -243,7 +243,7 @@ function save() {
   font-size: var(--text-sm);
   font-family: var(--font-ui);
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
 }
 .btn-mini:hover:not(:disabled) {
   border-color: var(--control-hover-line);
@@ -353,7 +353,7 @@ function save() {
   font-size: var(--text-control);
   font-family: var(--font-ui);
   font-weight: 600;
-  cursor: pointer;
+  cursor: default;
 }
 .btn-ghost {
   border: 1px solid var(--line);

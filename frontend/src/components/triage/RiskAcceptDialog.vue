@@ -265,7 +265,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   font-size: var(--text-control);
   font-family: var(--font-ui);
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
 }
 .ra-chip:hover {
   border-color: var(--control-hover-line);
@@ -330,7 +330,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   font-size: var(--text-sm);
   font-family: var(--font-ui);
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
 }
 .seg-on {
   background: var(--slate);
@@ -367,7 +367,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   padding: 3px 8px;
   font-size: var(--text-sm);
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
 }
 .btn-ghost,
 .btn-primary {
@@ -379,7 +379,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   font-size: var(--text-control);
   font-family: var(--font-ui);
   font-weight: 600;
-  cursor: pointer;
+  cursor: default;
 }
 .btn-ghost {
   border: 1px solid var(--line);

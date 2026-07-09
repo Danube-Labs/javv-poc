@@ -204,7 +204,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   font-size: var(--text-dd-item);
   background: var(--panel);
   font-family: var(--font-ui);
-  cursor: pointer;
+  cursor: default;
 }
 .time-range:hover {
   border-color: var(--control-hover-line);
@@ -272,7 +272,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border: 1px solid var(--line);
   color: var(--ink);
   border-radius: 7px;
-  cursor: pointer;
+  cursor: default;
 }
 .btn-mini:hover {
   border-color: var(--control-hover-line);
@@ -299,7 +299,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border-radius: 7px;
   font-size: var(--text-control);
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
 }
 .time-preset:hover {
   background: var(--panel);
@@ -370,7 +370,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   font-weight: 600;
   padding: 9px 10px 7px;
   margin-top: 4px;
-  cursor: pointer;
+  cursor: default;
 }
 .back-now:focus-visible {
   outline: var(--focus-ring);

@@ -431,7 +431,7 @@ function onDecisionCreated() {
   font-size: var(--text-sm);
   font-family: var(--font-ui);
   padding: 0 0 14px;
-  cursor: pointer;
+  cursor: default;
 }
 .back-link:hover {
   color: var(--coral-text);
@@ -538,9 +538,9 @@ function onDecisionCreated() {
 .detail-grid {
   display: grid;
   grid-template-columns: 1.55fr 1fr;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: start;
-  margin-top: 16px;
+  margin-top: var(--space-6); /* the header is its own band — give it air below */
 }
 @media (max-width: 1180px) {
   .detail-grid {
