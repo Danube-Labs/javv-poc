@@ -54,7 +54,8 @@ never re-implement it.
 
 ## 3. Typography — two families, fixed scale
 
-**Space Grotesk** (`var(--font-ui)`) = all UI text. **Space Mono** (`var(--font-mono)`) =
+**Hanken Grotesk** (`var(--font-ui)`, operator A/B ruling 2026-07-09) = all UI text.
+**Space Mono** (`var(--font-mono)`) =
 code-like data: CVE IDs, versions, namespaces, image refs, counts, timestamps, table headers,
 IDs. No third family, no ad-hoc sizes — the scale tokens:
 
