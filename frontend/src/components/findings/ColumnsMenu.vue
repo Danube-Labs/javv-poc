@@ -69,7 +69,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   padding: 5px 9px;
   background: var(--panel);
   border: 1px solid var(--line);
-  color: var(--soft);
+  color: var(--ink);
   border-radius: 7px;
   cursor: pointer;
 }
@@ -144,7 +144,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   padding: 5px 8px;
   border-radius: 7px;
   text-align: left;
-  color: var(--soft);
+  color: var(--ink);
   font-size: var(--text-control);
   cursor: pointer;
 }

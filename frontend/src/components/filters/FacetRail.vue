@@ -88,7 +88,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   padding: 5px 8px;
   border-radius: 7px;
   text-align: left;
-  color: var(--soft);
+  color: var(--ink);
   font-size: var(--text-control);
   cursor: pointer;
 }

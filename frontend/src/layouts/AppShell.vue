@@ -138,7 +138,7 @@ onUnmounted(() => health.stopPolling())
       <div v-if="!timeTravel.isNow" class="history-banner" role="status">
         <AppIcon name="rewind" :size="15" />
         Viewing history — as scanned at
-        <span class="mono">{{ new Date(timeTravel.t as string).toLocaleString() }}</span>
+        <span class="mono">{{ new Date(timeTravel.t as string).toLocaleString(undefined, { hour12: false }) }}</span>
         <button class="back-to-now" @click="timeTravel.backToNow()">Back to now</button>
       </div>
 

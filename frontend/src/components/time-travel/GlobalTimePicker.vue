@@ -15,10 +15,15 @@ import { useTimeTravelStore } from '@/stores/timeTravel'
 const timeTravel = useTimeTravelStore()
 const open = ref(false)
 const relN = ref(30)
-const relUnit = ref<'days' | 'weeks'>('days')
+const relUnit = ref<'minutes' | 'hours' | 'days' | 'weeks'>('days')
 const fromDate = ref('')
+const fromTime = ref('00:00')
 const toDate = ref('')
+const toTime = ref('')
 const wrap = useTemplateRef<HTMLElement>('wrap')
+
+const UNIT_MS = { minutes: 60_000, hours: 3_600_000, days: 86_400_000, weeks: 604_800_000 } as const
+const TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/ // strict 24h HH:mm — no AM/PM anywhere
 
 /* quick ranges, all ending now — the trends contract is whole days 1..365 */
 const PRESETS: readonly [string, number][] = [
@@ -41,28 +46,44 @@ function applyPreset(label: string, days: number) {
 }
 
 function applyRelative() {
-  const days = Math.min(365, Math.max(1, relUnit.value === 'weeks' ? relN.value * 7 : relN.value))
-  const unit = relUnit.value === 'weeks' ? 'week' : 'day'
+  if (!relN.value || relN.value < 1) return
+  // charts take whole days (trends contract int 1..365) — sub-day spans round up to 1 day
+  // for the days param; the label keeps the user's exact choice
+  const days = Math.min(365, Math.max(1, Math.ceil((relN.value * UNIT_MS[relUnit.value]) / DAY_MS)))
+  const unit = relUnit.value.slice(0, -1)
   timeTravel.backToNow()
   timeTravel.setWindow(days, `Last ${relN.value} ${unit}${relN.value === 1 ? '' : 's'}`)
   open.value = false
 }
 
-const fmtD = (local: string) =>
-  new Date(local).toLocaleString(undefined, {
+/* 24-hour display everywhere — never AM/PM */
+const fmtD = (d: Date) =>
+  d.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   })
 
+const parseSide = (date: string, time: string): Date | null => {
+  if (!date || !TIME_RE.test(time)) return null
+  return new Date(`${date}T${time.padStart(5, '0')}:00`)
+}
+
+const customValid = computed(() => {
+  const from = parseSide(fromDate.value, fromTime.value)
+  const to = parseSide(toDate.value, toTime.value)
+  return from !== null && to !== null && from.getTime() < to.getTime()
+})
+
 function applyCustom() {
-  if (!fromDate.value || !toDate.value || fromDate.value > toDate.value) return
-  const from = new Date(fromDate.value)
-  const to = new Date(toDate.value)
+  const from = parseSide(fromDate.value, fromTime.value)
+  const to = parseSide(toDate.value, toTime.value)
+  if (!from || !to || from.getTime() >= to.getTime()) return
   // charts take whole days (trends contract int 1..365); the END is minute-precise as_of
   const span = Math.min(365, Math.max(1, Math.round((to.getTime() - from.getTime()) / DAY_MS) || 1))
-  const label = `${fmtD(fromDate.value)} → ${fmtD(toDate.value)}`
+  const label = `${fmtD(from)} → ${fmtD(to)}`
   if (to.getTime() >= Date.now() - 60_000) {
     timeTravel.backToNow() // range ends now-ish: tables show current state
   } else {
@@ -116,6 +137,8 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
           aria-label="Range length"
         />
         <select v-model="relUnit" class="select-input" aria-label="Range unit">
+          <option value="minutes">minutes</option>
+          <option value="hours">hours</option>
           <option value="days">days</option>
           <option value="weeks">weeks</option>
         </select>
@@ -135,12 +158,28 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
         </button>
       </div>
 
-      <div class="dd-head">Absolute range</div>
+      <div class="dd-head">Absolute range (24h)</div>
       <div class="time-abs">
-        <input v-model="fromDate" class="text-input mono-cell" type="datetime-local" aria-label="Range start" />
+        <input v-model="fromDate" class="text-input mono-cell" type="date" aria-label="Range start date" />
+        <input
+          v-model="fromTime"
+          class="text-input mono-cell hhmm"
+          type="text"
+          placeholder="HH:mm"
+          maxlength="5"
+          aria-label="Range start time (24h)"
+        />
         <span class="time-arrow">→</span>
-        <input v-model="toDate" class="text-input mono-cell" type="datetime-local" aria-label="Range end" />
-        <button class="btn-mini time-apply" @click="applyCustom">Apply</button>
+        <input v-model="toDate" class="text-input mono-cell" type="date" aria-label="Range end date" />
+        <input
+          v-model="toTime"
+          class="text-input mono-cell hhmm"
+          type="text"
+          placeholder="HH:mm"
+          maxlength="5"
+          aria-label="Range end time (24h)"
+        />
+        <button class="btn-mini time-apply" :disabled="!customValid" @click="applyCustom">Apply</button>
       </div>
 
       <button v-if="!timeTravel.isNow" class="back-now" @click="backToNow">
@@ -161,7 +200,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 7px 11px;
-  color: var(--soft);
+  color: var(--ink); /* primary control text — never washy soft-on-panel */
   font-size: var(--text-dd-item);
   background: var(--panel);
   font-family: var(--font-ui);
@@ -202,8 +241,8 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   padding: 8px 12px 6px;
 }
 .tt-note {
-  font-size: var(--text-facet-count);
-  color: var(--soft);
+  font-size: var(--text-sm);
+  color: var(--ink);
   padding: 8px 10px;
   line-height: 1.5;
   border-bottom: 1px solid var(--line2);
@@ -217,7 +256,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .time-rel-label {
   font-size: var(--text-control);
-  color: var(--soft);
+  color: var(--ink);
 }
 .time-apply {
   margin-left: auto;
@@ -227,16 +266,20 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   align-items: center;
   gap: 7px;
   font-size: var(--text-quiet-action);
+  font-weight: 600;
   padding: 5px 9px;
   background: var(--panel);
   border: 1px solid var(--line);
-  color: var(--soft);
+  color: var(--ink);
   border-radius: 7px;
   cursor: pointer;
 }
 .btn-mini:hover {
   border-color: var(--control-hover-line);
-  color: var(--ink);
+}
+.btn-mini:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .btn-mini:focus-visible {
   outline: var(--focus-ring);
@@ -289,6 +332,10 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .num-input {
   width: 64px;
+}
+.hhmm {
+  width: 62px;
+  text-align: center;
 }
 .text-input:focus,
 .num-input:focus {
