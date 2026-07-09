@@ -264,7 +264,7 @@ function setDense(value: boolean) {
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: var(--text-table-header);
+  font-size: var(--text-sm);
   color: var(--teal-text);
   background: var(--note-info-bg);
   border: 1px solid var(--note-info-line);
