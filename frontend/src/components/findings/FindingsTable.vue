@@ -46,6 +46,11 @@ function onSort(e: DataTableSortEvent) {
 }
 
 const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}${r.tag ? ':' + r.tag : ''}`
+const nsLabel = (r: FindingRow): string => {
+  const ns = Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []
+  if (ns.length === 0) return '-'
+  return ns.length === 1 ? ns[0]! : `${ns[0]} +${ns.length - 1}`
+}
 </script>
 
 <template>
@@ -84,11 +89,6 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
           <KevTag :on="data.kev === true" />
         </template>
       </Column>
-      <Column v-if="show('component')" header="Component">
-        <template #body="{ data }">
-          <span class="mono-cell sm">{{ data.app ?? '-' }}</span>
-        </template>
-      </Column>
       <Column v-if="show('package')" header="Package">
         <template #body="{ data }">
           <span class="pkg"
@@ -112,7 +112,12 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
           <span class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
         </template>
       </Column>
-      <Column v-if="show('images')" header="Images" class="r">
+      <Column v-if="show('namespace')" header="Namespace">
+        <template #body="{ data }">
+          <span class="mono-cell sm">{{ nsLabel(data) }}</span>
+        </template>
+      </Column>
+      <Column v-if="show('images')" header="Affected" class="r">
         <template #body="{ data }">
           <span class="mono-cell sm">{{ data.images_affected ?? '-' }}</span>
         </template>

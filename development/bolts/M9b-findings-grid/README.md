@@ -178,6 +178,17 @@ as pure units** (Vitest).
   enumeration stays groups territory); an "Unassigned" bucket needs a missing-agg — deferred,
   noted. Assignee rail lists only assignees that exist.
 
+- **2026-07-10 — operator findings-review corrections (slice 4, same PR):** the rail gets the
+  prototype's **`.facet-search` box** (missed in slice 1) — **exact CVE-id lookup** (the backend
+  `cve_id` term filter; package/component search has NO backend param — the M9f-verify item
+  stands). **Namespace column** added (first + "+n"); the images count column renamed
+  **"Affected"** (menu: "Affected images") — "Image" = this row's image, "Affected" = CVE-wide
+  distinct-image count. **Component column REMOVED until the envelope emits `app`** (0% populated
+  — the ptype/B-1 precedent: never ship a dash-only column). **Decisions ≠ triage actions**: the
+  decisions card lists scoped RULES; plain state changes are audit-journaled actions — the detail
+  page now has an **"Activity on this finding"** card (audit route gained a `finding_key` filter,
+  tested) so a triage action is visible where the operator expects it.
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and

@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import {
   groupFindingsApiV1FindingsGroupsGet,
+  readAuditLogApiV1AuditGet,
   listDecisionsApiV1DecisionsGet,
   revokeApiV1DecisionsDecisionIdRevokePost,
   searchFindingsApiV1FindingsGet,
@@ -238,6 +239,38 @@ async function revokeDecision(id: string) {
 function onDecisionCreated() {
   void fetchDecisions()
 }
+
+/* ---- per-finding activity (the audit trail rows for THIS finding_key) ---- */
+interface ActivityRow {
+  event_id: string
+  action: string
+  actor: string
+  field?: string
+  old_value?: string | null
+  new_value?: string | null
+  '@timestamp': string
+}
+const activity = ref<ActivityRow[]>([])
+
+watch(
+  [primary, () => clusterStore.selectedId],
+  async ([p]) => {
+    if (!p || !clusterStore.selectedId) return
+    const response = await readAuditLogApiV1AuditGet({
+      query: {
+        cluster_id: clusterStore.selectedId,
+        finding_key: p.finding_key,
+        size: 8,
+      } as never,
+    })
+    if (response.response?.ok && response.data) {
+      activity.value = (response.data as { data: ActivityRow[] }).data
+    } else {
+      logger.warn('finding_activity_failed', { status: response.response?.status })
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -418,6 +451,32 @@ function onDecisionCreated() {
         @create="raOpen = true"
         @revoke="revokeDecision"
       />
+
+      <section class="card activity-card">
+        <div class="card-head">
+          <div>
+            <h3>Activity on this finding</h3>
+            <p class="card-sub">the audit trail — every triage action, who &amp; when</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <p v-if="activity.length === 0" class="empty-row">No triage actions yet.</p>
+          <ul v-else class="act-list">
+            <li v-for="a in activity" :key="a.event_id" class="act-row">
+              <span class="act-when mono-cell">{{ fmtAt(a['@timestamp']) }}</span>
+              <span class="act-what">
+                <b>{{ a.actor }}</b> · {{ a.action }}
+                <template v-if="a.field === 'state' && a.new_value">
+                  — <StateTag :state="a.new_value" />
+                </template>
+                <template v-else-if="a.new_value">
+                  — {{ a.field }}: <span class="mono-cell sm">{{ a.new_value }}</span>
+                </template>
+              </span>
+            </li>
+          </ul>
+        </div>
+      </section>
 
       <RiskAcceptDialog
         v-if="raOpen && primary"
@@ -721,6 +780,35 @@ function onDecisionCreated() {
   flex: none;
 }
 
+.activity-card {
+  margin-top: var(--space-4); /* belongs to the decisions band — tighter than a new band */
+}
+.act-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.act-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: var(--text-body);
+}
+.act-when {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--soft);
+  min-width: 92px;
+}
+.act-what {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+}
 .not-found h1 {
   font-family: var(--font-mono);
 }

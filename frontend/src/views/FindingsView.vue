@@ -189,6 +189,16 @@ function setDense(value: boolean) {
     </div>
 
     <div class="findings-layout">
+      <div class="rail-col">
+        <div class="facet-search">
+          <AppIcon name="search" :size="14" />
+          <input
+            :value="filters.selections.cve?.[0] ?? ''"
+            placeholder="CVE id (exact)…"
+            aria-label="Filter by CVE id"
+            @keydown.enter="filters.setText('cve', ($event.target as HTMLInputElement).value)"
+          />
+        </div>
       <FacetRail
         :fields="FINDINGS_FIELDS"
         :selections="filters.selections"
@@ -200,6 +210,7 @@ function setDense(value: boolean) {
           <template v-else>{{ label }}</template>
         </template>
       </FacetRail>
+      </div>
 
       <div class="findings-main">
         <div class="toolbar-row">
@@ -279,6 +290,35 @@ function setDense(value: boolean) {
   color: var(--soft);
   font-size: var(--text-body);
   margin-top: 2px;
+}
+.rail-col {
+  flex: none;
+  width: var(--facet-rail-w);
+}
+.rail-col > :last-child {
+  width: 100%;
+}
+/* prototype .facet-search on tokens — exact-match CVE lookup for triage */
+.facet-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  padding: 7px 10px;
+  color: var(--soft);
+  margin-bottom: 10px;
+}
+.facet-search input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-mono-cell);
+  color: var(--ink);
 }
 .findings-layout {
   display: flex;

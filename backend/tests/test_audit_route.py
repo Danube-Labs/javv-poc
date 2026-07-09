@@ -166,3 +166,9 @@ def test_build_audit_body_is_the_fixed_pair_sort_plus_term_filters() -> None:
     with pytest.raises(ValueError):
         build_audit_body(AuditFilters(), size=10, order="sideways")
     assert "query" not in build_audit_body(AuditFilters(), size=10)  # unset filters add nothing
+
+
+def test_finding_key_filter_scopes_to_one_finding() -> None:
+    # M9b slice 4: the detail screen's per-finding activity list
+    body = build_audit_body(AuditFilters(finding_key="fk-abc"), size=5)
+    assert {"term": {"finding_key": "fk-abc"}} in body["query"]["bool"]["filter"]

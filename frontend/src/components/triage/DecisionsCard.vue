@@ -47,7 +47,7 @@ function scopeLabel(d: DecisionRow): string {
     <div class="card-head">
       <div>
         <h3>Decisions on this CVE</h3>
-        <p class="card-sub">immutable; edits revoke + re-create</p>
+        <p class="card-sub">scoped risk-accept / not-affected RULES (immutable; edits revoke + re-create) — plain state changes are triage actions, listed under Activity</p>
       </div>
       <button v-if="canAcceptFinal" type="button" class="btn-mini" @click="emit('create')">
         <AppIcon name="plus" :size="13" />New decision
