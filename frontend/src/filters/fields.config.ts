@@ -57,7 +57,7 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
       { key: 'disagree', param: 'disagree', label: 'Scanners disagree' },
     ],
   },
-  { key: 'state', label: 'State', type: 'terms', param: 'state', multi: true, facetKey: 'state', values: ['open', 'stale', 'acknowledged', 'resolved'] },
+  { key: 'state', label: 'State', type: 'terms', param: 'state', multi: true, facetKey: 'state', values: ['open', 'acknowledged', 'not_affected', 'risk_accepted', 'resolved', 'stale'] },
   { key: 'ptype', label: 'Package type', type: 'terms', param: 'ptype', facetKey: 'ptype' },
   { key: 'namespace', label: 'Namespace', type: 'text', param: 'namespace' },
   { key: 'image', label: 'Image', type: 'text', param: 'image_repo' },

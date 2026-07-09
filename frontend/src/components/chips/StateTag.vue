@@ -3,6 +3,8 @@
  * Finding-state pill (prototype `StateTag` + `.state-tag`/`.st-*` CSS) — all SIX states of the
  * shipped model (A-2): open · acknowledged · not_affected · risk_accepted · resolved · stale.
  */
+import { computed } from 'vue'
+
 const LABELS: Record<string, string> = {
   open: 'Open',
   stale: 'Stale',
@@ -13,7 +15,8 @@ const LABELS: Record<string, string> = {
 }
 
 const props = defineProps<{ state: string }>()
-const label = LABELS[props.state] ?? props.state
+// computed, not a setup-time const — the state prop changes in place after a triage save
+const label = computed(() => LABELS[props.state] ?? props.state)
 </script>
 
 <template>
