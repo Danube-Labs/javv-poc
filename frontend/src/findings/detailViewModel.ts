@@ -85,8 +85,9 @@ interface GroupBucket {
   by_scanner: Record<string, number>
 }
 
+/** Rows come back in composite-key order — display worst-first so 100+ images stays scannable. */
 export function imageGroupRows(buckets: GroupBucket[]): ImageGroupRow[] {
-  return buckets.map((b) => {
+  const rows = buckets.map((b) => {
     const trivy = b.by_scanner['trivy'] ?? null
     const grype = b.by_scanner['grype'] ?? null
     const t = trivy ?? 0
@@ -99,4 +100,5 @@ export function imageGroupRows(buckets: GroupBucket[]): ImageGroupRow[] {
       zeroVsNonzero: (t === 0) !== (g === 0),
     }
   })
+  return rows.sort((a, b) => Math.max(b.trivy ?? 0, b.grype ?? 0) - Math.max(a.trivy ?? 0, a.grype ?? 0))
 }
