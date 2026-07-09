@@ -306,7 +306,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .time-preset-on {
   background: var(--dd-on-bg);
-  color: var(--coral-d);
+  color: var(--coral-text);
   font-weight: 600;
 }
 .time-abs {
@@ -365,7 +365,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border: 0;
   border-top: 1px solid var(--line2);
   background: transparent;
-  color: var(--coral-d);
+  color: var(--coral-text);
   font-size: var(--text-control);
   font-weight: 600;
   padding: 9px 10px 7px;

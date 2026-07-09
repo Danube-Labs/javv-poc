@@ -123,7 +123,7 @@ async function submitChange() {
   padding: 8px 10px;
   margin: 0 0 12px;
   background: var(--state-open-bg);
-  color: var(--state-open-fg);
+  color: var(--ink);
   border: 1px solid var(--state-open-line);
   border-radius: var(--r-chip);
   font-size: var(--text-body);

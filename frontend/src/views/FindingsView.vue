@@ -264,13 +264,18 @@ function setDense(value: boolean) {
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  color: var(--teal-text);
+  font-size: var(--text-sm);
+  /* prose is INK — never same-hue text on a tinted panel; teal lives in the icon only */
+  color: var(--ink);
   background: var(--note-info-bg);
   border: 1px solid var(--note-info-line);
   border-radius: var(--r-sm);
   padding: 7px 11px;
   margin-bottom: 12px;
+}
+.server-note svg {
+  color: var(--teal);
+  flex: none;
 }
 .load-error {
   color: var(--health-down-fg);

@@ -28,6 +28,7 @@
   --muted: #9aa3aa; /* decorative/disabled ONLY (dashes, gauge fills) — never text (fails AA) */
   --coral: #ec7e54;
   --coral-d: #d96a41;
+  --coral-text: #b34f28; /* coral as TEXT — AA on card/panel/washes; coral/coral-d are fills only */
   --amber: #f4a368;
   --teal: #1f8e84; /* fills/accents; as TEXT use --teal-text (this fails AA on light) */
   --teal-text: #17756d; /* AA on card/bg — informational text like the server-note */
@@ -84,11 +85,11 @@
   --sev-critical-bg: #fbe7e4;
   --sev-critical-line: #e7c0bb;
   --sev-critical-solid: #c0271d;
-  --sev-high-fg: #c2540d;
+  --sev-high-fg: #aa4a0a;
   --sev-high-bg: #fcebdd;
   --sev-high-line: #edd0b6;
   --sev-high-solid: #e2640f;
-  --sev-medium-fg: #9a6b05;
+  --sev-medium-fg: #82590a;
   --sev-medium-bg: #fbf1d6;
   --sev-medium-line: #ebddae;
   --sev-medium-solid: #c68a12;
@@ -106,16 +107,16 @@
   --sev-unknown-solid: #74808a;
 
   /* -- status / semantic ------------------------------------------------ */
-  --state-open-fg: #c2540d;
+  --state-open-fg: #aa4a0a;
   --state-open-bg: #fcebdd;
   --state-open-line: #efd3b7;
-  --state-stale-fg: #7a7468;
+  --state-stale-fg: #696358;
   --state-stale-bg: #edeae4;
   --state-stale-line: #ded9cf;
   --state-ack-fg: #2f6e96;
   --state-ack-bg: #e4f0f6;
   --state-ack-line: #c5dde9;
-  --state-resolved-fg: #2e7d4f;
+  --state-resolved-fg: #277146;
   --state-resolved-bg: #e3f1e7;
   --state-resolved-line: #c3e2cc;
   --state-na-fg: #46586a;
@@ -124,10 +125,10 @@
   --state-risk-fg: #8a5a23;
   --state-risk-bg: #f3e9dc;
   --state-risk-line: #e2cfb4;
-  --sla-tight-fg: #c2540d;
+  --sla-tight-fg: #aa4a0a;
   --sla-over-bg: #c0271d;
   --dash-muted: #c3cad0;
-  --ver-none-fg: #c09a8e;
+  --ver-none-fg: #96604f;
   --note-info-bg: rgba(31, 142, 132, 0.06);
   --note-info-line: rgba(31, 142, 132, 0.16);
   --kev-fg: #ffffff;
@@ -135,11 +136,11 @@
   --health-ok-fg: #2e7d4f;
   --health-ok-bg: #e3f1e7;
   --health-ok-dot: #3fb37f;
-  --health-degraded-fg: #9a6b05;
+  --health-degraded-fg: #82590a;
   --health-degraded-bg: #fbf1d6;
   --health-down-fg: #b5231a;
   --health-down-bg: #fbe7e4;
-  --scanner-trivy-fg: #1c7a70;
+  --scanner-trivy-fg: #17685f;
   --scanner-trivy-bg: #e7f0ef;
   --scanner-grype-fg: #5a4f9e;
   --scanner-grype-bg: #eaeaf3;
@@ -152,11 +153,11 @@
   --side-on-fg: #fbe6d8;
   --side-label: #8494a1; /* group labels — AA on the slate */
   --side-brand-fg: #f3eee6; /* the "javv" word */
-  --side-credit: #6e7c86; /* "by Danube Labs" */
+  --side-credit: #8593a0; /* "by Danube Labs" — AA on the slate */
   --side-foot-line: rgba(255, 255, 255, 0.07);
   --side-foot-fg: #9aa6af;
   --side-foot-strong: #cfe3d8;
-  --side-foot-dim: #5f6d78;
+  --side-foot-dim: #8a97a3; /* AA on the slate */
   --side-version: #7d8d9a; /* AA on the slate */
   --sweep-ok-ring: rgba(63, 179, 127, 0.18);
 
