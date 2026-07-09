@@ -174,7 +174,25 @@ copy. Structural fidelity is a process rule:
    (a SCREENS-v5 ruling, a shipped-backend constraint) noted in the PR — same discipline as the
    DECIDE register.
 
-## 9. Keeping this file honest
+## 9. Anti-pattern detector — ruled exceptions
+
+`npx impeccable detect` (and the `/impeccable` skill in `.claude/skills/`) is part of the
+authoring loop — run it on rendered-HTML dumps of changed screens (its URL mode needs a Chrome
+sandbox this environment doesn't have). Fix what it finds EXCEPT these ruled exceptions — they
+are deliberate contract choices, not reflex defaults (operator ruling 2026-07-09):
+
+| Finding | Ruling |
+|---|---|
+| `overused-font: Space Grotesk` | v4 brand contract. Only changes by an operator-approved token swap. |
+| `cream-palette` (#f4f1ea) | The v4 warm-paper identity — deliberate palette, not a default. |
+| `tiny-text 10–11.5px` on mono micro-scale | Ops-tool density (table headers, counts, chips) per the v4 scale. Body text stays ≥13px. |
+| `low-contrast` white-on-coral (login/action buttons) | Prototype button treatment; 13px/600 button label, not body text. |
+| `cramped-padding` on `tbl-wrap` | Full-bleed table inside the card is the prototype's design. |
+
+Everything else it flags (real contrast failures, hierarchy problems) gets fixed or gets its
+own row here — never silently ignored.
+
+## 10. Keeping this file honest
 
 This file mirrors `tokens.css` — when a token is added/renamed, update both in the same PR (the
 tokens unit test pins `CHART_SEV` to the CSS; the M9a DoD spot-check is "every token family in the
