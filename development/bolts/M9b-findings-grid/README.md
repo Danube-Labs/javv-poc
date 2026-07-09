@@ -138,6 +138,18 @@ as pure units** (Vitest).
   (banned pattern). SLA box shows a countdown derived from the server's `due_at` — the
   deadline itself is never client math (B-5).
 
+- **2026-07-09 — triage contract rulings (slice 3):** the panel follows the shipped M5b, not
+  the prototype: **state targets are the 4 human ones** (open/acknowledged/not_affected/
+  resolved) — risk_accepted is decision-driven (read-only block + the scoped dialog) and stale
+  is system-only (read-only block; a human change overrides). The FE mirrors the server state
+  machine in `frontend/src/findings/triageRules.ts` (justification iff not_affected, never sent
+  alongside any other state) so Save disables with the reason before the server would 422 — the
+  server stays the authority. `GET /api/v1/decisions` answers `{decisions: […]}` (not `data`).
+  Prototype's Impact/Action/Approver/Task fields stay removed (V4-DELTA-1); assignee is a
+  plain username + "Assign to me" (no avatar roster — no user-list read exists for non-admins).
+  **T<now = panel read-only** ("viewing history"). Rig captures triage DRAFTS only — automated
+  runs never save (mutations stay confirmation-gated).
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
