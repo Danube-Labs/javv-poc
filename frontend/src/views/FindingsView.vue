@@ -56,7 +56,7 @@ const facetsQuery = computed(() =>
   clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, withGlobals()) : null,
 )
 
-async function loadFacets(q: ReturnType<typeof facetsQuery.value> | null) {
+async function loadFacets(q: typeof facetsQuery.value) {
   if (!q) return
   const response = await facetFindingsApiV1FindingsFacetsGet({
     // builder output is a generic param record; the endpoint type is the precise contract
@@ -89,7 +89,7 @@ const rowsQuery = computed(() =>
     : null,
 )
 
-async function loadRows(q: ReturnType<typeof rowsQuery.value> | null) {
+async function loadRows(q: typeof rowsQuery.value) {
   if (!q) return
   grid.loading = true
     const response = await searchFindingsApiV1FindingsGet({

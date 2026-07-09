@@ -19,13 +19,14 @@ describe('lensToSelector (bulk never widens the lens)', () => {
   })
 
   it('blocks on filters the selector cannot express (scanner, flags, namespace, image, ptype)', () => {
-    for (const active of [
+    const lenses: Record<string, string[]>[] = [
       { scanner: ['trivy'] },
       { attr: ['kev'] },
       { namespace: ['payments'] },
       { image: ['nginx'] },
       { ptype: ['deb'] },
-    ]) {
+    ]
+    for (const active of lenses) {
       const r = lensToSelector(FINDINGS_FIELDS, sel({ severity: ['critical'], ...active }))
       expect(r.selector).toBeNull()
       expect(r.blocked).toMatch(/wider|Clear those filters/)
