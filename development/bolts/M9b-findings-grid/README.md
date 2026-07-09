@@ -117,6 +117,14 @@ as pure units** (Vitest).
   "Save view" button POSTs to **M8e** `/api/v1/views` (not localStorage). **A-6 ruled**: export
   stays session-only — no capability gate on the Export dialog.
 
+- **2026-07-09 — grid contract rulings (slice 1):** the shipped M6 search pages by **cursor**
+  (PIT + `search_after`, `next_cursor`) — there is no offset param, so the deliverable's assumed
+  `{page, rows}` lazy event becomes **prev/next over a cursor stack** (no numbered page jumps;
+  a stale/expired PIT cursor resets to page 0). And **sortable columns = the server's sort
+  whitelist only** (`severity_rank`, `first_seen_at`, `last_scan_at`, `cvss`, `epss`) — the
+  prototype's client-side sorts on cve/state/assignee have no server field and are dropped.
+  EPSS is null on trivy rows (grype-only enrichment) → muted dash with the "via Grype" note.
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
