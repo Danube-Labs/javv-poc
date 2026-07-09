@@ -63,6 +63,7 @@ const clickedScanner = computed(() =>
 
 const rows = ref<FindingRow[]>([])
 const groups = ref<ImageGroupRow[]>([])
+const groupsTruncated = ref(false)
 const loading = ref(true)
 const failed = ref(false)
 
@@ -110,8 +111,10 @@ watch(
     if (response.response?.ok && response.data) {
       const body = response.data as {
         data: { key: string; count: number; by_scanner: Record<string, number> }[]
+        next_cursor: string | null
       }
       groups.value = imageGroupRows(body.data)
+      groupsTruncated.value = body.next_cursor !== null
     } else {
       logger.warn('finding_groups_failed', { status: response.response?.status })
     }
@@ -355,11 +358,12 @@ function onDecisionCreated() {
         <section class="card">
           <div class="card-head">
             <div>
-              <h3>Images affected</h3>
-              <p class="card-sub">per-scanner finding counts for {{ cveId }}, never summed</p>
+              <h3>Images affected <span class="count-badge">{{ groups.length }}{{ groupsTruncated ? '+' : '' }}</span></h3>
+              <p class="card-sub">per-scanner finding counts for {{ cveId }}, never summed · worst first</p>
             </div>
           </div>
           <div class="card-body">
+            <div class="img-scroll">
             <table class="dtbl dtbl-bordered">
               <thead>
                 <tr><th>Image</th><th class="r">Trivy</th><th class="r">Grype</th><th class="r">Δ</th><th></th></tr>
@@ -375,6 +379,11 @@ function onDecisionCreated() {
                 </tr>
               </tbody>
             </table>
+            </div>
+            <p v-if="groupsTruncated" class="evidence-note">
+              Showing the first {{ groups.length }} images, worst first — more exist. The full
+              per-image inventory lands with M9c.
+            </p>
             <p class="evidence-note">
               A zero next to a non-zero is a scanner disagreement, not a clean bill.
               Per-image detail lands with M9c.
@@ -431,7 +440,7 @@ function onDecisionCreated() {
   font-size: var(--text-sm);
   font-family: var(--font-ui);
   padding: 0 0 14px;
-  cursor: pointer;
+  cursor: default;
 }
 .back-link:hover {
   color: var(--coral-text);
@@ -538,9 +547,9 @@ function onDecisionCreated() {
 .detail-grid {
   display: grid;
   grid-template-columns: 1.55fr 1fr;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: start;
-  margin-top: 16px;
+  margin-top: var(--space-6); /* the header is its own band — give it air below */
 }
 @media (max-width: 1180px) {
   .detail-grid {
@@ -650,6 +659,29 @@ function onDecisionCreated() {
   color: var(--ver-none-fg);
   font-style: italic;
   font-size: var(--text-sm);
+}
+.count-badge {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--soft);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: var(--r-chip);
+  padding: 2px 7px;
+  margin-left: 6px;
+  vertical-align: 2px;
+}
+/* 100+ images must not become a wall — the table scrolls inside its viewport (≈9 rows) */
+.img-scroll {
+  max-height: 340px;
+  overflow-y: auto;
+}
+.img-scroll thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 1;
 }
 .count-zero {
   color: var(--coral-text);

@@ -204,7 +204,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   font-size: var(--text-control);
   color: var(--ink);
   box-shadow: var(--shadow);
-  cursor: pointer;
+  cursor: default;
 }
 .fpill:hover {
   border-color: var(--coral);
@@ -259,7 +259,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   padding: 6px 11px;
   font-size: var(--text-control);
   font-weight: 500;
-  cursor: pointer;
+  cursor: default;
 }
 .add-filter:hover {
   border-color: var(--coral);
@@ -274,7 +274,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   text-decoration: underline;
   text-underline-offset: 2px;
   padding: 4px;
-  cursor: pointer;
+  cursor: default;
 }
 .clear-all:hover {
   color: var(--coral-text);
@@ -318,7 +318,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   text-align: left;
   color: var(--ink);
   font-size: var(--text-dd-item);
-  cursor: pointer;
+  cursor: default;
 }
 .dd-item:hover {
   background: var(--panel);
@@ -355,7 +355,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   padding: 7px 9px;
   border-bottom: 1px solid var(--line2);
   margin-bottom: 4px;
-  cursor: pointer;
+  cursor: default;
 }
 .filter-back:hover {
   color: var(--coral-text);
@@ -395,7 +395,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   font-size: var(--text-quiet-action);
   padding: 8px;
   margin-top: 4px;
-  cursor: pointer;
+  cursor: default;
 }
 .filter-clear-field:hover {
   color: var(--coral-text);
@@ -414,7 +414,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   text-align: left;
   color: var(--ink);
   font-size: var(--text-control);
-  cursor: pointer;
+  cursor: default;
 }
 .facet-row:hover {
   background: var(--panel);

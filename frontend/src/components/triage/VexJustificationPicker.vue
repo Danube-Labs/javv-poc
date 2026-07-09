@@ -45,7 +45,7 @@ const emit = defineEmits<{ select: [id: string] }>()
   border-radius: var(--r-sm);
   padding: 7px 10px;
   text-align: left;
-  cursor: pointer;
+  cursor: default;
 }
 .vex-chip:hover:not(:disabled) {
   border-color: var(--control-hover-line);

@@ -96,7 +96,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   font-size: var(--text-control);
   color: var(--ink);
   min-width: 32px;
-  cursor: pointer;
+  cursor: default;
 }
 .pager-btns button:disabled {
   opacity: 0.45;

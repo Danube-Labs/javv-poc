@@ -342,7 +342,7 @@ onUnmounted(() => health.stopPolling())
   border-radius: 9px;
   background: var(--card);
   color: var(--soft);
-  cursor: pointer;
+  cursor: default;
 }
 .icon-btn:disabled {
   cursor: default;
@@ -365,7 +365,7 @@ onUnmounted(() => health.stopPolling())
   background: none;
   color: var(--soft);
   font-size: var(--text-sm);
-  cursor: pointer;
+  cursor: default;
 }
 .logout:hover {
   color: var(--coral-text);
@@ -395,7 +395,7 @@ onUnmounted(() => health.stopPolling())
   color: var(--state-open-fg);
   font-size: var(--text-sm);
   padding: 3px 10px;
-  cursor: pointer;
+  cursor: default;
 }
 .content {
   flex: 1;
@@ -403,7 +403,7 @@ onUnmounted(() => health.stopPolling())
   width: 100%;
   margin: 0 auto;
   padding: var(--content-pad);
-  padding-bottom: 60px;
+  padding-bottom: 72px;
 }
 /* data-dense screens (route meta `wide`) use the full viewport instead of the 1380px cap —
    an internal table scrollbar beside dead margin is worse than a wide table (operator ruling). */

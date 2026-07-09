@@ -61,7 +61,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
   border-radius: 10px;
   padding: 6px 10px;
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
   max-width: 320px;
 }
 .glyph {
@@ -140,7 +140,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
   border-radius: var(--r-chip);
   background: none;
   color: var(--ink);
-  cursor: pointer;
+  cursor: default;
   text-align: left;
 }
 .item:hover {

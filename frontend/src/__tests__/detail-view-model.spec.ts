@@ -101,8 +101,10 @@ describe('detail view-model (per-scanner sacred)', () => {
       { key: 'alpine', count: 73, by_scanner: { grype: 73 } }, // trivy silent — real-scanner divergence can be total
       { key: 'redis', count: 5, by_scanner: { trivy: 3, grype: 2 } },
     ])
-    expect(rows[0]).toMatchObject({ repo: 'nginx', trivy: 4, grype: 4, delta: 0, zeroVsNonzero: false })
-    expect(rows[1]).toMatchObject({ repo: 'alpine', trivy: null, grype: 73, delta: 73, zeroVsNonzero: true })
+    // display order is worst-first (highest per-scanner count) so 100+ images stays scannable
+    expect(rows.map((r) => r.repo)).toEqual(['alpine', 'nginx', 'redis'])
+    expect(rows[0]).toMatchObject({ repo: 'alpine', trivy: null, grype: 73, delta: 73, zeroVsNonzero: true })
+    expect(rows[1]).toMatchObject({ repo: 'nginx', trivy: 4, grype: 4, delta: 0, zeroVsNonzero: false })
     expect(rows[2]).toMatchObject({ repo: 'redis', delta: 1, zeroVsNonzero: false })
     // no row ever exposes a summed total
     for (const r of rows) expect(Object.keys(r)).not.toContain('total')

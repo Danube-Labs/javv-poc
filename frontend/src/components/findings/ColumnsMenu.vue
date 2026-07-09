@@ -71,7 +71,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border: 1px solid var(--line);
   color: var(--ink);
   border-radius: 7px;
-  cursor: pointer;
+  cursor: default;
 }
 .btn-mini:hover {
   border-color: var(--control-hover-line);
@@ -120,7 +120,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border-radius: 6px;
   font-weight: 500;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
 }
 .seg-opt:hover {
   color: var(--ink);
@@ -146,7 +146,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   text-align: left;
   color: var(--ink);
   font-size: var(--text-control);
-  cursor: pointer;
+  cursor: default;
 }
 .facet-row:hover {
   background: var(--panel);

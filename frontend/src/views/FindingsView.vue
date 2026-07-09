@@ -245,7 +245,7 @@ function setDense(value: boolean) {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: var(--space-6); /* the page band boundary — generous */
 }
 .screen-sub {
   color: var(--soft);
@@ -265,6 +265,7 @@ function setDense(value: boolean) {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  margin-bottom: var(--space-2); /* toolbar/note/table are ONE functional group */
 }
 .toolbar-row > :first-child {
   flex: 1;
@@ -281,7 +282,7 @@ function setDense(value: boolean) {
   border: 1px solid var(--note-info-line);
   border-radius: var(--r-sm);
   padding: 7px 11px;
-  margin-bottom: 12px;
+  margin-bottom: var(--space-2); /* note belongs to the table cluster — tight */
 }
 .server-note svg {
   color: var(--teal);

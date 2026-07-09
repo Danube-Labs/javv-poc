@@ -63,7 +63,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
     >
       <Column header="Vulnerability">
         <template #body="{ data }">
-          <span class="mono-cell strong nowrap">{{ data.cve_id }}</span>
+          <span class="mono-cell strong nowrap cve-link">{{ data.cve_id }}</span>
         </template>
       </Column>
       <Column field="severity_rank" header="Severity" sortable>
@@ -146,6 +146,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
   width: 100%;
   border-collapse: collapse;
   font-size: var(--text-mono-cell);
+  cursor: default; /* arrow, not the I-beam — text stays selectable (operator ruling) */
 }
 :deep(.tbl thead th) {
   text-align: left;
@@ -175,11 +176,31 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
   border-bottom: 0;
 }
 :deep(.tbl-hover tbody tr) {
-  cursor: pointer;
-  transition: background 0.1s;
+  /* arrow cursor, not pointer — desktop-app convention (operator ruling; Linear model).
+     the affordance is the hover treatment, not the hand */
+  transition: background 0.12s ease-out;
 }
 :deep(.tbl-hover tbody tr:hover) {
   background: var(--row-hover);
+}
+/* the affordance carrier: the identifier reads as a link once the row is live (research: link
+   cells > loud row hovers on dense tables) */
+:deep(.cve-link) {
+  transition: color 0.12s ease-out;
+}
+:deep(.tbl-hover tbody tr:hover .cve-link) {
+  color: var(--coral-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+:deep(.tbl-hover tbody tr:active) {
+  background: var(--line2);
+}
+@media (prefers-reduced-motion: reduce) {
+  :deep(.tbl-hover tbody tr),
+  :deep(.cve-link) {
+    transition: none;
+  }
 }
 :deep(.tbl th.r),
 :deep(.tbl td.r) {

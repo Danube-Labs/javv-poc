@@ -50,6 +50,20 @@ color words or numbers.
   only for critical-grade emphasis. Side-stripe accents (the prototype's 4px `border-left`)
   stay banned — severity on a panel is carried by the chip, not a stripe.
 
+**Interaction & spacing rulings (operator, 2026-07-10 — issue #306):**
+- **Arrow cursor everywhere** — never `cursor: pointer` (desktop-app convention: Linear/Notion;
+  the hand is a web-document tell). Data surfaces set `cursor: default` explicitly to suppress
+  the I-beam over cell text (text stays selectable). `not-allowed` on disabled stays (it's
+  feedback).
+- **Click affordance = row wash + link-styled TARGET cell**: the row hover wash says "this row
+  is interactive"; the identifier cell that navigation anchors on (CVE now; image at M9c) turns
+  `--coral-text` + underline on row hover. Transitions ~120ms ease-out with a reduced-motion
+  fallback; pressed state = `--line2` wash. **Never dress a cell whose destination doesn't
+  exist yet** — a false affordance is worse than a missing one.
+- **Spacing rhythm on the `--space-*` scale** (8px base, 4px sub-grid): tight WITHIN a
+  functional group (`--space-1/2`), generous BETWEEN page bands (`--space-6/8`). Uniform
+  spacing everywhere is the "static" feel — page headers breathe, data clusters hold together.
+
 ### Sidebar chrome (dark slate — its own text/hover ramp, promoted from the prototype shell)
 ```
 nav text       var(--side-fg)  hover var(--side-fg-hover) on var(--side-on-fg)/(--side-on-bg)

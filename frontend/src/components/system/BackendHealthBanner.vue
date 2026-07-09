@@ -31,7 +31,7 @@ const health = useHealthStore()
   background: none;
   border: none;
   color: inherit;
-  cursor: pointer;
+  cursor: default;
   padding: 4px;
 }
 </style>
