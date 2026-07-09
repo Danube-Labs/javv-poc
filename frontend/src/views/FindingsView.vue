@@ -226,7 +226,7 @@ function openFinding(row: FindingRow) {
   gap: 8px;
   font-family: var(--font-mono);
   font-size: var(--text-table-header);
-  color: var(--teal);
+  color: var(--teal-text);
   background: var(--note-info-bg);
   border: 1px solid var(--note-info-line);
   border-radius: var(--r-sm);

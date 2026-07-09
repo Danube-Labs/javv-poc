@@ -24,12 +24,13 @@
   --line: #e7e0d3;
   --line2: #f0ebe0;
   --ink: #1b2935;
-  --soft: #64727c;
-  --muted: #9aa3aa;
+  --soft: #5d6a74; /* AA (≥4.5:1) on card/panel/bg/line2 — the floor for any text */
+  --muted: #9aa3aa; /* decorative/disabled ONLY (dashes, gauge fills) — never text (fails AA) */
   --coral: #ec7e54;
   --coral-d: #d96a41;
   --amber: #f4a368;
-  --teal: #1f8e84;
+  --teal: #1f8e84; /* fills/accents; as TEXT use --teal-text (this fails AA on light) */
+  --teal-text: #17756d; /* AA on card/bg — informational text like the server-note */
 
   /* -- radius / elevation ---------------------------------------------- */
   --r: 12px; /* cards */
@@ -143,14 +144,14 @@
   --side-hover-bg: rgba(255, 255, 255, 0.05);
   --side-on-bg: rgba(236, 126, 84, 0.14); /* active item — coral wash */
   --side-on-fg: #fbe6d8;
-  --side-label: #5c6975; /* group labels */
+  --side-label: #8494a1; /* group labels — AA on the slate */
   --side-brand-fg: #f3eee6; /* the "javv" word */
   --side-credit: #6e7c86; /* "by Danube Labs" */
   --side-foot-line: rgba(255, 255, 255, 0.07);
   --side-foot-fg: #9aa6af;
   --side-foot-strong: #cfe3d8;
   --side-foot-dim: #5f6d78;
-  --side-version: #4e5c68;
+  --side-version: #7d8d9a; /* AA on the slate */
   --sweep-ok-ring: rgba(63, 179, 127, 0.18);
 
   /* -- layout ------------------------------------------------------------ */

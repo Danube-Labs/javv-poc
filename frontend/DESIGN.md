@@ -28,9 +28,12 @@ theme). High information density: subtle borders and panel tints, almost no deco
 ```
 page bg        var(--bg)          cards        var(--card)
 inset/panel    var(--panel)       borders      var(--line)   subtle: var(--line2)
-primary text   var(--ink)         secondary    var(--soft)   tertiary: var(--muted)
+primary text   var(--ink)         secondary    var(--soft)
 row hover      var(--row-hover)   dark chrome  var(--slate)
 ```
+`--soft` is the CONTRAST FLOOR for text — AA (≥4.5:1) on every light surface. `--muted` is
+decorative/disabled only (dashes, gauge fills, placeholder glyphs): it fails AA and must never
+color words or numbers.
 
 ### Sidebar chrome (dark slate — its own text/hover ramp, promoted from the prototype shell)
 ```
@@ -114,7 +117,7 @@ Transitions short and functional (`.12–.15s`), no decorative animation. Row ho
 ```
 Page bg:        var(--bg)              Card:          var(--card) + var(--r) + var(--shadow)
 Panel/inset:    var(--panel)           Border:        var(--line)  / subtle var(--line2)
-Text:           var(--ink) / var(--soft) / var(--muted)
+Text:           var(--ink) / var(--soft)   (--muted = decorative only, never text)
 Brand action:   var(--coral), hover var(--coral-d)
 Severity chip:  color var(--sev-critical-fg); background var(--sev-critical-bg);
                 border-color var(--sev-critical-line)   (× six severities)

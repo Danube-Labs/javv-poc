@@ -74,7 +74,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   font-size: var(--text-facet-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--soft);
   padding: 2px 8px 8px;
   font-weight: 700;
 }
@@ -125,6 +125,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .facet-count {
   font-family: var(--font-mono);
   font-size: var(--text-facet-count);
-  color: var(--muted);
+  color: var(--soft);
 }
 </style>

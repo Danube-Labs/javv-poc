@@ -97,7 +97,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
 }
 .id {
   font-size: var(--text-facet-label);
-  color: var(--muted);
+  color: var(--soft);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

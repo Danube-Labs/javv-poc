@@ -197,7 +197,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
 }
 :deep(.th-note) {
   font-size: var(--text-dd-head);
-  color: var(--muted);
+  color: var(--soft);
   text-transform: none;
   letter-spacing: 0;
   margin-left: 5px;
@@ -206,7 +206,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
   color: var(--soft);
 }
 :deep(.ver-fix) {
-  color: var(--teal);
+  color: var(--teal-text);
 }
 :deep(.ver-none) {
   color: var(--ver-none-fg);
@@ -221,7 +221,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
   font-family: var(--font-mono);
   font-size: var(--text-chip-sm);
   font-style: normal;
-  color: var(--muted);
+  color: var(--soft);
   background: var(--line2);
   padding: 2px 5px;
   border-radius: 4px;
@@ -233,7 +233,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
 }
 .empty-row {
   text-align: center;
-  color: var(--muted);
+  color: var(--soft);
   padding: 34px 12px;
   font-size: var(--text-body);
 }
