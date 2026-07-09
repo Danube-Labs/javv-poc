@@ -35,7 +35,7 @@ export function buildFindingsQuery(
   query.present = true
   query.sort = grid.sort
   query.order = grid.order
-  query.size = String(grid.size)
+  query.size = grid.size
   if (grid.cursor) query.cursor = grid.cursor
   return query
 }

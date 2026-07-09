@@ -15,7 +15,7 @@ describe('buildFindingsQuery', () => {
       present: true,
       sort: 'severity_rank',
       order: 'desc',
-      size: '25',
+      size: 25,
     })
   })
 

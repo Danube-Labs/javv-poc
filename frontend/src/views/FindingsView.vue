@@ -1,72 +1,125 @@
 <script setup lang="ts">
 /**
- * Findings screen skeleton: the M9a filter module wired end-to-end — one FINDINGS_FIELDS config
- * driving FacetRail + FilterBar, selections URL-synced (shareable views), facet counts live from
- * `GET /api/v1/findings/facets` (cluster_id + as_of injected on every read). The grid itself
- * lands in M9b.
+ * Findings screen (M9a filter module + M9b grid): one FINDINGS_FIELDS config drives FacetRail +
+ * FilterBar, selections URL-synced; the lazy grid renders exactly what
+ * `GET /api/v1/findings` returns (cursor paging, server total). Facet counts live from
+ * `GET /api/v1/findings/facets`. Everything carries cluster_id + as_of; grid queries add
+ * present=true. Detail panel + triage land in the next M9b slices.
  */
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { facetFindingsApiV1FindingsFacetsGet } from '@/api/generated'
-import type { FacetFindingsApiV1FindingsFacetsGetData } from '@/api/generated'
+import { facetFindingsApiV1FindingsFacetsGet, searchFindingsApiV1FindingsGet } from '@/api/generated'
+import type {
+  FacetFindingsApiV1FindingsFacetsGetData,
+  SearchFindingsApiV1FindingsGetData,
+} from '@/api/generated'
+import SevChip from '@/components/chips/SevChip.vue'
 import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
+import FindingsTable from '@/components/findings/FindingsTable.vue'
+import GridPager from '@/components/findings/GridPager.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
 import { useApi } from '@/composables/useApi'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FacetsResponse } from '@/filters/facets'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
+import { buildFindingsQuery } from '@/findings/buildFindingsQuery'
 import { logger } from '@/lib/logger'
-import { makeFiltersStore } from '@/stores/filters'
 import { useClusterStore } from '@/stores/cluster'
-import { SEV_COLOR, type Severity } from '@/styles/tokens'
+import { useFindingsStore, type FindingRow } from '@/stores/findings'
+import { makeFiltersStore } from '@/stores/filters'
 
 const useFindingsFilters = makeFiltersStore('findings-filters', FINDINGS_FIELDS)
 const filters = useFindingsFilters()
 const clusterStore = useClusterStore()
+const grid = useFindingsStore()
 const { withGlobals } = useApi()
 const route = useRoute()
 const router = useRouter()
 
 const facets = ref<FacetsResponse>({})
-const loading = ref(false)
-const failed = ref(false)
+const facetsFailed = ref(false)
 
 filters.fromQuery(route.query)
 
-const query = computed(() =>
+/* ---- facets (M9a) ---- */
+const facetsQuery = computed(() =>
   clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, withGlobals()) : null,
 )
 
 watch(
-  query,
+  facetsQuery,
   async (q) => {
     if (!q) return
-    loading.value = true
     const response = await facetFindingsApiV1FindingsFacetsGet({
       // builder output is a generic param record; the endpoint type is the precise contract
       query: q as FacetFindingsApiV1FindingsFacetsGetData['query'],
     })
-    loading.value = false
     if (response.response?.ok && response.data) {
       facets.value = (response.data as { facets: FacetsResponse }).facets
-      failed.value = false
+      facetsFailed.value = false
     } else {
-      failed.value = true
+      facetsFailed.value = true
       logger.warn('findings_facets_failed', { status: response.response?.status })
     }
   },
   { immediate: true },
 )
 
-// selections → URL (replace, not push — filter churn shouldn't pollute history)
+/* ---- grid rows (M9b) ---- */
+// filters or globals changed → any held cursor belongs to the old query: back to page 0
+watch(facetsQuery, (q, old) => {
+  if (old && JSON.stringify(q) !== JSON.stringify(old)) grid.resetPaging()
+})
+
+const rowsQuery = computed(() =>
+  clusterStore.selectedId
+    ? buildFindingsQuery(FINDINGS_FIELDS, filters.selections, withGlobals(), {
+        sort: grid.sort,
+        order: grid.order,
+        size: grid.size,
+        cursor: grid.activeCursor,
+      })
+    : null,
+)
+
+watch(
+  rowsQuery,
+  async (q, old) => {
+    if (!q || JSON.stringify(q) === JSON.stringify(old)) return
+    grid.loading = true
+    const response = await searchFindingsApiV1FindingsGet({
+      query: q as SearchFindingsApiV1FindingsGetData['query'],
+    })
+    grid.loading = false
+    if (response.response?.ok && response.data) {
+      const body = response.data as {
+        data: FindingRow[]
+        total: { value: number }
+        next_cursor: string | null
+      }
+      grid.setResult(body.data, body.total.value, body.next_cursor)
+      grid.failed = false
+    } else if (grid.page > 0) {
+      // stale PIT cursor is the usual culprit — rebuild from page 0
+      logger.warn('findings_page_failed_reset', { status: response.response?.status })
+      grid.resetPaging()
+    } else {
+      grid.failed = true
+      logger.warn('findings_search_failed', { status: response.response?.status })
+    }
+  },
+  { immediate: true },
+)
+
+/* ---- URL sync (M9a) ---- */
 watch(
   () => filters.toQuery(),
   (q) => {
     void router.replace({ query: q })
   },
 )
-// URL → selections (back/forward, pasted links)
 watch(
   () => route.query,
   (q) => {
@@ -74,7 +127,10 @@ watch(
   },
 )
 
-const sevSolid = (value: string) => SEV_COLOR[value as Severity]?.solid
+function openFinding(row: FindingRow) {
+  // detail panel lands in M9b slice 2
+  logger.debug('finding_row_clicked', { finding_key: row.finding_key })
+}
 </script>
 
 <template>
@@ -82,7 +138,9 @@ const sevSolid = (value: string) => SEV_COLOR[value as Severity]?.solid
     <div class="screen-head">
       <div>
         <h1>Findings</h1>
-        <p class="screen-sub">kept per-scanner, no cross-merge</p>
+        <p class="screen-sub">
+          <b>{{ grid.total.toLocaleString('en-US') }}</b> findings · kept per-scanner, no cross-merge
+        </p>
       </div>
     </div>
 
@@ -94,8 +152,8 @@ const sevSolid = (value: string) => SEV_COLOR[value as Severity]?.solid
         @toggle="filters.toggle"
       >
         <template #value="{ field, value, label }">
-          <span v-if="field.key === 'severity'" class="sev-dot" :style="{ background: sevSolid(value) }" />
-          {{ label }}
+          <SevChip v-if="field.key === 'severity'" :level="value" :dot="true" />
+          <template v-else>{{ label }}</template>
         </template>
       </FacetRail>
 
@@ -109,11 +167,33 @@ const sevSolid = (value: string) => SEV_COLOR[value as Severity]?.solid
           @clear-field="filters.clearField"
           @clear-all="filters.clearAll"
         />
-        <section class="card grid-stub" role="status">
-          <p v-if="failed">Facets unavailable — check the backend connection.</p>
-          <p v-else-if="loading">Loading facet counts…</p>
-          <p v-else>The findings grid lands with <span class="mono">M9b</span> — filters above and to the left are live.</p>
-        </section>
+        <div class="server-note">
+          <AppIcon name="layers" :size="13" />
+          All sort / filter / facet counts computed server-side via OpenSearch aggregations
+        </div>
+
+        <p v-if="grid.failed || facetsFailed" class="load-error" role="alert">
+          Findings unavailable — check the backend connection.
+        </p>
+        <FindingsTable
+          :rows="grid.rows"
+          :sort="grid.sort"
+          :order="grid.order"
+          :loading="grid.loading"
+          @sort="grid.setSort"
+          @row-click="openFinding"
+        />
+        <GridPager
+          :total="grid.total"
+          :page="grid.page"
+          :size="grid.size"
+          :shown="grid.rows.length"
+          :has-prev="grid.hasPrev"
+          :has-next="grid.hasNext"
+          @prev="grid.goPrev()"
+          @next="grid.goNext()"
+          @update:size="grid.setSize"
+        />
       </div>
     </div>
   </div>
@@ -140,21 +220,22 @@ const sevSolid = (value: string) => SEV_COLOR[value as Severity]?.solid
   flex: 1;
   min-width: 0;
 }
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  padding: 14px 16px;
+.server-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-table-header);
+  color: var(--teal);
+  background: var(--note-info-bg);
+  border: 1px solid var(--note-info-line);
+  border-radius: var(--r-sm);
+  padding: 7px 11px;
+  margin-bottom: 12px;
 }
-.grid-stub {
-  color: var(--soft);
+.load-error {
+  color: var(--health-down-fg);
   font-size: var(--text-body);
-}
-.sev-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex: none;
+  margin: 0 0 10px;
 }
 </style>
