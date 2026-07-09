@@ -138,7 +138,7 @@ onUnmounted(() => health.stopPolling())
       <div v-if="!timeTravel.isNow" class="history-banner" role="status">
         <AppIcon name="rewind" :size="15" />
         Viewing history — as scanned at
-        <span class="mono">{{ new Date(timeTravel.t as string).toLocaleString() }}</span>
+        <span class="mono">{{ new Date(timeTravel.t as string).toLocaleString(undefined, { hour12: false }) }}</span>
         <button class="back-to-now" @click="timeTravel.backToNow()">Back to now</button>
       </div>
 
@@ -368,7 +368,7 @@ onUnmounted(() => health.stopPolling())
   cursor: pointer;
 }
 .logout:hover {
-  color: var(--coral);
+  color: var(--coral-text);
 }
 
 /* ---- banners + content ---- */
@@ -378,9 +378,14 @@ onUnmounted(() => health.stopPolling())
   gap: 10px;
   padding: 8px 16px;
   background: var(--state-open-bg);
-  color: var(--state-open-fg);
+  /* prose is ink — hue lives in the bg/border/icon, never same-hue words on a tint */
+  color: var(--ink);
   border-bottom: 1px solid var(--state-open-line);
   font-size: var(--text-body);
+}
+.history-banner svg {
+  color: var(--state-open-fg);
+  flex: none;
 }
 .back-to-now {
   margin-left: auto;

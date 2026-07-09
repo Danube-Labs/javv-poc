@@ -68,7 +68,7 @@ function since(row: FreshnessRow): string {
   gap: 10px;
   padding: 8px 16px;
   background: var(--health-degraded-bg);
-  color: var(--health-degraded-fg);
+  color: var(--ink);
   border-bottom: 1px solid var(--line);
   font-size: var(--text-body);
 }

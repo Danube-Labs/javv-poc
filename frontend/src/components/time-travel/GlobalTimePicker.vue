@@ -1,14 +1,11 @@
 <script setup lang="ts">
 /**
- * Kibana-style global time control (prototype main.jsx `TimePicker` + `.time-*`/`.tt-*` CSS):
- * ONE `time-range` button opening a two-section menu —
- *   · time-travel (D28/FR-23): Now / quick rewinds / jump-to-date → the global `as_of` T; the
- *     button goes amber (`time-range-hist`) while viewing history;
- *   · trend window: Last-N + day presets → `windowDays` for the M9c dashboard charts (grids
- *     always show state at T; they take no window param).
- * Shipped-contract deviations from the prototype (bolt M9a README 2026-07-09): the trends
- * `days` param is an integer 1–365, so no minutes/hours window units and no absolute
- * from→to range (that becomes rewind-to+window when dashboards land).
+ * POC (operator option D, 2026-07-09): ONE Kibana-style time-RANGE control replacing the
+ * two-section time-travel/trend-window menu. A range maps exactly onto the shipped backend:
+ * the END of the range is the whole-app `as_of` T (D28 — `null` when the range ends now), the
+ * SPAN is `days` for the M9c trend charts (int 1–365). One mental model, honest copy:
+ * tables show state at the END of the range; charts aggregate the whole span.
+ * The button goes amber (`--hist-*`) whenever the range ends in the past.
  */
 import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
@@ -17,19 +14,18 @@ import { useTimeTravelStore } from '@/stores/timeTravel'
 
 const timeTravel = useTimeTravelStore()
 const open = ref(false)
-const jumpDate = ref('')
 const relN = ref(30)
-const relUnit = ref<'days' | 'weeks'>('days')
+const relUnit = ref<'minutes' | 'hours' | 'days' | 'weeks'>('days')
+const fromDate = ref('')
+const fromTime = ref('00:00')
+const toDate = ref('')
+const toTime = ref('')
 const wrap = useTemplateRef<HTMLElement>('wrap')
 
-const REWINDS = [
-  { label: '1 hour ago', seconds: 3600 },
-  { label: '24 hours ago', seconds: 86400 },
-  { label: '7 days ago', seconds: 7 * 86400 },
-  { label: '30 days ago', seconds: 30 * 86400 },
-] as const
+const UNIT_MS = { minutes: 60_000, hours: 3_600_000, days: 86_400_000, weeks: 604_800_000 } as const
+const TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/ // strict 24h HH:mm — no AM/PM anywhere
 
-/* whole-day presets only — the trends contract is days 1..365 */
+/* quick ranges, all ending now — the trends contract is whole days 1..365 */
 const PRESETS: readonly [string, number][] = [
   ['Last 24 hours', 1],
   ['Last 7 days', 7],
@@ -39,38 +35,67 @@ const PRESETS: readonly [string, number][] = [
   ['Last 1 year', 365],
 ]
 
-const activeRewind = ref<string | null>(null)
+const DAY_MS = 86_400_000
 
-const buttonLabel = computed(() =>
-  timeTravel.isNow
-    ? timeTravel.windowLabel
-    : (activeRewind.value ?? `as scanned ${new Date(timeTravel.t as string).toLocaleDateString()}`),
-)
+const buttonLabel = computed(() => timeTravel.windowLabel)
 
-function rewindBy(label: string, seconds: number) {
-  timeTravel.rewindTo(new Date(Date.now() - seconds * 1000).toISOString())
-  activeRewind.value = label
-  open.value = false
-}
-function backToNow() {
-  timeTravel.backToNow()
-  activeRewind.value = null
-  open.value = false
-}
-function jump() {
-  if (!jumpDate.value) return
-  timeTravel.rewindTo(new Date(jumpDate.value).toISOString())
-  activeRewind.value = null
-  open.value = false
-}
 function applyPreset(label: string, days: number) {
+  timeTravel.backToNow()
   timeTravel.setWindow(days, label)
   open.value = false
 }
+
 function applyRelative() {
-  const days = Math.min(365, Math.max(1, relUnit.value === 'weeks' ? relN.value * 7 : relN.value))
-  const unit = relUnit.value === 'weeks' ? 'week' : 'day'
+  if (!relN.value || relN.value < 1) return
+  // charts take whole days (trends contract int 1..365) — sub-day spans round up to 1 day
+  // for the days param; the label keeps the user's exact choice
+  const days = Math.min(365, Math.max(1, Math.ceil((relN.value * UNIT_MS[relUnit.value]) / DAY_MS)))
+  const unit = relUnit.value.slice(0, -1)
+  timeTravel.backToNow()
   timeTravel.setWindow(days, `Last ${relN.value} ${unit}${relN.value === 1 ? '' : 's'}`)
+  open.value = false
+}
+
+/* 24-hour display everywhere — never AM/PM */
+const fmtD = (d: Date) =>
+  d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+
+const parseSide = (date: string, time: string): Date | null => {
+  if (!date || !TIME_RE.test(time)) return null
+  return new Date(`${date}T${time.padStart(5, '0')}:00`)
+}
+
+const customValid = computed(() => {
+  const from = parseSide(fromDate.value, fromTime.value)
+  const to = parseSide(toDate.value, toTime.value)
+  return from !== null && to !== null && from.getTime() < to.getTime()
+})
+
+function applyCustom() {
+  const from = parseSide(fromDate.value, fromTime.value)
+  const to = parseSide(toDate.value, toTime.value)
+  if (!from || !to || from.getTime() >= to.getTime()) return
+  // charts take whole days (trends contract int 1..365); the END is minute-precise as_of
+  const span = Math.min(365, Math.max(1, Math.round((to.getTime() - from.getTime()) / DAY_MS) || 1))
+  const label = `${fmtD(from)} → ${fmtD(to)}`
+  if (to.getTime() >= Date.now() - 60_000) {
+    timeTravel.backToNow() // range ends now-ish: tables show current state
+  } else {
+    timeTravel.rewindTo(to.toISOString()) // past end: tables show as-scanned at that minute
+  }
+  timeTravel.setWindow(span, label)
+  open.value = false
+}
+
+function backToNow() {
+  timeTravel.backToNow()
+  timeTravel.setWindow(30, 'Last 30 days')
   open.value = false
 }
 
@@ -86,7 +111,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
     <button
       class="time-range"
       :class="{ 'time-range-hist': !timeTravel.isNow }"
-      aria-label="Time travel and trend window"
+      aria-label="Time range"
       @click="open = !open"
     >
       <AppIcon :name="timeTravel.isNow ? 'calendar' : 'rewind'" :size="14" />
@@ -95,29 +120,12 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
     </button>
 
     <div v-if="open" class="dd-menu time-menu">
-      <div class="dd-head">Time-travel · rewind the whole app</div>
-      <div class="time-travel">
-        <button class="tt-opt" :class="{ 'tt-on': timeTravel.isNow }" @click="backToNow">Now</button>
-        <button
-          v-for="r in REWINDS"
-          :key="r.label"
-          class="tt-opt"
-          :class="{ 'tt-on': activeRewind === r.label }"
-          @click="rewindBy(r.label, r.seconds)"
-        >
-          {{ r.label }}
-        </button>
-      </div>
-      <div class="time-abs">
-        <input v-model="jumpDate" class="text-input mono-cell" type="date" aria-label="Jump to date" />
-        <button class="btn-mini time-apply" @click="jump">Jump to date</button>
-      </div>
       <div class="tt-note">
-        At a past moment every screen shows <b>as-scanned</b> state — reach is bounded by each
-        cluster's retained data.
+        One range drives the whole app: <b>tables show state at the end of the range</b> (a past
+        end = as-scanned history) · charts aggregate the span.
       </div>
 
-      <div class="dd-head">Trend window (dashboards)</div>
+      <div class="dd-head">Quick select</div>
       <div class="time-rel">
         <span class="time-rel-label">Last</span>
         <input
@@ -126,29 +134,57 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
           type="number"
           min="1"
           max="365"
-          aria-label="Window length"
+          aria-label="Range length"
         />
-        <select v-model="relUnit" class="select-input" aria-label="Window unit">
+        <select v-model="relUnit" class="select-input" aria-label="Range unit">
+          <option value="minutes">minutes</option>
+          <option value="hours">hours</option>
           <option value="days">days</option>
           <option value="weeks">weeks</option>
         </select>
         <button class="btn-mini time-apply" @click="applyRelative">Apply</button>
       </div>
+
       <div class="dd-head">Commonly used</div>
       <div class="time-presets">
         <button
           v-for="[p, days] in PRESETS"
           :key="p"
           class="time-preset"
-          :class="{ 'time-preset-on': timeTravel.windowLabel === p }"
+          :class="{ 'time-preset-on': timeTravel.isNow && timeTravel.windowLabel === p }"
           @click="applyPreset(p, days)"
         >
           {{ p }}
         </button>
       </div>
-      <div class="time-note">
-        Drives the dashboard charts (M9c) — tables always show state at the selected moment.
+
+      <div class="dd-head">Absolute range (24h)</div>
+      <div class="time-abs">
+        <input v-model="fromDate" class="text-input mono-cell" type="date" aria-label="Range start date" />
+        <input
+          v-model="fromTime"
+          class="text-input mono-cell hhmm"
+          type="text"
+          placeholder="HH:mm"
+          maxlength="5"
+          aria-label="Range start time (24h)"
+        />
+        <span class="time-arrow">→</span>
+        <input v-model="toDate" class="text-input mono-cell" type="date" aria-label="Range end date" />
+        <input
+          v-model="toTime"
+          class="text-input mono-cell hhmm"
+          type="text"
+          placeholder="HH:mm"
+          maxlength="5"
+          aria-label="Range end time (24h)"
+        />
+        <button class="btn-mini time-apply" :disabled="!customValid" @click="applyCustom">Apply</button>
       </div>
+
+      <button v-if="!timeTravel.isNow" class="back-now" @click="backToNow">
+        <AppIcon name="rewind" :size="13" /> Back to now (Last 30 days)
+      </button>
     </div>
   </div>
 </template>
@@ -164,7 +200,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 7px 11px;
-  color: var(--soft);
+  color: var(--ink); /* primary control text — never washy soft-on-panel */
   font-size: var(--text-dd-item);
   background: var(--panel);
   font-family: var(--font-ui);
@@ -204,39 +240,10 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   color: var(--soft);
   padding: 8px 12px 6px;
 }
-.time-travel {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 2px 8px 8px;
-}
-.tt-opt {
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: 7px;
-  padding: 5px 11px;
-  font-size: var(--text-control);
-  color: var(--soft);
-  cursor: pointer;
-}
-.tt-opt:hover {
-  border-color: var(--control-hover-line);
-  color: var(--ink);
-}
-.tt-opt:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
-}
-.tt-on {
-  background: var(--coral);
-  border-color: var(--coral);
-  color: var(--kev-fg);
-  font-weight: 600;
-}
 .tt-note {
-  font-size: var(--text-facet-count);
-  color: var(--soft);
-  padding: 6px 8px 10px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  padding: 8px 10px;
   line-height: 1.5;
   border-bottom: 1px solid var(--line2);
   margin-bottom: 4px;
@@ -249,7 +256,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .time-rel-label {
   font-size: var(--text-control);
-  color: var(--soft);
+  color: var(--ink);
 }
 .time-apply {
   margin-left: auto;
@@ -259,16 +266,20 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   align-items: center;
   gap: 7px;
   font-size: var(--text-quiet-action);
+  font-weight: 600;
   padding: 5px 9px;
   background: var(--panel);
   border: 1px solid var(--line);
-  color: var(--soft);
+  color: var(--ink);
   border-radius: 7px;
   cursor: pointer;
 }
 .btn-mini:hover {
   border-color: var(--control-hover-line);
-  color: var(--ink);
+}
+.btn-mini:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 .btn-mini:focus-visible {
   outline: var(--focus-ring);
@@ -295,7 +306,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .time-preset-on {
   background: var(--dd-on-bg);
-  color: var(--coral-d);
+  color: var(--coral-text);
   font-weight: 600;
 }
 .time-abs {
@@ -303,6 +314,10 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   align-items: center;
   gap: 7px;
   padding: 4px 10px 8px;
+}
+.time-arrow {
+  color: var(--soft);
+  flex: none;
 }
 .text-input,
 .num-input {
@@ -317,6 +332,10 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .num-input {
   width: 64px;
+}
+.hhmm {
+  width: 62px;
+  text-align: center;
 }
 .text-input:focus,
 .num-input:focus {
@@ -338,12 +357,23 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 .mono-cell {
   font-family: var(--font-mono);
 }
-.time-note {
-  font-family: var(--font-mono);
-  font-size: var(--text-dd-head);
-  color: var(--soft);
-  padding: 8px 10px 6px;
+.back-now {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  border: 0;
   border-top: 1px solid var(--line2);
-  line-height: 1.5;
+  background: transparent;
+  color: var(--coral-text);
+  font-size: var(--text-control);
+  font-weight: 600;
+  padding: 9px 10px 7px;
+  margin-top: 4px;
+  cursor: pointer;
+}
+.back-now:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
 }
 </style>

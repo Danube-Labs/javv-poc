@@ -228,7 +228,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 .fpill-vals {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--coral-d);
+  color: var(--coral-text);
   max-width: 230px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -246,7 +246,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .fpill-x:hover {
   background: var(--fpill-x-hover-bg);
-  color: var(--coral);
+  color: var(--coral-text);
 }
 .add-filter {
   display: inline-flex;
@@ -254,7 +254,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   gap: 6px;
   border: 1px dashed var(--add-filter-line);
   background: transparent;
-  color: var(--soft);
+  color: var(--ink);
   border-radius: var(--r-sm);
   padding: 6px 11px;
   font-size: var(--text-control);
@@ -263,7 +263,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .add-filter:hover {
   border-color: var(--coral);
-  color: var(--coral-d);
+  color: var(--coral-text);
   background: var(--add-filter-hover-bg);
 }
 .clear-all {
@@ -277,7 +277,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   cursor: pointer;
 }
 .clear-all:hover {
-  color: var(--coral-d);
+  color: var(--coral-text);
 }
 .dropdown {
   position: relative;
@@ -358,7 +358,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   cursor: pointer;
 }
 .filter-back:hover {
-  color: var(--coral-d);
+  color: var(--coral-text);
 }
 .filter-back svg {
   color: var(--soft);
@@ -398,7 +398,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   cursor: pointer;
 }
 .filter-clear-field:hover {
-  color: var(--coral-d);
+  color: var(--coral-text);
 }
 
 /* value rows inside the picker (same look as the rail's facet rows) */
@@ -412,7 +412,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   padding: 5px 8px;
   border-radius: 7px;
   text-align: left;
-  color: var(--soft);
+  color: var(--ink);
   font-size: var(--text-control);
   cursor: pointer;
 }

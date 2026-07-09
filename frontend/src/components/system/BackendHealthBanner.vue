@@ -22,7 +22,7 @@ const health = useHealthStore()
   gap: 10px;
   padding: 8px 16px;
   background: var(--health-down-bg);
-  color: var(--health-down-fg);
+  color: var(--ink);
   border-bottom: 1px solid var(--line);
   font-size: var(--text-body);
 }

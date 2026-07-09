@@ -94,7 +94,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   border-radius: 7px;
   padding: 5px 10px;
   font-size: var(--text-control);
-  color: var(--soft);
+  color: var(--ink);
   min-width: 32px;
   cursor: pointer;
 }
