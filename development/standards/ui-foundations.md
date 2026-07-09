@@ -17,9 +17,18 @@ How JAVV keeps **one** visual system instead of a thousand ad-hoc fonts, sizes, 
 - PrimeVue is themed **through** the tokens (theme bridge), so component chrome and custom CSS share one scale.
 
 ## Typography - two families, fixed scale
-- **Space Grotesk** = all UI text/headings/body. **Space Mono** = code-like data (CVE IDs, versions,
-  namespaces, image refs, counts, timestamps, IDs). **No third family. No ad-hoc sizes** - use the type-scale
-  tokens (page `h1`, card title, body, KPI number, table header, mono data cell, …).
+- **Hanken Grotesk** = all UI text/headings/body (operator A/B ruling 2026-07-09, replacing Space
+  Grotesk). **Space Mono** = code-like data (CVE IDs, versions, namespaces, image refs, counts,
+  timestamps, IDs). **No third family. No ad-hoc sizes** - use the type-scale tokens (page `h1`,
+  card title, body, KPI number, table header, mono data cell, …).
+
+## Contrast - AA is the floor (ruled 2026-07-09)
+- Every piece of **text** meets WCAG AA (≥4.5:1) on its surface: `--soft` is the darkest-allowed
+  "quiet" text (AA on all light surfaces); `--muted` is **decorative/disabled only** (dashes, gauge
+  fills) and must never color words or numbers. Dark-chrome text uses the AA-checked `--side-*`
+  ramp. Teal as text = `--teal-text`, never `--teal`.
+- Ruled exceptions (brand contract, documented in `frontend/DESIGN.md` §9): white-on-coral
+  action/selected chips and the dense mono micro-scale.
 
 ## Color - pick from the right bucket (semantic, not decorative)
 Three **separate** buckets; using one where another belongs is a bug:
