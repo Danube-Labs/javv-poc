@@ -18,6 +18,7 @@ import SevChip from '@/components/chips/SevChip.vue'
 import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
 import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
+import BulkTriageBar from '@/components/triage/BulkTriageBar.vue'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -28,14 +29,18 @@ import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { buildFindingsQuery } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS } from '@/findings/columns'
 import { logger } from '@/lib/logger'
+import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useFindingsStore, type FindingRow } from '@/stores/findings'
 import { makeFiltersStore } from '@/stores/filters'
+import { useTimeTravelStore } from '@/stores/timeTravel'
 
 const useFindingsFilters = makeFiltersStore('findings-filters', FINDINGS_FIELDS)
 const filters = useFindingsFilters()
+const auth = useAuthStore()
 const clusterStore = useClusterStore()
 const grid = useFindingsStore()
+const timeTravel = useTimeTravelStore()
 const { withGlobals } = useApi()
 const route = useRoute()
 const router = useRouter()
@@ -50,24 +55,21 @@ const facetsQuery = computed(() =>
   clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, withGlobals()) : null,
 )
 
-watch(
-  facetsQuery,
-  async (q) => {
-    if (!q) return
-    const response = await facetFindingsApiV1FindingsFacetsGet({
-      // builder output is a generic param record; the endpoint type is the precise contract
-      query: q as FacetFindingsApiV1FindingsFacetsGetData['query'],
-    })
-    if (response.response?.ok && response.data) {
-      facets.value = (response.data as { facets: FacetsResponse }).facets
-      facetsFailed.value = false
-    } else {
-      facetsFailed.value = true
-      logger.warn('findings_facets_failed', { status: response.response?.status })
-    }
-  },
-  { immediate: true },
-)
+async function loadFacets(q: ReturnType<typeof facetsQuery.value> | null) {
+  if (!q) return
+  const response = await facetFindingsApiV1FindingsFacetsGet({
+    // builder output is a generic param record; the endpoint type is the precise contract
+    query: q as FacetFindingsApiV1FindingsFacetsGetData['query'],
+  })
+  if (response.response?.ok && response.data) {
+    facets.value = (response.data as { facets: FacetsResponse }).facets
+    facetsFailed.value = false
+  } else {
+    facetsFailed.value = true
+    logger.warn('findings_facets_failed', { status: response.response?.status })
+  }
+}
+watch(facetsQuery, (q) => void loadFacets(q), { immediate: true })
 
 /* ---- grid rows (M9b) ---- */
 // filters or globals changed → any held cursor belongs to the old query: back to page 0
@@ -86,11 +88,9 @@ const rowsQuery = computed(() =>
     : null,
 )
 
-watch(
-  rowsQuery,
-  async (q, old) => {
-    if (!q || JSON.stringify(q) === JSON.stringify(old)) return
-    grid.loading = true
+async function loadRows(q: ReturnType<typeof rowsQuery.value> | null) {
+  if (!q) return
+  grid.loading = true
     const response = await searchFindingsApiV1FindingsGet({
       query: q as SearchFindingsApiV1FindingsGetData['query'],
     })
@@ -107,13 +107,26 @@ watch(
       // stale PIT cursor is the usual culprit — rebuild from page 0
       logger.warn('findings_page_failed_reset', { status: response.response?.status })
       grid.resetPaging()
-    } else {
-      grid.failed = true
-      logger.warn('findings_search_failed', { status: response.response?.status })
-    }
+  } else {
+    grid.failed = true
+    logger.warn('findings_search_failed', { status: response.response?.status })
+  }
+}
+watch(
+  rowsQuery,
+  (q, old) => {
+    if (JSON.stringify(q) === JSON.stringify(old)) return
+    void loadRows(q)
   },
   { immediate: true },
 )
+
+/** A bulk apply changed rows under the current lens — reload both surfaces in place. */
+function refreshAfterBulk() {
+  grid.resetPaging()
+  void loadRows(rowsQuery.value)
+  void loadFacets(facetsQuery.value)
+}
 
 /* ---- URL sync (M9a) ---- */
 watch(
@@ -197,6 +210,15 @@ function setDense(value: boolean) {
             @set-text="filters.setText"
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
+          />
+          <BulkTriageBar
+            :fields="FINDINGS_FIELDS"
+            :selections="filters.selections"
+            :total="grid.total"
+            :can-triage="auth.hasCapability('can_triage')"
+            :can-accept-final="auth.hasCapability('can_accept_audit_final')"
+            :historical="timeTravel.t !== null"
+            @applied="refreshAfterBulk"
           />
           <ColumnsMenu
             :cols="FINDINGS_COLUMNS"
