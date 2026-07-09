@@ -148,7 +148,10 @@ as pure units** (Vitest).
   Prototype's Impact/Action/Approver/Task fields stay removed (V4-DELTA-1); assignee is a
   plain username + "Assign to me" (no avatar roster — no user-list read exists for non-admins).
   **T<now = panel read-only** ("viewing history"). Rig captures triage DRAFTS only — automated
-  runs never save (mutations stay confirmation-gated).
+  runs never save (mutations stay confirmation-gated). **Core-loop gate proven live (supervised,
+  2026-07-09):** not_affected + justification round-tripped through M5b, survived reload, grid +
+  facets reflected it, reverted clean — the run itself caught two latent bugs (StateTag label
+  frozen at setup; state filter vocabulary listed only 4 of the 6 states).
 
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
