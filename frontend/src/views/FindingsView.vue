@@ -18,6 +18,7 @@ import SevChip from '@/components/chips/SevChip.vue'
 import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
 import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
+import ExportDialog from '@/components/findings/ExportDialog.vue'
 import BulkTriageBar from '@/components/triage/BulkTriageBar.vue'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
 import GridPager from '@/components/findings/GridPager.vue'
@@ -210,6 +211,11 @@ function setDense(value: boolean) {
             @set-text="filters.setText"
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
+          />
+          <ExportDialog
+            :fields="FINDINGS_FIELDS"
+            :selections="filters.selections"
+            :historical="timeTravel.t !== null"
           />
           <BulkTriageBar
             :fields="FINDINGS_FIELDS"
