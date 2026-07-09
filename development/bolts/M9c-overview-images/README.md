@@ -142,3 +142,20 @@ as pure units** (Vitest).
   dashboards consume `windowDays`/`windowLabel` from the timeTravel store — set by the single
   Kibana-style range picker (M9a-owned), not a separate window control. Charts aggregate the
   range's span; a past range end also sets `as_of`. Audit C-1 superseded (see M9a README).
+- **2026-07-09 — sub-day ranges vs daily trend buckets (operator ruling):** the range picker
+  allows sub-day quick-selects ("Last 90 minutes") but the trends API is day-grained: `days` is
+  `int 1–365` with **day-floored UTC bounds** and a `calendar_interval: "day"` histogram
+  (`backend/src/backend/query/trends.py` `_window()` / `_timeline()`). The picker rounds the
+  chart span UP to 1 day while the header label keeps the exact choice — so a sub-day label
+  sits over a 1-day chart. **MVP requirement:** when the label's span is sub-day
+  (`windowLabel` from a minutes/hours quick-select), render a one-line caption on each trend
+  chart, e.g. *"Trend at daily resolution — chart covers the last 1 day."* Detect it FE-side
+  (the store's label/span pair); no backend change.
+  **Optional upgrade, decide AT M9c once real scan cadence is visible:** the underlying data is
+  full-precision (`ingested_at`/`first_seen_at`/`resolved_at` — D37), so true sub-day trends
+  need only a contained trends-endpoint change: accept a sub-day span (e.g. `hours` param or
+  minutes from the FE), skip the day-flooring in `_window()` (keep absolute ISO bounds — never
+  `now`-date-math, see the DateRangeIncludingNowQuery note there), and switch `_timeline()` to
+  `fixed_interval: "1h"` for sub-day spans (keep `extended_bounds` + `min_doc_count: 0`).
+  No index/mapping changes. Worth it only if the scan CronJob cadence is sub-daily; in the
+  smoke env (one-shot ingest) it plots a flat line.
