@@ -81,7 +81,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
       </Column>
       <Column v-if="show('kev')" header="KEV" class="c">
         <template #body="{ data }">
-          <KevTag :on="data.kev" />
+          <KevTag :on="data.kev === true" />
         </template>
       </Column>
       <Column v-if="show('package')" header="Package">
@@ -117,7 +117,7 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
       </Column>
       <Column v-if="show('sla')" header="SLA" class="c">
         <template #body="{ data }">
-          <SlaCell :due-at="data.due_at" :overdue="data.overdue" />
+          <SlaCell :due-at="data.due_at" :overdue="data.overdue === true" />
         </template>
       </Column>
       <Column header="State">

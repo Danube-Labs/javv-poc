@@ -1,14 +1,30 @@
 # Visual Test
 
-Visually verify JAVV frontend changes against the live dev stack using Playwright MCP. Takes
-screenshots, organizes them per run, and reports what looks right or wrong. This is the
-**authoring-time** loop — distinct from M9f's CI E2E suite (Playwright specs); nothing here runs in CI.
+Visually verify JAVV frontend changes against the live dev stack. Takes screenshots, organizes
+them per run, and reports what looks right or wrong. This is the **authoring-time** loop —
+distinct from M9f's CI E2E suite (Playwright specs); nothing here runs in CI.
 
-## Step 1: Verify Playwright MCP
+## Step 1: Pick the driver
 
-Check that Playwright MCP tools are available (e.g. `mcp__playwright__browser_navigate`). If NOT,
-tell the user "Playwright MCP is not available — add it to the MCP config and restart" and **stop**.
-No workarounds.
+**Preferred: the committed rig** — `frontend/scripts/visual-capture.mjs` (Playwright library,
+already a frontend devDep; Chromium in `/root/.cache/ms-playwright`):
+
+```bash
+cd frontend && JAVV_USER=… JAVV_PASS=… node scripts/visual-capture.mjs [outDir]
+```
+
+It logs in through the real form, walks the standard screens **including forced non-default
+states** (the history banner et al. — defaults-only scans miss conditional UI, which is how an
+AA failure once survived two "clean" runs), captures console errors/warnings, and writes
+screenshots + **rendered-HTML dumps** for the anti-pattern detector:
+
+```bash
+node .claude/skills/impeccable/scripts/detect.mjs <outDir>/*.html
+```
+
+Extend the rig (new screens/states) rather than writing throwaway scripts. For ad-hoc
+interactive poking, the Playwright MCP (`mcp__playwright__browser_*`) works too when its tools
+are mounted — but the rig is the reproducible path and needs no MCP.
 
 ## Step 2: Scope what to test
 
