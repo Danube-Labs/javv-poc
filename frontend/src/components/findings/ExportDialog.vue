@@ -7,7 +7,7 @@
  * is read-only (the export-at-past-T seam lands with a later slice). Schedule params carry no
  * namespace/ptype — those lenses BLOCK scheduling rather than silently widening.
  */
-import { computed, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { enqueueReportApiV1ReportsPost, getReportApiV1ReportsReportIdGet } from '@/api/generated'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -58,7 +58,12 @@ function close() {
   if (poll) clearInterval(poll)
   poll = null
 }
+function onKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && open.value) close()
+}
+onMounted(() => document.addEventListener('keydown', onKey))
 onUnmounted(() => {
+  document.removeEventListener('keydown', onKey)
   if (poll) clearInterval(poll)
 })
 

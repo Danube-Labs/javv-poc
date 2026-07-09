@@ -5,7 +5,7 @@
  * BLOCKS instead of widening (bulkSelector.ts); 413 = selector past the inline cap ("narrow the
  * selection"); one action = one audit row server-side.
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { bulkTriageApiV1FindingsBulkTriagePost } from '@/api/generated'
 import TriageStateControl from '@/components/triage/TriageStateControl.vue'
@@ -36,6 +36,12 @@ const notes = ref('')
 const submitting = ref(false)
 const error = ref<string | null>(null)
 const done = ref<number | null>(null)
+
+function onKey(e: KeyboardEvent) {
+  if (e.key === 'Escape' && open.value) open.value = false
+}
+onMounted(() => document.addEventListener('keydown', onKey))
+onUnmounted(() => document.removeEventListener('keydown', onKey))
 
 const lens = computed(() => lensToSelector(props.fields, props.selections))
 const selectorChips = computed(() =>

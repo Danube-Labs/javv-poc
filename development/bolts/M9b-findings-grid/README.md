@@ -163,6 +163,21 @@ as pure units** (Vitest).
   count B-4 · Assignee), and a **Namespaces line in the detail header** (from the sibling rows).
   Topbar search stays inert until **M9f** (global grouped search, per spec).
 
+- **2026-07-10 — slice-4 contract rulings:** **bulk = the CURRENT LENS, not checkboxes.** The
+  shipped M5d selector is predicate-based (cve/digest/severity/state/assignee → frozen id-set);
+  arbitrary checked-row sets are not expressible, so the specced checkbox column is superseded:
+  the Bulk dialog derives its selector from the active filters and **BLOCKS (never widens)**
+  when the lens uses anything the selector can't express (scanner/flags/namespace/image/ptype,
+  or multi-value severity/state) — a selector that ignored an active filter would triage more
+  rows than the operator sees. Empty lens = refused (whole-cluster guard). If per-row selection
+  is ever wanted, the selector needs a `finding_keys` list — a deliberate backend decision, not
+  a UI patch. **Exports:** run-now streams the FULL lens; scheduled `ExportParams` carries no
+  namespace/ptype → those lenses block scheduling with the reason. M7 shipped whole → the
+  schedule path is LIVE (enqueue → poll → signed download + expiry), not drawn-disabled.
+  **Facet rail:** namespaces/assignee = top-N-by-count rail dims (server caps at 32; complete
+  enumeration stays groups territory); an "Unassigned" bucket needs a missing-agg — deferred,
+  noted. Assignee rail lists only assignees that exist.
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
