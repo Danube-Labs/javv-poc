@@ -18,7 +18,7 @@
   --slate: #16232f;
   --slate2: #21384a;
   --slate3: #2c4257;
-  --bg: #f4f1ea;
+  --bg: #efeadf; /* one step deeper than the cards — the canvas recedes, surfaces lift */
   --card: #ffffff;
   --panel: #fbfaf6;
   --line: #e7e0d3;
@@ -38,8 +38,8 @@
   --r-sm: 8px; /* controls */
   --r-chip: 6px; /* chips/tags (5–7px band) */
   --shadow:
-    0 1px 2px rgba(22, 35, 47, 0.04),
-    0 8px 24px -18px rgba(22, 35, 47, 0.28);
+    0 1px 2px rgba(22, 35, 47, 0.06),
+    0 10px 28px -14px rgba(22, 35, 47, 0.38);
   --scrim: rgba(22, 35, 47, 0.46); /* modal backdrop (prototype .modal-scrim) */
 
   /* -- spacing scale (8px base, 4px sub-grid — Atlassian/Carbon convention) ------------
@@ -176,7 +176,7 @@
   --sidebar-w: 226px;
   --facet-rail-w: 218px;
   --screen-max-w: 1380px;
-  --content-pad: 22px 26px;
+  --content-pad: 28px clamp(26px, 3.2vw, 56px);
   --grid-gap: 16px;
   --row-hover: #fbf7f0;
   --focus-ring: 2px solid var(--coral);

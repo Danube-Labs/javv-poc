@@ -403,7 +403,7 @@ onUnmounted(() => health.stopPolling())
   width: 100%;
   margin: 0 auto;
   padding: var(--content-pad);
-  padding-bottom: 60px;
+  padding-bottom: 72px;
 }
 /* data-dense screens (route meta `wide`) use the full viewport instead of the 1380px cap —
    an internal table scrollbar beside dead margin is worse than a wide table (operator ruling). */
