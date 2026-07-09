@@ -190,6 +190,38 @@ async def _decorate_overdue(client: Any, cluster_id: str, page: list[dict[str, A
         doc["due_at"] = v.due_at
 
 
+async def _decorate_images_affected(
+    client: Any, cluster_id: str, page: list[dict[str, Any]]
+) -> None:
+    """Stamp `images_affected` (distinct image_digest count per CVE, cluster+present-scoped) on
+    each page row — the B-4 grid column. One bounded terms-filtered agg over just the page's
+    CVEs (≤ page size, exact via a matching terms size + per-bucket cardinality); server-side
+    everything, never a client count."""
+    if not page:
+        return
+    cves = sorted({d["cve_id"] for d in page})
+    resp = await tenant_search(
+        client,
+        index="findings",
+        cluster_id=cluster_id,
+        body={
+            "size": 0,
+            "query": {
+                "bool": {"filter": [{"term": {"present": True}}, {"terms": {"cve_id": cves}}]}
+            },
+            "aggs": {
+                "per_cve": {
+                    "terms": {"field": "cve_id", "size": len(cves)},
+                    "aggregations": {"images": {"cardinality": {"field": "image_digest"}}},
+                }
+            },
+        },
+    )
+    counts = {b["key"]: b["images"]["value"] for b in resp["aggregations"]["per_cve"]["buckets"]}
+    for doc in page:
+        doc["images_affected"] = counts.get(doc["cve_id"], 0)
+
+
 def _bucket(b: dict[str, Any]) -> dict[str, Any]:
     """One agg bucket → the wire shape. Bool keys keep their readable form ("true"/"false")."""
     return {
@@ -263,6 +295,7 @@ async def search_findings(
     if out["next_cursor"] is None:  # PIT closed this request (final page) — release its slot
         pit_guard.release_one(principal.user_id)
     await _decorate_overdue(client, cluster_id, out["data"])
+    await _decorate_images_affected(client, cluster_id, out["data"])
     return out
 
 
