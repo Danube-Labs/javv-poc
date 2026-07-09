@@ -40,6 +40,7 @@
   --shadow:
     0 1px 2px rgba(22, 35, 47, 0.04),
     0 8px 24px -18px rgba(22, 35, 47, 0.28);
+  --scrim: rgba(22, 35, 47, 0.46); /* modal backdrop (prototype .modal-scrim) */
 
   /* -- typography (two families, fixed scale) --------------------------- */
   --font-ui: 'Hanken Grotesk', sans-serif; /* operator-picked 2026-07-09 (A/B vs Space/Schibsted Grotesk) */

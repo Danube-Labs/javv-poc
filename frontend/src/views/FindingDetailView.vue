@@ -12,7 +12,10 @@ import { useRoute, useRouter } from 'vue-router'
 
 import {
   groupFindingsApiV1FindingsGroupsGet,
+  listDecisionsApiV1DecisionsGet,
+  revokeApiV1DecisionsDecisionIdRevokePost,
   searchFindingsApiV1FindingsGet,
+  triageApiV1FindingsFindingKeyTriagePatch,
 } from '@/api/generated'
 import type {
   GroupFindingsApiV1FindingsGroupsGetData,
@@ -23,6 +26,9 @@ import EpssBar from '@/components/chips/EpssBar.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import SevChip from '@/components/chips/SevChip.vue'
 import StateTag from '@/components/chips/StateTag.vue'
+import DecisionsCard, { type DecisionRow } from '@/components/triage/DecisionsCard.vue'
+import RiskAcceptDialog from '@/components/triage/RiskAcceptDialog.vue'
+import TriagePanel from '@/components/triage/TriagePanel.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { useApi } from '@/composables/useApi'
 import {
@@ -35,13 +41,18 @@ import {
   severityDisagrees,
   type ImageGroupRow,
 } from '@/findings/detailViewModel'
+import type { TriagePatchBody } from '@/findings/triageRules'
 import { logger } from '@/lib/logger'
+import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import type { FindingRow } from '@/stores/findings'
+import { useTimeTravelStore } from '@/stores/timeTravel'
 
 const route = useRoute()
 const router = useRouter()
 const clusterStore = useClusterStore()
+const auth = useAuthStore()
+const timeTravel = useTimeTravelStore()
 const { withGlobals } = useApi()
 
 const cveId = computed(() => String(route.params.cveId ?? ''))
@@ -152,6 +163,74 @@ function goBack() {
   if (window.history.state?.back) router.back()
   else void router.push({ name: 'findings' })
 }
+
+/* ---- triage (FR-7): the panel validates, this owns the PATCH + conflict surfacing ---- */
+const saving = ref(false)
+const triageError = ref<string | null>(null)
+const historical = computed(() => timeTravel.t !== null)
+
+async function saveTriage(body: TriagePatchBody) {
+  const key = primary.value?.finding_key
+  if (!key) return
+  saving.value = true
+  triageError.value = null
+  const response = await triageApiV1FindingsFindingKeyTriagePatch({
+    path: { finding_key: key },
+    body,
+  })
+  saving.value = false
+  if (response.response?.ok && response.data) {
+    const updated = (response.data as { finding: FindingRow }).finding
+    rows.value = rows.value.map((r) => (r.finding_key === key ? { ...r, ...updated } : r))
+    logger.info('triage_saved', { finding_key: key, state: updated.state })
+  } else if (response.response?.status === 409) {
+    triageError.value = 'Changed by someone else — reload and retry.'
+  } else if (response.response?.status === 422) {
+    triageError.value = 'The server rejected this transition — reload and retry.'
+    logger.warn('triage_rejected', { status: 422 })
+  } else {
+    triageError.value = 'Save failed — check the backend connection.'
+    logger.warn('triage_failed', { status: response.response?.status })
+  }
+}
+
+/* ---- decisions on this CVE (immutable; revoked stay struck-through) ---- */
+const raOpen = ref(false)
+const decisions = ref<DecisionRow[]>([])
+const decisionsBusy = ref(false)
+
+async function fetchDecisions() {
+  if (!clusterStore.selectedId || !cveId.value) return
+  const response = await listDecisionsApiV1DecisionsGet({
+    query: {
+      cluster_id: clusterStore.selectedId,
+      cve_id: cveId.value,
+      include_revoked: true,
+    },
+  })
+  if (response.response?.ok && response.data) {
+    decisions.value = (response.data as { data: DecisionRow[] }).data
+  } else {
+    logger.warn('decisions_list_failed', { status: response.response?.status })
+  }
+}
+watch([cveId, () => clusterStore.selectedId], () => void fetchDecisions(), { immediate: true })
+
+async function revokeDecision(id: string) {
+  decisionsBusy.value = true
+  const response = await revokeApiV1DecisionsDecisionIdRevokePost({ path: { decision_id: id } })
+  decisionsBusy.value = false
+  if (response.response?.ok) {
+    logger.info('decision_revoked', { decision_id: id })
+    await fetchDecisions()
+  } else {
+    logger.warn('decision_revoke_failed', { status: response.response?.status })
+  }
+}
+
+function onDecisionCreated() {
+  void fetchDecisions()
+}
 </script>
 
 <template>
@@ -214,6 +293,7 @@ function goBack() {
         </div>
       </div>
 
+      <div class="detail-grid">
       <div class="detail-stack">
         <section class="card">
           <div class="card-head">
@@ -302,6 +382,36 @@ function goBack() {
           </div>
         </section>
       </div>
+
+      <TriagePanel
+        v-if="primary"
+        :finding="primary"
+        :can-triage="auth.hasCapability('can_triage')"
+        :can-accept-final="auth.hasCapability('can_accept_audit_final')"
+        :historical="historical"
+        :saving="saving"
+        :error="triageError"
+        :current-user="auth.user?.username ?? null"
+        @save="saveTriage"
+        @risk-accept="raOpen = true"
+      />
+      </div>
+
+      <DecisionsCard
+        :decisions="decisions"
+        :can-accept-final="auth.hasCapability('can_accept_audit_final')"
+        :busy="decisionsBusy"
+        @create="raOpen = true"
+        @revoke="revokeDecision"
+      />
+
+      <RiskAcceptDialog
+        v-if="raOpen && primary"
+        :cve-id="cveId"
+        :finding="primary"
+        @close="raOpen = false"
+        @created="onDecisionCreated"
+      />
     </template>
   </div>
 </template>
@@ -425,11 +535,23 @@ function goBack() {
   color: var(--sev-critical-fg);
 }
 
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 16px;
+  align-items: start;
+  margin-top: 16px;
+}
+@media (max-width: 1180px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .detail-stack {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  margin-top: 16px;
+  min-width: 0;
 }
 .card {
   background: var(--card);
