@@ -9,7 +9,7 @@ import { defineStore } from 'pinia'
 import { logger } from '@/lib/logger'
 
 export const useTimeTravelStore = defineStore('timeTravel', {
-  state: () => ({ t: null as string | null, windowDays: 30 }),
+  state: () => ({ t: null as string | null, windowDays: 30, windowLabel: 'Last 30 days' }),
   getters: {
     isNow: (s) => s.t === null,
     /** Query-param fragment for every data read: {} at now, { as_of } in the past. */
@@ -24,8 +24,9 @@ export const useTimeTravelStore = defineStore('timeTravel', {
       if (this.t !== null) logger.info('time travel', { as_of: 'now' })
       this.t = null
     },
-    setWindow(days: number) {
+    setWindow(days: number, label?: string) {
       this.windowDays = days
+      this.windowLabel = label ?? `Last ${days} days`
     },
   },
 })

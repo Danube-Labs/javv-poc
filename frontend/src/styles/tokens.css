@@ -71,6 +71,12 @@
   --add-filter-hover-bg: #fdf4ef;
   --dd-on-bg: rgba(236, 126, 84, 0.1);
   --dd-shadow: 0 14px 40px -16px rgba(22, 35, 47, 0.4);
+  --control-hover-line: #d8cfc0; /* hover border on quiet controls (time-range, btn-mini, tt-opt) */
+
+  /* -- time-travel history state (the amber "viewing history" control) --- */
+  --hist-bg: #fbf0d9;
+  --hist-line: #ead6a8;
+  --hist-fg: #7a5a12;
 
   /* -- severity (DATA ONLY — six D46 canonicals; never brand) ----------- */
   /* negligible is the one bucket beyond the v4 sheet (D46/A-1): muted, never red. */
