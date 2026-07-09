@@ -153,6 +153,16 @@ as pure units** (Vitest).
   facets reflected it, reverted clean — the run itself caught two latent bugs (StateTag label
   frozen at setup; state filter vocabulary listed only 4 of the 6 states).
 
+- **2026-07-10 — metadata-gap rulings (operator review, pre-slice-4):** **Pods are NOT
+  renderable — by design (D30):** the scanner dedups by image digest (N pods = one scan); a vuln
+  is a property of the image, not the pod, and no pod/workload field exists in any index. Don't
+  hunt for it; workload-level mapping is a **v1.1 scanner-envelope candidate ([#308])**. What DOES
+  exist is `namespaces[]` — slice 4 folds in the delivered-vs-spec gaps: **Namespace + Assignee
+  facet-rail sections** (SCREENS-v5 §3 — the Add-filter text path already worked, but hidden ≠
+  delivered), the three missing specced **grid columns** (Component `app` · Images group-agg
+  count B-4 · Assignee), and a **Namespaces line in the detail header** (from the sibling rows).
+  Topbar search stays inert until **M9f** (global grouped search, per spec).
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
