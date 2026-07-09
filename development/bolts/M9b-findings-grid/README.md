@@ -125,6 +125,19 @@ as pure units** (Vitest).
   prototype's client-side sorts on cve/state/assignee have no server field and are dropped.
   EPSS is null on trivy rows (grype-only enrichment) → muted dash with the "via Grype" note.
 
+- **2026-07-09 — detail contract rulings (slice 2):** the detail route is
+  **`/findings/:cveId?digest=…&scanner=…&pkg=…&ver=…`** — a `(cve_id, image_digest)` search
+  returns one row per PACKAGE per scanner (finding identity includes the package), so the
+  per-scanner evidence table **scopes to the clicked package** (deep links without `pkg` scope
+  to the first row) and lists the other affected packages as a pointer back to the grid. A
+  scanner with no row in scope renders an explicit "no current finding from this scanner" row —
+  never an implied clean bill. Images-affected = `groups?by=image_repo&cve_id` with the
+  buckets' `by_scanner` counts side-by-side (zero-vs-nonzero flagged at disagreement grade).
+  **Solid sev chips are critical-only** (white fails AA on every other solid — DESIGN.md §2);
+  the header uses the tinted chip, and the prototype's 4px severity side-stripe is dropped
+  (banned pattern). SLA box shows a countdown derived from the server's `due_at` — the
+  deadline itself is never client math (B-5).
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and

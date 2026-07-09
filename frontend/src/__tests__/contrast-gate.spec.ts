@@ -102,6 +102,8 @@ describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
     }
     expect.soft(ratio('kev-fg', 'kev-bg'), 'kev tag').toBeGreaterThanOrEqual(AA)
     expect.soft(ratio('kev-fg', 'sla-over-bg'), 'sla overdue pill').toBeGreaterThanOrEqual(AA)
+    // the only AA-legal SOLID sev chip (DESIGN.md §2: solid = critical-only)
+    expect.soft(ratio('kev-fg', 'sev-critical-solid'), 'solid critical chip').toBeGreaterThanOrEqual(AA)
     expect.soft(ratio('hist-fg', 'hist-bg'), 'hist control').toBeGreaterThanOrEqual(AA)
   })
 
