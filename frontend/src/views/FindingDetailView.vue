@@ -137,6 +137,10 @@ const disagrees = computed(() => severityDisagrees(evidence.value))
 const missingScanners = computed(() =>
   SCANNER_ORDER.filter((s) => !evidence.value.some((r) => r.scanner === s)),
 )
+/** Where this image runs — union of the sibling rows' namespaces (pods don't exist: D30). */
+const namespaces = computed(() => [
+  ...new Set(rows.value.flatMap((r) => (Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []))),
+])
 
 /* ---- display helpers (24h everywhere, null-tolerant) ---- */
 function fmtAt(iso: unknown): string {
@@ -282,6 +286,7 @@ function onDecisionCreated() {
             </span>
             <span><em>Package</em> <span class="mono-cell">{{ primary?.package_name }}</span></span>
             <span><em>Image</em> <span class="mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span></span>
+            <span><em>Namespaces</em> <span class="mono-cell">{{ namespaces.length ? namespaces.join(', ') : '—' }}</span></span>
             <span><em>First seen</em> {{ fmtAt(primary?.first_seen_at) }}</span>
             <span><em>Last seen</em> {{ fmtAt(primary?.last_seen_at) }}</span>
           </div>

@@ -40,10 +40,10 @@ describe('one config drives both components (PLAN gate)', () => {
   it('renders every listable findings field in both, and text fields only in the bar', async () => {
     const { rail, bar } = mountBoth(FINDINGS_FIELDS)
 
-    for (const label of ['Severity', 'Scanner', 'Attribute', 'State', 'Package type']) {
-      expect(rail.text()).toContain(label)
+    for (const label of ['Severity', 'Scanner', 'Attribute', 'State', 'Package type', 'Namespace', 'Assignee']) {
+      expect(rail.text()).toContain(label) // Namespace/Assignee are rail dims since slice 4
     }
-    expect(rail.text()).not.toContain('Namespace') // text field: no buckets, bar-only
+    expect(rail.text()).not.toContain('Image') // text field: no buckets, bar-only
 
     await bar.find('.add-filter').trigger('click')
     const fieldItems = bar.findAll('.filter-field').map((b) => b.text())
@@ -108,11 +108,11 @@ describe('FilterBar interactions', () => {
       props: { fields: FINDINGS_FIELDS, selections: emptySelections(FINDINGS_FIELDS), facets: FACETS },
     })
     await bar.find('.add-filter').trigger('click')
-    const nsItem = bar.findAll('.filter-field').find((b) => b.text().includes('Namespace'))
-    await nsItem?.trigger('click')
+    const imgItem = bar.findAll('.filter-field').find((b) => b.text().includes('Image'))
+    await imgItem?.trigger('click')
     const input = bar.find('.filter-vsearch input')
-    await input.setValue('payments')
+    await input.setValue('nginx')
     await input.trigger('keydown.enter')
-    expect(bar.emitted('setText')?.[0]).toEqual(['namespace', 'payments'])
+    expect(bar.emitted('setText')?.[0]).toEqual(['image', 'nginx'])
   })
 })

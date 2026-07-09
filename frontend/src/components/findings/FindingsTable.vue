@@ -84,6 +84,11 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
           <KevTag :on="data.kev === true" />
         </template>
       </Column>
+      <Column v-if="show('component')" header="Component">
+        <template #body="{ data }">
+          <span class="mono-cell sm">{{ data.app ?? '-' }}</span>
+        </template>
+      </Column>
       <Column v-if="show('package')" header="Package">
         <template #body="{ data }">
           <span class="pkg"
@@ -107,6 +112,11 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
           <span class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
         </template>
       </Column>
+      <Column v-if="show('images')" header="Images" class="r">
+        <template #body="{ data }">
+          <span class="mono-cell sm">{{ data.images_affected ?? '-' }}</span>
+        </template>
+      </Column>
       <Column v-if="show('scanner')" header="Scanner">
         <template #body="{ data }">
           <span class="scanner-stack">
@@ -123,6 +133,11 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
       <Column header="State">
         <template #body="{ data }">
           <StateTag :state="data.state" />
+        </template>
+      </Column>
+      <Column v-if="show('assignee')" header="Assignee">
+        <template #body="{ data }">
+          <span class="sm">{{ data.assignee ?? '-' }}</span>
         </template>
       </Column>
       <template #empty>
