@@ -179,6 +179,12 @@ copy. Structural fidelity is a process rule:
    readable source `handoff/v4/prototype/app/*.jsx` + the CSS in `JAVV Prototype.html`. When
    building a screen/panel, extract the prototype's exact markup + CSS for that section FIRST
    (grep the class names), then port it onto tokens — don't restyle from memory.
+   **Port STRUCTURE, never palette: tokens.css SUPERSEDES the prototype's colors, fonts and
+   text sizes** (operator rulings 2026-07-09 — Hanken Grotesk, the AA-computed fg ramp,
+   `--coral-text`, the ink-prose rule). The prototype's raw values are the *starting* promotion,
+   not the current contract; a "faithful" port of its hexes would reintroduce retired,
+   AA-failing colors. The contrast gate (`src/__tests__/contrast-gate.spec.ts`) enforces the
+   values; this rule keeps ports from fighting it.
 2. **Name the source in the PR.** A screen PR states which prototype component/classes it ports
    (e.g. "Sidebar → main.jsx `Sidebar` + `.side-*` CSS") so review can diff against it.
 3. **Screenshots in every screen PR.** `/visual-test` captures the implementation; put them in the

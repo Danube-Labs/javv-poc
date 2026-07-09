@@ -28,7 +28,7 @@
   --muted: #9aa3aa; /* decorative/disabled ONLY (dashes, gauge fills) — never text (fails AA) */
   --coral: #ec7e54;
   --coral-d: #d96a41;
-  --coral-text: #b34f28; /* coral as TEXT — AA on card/panel/washes; coral/coral-d are fills only */
+  --coral-text: #a8481f; /* coral as TEXT — AA on card/panel/washes; coral/coral-d are fills only */
   --amber: #f4a368;
   --teal: #1f8e84; /* fills/accents; as TEXT use --teal-text (this fails AA on light) */
   --teal-text: #17756d; /* AA on card/bg — informational text like the server-note */
@@ -133,7 +133,7 @@
   --note-info-line: rgba(31, 142, 132, 0.16);
   --kev-fg: #ffffff;
   --kev-bg: #8b1e16;
-  --health-ok-fg: #2e7d4f;
+  --health-ok-fg: #277146;
   --health-ok-bg: #e3f1e7;
   --health-ok-dot: #3fb37f;
   --health-degraded-fg: #82590a;
