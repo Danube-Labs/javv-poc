@@ -97,6 +97,23 @@ async function main() {
   await page.waitForLoadState('networkidle')
   await shot(page, '08-finding-detail', { dump: true })
 
+  // FORCED STATE: triage draft (vex chips) + risk-accept dialog — DRAFT ONLY, never saved:
+  // mutations in automated visual runs are confirmation-gated (standing rule)
+  const naBtn = page.locator('.state-opt', { hasText: 'Not affected' })
+  if (await naBtn.count()) {
+    await naBtn.click()
+    await page.waitForSelector('.vex-chips')
+    await shot(page, '08b-triage-vex-draft', { dump: true })
+    await page.locator('.state-opt', { hasText: 'Open' }).click() // back to a no-op draft
+  }
+  const raBtn = page.locator('.btn-ghost', { hasText: 'Risk-accept' })
+  if (await raBtn.count()) {
+    await raBtn.click()
+    await page.waitForSelector('.modal')
+    await shot(page, '08c-risk-accept-dialog', { dump: true })
+    await page.keyboard.press('Escape')
+  }
+
   // FORCED STATE: a disagreeing finding (severity or zero-vs-nonzero surfaces differ)
   await page.goto(`${BASE}/findings?attr=disagree`)
   const hasRows = await page

@@ -209,7 +209,7 @@ async function fetchDecisions() {
     },
   })
   if (response.response?.ok && response.data) {
-    decisions.value = (response.data as { data: DecisionRow[] }).data
+    decisions.value = (response.data as { decisions: DecisionRow[] }).decisions ?? []
   } else {
     logger.warn('decisions_list_failed', { status: response.response?.status })
   }
