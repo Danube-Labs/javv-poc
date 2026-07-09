@@ -221,7 +221,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   font-weight: 600;
 }
 .fpill-op {
-  color: var(--muted);
+  color: var(--soft);
   font-style: italic;
   font-size: var(--text-sm);
 }
@@ -240,7 +240,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   width: 17px;
   height: 17px;
   border-radius: 5px;
-  color: var(--muted);
+  color: var(--soft);
   font-size: var(--text-card-title);
   line-height: 1;
 }
@@ -269,7 +269,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 .clear-all {
   border: 0;
   background: transparent;
-  color: var(--muted);
+  color: var(--soft);
   font-size: var(--text-quiet-action);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -303,7 +303,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   font-size: var(--text-dd-head);
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--soft);
   padding: 8px 12px 6px;
 }
 .dd-item {
@@ -361,7 +361,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   color: var(--coral-d);
 }
 .filter-back svg {
-  color: var(--muted);
+  color: var(--soft);
 }
 .filter-vsearch {
   display: flex;
@@ -371,7 +371,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border-radius: 7px;
   padding: 6px 9px;
   margin: 0 4px 6px;
-  color: var(--muted);
+  color: var(--soft);
 }
 .filter-vsearch input {
   border: 0;
@@ -391,7 +391,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
   border: 0;
   border-top: 1px solid var(--line2);
   background: transparent;
-  color: var(--muted);
+  color: var(--soft);
   font-size: var(--text-quiet-action);
   padding: 8px;
   margin-top: 4px;
@@ -445,6 +445,6 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 .facet-count {
   font-family: var(--font-mono);
   font-size: var(--text-facet-count);
-  color: var(--muted);
+  color: var(--soft);
 }
 </style>

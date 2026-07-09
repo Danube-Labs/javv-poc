@@ -55,7 +55,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .pager-info {
   font-size: var(--text-quiet-action);
-  color: var(--muted);
+  color: var(--soft);
   font-family: var(--font-mono);
 }
 .pager-right {
@@ -68,7 +68,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   align-items: center;
   gap: 7px;
   font-size: var(--text-sm);
-  color: var(--muted);
+  color: var(--soft);
   font-family: var(--font-mono);
 }
 .pager-size select {
