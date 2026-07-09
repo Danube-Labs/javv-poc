@@ -14,7 +14,7 @@ export interface FilterGlobals {
   as_of?: string
 }
 
-export type FilterQuery = Record<string, string | string[] | boolean>
+export type FilterQuery = Record<string, string | string[] | boolean | number>
 
 export function buildFilterQuery(
   fields: readonly FilterField[],

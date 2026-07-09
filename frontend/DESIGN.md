@@ -73,6 +73,9 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 
 - Sidebar `var(--sidebar-w)` (226px, slate); facet rail `var(--facet-rail-w)` (218px).
 - Content: max `var(--screen-max-w)` (1380px) centered, padding `var(--content-pad)`; grid gap `var(--grid-gap)`.
+  **Data-dense table screens opt out via route `meta: { wide: true }`** (full viewport width —
+  operator ruling 2026-07-09: an internal table scrollbar beside dead margin is worse than a
+  wide table). Findings uses it; apply to future grid-dominated screens, not dashboards.
 - Radius: cards `var(--r)` (12px), controls `var(--r-sm)` (8px), chips `var(--r-chip)` (6px), pills/avatars full.
 - Shadow: `var(--shadow)` on cards — nothing heavier.
 - Tables: compact density default (~7px row padding); header row on `var(--panel)`, mono uppercase.

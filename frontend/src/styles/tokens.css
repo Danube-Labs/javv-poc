@@ -59,6 +59,8 @@
   --text-dd-item: 12.5px; /* dropdown menu items */
   --text-dd-head: 9.5px; /* dropdown group heads, mono uppercase */
   --text-quiet-action: 11.5px; /* clear-all / clear-field text buttons */
+  --text-chip: 10.5px; /* severity/state chips, mono for sev */
+  --text-chip-sm: 9.5px; /* KEV tag, package-type tag */
 
   /* -- filter chrome — promoted from the prototype's filters CSS --------- */
   --facet-check-line: #cfc8ba;
@@ -109,6 +111,18 @@
   --state-resolved-fg: #2e7d4f;
   --state-resolved-bg: #e3f1e7;
   --state-resolved-line: #c3e2cc;
+  --state-na-fg: #46586a;
+  --state-na-bg: #e9eef2;
+  --state-na-line: #cbd6df;
+  --state-risk-fg: #8a5a23;
+  --state-risk-bg: #f3e9dc;
+  --state-risk-line: #e2cfb4;
+  --sla-tight-fg: #c2540d;
+  --sla-over-bg: #c0271d;
+  --dash-muted: #c3cad0;
+  --ver-none-fg: #c09a8e;
+  --note-info-bg: rgba(31, 142, 132, 0.06);
+  --note-info-line: rgba(31, 142, 132, 0.16);
   --kev-fg: #ffffff;
   --kev-bg: #8b1e16;
   --health-ok-fg: #2e7d4f;
