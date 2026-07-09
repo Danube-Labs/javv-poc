@@ -94,3 +94,15 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   is **not** this bolt's E2E suite and doesn't reduce its scope — the Playwright specs in CI
   (app-loads/login, core triage round-trip, degraded banner, server-side paging) remain M9f
   deliverables. The command exists so visual verification doesn't wait for M9f.
+
+## Design & fidelity (standing rule)
+> Before touching any screen: read **`frontend/DESIGN.md`** — the binding agent contract
+> (tokens-only styling, **Hanken Grotesk** UI face, the **AA contrast floor** (`--soft` minimum
+> for text; `--muted` never colors words), route-`meta: {wide}` for grid screens, §9 ruled linter
+> exceptions). Build **with the prototype open** per DESIGN.md §8: port the matching
+> `handoff/v4/prototype/app/*.jsx` markup + CSS onto tokens — never restyle from memory — and
+> name the ported component/classes in the PR. Reuse the shared modules (M9a filter module,
+> M9b chip set, the banners); never re-implement them. Verify UI deltas with **`/visual-test`**
+> and run **`npx impeccable detect`** on rendered-HTML dumps of changed screens (fix real
+> findings; §9 exceptions stand). The **`/impeccable`** skill (critique · typeset · layout ·
+> harden) is available for design decisions — its product register applies.

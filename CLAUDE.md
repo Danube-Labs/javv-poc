@@ -17,7 +17,7 @@ before changing anything in that area; don't guess or work from memory.
 | Touching **any index / mapping / rollover / retention** | `docs/engineering/V4/INDEX-MAP_v4.md` |
 | Adding/changing **HTTP endpoints** or their contracts | `docs/API.md` (+ the router in `backend/src/backend/routers/`) |
 | Working a **bolt** (any milestone slice) | that bolt's `development/bolts/<bolt>/README.md` — the spec of record, incl. its `## Updates` |
-| Writing/modifying **frontend UI / styling** | `frontend/DESIGN.md` (once M9a lands) → `development/standards/ui-foundations.md` · `handoff/v5/docs/SCREENS-v5.md` |
+| Writing/modifying **frontend UI / styling** | `frontend/DESIGN.md` (binding: tokens, Hanken Grotesk, AA floor, §8 fidelity protocol, §9 ruled exceptions) → `development/standards/ui-foundations.md` · `handoff/v5/docs/SCREENS-v5.md` |
 | **Committing / branching / PRs** | `development/standards/git-workflow.md` (bolt tracking, housekeeping, the pre-commit trap) |
 | Running/extending the **e2e rigs** | `development/e2e/README.md` |
 | Verifying a change | `/qa` (delta-scoped) · UI deltas: `/visual-test` |
@@ -63,6 +63,9 @@ Invoke the matching skill before starting that kind of work:
   the projection engine especially (golden fixtures).
 - **api-and-interface-design** - designing FastAPI endpoints / Pydantic schemas / the backend↔Vue contract.
 - **frontend-ui-engineering** - any Vue/PrimeVue screen or the new panels (Data Retention, CVE audit).
+- **impeccable** (`.claude/skills/impeccable`) - design critique/typography/hardening/layout for any
+  UI surface; its `npx impeccable detect` scanner runs on rendered-HTML dumps of changed screens as
+  part of the authoring loop (ruled exceptions live in `frontend/DESIGN.md` §9 — don't relitigate).
 - **security-and-hardening** - the ingest surface (untrusted scanner input), RBAC/authz, OpenSearch DSL
   construction. Mandatory for M1 ingest and M3 auth.
 - **performance-optimization** - OpenSearch query/agg/shard tuning, large-table FE render. Measure first.
