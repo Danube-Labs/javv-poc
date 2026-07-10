@@ -12,6 +12,8 @@ import StateTag from '@/components/chips/StateTag.vue'
 import TriageStateControl from '@/components/triage/TriageStateControl.vue'
 import VexJustificationPicker from '@/components/triage/VexJustificationPicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiField from '@/components/ui/UiField.vue'
 import { buildTriagePatch, type TriagePatchBody } from '@/findings/triageRules'
 import type { FindingRow } from '@/stores/findings'
 
@@ -79,30 +81,31 @@ function save() {
         Read-only — you don't hold <b>can_triage</b>. Ask an Operator or Security Lead.
       </div>
 
-      <label class="fld-label">Assigned to</label>
-      <div class="assignee-row">
-        <span class="assignee-val">{{ assignee ?? finding.assignee ?? 'unassigned' }}</span>
-        <button
-          v-if="currentUser"
-          type="button"
-          class="btn-mini"
-          :disabled="locked || (assignee ?? finding.assignee) === currentUser"
-          @click="assignee = currentUser"
-        >
-          Assign to me
-        </button>
-      </div>
+      <UiField label="Assigned to" first>
+        <div class="assignee-row">
+          <span class="assignee-val">{{ assignee ?? finding.assignee ?? 'unassigned' }}</span>
+          <UiButton
+            v-if="currentUser"
+            :disabled="locked || (assignee ?? finding.assignee) === currentUser"
+            @click="assignee = currentUser"
+          >
+            Assign to me
+          </UiButton>
+        </div>
+      </UiField>
 
-      <label class="fld-label">State · VEX lifecycle</label>
-      <TriageStateControl :current="finding.state" :target="target" :disabled="locked" @select="pickState" />
+      <UiField label="State · VEX lifecycle">
+        <TriageStateControl :current="finding.state" :target="target" :disabled="locked" @select="pickState" />
+      </UiField>
 
       <div v-if="shownState === 'not_affected'" class="vex-block">
-        <label class="fld-label">Justification · CISA five (required)</label>
-        <VexJustificationPicker
-          :selected="vexJustification"
-          :disabled="locked"
-          @select="(id) => (vexJustification = id)"
-        />
+        <UiField label="Justification · CISA five (required)">
+          <VexJustificationPicker
+            :selected="vexJustification"
+            :disabled="locked"
+            @select="(id) => (vexJustification = id)"
+          />
+        </UiField>
       </div>
 
       <div v-if="finding.state === 'risk_accepted'" class="ro-state ro-risk">
@@ -125,36 +128,39 @@ function save() {
         <span class="pn-row"><i class="pn-dot pn-stale" /><b>Stale</b>&nbsp;· scanner silent → still shown, flagged; presence unknown.</span>
       </div>
 
-      <label class="fld-label" for="triage-notes">Note <span class="fld-opt">(escaped, never rendered as HTML)</span></label>
-      <textarea
-        id="triage-notes"
-        v-model="notes"
-        class="fld"
-        rows="3"
-        placeholder="Add context for the audit trail…"
-        :disabled="locked"
-      />
+      <UiField label="Note" hint="escaped, never rendered as HTML" for="triage-notes">
+        <textarea
+          id="triage-notes"
+          v-model="notes"
+          class="fld"
+          rows="3"
+          placeholder="Add context for the audit trail…"
+          :disabled="locked"
+        />
+      </UiField>
 
       <p v-if="draft.error" class="draft-error" role="alert">{{ draft.error }}</p>
       <p v-if="error" class="draft-error" role="alert">{{ error }}</p>
 
-      <button
+      <UiButton
         v-if="canAcceptFinal"
-        type="button"
-        class="btn-ghost btn-block"
+        variant="ghost"
+        block
+        class="btn-gap"
         :disabled="historical"
         @click="emit('riskAccept')"
       >
         <AppIcon name="shield" :size="14" />Risk-accept this CVE…
-      </button>
-      <button
-        type="button"
-        class="btn-primary btn-block"
+      </UiButton>
+      <UiButton
+        variant="primary"
+        block
+        class="btn-gap"
         :disabled="locked || saving || !draft.body"
         @click="save"
       >
         {{ saving ? 'Saving…' : 'Save to audit trail' }}
-      </button>
+      </UiButton>
       <p class="triage-foot">
         <AppIcon name="clock" :size="11" />Every action records who &amp; when. Deadlines absolute, 24h.
       </p>
@@ -196,7 +202,7 @@ function save() {
   align-items: center;
   gap: 8px;
   font-size: var(--text-sm);
-  color: var(--hist-fg);
+  color: var(--ink);
   background: var(--hist-bg);
   border: 1px solid var(--hist-line);
   border-radius: var(--r-sm);
@@ -206,24 +212,7 @@ function save() {
 }
 .triage-locked svg {
   flex: none;
-}
-.fld-label {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  margin: 14px 0 6px;
-}
-.fld-label:first-of-type {
-  margin-top: 0;
-}
-.fld-opt {
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--soft);
+  color: var(--hist-fg);
 }
 .assignee-row {
   display: flex;
@@ -234,23 +223,6 @@ function save() {
 .assignee-val {
   font-size: var(--text-body);
   color: var(--ink);
-}
-.btn-mini {
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 4px 9px;
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-mini:hover:not(:disabled) {
-  border-color: var(--control-hover-line);
-}
-.btn-mini:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 .vex-block {
   margin-top: 2px;
@@ -264,6 +236,7 @@ function save() {
   margin-top: 8px;
   font-size: var(--text-sm);
   line-height: 1.45;
+  color: var(--ink);
 }
 .ro-state svg {
   flex: none;
@@ -280,11 +253,15 @@ function save() {
 .ro-risk {
   background: var(--hist-bg);
   border: 1px solid var(--hist-line);
+}
+.ro-risk svg {
   color: var(--hist-fg);
 }
 .ro-stale {
   background: var(--state-stale-bg);
   border: 1px solid var(--state-stale-line);
+}
+.ro-stale svg {
   color: var(--state-stale-fg);
 }
 .presence-note {
@@ -341,39 +318,8 @@ function save() {
   font-size: var(--text-sm);
   color: var(--health-down-fg);
 }
-.btn-block {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
+.btn-gap {
   margin-top: 8px;
-  border-radius: var(--r-sm);
-  padding: 9px 12px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  cursor: default;
-}
-.btn-ghost {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-}
-.btn-ghost:hover:not(:disabled) {
-  border-color: var(--control-hover-line);
-}
-.btn-primary {
-  border: 1px solid var(--coral-d);
-  background: var(--coral);
-  color: var(--kev-fg);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--coral-d);
-}
-.btn-block:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 .triage-foot {
   display: flex;

@@ -49,3 +49,42 @@ describe('style ratchet — no new hand-rolled colors', () => {
     expect(stale, `fixed — delete from BASELINE: ${stale.join(', ')}`).toEqual([])
   })
 })
+
+/**
+ * "Never same-hue text on its own tint" (DESIGN.md §2, operator ruling 2026-07-09; bitten twice
+ * by 2026-07-10): a rule block that pairs `color: var(--X-fg)` with `background: var(--X-bg)`
+ * of the SAME hue family ships low-contrast prose. Chips/tags are the ruled exception (short
+ * bold data labels with gate-tested pairs) — they live in components/chips/ or match a chip
+ * selector below.
+ */
+const CHIP_EXEMPT = [/^components\/chips\//]
+const CHIP_SELECTOR =
+  // chip-class: short bold data labels with gate-tested pairs, plus the sidebar's own dark ramp
+  /\.(time-range-hist|kev-tag|kev-lg|both-tag|state-opt-on|vm-fp|vm-ne|side-item)\b/
+
+describe('style ratchet — no same-hue text on its own tint', () => {
+  const files = walk(SRC)
+    .map((p) => relative(SRC, p).split('\\').join('/'))
+    .filter((rel) => /\.(vue|css)$/.test(rel) && !SANCTIONED.has(rel))
+    .filter((rel) => !CHIP_EXEMPT.some((re) => re.test(rel)))
+
+  it('prose on a tinted panel uses --ink; the hue stays in icon/border/background', () => {
+    const hits: string[] = []
+    for (const rel of files) {
+      const css = readFileSync(join(SRC, rel), 'utf8')
+      // each rule block: selector { declarations }
+      for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+        const selector = m[1] ?? ''
+        const body = m[2] ?? ''
+        if (CHIP_SELECTOR.test(selector)) continue
+        const fg = body.match(/color:\s*var\(--([a-z0-9-]+)-fg\)/)
+        const bg = body.match(/background(?:-color)?:\s*var\(--([a-z0-9-]+)-bg\)/)
+        if (fg && bg && fg[1] === bg[1]) hits.push(`${rel} → ${selector.trim().split('\n').pop()}`)
+      }
+    }
+    expect(
+      hits,
+      `same-hue fg/bg pair(s) — prose on a tint is var(--ink), hue goes to icon/border/bg (DESIGN.md §2): ${hits.join('; ')}`,
+    ).toEqual([])
+  })
+})

@@ -12,6 +12,8 @@ import TriageStateControl from '@/components/triage/TriageStateControl.vue'
 import VexJustificationPicker from '@/components/triage/VexJustificationPicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiField from '@/components/ui/UiField.vue'
 import type { FilterField } from '@/filters/fields.config'
 import { lensToSelector } from '@/findings/bulkSelector'
 import { buildTriagePatch } from '@/findings/triageRules'
@@ -95,9 +97,9 @@ async function apply() {
 
 <template>
   <div v-if="canTriage && !historical" class="bulk-wrap">
-    <button type="button" class="btn-mini" @click="reset(); open = true">
+    <UiButton variant="control" @click="reset(); open = true">
       <AppIcon name="layers" :size="13" />Bulk triage
-    </button>
+    </UiButton>
 
     <ModalShell
       v-if="open"
@@ -118,18 +120,22 @@ async function apply() {
               <span class="lens-count">≈ {{ total.toLocaleString('en-US') }} findings</span>
             </div>
 
-            <label class="fld-label">Set state</label>
-            <TriageStateControl current="__none__" :target="target" @select="pickState" />
+            <UiField label="Set state">
+              <TriageStateControl current="__none__" :target="target" @select="pickState" />
+            </UiField>
             <div v-if="target === 'not_affected'" class="vex-block">
-              <label class="fld-label">Justification · CISA five (required)</label>
-              <VexJustificationPicker :selected="vexJustification" @select="(id) => (vexJustification = id)" />
+              <UiField label="Justification · CISA five (required)">
+                <VexJustificationPicker :selected="vexJustification" @select="(id) => (vexJustification = id)" />
+              </UiField>
             </div>
 
-            <label class="fld-label" for="bulk-assignee">Assign to <span class="fld-opt">(optional)</span></label>
-            <input id="bulk-assignee" v-model="assignee" class="fld" type="text" placeholder="username" />
+            <UiField label="Assign to" hint="optional" for="bulk-assignee">
+              <input id="bulk-assignee" v-model="assignee" class="fld" type="text" placeholder="username" />
+            </UiField>
 
-            <label class="fld-label" for="bulk-notes">Note <span class="fld-opt">(one note on every target)</span></label>
-            <textarea id="bulk-notes" v-model="notes" class="fld" rows="2" placeholder="Why this bulk action…" />
+            <UiField label="Note" hint="one note on every target" for="bulk-notes">
+              <textarea id="bulk-notes" v-model="notes" class="fld" rows="2" placeholder="Why this bulk action…" />
+            </UiField>
 
             <p v-if="draft.error" class="bulk-error" role="alert">{{ draft.error }}</p>
             <p v-if="error" class="bulk-error" role="alert">{{ error }}</p>
@@ -139,16 +145,15 @@ async function apply() {
           </template>
       </div>
       <template #actions>
-          <button type="button" class="btn-ghost" @click="open = false">{{ done !== null ? 'Close' : 'Cancel' }}</button>
-          <button
+          <UiButton variant="ghost" @click="open = false">{{ done !== null ? 'Close' : 'Cancel' }}</UiButton>
+          <UiButton
             v-if="done === null"
-            type="button"
-            class="btn-primary"
+            variant="primary"
             :disabled="!!lens.blocked || !draft.body || submitting"
             @click="apply"
           >
             {{ submitting ? 'Applying…' : 'Apply to lens' }}
-          </button>
+          </UiButton>
       </template>
     </ModalShell>
   </div>
@@ -158,29 +163,13 @@ async function apply() {
 .bulk-wrap {
   display: inline-flex;
 }
-.btn-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 6px 11px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-mini:hover {
-  border-color: var(--control-hover-line);
-}
 .bulk-blocked {
   display: flex;
   gap: 8px;
   align-items: flex-start;
   margin: 0;
   font-size: var(--text-body);
-  color: var(--hist-fg);
+  color: var(--ink);
   background: var(--hist-bg);
   border: 1px solid var(--hist-line);
   border-radius: var(--r-sm);
@@ -190,6 +179,7 @@ async function apply() {
 .bulk-blocked svg {
   flex: none;
   margin-top: 2px;
+  color: var(--hist-fg);
 }
 .lens-row {
   display: flex;
@@ -220,21 +210,6 @@ async function apply() {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--soft);
-}
-.fld-label {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  margin: 14px 0 6px;
-}
-.fld-opt {
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
   color: var(--soft);
 }
 .fld {
@@ -268,34 +243,5 @@ async function apply() {
   margin: 10px 0 0;
   font-size: var(--text-body);
   color: var(--state-resolved-fg);
-}
-.btn-ghost,
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: var(--r-sm);
-  padding: 8px 14px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  cursor: default;
-}
-.btn-ghost {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-}
-.btn-primary {
-  border: 1px solid var(--coral-d);
-  background: var(--coral);
-  color: var(--kev-fg);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--coral-d);
-}
-.btn-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 </style>

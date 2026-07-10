@@ -77,7 +77,7 @@ async function main() {
   await page.fill('input[aria-label="Range start time (24h)"]', '00:00')
   await page.fill('input[aria-label="Range end date"]', d)
   await page.fill('input[aria-label="Range end time (24h)"]', hm)
-  await page.locator('.time-abs .btn-mini').click()
+  await page.locator('.time-abs .time-apply').click()
   await page.waitForSelector('.history-banner', { timeout: 5_000 })
   await page.waitForTimeout(700)
   await shot(page, '06-history-state', { dump: true })
@@ -86,20 +86,20 @@ async function main() {
   await page.waitForTimeout(400)
 
   // columns menu open
-  await page.locator('.cols-dd .btn-mini').click()
+  await page.locator('.cols-dd .ui-btn').click()
   await page.waitForSelector('.cols-menu')
   await shot(page, '07-columns-menu')
   await page.keyboard.press('Escape')
 
   // export + bulk dialogs (slice 4) — DRAFT ONLY, never submitted
-  await page.locator('.export-wrap .btn-mini').click()
+  await page.locator('.export-wrap .ui-btn').click()
   await page.waitForSelector('.modal')
   await shot(page, '07b-export-dialog', { dump: true })
   await page.keyboard.press('Escape')
   await page.locator('.facet-row', { hasText: 'critical' }).first().click()
   await page.waitForTimeout(600)
-  if (await page.locator('.bulk-wrap .btn-mini').count()) {
-    await page.locator('.bulk-wrap .btn-mini').click()
+  if (await page.locator('.bulk-wrap .ui-btn').count()) {
+    await page.locator('.bulk-wrap .ui-btn').click()
     await page.waitForSelector('.modal')
     await shot(page, '07c-bulk-dialog', { dump: true })
     await page.keyboard.press('Escape')
@@ -129,7 +129,7 @@ async function main() {
       await page.locator('.state-opt', { hasText: 'Open' }).click() // back to a no-op draft
     }
   }
-  const raBtn = page.locator('.btn-ghost', { hasText: 'Risk-accept' })
+  const raBtn = page.locator('.ui-btn--ghost', { hasText: 'Risk-accept' })
   if ((await raBtn.count()) && !(await raBtn.isDisabled())) {
     await raBtn.click()
     await page.waitForSelector('.modal')

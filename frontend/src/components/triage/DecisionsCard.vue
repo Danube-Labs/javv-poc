@@ -9,6 +9,7 @@ import { computed } from 'vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import StateTag from '@/components/chips/StateTag.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 
 export interface DecisionRow {
   decision_id: string
@@ -49,9 +50,9 @@ function scopeLabel(d: DecisionRow): string {
         <h3>Decisions on this CVE</h3>
         <p class="card-sub">scoped risk-accept / not-affected RULES (immutable; edits revoke + re-create) — plain state changes are triage actions, listed under Activity</p>
       </div>
-      <button v-if="canAcceptFinal" type="button" class="btn-mini" @click="emit('create')">
+      <UiButton v-if="canAcceptFinal" @click="emit('create')">
         <AppIcon name="plus" :size="13" />New decision
-      </button>
+      </UiButton>
     </div>
     <div class="card-body">
       <div class="dec-scroll">
@@ -77,16 +78,14 @@ function scopeLabel(d: DecisionRow): string {
               <span v-else class="dec-revoked">revoked</span>
             </td>
             <td class="c">
-              <button
+              <UiButton
                 v-if="!d.revoked_at && canAcceptFinal"
-                type="button"
-                class="btn-mini"
                 :disabled="busy"
                 title="Revoke this decision (create a new one to replace it)"
                 @click="emit('revoke', d.decision_id)"
               >
                 Revoke
-              </button>
+              </UiButton>
             </td>
           </tr>
         </tbody>
@@ -215,25 +214,5 @@ function scopeLabel(d: DecisionRow): string {
   border-radius: var(--r-chip);
   padding: 2px 7px;
   color: var(--ink);
-}
-.btn-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 4px 9px;
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-mini:hover:not(:disabled) {
-  border-color: var(--control-hover-line);
-}
-.btn-mini:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 </style>

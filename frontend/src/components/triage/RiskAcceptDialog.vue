@@ -11,6 +11,9 @@ import { computed, ref } from 'vue'
 import { createApiV1DecisionsPost } from '@/api/generated'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiField from '@/components/ui/UiField.vue'
+import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { useApi } from '@/composables/useApi'
 import { logger } from '@/lib/logger'
 import type { FindingRow } from '@/stores/findings'
@@ -27,6 +30,11 @@ const namespaces = computed(() =>
 const nsSel = ref<Set<string>>(new Set())
 const imgSel = ref<Set<string>>(new Set())
 const applyTo = ref<'both' | 'trivy' | 'grype'>('both')
+const APPLY_OPTS = [
+  { value: 'both', label: 'Both scanners' },
+  { value: 'trivy', label: 'trivy only' },
+  { value: 'grype', label: 'grype only' },
+] as const
 const expiry = ref('')
 const justification = ref('')
 const submitting = ref(false)
@@ -80,32 +88,34 @@ async function submit() {
           <span class="ra-anchor-note">A decision anchors on the CVE + scope, so a package bump auto-inherits it.</span>
         </div>
 
-        <label class="fld-label">Scope · namespaces <span class="fld-opt">(none selected = cluster-wide)</span></label>
-        <div class="ra-chips">
-          <span v-if="namespaces.length === 0" class="ra-none">no namespaces on this finding</span>
-          <button
-            v-for="ns in namespaces"
-            :key="ns"
-            type="button"
-            class="ra-chip"
-            :class="{ 'ra-chip-on': nsSel.has(ns) }"
-            @click="toggle(nsSel, ns)"
-          >
-            {{ ns }}
-          </button>
-        </div>
+        <UiField label="Scope · namespaces" hint="none selected = cluster-wide">
+          <div class="ra-chips">
+            <span v-if="namespaces.length === 0" class="ra-none">no namespaces on this finding</span>
+            <button
+              v-for="ns in namespaces"
+              :key="ns"
+              type="button"
+              class="ra-chip"
+              :class="{ 'ra-chip-on': nsSel.has(ns) }"
+              @click="toggle(nsSel, ns)"
+            >
+              {{ ns }}
+            </button>
+          </div>
+        </UiField>
 
-        <label class="fld-label">Scope · images</label>
-        <div class="ra-chips">
-          <button
-            type="button"
-            class="ra-chip mono-cell"
-            :class="{ 'ra-chip-on': imgSel.has(image) }"
-            @click="toggle(imgSel, image)"
-          >
-            {{ image }}
-          </button>
-        </div>
+        <UiField label="Scope · images">
+          <div class="ra-chips">
+            <button
+              type="button"
+              class="ra-chip mono-cell"
+              :class="{ 'ra-chip-on': imgSel.has(image) }"
+              @click="toggle(imgSel, image)"
+            >
+              {{ image }}
+            </button>
+          </div>
+        </UiField>
 
         <div class="ra-blast">
           <AppIcon name="layers" :size="14" />
@@ -119,35 +129,23 @@ async function submit() {
         </div>
 
         <div class="fld-2">
-          <div>
-            <label class="fld-label" for="ra-expiry">Expiry <span class="fld-opt">(immutable — change = revoke + new)</span></label>
+          <UiField label="Expiry" hint="immutable — change = revoke + new" for="ra-expiry">
             <input id="ra-expiry" v-model="expiry" class="fld" type="date" />
-          </div>
-          <div>
-            <label class="fld-label">Apply to</label>
-            <div class="seg">
-              <button
-                v-for="opt in (['both', 'trivy', 'grype'] as const)"
-                :key="opt"
-                type="button"
-                class="seg-opt"
-                :class="{ 'seg-on': applyTo === opt }"
-                @click="applyTo = opt"
-              >
-                {{ opt === 'both' ? 'Both scanners' : opt + ' only' }}
-              </button>
-            </div>
-          </div>
+          </UiField>
+          <UiField label="Apply to">
+            <UiSegControl v-model="applyTo" :options="APPLY_OPTS" />
+          </UiField>
         </div>
 
-        <label class="fld-label" for="ra-just">Justification (required)</label>
-        <textarea
-          id="ra-just"
-          v-model="justification"
-          class="fld"
-          rows="3"
-          placeholder="Why is this risk acceptable, and for how long?"
-        />
+        <UiField label="Justification (required)" for="ra-just">
+          <textarea
+            id="ra-just"
+            v-model="justification"
+            class="fld"
+            rows="3"
+            placeholder="Why is this risk acceptable, and for how long?"
+          />
+        </UiField>
 
         <p class="ra-note">
           <AppIcon name="info" :size="12" />
@@ -157,10 +155,10 @@ async function submit() {
       </div>
 
       <template #actions>
-        <button type="button" class="btn-ghost" @click="emit('close')">Cancel</button>
-        <button type="button" class="btn-primary" :disabled="!valid || submitting" @click="submit">
+        <UiButton variant="ghost" @click="emit('close')">Cancel</UiButton>
+        <UiButton variant="primary" :disabled="!valid || submitting" @click="submit">
           {{ submitting ? 'Creating…' : 'Create decision' }}
-        </button>
+        </UiButton>
       </template>
   </ModalShell>
 </template>
@@ -180,21 +178,6 @@ async function submit() {
   font-size: var(--text-sm);
   color: var(--soft);
   line-height: 1.4;
-}
-.fld-label {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  margin: 14px 0 6px;
-}
-.fld-opt {
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--soft);
 }
 .ra-chips {
   display: flex;
@@ -265,30 +248,6 @@ async function submit() {
 .fld:focus {
   border-color: var(--coral);
 }
-.seg {
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--panel);
-}
-.seg-opt {
-  border: 0;
-  border-radius: 5px;
-  background: var(--card);
-  padding: 7px 10px;
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.seg-on {
-  background: var(--dd-on-bg);
-  color: var(--coral-text);
-  box-shadow: inset 0 0 0 1px var(--coral);
-  font-weight: 600;
-}
 .ra-note {
   display: flex;
   align-items: center;
@@ -311,43 +270,5 @@ async function submit() {
 }
 .strong {
   font-weight: 700;
-}
-.btn-mini {
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 3px 8px;
-  font-size: var(--text-sm);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-ghost,
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: var(--r-sm);
-  padding: 8px 14px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  cursor: default;
-}
-.btn-ghost {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-}
-.btn-primary {
-  border: 1px solid var(--coral-d);
-  background: var(--coral);
-  color: var(--kev-fg);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--coral-d);
-}
-.btn-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 </style>

@@ -12,6 +12,9 @@ import { computed, onUnmounted, ref } from 'vue'
 import { enqueueReportApiV1ReportsPost, getReportApiV1ReportsReportIdGet } from '@/api/generated'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiField from '@/components/ui/UiField.vue'
+import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { useApi } from '@/composables/useApi'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FilterField } from '@/filters/fields.config'
@@ -30,6 +33,18 @@ const open = ref(false)
 const tab = ref<'now' | 'schedule'>('now')
 const format = ref<'csv' | 'vex'>('csv')
 const vexScanner = ref<'trivy' | 'grype'>('trivy')
+const TAB_OPTS = [
+  { value: 'now', label: 'Run now' },
+  { value: 'schedule', label: 'Schedule off-peak' },
+] as const
+const FORMAT_OPTS = [
+  { value: 'csv', label: 'CSV' },
+  { value: 'vex', label: 'VEX (OpenVEX)' },
+] as const
+const SCANNER_OPTS = [
+  { value: 'trivy', label: 'trivy' },
+  { value: 'grype', label: 'grype' },
+] as const
 const busy = ref(false)
 const error = ref<string | null>(null)
 const report = ref<{ id: string; status: string; token?: string; expires_at?: string } | null>(null)
@@ -168,9 +183,9 @@ const downloadHref = computed(() =>
 
 <template>
   <div class="export-wrap">
-    <button type="button" class="btn-mini" @click="openDialog">
+    <UiButton variant="control" @click="openDialog">
       <AppIcon name="download" :size="13" />Export
-    </button>
+    </UiButton>
 
     <ModalShell
       v-if="open"
@@ -185,22 +200,15 @@ const downloadHref = computed(() =>
             reconstruction sweeps.)
           </p>
           <template v-else>
-            <div class="seg tabs">
-              <button type="button" class="seg-opt" :class="{ 'seg-on': tab === 'now' }" @click="tab = 'now'">Run now</button>
-              <button type="button" class="seg-opt" :class="{ 'seg-on': tab === 'schedule' }" @click="tab = 'schedule'">Schedule off-peak</button>
-            </div>
+            <UiSegControl v-model="tab" class="tabs" :options="TAB_OPTS" />
 
-            <label class="fld-label">Format</label>
-            <div class="seg">
-              <button type="button" class="seg-opt" :class="{ 'seg-on': format === 'csv' }" @click="format = 'csv'">CSV</button>
-              <button type="button" class="seg-opt" :class="{ 'seg-on': format === 'vex' }" @click="format = 'vex'">VEX (OpenVEX)</button>
-            </div>
+            <UiField label="Format">
+              <UiSegControl v-model="format" :options="FORMAT_OPTS" />
+            </UiField>
             <div v-if="format === 'vex'" class="vex-scanner">
-              <label class="fld-label">Scanner (one per VEX file)</label>
-              <div class="seg">
-                <button type="button" class="seg-opt" :class="{ 'seg-on': vexScanner === 'trivy' }" @click="vexScanner = 'trivy'">trivy</button>
-                <button type="button" class="seg-opt" :class="{ 'seg-on': vexScanner === 'grype' }" @click="vexScanner = 'grype'">grype</button>
-              </div>
+              <UiField label="Scanner (one per VEX file)">
+                <UiSegControl v-model="vexScanner" :options="SCANNER_OPTS" />
+              </UiField>
             </div>
 
             <template v-if="tab === 'now'">
@@ -228,25 +236,23 @@ const downloadHref = computed(() =>
           </template>
 
       <template #actions>
-          <button type="button" class="btn-ghost" @click="close">Close</button>
-          <button
+          <UiButton variant="ghost" @click="close">Close</UiButton>
+          <UiButton
             v-if="!historical && tab === 'now'"
-            type="button"
-            class="btn-primary"
+            variant="primary"
             :disabled="busy"
             @click="runNow"
           >
             {{ busy ? 'Exporting…' : 'Download' }}
-          </button>
-          <button
+          </UiButton>
+          <UiButton
             v-else-if="!historical"
-            type="button"
-            class="btn-primary"
+            variant="primary"
             :disabled="busy || !!scheduleBlocked || report !== null"
             @click="schedule"
           >
             {{ busy ? 'Scheduling…' : 'Schedule' }}
-          </button>
+          </UiButton>
       </template>
     </ModalShell>
   </div>
@@ -256,57 +262,8 @@ const downloadHref = computed(() =>
 .export-wrap {
   display: inline-flex;
 }
-.btn-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 6px 11px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-mini:hover {
-  border-color: var(--control-hover-line);
-}
 .tabs {
   margin-bottom: 4px;
-}
-.seg {
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--panel);
-}
-.seg-opt {
-  border: 0;
-  border-radius: 5px;
-  background: var(--card);
-  padding: 7px 12px;
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.seg-on {
-  background: var(--dd-on-bg);
-  color: var(--coral-text);
-  box-shadow: inset 0 0 0 1px var(--coral);
-  font-weight: 600;
-}
-.fld-label {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  margin: 14px 0 6px;
 }
 .vex-scanner {
   margin-top: 2px;
@@ -323,7 +280,7 @@ const downloadHref = computed(() =>
   align-items: flex-start;
   margin: 10px 0 0;
   font-size: var(--text-body);
-  color: var(--hist-fg);
+  color: var(--ink);
   background: var(--hist-bg);
   border: 1px solid var(--hist-line);
   border-radius: var(--r-sm);
@@ -333,6 +290,7 @@ const downloadHref = computed(() =>
 .ex-blocked svg {
   flex: none;
   margin-top: 2px;
+  color: var(--hist-fg);
 }
 .report-status {
   display: flex;
@@ -356,34 +314,5 @@ const downloadHref = computed(() =>
   margin: 10px 0 0;
   font-size: var(--text-sm);
   color: var(--health-down-fg);
-}
-.btn-ghost,
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: var(--r-sm);
-  padding: 8px 14px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  cursor: default;
-}
-.btn-ghost {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-}
-.btn-primary {
-  border: 1px solid var(--coral-d);
-  background: var(--coral);
-  color: var(--kev-fg);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--coral-d);
-}
-.btn-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 </style>
