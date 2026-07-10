@@ -60,6 +60,11 @@ color words or numbers.
   `--coral-text` + underline on row hover. Transitions ~120ms ease-out with a reduced-motion
   fallback; pressed state = `--line2` wash. **Never dress a cell whose destination doesn't
   exist yet** — a false affordance is worse than a missing one.
+- **Every interactive control has a VISIBLE hover** (operator, 2026-07-10): the wash
+  (`--control-hover-bg`) + border shift together — a border-color shift alone cannot be seen.
+  Pressed = `--control-active-bg`. One global rule in `base.css` covers the control classes;
+  scoped styles may add but never remove it. Segmented controls carry inner padding + per-option
+  radius so selection rings never clip against the container's corners.
 - **Every overlay follows one dismiss contract** (audit #311): Escape + outside-click + a
   visible close affordance — all three, on every menu and dialog. Selection state inside any
   overlay = the coral language (`--dd-on-bg` + inset `--coral`), never an ad-hoc scheme.

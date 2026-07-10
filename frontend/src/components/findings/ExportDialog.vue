@@ -277,12 +277,15 @@ const downloadHref = computed(() =>
 }
 .seg {
   display: inline-flex;
+  gap: 3px;
+  padding: 3px;
   border: 1px solid var(--line);
   border-radius: var(--r-sm);
-  overflow: hidden;
+  background: var(--panel);
 }
 .seg-opt {
   border: 0;
+  border-radius: 5px;
   background: var(--card);
   padding: 7px 12px;
   font-size: var(--text-sm);
