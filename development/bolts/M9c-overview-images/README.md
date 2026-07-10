@@ -94,6 +94,14 @@ as pure units** (Vitest).
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-11 — slice 2 rulings (operator, live A/B — PR #338):** per-cluster **signal
+  columns ruled as explicit columns** (variant A) over an exception-based signals cell:
+  KEV (alarm-red when >0) · Fix % · Disagree · Triage (stacked state bar + % triaged) — all
+  straight reads of the facets response each row already fetches, zero extra calls.
+  **Anchoring ruling:** numeric table columns shrink-to-content + nowrap so numbers sit
+  tight under their headers; layout slack goes to the cluster/mix cells, never into gaps
+  between data columns. Cursor ruling **sharpened** (PR #337): no I-beam either —
+  `* { cursor: default }` app-wide, ratchet-enforced.
 - **2026-07-11 — polish round rulings (operator review, PR #335):** system-default **arrow
   cursor ruled app-wide** (DESIGN.md §5 — never `pointer`; ECharts series carry
   `cursor: 'default'`, pinned by a spec so it can't regress); **donut deep-links** — segment
