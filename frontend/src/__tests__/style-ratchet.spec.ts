@@ -51,6 +51,24 @@ describe('style ratchet — no new hand-rolled colors', () => {
 })
 
 /**
+ * "System arrow everywhere" (DESIGN.md §2, operator ruling 2026-07-10; bitten twice by
+ * 2026-07-11 — ECharts series, then the sidebar anchors): `cursor: pointer` is banned in app
+ * code. base.css rules the arrow globally; ECharts series carry `cursor: 'default'`
+ * (overview-charts.spec pins those). Nothing may opt back into the hand.
+ */
+describe('style ratchet — no pointer cursor', () => {
+  it('no `cursor: pointer` anywhere in src', () => {
+    const hits = walk(SRC)
+      .map((p) => relative(SRC, p).split('\\').join('/'))
+      .filter((rel) => /cursor:\s*['"]?pointer/.test(readFileSync(join(SRC, rel), 'utf8')))
+    expect(
+      hits,
+      `pointer cursor(s) — the arrow is ruled app-wide (DESIGN.md §2): ${hits.join(', ')}`,
+    ).toEqual([])
+  })
+})
+
+/**
  * "Never same-hue text on its own tint" (DESIGN.md §2, operator ruling 2026-07-09; bitten twice
  * by 2026-07-10): a rule block that pairs `color: var(--X-fg)` with `background: var(--X-bg)`
  * of the SAME hue family ships low-contrast prose. Chips/tags are the ruled exception (short

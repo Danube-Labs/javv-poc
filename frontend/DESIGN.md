@@ -60,9 +60,11 @@ hover/pressed/focus states; reviews reject "border-shift-only" or feedback-less 
 
 **Interaction & spacing rulings (operator, 2026-07-10 — issue #306):**
 - **Arrow cursor everywhere** — never `cursor: pointer` (desktop-app convention: Linear/Notion;
-  the hand is a web-document tell). Data surfaces set `cursor: default` explicitly to suppress
-  the I-beam over cell text (text stays selectable). `not-allowed` on disabled stays (it's
-  feedback).
+  the hand is a web-document tell). **Sharpened 2026-07-11: no I-beam either** — `base.css`
+  rules `* { cursor: default }` app-wide (text and inputs included; text stays selectable),
+  ECharts series carry `cursor: 'default'`, and the style ratchet fails any `cursor: pointer`
+  in src. `not-allowed` on disabled stays (it's feedback — component rules outrank the
+  zero-specificity universal).
 - **Click affordance = row wash + link-styled TARGET cell**: the row hover wash says "this row
   is interactive"; the identifier cell that navigation anchors on (CVE now; image at M9c) turns
   `--coral-text` + underline on row hover. Transitions ~120ms ease-out with a reduced-motion
