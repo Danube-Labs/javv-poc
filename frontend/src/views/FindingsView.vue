@@ -166,7 +166,11 @@ function openFinding(row: FindingRow) {
 /* ---- column visibility + density (Columns menu), persisted per browser ---- */
 const COLS_KEY = 'javv.findings.hidden_cols'
 const DENSE_KEY = 'javv.findings.dense'
-const hiddenCols = ref<Set<string>>(new Set(JSON.parse(localStorage.getItem(COLS_KEY) ?? '[]')))
+// first-run default hides the low-signal columns (operator 2026-07-11: KEV mostly empty,
+// versions live in the detail view) — the Columns menu + localStorage override per user
+const hiddenCols = ref<Set<string>>(
+  new Set(JSON.parse(localStorage.getItem(COLS_KEY) ?? '["epss","kev","current","fixed"]')),
+)
 const dense = ref(localStorage.getItem(DENSE_KEY) !== 'false')
 
 function toggleCol(key: string) {
@@ -250,11 +254,6 @@ function setDense(value: boolean) {
             @update:dense="setDense"
           />
         </div>
-        <div class="server-note">
-          <AppIcon name="layers" :size="13" />
-          All sort / filter / facet counts computed server-side via OpenSearch aggregations
-        </div>
-
         <p v-if="grid.failed || facetsFailed" class="load-error" role="alert">
           <template v-if="grid.failedNotSupportedAtPastT">
             This filter isn't answerable at a past point in time — return to now, or drop the
@@ -351,24 +350,6 @@ function setDense(value: boolean) {
 }
 .toolbar-row > :first-child {
   flex: 1;
-}
-.server-note {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  /* prose is INK — never same-hue text on a tinted panel; teal lives in the icon only */
-  color: var(--ink);
-  background: var(--note-info-bg);
-  border: 1px solid var(--note-info-line);
-  border-radius: var(--r-sm);
-  padding: 7px 11px;
-  margin-bottom: var(--space-2); /* note belongs to the table cluster — tight */
-}
-.server-note svg {
-  color: var(--teal);
-  flex: none;
 }
 .load-error {
   color: var(--health-down-fg);

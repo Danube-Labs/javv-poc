@@ -27,6 +27,7 @@ export function buildScanActivityOption(series: ScanActivityData): EChartsOption
       {
         name: scanner,
         type: 'bar' as const,
+        cursor: 'default',
         data: rows.map((p) => p.scans),
         itemStyle: { color: CHART_SCANNER[scanner], borderRadius: [2, 2, 0, 0] as number[] },
         barMaxWidth: 14,

@@ -25,6 +25,7 @@ export function buildSeverityTrendOption(data: SeverityTrendData): EChartsOption
       {
         name: sev,
         type: 'line' as const,
+        cursor: 'default',
         smooth: true,
         symbol: 'none',
         data: rows.map((p) => p.count),

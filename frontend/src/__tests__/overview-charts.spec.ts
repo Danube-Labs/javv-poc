@@ -86,6 +86,23 @@ describe('buildPtypeDonutOption', () => {
   })
 })
 
+describe('cursor ruling — every chart series suppresses the ECharts pointer', () => {
+  it('all builders set cursor: default on every series', async () => {
+    const { buildSeverityTrendOption } = await import('@/charts/buildSeverityTrendOption')
+    const options = [
+      buildFindingsTrendOption({ new: { trivy: pts([1]) }, resolved: { grype: pts([1]) } }),
+      buildScanActivityOption({ trivy: [{ date: '2026-07-01T00:00:00.000Z', scans: 1 }] }),
+      buildPtypeDonutOption([{ key: 'os', count: 1 }]),
+      buildSeverityTrendOption({ critical: pts([1]) }),
+    ]
+    for (const opt of options) {
+      const series = opt.series as { cursor?: string }[]
+      expect(series.length).toBeGreaterThan(0)
+      for (const s of series) expect(s.cursor).toBe('default')
+    }
+  })
+})
+
 describe('buildSeverityTrendOption (the 1b severity lens)', () => {
   it('one line per canonical bucket in rank order, colored from the pinned severity map', async () => {
     const { buildSeverityTrendOption } = await import('@/charts/buildSeverityTrendOption')

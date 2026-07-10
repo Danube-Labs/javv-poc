@@ -144,6 +144,9 @@ const subDayNote = computed(() => isSubDayWindow(timeTravel.windowDays))
 function goFindings(query: Record<string, string>) {
   void router.push({ path: '/findings', query })
 }
+function onDonutClick(e: { name?: string }) {
+  if (e?.name) goFindings({ ptype: e.name })
+}
 const fmt = (n: number) => n.toLocaleString('en-US')
 </script>
 
@@ -259,12 +262,18 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           </div>
           <div class="card-body">
             <template v-if="ptypeBuckets.length">
-              <EChart :option="donutOption" :height="188" />
+              <EChart :option="donutOption" :height="188" @click="onDonutClick" />
               <div class="donut-legend">
-                <span v-for="(b, i) in ptypeBuckets.slice(0, 6)" :key="b.key">
+                <button
+                  v-for="(b, i) in ptypeBuckets.slice(0, 6)"
+                  :key="b.key"
+                  class="donut-row"
+                  :title="`Open ${b.key} findings`"
+                  @click="goFindings({ ptype: b.key })"
+                >
                   <i :style="{ background: CHART_PTYPE_RAMP[i % CHART_PTYPE_RAMP.length] }" />
-                  {{ b.key }} <b>{{ fmt(b.count) }}</b>
-                </span>
+                  {{ b.key }}<AppIcon class="cell-go" name="chevron" :size="11" /> <b>{{ fmt(b.count) }}</b>
+                </button>
               </div>
             </template>
             <p v-else class="empty-row">
@@ -355,6 +364,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   overflow: hidden;
 }
 .kpi-cell {
+  cursor: default; /* system arrow everywhere — affordance is the chevron + wash, never the cursor */
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -526,20 +536,41 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   gap: 6px;
   margin-top: 6px;
 }
-.donut-legend span {
+.donut-row {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: var(--text-sweep-strong);
   color: var(--soft);
+  border: none;
+  background: none;
+  padding: 2px 4px;
+  border-radius: 5px;
+  cursor: default;
+  text-align: left;
+  transition: background var(--dur-quick);
 }
-.donut-legend i {
+.donut-row:hover {
+  background: var(--control-hover-bg);
+  color: var(--ink);
+}
+.donut-row:active {
+  background: var(--control-active-bg);
+}
+.donut-row:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+.donut-row:hover .cell-go {
+  color: var(--coral-text);
+}
+.donut-row i {
   width: 9px;
   height: 9px;
   border-radius: 2px;
   flex: none;
 }
-.donut-legend b {
+.donut-row b {
   margin-left: auto;
   color: var(--ink);
   font-family: var(--font-mono);
@@ -570,6 +601,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   text-align: right;
 }
 .tbl-hover tbody tr {
+  cursor: default; /* arrow, not the I-beam — text stays selectable */
   transition: background var(--dur-quick);
 }
 .tbl-hover tbody tr:hover {

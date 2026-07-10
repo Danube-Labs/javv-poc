@@ -150,6 +150,10 @@ Transitions short and functional (`.12–.15s`), no decorative animation. Row ho
 trailing chevron at rest (`--dash-muted` → `--coral-text` with the hover wash) and its
 identifier takes the link treatment on hover (coral + underline, the grid's `cve-link`
 convention) — hover-only affordance is not discoverable.
+**Cursor (operator ruling, re-affirmed 2026-07-11):** the SYSTEM DEFAULT arrow everywhere —
+never `pointer`, never the I-beam over clickable text (`cursor: default` on clickable
+rows/cells; text stays selectable). Affordance comes from the chevron + wash + link treatment,
+never the cursor (Linear-style desktop-app convention).
 
 ### Motion (#319) — the one scale, applied through the kit
 

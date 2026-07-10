@@ -24,6 +24,7 @@ export function buildPtypeDonutOption(buckets: PtypeBucket[]): EChartsOption {
     series: [
       {
         type: 'pie',
+        cursor: 'default',
         radius: ['54%', '82%'],
         center: ['50%', '52%'],
         avoidLabelOverlap: true,
