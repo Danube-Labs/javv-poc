@@ -75,8 +75,10 @@ Record the URL Vite prints. For changes to the build/embed path itself, use `npm
 - Walk the affected screens per the Step-2 plan. For each: screenshot, check the browser console
   for errors/warnings (must be clean), verify **light AND dark** theme when the delta touches
   styling, and verify loading/empty/error states where reachable.
-- Screenshots go under `.playwright-mcp/visual-test/<run-timestamp>/` (gitignored), named by
-  screen/state.
+- Screenshots go under the **repo-root** `.playwright-mcp/visual-test/<run-timestamp>/`
+  (gitignored), named by screen/state — the rig anchors there regardless of cwd, and ad-hoc
+  Playwright-MCP captures land in the same root dir. ONE artifact dir to purge; never let a
+  second one accumulate under `frontend/`.
 
 ## Rules
 

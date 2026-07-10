@@ -15,7 +15,11 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright'
 
 const BASE = process.env.JAVV_BASE ?? 'http://localhost:5173'
-const OUT = process.argv[2] ?? `.playwright-mcp/visual-test/${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}`
+// default output anchors to the REPO-ROOT .playwright-mcp (one artifact dir to purge) — a
+// cwd-relative default is how a second copy under frontend/ once accumulated 40MB unnoticed
+const REPO_ROOT_OUT = new URL('../../.playwright-mcp/visual-test/', import.meta.url).pathname
+const OUT =
+  process.argv[2] ?? `${REPO_ROOT_OUT}${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}`
 const USER = process.env.JAVV_USER
 const PASS = process.env.JAVV_PASS
 if (!USER || !PASS) {
