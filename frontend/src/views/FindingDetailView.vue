@@ -225,6 +225,7 @@ async function revokeDecision(id: string) {
   if (response.response?.ok) {
     logger.info('decision_revoked', { decision_id: id })
     await fetchDecisions()
+    void fetchActivity()
   } else {
     logger.warn('decision_revoke_failed', { status: response.response?.status })
   }
@@ -232,6 +233,7 @@ async function revokeDecision(id: string) {
 
 function onDecisionCreated() {
   void fetchDecisions()
+  void fetchActivity()
 }
 
 /* ---- per-finding activity (the audit trail rows for THIS finding_key) ---- */
@@ -246,25 +248,23 @@ interface ActivityRow {
 }
 const activity = ref<ActivityRow[]>([])
 
-watch(
-  [primary, () => clusterStore.selectedId],
-  async ([p]) => {
-    if (!p || !clusterStore.selectedId) return
-    const response = await readAuditLogApiV1AuditGet({
-      query: {
-        cluster_id: clusterStore.selectedId,
-        finding_key: p.finding_key,
-        size: 8,
-      } as never,
-    })
-    if (response.response?.ok && response.data) {
-      activity.value = (response.data as { data: ActivityRow[] }).data
-    } else {
-      logger.warn('finding_activity_failed', { status: response.response?.status })
-    }
-  },
-  { immediate: true },
-)
+async function fetchActivity() {
+  const p = primary.value
+  if (!p || !clusterStore.selectedId) return
+  const response = await readAuditLogApiV1AuditGet({
+    query: {
+      cluster_id: clusterStore.selectedId,
+      finding_key: p.finding_key,
+      size: 8,
+    } as never,
+  })
+  if (response.response?.ok && response.data) {
+    activity.value = (response.data as { data: ActivityRow[] }).data
+  } else {
+    logger.warn('finding_activity_failed', { status: response.response?.status })
+  }
+}
+watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { immediate: true })
 </script>
 
 <template>

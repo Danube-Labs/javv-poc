@@ -60,7 +60,10 @@ async def _append(
                 "schema_version": AUDIT_SCHEMA_VERSION,
                 **{k: v for k, v in doc.items() if v is not None},
             },
-            params={"op_type": "create"},
+            # refresh=true → read-your-writes: the detail screen refetches its activity feed
+            # right after the action returns (A-m2/#191: writes refresh, reads never force one).
+            # All callers are human-rate (triage/decisions/auth) — never the ingest hot path.
+            params={"op_type": "create", "refresh": "true"},
         )
     except ConflictError:
         if not explicit:
