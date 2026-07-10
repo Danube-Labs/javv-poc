@@ -41,6 +41,14 @@ a {
   color: var(--coral);
 }
 
+/* System arrow app-wide (operator rulings 2026-07-10 + 2026-07-11, DESIGN.md §2) — no hand,
+   no I-beam: every surface, text and inputs included, shows the system default cursor.
+   Affordance = wash + chevron + focus ring, never the cursor. `not-allowed` on disabled
+   stays — component rules outrank this zero-specificity universal. Text stays selectable. */
+* {
+  cursor: default;
+}
+
 /* Interactive controls: VISIBLE hover feedback (operator ruling 2026-07-10) — a border-color
    shift alone can't be seen; every clickable control gets the wash + the border shift. Scoped
    component rules may add to this; they must not remove it. */
