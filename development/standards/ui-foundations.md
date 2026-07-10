@@ -71,3 +71,14 @@ styles may add to it, never remove it. Binding detail: `frontend/DESIGN.md` §2.
 Buttons, segmented bars, labeled fields, dropdown behavior, and modals are USED from the kit,
 never re-rolled per component — writing their raw markup/CSS again is a review failure
 (`frontend/DESIGN.md` §5 table).
+
+## Motion — one scale, applied through the kit (post-M9b, #319)
+
+Open/close motion is part of the same kit contract: durations/curves come from the motion
+tokens (`--ease-out`, `--dur-quick`, `--dur-panel`), applied via the shared `t-pop` / `t-fade`
+/ `t-modal` Transition classes in `base.css` — transform/opacity only, never layout (the
+sidebar collapse rail is the one ruled exception), everything collapses under
+`prefers-reduced-motion`. UiDropdown and ModalShell carry the motion, so every menu/dialog
+built through the kit animates by default; in-flow appearances (banners) use `t-fade`.
+Feedback text (error/success notes) is deliberately INSTANT — never animate urgency.
+Binding detail: `frontend/DESIGN.md` §5 "Motion".
