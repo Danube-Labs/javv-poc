@@ -144,6 +144,18 @@ Transitions short and functional (`.12–.15s`), no decorative animation. Row ho
 `var(--row-hover)`; clickable cards lift 1px + coral border. Focus-visible = `var(--focus-ring)`
 (2px coral, 1px offset) on every interactive element. Dropdowns close on outside-click and Esc.
 
+### Motion (#319) — the one scale, applied through the kit
+
+Durations/curves come from the motion tokens (`--ease-out`, `--dur-quick` 120ms,
+`--dur-panel` 200ms) — never ad-hoc values. Open/close motion is BAKED INTO the kit:
+`UiDropdown` animates every menu (`t-pop`: fade + 4px rise, both ways; its `closed` event
+fires after the leave for teardown that must not show mid-fade), `ModalShell` animates every
+dialog entrance (`t-modal`: scrim fade + card rise; close is instant — unmount resets consumer
+form state). Anything non-kit that appears/disappears in-flow (banners) wraps in
+`<Transition name="t-fade">` — crossfade only, NEVER animate height/layout. All `t-*` classes
+live in `base.css` and collapse under `prefers-reduced-motion`. Animate `transform`/`opacity`
+only; no bounce/elastic; new appear/disappear surfaces use these classes, not new ones.
+
 ### The UI kit (`components/ui/`) — use it, never re-roll it
 
 These components each own one contract ONCE (feedback states, dismiss behavior, rhythm). Writing
@@ -265,6 +277,7 @@ are deliberate contract choices, not reflex defaults (operator ruling 2026-07-09
 | `tiny-text 10–11.5px` on mono micro-scale | Ops-tool density (table headers, counts, chips) per the v4 scale. Body text stays ≥13px. |
 | `low-contrast` white-on-coral (login/action buttons) | Prototype button treatment; 13px/600 button label, not body text. |
 | `cramped-padding` on `tbl-wrap` | Full-bleed table inside the card is the prototype's design. |
+| `layout-transition: width` on `.sidebar` | The collapse rail (226↔64px) — the one deliberate layout animation: user-initiated, rare, and the standard sidebar pattern (Nuxt UI reference does the same). Nothing else animates layout — the `t-*` classes are transform/opacity only. |
 
 Everything else it flags (real contrast failures, hierarchy problems) gets fixed or gets its
 own row here — never silently ignored.

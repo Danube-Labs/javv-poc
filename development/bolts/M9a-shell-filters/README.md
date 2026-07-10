@@ -111,6 +111,15 @@ as pure units** (Vitest).
 - OpenAPI **breaking-change** classifier (`oasdiff`, AUDIT I8) → CI/process work, not this bolt.
 
 ## Updates
+- **2026-07-10 — post-M9b foundation extensions (#319, PRs #320/#323):** the shell sidebar is
+  now **collapsible to a 64px icon rail** (Nuxt UI sidebar grammar on our tokens, state
+  persisted in localStorage, `aria-expanded` toggle; the width transition is the ONE ruled
+  layout animation — DESIGN.md §9). And the foundation gained a **motion layer**: motion tokens
+  (`--ease-out`, `--dur-quick`, `--dur-panel`) in `tokens.css` + shared `t-pop`/`t-fade`/
+  `t-modal` Transition classes in `base.css`, baked into UiDropdown (menus animate both ways,
+  `closed` fires post-leave) and ModalShell (entrance only — unmount resets consumer state);
+  banners crossfade. Feedback text (errors/success notes) stays deliberately instant. Contract:
+  DESIGN.md §5 "Motion"; ruled exceptions §9.
 - **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §C-1/§A-4):** the global time
   picker ships here but **`T<now` works only after M8b** — if M9 starts before M8b lands, the
   picker needs a "history available after M8b" state (the `as_of` seam 501s cleanly today; check
