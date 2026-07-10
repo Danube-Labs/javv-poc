@@ -2,7 +2,7 @@
 
 How to push scan results into JAVV **without running the JAVV scanners** — from any
 environment that can produce the envelope JSON (Kubernetes, Nomad, plain Docker hosts, CI
-pipelines). This is the "cheap now" slice of #262: the wire schema, the call protocol, and the
+pipelines). This is the "cheap now" slice of #327: the wire schema, the call protocol, and the
 validation rules, published and CI-pinned. What it does **not** yet give you: a scanner
 identity of your own (see [Current limitation](#current-limitation-the-scanner-vocabulary)).
 
@@ -145,7 +145,7 @@ shape). This is deliberate for now: per-scanner-is-sacred (never merged, never d
 every scanner value is a facet across the entire system — normalizer coverage (D16),
 disagreement pairing, per-scanner tokens. Opening the vocabulary is a **v1.1 ruling**
 (a registered-scanner registry, not a free string) tracked on
-[#262](https://github.com/Danube-Labs/javv-poc/issues/262); a `generic` tuning shape rides the
+[#327](https://github.com/Danube-Labs/javv-poc/issues/327); a `generic` tuning shape rides the
 same ruling. If you're wrapping a different engine (Snyk, Clair, …) today, map its output onto
 one of the two identities and pin your mapping — or wait for the vocabulary.
 
