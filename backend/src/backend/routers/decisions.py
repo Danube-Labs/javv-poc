@@ -17,7 +17,7 @@ from opensearchpy import NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.auth.capabilities import require_capability
-from backend.auth.principal import Principal
+from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
 from backend.decisions.lifecycle import (
     DECISIONS_INDEX,
@@ -30,6 +30,7 @@ from backend.decisions.lifecycle import (
 router = APIRouter(prefix="/api/v1/decisions", tags=["decisions"])
 
 CanTriage = Annotated[Principal, Depends(require_capability("can_triage"))]
+Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
 
 def _require_accept_final(principal: Principal) -> None:
@@ -144,7 +145,7 @@ async def approval_list(
 @router.get("")
 async def list_decisions(
     request: Request,
-    principal: CanTriage,
+    principal: Authenticated,
     cluster_id: ClusterId,
     cve_id: Annotated[str | None, Query(max_length=128)] = None,  # A-n: bounded query string
     include_revoked: bool = False,

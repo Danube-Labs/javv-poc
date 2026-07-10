@@ -47,6 +47,7 @@ export const useFindingsStore = defineStore('findings', {
     nextCursor: null as string | null,
     loading: false,
     failed: false,
+    failedNotSupportedAtPastT: false,
   }),
   getters: {
     hasPrev: (s) => s.page > 0,

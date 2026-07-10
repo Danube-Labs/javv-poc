@@ -98,10 +98,14 @@ async function main() {
   await page.keyboard.press('Escape')
   await page.locator('.facet-row', { hasText: 'critical' }).first().click()
   await page.waitForTimeout(600)
-  await page.locator('.bulk-wrap .btn-mini').click()
-  await page.waitForSelector('.modal')
-  await shot(page, '07c-bulk-dialog', { dump: true })
-  await page.keyboard.press('Escape')
+  if (await page.locator('.bulk-wrap .btn-mini').count()) {
+    await page.locator('.bulk-wrap .btn-mini').click()
+    await page.waitForSelector('.modal')
+    await shot(page, '07c-bulk-dialog', { dump: true })
+    await page.keyboard.press('Escape')
+  } else {
+    console.log('  (bulk hidden — principal lacks can_triage: RBAC state captured implicitly)')
+  }
   await page.locator('.clear-all').click()
   await page.waitForTimeout(500)
 
@@ -115,13 +119,18 @@ async function main() {
   // mutations in automated visual runs are confirmation-gated (standing rule)
   const naBtn = page.locator('.state-opt', { hasText: 'Not affected' })
   if (await naBtn.count()) {
-    await naBtn.click()
-    await page.waitForSelector('.vex-chips')
-    await shot(page, '08b-triage-vex-draft', { dump: true })
-    await page.locator('.state-opt', { hasText: 'Open' }).click() // back to a no-op draft
+    if (await naBtn.isDisabled()) {
+      // a viewer principal: the locked panel IS the forced state worth capturing
+      await shot(page, '08b-triage-locked', { dump: true })
+    } else {
+      await naBtn.click()
+      await page.waitForSelector('.vex-chips')
+      await shot(page, '08b-triage-vex-draft', { dump: true })
+      await page.locator('.state-opt', { hasText: 'Open' }).click() // back to a no-op draft
+    }
   }
   const raBtn = page.locator('.btn-ghost', { hasText: 'Risk-accept' })
-  if (await raBtn.count()) {
+  if ((await raBtn.count()) && !(await raBtn.isDisabled())) {
     await raBtn.click()
     await page.waitForSelector('.modal')
     await shot(page, '08c-risk-accept-dialog', { dump: true })
