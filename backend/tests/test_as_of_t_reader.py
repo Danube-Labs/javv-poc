@@ -386,3 +386,55 @@ async def test_page_walk_is_stateless_and_complete(real_os: tuple[AsyncOpenSearc
         if cursor is None:
             break
     assert len(seen) == 29 and len(set(seen)) == 29  # every row exactly once
+
+
+def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
+    """The parity guard the q gap proved missing (M9b slice 4): a NEW SearchFilters field must
+    be either applied by `_apply_filters` or explicitly rejected — silently ignoring one returns
+    unfiltered rows at a past T with no error. Each field is probed one at a time: acceptable
+    outcomes are 'filters rows' (empty in = empty out) or an explicit unrecorded-ValueError;
+    anything else means the reader never saw the field."""
+    from dataclasses import fields as dc_fields
+
+    from backend.query.as_of_t import AsOfTQuery
+    from backend.query.search import SearchFilters
+
+    probe_values: dict[str, Any] = {
+        "severity": ["critical"],
+        "state": ["open"],
+        "scanner": "trivy",
+        "assignee": "someone",
+        "kev": True,
+        "fixable": True,
+        "disagree": True,
+        "cve_id": "CVE-0000-0000",
+        "image_digest": "sha256:x",
+        "image_repo": "nginx",
+        "namespace": "ns",
+        "ptype": "os",
+        "q": "krb5",
+        "present": False,
+    }
+    missing = set(probe_values) ^ {f.name for f in dc_fields(SearchFilters)}
+    assert not missing, f"probe map drifted from SearchFilters: {missing}"
+
+    # deliberately mismatches every probe value — a handled filter must EXCLUDE this row
+    row = {
+        "present": True,
+        "severity_canonical": "high",
+        "state": "resolved",
+        "scanner": "grype",
+        "assignee": None,
+        "fixable": False,
+        "cve_id": "CVE-1",
+        "image_digest": "sha256:y",
+        "ptype": None,
+        "namespaces": ["default"],
+    }
+    for name, value in probe_values.items():
+        f = SearchFilters(**{name: value})
+        try:
+            out = AsOfTQuery._apply_filters([dict(row)], f)
+        except ValueError:
+            continue  # explicit unrecorded rejection — honest
+        assert out == [], f"SearchFilters.{name} was silently ignored by the as_of reader"
