@@ -120,6 +120,8 @@ Vue 3 `<script setup lang="ts">` + PrimeVue 4 + Pinia + Vue Router, built with V
 gates ESLint/oxlint + stylelint + vue-tsc (`npm run lint` / `npm run test`, the CI `Frontend` job).
 **Read [`frontend/DESIGN.md`](frontend/DESIGN.md) before touching any screen** - the agent-facing
 design contract over `src/styles/tokens.css` (the binding token source, ui-foundations.md).
+`src/components/ui/` is the mandatory UI kit (buttons/segs/fields/dropdowns/modals/toasts +
+motion - DESIGN.md §5; re-rolling any of it is a review failure).
 `src/lib/logger.ts` is the only logging pipeline (raw `console.*` is ESLint-banned).
 
 ---

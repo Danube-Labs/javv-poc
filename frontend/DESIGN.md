@@ -92,8 +92,8 @@ hover/pressed/focus states; reviews reject "border-shift-only" or feedback-less 
 ```
 nav text       var(--side-fg)  hover var(--side-fg-hover) on var(--side-on-fg)/(--side-on-bg)
 group label    var(--side-label)      brand word   var(--side-brand-fg)  credit var(--side-credit)
-hover wash     var(--side-hover-bg)   footer       var(--side-foot-*)    version var(--side-version)
-sweep dot      var(--health-ok-dot) + ring var(--sweep-ok-ring)
+hover wash     var(--side-hover-bg)   pressed      var(--side-active-bg) footer var(--side-foot-*)
+sweep dot      var(--health-ok-dot) + ring var(--sweep-ok-ring)          version var(--side-version)
 ```
 Icons in chrome: `<AppIcon name="…">` — the javv stroke set ported verbatim from the prototype.
 Never an icon font / emoji / other icon library in app chrome.
@@ -128,7 +128,10 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 
 ## 4. Layout & density
 
-- Sidebar `var(--sidebar-w)` (226px, slate); facet rail `var(--facet-rail-w)` (218px).
+- Sidebar `var(--sidebar-w)` (226px, slate) collapsible to `var(--sidebar-w-rail)` (64px);
+  facet rail `var(--facet-rail-w)` (218px).
+- Motion: `var(--ease-out)` with `var(--dur-quick)` (120ms) / `var(--dur-panel)` (200ms) —
+  the only durations/curves (see §5 "Motion").
 - Content: max `var(--screen-max-w)` (1380px) centered, padding `var(--content-pad)`; grid gap `var(--grid-gap)`.
   **Data-dense table screens opt out via route `meta: { wide: true }`** (full viewport width —
   operator ruling 2026-07-09: an internal table scrollbar beside dead margin is worse than a
