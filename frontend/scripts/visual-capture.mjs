@@ -53,7 +53,7 @@ async function main() {
   await page.click('button[type=submit]')
   await page.waitForURL('**/overview', { timeout: 10_000 })
   await page.waitForLoadState('networkidle')
-  await shot(page, '02-shell-overview')
+  await shot(page, '02-shell-overview', { dump: true })
 
   // findings — default state
   await page.goto(`${BASE}/findings`)
