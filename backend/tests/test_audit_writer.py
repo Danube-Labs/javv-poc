@@ -132,6 +132,31 @@ async def test_rows_are_append_only_by_construction(real_os) -> None:
         )
 
 
+async def test_append_is_immediately_searchable(real_os) -> None:
+    # read-your-writes (A-m2/#191 pattern: WRITES refresh, reads never do): the detail screen
+    # refetches its activity feed right after a triage save — a journal row that only turns up
+    # after the next refresh tick looks like a lost action to the operator.
+    client, prefix = real_os
+    await append_field_change(
+        client,
+        actor="alice",
+        action="not_affected",
+        entity_type="finding",
+        entity_id="fk-1",
+        finding_key="fk-1",
+        field="state",
+        old_value="open",
+        new_value="not_affected",
+        revision=3,
+        cluster_id="c-1",
+        prefix=prefix,
+    )
+    hits = await client.search(  # NO index refresh — exactly what the /audit read path sees
+        index=f"{prefix}system-audit-log-*", body={"size": 10, "query": {"match_all": {}}}
+    )
+    assert hits["hits"]["total"]["value"] == 1
+
+
 async def test_the_absorbed_auth_appender_writes_the_same_shape(real_os) -> None:
     client, prefix = real_os
 
