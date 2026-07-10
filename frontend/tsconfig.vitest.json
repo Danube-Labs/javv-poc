@@ -8,8 +8,9 @@
 
   "compilerOptions": {
     // Vitest runs in a different environment than the application code.
-    // Adjust lib and types accordingly.
-    "lib": [],
+    // Adjust lib and types accordingly. Node 22 / jsdom are ES2022 runtimes — an empty
+    // lib rejects app files (Array.at etc.) as soon as a test imports them.
+    "lib": ["ES2022"],
     "types": ["node", "jsdom"],
 
     // `vue-tsc --build` produces a .tsbuildinfo file for incremental type-checking.
