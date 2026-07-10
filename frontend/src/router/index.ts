@@ -67,8 +67,7 @@ const router = createRouter({
         {
           path: 'images',
           name: 'images',
-          component: () => import('@/views/PlaceholderView.vue'),
-          props: { title: 'Images', bolt: 'M9c' },
+          component: () => import('@/views/ImagesView.vue'),
         },
         {
           path: 'audit',
