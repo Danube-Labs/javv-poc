@@ -350,26 +350,26 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   letter-spacing: 0.05em;
   color: var(--soft);
   text-align: left;
-  padding: 7px 8px;
+  padding: 7px 12px;
   border-bottom: 1px solid var(--line2);
   background: var(--panel);
 }
 .tbl td {
-  padding: 9px 8px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--line2);
   vertical-align: top;
 }
-/* anchored numeric columns (operator A/B ruling): shrink-to-content + nowrap so the numbers
-   sit tight under their headers — the layout slack goes to Cluster and the mix bars, never
-   into gaps between data columns */
+/* anchored numeric columns (operator A/B ruling, sharpened live): shrink-to-content + nowrap
+   plus HAIRLINE COLUMN DIVIDERS — the kpi-band grammar carried into the table, so every value
+   sits in a bounded cell instead of floating in shared whitespace */
+.tbl th + th,
+.tbl td + td {
+  border-left: 1px solid var(--line2);
+}
 .tbl .r {
   text-align: right;
   width: 1%;
   white-space: nowrap;
-}
-.tbl th.r,
-.tbl td.r {
-  padding-left: 18px;
 }
 .tbl-hover tbody tr {
   cursor: default; /* arrow, not the I-beam — text stays selectable */
@@ -475,7 +475,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .triage-cell {
   white-space: nowrap;
   width: 1%;
-  padding-left: 18px;
 }
 .triage-cell .progress-bar {
   display: inline-flex;
