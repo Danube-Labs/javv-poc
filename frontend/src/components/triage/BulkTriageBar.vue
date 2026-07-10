@@ -5,12 +5,13 @@
  * BLOCKS instead of widening (bulkSelector.ts); 413 = selector past the inline cap ("narrow the
  * selection"); one action = one audit row server-side.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { bulkTriageApiV1FindingsBulkTriagePost } from '@/api/generated'
 import TriageStateControl from '@/components/triage/TriageStateControl.vue'
 import VexJustificationPicker from '@/components/triage/VexJustificationPicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import ModalShell from '@/components/ui/ModalShell.vue'
 import type { FilterField } from '@/filters/fields.config'
 import { lensToSelector } from '@/findings/bulkSelector'
 import { buildTriagePatch } from '@/findings/triageRules'
@@ -36,12 +37,6 @@ const notes = ref('')
 const submitting = ref(false)
 const error = ref<string | null>(null)
 const done = ref<number | null>(null)
-
-function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape' && open.value) open.value = false
-}
-onMounted(() => document.addEventListener('keydown', onKey))
-onUnmounted(() => document.removeEventListener('keydown', onKey))
 
 const lens = computed(() => lensToSelector(props.fields, props.selections))
 const selectorChips = computed(() =>
@@ -104,17 +99,13 @@ async function apply() {
       <AppIcon name="layers" :size="13" />Bulk triage
     </button>
 
-    <div v-if="open" class="modal-scrim" @click.self="open = false">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Bulk triage the current lens">
-        <div class="modal-head">
-          <div>
-            <h3>Bulk triage</h3>
-            <p class="modal-sub">one action · one audit row · applies to the current lens</p>
-          </div>
-          <button type="button" class="btn-mini" aria-label="Close" @click="open = false">✕</button>
-        </div>
-
-        <div class="modal-body">
+    <ModalShell
+      v-if="open"
+      title="Bulk triage"
+      subtitle="one action · one audit row · applies to the current lens"
+      @close="open = false"
+    >
+      <div>
           <p v-if="lens.blocked" class="bulk-blocked">
             <AppIcon name="alert" :size="13" /> {{ lens.blocked }}
           </p>
@@ -146,9 +137,8 @@ async function apply() {
               <AppIcon name="check" :size="13" /> Applied to {{ done }} finding(s) — one audit row.
             </p>
           </template>
-        </div>
-
-        <div class="modal-actions">
+      </div>
+      <template #actions>
           <button type="button" class="btn-ghost" @click="open = false">{{ done !== null ? 'Close' : 'Cancel' }}</button>
           <button
             v-if="done === null"
@@ -159,9 +149,8 @@ async function apply() {
           >
             {{ submitting ? 'Applying…' : 'Apply to lens' }}
           </button>
-        </div>
-      </div>
-    </div>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
@@ -184,52 +173,6 @@ async function apply() {
 }
 .btn-mini:hover {
   border-color: var(--control-hover-line);
-}
-.modal-scrim {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  display: grid;
-  place-items: center;
-  z-index: 80;
-  padding: 24px;
-}
-.modal {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  width: min(520px, 100%);
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-.modal-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px 12px;
-  border-bottom: 1px solid var(--line2);
-}
-.modal-head h3 {
-  margin: 0;
-}
-.modal-sub {
-  margin: 2px 0 0;
-  font-size: var(--text-sm);
-  color: var(--soft);
-}
-.modal-body {
-  padding: 14px 18px;
-  overflow-y: auto;
-}
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 18px 16px;
-  border-top: 1px solid var(--line2);
 }
 .bulk-blocked {
   display: flex;

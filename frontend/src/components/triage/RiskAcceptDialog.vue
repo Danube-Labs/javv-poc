@@ -6,10 +6,11 @@
  * radius line says so before the operator commits. `apply_both_scanners` is D22's pinned
  * semantics — a scanner-specific decision names its scanner.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import { createApiV1DecisionsPost } from '@/api/generated'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import ModalShell from '@/components/ui/ModalShell.vue'
 import { useApi } from '@/composables/useApi'
 import { logger } from '@/lib/logger'
 import type { FindingRow } from '@/stores/findings'
@@ -69,25 +70,11 @@ async function submit() {
   }
 }
 
-function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape') emit('close')
-}
-onMounted(() => document.addEventListener('keydown', onKey))
-onUnmounted(() => document.removeEventListener('keydown', onKey))
 </script>
 
 <template>
-  <div class="modal-scrim" @click.self="emit('close')">
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Risk-accept this CVE">
-      <div class="modal-head">
-        <div>
-          <h3>Risk-accept this CVE</h3>
-          <p class="modal-sub mono-cell">{{ cveId }}</p>
-        </div>
-        <button type="button" class="btn-mini" aria-label="Close" @click="emit('close')">✕</button>
-      </div>
-
-      <div class="modal-body">
+  <ModalShell title="Risk-accept this CVE" :subtitle="cveId" :width="560" @close="emit('close')">
+      <div>
         <div class="ra-anchor">
           <span class="mono-cell strong">{{ cveId }}</span>
           <span class="ra-anchor-note">A decision anchors on the CVE + scope, so a package bump auto-inherits it.</span>
@@ -169,63 +156,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
         <p v-if="error" class="ra-error" role="alert">{{ error }}</p>
       </div>
 
-      <div class="modal-actions">
+      <template #actions>
         <button type="button" class="btn-ghost" @click="emit('close')">Cancel</button>
         <button type="button" class="btn-primary" :disabled="!valid || submitting" @click="submit">
           {{ submitting ? 'Creating…' : 'Create decision' }}
         </button>
-      </div>
-    </div>
-  </div>
+      </template>
+  </ModalShell>
 </template>
 
 <style scoped>
-.modal-scrim {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  display: grid;
-  place-items: center;
-  z-index: 80;
-  padding: 24px;
-}
-.modal {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  width: min(560px, 100%);
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-}
-.modal-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px 12px;
-  border-bottom: 1px solid var(--line2);
-}
-.modal-head h3 {
-  margin: 0;
-}
-.modal-sub {
-  margin: 2px 0 0;
-  font-size: var(--text-sm);
-  color: var(--soft);
-}
-.modal-body {
-  padding: 14px 18px;
-  overflow-y: auto;
-}
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 18px 16px;
-  border-top: 1px solid var(--line2);
-}
 .ra-anchor {
   display: flex;
   align-items: center;

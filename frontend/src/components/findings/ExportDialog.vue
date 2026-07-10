@@ -7,10 +7,11 @@
  * is read-only (the export-at-past-T seam lands with a later slice). Schedule params carry no
  * namespace/ptype — those lenses BLOCK scheduling rather than silently widening.
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 
 import { enqueueReportApiV1ReportsPost, getReportApiV1ReportsReportIdGet } from '@/api/generated'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import ModalShell from '@/components/ui/ModalShell.vue'
 import { useApi } from '@/composables/useApi'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FilterField } from '@/filters/fields.config'
@@ -58,12 +59,7 @@ function close() {
   if (poll) clearInterval(poll)
   poll = null
 }
-function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape' && open.value) close()
-}
-onMounted(() => document.addEventListener('keydown', onKey))
 onUnmounted(() => {
-  document.removeEventListener('keydown', onKey)
   if (poll) clearInterval(poll)
 })
 
@@ -176,17 +172,13 @@ const downloadHref = computed(() =>
       <AppIcon name="download" :size="13" />Export
     </button>
 
-    <div v-if="open" class="modal-scrim" @click.self="close">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Export the current lens">
-        <div class="modal-head">
-          <div>
-            <h3>Export</h3>
-            <p class="modal-sub">the current lens · per-scanner sacred (VEX = one scanner per file)</p>
-          </div>
-          <button type="button" class="btn-mini" aria-label="Close" @click="close">✕</button>
-        </div>
-
-        <div class="modal-body">
+    <ModalShell
+      v-if="open"
+      title="Export"
+      subtitle="the current lens · per-scanner sacred (VEX = one scanner per file)"
+      :width="480"
+      @close="close"
+    >
           <p v-if="historical" class="ex-blocked">
             <AppIcon name="clock" :size="13" />
             Exports describe current state — return to now to export. (Past-T exports land with
@@ -234,9 +226,8 @@ const downloadHref = computed(() =>
 
             <p v-if="error" class="ex-error" role="alert">{{ error }}</p>
           </template>
-        </div>
 
-        <div class="modal-actions">
+      <template #actions>
           <button type="button" class="btn-ghost" @click="close">Close</button>
           <button
             v-if="!historical && tab === 'now'"
@@ -256,9 +247,8 @@ const downloadHref = computed(() =>
           >
             {{ busy ? 'Scheduling…' : 'Schedule' }}
           </button>
-        </div>
-      </div>
-    </div>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
@@ -281,50 +271,6 @@ const downloadHref = computed(() =>
 }
 .btn-mini:hover {
   border-color: var(--control-hover-line);
-}
-.modal-scrim {
-  position: fixed;
-  inset: 0;
-  background: var(--scrim);
-  display: grid;
-  place-items: center;
-  z-index: 80;
-  padding: 24px;
-}
-.modal {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  width: min(480px, 100%);
-  display: flex;
-  flex-direction: column;
-}
-.modal-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 18px 12px;
-  border-bottom: 1px solid var(--line2);
-}
-.modal-head h3 {
-  margin: 0;
-}
-.modal-sub {
-  margin: 2px 0 0;
-  font-size: var(--text-sm);
-  color: var(--soft);
-}
-.modal-body {
-  padding: 14px 18px;
-}
-.modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  padding: 12px 18px 16px;
-  border-top: 1px solid var(--line2);
 }
 .tabs {
   margin-bottom: 4px;
