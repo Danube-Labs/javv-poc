@@ -87,6 +87,19 @@ as pure units** (Vitest).
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-10 — post-bolt detail-screen rework (operator session, PR #316):** the flat header
+  meta ribbon is replaced by the **risk band** — CVSS/EPSS/SLA as one hairline-divided stat band
+  (operator A/B ruling, presentation per the Nuxt UI stat-card reference on our tokens); urgency
+  lives in the numerals (CVSS colored by severity, SLA countdown by tier); context facts are
+  label-over-value stacks. The B-4 "images affected" per-scanner **counts card is superseded** by
+  the prototype's **Affected components** table (one row per image+package with namespace,
+  current/fixed, scanner tags) fed by the server-filtered occurrence search — no counts computed
+  client-side; a version disagreement splits rows (per-scanner sacred; view-model unit-tested).
+  **Namespace is a per-row dimension of that table, never a CVE-level header field** (operator
+  ruling — an unqualified header list reads CVE-wide and can't scale). Workload names wait for
+  the envelope (v1.1, #308). Also: the UI kit (`components/ui/`) landed — controls are imported,
+  never re-rolled (DESIGN.md §5); the style ratchet now fails same-hue fg/bg pairs.
+
 - **2026-07-07 — backend↔UI drift rulings (major audit #224, `docs/audits/major_audit/05-backend-ui-drift-m9.md`):**
   the grid + detail + triage flow follow the SHIPPED backend, not the v4 prototype where they differ:
   **(A-1)** filters/aggs send lowercase severities and the `negligible` bucket exists (display may
