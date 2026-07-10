@@ -162,6 +162,7 @@
   --side-fg: #aeb9c2; /* nav item text */
   --side-fg-hover: #e4eaef;
   --side-hover-bg: rgba(255, 255, 255, 0.05);
+  --side-active-bg: rgba(255, 255, 255, 0.09); /* pressed state on dark-chrome controls */
   --side-on-bg: rgba(236, 126, 84, 0.14); /* active item — coral wash */
   --side-on-fg: #fbe6d8;
   --side-label: #8494a1; /* group labels — AA on the slate */
@@ -174,8 +175,14 @@
   --side-version: #7d8d9a; /* AA on the slate */
   --sweep-ok-ring: rgba(63, 179, 127, 0.18);
 
+  /* -- motion — one scale for every transition (reduced-motion callers zero it) */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-quick: 120ms;
+  --dur-panel: 200ms;
+
   /* -- layout ------------------------------------------------------------ */
   --sidebar-w: 226px;
+  --sidebar-w-rail: 64px;
   --facet-rail-w: 218px;
   --screen-max-w: 1380px;
   --content-pad: 28px clamp(26px, 3.2vw, 56px);

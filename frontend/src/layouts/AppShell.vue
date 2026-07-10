@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * Global chrome (SCREENS-v5 / prototype fidelity): 226px slate sidebar — brand block, grouped
+ * Global chrome (SCREENS-v5 / prototype fidelity): slate sidebar (226px, collapsible to a 64px
+ * icon rail — Nuxt UI sidebar grammar, state persisted per browser) — brand block, grouped
  * nav with the javv stroke icons + coral active bar, sweep-health footer + version line — and
  * the 56px topbar (cluster switcher · global time picker · search/bell slots (M9f, disabled) ·
  * avatar). Nav items whose screen is capability-gated are HIDDEN without the capability (A-4).
  */
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 
 import iconSvg from '@/assets/brand/icon.svg'
@@ -74,6 +75,13 @@ const nav = computed(() =>
 
 const initials = computed(() => (auth.user?.username ?? '?').slice(0, 2).toUpperCase())
 
+const SIDEBAR_KEY = 'javv.sidebar.collapsed'
+const collapsed = ref(localStorage.getItem(SIDEBAR_KEY) === '1')
+function toggleSidebar() {
+  collapsed.value = !collapsed.value
+  localStorage.setItem(SIDEBAR_KEY, collapsed.value ? '1' : '0')
+}
+
 async function logout() {
   await auth.logout()
   await router.push({ name: 'login' })
@@ -88,29 +96,49 @@ onUnmounted(() => health.stopPolling())
 
 <template>
   <div class="shell">
-    <nav class="sidebar" aria-label="Primary">
-      <RouterLink to="/overview" class="side-brand">
-        <img :src="iconSvg" alt="" width="32" height="32" />
-        <span class="side-word"><b>javv</b><span>by Danube Labs</span></span>
-      </RouterLink>
+    <nav class="sidebar" :class="{ collapsed }" aria-label="Primary">
+      <div class="side-top">
+        <RouterLink to="/overview" class="side-brand" :title="collapsed ? 'javv — Overview' : undefined">
+          <img :src="iconSvg" alt="" width="32" height="32" />
+          <span v-if="!collapsed" class="side-word"><b>javv</b><span>by Danube Labs</span></span>
+        </RouterLink>
+        <button
+          class="side-collapse"
+          :aria-expanded="!collapsed"
+          :title="collapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          @click="toggleSidebar"
+        >
+          <AppIcon name="sidebar" :size="16" />
+        </button>
+      </div>
       <div class="side-nav">
         <div v-for="g in nav" :key="g.group" class="side-group">
-          <div class="side-group-label">{{ g.group }}</div>
-          <RouterLink v-for="i in g.items" :key="i.to" :to="i.to" class="side-item">
+          <div v-if="!collapsed" class="side-group-label">{{ g.group }}</div>
+          <div v-else class="side-sep" aria-hidden="true" />
+          <RouterLink
+            v-for="i in g.items"
+            :key="i.to"
+            :to="i.to"
+            class="side-item"
+            :title="collapsed ? i.label : undefined"
+          >
             <AppIcon :name="i.icon" :size="17" />
-            <span>{{ i.label }}</span>
+            <span v-if="!collapsed">{{ i.label }}</span>
           </RouterLink>
         </div>
       </div>
       <div class="side-foot">
-        <div class="sweep">
+        <div
+          class="sweep"
+          :title="collapsed ? `${health.degraded ? 'Store degraded' : 'Store healthy'} · ${clusterStore.clusters.length} cluster(s)` : undefined"
+        >
           <span class="sweep-dot" :class="{ down: health.degraded }" aria-hidden="true" />
-          <div>
+          <div v-if="!collapsed">
             <b>{{ health.degraded ? 'Store degraded' : 'Store healthy' }}</b>
             <span>{{ clusterStore.clusters.length }} cluster(s) · live</span>
           </div>
         </div>
-        <div class="side-version">v{{ APP_VERSION }} · schema 4 · MVP</div>
+        <div v-if="!collapsed" class="side-version">v{{ APP_VERSION }} · schema 4 · MVP</div>
       </div>
     </nav>
 
@@ -167,13 +195,63 @@ onUnmounted(() => health.stopPolling())
   display: flex;
   flex-direction: column;
   padding: 16px 14px;
+  overflow: hidden;
+  transition: width var(--dur-panel) var(--ease-out);
+}
+.sidebar.collapsed {
+  width: var(--sidebar-w-rail);
+  padding: 16px 10px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
+}
+.side-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 18px;
+}
+.collapsed .side-top {
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
 }
 .side-brand {
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 6px 8px 18px;
+  padding: 6px 8px 0 8px;
   text-decoration: none;
+}
+.collapsed .side-brand {
+  padding: 0;
+}
+.side-collapse {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 7px;
+  background: none;
+  color: var(--side-label);
+  transition:
+    background var(--dur-quick),
+    color var(--dur-quick);
+}
+.side-collapse:hover {
+  background: var(--side-hover-bg);
+  color: var(--side-fg-hover);
+}
+.side-collapse:active {
+  background: var(--side-active-bg);
+}
+.side-collapse:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
 }
 .side-word {
   display: flex;
@@ -205,6 +283,12 @@ onUnmounted(() => health.stopPolling())
   text-transform: uppercase;
   color: var(--side-label);
   padding: 0 10px 8px;
+  white-space: nowrap;
+}
+.side-sep {
+  height: 1px;
+  background: var(--side-foot-line);
+  margin: 0 8px 10px;
 }
 .side-item {
   display: flex;
@@ -218,6 +302,11 @@ onUnmounted(() => health.stopPolling())
   text-decoration: none;
   transition: color 0.12s;
   position: relative;
+  white-space: nowrap;
+}
+.collapsed .side-item {
+  justify-content: center;
+  padding: 9px 0;
 }
 .side-item:hover {
   background: var(--side-hover-bg);
@@ -237,6 +326,9 @@ onUnmounted(() => health.stopPolling())
   border-radius: 0 3px 3px 0;
   background: var(--coral);
 }
+.collapsed .side-item.router-link-active::before {
+  left: -10px;
+}
 .side-item.router-link-active svg {
   color: var(--amber);
 }
@@ -251,6 +343,10 @@ onUnmounted(() => health.stopPolling())
   gap: 10px;
   font-size: var(--text-sm);
   color: var(--side-foot-fg);
+}
+.collapsed .sweep {
+  justify-content: center;
+  padding: 4px 0;
 }
 .sweep div {
   display: flex;
