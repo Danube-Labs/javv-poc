@@ -15,6 +15,7 @@ import AppIcon, { type IconName } from '@/components/ui/AppIcon.vue'
 import BackendHealthBanner from '@/components/system/BackendHealthBanner.vue'
 import ScannerFreshnessBanner from '@/components/system/ScannerFreshnessBanner.vue'
 import GlobalTimePicker from '@/components/time-travel/GlobalTimePicker.vue'
+import ToastStack from '@/components/ui/ToastStack.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useHealthStore } from '@/stores/health'
@@ -176,6 +177,8 @@ onUnmounted(() => health.stopPolling())
         <RouterView />
       </main>
     </div>
+
+    <ToastStack />
   </div>
 </template>
 

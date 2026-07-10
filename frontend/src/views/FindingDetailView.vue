@@ -44,12 +44,14 @@ import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import type { FindingRow } from '@/stores/findings'
 import { useTimeTravelStore } from '@/stores/timeTravel'
+import { useToastStore } from '@/stores/toast'
 
 const route = useRoute()
 const router = useRouter()
 const clusterStore = useClusterStore()
 const auth = useAuthStore()
 const timeTravel = useTimeTravelStore()
+const toast = useToastStore()
 const { withGlobals } = useApi()
 
 const cveId = computed(() => String(route.params.cveId ?? ''))
@@ -185,6 +187,7 @@ async function saveTriage(body: TriagePatchBody) {
     const updated = (response.data as { finding: FindingRow }).finding
     rows.value = rows.value.map((r) => (r.finding_key === key ? { ...r, ...updated } : r))
     logger.info('triage_saved', { finding_key: key, state: updated.state })
+    toast.success('Triage saved')
   } else if (response.response?.status === 409) {
     triageError.value = 'Changed by someone else — reload and retry.'
   } else if (response.response?.status === 422) {
@@ -224,6 +227,7 @@ async function revokeDecision(id: string) {
   decisionsBusy.value = false
   if (response.response?.ok) {
     logger.info('decision_revoked', { decision_id: id })
+    toast.success('Decision revoked')
     await fetchDecisions()
     void fetchActivity()
   } else {
@@ -232,6 +236,7 @@ async function revokeDecision(id: string) {
 }
 
 function onDecisionCreated() {
+  toast.success('Decision recorded')
   void fetchDecisions()
   void fetchActivity()
 }

@@ -129,7 +129,33 @@ a {
   .t-fade-enter-active,
   .t-fade-leave-active,
   .t-modal-enter-active,
-  .t-modal-enter-active .modal {
+  .t-modal-enter-active .modal,
+  .t-toast-enter-active,
+  .t-toast-leave-active,
+  .t-toast-move {
     transition: none;
   }
+}
+
+/* t-toast: the ToastStack TransitionGroup — rise in, fade out; the move class keeps the
+   stack sliding smoothly when one dismisses (leave goes absolute so siblings can move). */
+.t-toast-enter-active,
+.t-toast-move {
+  transition:
+    opacity var(--dur-panel) var(--ease-out),
+    transform var(--dur-panel) var(--ease-out);
+}
+.t-toast-leave-active {
+  position: absolute;
+  transition:
+    opacity var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
+}
+.t-toast-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.t-toast-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
 }

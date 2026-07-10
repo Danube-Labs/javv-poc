@@ -169,6 +169,7 @@ the raw markup/CSS they encapsulate is a review failure — extend the component
 | `UiDropdown` | open state + outside-mousedown + document Escape + relative anchor; `trigger`/default slots (menu markup stays yours) | any popover menu |
 | `ModalShell` | scrim + card + head/✕/actions, Escape + outside-click dismiss | every dialog |
 | `AppIcon` | the stroke icon set | every icon |
+| `ToastStack` + `useToastStore` | the confirmation channel: `success/error/info` from ANY component/store, auto-dismiss, capped stack, t-toast motion, ink text + hue on the icon | every action outcome the user would otherwise hunt for; inline contextual errors stay inline |
 
 ## 6. Do / Don't
 
