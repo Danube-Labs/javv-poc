@@ -655,7 +655,8 @@ watch(
 }
 .risk-label {
   font-family: var(--font-mono);
-  font-size: var(--text-table-header);
+  font-size: var(--text-sm);
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--soft);
@@ -687,10 +688,11 @@ watch(
 }
 .risk-sub {
   font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  color: var(--soft);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
   margin-top: 2px;
-  max-width: 150px;
+  max-width: 170px;
 }
 
 .detail-grid {
