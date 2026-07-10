@@ -4,10 +4,9 @@
  * CSS). Generic over a `cols` list so future grid screens (images, audit) reuse it — the
  * parent owns the hidden-set and density state (and any persistence).
  */
-import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
-
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiDropdown from '@/components/ui/UiDropdown.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 
 defineProps<{
@@ -23,29 +22,14 @@ const DENSITY_OPTS = [
   { value: 'comfortable', label: 'Comfortable' },
 ] as const
 
-const open = ref(false)
-const wrap = useTemplateRef<HTMLElement>('wrap')
-
-function onDocMousedown(e: MouseEvent) {
-  if (wrap.value && !wrap.value.contains(e.target as Node)) open.value = false
-}
-function onDocKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') open.value = false
-}
-onMounted(() => {
-  document.addEventListener('mousedown', onDocMousedown)
-  document.addEventListener('keydown', onDocKeydown)
-})
-onUnmounted(() => {
-  document.removeEventListener('mousedown', onDocMousedown)
-  document.removeEventListener('keydown', onDocKeydown)
-})
 </script>
 
 <template>
-  <div ref="wrap" class="dropdown cols-dd" @keydown.esc="open = false">
-    <UiButton variant="quiet" @click="open = !open"><AppIcon name="columns" :size="13" />Columns</UiButton>
-    <div v-if="open" class="dd-menu cols-menu">
+  <UiDropdown class="cols-dd">
+    <template #trigger="{ toggle }">
+      <UiButton variant="quiet" @click="toggle"><AppIcon name="columns" :size="13" />Columns</UiButton>
+    </template>
+    <div class="dd-menu cols-menu">
       <div class="dd-head">Density</div>
       <UiSegControl
         tone="neutral"
@@ -66,13 +50,10 @@ onUnmounted(() => {
         <span class="facet-label">{{ label }}</span>
       </button>
     </div>
-  </div>
+  </UiDropdown>
 </template>
 
 <style scoped>
-.dropdown {
-  position: relative;
-}
 .cols-dd {
   flex: none;
 }

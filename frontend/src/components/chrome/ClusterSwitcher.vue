@@ -1,57 +1,51 @@
 <script setup lang="ts">
 /** The prototype's cluster switcher: glyph + name + mono cluster_id, dropdown per cluster_id. */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiDropdown from '@/components/ui/UiDropdown.vue'
 import { useClusterStore } from '@/stores/cluster'
 
 const clusterStore = useClusterStore()
-const open = ref(false)
-const wrap = ref<HTMLElement | null>(null)
 
 const selected = computed(() => clusterStore.selected)
 const glyph = (name: string) => (name[0] ?? '?').toUpperCase()
-
-function onDocClick(e: MouseEvent) {
-  if (wrap.value && !wrap.value.contains(e.target as Node)) open.value = false
-}
-onMounted(() => document.addEventListener('mousedown', onDocClick))
-onUnmounted(() => document.removeEventListener('mousedown', onDocClick))
 </script>
 
 <template>
-  <div v-if="selected" ref="wrap" class="cluster-dd" @keydown.esc="open = false">
-    <button class="cluster-btn" @click="open = !open">
-      <span class="glyph">{{ glyph(selected.cluster_name) }}</span>
-      <span class="info">
-        <span class="name">{{ selected.cluster_name }}</span>
-        <span class="id mono">{{ selected.cluster_id }}</span>
-      </span>
-      <AppIcon name="chevron" :size="14" class="chev" :class="{ open }" />
-    </button>
-    <div v-if="open" class="menu">
-      <div class="head">Clusters · by cluster_id</div>
-      <button
-        v-for="c in clusterStore.clusters"
-        :key="c.cluster_id"
-        class="item"
-        :class="{ on: c.cluster_id === clusterStore.selectedId }"
-        @click="clusterStore.select(c.cluster_id); open = false"
-      >
-        <span class="glyph sm">{{ glyph(c.cluster_name) }}</span>
+  <UiDropdown v-if="selected" class="cluster-dd">
+    <template #trigger="{ toggle, open }">
+      <button class="cluster-btn" @click="toggle">
+        <span class="glyph">{{ glyph(selected.cluster_name) }}</span>
         <span class="info">
-          <span class="name">{{ c.cluster_name }}</span>
-          <span class="id mono">{{ c.cluster_id }}</span>
+          <span class="name">{{ selected.cluster_name }}</span>
+          <span class="id mono">{{ selected.cluster_id }}</span>
         </span>
+        <AppIcon name="chevron" :size="14" class="chev" :class="{ open }" />
       </button>
-    </div>
-  </div>
+    </template>
+    <template #default="{ close }">
+      <div class="menu">
+        <div class="head">Clusters · by cluster_id</div>
+        <button
+          v-for="c in clusterStore.clusters"
+          :key="c.cluster_id"
+          class="item"
+          :class="{ on: c.cluster_id === clusterStore.selectedId }"
+          @click="clusterStore.select(c.cluster_id); close()"
+        >
+          <span class="glyph sm">{{ glyph(c.cluster_name) }}</span>
+          <span class="info">
+            <span class="name">{{ c.cluster_name }}</span>
+            <span class="id mono">{{ c.cluster_id }}</span>
+          </span>
+        </button>
+      </div>
+    </template>
+  </UiDropdown>
 </template>
 
 <style scoped>
-.cluster-dd {
-  position: relative;
-}
 .cluster-btn {
   display: flex;
   align-items: center;
