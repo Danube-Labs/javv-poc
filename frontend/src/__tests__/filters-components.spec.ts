@@ -14,6 +14,9 @@ const FACETS: FacetsResponse = {
   scanner: [{ key: 'trivy', count: 2080, by_scanner: { trivy: 2080 } }],
   kev: [{ key: 'true', count: 41, by_scanner: { trivy: 22, grype: 19 } }],
   os: [{ key: 'alpine', count: 999, by_scanner: { trivy: 1, grype: 2 } }],
+  ptype: [{ key: 'deb', count: 1783, by_scanner: { trivy: 900, grype: 883 } }],
+  namespaces: [{ key: 'payments', count: 41, by_scanner: { trivy: 20, grype: 21 } }],
+  assignee: [{ key: 'admin', count: 3, by_scanner: { trivy: 1, grype: 2 } }],
 }
 
 const mountBoth = (fields: readonly FilterField[]) => {

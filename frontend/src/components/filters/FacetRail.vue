@@ -21,7 +21,10 @@ const emit = defineEmits<{ toggle: [fieldKey: string, value: string] }>()
 const groups = computed(() =>
   props.fields
     .map((field) => ({ field, items: facetItems(field, props.facets) }))
-    .filter((g): g is { field: FilterField; items: NonNullable<typeof g.items> } => g.items !== null),
+    .filter((g): g is { field: FilterField; items: NonNullable<typeof g.items> } => g.items !== null)
+    // data-driven sections (no fixed vocabulary) hide until they HAVE buckets — a bare header
+    // over nothing reads as broken on a first-run cluster
+    .filter((g) => g.items.length > 0 || ('values' in g.field && g.field.values !== undefined)),
 )
 
 const fmt = (n: number) => n.toLocaleString('en-US')

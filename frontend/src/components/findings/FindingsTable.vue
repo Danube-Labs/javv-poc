@@ -30,8 +30,10 @@ const props = withDefaults(
     /** keys from FINDINGS_COLUMNS hidden via the Columns menu (cve/severity/state are fixed) */
     hidden?: ReadonlySet<string>
     dense?: boolean
+    /** any filter active? drives filtered-empty vs first-run empty copy */
+    filtered?: boolean
   }>(),
-  { hidden: () => new Set<string>(), dense: true },
+  { hidden: () => new Set<string>(), dense: true, filtered: false },
 )
 
 const show = (key: string) => !props.hidden.has(key)
@@ -146,7 +148,9 @@ const nsLabel = (r: FindingRow): string => {
         </template>
       </Column>
       <template #empty>
-        <div class="empty-row">No findings match these filters.</div>
+        <div class="empty-row">
+          {{ filtered ? 'No findings match these filters.' : 'No findings yet — the first committed scan populates this grid.' }}
+        </div>
       </template>
     </DataTable>
   </div>

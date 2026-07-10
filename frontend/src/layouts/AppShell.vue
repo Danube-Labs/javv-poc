@@ -151,6 +151,9 @@ onUnmounted(() => health.stopPolling())
 
 <style scoped>
 .shell {
+  /* desktop-first ops dashboard: 1024px design floor (audit ruling) — below it the app
+     scrolls as ONE intact piece; a true responsive pass is an M9f decision, not an accident */
+  min-width: 1024px;
   display: flex;
   min-height: 100vh;
 }
