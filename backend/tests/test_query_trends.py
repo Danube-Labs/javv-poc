@@ -52,12 +52,12 @@ def test_findings_trend_builds_new_and_resolved_series_per_scanner() -> None:
 
     new = body["aggs"]["new"]
     assert new["filter"] == {"range": {"first_seen_at": {"gte": _gte(30)}}}
-    new_tl = new["aggs"]["by_scanner"]["aggs"]["timeline"]["date_histogram"]
+    new_tl = new["aggs"]["by_key"]["aggs"]["timeline"]["date_histogram"]
     assert new_tl["field"] == "first_seen_at"
 
     resolved = body["aggs"]["resolved"]
     assert resolved["filter"] == {"range": {"resolved_at": {"gte": _gte(30)}}}
-    res_tl = resolved["aggs"]["by_scanner"]["aggs"]["timeline"]["date_histogram"]
+    res_tl = resolved["aggs"]["by_key"]["aggs"]["timeline"]["date_histogram"]
     assert res_tl["field"] == "resolved_at"
 
     # "new" must count finding ROWS regardless of current presence — a finding that appeared
@@ -65,3 +65,26 @@ def test_findings_trend_builds_new_and_resolved_series_per_scanner() -> None:
     import json
 
     assert '"present"' not in json.dumps(body)
+
+
+def test_findings_trend_severity_split_buckets_on_the_server_derived_canonical() -> None:
+    # M9c 1b: the severity lens — terms on severity_canonical (the D16 server-derived key,
+    # never the verbatim scanner word), six buckets, same timeline shape
+    body = build_findings_trend_body(days=30, split="severity")
+    for series in ("new", "resolved"):
+        terms = body["aggs"][series]["aggs"]["by_key"]["terms"]
+        assert terms["field"] == "severity_canonical"
+        assert terms["size"] == 6
+    # default split stays per-scanner and keeps the by_key agg name (one response shaper)
+    default = build_findings_trend_body(days=30)
+    assert default["aggs"]["new"]["aggs"]["by_key"]["terms"]["field"] == "scanner"
+
+
+def test_findings_trend_scanner_scope_is_a_query_filter() -> None:
+    # scoping the severity split to one scanner filters at the query — never client math
+    body = build_findings_trend_body(days=30, split="severity", scanner="trivy")
+    assert {"term": {"scanner": "trivy"}} in body["query"]["bool"]["filter"]
+    unscoped = build_findings_trend_body(days=30)
+    assert "query" not in unscoped or not any(
+        "scanner" in str(f) for f in unscoped.get("query", {}).get("bool", {}).get("filter", [])
+    )

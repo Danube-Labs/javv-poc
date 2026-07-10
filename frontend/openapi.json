@@ -4540,6 +4540,40 @@
           },
           {
             "in": "query",
+            "name": "split",
+            "required": false,
+            "schema": {
+              "default": "scanner",
+              "enum": [
+                "scanner",
+                "severity"
+              ],
+              "title": "Split",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "trivy",
+                    "grype"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scanner"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {

@@ -2211,6 +2211,14 @@ export type FindingsTrendApiV1TrendsFindingsGetData = {
          */
         days?: number;
         /**
+         * Split
+         */
+        split?: 'scanner' | 'severity';
+        /**
+         * Scanner
+         */
+        scanner?: 'trivy' | 'grype' | null;
+        /**
          * As Of
          */
         as_of?: string | null;

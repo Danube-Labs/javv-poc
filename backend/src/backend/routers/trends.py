@@ -17,9 +17,9 @@ Tenancy: scan-events routing pins the per-cluster index pattern AND the chokepoi
 `as_of` seam as every read (D28: past T is 501 until the slice-7 dispatcher wires M8b).
 """
 
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from backend.core.identifiers import ClusterId
 from backend.query.trends import build_findings_trend_body, build_scans_trend_body
@@ -73,9 +73,13 @@ async def findings_trend(
     cluster_id: ClusterId,
     as_of_t: AsOf,
     days: Days = 30,
+    split: Literal["scanner", "severity"] = "scanner",
+    scanner: Literal["trivy", "grype"] | None = None,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:
+        if split != "scanner":  # the M8b reader reconstructs per-scanner only (MVP; like the
+            raise HTTPException(422, "split=severity is not available at a past T")  # A-m1 422s
         return await _reader_or_501().trends_findings(
             client, cluster_id=cluster_id, t=as_of_t, days=days
         )
@@ -84,12 +88,13 @@ async def findings_trend(
         client,
         index="findings",
         cluster_id=cluster_id,
-        body=build_findings_trend_body(days=days),
+        body=build_findings_trend_body(days=days, split=split, scanner=scanner),
     )
     aggs = resp["aggregations"]
     return {
-        "new": _series(aggs["new"]["by_scanner"]),
-        "resolved": _series(aggs["resolved"]["by_scanner"]),
+        "new": _series(aggs["new"]["by_key"]),
+        "resolved": _series(aggs["resolved"]["by_key"]),
         "resolved_semantics": "scan_resolved",  # A-m9: resolved_at is reconcile-only, not triage
         "days": days,
+        "split": split,
     }

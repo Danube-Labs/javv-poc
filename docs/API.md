@@ -89,7 +89,7 @@ routes stay current-state-only).
 | GET | `/api/v1/findings` | PIT + `search_after` paged search; returns rows + an opaque `cursor` |
 | GET | `/api/v1/findings/facets` | Scanner-faceted aggregations (counts per severity/state/… per scanner) |
 | GET | `/api/v1/findings/groups` | Composite group paging (e.g. by CVE across images) |
-| GET | `/api/v1/trends/scans` · `/api/v1/trends/findings` | Time series from scan-events; `resolved_semantics: "scan_resolved"` (A-m9 — *scan-observed* resolution, not human `state=resolved`) |
+| GET | `/api/v1/trends/scans` · `/api/v1/trends/findings` | Time series from scan-events; `resolved_semantics: "scan_resolved"` (A-m9 — *scan-observed* resolution, not human `state=resolved`). `/findings` also takes `split=scanner\|severity` (severity = the D16 server-derived canonical, six buckets; **now-only** — 422 at a past `as_of`) and an optional `scanner=trivy\|grype` query-filter scope (M9c 1b) |
 | GET | `/api/v1/contributors` | Triage-work leaderboard + TTR/SLA-hit from `system-audit-log` (FR-15) |
 | GET | `/api/v1/scanners/freshness` | Per-(cluster, scanner) `last_ingest_at` + `silent_for_seconds` (FR-6/D20 banner; #218). Max across tokens; disabled tokens count; never-ingested → nulls |
 | GET | `/api/v1/scanners/provenance` | Per-(cluster, scanner) versions/`effective_config` of the latest **committed** run + last-N runs (`?runs=`, ≤50). Catalog-first (R-CATALOG); latest = max `scan_order`, never `@timestamp` (M8c/#240) |
