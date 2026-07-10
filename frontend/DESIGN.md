@@ -60,6 +60,13 @@ color words or numbers.
   `--coral-text` + underline on row hover. Transitions ~120ms ease-out with a reduced-motion
   fallback; pressed state = `--line2` wash. **Never dress a cell whose destination doesn't
   exist yet** — a false affordance is worse than a missing one.
+- **Every overlay follows one dismiss contract** (audit #311): Escape + outside-click + a
+  visible close affordance — all three, on every menu and dialog. Selection state inside any
+  overlay = the coral language (`--dd-on-bg` + inset `--coral`), never an ad-hoc scheme.
+- **No unbounded panels** (audit #311): any list that can grow with data gets a scroll viewport
+  (sticky header) or an explicit cap note naming where the full set lives — the images-affected
+  card is the reference; decisions, activity, and the rail's top-32 dims follow it. "Works with
+  10 rows" is not shipped until it's been asked "and with 10,000?".
 - **Spacing rhythm on the `--space-*` scale** (8px base, 4px sub-grid): tight WITHIN a
   functional group (`--space-1/2`), generous BETWEEN page bands (`--space-6/8`). Uniform
   spacing everywhere is the "static" feel — page headers breathe, data clusters hold together.

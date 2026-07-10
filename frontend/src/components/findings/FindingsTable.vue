@@ -114,7 +114,7 @@ const nsLabel = (r: FindingRow): string => {
       </Column>
       <Column v-if="show('namespace')" header="Namespace">
         <template #body="{ data }">
-          <span class="mono-cell sm">{{ nsLabel(data) }}</span>
+          <span class="mono-cell sm" :title="Array.isArray(data.namespaces) ? data.namespaces.join(', ') : ''">{{ nsLabel(data) }}</span>
         </template>
       </Column>
       <Column v-if="show('images')" header="Affected" class="r">

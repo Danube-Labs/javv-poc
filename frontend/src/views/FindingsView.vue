@@ -104,12 +104,14 @@ async function loadRows(q: typeof rowsQuery.value) {
       }
       grid.setResult(body.data, body.total.value, body.next_cursor)
       grid.failed = false
+      grid.failedNotSupportedAtPastT = false
     } else if (grid.page > 0) {
       // stale PIT cursor is the usual culprit — rebuild from page 0
       logger.warn('findings_page_failed_reset', { status: response.response?.status })
       grid.resetPaging()
   } else {
     grid.failed = true
+    grid.failedNotSupportedAtPastT = response.response?.status === 501
     logger.warn('findings_search_failed', { status: response.response?.status })
   }
 }
@@ -251,7 +253,11 @@ function setDense(value: boolean) {
         </div>
 
         <p v-if="grid.failed || facetsFailed" class="load-error" role="alert">
-          Findings unavailable — check the backend connection.
+          <template v-if="grid.failedNotSupportedAtPastT">
+            This filter isn't answerable at a past point in time — return to now, or drop the
+            search/attribute filters.
+          </template>
+          <template v-else>Findings unavailable — check the backend connection.</template>
         </p>
         <FindingsTable
           :rows="grid.rows"
