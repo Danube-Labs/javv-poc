@@ -20,6 +20,7 @@ import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FilterField } from '@/filters/fields.config'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
+import { useToastStore } from '@/stores/toast'
 
 const props = defineProps<{
   fields: readonly FilterField[]
@@ -27,6 +28,7 @@ const props = defineProps<{
   historical: boolean
 }>()
 const clusterStore = useClusterStore()
+const toast = useToastStore()
 const { withGlobals } = useApi()
 
 const open = ref(false)
@@ -113,6 +115,7 @@ async function runNow() {
   a.click()
   URL.revokeObjectURL(a.href)
   logger.info('export_downloaded', { format: format.value })
+  toast.success(`Export downloaded · ${a.download}`)
 }
 
 /* ---- schedule: enqueue → poll status → signed download link + expiry ---- */

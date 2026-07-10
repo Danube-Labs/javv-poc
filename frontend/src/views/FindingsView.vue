@@ -35,6 +35,7 @@ import { useClusterStore } from '@/stores/cluster'
 import { useFindingsStore, type FindingRow } from '@/stores/findings'
 import { makeFiltersStore } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
+import { useToastStore } from '@/stores/toast'
 
 const useFindingsFilters = makeFiltersStore('findings-filters', FINDINGS_FIELDS)
 const filters = useFindingsFilters()
@@ -42,6 +43,7 @@ const auth = useAuthStore()
 const clusterStore = useClusterStore()
 const grid = useFindingsStore()
 const timeTravel = useTimeTravelStore()
+const toast = useToastStore()
 const { withGlobals } = useApi()
 const route = useRoute()
 const router = useRouter()
@@ -125,7 +127,8 @@ watch(
 )
 
 /** A bulk apply changed rows under the current lens — reload both surfaces in place. */
-function refreshAfterBulk() {
+function refreshAfterBulk(count: number) {
+  toast.success(`Bulk triage applied · ${count.toLocaleString('en-US')} findings`)
   grid.resetPaging()
   void loadRows(rowsQuery.value)
   void loadFacets(facetsQuery.value)
