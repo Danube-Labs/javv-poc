@@ -65,21 +65,35 @@ def build_scans_trend_body(*, days: int, anchor: datetime | None = None) -> dict
     }
 
 
-def build_findings_trend_body(*, days: int) -> dict[str, Any]:
+_SPLIT_TERMS: dict[str, dict[str, Any]] = {
+    "scanner": dict(_BY_SCANNER_TERMS),
+    # the severity lens (M9c 1b): buckets on the SERVER-derived canonical (D16), never the
+    # verbatim scanner word; six D46 buckets
+    "severity": {"field": "severity_canonical", "size": 6},
+}
+
+
+def build_findings_trend_body(
+    *, days: int, split: str = "scanner", scanner: str | None = None
+) -> dict[str, Any]:
     gte, upper = _window(days)
+    terms = _SPLIT_TERMS[split]
 
     def series(date_field: str) -> dict[str, Any]:
         return {
             "filter": {"range": {date_field: {"gte": gte}}},
             "aggs": {
-                "by_scanner": {
-                    "terms": dict(_BY_SCANNER_TERMS),
+                "by_key": {
+                    "terms": dict(terms),
                     "aggs": {"timeline": _timeline(date_field, gte, upper)},
                 }
             },
         }
 
-    return {
+    body: dict[str, Any] = {
         "size": 0,
         "aggs": {"new": series("first_seen_at"), "resolved": series("resolved_at")},
     }
+    if scanner is not None:  # scope the split to one scanner AT THE QUERY — never client math
+        body["query"] = {"bool": {"filter": [{"term": {"scanner": scanner}}]}}
+    return body
