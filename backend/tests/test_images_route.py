@@ -70,8 +70,9 @@ async def _manifest(
     inventory_run_id: str,
     inventory_order: int,
     status: str = "committed",
+    ts: str | None = None,
 ) -> None:
-    now = datetime.now(UTC).isoformat()
+    now = ts or datetime.now(UTC).isoformat()
     await client.index(
         index=f"javv-inventory-runs-{cluster_id}-000001",
         id=inventory_run_id,
@@ -174,6 +175,42 @@ async def test_route_rows_equal_the_time_travel_reader_at_now(env) -> None:
     r = await http.get("/api/v1/images", params={"cluster_id": cid})
     reader_rows = await running_images_at(client, cid, datetime.now(UTC))
     assert r.json()["images"] == reader_rows
+
+
+async def test_as_of_rewinds_to_the_inventory_committed_at_t(env) -> None:
+    """M9c slice 3 (D28/FR-23): `as_of` dispatches through the SAME primitives at T — the
+    inventory committed ≤ T answers, a later run doesn't leak backwards, pre-history is
+    unknown (`inventory: null`), and a malformed T is a 422."""
+    http, client = env
+    cid = f"c-img-{uuid.uuid4().hex[:8]}"
+    # explicit, well-separated stamps — date fields are millis-precision, `lte` includes equal
+    await _manifest(
+        client,
+        cluster_id=cid,
+        inventory_run_id="inv-old",
+        inventory_order=1,
+        ts="2026-07-01T00:00:00+00:00",
+    )
+    await _image(client, cluster_id=cid, inventory_run_id="inv-old", digest="sha256:old", total=1)
+    await _refresh(client, cid)
+    t_between = "2026-07-02T00:00:00+00:00"
+
+    await _manifest(client, cluster_id=cid, inventory_run_id="inv-new", inventory_order=2)
+    await _image(client, cluster_id=cid, inventory_run_id="inv-new", digest="sha256:new", total=2)
+    await _refresh(client, cid)
+
+    # now = the new run; at T between = the old run; before history = unknown
+    r = await http.get("/api/v1/images", params={"cluster_id": cid})
+    assert r.json()["inventory"]["inventory_run_id"] == "inv-new"
+    r = await http.get("/api/v1/images", params={"cluster_id": cid, "as_of": t_between})
+    assert r.json()["inventory"]["inventory_run_id"] == "inv-old"
+    assert [i["image_digest"] for i in r.json()["images"]] == ["sha256:old"]
+    r = await http.get(
+        "/api/v1/images", params={"cluster_id": cid, "as_of": "2020-01-01T00:00:00+00:00"}
+    )
+    assert r.json()["inventory"] is None and r.json()["images"] == []
+    r = await http.get("/api/v1/images", params={"cluster_id": cid, "as_of": "not-a-time"})
+    assert r.status_code == 422
 
 
 async def test_no_inventory_is_unknown_not_empty_and_tenant_scoped(env) -> None:

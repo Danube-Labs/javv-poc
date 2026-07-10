@@ -14,10 +14,11 @@ distinct on the wire: `inventory` is null vs. the manifest, `images` is `[]` in 
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
+from backend.query.as_of import parse_as_of
 from backend.query.pit import images_for_inventory_run, latest_committed_inventory
 
 router = APIRouter(prefix="/api/v1/images", tags=["images"])
@@ -29,10 +30,19 @@ _MANIFEST_FIELDS = ("inventory_run_id", "inventory_order", "started_at", "comple
 
 @router.get("")
 async def list_running_images(
-    request: Request, principal: Authenticated, cluster_id: ClusterId
+    request: Request,
+    principal: Authenticated,
+    cluster_id: ClusterId,
+    as_of: Annotated[str | None, Query(max_length=64)] = None,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
-    manifest = await latest_committed_inventory(client, cluster_id, datetime.now(UTC))
+    # D28/FR-23 (M9c slice 3): a past T reads the inventory committed ≤ T through the very same
+    # primitives — the route and the time-travel reader stay one code path
+    try:
+        t = parse_as_of(as_of)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    manifest = await latest_committed_inventory(client, cluster_id, t or datetime.now(UTC))
     if manifest is None:  # no committed inventory yet — unknown, not "empty cluster"
         return {"cluster_id": cluster_id, "inventory": None, "images": []}
     images = await images_for_inventory_run(client, cluster_id, manifest["inventory_run_id"])
