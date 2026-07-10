@@ -84,6 +84,11 @@ describe('AllClustersView (M9c slice 2)', () => {
     expect(rows[0]!.text()).toContain('8') // present count verbatim
     // fleet strip: the critical cell shows the server bucket count
     expect(w.find('.fleet-band').text()).toContain('critical')
+    // signal columns (operator A/B ruling: explicit columns) — headers + per-row values
+    const headers = w.findAll('th').map((h) => h.text())
+    for (const h of ['KEV', 'Fix %', 'Disagree', 'Triage']) expect(headers).toContain(h)
+    expect(rows[0]!.find('.kev-alarm').exists()).toBe(false) // kev bucket absent → 0, no alarm
+    expect(rows[0]!.text()).toContain('%') // fix % renders
   })
 
   it('no clusters → the cold-start copy, not an empty table', async () => {

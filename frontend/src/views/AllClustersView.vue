@@ -43,15 +43,32 @@ watch(
 )
 
 /** A cluster's server bucket count under the scanner lens — by_scanner split, never re-added. */
-function sevCount(row: ClusterRow, sev: Severity): number {
-  const b = row.facets.severity?.find((x) => x.key === sev)
+function bucketCount(row: ClusterRow, facet: string, key: string): number {
+  const b = row.facets[facet]?.find((x) => x.key === key)
   if (!b) return 0
   return scanner.value === 'all' ? b.count : (b.by_scanner[scanner.value] ?? 0)
 }
-function presentCount(row: ClusterRow): number {
-  const b = row.facets.present?.find((x) => x.key === 'true')
-  if (!b) return 0
-  return scanner.value === 'all' ? b.count : (b.by_scanner[scanner.value] ?? 0)
+const sevCount = (row: ClusterRow, sev: Severity) => bucketCount(row, 'severity', sev)
+const presentCount = (row: ClusterRow) => bucketCount(row, 'present', 'true')
+
+/* per-row signals — all straight facet reads the row already fetched (Overview 1b analogs) */
+const kevCount = (row: ClusterRow) => bucketCount(row, 'kev', 'true')
+const disagreeCount = (row: ClusterRow) => bucketCount(row, 'disagree', 'true')
+const fixPct = (row: ClusterRow) => {
+  const present = presentCount(row)
+  return present === 0 ? 0 : Math.round((bucketCount(row, 'fixable', 'true') / present) * 100)
+}
+function triage(row: ClusterRow) {
+  const open = bucketCount(row, 'state', 'open')
+  const ack = bucketCount(row, 'state', 'acknowledged')
+  const stale = bucketCount(row, 'state', 'stale')
+  const handled =
+    bucketCount(row, 'state', 'resolved') +
+    bucketCount(row, 'state', 'not_affected') +
+    bucketCount(row, 'state', 'risk_accepted')
+  const total = open + ack + stale + handled
+  const pct = (n: number) => (total === 0 ? 0 : (n / total) * 100)
+  return { open, ack, stale, handled, total, pct }
 }
 
 /** Fleet strip: per-severity server buckets added across clusters (see header). */
@@ -150,6 +167,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                 <th>Health</th>
                 <th>Severity mix</th>
                 <th class="r">Findings</th>
+                <th class="r">KEV</th>
+                <th class="r">Fix %</th>
+                <th class="r">Disagree</th>
+                <th>Triage</th>
                 <th class="r">Images</th>
                 <th class="r">Replicas</th>
                 <th>Last sweep</th>
@@ -184,6 +205,23 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                   <span v-else class="row-degraded">unavailable</span>
                 </td>
                 <td class="r mono-cell"><b>{{ row.failed ? '—' : fmt(presentCount(row)) }}</b></td>
+                <td class="r mono-cell">
+                  <b :class="{ 'kev-alarm': kevCount(row) > 0 }">{{ row.failed ? '—' : fmt(kevCount(row)) }}</b>
+                </td>
+                <td class="r mono-cell">{{ row.failed ? '—' : `${fixPct(row)}%` }}</td>
+                <td class="r mono-cell">{{ row.failed ? '—' : fmt(disagreeCount(row)) }}</td>
+                <td class="triage-cell">
+                  <template v-if="!row.failed && triage(row).total > 0">
+                    <span class="progress-bar" aria-hidden="true">
+                      <i class="seg-open" :style="{ width: `${triage(row).pct(triage(row).open)}%` }" />
+                      <i class="seg-ack" :style="{ width: `${triage(row).pct(triage(row).ack)}%` }" />
+                      <i class="seg-handled" :style="{ width: `${triage(row).pct(triage(row).handled)}%` }" />
+                      <i class="seg-stale" :style="{ width: `${triage(row).pct(triage(row).stale)}%` }" />
+                    </span>
+                    <span class="triage-pct mono-cell">{{ Math.round(triage(row).pct(triage(row).handled + triage(row).ack)) }}%</span>
+                  </template>
+                  <span v-else class="muted-dash">-</span>
+                </td>
                 <td class="r mono-cell">{{ row.imagesCount === null ? '—' : fmt(row.imagesCount) }}</td>
                 <td class="r mono-cell">{{ row.replicas === null ? '—' : fmt(row.replicas) }}</td>
                 <td class="mono-cell">{{ lastSweep(row) ?? 'never' }}</td>
@@ -321,8 +359,17 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   border-bottom: 1px solid var(--line2);
   vertical-align: top;
 }
+/* anchored numeric columns (operator A/B ruling): shrink-to-content + nowrap so the numbers
+   sit tight under their headers — the layout slack goes to Cluster and the mix bars, never
+   into gaps between data columns */
 .tbl .r {
   text-align: right;
+  width: 1%;
+  white-space: nowrap;
+}
+.tbl th.r,
+.tbl td.r {
+  padding-left: 18px;
 }
 .tbl-hover tbody tr {
   cursor: default; /* arrow, not the I-beam — text stays selectable */
@@ -396,6 +443,48 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .muted-dash {
   color: var(--dash-muted);
+}
+
+/* per-row signals (A/B under review) — same seg colors as the Overview triage bar */
+.kev-alarm {
+  color: var(--sev-critical-fg);
+}
+.progress-bar {
+  display: flex;
+  width: 90px;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--line2);
+}
+.progress-bar i {
+  height: 100%;
+}
+.seg-open {
+  background: var(--state-open-fg);
+}
+.seg-ack {
+  background: var(--state-ack-fg);
+}
+.seg-handled {
+  background: var(--state-resolved-fg);
+}
+.seg-stale {
+  background: var(--state-stale-line);
+}
+.triage-cell {
+  white-space: nowrap;
+  width: 1%;
+  padding-left: 18px;
+}
+.triage-cell .progress-bar {
+  display: inline-flex;
+  vertical-align: middle;
+}
+.triage-pct {
+  font-size: var(--text-sm);
+  color: var(--soft);
+  margin-left: 8px;
 }
 .row-degraded {
   font-size: var(--text-sm);
