@@ -266,6 +266,7 @@ function setDense(value: boolean) {
           :loading="grid.loading"
           :hidden="hiddenCols"
           :dense="dense"
+          :filtered="Object.values(filters.selections).some((v) => v.length > 0)"
           @sort="grid.setSort"
           @row-click="openFinding"
         />

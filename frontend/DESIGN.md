@@ -67,6 +67,10 @@ color words or numbers.
   (sticky header) or an explicit cap note naming where the full set lives — the images-affected
   card is the reference; decisions, activity, and the rail's top-32 dims follow it. "Works with
   10 rows" is not shipped until it's been asked "and with 10,000?".
+- **1024px design floor** (audit ruling, 2026-07-10): JAVV is a desktop ops dashboard — layouts
+  are designed for ≥1024px (clean at 1366+, verified). Below the floor the shell keeps
+  `min-width: 1024px` and scrolls as one intact piece; it never crumbles into overlapping
+  chrome. A true responsive/mobile pass is an M9f decision, not an accident of flex-wrap.
 - **Spacing rhythm on the `--space-*` scale** (8px base, 4px sub-grid): tight WITHIN a
   functional group (`--space-1/2`), generous BETWEEN page bands (`--space-6/8`). Uniform
   spacing everywhere is the "static" feel — page headers breathe, data clusters hold together.
