@@ -101,8 +101,9 @@ as pure units** (Vitest).
   (the monochrome teal ramp read as one green mass); the findings "counts computed
   server-side" caption cut (dev assertion, not operator info); **findings column diet** —
   `epss/kev/current/fixed` hidden on first run (localStorage still rules), package/namespace
-  cells truncate with title tooltips; 1920px shows no horizontal scroll, the 1440px
-  remainder ruling is still pending.
+  cells truncate with title tooltips; 1920px shows no horizontal scroll; **1440px remainder
+  ruled accepted** (operator, 2026-07-11) — the ~180px horizontal scroll below 1920 stands,
+  no further column cuts.
 - **2026-07-10 — slice 1 + 1b rulings (operator, live review):** slice-1 cuts beyond the
   audited ones — **KPI sparklines + "+new Nd" chips** (no per-severity-per-day agg pre-1b) and
   the **per-namespace severity MixBar** (no per-ns severity agg) — slots dropped, not kept.
