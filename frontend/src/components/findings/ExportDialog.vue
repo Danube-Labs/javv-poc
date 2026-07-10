@@ -13,6 +13,7 @@ import { enqueueReportApiV1ReportsPost, getReportApiV1ReportsReportIdGet } from 
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiField from '@/components/ui/UiField.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { useApi } from '@/composables/useApi'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
@@ -201,11 +202,13 @@ const downloadHref = computed(() =>
           <template v-else>
             <UiSegControl v-model="tab" class="tabs" :options="TAB_OPTS" />
 
-            <label class="fld-label">Format</label>
-            <UiSegControl v-model="format" :options="FORMAT_OPTS" />
+            <UiField label="Format">
+              <UiSegControl v-model="format" :options="FORMAT_OPTS" />
+            </UiField>
             <div v-if="format === 'vex'" class="vex-scanner">
-              <label class="fld-label">Scanner (one per VEX file)</label>
-              <UiSegControl v-model="vexScanner" :options="SCANNER_OPTS" />
+              <UiField label="Scanner (one per VEX file)">
+                <UiSegControl v-model="vexScanner" :options="SCANNER_OPTS" />
+              </UiField>
             </div>
 
             <template v-if="tab === 'now'">
@@ -261,15 +264,6 @@ const downloadHref = computed(() =>
 }
 .tabs {
   margin-bottom: 4px;
-}
-.fld-label {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  margin: 14px 0 6px;
 }
 .vex-scanner {
   margin-top: 2px;

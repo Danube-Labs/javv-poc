@@ -13,6 +13,7 @@ import VexJustificationPicker from '@/components/triage/VexJustificationPicker.v
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiField from '@/components/ui/UiField.vue'
 import type { FilterField } from '@/filters/fields.config'
 import { lensToSelector } from '@/findings/bulkSelector'
 import { buildTriagePatch } from '@/findings/triageRules'
@@ -119,18 +120,22 @@ async function apply() {
               <span class="lens-count">≈ {{ total.toLocaleString('en-US') }} findings</span>
             </div>
 
-            <label class="fld-label">Set state</label>
-            <TriageStateControl current="__none__" :target="target" @select="pickState" />
+            <UiField label="Set state">
+              <TriageStateControl current="__none__" :target="target" @select="pickState" />
+            </UiField>
             <div v-if="target === 'not_affected'" class="vex-block">
-              <label class="fld-label">Justification · CISA five (required)</label>
-              <VexJustificationPicker :selected="vexJustification" @select="(id) => (vexJustification = id)" />
+              <UiField label="Justification · CISA five (required)">
+                <VexJustificationPicker :selected="vexJustification" @select="(id) => (vexJustification = id)" />
+              </UiField>
             </div>
 
-            <label class="fld-label" for="bulk-assignee">Assign to <span class="fld-opt">(optional)</span></label>
-            <input id="bulk-assignee" v-model="assignee" class="fld" type="text" placeholder="username" />
+            <UiField label="Assign to" hint="optional" for="bulk-assignee">
+              <input id="bulk-assignee" v-model="assignee" class="fld" type="text" placeholder="username" />
+            </UiField>
 
-            <label class="fld-label" for="bulk-notes">Note <span class="fld-opt">(one note on every target)</span></label>
-            <textarea id="bulk-notes" v-model="notes" class="fld" rows="2" placeholder="Why this bulk action…" />
+            <UiField label="Note" hint="one note on every target" for="bulk-notes">
+              <textarea id="bulk-notes" v-model="notes" class="fld" rows="2" placeholder="Why this bulk action…" />
+            </UiField>
 
             <p v-if="draft.error" class="bulk-error" role="alert">{{ draft.error }}</p>
             <p v-if="error" class="bulk-error" role="alert">{{ error }}</p>
@@ -204,21 +209,6 @@ async function apply() {
   margin-left: auto;
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--soft);
-}
-.fld-label {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  margin: 14px 0 6px;
-}
-.fld-opt {
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
   color: var(--soft);
 }
 .fld {

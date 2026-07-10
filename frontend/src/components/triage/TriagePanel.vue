@@ -13,6 +13,7 @@ import TriageStateControl from '@/components/triage/TriageStateControl.vue'
 import VexJustificationPicker from '@/components/triage/VexJustificationPicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiField from '@/components/ui/UiField.vue'
 import { buildTriagePatch, type TriagePatchBody } from '@/findings/triageRules'
 import type { FindingRow } from '@/stores/findings'
 
@@ -80,28 +81,31 @@ function save() {
         Read-only — you don't hold <b>can_triage</b>. Ask an Operator or Security Lead.
       </div>
 
-      <label class="fld-label">Assigned to</label>
-      <div class="assignee-row">
-        <span class="assignee-val">{{ assignee ?? finding.assignee ?? 'unassigned' }}</span>
-        <UiButton
-          v-if="currentUser"
-          :disabled="locked || (assignee ?? finding.assignee) === currentUser"
-          @click="assignee = currentUser"
-        >
-          Assign to me
-        </UiButton>
-      </div>
+      <UiField label="Assigned to" first>
+        <div class="assignee-row">
+          <span class="assignee-val">{{ assignee ?? finding.assignee ?? 'unassigned' }}</span>
+          <UiButton
+            v-if="currentUser"
+            :disabled="locked || (assignee ?? finding.assignee) === currentUser"
+            @click="assignee = currentUser"
+          >
+            Assign to me
+          </UiButton>
+        </div>
+      </UiField>
 
-      <label class="fld-label">State · VEX lifecycle</label>
-      <TriageStateControl :current="finding.state" :target="target" :disabled="locked" @select="pickState" />
+      <UiField label="State · VEX lifecycle">
+        <TriageStateControl :current="finding.state" :target="target" :disabled="locked" @select="pickState" />
+      </UiField>
 
       <div v-if="shownState === 'not_affected'" class="vex-block">
-        <label class="fld-label">Justification · CISA five (required)</label>
-        <VexJustificationPicker
-          :selected="vexJustification"
-          :disabled="locked"
-          @select="(id) => (vexJustification = id)"
-        />
+        <UiField label="Justification · CISA five (required)">
+          <VexJustificationPicker
+            :selected="vexJustification"
+            :disabled="locked"
+            @select="(id) => (vexJustification = id)"
+          />
+        </UiField>
       </div>
 
       <div v-if="finding.state === 'risk_accepted'" class="ro-state ro-risk">
@@ -124,15 +128,16 @@ function save() {
         <span class="pn-row"><i class="pn-dot pn-stale" /><b>Stale</b>&nbsp;· scanner silent → still shown, flagged; presence unknown.</span>
       </div>
 
-      <label class="fld-label" for="triage-notes">Note <span class="fld-opt">(escaped, never rendered as HTML)</span></label>
-      <textarea
-        id="triage-notes"
-        v-model="notes"
-        class="fld"
-        rows="3"
-        placeholder="Add context for the audit trail…"
-        :disabled="locked"
-      />
+      <UiField label="Note" hint="escaped, never rendered as HTML" for="triage-notes">
+        <textarea
+          id="triage-notes"
+          v-model="notes"
+          class="fld"
+          rows="3"
+          placeholder="Add context for the audit trail…"
+          :disabled="locked"
+        />
+      </UiField>
 
       <p v-if="draft.error" class="draft-error" role="alert">{{ draft.error }}</p>
       <p v-if="error" class="draft-error" role="alert">{{ error }}</p>
@@ -207,24 +212,6 @@ function save() {
 }
 .triage-locked svg {
   flex: none;
-}
-.fld-label {
-  display: block;
-  font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  margin: 14px 0 6px;
-}
-.fld-label:first-of-type {
-  margin-top: 0;
-}
-.fld-opt {
-  font-weight: 400;
-  text-transform: none;
-  letter-spacing: 0;
-  color: var(--soft);
 }
 .assignee-row {
   display: flex;
