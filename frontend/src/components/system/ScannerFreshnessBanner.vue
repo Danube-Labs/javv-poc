@@ -2,61 +2,60 @@
 /**
  * "Data as of T; scanner silent since T′" (FR-6/D20, audit m-7) — a read-time view over
  * GET /api/v1/scanners/freshness, never written by the staleness sweep. Shown when any
- * (cluster, scanner) has been silent past the freshness window. The threshold mirrors the D20
- * default (N = 3 days); post-MVP it should read the configured `staleness` doc via the M9e
- * settings surface instead of a constant.
+ * (cluster, scanner) has been silent past the freshness window; re-checked on a 10-min poll
+ * (staleness develops over days — a pinned tab must learn about it without a reload).
+ * Urgency treatment (operator ruling 2026-07-10): down-ramp red, alert icon, role=alert —
+ * a silent scanner is a broken pipeline, not a mild advisory.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { client } from '@/api/client'
 import { scannerFreshnessApiV1ScannersFreshnessGet } from '@/api/generated'
 import { useClusterStore } from '@/stores/cluster'
+import { lastDataAt, silentFor, silentRows, type FreshnessRow } from '@/system/freshness'
 
-const FRESHNESS_BANNER_AFTER_S = 3 * 24 * 3600
-
-interface FreshnessRow {
-  scanner: string
-  last_ingest_at: string | null
-  silent_for_seconds: number | null
-}
+const POLL_MS = 10 * 60_000
 
 const clusterStore = useClusterStore()
 const rows = ref<FreshnessRow[]>([])
 
+async function fetchFreshness() {
+  const id = clusterStore.selectedId
+  if (!id) return
+  const { data, response } = await scannerFreshnessApiV1ScannersFreshnessGet({
+    client,
+    query: { cluster_id: id },
+  })
+  if (response?.ok && data) rows.value = (data as { scanners: FreshnessRow[] }).scanners ?? []
+}
+
+const timer = setInterval(() => void fetchFreshness(), POLL_MS)
+onUnmounted(() => clearInterval(timer))
+
 watch(
   () => clusterStore.selectedId,
-  async (id) => {
+  () => {
     rows.value = []
-    if (!id) return
-    const { data, response } = await scannerFreshnessApiV1ScannersFreshnessGet({
-      client,
-      query: { cluster_id: id },
-    })
-    if (response?.ok && data) rows.value = (data as { scanners: FreshnessRow[] }).scanners ?? []
+    void fetchFreshness()
   },
   { immediate: true },
 )
 
-const silent = computed(() =>
-  rows.value.filter((r) => (r.silent_for_seconds ?? 0) > FRESHNESS_BANNER_AFTER_S),
-)
-
-function since(row: FreshnessRow): string {
-  return row.last_ingest_at ? new Date(row.last_ingest_at).toLocaleString() : 'never'
-}
+const silent = computed(() => silentRows(rows.value))
+const clusterName = computed(() => clusterStore.selected?.cluster_name ?? clusterStore.selectedId)
 </script>
 
 <template>
   <Transition name="t-fade">
-    <div v-if="silent.length" class="banner" role="status">
-      <AppIcon name="clock" :size="15" />
+    <div v-if="silent.length" class="banner" role="alert">
+      <AppIcon name="alert" :size="15" />
       <span>
-        Data may be stale —
+        Data may be stale on <strong class="mono">{{ clusterName }}</strong> —
         <template v-for="(row, i) in silent" :key="row.scanner">
           <template v-if="i > 0"> · </template>
-          <strong>{{ row.scanner }}</strong> silent since
-          <span class="mono">{{ since(row) }}</span>
+          <strong>{{ row.scanner }}</strong> silent {{ silentFor(row.silent_for_seconds) }}
+          (last data <span class="mono">{{ lastDataAt(row.last_ingest_at) }}</span>)
         </template>
       </span>
     </div>
@@ -69,9 +68,14 @@ function since(row: FreshnessRow): string {
   align-items: center;
   gap: 10px;
   padding: 8px 16px;
-  background: var(--health-degraded-bg);
+  background: var(--health-down-bg);
+  /* prose is ink — the hue lives in the wash + icon, never same-hue words on a tint */
   color: var(--ink);
   border-bottom: 1px solid var(--line);
   font-size: var(--text-body);
+}
+.banner svg {
+  color: var(--health-down-fg);
+  flex: none;
 }
 </style>
