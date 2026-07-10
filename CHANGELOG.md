@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.7](https://github.com/Danube-Labs/javv-poc/compare/v0.3.6...v0.3.7) (2026-07-10)
+
+
+### Features
+
+* **ui:** collapsible icon-rail sidebar (226px ↔ 64px, Nuxt UI grammar) ([#320](https://github.com/Danube-Labs/javv-poc/issues/320)) ([cff81a3](https://github.com/Danube-Labs/javv-poc/commit/cff81a384d9250f40f89c7010566b822abdbe2a3)), closes [#319](https://github.com/Danube-Labs/javv-poc/issues/319)
+* **ui:** motion layer — open/close transitions baked into the kit ([#323](https://github.com/Danube-Labs/javv-poc/issues/323)) ([fcd1552](https://github.com/Danube-Labs/javv-poc/commit/fcd155226a99ff61b7764d8f191377d7f1d90cc6))
+* **ui:** toast notifications — the app-wide confirmation channel ([#324](https://github.com/Danube-Labs/javv-poc/issues/324)) ([8bfed97](https://github.com/Danube-Labs/javv-poc/commit/8bfed97921b1794a12379d152b36129ddbf82ad9)), closes [#319](https://github.com/Danube-Labs/javv-poc/issues/319)
+
+
+### Bug Fixes
+
+* **audit:** activity feed updates without a page reload ([#321](https://github.com/Danube-Labs/javv-poc/issues/321)) ([ee51640](https://github.com/Danube-Labs/javv-poc/commit/ee51640092123e72422705c0a0c136a78bb6bb78))
+
 ## [0.3.6](https://github.com/Danube-Labs/javv-poc/compare/v0.3.5...v0.3.6) (2026-07-10)
 
 
