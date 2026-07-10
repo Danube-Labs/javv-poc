@@ -33,6 +33,7 @@ export function buildFindingsTrendOption(data: FindingsTrendData): EChartsOption
       series.push({
         name: `new · ${scanner}`,
         type: 'line',
+        cursor: 'default',
         smooth: true,
         symbol: 'none',
         data: newRows.map((p) => p.count),
@@ -46,6 +47,7 @@ export function buildFindingsTrendOption(data: FindingsTrendData): EChartsOption
       series.push({
         name: `resolved (scan-observed) · ${scanner}`,
         type: 'line',
+        cursor: 'default',
         smooth: true,
         symbol: 'none',
         data: resolvedRows.map((p) => p.count),
