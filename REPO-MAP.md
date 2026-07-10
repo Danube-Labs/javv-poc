@@ -40,7 +40,7 @@ deploy (M10). There is no `deploy/` yet - that lands at M10.
 | root configs | `commitlint.config.mjs`, `renovate.json`, `release-please-config.json`, `.release-please-manifest.json`, `.pre-commit-config.yaml` | — |
 
 **Two deprecation homes, one rule:** `.deprecated/` holds superseded *design generations* (whole
-doc sets); `docs/audits/deprecated/` holds *point-in-time audit reports* once their findings are
+doc sets); `.deprecated/docs/audits/` holds *point-in-time audit reports* once their findings are
 consolidated into the live backlog.
 
 ## `backend/` - the FastAPI service
@@ -61,7 +61,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 | **`docs/engineering/V4/`** | **CANONICAL design.** `PLAN_v4` (decisions D1-D45, data model, M0-M10) · `SPEC_v4` (FR/NFR) · `ARCHITECTURE_v4` (layers, Mermaid) · `INDEX-MAP_v4` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE_v4` (worked ingest/query/time-travel) · `AUDIT-RESPONSE_v4` (external-audit fixes, rounds 1-4) · `AUDIT_v4` (2nd audit + resolutions) · `DESIGN-BRIEF_v4` |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
 | **`docs/CONFIGURATION.md`** | Every configuration knob: default, tier, UI-controllability. **New knob → same PR** |
-| **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; `major_audit/` = the 2026-07-07 project-hygiene audit (6 guides incl. the §F UI-refresh prompt); archived point-in-time reports in `docs/audits/deprecated/` |
+| **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; `major_audit/` = the 2026-07-07 project-hygiene audit (6 guides incl. the §F UI-refresh prompt); archived point-in-time reports in `.deprecated/docs/audits/` |
 | **`docs/research/`** | Backing research. `STACK-BEST-PRACTICES` (day-one engineering rules) · `TOOLING-AND-MCP` (MCP servers + install) · `K8S-DEV-CLUSTER` (k3d/remote options) · `INDEPENDENT-AUDIT-v3` · `SNAPSHOT-MODEL-VALIDATION` · `OPENSEARCH-DYNAMIC-CONFIG` |
 | `.deprecated/` | Frozen V1/V2/V3 docs + original notes (evolution trail; `.deprecated/docs/deprecated/original_notes_for_app.md` is **read-only**) |
 

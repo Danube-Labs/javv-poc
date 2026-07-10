@@ -58,14 +58,14 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
 ### Standing process (tracked live on [#134 risk register](https://github.com/Danube-Labs/javv-poc/issues/134) — OPEN)
 
 - [x] **Next independent audit: the M5c/M5d/M6 group** — DONE 2026-07-06, two-model (Codex + Fable),
-  reports in `docs/audits/audit-2026-07-06-m5c-m5d-m6-{codex,fable,UNION}.md`. Findings folded in
+  reports in `.deprecated/docs/audits/audit-2026-07-06-m5c-m5d-m6-{codex,fable,UNION}.md`. Findings folded in
   below.
 - [ ] The rest of the register (reviewer monoculture, TLS landmine, deploy risks) — re-review at
   each audit checkpoint; #134 is the live tracker, not this file.
 
 ### From the 2026-07-06 M5c/M5d/M6 audit (Codex + Fable union) — fast-follow before M7
 
-> Full evidence + reconciliation in `docs/audits/audit-2026-07-06-m5c-m5d-m6-UNION.md`.
+> Full evidence + reconciliation in `.deprecated/docs/audits/audit-2026-07-06-m5c-m5d-m6-UNION.md`.
 > **Now tracked as 8 remediation tasks** with per-task implementation guides in
 > `development/bolts/AUDIT-M5c-M5d-M6-remediation/` — GitHub issues **#185–#192**:
 > #185 input validation (A-M1/A-M2/A-m7/A-m8) · #186 reproject CAS (A-M3/A-m10) · #187 D21 clock
