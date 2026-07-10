@@ -90,11 +90,12 @@ fallback or a per-image error loop. Unset always means the documented default.
 ## 2b. JAVV Frontend (Vue/Vite) — `VITE_*` build-time env
 
 Source: `frontend/src/lib/logger.ts` (tier ① — Vite inlines `VITE_*` at build; changing it means a
-rebuild, not a restart). The FE has exactly one knob so far — added M9a slice 1.
+rebuild, not a restart).
 
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
 | `VITE_LOG_LEVEL` | `debug` (dev) / `warn` (prod build) | Browser-console threshold for the frontend structured logger (`debug`\|`info`\|`warn`\|`error`) — the FE analog of `JAVV_LOG_LEVEL` (observability.md §1: same `timestamp→level→event` line shape; raw `console.*` is ESLint-banned in app code). Unknown value falls back to the default. | n/a (build) |
+| `VITE_FRESHNESS_BANNER_HOURS` | `72` (the D20 N = 3 days) | Hours a scanner must be silent before the red freshness banner fires (`frontend/src/system/freshness.ts`; re-checked on a 10-min poll). Non-numeric/≤0 falls back to the default. Runtime (in-app) configurability is the M9e `staleness` settings deliverable — this knob bridges until then. | M9e |
 
 ---
 
