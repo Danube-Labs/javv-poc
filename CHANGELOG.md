@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.3.6](https://github.com/Danube-Labs/javv-poc/compare/v0.3.5...v0.3.6) (2026-07-10)
+
+
+### Features
+
+* **dx:** agent design contract, style ratchet, /visual-test + /qa commands ([#285](https://github.com/Danube-Labs/javv-poc/issues/285)) ([f8b2cfb](https://github.com/Danube-Labs/javv-poc/commit/f8b2cfbd0bc4fab9d01fdc5d104a9dbf1990dbec)), closes [#284](https://github.com/Danube-Labs/javv-poc/issues/284)
+* **m9a:** app shell, login + must_change, banners, global time picker (slice 3) ([#289](https://github.com/Danube-Labs/javv-poc/issues/289)) ([8c915ad](https://github.com/Danube-Labs/javv-poc/commit/8c915ad35ce9b3473ad2b45f6bdb12af71766c1c))
+* **m9a:** frontend scaffold, design tokens, style gates, fe logger (slice 1) ([#287](https://github.com/Danube-Labs/javv-poc/issues/287)) ([59f6428](https://github.com/Danube-Labs/javv-poc/commit/59f642823ccd6c66c28fa8a0688e306e658fd765))
+* **m9a:** reusable filter module — one fields config drives rail + bar (slice 4) ([#290](https://github.com/Danube-Labs/javv-poc/issues/290)) ([bfb3a95](https://github.com/Danube-Labs/javv-poc/commit/bfb3a9501e18d2f40b2436e106eeafb2ef92104a))
+* **m9a:** typed api client + i4/i7 contract gate (slice 2) ([#288](https://github.com/Danube-Labs/javv-poc/issues/288)) ([55e70ac](https://github.com/Danube-Labs/javv-poc/commit/55e70ac73aff21d9a9b2de80f6e927c0b662bb4c)), closes [#35](https://github.com/Danube-Labs/javv-poc/issues/35)
+* **m9b:** bulk triage, export dialog, metadata pack — slice 4 (bolt wrap) ([#309](https://github.com/Danube-Labs/javv-poc/issues/309)) ([e115d18](https://github.com/Danube-Labs/javv-poc/commit/e115d18d3b730d6b2ba8f4e0fc80b4773abab601))
+* **m9b:** finding detail screen — per-scanner evidence, images affected, cve-click navigation (slice 2) ([#304](https://github.com/Danube-Labs/javv-poc/issues/304)) ([c4eb6f0](https://github.com/Danube-Labs/javv-poc/commit/c4eb6f0fc5a3ce1cf0b2f55f12c6d17b8dec6ea8))
+* **m9b:** shared chip set + lazy findings grid (slice 1) ([#292](https://github.com/Danube-Labs/javv-poc/issues/292)) ([ed40437](https://github.com/Danube-Labs/javv-poc/commit/ed404379c39d109aebc9a528e067ecefb9f94ed2))
+* **m9b:** triage panel — 6-state vex, risk-accept dialog, decisions card (slice 3) ([#305](https://github.com/Danube-Labs/javv-poc/issues/305)) ([0af963f](https://github.com/Danube-Labs/javv-poc/commit/0af963f773d332777e27b708e675b9fdc78f0a4b))
+* prototype-fidelity time picker + columns menu on the findings grid ([#297](https://github.com/Danube-Labs/javv-poc/issues/297)) ([aeb92ec](https://github.com/Danube-Labs/javv-poc/commit/aeb92ec596582391ad646e30a021f41659c7f767)), closes [#296](https://github.com/Danube-Labs/javv-poc/issues/296)
+* switch ui font to hanken grotesk (operator a/b ruling) ([#295](https://github.com/Danube-Labs/javv-poc/issues/295)) ([eb89282](https://github.com/Danube-Labs/javv-poc/commit/eb89282dc905fefa97f439c78b9ad63b9600f138))
+* **ui:** interaction feedback + spacing rhythm + surface elevation pass ([#307](https://github.com/Danube-Labs/javv-poc/issues/307)) ([9b81c83](https://github.com/Danube-Labs/javv-poc/commit/9b81c830ebaa9beabacd20b4ed25979a93c83340))
+
+
+### Bug Fixes
+
+* **m9b:** as_of reader rejects q explicitly; parity guard against ignored filters ([#310](https://github.com/Danube-Labs/javv-poc/issues/310)) ([f6c5936](https://github.com/Danube-Labs/javv-poc/commit/f6c5936ba8b76af3e3bd35d7f5803d7bd511d86c))
+* **ui:** visible hover feedback on every control + unclipped segmented bars ([#314](https://github.com/Danube-Labs/javv-poc/issues/314)) ([662c00c](https://github.com/Danube-Labs/javv-poc/commit/662c00c528934635895abf2c6c509aa8b53757e7))
+* wcag aa contrast for hint text, dark-chrome labels and teal text ([#294](https://github.com/Danube-Labs/javv-poc/issues/294)) ([5aee72b](https://github.com/Danube-Labs/javv-poc/commit/5aee72beabbba44bdd095d340dcf671b84256f39))
+
 ## [0.3.5](https://github.com/Danube-Labs/javv-poc/compare/v0.3.4...v0.3.5) (2026-07-08)
 
 
