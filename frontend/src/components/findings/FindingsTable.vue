@@ -187,7 +187,9 @@ const nsLabel = (r: FindingRow): string => {
 }
 :deep(.tbl tbody td) {
   padding: 9px 12px;
-  border-bottom: 1px solid var(--line2);
+  /* row separator on the STRONG hairline (operator, 2026-07-11): line2 read too faint
+     between dense vuln rows */
+  border-bottom: 1px solid var(--line);
   vertical-align: middle;
 }
 :deep(.tbl-dense thead th) {

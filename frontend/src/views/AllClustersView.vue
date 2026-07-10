@@ -164,16 +164,16 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             <thead>
               <tr>
                 <th>Cluster</th>
-                <th>Health</th>
+                <th class="r">Health</th>
                 <th>Severity mix</th>
                 <th class="r">Findings</th>
                 <th class="r">KEV</th>
                 <th class="r">Fix %</th>
                 <th class="r">Disagree</th>
-                <th>Triage</th>
+                <th class="r">Triage</th>
                 <th class="r">Images</th>
                 <th class="r">Replicas</th>
-                <th>Last sweep</th>
+                <th class="r">Last sweep</th>
               </tr>
             </thead>
             <tbody>
@@ -187,7 +187,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                   <span class="cl-name cl-link">{{ row.cluster_name }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
                   <span v-if="row.cluster_name !== row.cluster_id" class="cl-id mono-cell">{{ row.cluster_id }}</span>
                 </td>
-                <td><HealthChip :rows="row.freshness" /></td>
+                <td class="r"><HealthChip :rows="row.freshness" /></td>
                 <td class="mix-cell">
                   <template v-if="!row.failed">
                     <div v-for="sc in visibleScanners" :key="sc" class="mix-row">
@@ -210,7 +210,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                 </td>
                 <td class="r mono-cell">{{ row.failed ? '—' : `${fixPct(row)}%` }}</td>
                 <td class="r mono-cell">{{ row.failed ? '—' : fmt(disagreeCount(row)) }}</td>
-                <td class="triage-cell">
+                <td class="r triage-cell">
                   <template v-if="!row.failed && triage(row).total > 0">
                     <span class="progress-bar" aria-hidden="true">
                       <i class="seg-open" :style="{ width: `${triage(row).pct(triage(row).open)}%` }" />
@@ -224,7 +224,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                 </td>
                 <td class="r mono-cell">{{ row.imagesCount === null ? '—' : fmt(row.imagesCount) }}</td>
                 <td class="r mono-cell">{{ row.replicas === null ? '—' : fmt(row.replicas) }}</td>
-                <td class="mono-cell">{{ lastSweep(row) ?? 'never' }}</td>
+                <td class="r mono-cell sweep-cell">{{ lastSweep(row) ?? 'never' }}</td>
               </tr>
             </tbody>
           </table>
@@ -357,19 +357,24 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .tbl td {
   padding: 9px 12px;
   border-bottom: 1px solid var(--line2);
-  vertical-align: top;
+  vertical-align: middle;
 }
-/* anchored numeric columns (operator A/B ruling, sharpened live): shrink-to-content + nowrap
-   plus HAIRLINE COLUMN DIVIDERS — the kpi-band grammar carried into the table, so every value
-   sits in a bounded cell instead of floating in shared whitespace */
+/* anchored numeric columns (operator A/B ruling, sharpened live twice): shrink-to-content +
+   nowrap, HAIRLINE COLUMN DIVIDERS (the kpi-band grammar carried into the table), and the
+   value CENTERED + weighted in its bounded cell — right-hugging regular-weight digits at the
+   top of a tall row read as floating */
 .tbl th + th,
 .tbl td + td {
   border-left: 1px solid var(--line2);
 }
 .tbl .r {
-  text-align: right;
+  text-align: center;
   width: 1%;
   white-space: nowrap;
+}
+.tbl td.r {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 .tbl-hover tbody tr {
   cursor: default; /* arrow, not the I-beam — text stays selectable */
