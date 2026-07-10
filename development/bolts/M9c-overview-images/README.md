@@ -94,6 +94,15 @@ as pure units** (Vitest).
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-11 — polish round rulings (operator review, PR #335):** system-default **arrow
+  cursor ruled app-wide** (DESIGN.md §5 — never `pointer`; ECharts series carry
+  `cursor: 'default'`, pinned by a spec so it can't regress); **donut deep-links** — segment
+  and legend rows navigate to `/findings?ptype=<key>`; donut ramp re-cut **hue-alternating**
+  (the monochrome teal ramp read as one green mass); the findings "counts computed
+  server-side" caption cut (dev assertion, not operator info); **findings column diet** —
+  `epss/kev/current/fixed` hidden on first run (localStorage still rules), package/namespace
+  cells truncate with title tooltips; 1920px shows no horizontal scroll, the 1440px
+  remainder ruling is still pending.
 - **2026-07-10 — slice 1 + 1b rulings (operator, live review):** slice-1 cuts beyond the
   audited ones — **KPI sparklines + "+new Nd" chips** (no per-severity-per-day agg pre-1b) and
   the **per-namespace severity MixBar** (no per-ns severity agg) — slots dropped, not kept.
