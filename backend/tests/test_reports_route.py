@@ -100,6 +100,7 @@ async def test_enqueue_writes_a_pending_doc_and_status_reads_it_back(env) -> Non
         "image_repo": None,
         "namespace": None,
         "ptype": None,  # M8d/#241 — mirrors SearchFilters
+        "q": None,  # M9b slice 4 — the contains-search lens
         "present": True,
     }
 

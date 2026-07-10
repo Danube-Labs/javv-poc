@@ -25,7 +25,7 @@ const namespaces = computed(() =>
 
 const nsSel = ref<Set<string>>(new Set())
 const imgSel = ref<Set<string>>(new Set())
-const both = ref(true)
+const applyTo = ref<'both' | 'trivy' | 'grype'>('both')
 const expiry = ref('')
 const justification = ref('')
 const submitting = ref(false)
@@ -48,8 +48,8 @@ async function submit() {
       type: 'risk_accepted',
       cve_id: props.cveId,
       scope: { namespaces: [...nsSel.value], images: [...imgSel.value] },
-      apply_both_scanners: both.value,
-      ...(both.value ? {} : { scanner: props.finding.scanner as 'trivy' | 'grype' }),
+      apply_both_scanners: applyTo.value === 'both',
+      ...(applyTo.value === 'both' ? {} : { scanner: applyTo.value }),
       justification: justification.value.trim(),
       ...(expiry.value ? { expiry: expiry.value } : {}),
       cluster_id: globals.cluster_id,
@@ -139,8 +139,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
           <div>
             <label class="fld-label">Apply to</label>
             <div class="seg">
-              <button type="button" class="seg-opt" :class="{ 'seg-on': both }" @click="both = true">Both scanners</button>
-              <button type="button" class="seg-opt" :class="{ 'seg-on': !both }" @click="both = false">{{ finding.scanner }} only</button>
+              <button
+                v-for="opt in (['both', 'trivy', 'grype'] as const)"
+                :key="opt"
+                type="button"
+                class="seg-opt"
+                :class="{ 'seg-on': applyTo === opt }"
+                @click="applyTo = opt"
+              >
+                {{ opt === 'both' ? 'Both scanners' : opt + ' only' }}
+              </button>
             </div>
           </div>
         </div>
@@ -333,8 +341,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   cursor: default;
 }
 .seg-on {
-  background: var(--slate);
-  color: var(--side-fg);
+  background: var(--dd-on-bg);
+  color: var(--coral-text);
+  box-shadow: inset 0 0 0 1px var(--coral);
   font-weight: 600;
 }
 .ra-note {

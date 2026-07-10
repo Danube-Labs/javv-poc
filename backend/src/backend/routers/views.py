@@ -60,6 +60,7 @@ class ViewPreset(BaseModel):
     image_repo: str | None = Field(default=None, max_length=512)
     namespace: str | None = Field(default=None, max_length=256)
     ptype: str | None = Field(default=None, max_length=64, pattern=r"^[a-z0-9][a-z0-9+._-]*$")
+    q: str | None = Field(default=None, min_length=2, max_length=128)
     present: bool = True
 
     @field_validator("severity")

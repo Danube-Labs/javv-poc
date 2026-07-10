@@ -91,6 +91,20 @@ async function main() {
   await shot(page, '07-columns-menu')
   await page.keyboard.press('Escape')
 
+  // export + bulk dialogs (slice 4) — DRAFT ONLY, never submitted
+  await page.locator('.export-wrap .btn-mini').click()
+  await page.waitForSelector('.modal')
+  await shot(page, '07b-export-dialog', { dump: true })
+  await page.keyboard.press('Escape')
+  await page.locator('.facet-row', { hasText: 'critical' }).first().click()
+  await page.waitForTimeout(600)
+  await page.locator('.bulk-wrap .btn-mini').click()
+  await page.waitForSelector('.modal')
+  await shot(page, '07c-bulk-dialog', { dump: true })
+  await page.keyboard.press('Escape')
+  await page.locator('.clear-all').click()
+  await page.waitForTimeout(500)
+
   // finding detail — row click navigates (cve + digest + scanner identity)
   await page.locator('.tbl tbody tr').first().click()
   await page.waitForSelector('.detail-head', { timeout: 10_000 })

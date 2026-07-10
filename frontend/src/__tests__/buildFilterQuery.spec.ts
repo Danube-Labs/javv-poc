@@ -45,11 +45,20 @@ describe('buildFilterQuery', () => {
   })
 
   it('trims text fields and drops blank ones', () => {
-    const q = buildFilterQuery(FINDINGS_FIELDS, sel({ namespace: ['  payments  '], image: ['   '] }), {
+    const q = buildFilterQuery(FINDINGS_FIELDS, sel({ image: ['  nginx  '] }), {
+      cluster_id: CID,
+    })
+    expect(q.image_repo).toBe('nginx')
+    const blank = buildFilterQuery(FINDINGS_FIELDS, sel({ image: ['   '] }), { cluster_id: CID })
+    expect(blank).not.toHaveProperty('image_repo')
+  })
+
+  it('rail dims namespace/assignee emit their single-value params', () => {
+    const q = buildFilterQuery(FINDINGS_FIELDS, sel({ namespace: ['payments'], assignee: ['admin'] }), {
       cluster_id: CID,
     })
     expect(q.namespace).toBe('payments')
-    expect(q).not.toHaveProperty('image_repo')
+    expect(q.assignee).toBe('admin')
   })
 
   it('drives entirely off the config: a new field needs no builder change', () => {

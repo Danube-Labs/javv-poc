@@ -31,12 +31,15 @@ async def read_audit_log(
     entity_type: Annotated[str | None, Query(max_length=64)] = None,
     action: Annotated[str | None, Query(max_length=64)] = None,
     actor: Annotated[str | None, Query(max_length=128)] = None,
+    finding_key: Annotated[str | None, Query(max_length=256)] = None,
     order: Annotated[str, Query(max_length=4)] = "desc",
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     cursor: Annotated[str | None, Query(max_length=4096)] = None,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
-    filters = AuditFilters(entity_type=entity_type, action=action, actor=actor)
+    filters = AuditFilters(
+        entity_type=entity_type, action=action, actor=actor, finding_key=finding_key
+    )
     opened = cursor is None  # a cursor-less page opens a fresh PIT; a continuation reuses one
     if opened:
         try:

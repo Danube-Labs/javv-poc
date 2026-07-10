@@ -22,9 +22,22 @@ from typing import Any
 
 from backend.query.search import SearchFilters, build_search_body
 
-# bounded-vocabulary fields — capped terms cannot truncate these (NFR-1: keyword/bool only)
-FACET_FIELDS = ("severity", "state", "scanner", "fixable", "kev", "disagree", "present", "ptype")
-_FACET_TERMS_SIZE = 32  # ≥ the largest facet vocabulary (ptype's ecosystem strings are widest)
+# bounded-vocabulary fields — capped terms cannot truncate these (NFR-1: keyword/bool only) —
+# plus two capped-WITH-INTENT rail dims (M9b slice 4): `namespaces`/`assignee` show the top-N
+# by count (that is what a facet rail is); their COMPLETE enumeration stays groups territory.
+FACET_FIELDS = (
+    "severity",
+    "state",
+    "scanner",
+    "fixable",
+    "kev",
+    "disagree",
+    "present",
+    "ptype",
+    "namespaces",
+    "assignee",
+)
+_FACET_TERMS_SIZE = 32  # ≥ the largest bounded vocabulary; the top-N cap for the rail dims
 
 # pre-M8d findings carry ptype: null until a v4 sweep re-observes them (D30) — the facet shows
 # them as an explicit "unknown" bucket rather than silently dropping the rows (the B-1 caveat)

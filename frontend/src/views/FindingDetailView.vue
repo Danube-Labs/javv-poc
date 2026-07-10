@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import {
   groupFindingsApiV1FindingsGroupsGet,
+  readAuditLogApiV1AuditGet,
   listDecisionsApiV1DecisionsGet,
   revokeApiV1DecisionsDecisionIdRevokePost,
   searchFindingsApiV1FindingsGet,
@@ -137,6 +138,10 @@ const disagrees = computed(() => severityDisagrees(evidence.value))
 const missingScanners = computed(() =>
   SCANNER_ORDER.filter((s) => !evidence.value.some((r) => r.scanner === s)),
 )
+/** Where this image runs — union of the sibling rows' namespaces (pods don't exist: D30). */
+const namespaces = computed(() => [
+  ...new Set(rows.value.flatMap((r) => (Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []))),
+])
 
 /* ---- display helpers (24h everywhere, null-tolerant) ---- */
 function fmtAt(iso: unknown): string {
@@ -149,6 +154,11 @@ function fmtAt(iso: unknown): string {
     hour12: false,
   })
 }
+const slaTier = computed(() => {
+  if (primary.value?.overdue === true) return 'sla-box-over'
+  const d = slaDaysLeft.value
+  return d !== null && d <= 3 ? 'sla-box-tight' : ''
+})
 const slaDaysLeft = computed(() => {
   const due = primary.value?.due_at
   if (typeof due !== 'string') return null
@@ -234,6 +244,38 @@ async function revokeDecision(id: string) {
 function onDecisionCreated() {
   void fetchDecisions()
 }
+
+/* ---- per-finding activity (the audit trail rows for THIS finding_key) ---- */
+interface ActivityRow {
+  event_id: string
+  action: string
+  actor: string
+  field?: string
+  old_value?: string | null
+  new_value?: string | null
+  '@timestamp': string
+}
+const activity = ref<ActivityRow[]>([])
+
+watch(
+  [primary, () => clusterStore.selectedId],
+  async ([p]) => {
+    if (!p || !clusterStore.selectedId) return
+    const response = await readAuditLogApiV1AuditGet({
+      query: {
+        cluster_id: clusterStore.selectedId,
+        finding_key: p.finding_key,
+        size: 8,
+      } as never,
+    })
+    if (response.response?.ok && response.data) {
+      activity.value = (response.data as { data: ActivityRow[] }).data
+    } else {
+      logger.warn('finding_activity_failed', { status: response.response?.status })
+    }
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -282,11 +324,12 @@ function onDecisionCreated() {
             </span>
             <span><em>Package</em> <span class="mono-cell">{{ primary?.package_name }}</span></span>
             <span><em>Image</em> <span class="mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span></span>
+            <span><em>Namespaces</em> <span class="mono-cell">{{ namespaces.length ? namespaces.join(', ') : '—' }}</span></span>
             <span><em>First seen</em> {{ fmtAt(primary?.first_seen_at) }}</span>
             <span><em>Last seen</em> {{ fmtAt(primary?.last_seen_at) }}</span>
           </div>
         </div>
-        <div class="sla-box" :class="{ 'sla-box-over': primary?.overdue === true }">
+        <div class="sla-box" :class="slaTier">
           <span class="sla-box-label">SLA</span>
           <template v-if="primary?.due_at">
             <span class="sla-box-days">{{ slaDaysLeft }}<em>d</em></span>
@@ -414,6 +457,32 @@ function onDecisionCreated() {
         @revoke="revokeDecision"
       />
 
+      <section class="card activity-card">
+        <div class="card-head">
+          <div>
+            <h3>Activity on this finding</h3>
+            <p class="card-sub">the audit trail — every triage action, who &amp; when</p>
+          </div>
+        </div>
+        <div class="card-body">
+          <p v-if="activity.length === 0" class="empty-row">No triage actions yet.</p>
+          <ul v-else class="act-list">
+            <li v-for="a in activity" :key="a.event_id" class="act-row">
+              <span class="act-when mono-cell">{{ fmtAt(a['@timestamp']) }}</span>
+              <span class="act-what">
+                <b>{{ a.actor }}</b> · {{ a.action }}
+                <template v-if="a.field === 'state' && a.new_value">
+                  — <StateTag :state="a.new_value" />
+                </template>
+                <template v-else-if="a.new_value">
+                  — {{ a.field }}: <span class="mono-cell sm">{{ a.new_value }}</span>
+                </template>
+              </span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
       <RiskAcceptDialog
         v-if="raOpen && primary"
         :cve-id="cveId"
@@ -484,7 +553,7 @@ function onDecisionCreated() {
   margin-top: 14px;
 }
 .detail-meta > span {
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   color: var(--ink);
 }
 .detail-meta em {
@@ -514,6 +583,14 @@ function onDecisionCreated() {
 .sla-box-over {
   background: var(--sev-critical-bg);
   border-color: var(--sev-critical-line);
+}
+.sla-box-tight {
+  background: var(--sev-high-bg);
+  border-color: var(--sev-high-line);
+}
+.sla-box-tight .sla-box-days,
+.sla-box-tight .sla-box-deadline {
+  color: var(--sla-tight-fg);
 }
 .sla-box-label {
   font-family: var(--font-mono);
@@ -716,6 +793,35 @@ function onDecisionCreated() {
   flex: none;
 }
 
+.activity-card {
+  margin-top: var(--space-4); /* belongs to the decisions band — tighter than a new band */
+}
+.act-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.act-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: var(--text-body);
+}
+.act-when {
+  flex: none;
+  font-size: var(--text-sm);
+  color: var(--soft);
+  min-width: 92px;
+}
+.act-what {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+}
 .not-found h1 {
   font-family: var(--font-mono);
 }

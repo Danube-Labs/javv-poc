@@ -46,6 +46,7 @@ class ExportParams(BaseModel):
     image_repo: str | None = Field(default=None, max_length=512)
     namespace: str | None = Field(default=None, max_length=256)
     ptype: str | None = Field(default=None, max_length=64)
+    q: str | None = Field(default=None, min_length=2, max_length=128)
     present: bool = True
 
     @model_validator(mode="after")

@@ -10,8 +10,11 @@ export const FINDINGS_COLUMNS = [
   ['current', 'Current'],
   ['fixed', 'Fixed'],
   ['image', 'Image'],
+  ['namespace', 'Namespace'],
+  ['images', 'Affected images'],
   ['scanner', 'Scanner'],
   ['sla', 'SLA'],
+  ['assignee', 'Assignee'],
 ] as const
 
 export type FindingsColumnKey = (typeof FINDINGS_COLUMNS)[number][0]

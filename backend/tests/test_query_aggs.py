@@ -74,3 +74,12 @@ def test_after_cursor_round_trips_and_rejects_garbage() -> None:
     assert decode_after(encode_after(after)) == after
     with pytest.raises(ValueError):
         decode_after("!!not-a-cursor!!")
+
+
+def test_rail_dims_are_facetable_top_n() -> None:
+    # M9b slice 4: namespaces/assignee are capped-with-intent rail dims — top-N by count for
+    # the facet rail; their complete enumeration stays on the groups (composite) path.
+    body = build_facets_body(SearchFilters(), fields=["namespaces", "assignee"])
+    assert body["aggs"]["namespaces"]["terms"]["field"] == "namespaces"
+    assert body["aggs"]["assignee"]["terms"]["field"] == "assignee"
+    assert body["aggs"]["namespaces"]["terms"]["size"] == 32

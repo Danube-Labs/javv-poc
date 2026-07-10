@@ -538,3 +538,45 @@ async def test_groups_paginate_via_after_key_to_exhaustion(env) -> None:
         params={"cluster_id": cid, "by": "image_repo", "as_of": "2026-01-01T00:00:00Z"},
     )
     assert r.status_code == 501  # same as_of seam on every read (D28)
+
+
+async def test_images_affected_decoration_counts_distinct_digests_per_cve(env) -> None:
+    """M9b slice 4 / B-4: each page row carries `images_affected` = distinct image_digest count
+    for its CVE (cluster + present=true scoped) — server-computed, tenant-isolated, and blind to
+    tombstoned rows."""
+    login, client = env
+    cid, other = f"c-imgs-{uuid.uuid4().hex[:8]}", f"c-imgs-{uuid.uuid4().hex[:8]}"
+    # CVE-A on 3 digests (one digest twice via both scanners — still ONE image), CVE-B on 1
+    await _seed(
+        client,
+        cid,
+        [
+            {"finding_key": "ia-1", "cve_id": "CVE-A", "image_digest": "sha256:d1"},
+            {"finding_key": "ia-2", "cve_id": "CVE-A", "image_digest": "sha256:d2"},
+            {"finding_key": "ia-3", "cve_id": "CVE-A", "image_digest": "sha256:d3"},
+            {
+                "finding_key": "ia-4",
+                "cve_id": "CVE-A",
+                "image_digest": "sha256:d3",
+                "scanner": "grype",
+            },
+            {"finding_key": "ia-5", "cve_id": "CVE-B", "image_digest": "sha256:d1"},
+            # a tombstoned CVE-B sibling on another digest must NOT count toward "now"
+            {
+                "finding_key": "ia-6",
+                "cve_id": "CVE-B",
+                "image_digest": "sha256:d9",
+                "present": False,
+            },
+        ],
+    )
+    # same CVE in another tenant: must never leak into this cluster's count
+    await _seed(
+        client, other, [{"finding_key": "ia-7", "cve_id": "CVE-A", "image_digest": "sha256:zz"}]
+    )
+    http = await login()
+
+    r = await http.get("/api/v1/findings", params={"cluster_id": cid})
+    assert r.status_code == 200
+    counts = {d["cve_id"]: d["images_affected"] for d in r.json()["data"]}
+    assert counts == {"CVE-A": 3, "CVE-B": 1}

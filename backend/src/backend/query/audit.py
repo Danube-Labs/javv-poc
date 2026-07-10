@@ -34,6 +34,7 @@ class AuditFilters:
     entity_type: str | None = None
     action: str | None = None
     actor: str | None = None
+    finding_key: str | None = None  # per-finding activity (M9b slice 4 — the detail screen)
 
 
 def build_audit_body(
@@ -54,6 +55,7 @@ def build_audit_body(
             ("entity_type", filters.entity_type),
             ("action", filters.action),
             ("actor", filters.actor),
+            ("finding_key", filters.finding_key),
         )
         if value is not None
     ]

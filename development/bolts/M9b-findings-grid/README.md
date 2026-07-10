@@ -153,6 +153,42 @@ as pure units** (Vitest).
   facets reflected it, reverted clean — the run itself caught two latent bugs (StateTag label
   frozen at setup; state filter vocabulary listed only 4 of the 6 states).
 
+- **2026-07-10 — metadata-gap rulings (operator review, pre-slice-4):** **Pods are NOT
+  renderable — by design (D30):** the scanner dedups by image digest (N pods = one scan); a vuln
+  is a property of the image, not the pod, and no pod/workload field exists in any index. Don't
+  hunt for it; workload-level mapping is a **v1.1 scanner-envelope candidate ([#308])**. What DOES
+  exist is `namespaces[]` — slice 4 folds in the delivered-vs-spec gaps: **Namespace + Assignee
+  facet-rail sections** (SCREENS-v5 §3 — the Add-filter text path already worked, but hidden ≠
+  delivered), the three missing specced **grid columns** (Component `app` · Images group-agg
+  count B-4 · Assignee), and a **Namespaces line in the detail header** (from the sibling rows).
+  Topbar search stays inert until **M9f** (global grouped search, per spec).
+
+- **2026-07-10 — slice-4 contract rulings:** **bulk = the CURRENT LENS, not checkboxes.** The
+  shipped M5d selector is predicate-based (cve/digest/severity/state/assignee → frozen id-set);
+  arbitrary checked-row sets are not expressible, so the specced checkbox column is superseded:
+  the Bulk dialog derives its selector from the active filters and **BLOCKS (never widens)**
+  when the lens uses anything the selector can't express (scanner/flags/namespace/image/ptype,
+  or multi-value severity/state) — a selector that ignored an active filter would triage more
+  rows than the operator sees. Empty lens = refused (whole-cluster guard). If per-row selection
+  is ever wanted, the selector needs a `finding_keys` list — a deliberate backend decision, not
+  a UI patch. **Exports:** run-now streams the FULL lens; scheduled `ExportParams` carries no
+  namespace/ptype → those lenses block scheduling with the reason. M7 shipped whole → the
+  schedule path is LIVE (enqueue → poll → signed download + expiry), not drawn-disabled.
+  **Facet rail:** namespaces/assignee = top-N-by-count rail dims (server caps at 32; complete
+  enumeration stays groups territory); an "Unassigned" bucket needs a missing-agg — deferred,
+  noted. Assignee rail lists only assignees that exist.
+
+- **2026-07-10 — operator findings-review corrections (slice 4, same PR):** the rail gets the
+  prototype's **`.facet-search` box** (missed in slice 1) — **exact CVE-id lookup** (the backend
+  `cve_id` term filter; package/component search has NO backend param — the M9f-verify item
+  stands). **Namespace column** added (first + "+n"); the images count column renamed
+  **"Affected"** (menu: "Affected images") — "Image" = this row's image, "Affected" = CVE-wide
+  distinct-image count. **Component column REMOVED until the envelope emits `app`** (0% populated
+  — the ptype/B-1 precedent: never ship a dash-only column). **Decisions ≠ triage actions**: the
+  decisions card lists scoped RULES; plain state changes are audit-journaled actions — the detail
+  page now has an **"Activity on this finding"** card (audit route gained a `finding_key` filter,
+  tested) so a triage action is visible where the operator expects it.
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and

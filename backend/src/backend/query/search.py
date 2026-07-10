@@ -55,6 +55,7 @@ class SearchFilters:
     image_repo: str | None = None
     namespace: str | None = None
     ptype: str | None = None  # package type (M8d/B-1): "os" | ecosystem string
+    q: str | None = None  # contains-search across cve/image/namespace/assignee/package (slice 4)
     present: bool = True  # the "now" grid; tombstones are opt-in
 
 
@@ -96,10 +97,31 @@ def build_search_body(
     ):
         if term is not None:
             fl.append({"term": {field: term}})
+    bool_q: dict[str, Any] = {"filter": fl}
+    if filters.q is not None:
+        # contains-match across the identifier fields (M9b slice 4, operator ask). Structured
+        # wildcard clauses — NEVER query_string (DSL injection surface). `*`/`?` in user input
+        # are escaped so a crafted pattern can't go pathological; `case_insensitive` rides the
+        # lc-normalized keywords. COST NOTE: a leading wildcard scans the field's terms — fine
+        # at fleet-scaled MVP size; past that the fix is an INDEX-MAP change (wildcard field
+        # type / n-grams), not a bigger box.
+        escaped = filters.q.replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?")
+        pattern = f"*{escaped}*"
+        bool_q["must"] = [
+            {
+                "bool": {
+                    "should": [
+                        {"wildcard": {f: {"value": pattern, "case_insensitive": True}}}
+                        for f in ("cve_id", "image_repo", "namespaces", "assignee", "package_name")
+                    ],
+                    "minimum_should_match": 1,
+                }
+            }
+        ]
     body: dict[str, Any] = {
         "size": size,
         "track_total_hits": True,
-        "query": {"bool": {"filter": fl}},
+        "query": {"bool": bool_q},
         "sort": [{sort: {"order": order}}, {"finding_key": {"order": "asc"}}],
     }
     if search_after is not None:

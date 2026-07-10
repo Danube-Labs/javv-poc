@@ -672,6 +672,19 @@
             ],
             "title": "Ptype"
           },
+          "q": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
+          },
           "scanner": {
             "anyOf": [
               {
@@ -1147,6 +1160,19 @@
               }
             ],
             "title": "Ptype"
+          },
+          "q": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Q"
           },
           "scanner": {
             "anyOf": [
@@ -1734,6 +1760,23 @@
                 }
               ],
               "title": "Actor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "finding_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Finding Key"
             }
           },
           {
@@ -2532,6 +2575,24 @@
           },
           {
             "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
             "name": "present",
             "required": false,
             "schema": {
@@ -2849,6 +2910,24 @@
           },
           {
             "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
             "name": "present",
             "required": false,
             "schema": {
@@ -3131,6 +3210,24 @@
                 }
               ],
               "title": "Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           },
           {
@@ -3426,6 +3523,24 @@
                 }
               ],
               "title": "Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           },
           {
@@ -3741,6 +3856,24 @@
                 }
               ],
               "title": "Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           },
           {

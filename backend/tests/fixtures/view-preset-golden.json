@@ -12,7 +12,8 @@
     "ptype": null,
     "scanner": null,
     "severity": null,
-    "state": null
+    "state": null,
+    "q": null
   },
   "populated": {
     "assignee": null,
@@ -32,6 +33,7 @@
     ],
     "state": [
       "open"
-    ]
+    ],
+    "q": null
   }
 }

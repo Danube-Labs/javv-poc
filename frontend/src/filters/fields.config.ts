@@ -45,6 +45,8 @@ export const emptySelections = (fields: readonly FilterField[]): Selections =>
 
 /** Findings screen config (FR-12). Owned here; M9b+ screens import, never copy. */
 export const FINDINGS_FIELDS: readonly FilterField[] = [
+  // the rail search box writes this — CONTAINS across cve/image/namespace/assignee/package
+  { key: 'q', label: 'Search', type: 'text', param: 'q' },
   { key: 'severity', label: 'Severity', type: 'terms', param: 'severity', multi: true, facetKey: 'severity', values: SEVERITIES },
   { key: 'scanner', label: 'Scanner', type: 'terms', param: 'scanner', facetKey: 'scanner', values: ['trivy', 'grype'] },
   {
@@ -59,7 +61,9 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
   },
   { key: 'state', label: 'State', type: 'terms', param: 'state', multi: true, facetKey: 'state', values: ['open', 'acknowledged', 'not_affected', 'risk_accepted', 'resolved', 'stale'] },
   { key: 'ptype', label: 'Package type', type: 'terms', param: 'ptype', facetKey: 'ptype' },
-  { key: 'namespace', label: 'Namespace', type: 'text', param: 'namespace' },
+  // rail dims are top-N by count (server caps at 32); the value-search in Add-filter still
+  // reaches anything the rail's cap hides
+  { key: 'namespace', label: 'Namespace', type: 'terms', param: 'namespace', facetKey: 'namespaces' },
   { key: 'image', label: 'Image', type: 'text', param: 'image_repo' },
-  { key: 'assignee', label: 'Assignee', type: 'text', param: 'assignee' },
+  { key: 'assignee', label: 'Assignee', type: 'terms', param: 'assignee', facetKey: 'assignee' },
 ]

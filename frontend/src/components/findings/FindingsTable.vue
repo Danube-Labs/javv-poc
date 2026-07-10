@@ -46,6 +46,11 @@ function onSort(e: DataTableSortEvent) {
 }
 
 const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}${r.tag ? ':' + r.tag : ''}`
+const nsLabel = (r: FindingRow): string => {
+  const ns = Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []
+  if (ns.length === 0) return '-'
+  return ns.length === 1 ? ns[0]! : `${ns[0]} +${ns.length - 1}`
+}
 </script>
 
 <template>
@@ -107,6 +112,16 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
           <span class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
         </template>
       </Column>
+      <Column v-if="show('namespace')" header="Namespace">
+        <template #body="{ data }">
+          <span class="mono-cell sm">{{ nsLabel(data) }}</span>
+        </template>
+      </Column>
+      <Column v-if="show('images')" header="Affected" class="r">
+        <template #body="{ data }">
+          <span class="mono-cell sm">{{ data.images_affected ?? '-' }}</span>
+        </template>
+      </Column>
       <Column v-if="show('scanner')" header="Scanner">
         <template #body="{ data }">
           <span class="scanner-stack">
@@ -123,6 +138,11 @@ const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}$
       <Column header="State">
         <template #body="{ data }">
           <StateTag :state="data.state" />
+        </template>
+      </Column>
+      <Column v-if="show('assignee')" header="Assignee">
+        <template #body="{ data }">
+          <span class="sm">{{ data.assignee ?? '-' }}</span>
         </template>
       </Column>
       <template #empty>
