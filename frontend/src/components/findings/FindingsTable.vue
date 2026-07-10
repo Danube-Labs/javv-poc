@@ -93,8 +93,8 @@ const nsLabel = (r: FindingRow): string => {
       </Column>
       <Column v-if="show('package')" header="Package">
         <template #body="{ data }">
-          <span class="pkg"
-            >{{ data.package_name }}<i class="pkg-type">{{ data.ptype ?? 'unknown' }}</i></span
+          <span class="pkg" :title="data.package_name"
+            ><em class="pkg-name">{{ data.package_name }}</em><i class="pkg-type">{{ data.ptype ?? 'unknown' }}</i></span
           >
         </template>
       </Column>
@@ -116,7 +116,7 @@ const nsLabel = (r: FindingRow): string => {
       </Column>
       <Column v-if="show('namespace')" header="Namespace">
         <template #body="{ data }">
-          <span class="mono-cell sm" :title="Array.isArray(data.namespaces) ? data.namespaces.join(', ') : ''">{{ nsLabel(data) }}</span>
+          <span class="mono-cell sm ns-cell" :title="Array.isArray(data.namespaces) ? data.namespaces.join(', ') : ''">{{ nsLabel(data) }}</span>
         </template>
       </Column>
       <Column v-if="show('images')" header="Affected" class="r">
@@ -275,6 +275,21 @@ const nsLabel = (r: FindingRow): string => {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+:deep(.pkg-name) {
+  font-style: normal;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+:deep(.ns-cell) {
+  display: inline-block;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 :deep(.pkg-type) {
   font-family: var(--font-mono);

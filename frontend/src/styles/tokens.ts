@@ -75,16 +75,18 @@ export const CHART_UI = {
   segBorder: '#ffffff', // --card — pie-segment separator on the card surface
 } as const
 
-/** Categorical ramp for the package-type donut — brand-teal anchored (decorative categorical
- * coding, NOT severity; ptype is info-class data). First entry equals --teal. */
+/** Categorical palette for the package-type donut — hue-ALTERNATING so adjacent segments stay
+ * distinct even when two buckets dominate (operator 2026-07-11: the teal ramp read all-green).
+ * Decorative categorical coding, NOT severity; none of these equal a severity or scanner
+ * series hex. First entry stays --teal (the brand-info anchor, pinned). */
 export const CHART_PTYPE_RAMP = [
-  '#1f8e84',
-  '#2fa89c',
-  '#7cc4bc',
-  '#a7d6d0',
-  '#c9e5e1',
-  '#e0efd9',
-  '#f4d9a8',
-  '#f2b98a',
-  '#ec9f84',
+  '#1f8e84', // teal (--teal)
+  '#5a7fb8', // slate blue
+  '#c98d3f', // ochre
+  '#a86f8e', // mauve
+  '#6f9e5a', // olive
+  '#4fb0a5', // aqua
+  '#8c7f5a', // khaki
+  '#b87f6f', // clay
+  '#7c8a99', // grey-blue
 ] as const
