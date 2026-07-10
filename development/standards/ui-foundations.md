@@ -55,3 +55,11 @@ Three **separate** buckets; using one where another belongs is a bug:
 - **Agent-facing condensation:** `frontend/DESIGN.md` (an M9a deliverable) is the one file a session reads
   before writing FE code - token tables (light+dark), do's/don'ts, quick reference, example patterns. It
   *derives from* the tokens and this doc; on disagreement, `tokens.css` + this doc win.
+
+## Visual feedback — a MUST (operator ruling, 2026-07-10)
+
+Every interactive element answers the pointer BEFORE it is clicked: hover wash
+(`--control-hover-bg`) + border shift, pressed state (`--control-active-bg`), focus-visible
+ring, and (for rows) the hover wash + link-styled target cell. A border-color shift alone is
+invisible and does not count. The global rule lives in `frontend/src/styles/base.css`; scoped
+styles may add to it, never remove it. Binding detail: `frontend/DESIGN.md` §2.
