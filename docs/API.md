@@ -149,9 +149,10 @@ and rings a `report_ready` bell on completion.
 
 ### POST `/api/v1/ingest/scan` (the hardened surface)
 
-Request: a **schema-v3 scanner envelope** (v3 = the D44 `effective_config` stamp; **current-only**
-— older schema versions 422, scanner + backend deploy in lockstep), JSON, optionally
-`Content-Encoding: gzip`.
+Request: a **scanner envelope, schema v3 or v4** (the M8d ptype rollout window — anything
+outside it 422s; v3 = the D44 `effective_config` stamp), JSON, optionally
+`Content-Encoding: gzip`. **Third-party pushers:** the full public contract — JSON Schema,
+call protocol, worked example — is [`INGEST-CONTRACT.md`](INGEST-CONTRACT.md) (#262).
 
 Defenses, in order: per-token rate limit → bearer auth → compressed-size cap (streamed) →
 decompression cap (zip-bomb) → JSON parse → full-envelope `extra="forbid"` validation →
