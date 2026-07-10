@@ -142,6 +142,20 @@ Transitions short and functional (`.12–.15s`), no decorative animation. Row ho
 `var(--row-hover)`; clickable cards lift 1px + coral border. Focus-visible = `var(--focus-ring)`
 (2px coral, 1px offset) on every interactive element. Dropdowns close on outside-click and Esc.
 
+### The UI kit (`components/ui/`) — use it, never re-roll it
+
+These components each own one contract ONCE (feedback states, dismiss behavior, rhythm). Writing
+the raw markup/CSS they encapsulate is a review failure — extend the component instead:
+
+| Component | Owns | Use for |
+|---|---|---|
+| `UiButton` | hover wash + pressed + focus + disabled + arrow cursor; variants `mini` / `control` / `quiet` / `ghost` / `primary` (+`block`) | every button |
+| `UiSegControl` | padded seg bar, per-option radius (ring never clipped), `aria-pressed`; tones `accent` (coral selection) / `neutral` (card-lift) | any pick-one bar |
+| `UiField` | mono uppercase micro-label + parenthesized `hint`, 14px band / 6px label gap (`first` zeroes the top) | any labeled control |
+| `UiDropdown` | open state + outside-mousedown + document Escape + relative anchor; `trigger`/default slots (menu markup stays yours) | any popover menu |
+| `ModalShell` | scrim + card + head/✕/actions, Escape + outside-click dismiss | every dialog |
+| `AppIcon` | the stroke icon set | every icon |
+
 ## 6. Do / Don't
 
 **Do**
