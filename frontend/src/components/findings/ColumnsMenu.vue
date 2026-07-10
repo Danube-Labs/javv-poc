@@ -7,6 +7,7 @@
 import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 
 defineProps<{
   cols: readonly (readonly [string, string])[]
@@ -37,7 +38,7 @@ onUnmounted(() => {
 
 <template>
   <div ref="wrap" class="dropdown cols-dd" @keydown.esc="open = false">
-    <button class="btn-mini" @click="open = !open"><AppIcon name="columns" :size="13" />Columns</button>
+    <UiButton variant="quiet" @click="open = !open"><AppIcon name="columns" :size="13" />Columns</UiButton>
     <div v-if="open" class="dd-menu cols-menu">
       <div class="dd-head">Density</div>
       <div class="seg">
@@ -69,26 +70,6 @@ onUnmounted(() => {
 }
 .cols-dd {
   flex: none;
-}
-.btn-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: var(--text-quiet-action);
-  padding: 5px 9px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  color: var(--ink);
-  border-radius: 7px;
-  cursor: default;
-}
-.btn-mini:hover {
-  border-color: var(--control-hover-line);
-  color: var(--ink);
-}
-.btn-mini:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
 }
 .dd-menu {
   position: absolute;

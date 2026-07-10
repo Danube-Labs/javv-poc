@@ -11,6 +11,7 @@ import { computed, ref } from 'vue'
 import { createApiV1DecisionsPost } from '@/api/generated'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import { useApi } from '@/composables/useApi'
 import { logger } from '@/lib/logger'
 import type { FindingRow } from '@/stores/findings'
@@ -157,10 +158,10 @@ async function submit() {
       </div>
 
       <template #actions>
-        <button type="button" class="btn-ghost" @click="emit('close')">Cancel</button>
-        <button type="button" class="btn-primary" :disabled="!valid || submitting" @click="submit">
+        <UiButton variant="ghost" @click="emit('close')">Cancel</UiButton>
+        <UiButton variant="primary" :disabled="!valid || submitting" @click="submit">
           {{ submitting ? 'Creating…' : 'Create decision' }}
-        </button>
+        </UiButton>
       </template>
   </ModalShell>
 </template>
@@ -311,43 +312,5 @@ async function submit() {
 }
 .strong {
   font-weight: 700;
-}
-.btn-mini {
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 3px 8px;
-  font-size: var(--text-sm);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-ghost,
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: var(--r-sm);
-  padding: 8px 14px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  cursor: default;
-}
-.btn-ghost {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-}
-.btn-primary {
-  border: 1px solid var(--coral-d);
-  background: var(--coral);
-  color: var(--kev-fg);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--coral-d);
-}
-.btn-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 </style>

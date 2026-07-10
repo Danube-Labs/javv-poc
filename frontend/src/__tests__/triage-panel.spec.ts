@@ -44,7 +44,7 @@ function panel(over: Record<string, unknown> = {}) {
   })
 }
 
-const save = (w: ReturnType<typeof panel>) => w.find('.btn-primary')
+const save = (w: ReturnType<typeof panel>) => w.find('.ui-btn--primary')
 
 describe('TriagePanel (FR-7 gates)', () => {
   it('vex chips appear only when not_affected is the target; save blocked until one is picked', async () => {
@@ -89,9 +89,9 @@ describe('TriagePanel (FR-7 gates)', () => {
   })
 
   it('risk-accept button renders only with can_accept_audit_final', () => {
-    expect(panel().find('.btn-ghost').exists()).toBe(false)
+    expect(panel().find('.ui-btn--ghost').exists()).toBe(false)
     const w = panel({ canAcceptFinal: true })
-    expect(w.find('.btn-ghost').text()).toContain('Risk-accept')
+    expect(w.find('.ui-btn--ghost').text()).toContain('Risk-accept')
   })
 
   it('notes-only draft saves without a state change', async () => {

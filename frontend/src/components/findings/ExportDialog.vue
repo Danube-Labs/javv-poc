@@ -12,6 +12,7 @@ import { computed, onUnmounted, ref } from 'vue'
 import { enqueueReportApiV1ReportsPost, getReportApiV1ReportsReportIdGet } from '@/api/generated'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import { useApi } from '@/composables/useApi'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FilterField } from '@/filters/fields.config'
@@ -168,9 +169,9 @@ const downloadHref = computed(() =>
 
 <template>
   <div class="export-wrap">
-    <button type="button" class="btn-mini" @click="openDialog">
+    <UiButton variant="control" @click="openDialog">
       <AppIcon name="download" :size="13" />Export
-    </button>
+    </UiButton>
 
     <ModalShell
       v-if="open"
@@ -228,25 +229,23 @@ const downloadHref = computed(() =>
           </template>
 
       <template #actions>
-          <button type="button" class="btn-ghost" @click="close">Close</button>
-          <button
+          <UiButton variant="ghost" @click="close">Close</UiButton>
+          <UiButton
             v-if="!historical && tab === 'now'"
-            type="button"
-            class="btn-primary"
+            variant="primary"
             :disabled="busy"
             @click="runNow"
           >
             {{ busy ? 'Exporting…' : 'Download' }}
-          </button>
-          <button
+          </UiButton>
+          <UiButton
             v-else-if="!historical"
-            type="button"
-            class="btn-primary"
+            variant="primary"
             :disabled="busy || !!scheduleBlocked || report !== null"
             @click="schedule"
           >
             {{ busy ? 'Scheduling…' : 'Schedule' }}
-          </button>
+          </UiButton>
       </template>
     </ModalShell>
   </div>
@@ -255,22 +254,6 @@ const downloadHref = computed(() =>
 <style scoped>
 .export-wrap {
   display: inline-flex;
-}
-.btn-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 6px 11px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-mini:hover {
-  border-color: var(--control-hover-line);
 }
 .tabs {
   margin-bottom: 4px;
@@ -356,34 +339,5 @@ const downloadHref = computed(() =>
   margin: 10px 0 0;
   font-size: var(--text-sm);
   color: var(--health-down-fg);
-}
-.btn-ghost,
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: var(--r-sm);
-  padding: 8px 14px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  cursor: default;
-}
-.btn-ghost {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-}
-.btn-primary {
-  border: 1px solid var(--coral-d);
-  background: var(--coral);
-  color: var(--kev-fg);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--coral-d);
-}
-.btn-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 </style>

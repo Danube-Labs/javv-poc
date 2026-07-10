@@ -12,6 +12,7 @@ import TriageStateControl from '@/components/triage/TriageStateControl.vue'
 import VexJustificationPicker from '@/components/triage/VexJustificationPicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import type { FilterField } from '@/filters/fields.config'
 import { lensToSelector } from '@/findings/bulkSelector'
 import { buildTriagePatch } from '@/findings/triageRules'
@@ -95,9 +96,9 @@ async function apply() {
 
 <template>
   <div v-if="canTriage && !historical" class="bulk-wrap">
-    <button type="button" class="btn-mini" @click="reset(); open = true">
+    <UiButton variant="control" @click="reset(); open = true">
       <AppIcon name="layers" :size="13" />Bulk triage
-    </button>
+    </UiButton>
 
     <ModalShell
       v-if="open"
@@ -139,16 +140,15 @@ async function apply() {
           </template>
       </div>
       <template #actions>
-          <button type="button" class="btn-ghost" @click="open = false">{{ done !== null ? 'Close' : 'Cancel' }}</button>
-          <button
+          <UiButton variant="ghost" @click="open = false">{{ done !== null ? 'Close' : 'Cancel' }}</UiButton>
+          <UiButton
             v-if="done === null"
-            type="button"
-            class="btn-primary"
+            variant="primary"
             :disabled="!!lens.blocked || !draft.body || submitting"
             @click="apply"
           >
             {{ submitting ? 'Applying…' : 'Apply to lens' }}
-          </button>
+          </UiButton>
       </template>
     </ModalShell>
   </div>
@@ -157,22 +157,6 @@ async function apply() {
 <style scoped>
 .bulk-wrap {
   display: inline-flex;
-}
-.btn-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 6px 11px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-mini:hover {
-  border-color: var(--control-hover-line);
 }
 .bulk-blocked {
   display: flex;
@@ -268,34 +252,5 @@ async function apply() {
   margin: 10px 0 0;
   font-size: var(--text-body);
   color: var(--state-resolved-fg);
-}
-.btn-ghost,
-.btn-primary {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  border-radius: var(--r-sm);
-  padding: 8px 14px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  cursor: default;
-}
-.btn-ghost {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-}
-.btn-primary {
-  border: 1px solid var(--coral-d);
-  background: var(--coral);
-  color: var(--kev-fg);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--coral-d);
-}
-.btn-primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 </style>

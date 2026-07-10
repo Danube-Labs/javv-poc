@@ -26,7 +26,7 @@ describe('GlobalTimePicker (single range control)', () => {
     await open(w)
     await w.find('input[aria-label="Range length"]').setValue(90)
     await w.find('select[aria-label="Range unit"]').setValue('minutes')
-    await w.find('.time-rel .btn-mini').trigger('click')
+    await w.find('.time-rel .time-apply').trigger('click')
     expect(store.windowDays).toBe(1) // trends contract: int days ≥1
     expect(store.windowLabel).toBe('Last 90 minutes')
     expect(store.t).toBeNull() // quick selects end now — no as_of
@@ -38,7 +38,7 @@ describe('GlobalTimePicker (single range control)', () => {
     await open(w)
     await w.find('input[aria-label="Range length"]').setValue(2)
     await w.find('select[aria-label="Range unit"]').setValue('weeks')
-    await w.find('.time-rel .btn-mini').trigger('click')
+    await w.find('.time-rel .time-apply').trigger('click')
     expect(store.windowDays).toBe(14)
 
     await open(w)
@@ -57,7 +57,7 @@ describe('GlobalTimePicker (single range control)', () => {
     await w.find('input[aria-label="Range start time (24h)"]').setValue('08:00')
     await w.find('input[aria-label="Range end date"]').setValue('2026-07-08')
     await w.find('input[aria-label="Range end time (24h)"]').setValue('14:30')
-    await w.find('.time-abs .btn-mini').trigger('click')
+    await w.find('.time-abs .time-apply').trigger('click')
     expect(store.t).toBe(new Date('2026-07-08T14:30:00').toISOString())
     expect(store.windowDays).toBe(7)
     expect(store.windowLabel).not.toMatch(/AM|PM/i) // 24h labels, never AM/PM
@@ -76,7 +76,7 @@ describe('GlobalTimePicker (single range control)', () => {
     await w.find('input[aria-label="Range start time (24h)"]').setValue('00:00')
     await w.find('input[aria-label="Range end date"]').setValue(d)
     await w.find('input[aria-label="Range end time (24h)"]').setValue(hm)
-    await w.find('.time-abs .btn-mini').trigger('click')
+    await w.find('.time-abs .time-apply').trigger('click')
     expect(store.t).toBeNull() // ends ahead of now → current state, no as_of
     expect(store.windowLabel).not.toMatch(/AM|PM/i)
   })
@@ -88,7 +88,7 @@ describe('GlobalTimePicker (single range control)', () => {
     await w.find('input[aria-label="Range start time (24h)"]').setValue('25:00') // invalid hour
     await w.find('input[aria-label="Range end date"]').setValue('2026-07-02')
     await w.find('input[aria-label="Range end time (24h)"]').setValue('9:75') // invalid minutes
-    expect((w.find('.time-abs .btn-mini').element as HTMLButtonElement).disabled).toBe(true)
+    expect((w.find('.time-abs .time-apply').element as HTMLButtonElement).disabled).toBe(true)
   })
 
   it('back-to-now clears as_of and restores the default window', async () => {

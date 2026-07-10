@@ -10,6 +10,7 @@
 import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 
 const timeTravel = useTimeTravelStore()
@@ -151,7 +152,7 @@ onUnmounted(() => {
           <option value="days">days</option>
           <option value="weeks">weeks</option>
         </select>
-        <button class="btn-mini time-apply" @click="applyRelative">Apply</button>
+        <UiButton variant="quiet" class="time-apply" @click="applyRelative">Apply</UiButton>
       </div>
 
       <div class="dd-head">Commonly used</div>
@@ -188,7 +189,7 @@ onUnmounted(() => {
           maxlength="5"
           aria-label="Range end time (24h)"
         />
-        <button class="btn-mini time-apply" :disabled="!customValid" @click="applyCustom">Apply</button>
+        <UiButton variant="quiet" class="time-apply" :disabled="!customValid" @click="applyCustom">Apply</UiButton>
       </div>
 
       <button v-if="!timeTravel.isNow" class="back-now" @click="backToNow">
@@ -269,30 +270,6 @@ onUnmounted(() => {
 }
 .time-apply {
   margin-left: auto;
-}
-.btn-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: var(--text-quiet-action);
-  font-weight: 600;
-  padding: 5px 9px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  color: var(--ink);
-  border-radius: 7px;
-  cursor: default;
-}
-.btn-mini:hover {
-  border-color: var(--control-hover-line);
-}
-.btn-mini:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.btn-mini:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
 }
 .time-presets {
   display: grid;

@@ -44,8 +44,6 @@ a {
 /* Interactive controls: VISIBLE hover feedback (operator ruling 2026-07-10) — a border-color
    shift alone can't be seen; every clickable control gets the wash + the border shift. Scoped
    component rules may add to this; they must not remove it. */
-.btn-mini,
-.btn-ghost,
 .state-opt,
 .vex-chip,
 .ra-chip,
@@ -59,8 +57,6 @@ a {
     background 0.12s ease-out,
     border-color 0.12s ease-out;
 }
-.btn-mini:hover:not(:disabled),
-.btn-ghost:hover:not(:disabled),
 .state-opt:hover:not(:disabled):not(.state-opt-on),
 .vex-chip:hover:not(:disabled):not(.vex-chip-on),
 .ra-chip:hover:not(.ra-chip-on),
@@ -72,15 +68,11 @@ a {
   background: var(--control-hover-bg);
   border-color: var(--control-hover-line);
 }
-.btn-mini:active:not(:disabled),
-.btn-ghost:active:not(:disabled),
 .state-opt:active:not(:disabled),
 .seg-opt:active:not(.seg-on) {
   background: var(--control-active-bg);
 }
 @media (prefers-reduced-motion: reduce) {
-  .btn-mini,
-  .btn-ghost,
   .state-opt,
   .vex-chip,
   .ra-chip,

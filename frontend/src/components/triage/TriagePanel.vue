@@ -12,6 +12,7 @@ import StateTag from '@/components/chips/StateTag.vue'
 import TriageStateControl from '@/components/triage/TriageStateControl.vue'
 import VexJustificationPicker from '@/components/triage/VexJustificationPicker.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import { buildTriagePatch, type TriagePatchBody } from '@/findings/triageRules'
 import type { FindingRow } from '@/stores/findings'
 
@@ -82,15 +83,13 @@ function save() {
       <label class="fld-label">Assigned to</label>
       <div class="assignee-row">
         <span class="assignee-val">{{ assignee ?? finding.assignee ?? 'unassigned' }}</span>
-        <button
+        <UiButton
           v-if="currentUser"
-          type="button"
-          class="btn-mini"
           :disabled="locked || (assignee ?? finding.assignee) === currentUser"
           @click="assignee = currentUser"
         >
           Assign to me
-        </button>
+        </UiButton>
       </div>
 
       <label class="fld-label">State · VEX lifecycle</label>
@@ -138,23 +137,25 @@ function save() {
       <p v-if="draft.error" class="draft-error" role="alert">{{ draft.error }}</p>
       <p v-if="error" class="draft-error" role="alert">{{ error }}</p>
 
-      <button
+      <UiButton
         v-if="canAcceptFinal"
-        type="button"
-        class="btn-ghost btn-block"
+        variant="ghost"
+        block
+        class="btn-gap"
         :disabled="historical"
         @click="emit('riskAccept')"
       >
         <AppIcon name="shield" :size="14" />Risk-accept this CVE…
-      </button>
-      <button
-        type="button"
-        class="btn-primary btn-block"
+      </UiButton>
+      <UiButton
+        variant="primary"
+        block
+        class="btn-gap"
         :disabled="locked || saving || !draft.body"
         @click="save"
       >
         {{ saving ? 'Saving…' : 'Save to audit trail' }}
-      </button>
+      </UiButton>
       <p class="triage-foot">
         <AppIcon name="clock" :size="11" />Every action records who &amp; when. Deadlines absolute, 24h.
       </p>
@@ -234,23 +235,6 @@ function save() {
 .assignee-val {
   font-size: var(--text-body);
   color: var(--ink);
-}
-.btn-mini {
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: var(--r-sm);
-  padding: 4px 9px;
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.btn-mini:hover:not(:disabled) {
-  border-color: var(--control-hover-line);
-}
-.btn-mini:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 .vex-block {
   margin-top: 2px;
@@ -341,39 +325,8 @@ function save() {
   font-size: var(--text-sm);
   color: var(--health-down-fg);
 }
-.btn-block {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
+.btn-gap {
   margin-top: 8px;
-  border-radius: var(--r-sm);
-  padding: 9px 12px;
-  font-size: var(--text-control);
-  font-family: var(--font-ui);
-  font-weight: 600;
-  cursor: default;
-}
-.btn-ghost {
-  border: 1px solid var(--line);
-  background: var(--card);
-  color: var(--ink);
-}
-.btn-ghost:hover:not(:disabled) {
-  border-color: var(--control-hover-line);
-}
-.btn-primary {
-  border: 1px solid var(--coral-d);
-  background: var(--coral);
-  color: var(--kev-fg);
-}
-.btn-primary:hover:not(:disabled) {
-  background: var(--coral-d);
-}
-.btn-block:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
 }
 .triage-foot {
   display: flex;

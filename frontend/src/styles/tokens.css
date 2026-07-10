@@ -85,7 +85,7 @@
   --dd-shadow: 0 14px 40px -16px rgba(22, 35, 47, 0.4);
   --control-hover-line: #d8cfc0;
   --control-hover-bg: #f4eee2; /* the visible hover wash — border-shift alone is invisible */
-  --control-active-bg: #ece4d3; /* pressed */ /* hover border on quiet controls (time-range, btn-mini, tt-opt) */
+  --control-active-bg: #ece4d3; /* pressed */
 
   /* -- time-travel history state (the amber "viewing history" control) --- */
   --hist-bg: #fbf0d9;
