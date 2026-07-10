@@ -304,6 +304,10 @@ class AsOfTQuery:
             raise _unrecorded("disagree")
         if f.image_repo is not None:
             raise _unrecorded("image_repo")
+        if f.q is not None:
+            # contains-search spans image_repo, which occurrences don't record — a partial match
+            # at a past T would silently LIE (rows missing for the wrong reason). Reject loudly.
+            raise _unrecorded("q")
         sev = set(f.severity) if f.severity else None
         out = []
         for r in rows:
