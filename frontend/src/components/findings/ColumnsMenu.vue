@@ -22,8 +22,17 @@ const wrap = useTemplateRef<HTMLElement>('wrap')
 function onDocMousedown(e: MouseEvent) {
   if (wrap.value && !wrap.value.contains(e.target as Node)) open.value = false
 }
-onMounted(() => document.addEventListener('mousedown', onDocMousedown))
-onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
+function onDocKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') open.value = false
+}
+onMounted(() => {
+  document.addEventListener('mousedown', onDocMousedown)
+  document.addEventListener('keydown', onDocKeydown)
+})
+onUnmounted(() => {
+  document.removeEventListener('mousedown', onDocMousedown)
+  document.removeEventListener('keydown', onDocKeydown)
+})
 </script>
 
 <template>

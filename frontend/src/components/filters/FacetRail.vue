@@ -46,6 +46,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </span>
         <span v-if="it.count !== null" class="facet-count">{{ fmt(it.count) }}</span>
       </button>
+      <p v-if="g.items.length >= 32" class="facet-cap">top 32 by count; search reaches the rest</p>
     </div>
   </aside>
 </template>
@@ -77,6 +78,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   color: var(--soft);
   padding: 2px 8px 8px;
   font-weight: 700;
+}
+.facet-cap {
+  margin: 4px 8px 2px;
+  font-size: var(--text-facet-count);
+  font-family: var(--font-mono);
+  color: var(--soft);
+  line-height: 1.4;
 }
 .facet-row {
   display: flex;

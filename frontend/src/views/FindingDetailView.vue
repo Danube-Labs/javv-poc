@@ -392,7 +392,7 @@ watch(
             </p>
             <p v-if="otherPackages.length" class="evidence-note">
               This CVE also affects
-              <span class="mono-cell sm">{{ otherPackages.join(', ') }}</span> on this image;
+              <span class="mono-cell sm">{{ otherPackages.slice(0, 5).join(', ') }}</span><template v-if="otherPackages.length > 5"> +{{ otherPackages.length - 5 }} more</template> on this image;
               open those rows from the grid.
             </p>
           </div>
@@ -480,6 +480,7 @@ watch(
               </span>
             </li>
           </ul>
+          <p v-if="activity.length >= 8" class="cap-note">Latest 8 actions. The full trail lives on the Audit screen (M9d).</p>
         </div>
       </section>
 
@@ -795,6 +796,11 @@ watch(
 
 .activity-card {
   margin-top: var(--space-4); /* belongs to the decisions band — tighter than a new band */
+}
+.cap-note {
+  margin: 10px 0 0;
+  font-size: var(--text-sm);
+  color: var(--soft);
 }
 .act-list {
   list-style: none;

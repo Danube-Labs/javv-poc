@@ -54,6 +54,7 @@ function scopeLabel(d: DecisionRow): string {
       </button>
     </div>
     <div class="card-body">
+      <div class="dec-scroll">
       <table class="dtbl dtbl-bordered">
         <thead>
           <tr><th>Type</th><th>Scope</th><th>Scanners</th><th>By</th><th>Expiry</th><th>Status</th><th></th></tr>
@@ -90,6 +91,8 @@ function scopeLabel(d: DecisionRow): string {
           </tr>
         </tbody>
       </table>
+      </div>
+      <p v-if="decisions.length >= 50" class="cap-note">Showing the first 50 decisions. Older ones via the Audit screen (M9d).</p>
     </div>
   </section>
 </template>
@@ -122,6 +125,22 @@ function scopeLabel(d: DecisionRow): string {
 .card-body {
   padding: 14px 16px;
   overflow-x: auto;
+}
+/* decisions must never become a page-length wall (same rule as images-affected) */
+.dec-scroll {
+  max-height: 340px;
+  overflow-y: auto;
+}
+.dec-scroll thead th {
+  position: sticky;
+  top: 0;
+  background: var(--card);
+  z-index: 1;
+}
+.cap-note {
+  margin: 10px 0 0;
+  font-size: var(--text-sm);
+  color: var(--soft);
 }
 .dtbl {
   width: 100%;
