@@ -11,17 +11,13 @@ import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import {
-  groupFindingsApiV1FindingsGroupsGet,
   readAuditLogApiV1AuditGet,
   listDecisionsApiV1DecisionsGet,
   revokeApiV1DecisionsDecisionIdRevokePost,
   searchFindingsApiV1FindingsGet,
   triageApiV1FindingsFindingKeyTriagePatch,
 } from '@/api/generated'
-import type {
-  GroupFindingsApiV1FindingsGroupsGetData,
-  SearchFindingsApiV1FindingsGetData,
-} from '@/api/generated'
+import type { SearchFindingsApiV1FindingsGetData } from '@/api/generated'
 import DisagreementBadge from '@/components/chips/DisagreementBadge.vue'
 import EpssBar from '@/components/chips/EpssBar.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
@@ -33,14 +29,14 @@ import TriagePanel from '@/components/triage/TriagePanel.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { useApi } from '@/composables/useApi'
 import {
+  affectedComponentRows,
   epssOf,
-  imageGroupRows,
   kevOn,
   primaryRow,
   SCANNER_ORDER,
   scopeToPackage,
   severityDisagrees,
-  type ImageGroupRow,
+  type AffectedComponentRow,
 } from '@/findings/detailViewModel'
 import type { TriagePatchBody } from '@/findings/triageRules'
 import { logger } from '@/lib/logger'
@@ -63,8 +59,8 @@ const clickedScanner = computed(() =>
 )
 
 const rows = ref<FindingRow[]>([])
-const groups = ref<ImageGroupRow[]>([])
-const groupsTruncated = ref(false)
+const affected = ref<AffectedComponentRow[]>([])
+const affectedTruncated = ref(false)
 const loading = ref(true)
 const failed = ref(false)
 
@@ -95,29 +91,27 @@ watch(
   { immediate: true },
 )
 
-/* ---- images affected: server aggregation, per-scanner counts (B-4) ---- */
-const groupsQuery = computed(() =>
+/* ---- affected components: every occurrence of the CVE, server-side filtered; namespaces
+        and versions ride per row (prototype "across what's actually running") ---- */
+const occQuery = computed(() =>
   clusterStore.selectedId && cveId.value
-    ? withGlobals({ by: 'image_repo', cve_id: cveId.value, size: 50 })
+    ? withGlobals({ cve_id: cveId.value, size: 200 })
     : null,
 )
 
 watch(
-  groupsQuery,
+  occQuery,
   async (q, old) => {
     if (!q || JSON.stringify(q) === JSON.stringify(old)) return
-    const response = await groupFindingsApiV1FindingsGroupsGet({
-      query: q as GroupFindingsApiV1FindingsGroupsGetData['query'],
+    const response = await searchFindingsApiV1FindingsGet({
+      query: q as SearchFindingsApiV1FindingsGetData['query'],
     })
     if (response.response?.ok && response.data) {
-      const body = response.data as {
-        data: { key: string; count: number; by_scanner: Record<string, number> }[]
-        next_cursor: string | null
-      }
-      groups.value = imageGroupRows(body.data)
-      groupsTruncated.value = body.next_cursor !== null
+      const body = response.data as { data: FindingRow[]; total: number }
+      affected.value = affectedComponentRows(body.data)
+      affectedTruncated.value = body.total > body.data.length
     } else {
-      logger.warn('finding_groups_failed', { status: response.response?.status })
+      logger.warn('finding_occurrences_failed', { status: response.response?.status })
     }
   },
   { immediate: true },
@@ -138,11 +132,6 @@ const disagrees = computed(() => severityDisagrees(evidence.value))
 const missingScanners = computed(() =>
   SCANNER_ORDER.filter((s) => !evidence.value.some((r) => r.scanner === s)),
 )
-/** Where this image runs — union of the sibling rows' namespaces (pods don't exist: D30). */
-const namespaces = computed(() => [
-  ...new Set(rows.value.flatMap((r) => (Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []))),
-])
-
 /* ---- display helpers (24h everywhere, null-tolerant) ---- */
 function fmtAt(iso: unknown): string {
   if (typeof iso !== 'string') return '—'
@@ -155,9 +144,9 @@ function fmtAt(iso: unknown): string {
   })
 }
 const slaTier = computed(() => {
-  if (primary.value?.overdue === true) return 'sla-box-over'
+  if (primary.value?.overdue === true) return 'risk-num-over'
   const d = slaDaysLeft.value
-  return d !== null && d <= 3 ? 'sla-box-tight' : ''
+  return d !== null && d <= 3 ? 'risk-num-tight' : ''
 })
 const slaDaysLeft = computed(() => {
   const due = primary.value?.due_at
@@ -316,30 +305,50 @@ watch(
             <span v-if="kev" class="kev-lg">KEV · known-exploited</span>
           </div>
           <div class="detail-meta">
-            <span><em>CVSS</em> {{ num(primary?.cvss) }}</span>
-            <span>
-              <em>EPSS</em>
-              <template v-if="epss">{{ Math.round(epss.value * 100) }}% <i class="meta-src">via {{ epss.scanner }}</i></template>
-              <template v-else>—</template>
-            </span>
-            <span><em>Package</em> <span class="mono-cell">{{ primary?.package_name }}</span></span>
-            <span><em>Image</em> <span class="mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span></span>
-            <span><em>Namespaces</em> <span class="mono-cell">{{ namespaces.length ? namespaces.join(', ') : '—' }}</span></span>
-            <span><em>First seen</em> {{ fmtAt(primary?.first_seen_at) }}</span>
-            <span><em>Last seen</em> {{ fmtAt(primary?.last_seen_at) }}</span>
+            <div class="fact">
+              <em>Package</em>
+              <span class="fact-val mono-cell">{{ primary?.package_name }}</span>
+            </div>
+            <div class="fact">
+              <em>Image</em>
+              <span class="fact-val mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span>
+            </div>
+            <div class="fact">
+              <em>First seen</em>
+              <span class="fact-val">{{ fmtAt(primary?.first_seen_at) }}</span>
+            </div>
+            <div class="fact">
+              <em>Last seen</em>
+              <span class="fact-val">{{ fmtAt(primary?.last_seen_at) }}</span>
+            </div>
           </div>
         </div>
-        <div class="sla-box" :class="slaTier">
-          <span class="sla-box-label">SLA</span>
-          <template v-if="primary?.due_at">
-            <span class="sla-box-days">{{ slaDaysLeft }}<em>d</em></span>
-            <span class="sla-box-deadline">{{ primary.overdue ? 'Overdue' : 'by' }} {{ fmtAt(primary.due_at) }}</span>
-          </template>
-          <span v-else class="sla-box-deadline">{{
-            ['resolved', 'not_affected', 'risk_accepted'].includes(primary?.state ?? '')
-              ? `no deadline · ${primary?.state === 'not_affected' ? 'not affected' : primary?.state === 'risk_accepted' ? 'risk accepted' : 'resolved'}`
-              : 'no deadline'
-          }}</span>
+        <div class="risk-band">
+          <div class="risk-cell">
+            <span class="risk-label">CVSS</span>
+            <span class="risk-num" :class="`risk-num-${primary?.severity_canonical}`">{{ num(primary?.cvss) }}</span>
+            <span class="risk-sub">via {{ primary?.scanner }}</span>
+          </div>
+          <div class="risk-cell">
+            <span class="risk-label">EPSS</span>
+            <span class="risk-num">{{ epss ? Math.round(epss.value * 100) + '%' : '—' }}</span>
+            <span class="risk-sub">{{ epss ? `via ${epss.scanner}` : 'not scored' }}</span>
+          </div>
+          <div class="risk-cell">
+            <span class="risk-label">SLA</span>
+            <template v-if="primary?.due_at">
+              <span class="risk-num" :class="slaTier">{{ slaDaysLeft }}<em>d</em></span>
+              <span class="risk-sub">{{ primary.overdue ? 'Overdue' : 'by' }} {{ fmtAt(primary.due_at) }}</span>
+            </template>
+            <template v-else>
+              <span class="risk-num risk-num-quiet">—</span>
+              <span class="risk-sub">{{
+                ['resolved', 'not_affected', 'risk_accepted'].includes(primary?.state ?? '')
+                  ? `no deadline · ${primary?.state === 'not_affected' ? 'not affected' : primary?.state === 'risk_accepted' ? 'risk accepted' : 'resolved'}`
+                  : 'no deadline'
+              }}</span>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -405,35 +414,36 @@ watch(
         <section class="card">
           <div class="card-head">
             <div>
-              <h3>Images affected <span class="count-badge">{{ groups.length }}{{ groupsTruncated ? '+' : '' }}</span></h3>
-              <p class="card-sub">per-scanner finding counts for {{ cveId }}, never summed · worst first</p>
+              <h3>Affected components <span class="count-badge">{{ affected.length }}{{ affectedTruncated ? '+' : '' }}</span></h3>
+              <p class="card-sub">across what's actually running · one row per image + package, scanners listed, never merged</p>
             </div>
           </div>
           <div class="card-body">
             <div class="img-scroll">
             <table class="dtbl dtbl-bordered">
               <thead>
-                <tr><th>Image</th><th class="r">Trivy</th><th class="r">Grype</th><th class="r">Δ</th><th></th></tr>
+                <tr><th>Image</th><th>Namespace</th><th>Package</th><th>Current</th><th>Fixed</th><th>Scanners</th></tr>
               </thead>
               <tbody>
-                <tr v-if="groups.length === 0"><td colspan="5" class="empty-row">No image groups returned.</td></tr>
-                <tr v-for="g in groups" :key="g.repo">
-                  <td class="mono-cell strong">{{ g.repo }}</td>
-                  <td class="r mono-cell sm" :class="{ 'count-zero': g.zeroVsNonzero && (g.trivy ?? 0) === 0 }">{{ g.trivy ?? 0 }}</td>
-                  <td class="r mono-cell sm" :class="{ 'count-zero': g.zeroVsNonzero && (g.grype ?? 0) === 0 }">{{ g.grype ?? 0 }}</td>
-                  <td class="r mono-cell sm">{{ g.delta }}</td>
-                  <td class="c"><DisagreementBadge v-if="g.zeroVsNonzero" title="One scanner reports zero here — treat like a severity disagreement" /></td>
+                <tr v-if="affected.length === 0"><td colspan="6" class="empty-row">No occurrences returned.</td></tr>
+                <tr v-for="a in affected" :key="`${a.image}|${a.packageName}|${a.current}|${a.fixed}`">
+                  <td class="mono-cell strong">{{ a.image }}</td>
+                  <td class="mono-cell sm">{{ a.namespaces.join(', ') || '—' }}</td>
+                  <td class="mono-cell sm">{{ a.packageName }}</td>
+                  <td class="mono-cell sm">{{ a.current ?? '—' }}</td>
+                  <td class="mono-cell sm" :class="{ 'no-fix': !a.fixed }">{{ a.fixed ?? 'no fix' }}</td>
+                  <td><ScannerTag v-for="s in a.scanners" :key="s" :name="s" class="scn-gap" /></td>
                 </tr>
               </tbody>
             </table>
             </div>
-            <p v-if="groupsTruncated" class="evidence-note">
-              Showing the first {{ groups.length }} images, worst first — more exist. The full
-              per-image inventory lands with M9c.
+            <p v-if="affectedTruncated" class="evidence-note">
+              Showing the first {{ affected.length }} components — more exist. Narrow via the
+              Findings grid (search the CVE id).
             </p>
             <p class="evidence-note">
-              A zero next to a non-zero is a scanner disagreement, not a clean bill.
-              Per-image detail lands with M9c.
+              A package listed by one scanner only, or twice with different versions, is a scanner
+              disagreement — not a clean bill. Workload names land with the envelope (v1.1).
             </p>
           </div>
         </section>
@@ -554,12 +564,14 @@ watch(
 .detail-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px 22px;
-  margin-top: 14px;
+  align-items: flex-start;
+  gap: 14px 28px;
+  margin-top: 18px;
 }
-.detail-meta > span {
-  font-size: var(--text-body);
-  color: var(--ink);
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .detail-meta em {
   font-style: normal;
@@ -568,62 +580,86 @@ watch(
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--soft);
-  margin-right: 6px;
+}
+.fact-val {
+  font-size: var(--text-body);
+  color: var(--ink);
+}
+.fact-num {
+  font-size: var(--text-kpi);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 .meta-src {
   font-style: normal;
   color: var(--soft);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  letter-spacing: 0;
 }
-.sla-box {
+/* the risk band: one joined card, hairline-divided cells, urgency carried by the numerals
+   (stat-card grammar per the operator's Nuxt UI reference — ours, on tokens) */
+.risk-band {
   flex: none;
-  width: 128px;
+  display: flex;
+  align-items: stretch;
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 12px 14px;
+  background: var(--card);
+}
+.risk-cell {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--panel);
+  gap: 2px;
+  padding: 12px 20px;
+  min-width: 104px;
 }
-.sla-box-over {
-  background: var(--sev-critical-bg);
-  border-color: var(--sev-critical-line);
+.risk-cell + .risk-cell {
+  border-left: 1px solid var(--line2);
 }
-.sla-box-tight {
-  background: var(--sev-high-bg);
-  border-color: var(--sev-high-line);
-}
-.sla-box-tight .sla-box-days,
-.sla-box-tight .sla-box-deadline {
-  color: var(--sla-tight-fg);
-}
-.sla-box-label {
+.risk-label {
   font-family: var(--font-mono);
-  font-size: var(--text-table-header);
+  font-size: var(--text-sm);
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--soft);
 }
-.sla-box-days {
+.risk-num {
   font-size: var(--text-kpi);
   font-weight: 600;
   letter-spacing: -0.03em;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
 }
-.sla-box-days em {
+.risk-num em {
   font-style: normal;
   font-size: var(--text-body);
   color: var(--soft);
 }
-.sla-box-deadline {
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  color: var(--soft);
-  margin-top: 3px;
-}
-.sla-box-over .sla-box-days,
-.sla-box-over .sla-box-deadline {
+.risk-num-critical,
+.risk-num-over {
   color: var(--sev-critical-fg);
+}
+.risk-num-high,
+.risk-num-tight {
+  color: var(--sla-tight-fg);
+}
+.risk-num-quiet {
+  color: var(--soft);
+  font-weight: 400;
+}
+.risk-sub {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: 2px;
+  max-width: 170px;
 }
 
 .detail-grid {
@@ -765,9 +801,12 @@ watch(
   background: var(--card);
   z-index: 1;
 }
-.count-zero {
-  color: var(--coral-text);
-  font-weight: 700;
+.no-fix {
+  color: var(--soft);
+  font-style: italic;
+}
+.scn-gap {
+  margin-right: 4px;
 }
 .absent-row td {
   background: var(--panel);

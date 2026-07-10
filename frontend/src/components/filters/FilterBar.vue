@@ -6,9 +6,10 @@
  * arrows walk the menu. Lists values through the same `facetItems()` the FacetRail uses — one
  * config drives both.
  */
-import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiDropdown from '@/components/ui/UiDropdown.vue'
 import { facetItems, type FacetsResponse } from '@/filters/facets'
 import type { FilterField, Selections } from '@/filters/fields.config'
 
@@ -65,8 +66,11 @@ function openField(key: string) {
 }
 function close() {
   open.value = false
-  editKey.value = null
 }
+// UiDropdown owns outside-click/Escape closing — reset the two-level editor on ANY close path
+watch(open, (v) => {
+  if (!v) editKey.value = null
+})
 
 function applyText() {
   if (!editField.value) return
@@ -90,11 +94,6 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-function onDocMousedown(e: MouseEvent) {
-  if (wrap.value && !wrap.value.contains(e.target as Node)) close()
-}
-onMounted(() => document.addEventListener('mousedown', onDocMousedown))
-onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 </script>
 
 <template>
@@ -112,11 +111,13 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
       >
     </button>
 
-    <div class="dropdown">
-      <button class="add-filter" @click="open ? close() : openPicker()">
-        <AppIcon name="plus" :size="13" />Add filter
-      </button>
-      <div v-if="open" class="dd-menu filter-menu">
+    <UiDropdown v-model:open="open">
+      <template #trigger>
+        <button class="add-filter" @click="open ? close() : openPicker()">
+          <AppIcon name="plus" :size="13" />Add filter
+        </button>
+      </template>
+      <div class="dd-menu filter-menu">
         <template v-if="!editField">
           <div class="dd-head">Filter by field</div>
           <button
@@ -178,7 +179,7 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
           </button>
         </template>
       </div>
-    </div>
+    </UiDropdown>
 
     <button v-if="active.length > 0" class="clear-all" @click="emit('clearAll')">Clear all</button>
     <slot name="extra" />
@@ -278,9 +279,6 @@ onUnmounted(() => document.removeEventListener('mousedown', onDocMousedown))
 }
 .clear-all:hover {
   color: var(--coral-text);
-}
-.dropdown {
-  position: relative;
 }
 .dd-menu {
   position: absolute;

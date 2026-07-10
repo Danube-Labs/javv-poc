@@ -7,9 +7,11 @@
  * tables show state at the END of the range; charts aggregate the whole span.
  * The button goes amber (`--hist-*`) whenever the range ends in the past.
  */
-import { computed, onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
+import { computed, ref } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import UiDropdown from '@/components/ui/UiDropdown.vue'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 
 const timeTravel = useTimeTravelStore()
@@ -20,7 +22,6 @@ const fromDate = ref('')
 const fromTime = ref('00:00')
 const toDate = ref('')
 const toTime = ref('')
-const wrap = useTemplateRef<HTMLElement>('wrap')
 
 const UNIT_MS = { minutes: 60_000, hours: 3_600_000, days: 86_400_000, weeks: 604_800_000 } as const
 const TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/ // strict 24h HH:mm — no AM/PM anywhere
@@ -99,36 +100,24 @@ function backToNow() {
   open.value = false
 }
 
-function onDocMousedown(e: MouseEvent) {
-  if (wrap.value && !wrap.value.contains(e.target as Node)) open.value = false
-}
-function onDocKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape') open.value = false
-}
-onMounted(() => {
-  document.addEventListener('mousedown', onDocMousedown)
-  document.addEventListener('keydown', onDocKeydown)
-})
-onUnmounted(() => {
-  document.removeEventListener('mousedown', onDocMousedown)
-  document.removeEventListener('keydown', onDocKeydown)
-})
 </script>
 
 <template>
-  <div ref="wrap" class="dropdown" @keydown.esc="open = false">
-    <button
-      class="time-range"
-      :class="{ 'time-range-hist': !timeTravel.isNow }"
-      aria-label="Time range"
-      @click="open = !open"
-    >
-      <AppIcon :name="timeTravel.isNow ? 'calendar' : 'rewind'" :size="14" />
-      {{ buttonLabel }}
-      <AppIcon name="chevron" :size="13" />
-    </button>
+  <UiDropdown v-model:open="open">
+    <template #trigger="{ toggle }">
+      <button
+        class="time-range"
+        :class="{ 'time-range-hist': !timeTravel.isNow }"
+        aria-label="Time range"
+        @click="toggle"
+      >
+        <AppIcon :name="timeTravel.isNow ? 'calendar' : 'rewind'" :size="14" />
+        {{ buttonLabel }}
+        <AppIcon name="chevron" :size="13" />
+      </button>
+    </template>
 
-    <div v-if="open" class="dd-menu time-menu">
+    <div class="dd-menu time-menu">
       <div class="tt-note">
         One range drives the whole app: <b>tables show state at the end of the range</b> (a past
         end = as-scanned history) · charts aggregate the span.
@@ -151,7 +140,7 @@ onUnmounted(() => {
           <option value="days">days</option>
           <option value="weeks">weeks</option>
         </select>
-        <button class="btn-mini time-apply" @click="applyRelative">Apply</button>
+        <UiButton variant="quiet" class="time-apply" @click="applyRelative">Apply</UiButton>
       </div>
 
       <div class="dd-head">Commonly used</div>
@@ -188,20 +177,17 @@ onUnmounted(() => {
           maxlength="5"
           aria-label="Range end time (24h)"
         />
-        <button class="btn-mini time-apply" :disabled="!customValid" @click="applyCustom">Apply</button>
+        <UiButton variant="quiet" class="time-apply" :disabled="!customValid" @click="applyCustom">Apply</UiButton>
       </div>
 
       <button v-if="!timeTravel.isNow" class="back-now" @click="backToNow">
         <AppIcon name="rewind" :size="13" /> Back to now (Last 30 days)
       </button>
     </div>
-  </div>
+  </UiDropdown>
 </template>
 
 <style scoped>
-.dropdown {
-  position: relative;
-}
 .time-range {
   display: flex;
   align-items: center;
@@ -269,30 +255,6 @@ onUnmounted(() => {
 }
 .time-apply {
   margin-left: auto;
-}
-.btn-mini {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-size: var(--text-quiet-action);
-  font-weight: 600;
-  padding: 5px 9px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  color: var(--ink);
-  border-radius: 7px;
-  cursor: default;
-}
-.btn-mini:hover {
-  border-color: var(--control-hover-line);
-}
-.btn-mini:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.btn-mini:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
 }
 .time-presets {
   display: grid;

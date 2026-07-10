@@ -6,6 +6,8 @@
  */
 import { computed } from 'vue'
 
+import UiButton from '@/components/ui/UiButton.vue'
+
 const props = defineProps<{
   total: number
   page: number
@@ -39,8 +41,8 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </select>
       </label>
       <div class="pager-btns">
-        <button :disabled="!hasPrev" @click="emit('prev')">Prev</button>
-        <button :disabled="!hasNext" @click="emit('next')">Next</button>
+        <UiButton class="pager-btn" :disabled="!hasPrev" @click="emit('prev')">Prev</UiButton>
+        <UiButton class="pager-btn" :disabled="!hasNext" @click="emit('next')">Next</UiButton>
       </div>
     </div>
   </div>
@@ -80,6 +82,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   color: var(--ink);
   font-family: inherit;
   outline: none;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+.pager-size select:hover {
+  background: var(--control-hover-bg);
+  border-color: var(--control-hover-line);
 }
 .pager-size select:focus {
   border-color: var(--coral);
@@ -88,22 +97,12 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   display: flex;
   gap: 5px;
 }
-.pager-btns button {
-  border: 1px solid var(--line);
-  background: var(--card);
-  border-radius: 7px;
-  padding: 5px 10px;
-  font-size: var(--text-control);
-  color: var(--ink);
-  min-width: 32px;
-  cursor: default;
+.pager-btn {
+  min-width: 48px;
 }
-.pager-btns button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-.pager-btns button:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
+@media (prefers-reduced-motion: reduce) {
+  .pager-size select {
+    transition: none;
+  }
 }
 </style>

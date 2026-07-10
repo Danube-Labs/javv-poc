@@ -6,8 +6,8 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  affectedComponentRows,
   epssOf,
-  imageGroupRows,
   kevOn,
   orderEvidence,
   primaryRow,
@@ -95,18 +95,27 @@ describe('detail view-model (per-scanner sacred)', () => {
     expect(scopeToPackage([], 'curl').scoped).toEqual([])
   })
 
-  it('image groups keep per-scanner counts side-by-side; zero-vs-nonzero gets the flag', () => {
-    const rows = imageGroupRows([
-      { key: 'nginx', count: 8, by_scanner: { trivy: 4, grype: 4 } },
-      { key: 'alpine', count: 73, by_scanner: { grype: 73 } }, // trivy silent — real-scanner divergence can be total
-      { key: 'redis', count: 5, by_scanner: { trivy: 3, grype: 2 } },
+  it('affected components collapse agreeing scanners into one row, never their versions', () => {
+    const rows = affectedComponentRows([
+      row({ image_repo: 'nginx', tag: '1.23', package_name: 'curl', installed_version: '7.74.0', fixed_version: null, scanner: 'trivy', namespaces: ['prod'] }),
+      row({ image_repo: 'nginx', tag: '1.23', package_name: 'curl', installed_version: '7.74.0', fixed_version: null, scanner: 'grype', namespaces: ['prod', 'staging'] }),
+      // same package, DIFFERENT fixed version per scanner — must split, never merge (per-scanner sacred)
+      row({ image_repo: 'redis', tag: null, package_name: 'zlib', installed_version: '1.2', fixed_version: '1.3', scanner: 'trivy', namespaces: ['cache'] }),
+      row({ image_repo: 'redis', tag: null, package_name: 'zlib', installed_version: '1.2', fixed_version: '1.4', scanner: 'grype', namespaces: ['cache'] }),
+      // single-scanner image — the silent scanner is visible by absence from the tags
+      row({ image_repo: 'alpine', tag: '3.19', package_name: 'busybox', installed_version: '1.36', fixed_version: null, scanner: 'grype', namespaces: [] }),
     ])
-    // display order is worst-first (highest per-scanner count) so 100+ images stays scannable
-    expect(rows.map((r) => r.repo)).toEqual(['alpine', 'nginx', 'redis'])
-    expect(rows[0]).toMatchObject({ repo: 'alpine', trivy: null, grype: 73, delta: 73, zeroVsNonzero: true })
-    expect(rows[1]).toMatchObject({ repo: 'nginx', trivy: 4, grype: 4, delta: 0, zeroVsNonzero: false })
-    expect(rows[2]).toMatchObject({ repo: 'redis', delta: 1, zeroVsNonzero: false })
-    // no row ever exposes a summed total
-    for (const r of rows) expect(Object.keys(r)).not.toContain('total')
+    expect(rows.map((r) => `${r.image}·${r.packageName}·${r.fixed ?? '-'}`)).toEqual([
+      'alpine:3.19·busybox·-',
+      'nginx:1.23·curl·-',
+      'redis·zlib·1.3',
+      'redis·zlib·1.4',
+    ])
+    // agreeing scanners collapse into tags; namespaces are the union, per row
+    expect(rows[1]).toMatchObject({ scanners: ['trivy', 'grype'], namespaces: ['prod', 'staging'] })
+    // the version split keeps one scanner per row — disagreement stays visible
+    expect(rows[2]!.scanners).toEqual(['trivy'])
+    expect(rows[3]!.scanners).toEqual(['grype'])
+    expect(rows[4]).toBeUndefined()
   })
 })
