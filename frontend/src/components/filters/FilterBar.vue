@@ -6,7 +6,7 @@
  * arrows walk the menu. Lists values through the same `facetItems()` the FacetRail uses — one
  * config drives both.
  */
-import { computed, ref, useTemplateRef, watch } from 'vue'
+import { computed, ref, useTemplateRef } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiDropdown from '@/components/ui/UiDropdown.vue'
@@ -67,10 +67,11 @@ function openField(key: string) {
 function close() {
   open.value = false
 }
-// UiDropdown owns outside-click/Escape closing — reset the two-level editor on ANY close path
-watch(open, (v) => {
-  if (!v) editKey.value = null
-})
+// UiDropdown owns outside-click/Escape closing — reset the two-level editor on ANY close
+// path, but only after the leave fade so the panel doesn't swap content mid-fade
+function onClosed() {
+  editKey.value = null
+}
 
 function applyText() {
   if (!editField.value) return
@@ -111,7 +112,7 @@ function onKeydown(e: KeyboardEvent) {
       >
     </button>
 
-    <UiDropdown v-model:open="open">
+    <UiDropdown v-model:open="open" @closed="onClosed">
       <template #trigger>
         <button class="add-filter" @click="open ? close() : openPicker()">
           <AppIcon name="plus" :size="13" />Add filter

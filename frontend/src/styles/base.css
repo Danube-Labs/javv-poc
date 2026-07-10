@@ -81,3 +81,55 @@ a {
     transition: none;
   }
 }
+
+/* ---- motion layer: the shared <Transition> classes, on the motion tokens.
+   t-pop  = floating panels (dropdown menus/popovers): fade + 4px rise, quick both ways.
+   t-fade = banners and other in-flow appearances: crossfade only — never animate height.
+   t-modal = dialog entrance (scrim fade + card rise); close is instant by design, the
+   consumers v-if the dialog away so its form state resets on unmount. */
+.t-pop-enter-active,
+.t-pop-leave-active {
+  transition:
+    opacity var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
+}
+.t-pop-enter-from,
+.t-pop-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+.t-fade-enter-active {
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
+.t-fade-leave-active {
+  transition: opacity var(--dur-quick) var(--ease-out);
+}
+.t-fade-enter-from,
+.t-fade-leave-to {
+  opacity: 0;
+}
+.t-modal-enter-active {
+  transition: opacity var(--dur-panel) var(--ease-out);
+}
+.t-modal-enter-active .modal {
+  transition:
+    opacity var(--dur-panel) var(--ease-out),
+    transform var(--dur-panel) var(--ease-out);
+}
+.t-modal-enter-from {
+  opacity: 0;
+}
+.t-modal-enter-from .modal {
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-pop-enter-active,
+  .t-pop-leave-active,
+  .t-fade-enter-active,
+  .t-fade-leave-active,
+  .t-modal-enter-active,
+  .t-modal-enter-active .modal {
+    transition: none;
+  }
+}

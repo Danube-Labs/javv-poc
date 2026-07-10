@@ -48,17 +48,19 @@ function since(row: FreshnessRow): string {
 </script>
 
 <template>
-  <div v-if="silent.length" class="banner" role="status">
-    <AppIcon name="clock" :size="15" />
-    <span>
-      Data may be stale —
-      <template v-for="(row, i) in silent" :key="row.scanner">
-        <template v-if="i > 0"> · </template>
-        <strong>{{ row.scanner }}</strong> silent since
-        <span class="mono">{{ since(row) }}</span>
-      </template>
-    </span>
-  </div>
+  <Transition name="t-fade">
+    <div v-if="silent.length" class="banner" role="status">
+      <AppIcon name="clock" :size="15" />
+      <span>
+        Data may be stale —
+        <template v-for="(row, i) in silent" :key="row.scanner">
+          <template v-if="i > 0"> · </template>
+          <strong>{{ row.scanner }}</strong> silent since
+          <span class="mono">{{ since(row) }}</span>
+        </template>
+      </span>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>

@@ -17,6 +17,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 </script>
 
 <template>
+  <!-- appear: consumers v-if the whole dialog, so the t-modal entrance plays on mount;
+       close stays instant — unmount is what resets consumer form state. -->
+  <Transition name="t-modal" appear>
   <div class="modal-scrim" @click.self="emit('close')">
     <div class="modal" role="dialog" aria-modal="true" :aria-label="title" :style="{ width: `min(${width ?? 520}px, 100%)` }">
       <div class="modal-head">
@@ -30,6 +33,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
       <div class="modal-actions"><slot name="actions" /></div>
     </div>
   </div>
+  </Transition>
 </template>
 
 <style scoped>

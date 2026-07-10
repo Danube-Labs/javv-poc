@@ -6,13 +6,15 @@ const health = useHealthStore()
 </script>
 
 <template>
-  <div v-if="health.bannerVisible" class="banner" role="alert">
-    <AppIcon name="alert" :size="15" />
-    <span>Search backend unavailable — check OpenSearch health.</span>
-    <button class="dismiss" aria-label="Dismiss" @click="health.dismiss()">
-      ×
-    </button>
-  </div>
+  <Transition name="t-fade">
+    <div v-if="health.bannerVisible" class="banner" role="alert">
+      <AppIcon name="alert" :size="15" />
+      <span>Search backend unavailable — check OpenSearch health.</span>
+      <button class="dismiss" aria-label="Dismiss" @click="health.dismiss()">
+        ×
+      </button>
+    </div>
+  </Transition>
 </template>
 
 <style scoped>
