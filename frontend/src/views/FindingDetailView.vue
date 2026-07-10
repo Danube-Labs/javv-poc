@@ -138,6 +138,14 @@ const disagrees = computed(() => severityDisagrees(evidence.value))
 const missingScanners = computed(() =>
   SCANNER_ORDER.filter((s) => !evidence.value.some((r) => r.scanner === s)),
 )
+/** Where THIS image runs — union of the sibling rows' namespaces (pods don't exist: D30).
+ * Deliberately rendered inside the Image fact, never as a CVE-level field: the CVE-wide
+ * "across what's running" view is the images-affected card (per-row column lands with the
+ * groups sub-aggregation). */
+const namespaces = computed(() => [
+  ...new Set(rows.value.flatMap((r) => (Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []))),
+])
+
 /* ---- display helpers (24h everywhere, null-tolerant) ---- */
 function fmtAt(iso: unknown): string {
   if (typeof iso !== 'string') return '—'
@@ -318,6 +326,10 @@ watch(
             <div class="fact">
               <em>Image</em>
               <span class="fact-val mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span>
+              <span class="fact-note">runs in
+                <span v-for="ns in namespaces" :key="ns" class="ns-chip mono-cell">{{ ns }}</span>
+                <template v-if="namespaces.length === 0">— no namespace recorded</template>
+              </span>
             </div>
             <div class="fact">
               <em>First seen</em>
@@ -569,7 +581,7 @@ watch(
 .detail-meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: flex-start;
   gap: 14px 28px;
   margin-top: 18px;
 }
@@ -588,6 +600,22 @@ watch(
 }
 .fact-val {
   font-size: var(--text-body);
+  color: var(--ink);
+}
+.fact-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-size: var(--text-sm);
+  color: var(--soft);
+}
+.ns-chip {
+  font-size: var(--text-facet-label);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: var(--r-chip);
+  padding: 1px 7px;
   color: var(--ink);
 }
 .fact-num {
