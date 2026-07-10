@@ -94,6 +94,16 @@ as pure units** (Vitest).
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-10 — slice 1 + 1b rulings (operator, live review):** slice-1 cuts beyond the
+  audited ones — **KPI sparklines + "+new Nd" chips** (no per-severity-per-day agg pre-1b) and
+  the **per-namespace severity MixBar** (no per-ns severity agg) — slots dropped, not kept.
+  1b additions (operator-requested): **severity lens** on the trend chart via
+  `GET /trends/findings?split=severity[&scanner=…]` (server sub-agg on `severity_canonical`;
+  now-only — 422 at past T, the M8b reader stays per-scanner); **signal band** (KEV ·
+  scanners-disagree · triage-progress stacked state bar — all straight facet reads);
+  **at-rest clickability affordance** ruled app-wide (DESIGN.md §5: navigating cells carry a
+  soft trailing chevron; identifier takes the link treatment on hover). KPI band + signal band
+  render as the joined hairline-divided stat grammar (Nuxt reference), not floating cards.
 - **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §B/§C):** **(B-1)** there is no
   `package_type` field — the packageTypes donut is **cut for MVP** (leave the layout slot; post-MVP
   enhancement issue if wanted); **(B-6)** `languageBinaries[]`/`topComponents[]` widgets have no

@@ -85,3 +85,18 @@ describe('buildPtypeDonutOption', () => {
     expect(pie.data[0]!.itemStyle.color).toBe(CHART_PTYPE_RAMP[0])
   })
 })
+
+describe('buildSeverityTrendOption (the 1b severity lens)', () => {
+  it('one line per canonical bucket in rank order, colored from the pinned severity map', async () => {
+    const { buildSeverityTrendOption } = await import('@/charts/buildSeverityTrendOption')
+    const { CHART_SEV } = await import('@/styles/tokens')
+    const opt = buildSeverityTrendOption({
+      high: pts([2, 1, 0]),
+      critical: pts([1, 0, 0]),
+    })
+    const series = opt.series as LineSeriesOption[]
+    expect(series.map((s) => s.name)).toEqual(['critical', 'high']) // rank order, empties dropped
+    expect(series[0]!.lineStyle?.color).toBe(CHART_SEV.critical)
+    expect(series[0]!.data).toEqual([1, 0, 0]) // verbatim server counts
+  })
+})

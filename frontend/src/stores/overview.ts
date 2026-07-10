@@ -26,6 +26,7 @@ export const useOverviewStore = defineStore('overview', {
   state: () => ({
     facets: {} as Facets,
     trend: { new: {}, resolved: {} } as FindingsTrendData,
+    sevTrend: {} as Record<string, { date: string; count: number }[]>,
     scans: {} as ScanActivityData,
     lastIngestAt: null as string | null,
     loading: false,
@@ -73,6 +74,25 @@ export const useOverviewStore = defineStore('overview', {
             .filter((v): v is string => v !== null)
             .sort()
             .at(-1) ?? null
+      }
+    },
+
+    /** The severity lens (1b): same window, split server-side; optional scanner scope rides
+     * as a QUERY filter. Only callable at T=now (the route 422s otherwise — the view gates). */
+    async loadSeverityTrend(clusterId: string, windowDays: number, scanner: 'trivy' | 'grype' | null) {
+      const q = {
+        ...buildTrendQuery(clusterId, windowDays, null),
+        split: 'severity',
+        ...(scanner ? { scanner } : {}),
+      }
+      const { data, response } = await findingsTrendApiV1TrendsFindingsGet({
+        client,
+        query: q as never,
+      })
+      if (response?.ok && data) {
+        this.sevTrend = (data as { new: Record<string, { date: string; count: number }[]> }).new ?? {}
+      } else {
+        logger.warn('overview_sev_trend_failed', { status: response?.status })
       }
     },
   },
