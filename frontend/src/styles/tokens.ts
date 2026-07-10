@@ -57,3 +57,34 @@ export const SCANNER_COLOR = {
   trivy: { fg: 'var(--scanner-trivy-fg)', bg: 'var(--scanner-trivy-bg)' },
   grype: { fg: 'var(--scanner-grype-fg)', bg: 'var(--scanner-grype-bg)' },
 } as const
+
+/** Chart-literal scanner series colors — same hexes as --scanner-*-fg (pinned by the tokens test). */
+export const CHART_SCANNER: Record<'trivy' | 'grype', string> = {
+  trivy: '#17685f',
+  grype: '#5a4f9e',
+}
+
+/** Chart chrome literals — same hexes as the named tokens (pinned by the tokens test).
+ * ECharts canvas can't resolve CSS vars, so charts read these instead of raw hexes. */
+export const CHART_UI = {
+  axisLine: '#e7e0d3', // --line
+  splitLine: '#f0ebe0', // --line2
+  label: '#5d6a74', // --soft
+  tooltipBg: '#16232f', // --slate
+  tooltipFg: '#f3eee6', // --side-brand-fg
+  segBorder: '#ffffff', // --card — pie-segment separator on the card surface
+} as const
+
+/** Categorical ramp for the package-type donut — brand-teal anchored (decorative categorical
+ * coding, NOT severity; ptype is info-class data). First entry equals --teal. */
+export const CHART_PTYPE_RAMP = [
+  '#1f8e84',
+  '#2fa89c',
+  '#7cc4bc',
+  '#a7d6d0',
+  '#c9e5e1',
+  '#e0efd9',
+  '#f4d9a8',
+  '#f2b98a',
+  '#ec9f84',
+] as const
