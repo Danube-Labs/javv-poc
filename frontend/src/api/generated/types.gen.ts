@@ -1812,6 +1812,10 @@ export type ListRunningImagesApiV1ImagesGetData = {
          * Cluster Id
          */
         cluster_id: string;
+        /**
+         * As Of
+         */
+        as_of?: string | null;
     };
     url: '/api/v1/images';
 };
