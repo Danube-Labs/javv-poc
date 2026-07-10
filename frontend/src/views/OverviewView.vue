@@ -14,6 +14,7 @@ import { useRouter } from 'vue-router'
 import { buildFindingsTrendOption } from '@/charts/buildFindingsTrendOption'
 import { buildPtypeDonutOption } from '@/charts/buildPtypeDonutOption'
 import { buildScanActivityOption } from '@/charts/buildScanActivityOption'
+import { buildSeverityTrendOption, type SeverityTrendData } from '@/charts/buildSeverityTrendOption'
 import { isSubDayWindow } from '@/charts/buildTrendQuery'
 import EChart from '@/components/charts/EChart.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -40,13 +41,28 @@ const overview = useOverviewStore()
 const { withGlobals } = useApi()
 
 const scanner = ref<'all' | 'trivy' | 'grype'>('all')
+const LENS_OPTS = [
+  { value: 'scanner', label: 'by scanner' },
+  { value: 'severity', label: 'by severity' },
+] as const
+const trendLens = ref<'scanner' | 'severity'>('scanner')
 
 watch(
   () => [clusterStore.selectedId, timeTravel.t, timeTravel.windowDays] as const,
-  ([id]) => {
-    if (id) void overview.load(withGlobals({ cluster_id: id }), timeTravel.windowDays)
+  ([id, t]) => {
+    if (!id) return
+    void overview.load(withGlobals({ cluster_id: id }), timeTravel.windowDays)
+    if (t !== null) trendLens.value = 'scanner' // severity lens is a now-only read (route 422s)
   },
   { immediate: true },
+)
+watch(
+  [trendLens, scanner, () => clusterStore.selectedId, () => timeTravel.windowDays],
+  ([lens, sc, id]) => {
+    if (lens === 'severity' && id && timeTravel.isNow) {
+      void overview.loadSeverityTrend(id, timeTravel.windowDays, sc === 'all' ? null : sc)
+    }
+  },
 )
 
 /** A bucket's display count under the scanner lens — the server's by_scanner split, never a
@@ -63,11 +79,31 @@ const fixPct = computed(() =>
 )
 
 const trendOption = computed(() => {
+  if (trendLens.value === 'severity') {
+    return buildSeverityTrendOption(overview.sevTrend as SeverityTrendData)
+  }
   if (scanner.value === 'all') return buildFindingsTrendOption(overview.trend)
   return buildFindingsTrendOption({
     new: { [scanner.value]: overview.trend.new[scanner.value] },
     resolved: { [scanner.value]: overview.trend.resolved[scanner.value] },
   })
+})
+
+/* 1b quick views — all straight facet reads */
+const kevCount = computed(() => countOf(overview.bucket('kev', 'true')))
+const disagreeCount = computed(() => countOf(overview.bucket('disagree', 'true')))
+const stateCount = (k: string) => countOf(overview.bucket('state', k))
+const handledCount = computed(
+  () => stateCount('resolved') + stateCount('not_affected') + stateCount('risk_accepted'),
+)
+const triage = computed(() => {
+  const open = stateCount('open')
+  const ack = stateCount('acknowledged')
+  const stale = stateCount('stale')
+  const handled = handledCount.value
+  const total = open + ack + stale + handled
+  const pct = (n: number) => (total === 0 ? 0 : (n / total) * 100)
+  return { open, ack, stale, handled, total, pct }
 })
 const scansOption = computed(() =>
   buildScanActivityOption(
@@ -156,13 +192,36 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           :title="`Open findings filtered to ${s}`"
           @click="goFindings({ severity: s })"
         >
-          <span class="kpi-label"><i class="kpi-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}</span>
+          <span class="kpi-label"><i class="kpi-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
           <span class="kpi-num">{{ fmt(sevCount(s)) }}</span>
         </button>
         <button class="kpi-cell" title="Open findings with a fix available" @click="goFindings({ attr: 'fixable' })">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-fix" />fix available</span>
+          <span class="kpi-label"><i class="kpi-dot kpi-dot-fix" />fix available<AppIcon class="cell-go" name="chevron" :size="11" /></span>
           <span class="kpi-num">{{ fixPct }}%</span>
           <span class="kpi-sub">{{ fmt(fixableCount) }} findings patchable today</span>
+        </button>
+      </div>
+
+      <!-- signal band (1b): urgency + quality quick views, same joined grammar -->
+      <div class="kpi-band signal-band">
+        <button class="kpi-cell" title="Open known-exploited findings" @click="goFindings({ attr: 'kev' })">
+          <span class="kpi-label"><i class="kpi-dot kpi-dot-kev" />KEV · known-exploited<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="kpi-num" :class="{ 'kpi-num-alarm': kevCount > 0 }">{{ fmt(kevCount) }}</span>
+        </button>
+        <button class="kpi-cell" title="Open findings where the scanners disagree" @click="goFindings({ attr: 'disagree' })">
+          <span class="kpi-label"><i class="kpi-dot kpi-dot-disagree" />scanners disagree<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="kpi-num">{{ fmt(disagreeCount) }}</span>
+        </button>
+        <button class="kpi-cell" title="Open the untriaged queue" @click="goFindings({ state: 'open' })">
+          <span class="kpi-label"><i class="kpi-dot kpi-dot-progress" />triage progress<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="kpi-num">{{ triage.total === 0 ? '—' : `${Math.round(triage.pct(triage.handled + triage.ack))}%` }}</span>
+          <span class="progress-bar" aria-hidden="true">
+            <i class="seg-open" :style="{ width: `${triage.pct(triage.open)}%` }" />
+            <i class="seg-ack" :style="{ width: `${triage.pct(triage.ack)}%` }" />
+            <i class="seg-handled" :style="{ width: `${triage.pct(triage.handled)}%` }" />
+            <i class="seg-stale" :style="{ width: `${triage.pct(triage.stale)}%` }" />
+          </span>
+          <span class="kpi-sub">{{ fmt(triage.open) }} open · {{ fmt(triage.ack) }} ack · {{ fmt(triage.handled) }} handled<template v-if="triage.stale"> · {{ fmt(triage.stale) }} stale</template></span>
         </button>
       </div>
 
@@ -171,8 +230,18 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <div class="card-head">
             <div>
               <h3>Vulnerabilities over time</h3>
-              <p class="card-sub">new per day · {{ timeTravel.windowLabel.toLowerCase() }} · resolved = scan-observed</p>
+              <p class="card-sub">
+                new per day · {{ timeTravel.windowLabel.toLowerCase() }}<template
+                  v-if="trendLens === 'scanner'"
+                > · resolved = scan-observed</template>
+              </p>
             </div>
+            <UiSegControl
+              v-if="timeTravel.isNow"
+              v-model="trendLens"
+              tone="neutral"
+              :options="LENS_OPTS"
+            />
           </div>
           <div class="card-body">
             <EChart :option="trendOption" :height="250" />
@@ -241,7 +310,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                   :title="`Open findings in ${n.key}`"
                   @click="goFindings({ namespace: n.key })"
                 >
-                  <td class="mono-cell">{{ n.key }}</td>
+                  <td class="mono-cell ns-link">{{ n.key }}<AppIcon class="cell-go" name="chevron" :size="11" /></td>
                   <td class="r mono-cell"><b>{{ fmt(n.count) }}</b></td>
                 </tr>
               </tbody>
@@ -327,6 +396,59 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .kpi-dot-fix {
   background: var(--teal);
+}
+.kpi-dot-kev {
+  background: var(--kev-bg);
+}
+.kpi-dot-disagree {
+  background: var(--sev-medium-solid);
+}
+.kpi-dot-progress {
+  background: var(--state-resolved-fg);
+}
+.kpi-num-alarm {
+  color: var(--sev-critical-fg);
+}
+.signal-band {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 12px;
+}
+
+/* at-rest clickability affordance (operator ruling 2026-07-10): navigating cells carry a soft
+   trailing chevron that turns coral with the hover wash — hover alone is not discoverable */
+.cell-go {
+  color: var(--dash-muted);
+  margin-left: 4px;
+  transition: color var(--dur-quick);
+}
+.kpi-cell:hover .cell-go,
+.tbl-hover tbody tr:hover .cell-go {
+  color: var(--coral-text);
+}
+
+.progress-bar {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 8px;
+  background: var(--line2);
+}
+.progress-bar i {
+  height: 100%;
+}
+.seg-open {
+  background: var(--state-open-fg);
+}
+.seg-ack {
+  background: var(--state-ack-fg);
+}
+.seg-handled {
+  background: var(--state-resolved-fg);
+}
+.seg-stale {
+  background: var(--state-stale-line);
 }
 .kpi-num {
   font-size: var(--text-kpi);
@@ -452,6 +574,26 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .tbl-hover tbody tr:hover {
   background: var(--row-hover);
+}
+.tbl-hover tbody tr:active {
+  background: var(--line2);
+}
+/* the affordance carrier — same convention as the grid's cve-link */
+.ns-link {
+  transition: color var(--dur-quick);
+}
+.tbl-hover tbody tr:hover .ns-link {
+  color: var(--coral-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tbl-hover tbody tr,
+  .ns-link,
+  .cell-go,
+  .kpi-cell {
+    transition: none;
+  }
 }
 
 .load-error {

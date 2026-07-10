@@ -146,6 +146,10 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 Transitions short and functional (`.12–.15s`), no decorative animation. Row hover tints
 `var(--row-hover)`; clickable cards lift 1px + coral border. Focus-visible = `var(--focus-ring)`
 (2px coral, 1px offset) on every interactive element. Dropdowns close on outside-click and Esc.
+**At-rest clickability (operator ruling 2026-07-10):** a cell/row that NAVIGATES carries a soft
+trailing chevron at rest (`--dash-muted` → `--coral-text` with the hover wash) and its
+identifier takes the link treatment on hover (coral + underline, the grid's `cve-link`
+convention) — hover-only affordance is not discoverable.
 
 ### Motion (#319) — the one scale, applied through the kit
 
