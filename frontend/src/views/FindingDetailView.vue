@@ -138,11 +138,6 @@ const disagrees = computed(() => severityDisagrees(evidence.value))
 const missingScanners = computed(() =>
   SCANNER_ORDER.filter((s) => !evidence.value.some((r) => r.scanner === s)),
 )
-/** Where this image runs — union of the sibling rows' namespaces (pods don't exist: D30). */
-const namespaces = computed(() => [
-  ...new Set(rows.value.flatMap((r) => (Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []))),
-])
-
 /* ---- display helpers (24h everywhere, null-tolerant) ---- */
 function fmtAt(iso: unknown): string {
   if (typeof iso !== 'string') return '—'
@@ -155,9 +150,9 @@ function fmtAt(iso: unknown): string {
   })
 }
 const slaTier = computed(() => {
-  if (primary.value?.overdue === true) return 'sla-box-over'
+  if (primary.value?.overdue === true) return 'risk-num-over'
   const d = slaDaysLeft.value
-  return d !== null && d <= 3 ? 'sla-box-tight' : ''
+  return d !== null && d <= 3 ? 'risk-num-tight' : ''
 })
 const slaDaysLeft = computed(() => {
   const due = primary.value?.due_at
@@ -316,30 +311,50 @@ watch(
             <span v-if="kev" class="kev-lg">KEV · known-exploited</span>
           </div>
           <div class="detail-meta">
-            <span><em>CVSS</em> {{ num(primary?.cvss) }}</span>
-            <span>
-              <em>EPSS</em>
-              <template v-if="epss">{{ Math.round(epss.value * 100) }}% <i class="meta-src">via {{ epss.scanner }}</i></template>
-              <template v-else>—</template>
-            </span>
-            <span><em>Package</em> <span class="mono-cell">{{ primary?.package_name }}</span></span>
-            <span><em>Image</em> <span class="mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span></span>
-            <span><em>Namespaces</em> <span class="mono-cell">{{ namespaces.length ? namespaces.join(', ') : '—' }}</span></span>
-            <span><em>First seen</em> {{ fmtAt(primary?.first_seen_at) }}</span>
-            <span><em>Last seen</em> {{ fmtAt(primary?.last_seen_at) }}</span>
+            <div class="fact">
+              <em>Package</em>
+              <span class="fact-val mono-cell">{{ primary?.package_name }}</span>
+            </div>
+            <div class="fact">
+              <em>Image</em>
+              <span class="fact-val mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span>
+            </div>
+            <div class="fact">
+              <em>First seen</em>
+              <span class="fact-val">{{ fmtAt(primary?.first_seen_at) }}</span>
+            </div>
+            <div class="fact">
+              <em>Last seen</em>
+              <span class="fact-val">{{ fmtAt(primary?.last_seen_at) }}</span>
+            </div>
           </div>
         </div>
-        <div class="sla-box" :class="slaTier">
-          <span class="sla-box-label">SLA</span>
-          <template v-if="primary?.due_at">
-            <span class="sla-box-days">{{ slaDaysLeft }}<em>d</em></span>
-            <span class="sla-box-deadline">{{ primary.overdue ? 'Overdue' : 'by' }} {{ fmtAt(primary.due_at) }}</span>
-          </template>
-          <span v-else class="sla-box-deadline">{{
-            ['resolved', 'not_affected', 'risk_accepted'].includes(primary?.state ?? '')
-              ? `no deadline · ${primary?.state === 'not_affected' ? 'not affected' : primary?.state === 'risk_accepted' ? 'risk accepted' : 'resolved'}`
-              : 'no deadline'
-          }}</span>
+        <div class="risk-band">
+          <div class="risk-cell">
+            <span class="risk-label">CVSS</span>
+            <span class="risk-num" :class="`risk-num-${primary?.severity_canonical}`">{{ num(primary?.cvss) }}</span>
+            <span class="risk-sub">via {{ primary?.scanner }}</span>
+          </div>
+          <div class="risk-cell">
+            <span class="risk-label">EPSS</span>
+            <span class="risk-num">{{ epss ? Math.round(epss.value * 100) + '%' : '—' }}</span>
+            <span class="risk-sub">{{ epss ? `via ${epss.scanner}` : 'not scored' }}</span>
+          </div>
+          <div class="risk-cell">
+            <span class="risk-label">SLA</span>
+            <template v-if="primary?.due_at">
+              <span class="risk-num" :class="slaTier">{{ slaDaysLeft }}<em>d</em></span>
+              <span class="risk-sub">{{ primary.overdue ? 'Overdue' : 'by' }} {{ fmtAt(primary.due_at) }}</span>
+            </template>
+            <template v-else>
+              <span class="risk-num risk-num-quiet">—</span>
+              <span class="risk-sub">{{
+                ['resolved', 'not_affected', 'risk_accepted'].includes(primary?.state ?? '')
+                  ? `no deadline · ${primary?.state === 'not_affected' ? 'not affected' : primary?.state === 'risk_accepted' ? 'risk accepted' : 'resolved'}`
+                  : 'no deadline'
+              }}</span>
+            </template>
+          </div>
         </div>
       </div>
 
@@ -554,12 +569,14 @@ watch(
 .detail-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px 22px;
-  margin-top: 14px;
+  align-items: end;
+  gap: 14px 28px;
+  margin-top: 18px;
 }
-.detail-meta > span {
-  font-size: var(--text-body);
-  color: var(--ink);
+.fact {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
 }
 .detail-meta em {
   font-style: normal;
@@ -568,62 +585,84 @@ watch(
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--soft);
-  margin-right: 6px;
+}
+.fact-val {
+  font-size: var(--text-body);
+  color: var(--ink);
+}
+.fact-num {
+  font-size: var(--text-kpi);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 .meta-src {
   font-style: normal;
   color: var(--soft);
+  font-size: var(--text-sm);
+  font-weight: 400;
+  letter-spacing: 0;
 }
-.sla-box {
+/* the risk band: one joined card, hairline-divided cells, urgency carried by the numerals
+   (stat-card grammar per the operator's Nuxt UI reference — ours, on tokens) */
+.risk-band {
   flex: none;
-  width: 128px;
+  display: flex;
+  align-items: stretch;
   border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 12px 14px;
+  background: var(--card);
+}
+.risk-cell {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--panel);
+  gap: 2px;
+  padding: 12px 20px;
+  min-width: 104px;
 }
-.sla-box-over {
-  background: var(--sev-critical-bg);
-  border-color: var(--sev-critical-line);
+.risk-cell + .risk-cell {
+  border-left: 1px solid var(--line2);
 }
-.sla-box-tight {
-  background: var(--sev-high-bg);
-  border-color: var(--sev-high-line);
-}
-.sla-box-tight .sla-box-days,
-.sla-box-tight .sla-box-deadline {
-  color: var(--sla-tight-fg);
-}
-.sla-box-label {
+.risk-label {
   font-family: var(--font-mono);
   font-size: var(--text-table-header);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--soft);
 }
-.sla-box-days {
+.risk-num {
   font-size: var(--text-kpi);
   font-weight: 600;
   letter-spacing: -0.03em;
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
 }
-.sla-box-days em {
+.risk-num em {
   font-style: normal;
   font-size: var(--text-body);
   color: var(--soft);
 }
-.sla-box-deadline {
+.risk-num-critical,
+.risk-num-over {
+  color: var(--sev-critical-fg);
+}
+.risk-num-high,
+.risk-num-tight {
+  color: var(--sla-tight-fg);
+}
+.risk-num-quiet {
+  color: var(--soft);
+  font-weight: 400;
+}
+.risk-sub {
   font-family: var(--font-mono);
   font-size: var(--text-table-header);
   color: var(--soft);
-  margin-top: 3px;
-}
-.sla-box-over .sla-box-days,
-.sla-box-over .sla-box-deadline {
-  color: var(--sev-critical-fg);
+  margin-top: 2px;
+  max-width: 150px;
 }
 
 .detail-grid {
