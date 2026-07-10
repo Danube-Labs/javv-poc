@@ -202,7 +202,7 @@ function save() {
   align-items: center;
   gap: 8px;
   font-size: var(--text-sm);
-  color: var(--hist-fg);
+  color: var(--ink);
   background: var(--hist-bg);
   border: 1px solid var(--hist-line);
   border-radius: var(--r-sm);
@@ -212,6 +212,7 @@ function save() {
 }
 .triage-locked svg {
   flex: none;
+  color: var(--hist-fg);
 }
 .assignee-row {
   display: flex;
@@ -235,6 +236,7 @@ function save() {
   margin-top: 8px;
   font-size: var(--text-sm);
   line-height: 1.45;
+  color: var(--ink);
 }
 .ro-state svg {
   flex: none;
@@ -251,11 +253,15 @@ function save() {
 .ro-risk {
   background: var(--hist-bg);
   border: 1px solid var(--hist-line);
+}
+.ro-risk svg {
   color: var(--hist-fg);
 }
 .ro-stale {
   background: var(--state-stale-bg);
   border: 1px solid var(--state-stale-line);
+}
+.ro-stale svg {
   color: var(--state-stale-fg);
 }
 .presence-note {

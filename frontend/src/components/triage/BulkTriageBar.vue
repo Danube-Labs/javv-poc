@@ -169,7 +169,7 @@ async function apply() {
   align-items: flex-start;
   margin: 0;
   font-size: var(--text-body);
-  color: var(--hist-fg);
+  color: var(--ink);
   background: var(--hist-bg);
   border: 1px solid var(--hist-line);
   border-radius: var(--r-sm);
@@ -179,6 +179,7 @@ async function apply() {
 .bulk-blocked svg {
   flex: none;
   margin-top: 2px;
+  color: var(--hist-fg);
 }
 .lens-row {
   display: flex;

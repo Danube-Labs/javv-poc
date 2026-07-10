@@ -280,7 +280,7 @@ const downloadHref = computed(() =>
   align-items: flex-start;
   margin: 10px 0 0;
   font-size: var(--text-body);
-  color: var(--hist-fg);
+  color: var(--ink);
   background: var(--hist-bg);
   border: 1px solid var(--hist-line);
   border-radius: var(--r-sm);
@@ -290,6 +290,7 @@ const downloadHref = computed(() =>
 .ex-blocked svg {
   flex: none;
   margin-top: 2px;
+  color: var(--hist-fg);
 }
 .report-status {
   display: flex;

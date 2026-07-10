@@ -7,7 +7,9 @@ disagreement, tokens.css + ui-foundations win.
 
 Enforced, not advisory: **stylelint** fails raw hex/`rgb()`/non-token fonts/ad-hoc font-sizes in
 components; the **style ratchet** (`src/__tests__/style-ratchet.spec.ts`) fails a color literal
-anywhere else (inline styles, script, chart options) outside `styles/tokens.*` + `theme/preset.ts`.
+anywhere else (inline styles, script, chart options) outside `styles/tokens.*` + `theme/preset.ts`,
+and fails any rule pairing `--X-fg` text with its own `--X-bg` tint (the "green on green" ruling —
+chips are the listed exception).
 
 ## 1. Visual theme
 
