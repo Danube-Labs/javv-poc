@@ -49,7 +49,9 @@ Three **separate** buckets; using one where another belongs is a bug:
 - **Style ratchet (M9a):** a pinned test fails CI when a component **adds** a hand-rolled severity/status
   color that bypasses the token map/badge helpers; the recorded baseline may only shrink, never grow.
   stylelint catches raw hex/fonts - the ratchet catches *semantic* bypasses (a literal red where the
-  severity token belongs).
+  severity token belongs). **Extended (post-M9b):** it also fails any rule pairing `--X-fg` text with its
+  own `--X-bg` tint - the "never same-hue text on its own tint" ruling is machine-enforced (chips are the
+  listed exception).
 - **Tested:** a component using a raw hex or a non-token font fails lint; the severity token map round-trips
   to the six buckets.
 - **Agent-facing condensation:** `frontend/DESIGN.md` (an M9a deliverable) is the one file a session reads
@@ -63,3 +65,9 @@ Every interactive element answers the pointer BEFORE it is clicked: hover wash
 ring, and (for rows) the hover wash + link-styled target cell. A border-color shift alone is
 invisible and does not count. The global rule lives in `frontend/src/styles/base.css`; scoped
 styles may add to it, never remove it. Binding detail: `frontend/DESIGN.md` §2.
+
+**Structural home (post-M9b):** the contract is baked into the UI kit
+(`frontend/src/components/ui/` — UiButton, UiSegControl, UiField, UiDropdown, ModalShell).
+Buttons, segmented bars, labeled fields, dropdown behavior, and modals are USED from the kit,
+never re-rolled per component — writing their raw markup/CSS again is a review failure
+(`frontend/DESIGN.md` §5 table).
