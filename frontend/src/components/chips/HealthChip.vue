@@ -4,16 +4,11 @@
  * (distinct from stale: seen once, silent since). */
 import { computed } from 'vue'
 
-import { FRESHNESS_BANNER_AFTER_S, type FreshnessRow } from '@/system/freshness'
+import { freshnessStatus, type FreshnessRow } from '@/system/freshness'
 
 const props = defineProps<{ rows: FreshnessRow[] }>()
 
-const status = computed<'ok' | 'stale' | 'none'>(() => {
-  const seen = props.rows.filter((r) => r.last_ingest_at !== null)
-  if (seen.length === 0) return 'none'
-  const silent = seen.some((r) => (r.silent_for_seconds ?? 0) > FRESHNESS_BANNER_AFTER_S)
-  return silent ? 'stale' : 'ok'
-})
+const status = computed(() => freshnessStatus(props.rows))
 
 const LABEL = { ok: 'healthy', stale: 'stale', none: 'no data' } as const
 </script>

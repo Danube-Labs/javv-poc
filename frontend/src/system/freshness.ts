@@ -12,6 +12,17 @@ const HOURS = Number(import.meta.env.VITE_FRESHNESS_BANNER_HOURS)
 export const FRESHNESS_BANNER_AFTER_S =
   Number.isFinite(HOURS) && HOURS > 0 ? HOURS * 3600 : 3 * 24 * 3600
 
+/** Cluster-grade freshness status: ok / stale (any scanner silent past the D20 threshold) /
+ * none (no scanner has EVER ingested — first sweep pending, distinct from stale). */
+export function freshnessStatus(
+  rows: FreshnessRow[],
+  thresholdS: number = FRESHNESS_BANNER_AFTER_S,
+): 'ok' | 'stale' | 'none' {
+  const seen = rows.filter((r) => r.last_ingest_at !== null)
+  if (seen.length === 0) return 'none'
+  return seen.some((r) => (r.silent_for_seconds ?? 0) > thresholdS) ? 'stale' : 'ok'
+}
+
 export function silentRows(
   rows: FreshnessRow[],
   thresholdS: number = FRESHNESS_BANNER_AFTER_S,

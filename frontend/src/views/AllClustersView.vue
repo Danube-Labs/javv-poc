@@ -18,7 +18,7 @@ import { useClusterStore } from '@/stores/cluster'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
-import { lastDataAt } from '@/system/freshness'
+import { freshnessStatus, lastDataAt } from '@/system/freshness'
 
 const KPI_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'negligible']
 const MIX_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']
@@ -74,6 +74,10 @@ function triage(row: ClusterRow) {
 /** Fleet strip: per-severity server buckets added across clusters (see header). */
 const fleetSev = (sev: Severity) => fleet.rows.reduce((n, r) => n + sevCount(r, sev), 0)
 
+const needAttention = computed(
+  () => fleet.rows.filter((r) => r.failed || freshnessStatus(r.freshness) !== 'ok').length,
+)
+
 /** One mix bar per scanner (never merged): proportional segments of that scanner's buckets. */
 function mixFor(row: ClusterRow, sc: (typeof SCANNERS)[number]) {
   const counts = MIX_SEVERITIES.map((sev) => ({
@@ -112,6 +116,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         <p class="screen-sub">
           Fleet current state · <b class="mono-cell">{{ fleet.rows.length }}</b>
           cluster{{ fleet.rows.length === 1 ? '' : 's' }}
+          <template v-if="!fleet.limited && !fleet.loading && fleet.rows.length">
+            · <span v-if="needAttention" class="deg-note">{{ needAttention }} need{{ needAttention === 1 ? 's' : '' }} attention</span>
+            <template v-else>all healthy</template>
+          </template>
         </p>
       </div>
       <div v-if="!fleet.limited" class="head-actions">
@@ -152,14 +160,8 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </div>
       </div>
 
-      <section class="card">
-        <div class="card-head">
-          <div>
-            <h3>Clusters</h3>
-            <p class="card-sub">a row opens that cluster's overview</p>
-          </div>
-        </div>
-        <div class="card-body">
+      <!-- flush table card (prototype fleet-card): no head, no inner panel — the table IS the card -->
+      <section class="card fleet-card">
           <table class="tbl tbl-hover">
             <thead>
               <tr>
@@ -184,8 +186,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                 @click="open(row)"
               >
                 <td>
-                  <span class="cl-name cl-link">{{ row.cluster_name }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-                  <span v-if="row.cluster_name !== row.cluster_id" class="cl-id mono-cell">{{ row.cluster_id }}</span>
+                  <div class="cluster-cell">
+                    <span class="glyph" aria-hidden="true">{{ (row.cluster_name[0] ?? '?').toUpperCase() }}</span>
+                    <div class="cluster-info">
+                      <span class="cl-name cl-link">{{ row.cluster_name }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+                      <span v-if="row.cluster_name !== row.cluster_id" class="cl-id mono-cell">{{ row.cluster_id }}</span>
+                    </div>
+                  </div>
                 </td>
                 <td class="r"><HealthChip :rows="row.freshness" /></td>
                 <td class="mix-cell">
@@ -228,8 +235,12 @@ const fmt = (n: number) => n.toLocaleString('en-US')
               </tr>
             </tbody>
           </table>
-        </div>
       </section>
+      <p class="fleet-note">
+        <AppIcon name="layers" :size="13" />
+        Each cluster's scanner module pushes independently over HTTPS with its own API token —
+        a cluster going quiet shows up here, not as missing data downstream.
+      </p>
     </template>
   </div>
 </template>
@@ -312,6 +323,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   font-variant-numeric: tabular-nums;
 }
 
+/* flush table card (prototype fleet-card): the table IS the card — no head, no inner panel */
 .card {
   background: var(--card);
   border: 1px solid var(--line);
@@ -319,23 +331,31 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   box-shadow: var(--shadow);
   margin-top: 16px;
 }
-.card-head {
+.fleet-card {
+  overflow: hidden;
+}
+.fleet-card .tbl th:first-child,
+.fleet-card .tbl td:first-child {
+  padding-left: 16px;
+}
+.fleet-card .tbl th:last-child,
+.fleet-card .tbl td:last-child {
+  padding-right: 16px;
+}
+.fleet-card .tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+.deg-note {
+  color: var(--health-degraded-fg);
+  font-weight: 600;
+}
+.fleet-note {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px 0;
-}
-.card-head h3 {
-  margin: 0;
-}
-.card-sub {
-  margin: 2px 0 0;
+  align-items: center;
+  gap: 7px;
+  margin: 10px 2px 0;
   font-size: var(--text-sm);
   color: var(--soft);
-}
-.card-body {
-  padding: 10px 16px 14px;
 }
 
 .tbl {
@@ -387,6 +407,27 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   background: var(--line2);
 }
 
+.cluster-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.glyph {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--slate);
+  color: var(--side-brand-fg);
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: var(--text-body);
+  flex: none;
+}
+.cluster-info {
+  display: flex;
+  flex-direction: column;
+}
 .cl-name {
   display: inline-flex;
   align-items: center;
@@ -394,7 +435,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   color: var(--ink);
 }
 .cl-id {
-  display: block;
   font-size: var(--text-sm);
   color: var(--soft);
   margin-top: 2px;
