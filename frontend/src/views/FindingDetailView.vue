@@ -154,6 +154,11 @@ function fmtAt(iso: unknown): string {
     hour12: false,
   })
 }
+const slaTier = computed(() => {
+  if (primary.value?.overdue === true) return 'sla-box-over'
+  const d = slaDaysLeft.value
+  return d !== null && d <= 3 ? 'sla-box-tight' : ''
+})
 const slaDaysLeft = computed(() => {
   const due = primary.value?.due_at
   if (typeof due !== 'string') return null
@@ -324,7 +329,7 @@ watch(
             <span><em>Last seen</em> {{ fmtAt(primary?.last_seen_at) }}</span>
           </div>
         </div>
-        <div class="sla-box" :class="{ 'sla-box-over': primary?.overdue === true }">
+        <div class="sla-box" :class="slaTier">
           <span class="sla-box-label">SLA</span>
           <template v-if="primary?.due_at">
             <span class="sla-box-days">{{ slaDaysLeft }}<em>d</em></span>
@@ -548,7 +553,7 @@ watch(
   margin-top: 14px;
 }
 .detail-meta > span {
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
   color: var(--ink);
 }
 .detail-meta em {
@@ -578,6 +583,14 @@ watch(
 .sla-box-over {
   background: var(--sev-critical-bg);
   border-color: var(--sev-critical-line);
+}
+.sla-box-tight {
+  background: var(--sev-high-bg);
+  border-color: var(--sev-high-line);
+}
+.sla-box-tight .sla-box-days,
+.sla-box-tight .sla-box-deadline {
+  color: var(--sla-tight-fg);
 }
 .sla-box-label {
   font-family: var(--font-mono);

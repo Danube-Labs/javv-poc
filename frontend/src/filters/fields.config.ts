@@ -45,8 +45,8 @@ export const emptySelections = (fields: readonly FilterField[]): Selections =>
 
 /** Findings screen config (FR-12). Owned here; M9b+ screens import, never copy. */
 export const FINDINGS_FIELDS: readonly FilterField[] = [
-  // the rail search box writes this (exact CVE id — the backend filter is a term match)
-  { key: 'cve', label: 'CVE', type: 'text', param: 'cve_id' },
+  // the rail search box writes this — CONTAINS across cve/image/namespace/assignee/package
+  { key: 'q', label: 'Search', type: 'text', param: 'q' },
   { key: 'severity', label: 'Severity', type: 'terms', param: 'severity', multi: true, facetKey: 'severity', values: SEVERITIES },
   { key: 'scanner', label: 'Scanner', type: 'terms', param: 'scanner', facetKey: 'scanner', values: ['trivy', 'grype'] },
   {

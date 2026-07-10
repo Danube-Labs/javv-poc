@@ -254,3 +254,21 @@ async def test_run_search_keeps_a_cursor_pit_on_a_transient_page_error() -> None
             cursor=_cursor_for("pit-live"),
         )
     assert fake.deleted == []  # the client's PIT survives to keep_alive for a retry
+
+
+def test_q_contains_search_is_structured_and_escaped() -> None:
+    # M9b slice 4: contains across the identifier fields — structured wildcards, never
+    # query_string; user wildcards are escaped so a crafted pattern can't go pathological
+    body = build_search_body(SearchFilters(q="krb5"), size=10)
+    must = body["query"]["bool"]["must"]
+    fields = [next(iter(c["wildcard"])) for c in must[0]["bool"]["should"]]
+    assert set(fields) == {"cve_id", "image_repo", "namespaces", "assignee", "package_name"}
+    for c in must[0]["bool"]["should"]:
+        spec = c["wildcard"][next(iter(c["wildcard"]))]
+        assert spec == {"value": "*krb5*", "case_insensitive": True}
+
+    hostile = build_search_body(SearchFilters(q="a*b?c"), size=10)
+    spec = hostile["query"]["bool"]["must"][0]["bool"]["should"][0]["wildcard"]["cve_id"]
+    assert spec["value"] == "*a\\*b\\?c*"  # user wildcards neutralized
+
+    assert "must" not in build_search_body(SearchFilters(), size=10)["query"]["bool"]

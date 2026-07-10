@@ -324,6 +324,10 @@ export type ExportParams = {
      */
     ptype?: string | null;
     /**
+     * Q
+     */
+    q?: string | null;
+    /**
      * Scanner
      */
     scanner?: string | null;
@@ -568,6 +572,10 @@ export type ViewPreset = {
      * Ptype
      */
     ptype?: string | null;
+    /**
+     * Q
+     */
+    q?: string | null;
     /**
      * Scanner
      */
@@ -910,6 +918,10 @@ export type ReadAuditLogApiV1AuditGetData = {
          * Actor
          */
         actor?: string | null;
+        /**
+         * Finding Key
+         */
+        finding_key?: string | null;
         /**
          * Order
          */
@@ -1306,6 +1318,10 @@ export type SearchFindingsApiV1FindingsGetData = {
          */
         ptype?: string | null;
         /**
+         * Q
+         */
+        q?: string | null;
+        /**
          * Present
          */
         present?: boolean;
@@ -1421,6 +1437,10 @@ export type ExportCsvApiV1FindingsExportCsvGetData = {
          */
         ptype?: string | null;
         /**
+         * Q
+         */
+        q?: string | null;
+        /**
          * Present
          */
         present?: boolean;
@@ -1508,6 +1528,10 @@ export type ExportVexApiV1FindingsExportVexGetData = {
          * Ptype
          */
         ptype?: string | null;
+        /**
+         * Q
+         */
+        q?: string | null;
         /**
          * Present
          */
@@ -1602,6 +1626,10 @@ export type FacetFindingsApiV1FindingsFacetsGetData = {
          * Ptype
          */
         ptype?: string | null;
+        /**
+         * Q
+         */
+        q?: string | null;
         /**
          * Present
          */
@@ -1704,6 +1732,10 @@ export type GroupFindingsApiV1FindingsGroupsGetData = {
          * Ptype
          */
         ptype?: string | null;
+        /**
+         * Q
+         */
+        q?: string | null;
         /**
          * Present
          */

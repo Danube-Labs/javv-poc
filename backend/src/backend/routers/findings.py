@@ -81,6 +81,7 @@ def _filters(
     image_repo: Annotated[str | None, Query(max_length=512)] = None,
     namespace: Annotated[str | None, Query(max_length=256)] = None,
     ptype: Annotated[str | None, Query(max_length=64)] = None,
+    q: Annotated[str | None, Query(min_length=2, max_length=128)] = None,
     present: bool = True,
 ) -> SearchFilters:
     return SearchFilters(
@@ -96,6 +97,7 @@ def _filters(
         image_repo=image_repo,
         namespace=namespace,
         ptype=ptype,
+        q=q,
         present=present,
     )
 

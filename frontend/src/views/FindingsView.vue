@@ -193,10 +193,10 @@ function setDense(value: boolean) {
         <div class="facet-search">
           <AppIcon name="search" :size="14" />
           <input
-            :value="filters.selections.cve?.[0] ?? ''"
-            placeholder="CVE id (exact)…"
-            aria-label="Filter by CVE id"
-            @keydown.enter="filters.setText('cve', ($event.target as HTMLInputElement).value)"
+            :value="filters.selections.q?.[0] ?? ''"
+            placeholder="CVE, image, namespace…"
+            aria-label="Search findings (contains match)"
+            @keydown.enter="filters.setText('q', ($event.target as HTMLInputElement).value)"
           />
         </div>
       <FacetRail
@@ -304,11 +304,15 @@ function setDense(value: boolean) {
   align-items: center;
   gap: 8px;
   border: 1px solid var(--line);
-  border-radius: var(--r-sm);
+  border-radius: var(--r);
   background: var(--card);
-  padding: 7px 10px;
+  box-shadow: var(--shadow);
+  padding: 9px 12px;
   color: var(--soft);
   margin-bottom: 10px;
+}
+.facet-search:focus-within {
+  border-color: var(--coral);
 }
 .facet-search input {
   border: 0;

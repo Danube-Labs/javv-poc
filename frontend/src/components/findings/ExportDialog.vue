@@ -345,8 +345,9 @@ const downloadHref = computed(() =>
   cursor: default;
 }
 .seg-on {
-  background: var(--slate);
-  color: var(--side-fg);
+  background: var(--dd-on-bg);
+  color: var(--coral-text);
+  box-shadow: inset 0 0 0 1px var(--coral);
   font-weight: 600;
 }
 .fld-label {
