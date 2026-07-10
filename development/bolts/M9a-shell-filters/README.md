@@ -172,3 +172,8 @@ as pure units** (Vitest).
   round the chart span up to 1 day; the label keeps the exact choice). C-1's intent (don't
   conflate state-at-T with the window) is carried by the control's own copy: "tables show state
   at the end of the range; charts aggregate the span." All time display is 24-hour.
+
+- **2026-07-10 — VISUAL FEEDBACK IS A MUST (operator ruling, applies retroactively to every M9a
+  surface):** every interactive element ships visible hover (wash + border, never border-only),
+  pressed and focus states — global rule in `frontend/src/styles/base.css`, binding text in
+  `frontend/DESIGN.md` §2. Feedback-less controls fail review.

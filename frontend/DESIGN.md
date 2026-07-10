@@ -35,6 +35,12 @@ row hover      var(--row-hover)   dark chrome  var(--slate)
 decorative/disabled only (dashes, gauge fills, placeholder glyphs): it fails AA and must never
 color words or numbers.
 
+**VISUAL FEEDBACK IS A MUST (operator, 2026-07-10 — non-negotiable on every surface):** every
+interactive element answers the pointer — hover wash + border shift (`--control-hover-bg` /
+`--control-hover-line`), pressed state, row hover + link-styled target cells, focus ring. If a
+user can click it, they must be able to SEE that before they click. No control ships without its
+hover/pressed/focus states; reviews reject "border-shift-only" or feedback-less controls.
+
 **Text color rules (operator rulings 2026-07-09 — verify ratios by computation, never by eye):**
 - **Never same-hue text on its own tint** ("green on green"): prose/sentences on a tinted panel
   or banner are `--ink`; the hue lives in the icon, border, and background only. Chips/tags

@@ -335,7 +335,11 @@ watch(
             <span class="sla-box-days">{{ slaDaysLeft }}<em>d</em></span>
             <span class="sla-box-deadline">{{ primary.overdue ? 'Overdue' : 'by' }} {{ fmtAt(primary.due_at) }}</span>
           </template>
-          <span v-else class="sla-box-deadline">no deadline</span>
+          <span v-else class="sla-box-deadline">{{
+            ['resolved', 'not_affected', 'risk_accepted'].includes(primary?.state ?? '')
+              ? `no deadline · ${primary?.state === 'not_affected' ? 'not affected' : primary?.state === 'risk_accepted' ? 'risk accepted' : 'resolved'}`
+              : 'no deadline'
+          }}</span>
         </div>
       </div>
 

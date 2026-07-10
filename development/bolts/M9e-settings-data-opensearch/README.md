@@ -115,3 +115,6 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > and run **`npx impeccable detect`** on rendered-HTML dumps of changed screens (fix real
 > findings; §9 exceptions stand). The **`/impeccable`** skill (critique · typeset · layout ·
 > harden) is available for design decisions — its product register applies.
+> **VISUAL FEEDBACK IS A MUST** (operator 2026-07-10): every interactive element ships with
+> visible hover (wash + border, never border-only), pressed and focus states — the global rule
+> in base.css + DESIGN.md §2 are binding; feedback-less controls fail review.
