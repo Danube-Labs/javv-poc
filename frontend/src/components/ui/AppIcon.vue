@@ -38,6 +38,7 @@ const PATHS = {
   rescan:
     'M23 4v6h-6M1 20v-6h6M3.5 9a9 9 0 0114.9-3.4L23 10M1 14l4.6 4.4A9 9 0 0020.5 15',
   trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
+  sidebar: 'M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM9 3v18',
 } as const
 
 export type IconName = keyof typeof PATHS
