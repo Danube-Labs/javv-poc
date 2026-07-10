@@ -94,6 +94,24 @@ as pure units** (Vitest).
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-11 — slice 2 rulings (operator, live A/B — PR #338):** per-cluster **signal
+  columns ruled as explicit columns** (variant A) over an exception-based signals cell:
+  KEV (alarm-red when >0) · Fix % · Disagree · Triage (stacked state bar + % triaged) — all
+  straight reads of the facets response each row already fetches, zero extra calls.
+  **Anchoring ruling:** numeric table columns shrink-to-content + nowrap so numbers sit
+  tight under their headers; layout slack goes to the cluster/mix cells, never into gaps
+  between data columns. Cursor ruling **sharpened** (PR #337): no I-beam either —
+  `* { cursor: default }` app-wide, ratchet-enforced.
+- **2026-07-11 — polish round rulings (operator review, PR #335):** system-default **arrow
+  cursor ruled app-wide** (DESIGN.md §5 — never `pointer`; ECharts series carry
+  `cursor: 'default'`, pinned by a spec so it can't regress); **donut deep-links** — segment
+  and legend rows navigate to `/findings?ptype=<key>`; donut ramp re-cut **hue-alternating**
+  (the monochrome teal ramp read as one green mass); the findings "counts computed
+  server-side" caption cut (dev assertion, not operator info); **findings column diet** —
+  `epss/kev/current/fixed` hidden on first run (localStorage still rules), package/namespace
+  cells truncate with title tooltips; 1920px shows no horizontal scroll; **1440px remainder
+  ruled accepted** (operator, 2026-07-11) — the ~180px horizontal scroll below 1920 stands,
+  no further column cuts.
 - **2026-07-10 — slice 1 + 1b rulings (operator, live review):** slice-1 cuts beyond the
   audited ones — **KPI sparklines + "+new Nd" chips** (no per-severity-per-day agg pre-1b) and
   the **per-namespace severity MixBar** (no per-ns severity agg) — slots dropped, not kept.
