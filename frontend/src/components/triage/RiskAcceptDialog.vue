@@ -12,6 +12,7 @@ import { createApiV1DecisionsPost } from '@/api/generated'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { useApi } from '@/composables/useApi'
 import { logger } from '@/lib/logger'
 import type { FindingRow } from '@/stores/findings'
@@ -28,6 +29,11 @@ const namespaces = computed(() =>
 const nsSel = ref<Set<string>>(new Set())
 const imgSel = ref<Set<string>>(new Set())
 const applyTo = ref<'both' | 'trivy' | 'grype'>('both')
+const APPLY_OPTS = [
+  { value: 'both', label: 'Both scanners' },
+  { value: 'trivy', label: 'trivy only' },
+  { value: 'grype', label: 'grype only' },
+] as const
 const expiry = ref('')
 const justification = ref('')
 const submitting = ref(false)
@@ -126,18 +132,7 @@ async function submit() {
           </div>
           <div>
             <label class="fld-label">Apply to</label>
-            <div class="seg">
-              <button
-                v-for="opt in (['both', 'trivy', 'grype'] as const)"
-                :key="opt"
-                type="button"
-                class="seg-opt"
-                :class="{ 'seg-on': applyTo === opt }"
-                @click="applyTo = opt"
-              >
-                {{ opt === 'both' ? 'Both scanners' : opt + ' only' }}
-              </button>
-            </div>
+            <UiSegControl v-model="applyTo" :options="APPLY_OPTS" />
           </div>
         </div>
 
@@ -265,30 +260,6 @@ async function submit() {
 }
 .fld:focus {
   border-color: var(--coral);
-}
-.seg {
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--panel);
-}
-.seg-opt {
-  border: 0;
-  border-radius: 5px;
-  background: var(--card);
-  padding: 7px 10px;
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.seg-on {
-  background: var(--dd-on-bg);
-  color: var(--coral-text);
-  box-shadow: inset 0 0 0 1px var(--coral);
-  font-weight: 600;
 }
 .ra-note {
   display: flex;

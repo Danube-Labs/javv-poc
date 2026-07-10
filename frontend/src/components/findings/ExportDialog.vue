@@ -13,6 +13,7 @@ import { enqueueReportApiV1ReportsPost, getReportApiV1ReportsReportIdGet } from 
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { useApi } from '@/composables/useApi'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FilterField } from '@/filters/fields.config'
@@ -31,6 +32,18 @@ const open = ref(false)
 const tab = ref<'now' | 'schedule'>('now')
 const format = ref<'csv' | 'vex'>('csv')
 const vexScanner = ref<'trivy' | 'grype'>('trivy')
+const TAB_OPTS = [
+  { value: 'now', label: 'Run now' },
+  { value: 'schedule', label: 'Schedule off-peak' },
+] as const
+const FORMAT_OPTS = [
+  { value: 'csv', label: 'CSV' },
+  { value: 'vex', label: 'VEX (OpenVEX)' },
+] as const
+const SCANNER_OPTS = [
+  { value: 'trivy', label: 'trivy' },
+  { value: 'grype', label: 'grype' },
+] as const
 const busy = ref(false)
 const error = ref<string | null>(null)
 const report = ref<{ id: string; status: string; token?: string; expires_at?: string } | null>(null)
@@ -186,22 +199,13 @@ const downloadHref = computed(() =>
             reconstruction sweeps.)
           </p>
           <template v-else>
-            <div class="seg tabs">
-              <button type="button" class="seg-opt" :class="{ 'seg-on': tab === 'now' }" @click="tab = 'now'">Run now</button>
-              <button type="button" class="seg-opt" :class="{ 'seg-on': tab === 'schedule' }" @click="tab = 'schedule'">Schedule off-peak</button>
-            </div>
+            <UiSegControl v-model="tab" class="tabs" :options="TAB_OPTS" />
 
             <label class="fld-label">Format</label>
-            <div class="seg">
-              <button type="button" class="seg-opt" :class="{ 'seg-on': format === 'csv' }" @click="format = 'csv'">CSV</button>
-              <button type="button" class="seg-opt" :class="{ 'seg-on': format === 'vex' }" @click="format = 'vex'">VEX (OpenVEX)</button>
-            </div>
+            <UiSegControl v-model="format" :options="FORMAT_OPTS" />
             <div v-if="format === 'vex'" class="vex-scanner">
               <label class="fld-label">Scanner (one per VEX file)</label>
-              <div class="seg">
-                <button type="button" class="seg-opt" :class="{ 'seg-on': vexScanner === 'trivy' }" @click="vexScanner = 'trivy'">trivy</button>
-                <button type="button" class="seg-opt" :class="{ 'seg-on': vexScanner === 'grype' }" @click="vexScanner = 'grype'">grype</button>
-              </div>
+              <UiSegControl v-model="vexScanner" :options="SCANNER_OPTS" />
             </div>
 
             <template v-if="tab === 'now'">
@@ -257,30 +261,6 @@ const downloadHref = computed(() =>
 }
 .tabs {
   margin-bottom: 4px;
-}
-.seg {
-  display: inline-flex;
-  gap: 3px;
-  padding: 3px;
-  border: 1px solid var(--line);
-  border-radius: var(--r-sm);
-  background: var(--panel);
-}
-.seg-opt {
-  border: 0;
-  border-radius: 5px;
-  background: var(--card);
-  padding: 7px 12px;
-  font-size: var(--text-sm);
-  font-family: var(--font-ui);
-  color: var(--ink);
-  cursor: default;
-}
-.seg-on {
-  background: var(--dd-on-bg);
-  color: var(--coral-text);
-  box-shadow: inset 0 0 0 1px var(--coral);
-  font-weight: 600;
 }
 .fld-label {
   display: block;

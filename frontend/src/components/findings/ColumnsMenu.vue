@@ -8,6 +8,7 @@ import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSegControl from '@/components/ui/UiSegControl.vue'
 
 defineProps<{
   cols: readonly (readonly [string, string])[]
@@ -16,6 +17,11 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{ toggleCol: [key: string]; 'update:dense': [dense: boolean] }>()
+
+const DENSITY_OPTS = [
+  { value: 'compact', label: 'Compact' },
+  { value: 'comfortable', label: 'Comfortable' },
+] as const
 
 const open = ref(false)
 const wrap = useTemplateRef<HTMLElement>('wrap')
@@ -41,14 +47,13 @@ onUnmounted(() => {
     <UiButton variant="quiet" @click="open = !open"><AppIcon name="columns" :size="13" />Columns</UiButton>
     <div v-if="open" class="dd-menu cols-menu">
       <div class="dd-head">Density</div>
-      <div class="seg">
-        <button class="seg-opt" :class="{ 'seg-on': dense }" @click="emit('update:dense', true)">
-          Compact
-        </button>
-        <button class="seg-opt" :class="{ 'seg-on': !dense }" @click="emit('update:dense', false)">
-          Comfortable
-        </button>
-      </div>
+      <UiSegControl
+        tone="neutral"
+        class="density-seg"
+        :model-value="dense ? 'compact' : 'comfortable'"
+        :options="DENSITY_OPTS"
+        @update:model-value="(v) => emit('update:dense', v === 'compact')"
+      />
       <div class="dd-head">Columns</div>
       <button
         v-for="[key, label] in cols"
@@ -92,37 +97,8 @@ onUnmounted(() => {
   color: var(--soft);
   padding: 8px 12px 6px;
 }
-.seg {
-  display: inline-flex;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 3px;
-  gap: 2px;
+.density-seg {
   margin: 2px 8px 8px;
-}
-.seg-opt {
-  border: 0;
-  background: transparent;
-  color: var(--soft);
-  font-size: var(--text-control);
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-weight: 500;
-  white-space: nowrap;
-  cursor: default;
-}
-.seg-opt:hover {
-  color: var(--ink);
-}
-.seg-opt:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
-}
-.seg-on {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: var(--shadow);
 }
 .facet-row {
   display: flex;

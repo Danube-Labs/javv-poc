@@ -47,7 +47,6 @@ a {
 .state-opt,
 .vex-chip,
 .ra-chip,
-.seg-opt,
 .filter-field,
 .time-preset,
 .facet-row,
@@ -60,7 +59,6 @@ a {
 .state-opt:hover:not(:disabled):not(.state-opt-on),
 .vex-chip:hover:not(:disabled):not(.vex-chip-on),
 .ra-chip:hover:not(.ra-chip-on),
-.seg-opt:hover:not(.seg-on),
 .filter-field:hover,
 .time-preset:hover,
 .cols-row:hover,
@@ -68,15 +66,13 @@ a {
   background: var(--control-hover-bg);
   border-color: var(--control-hover-line);
 }
-.state-opt:active:not(:disabled),
-.seg-opt:active:not(.seg-on) {
+.state-opt:active:not(:disabled) {
   background: var(--control-active-bg);
 }
 @media (prefers-reduced-motion: reduce) {
   .state-opt,
   .vex-chip,
   .ra-chip,
-  .seg-opt,
   .filter-field,
   .time-preset,
   .facet-row,
