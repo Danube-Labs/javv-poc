@@ -66,6 +66,13 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > ([CONFIGURATION.md §2b](../../../docs/CONFIGURATION.md)); never log tokens/cookies/bodies (NFR-5).
 
 ## Updates
+- **2026-07-10 — presentation grammar + follow-up (#319 rulings):** global search ships as a
+  **⌘K command palette** (Nuxt UI CommandPalette grammar on our tokens — search CVE/image/
+  package + jump-to-screen), replacing the disabled topbar input. **Directly after this bolt**:
+  the parked a11y pass over the floating-element family (local task #83), which also builds the
+  kit **UiTooltip** (positioned/delayed/styled, replacing native `title` on the collapsed rail /
+  topbar placeholders / sweep footer) — bundled there because it shares the popover family's
+  positioning/dismiss/ARIA concerns and all consumers exist by then.
 - **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §A/§C):** **(A-4)** the UI gates on
   **capabilities from `/auth/me`**, never role names — real roles are `viewer/triager/security_lead/
   admin` (D33 bundles; the prototype's 5-role matrix maps onto them; [DECIDE at kickoff] if a 5th

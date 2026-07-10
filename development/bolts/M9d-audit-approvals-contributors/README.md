@@ -49,6 +49,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - VEX import (decision-from-VEX) → v1.1.
 
 ## Updates
+- **2026-07-10 — presentation grammar (#319 ruling):** the audit-log screen renders on the
+  **Nuxt UI Timeline grammar** (vertical timeline: marker + who/what/when per event) on our
+  tokens — never the library. Build from the UI kit (`frontend/DESIGN.md` §5) — dropdown/modal/
+  toast/motion come free.
 - **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §A-5):** the audit log is the
   structured D32 stream — `event_id`, `entity_type` (finding/decision/token/user/settings…),
   `action`, frozen `target_ids`, `revision`, ordered by `(@timestamp, event_id)` — not the
