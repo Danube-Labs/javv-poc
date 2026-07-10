@@ -67,38 +67,53 @@ export function epssOf(rows: FindingRow[]): { value: number; scanner: string } |
   return row ? { value: row.epss as number, scanner: row.scanner } : null
 }
 
-/** One "images affected" table row. Counts stay side-by-side — never summed. */
-export interface ImageGroupRow {
-  repo: string
-  /** Per-scanner finding counts for this repo+CVE; null = the scanner reported nothing here. */
-  trivy: number | null
-  grype: number | null
-  /** |trivy − grype| for display only (absent side counts as 0) — never a merged total. */
-  delta: number
-  /** One scanner at zero/absent while the other reports — disagreement-grade weight. */
-  zeroVsNonzero: boolean
+/** One "affected components" row (prototype parity — the component is the package inside a
+ * running image; workload names don't exist in the data, D30). Namespaces ride per row.
+ * Scanners are LISTED, never merged: the group key includes both versions, so a scanner
+ * disagreement on current/fixed splits into separate rows and stays visible. */
+export interface AffectedComponentRow {
+  image: string
+  packageName: string
+  current: string | null
+  fixed: string | null
+  namespaces: string[]
+  scanners: string[]
 }
 
-interface GroupBucket {
-  key: string | number | boolean
-  count: number
-  by_scanner: Record<string, number>
-}
-
-/** Rows come back in composite-key order — display worst-first so 100+ images stays scannable. */
-export function imageGroupRows(buckets: GroupBucket[]): ImageGroupRow[] {
-  const rows = buckets.map((b) => {
-    const trivy = b.by_scanner['trivy'] ?? null
-    const grype = b.by_scanner['grype'] ?? null
-    const t = trivy ?? 0
-    const g = grype ?? 0
-    return {
-      repo: String(b.key),
-      trivy,
-      grype,
-      delta: Math.abs(t - g),
-      zeroVsNonzero: (t === 0) !== (g === 0),
+export function affectedComponentRows(rows: FindingRow[]): AffectedComponentRow[] {
+  const byKey = new Map<string, AffectedComponentRow>()
+  for (const r of rows) {
+    const image = `${r.image_repo}${r.tag ? ':' + r.tag : ''}`
+    const key = [image, r.package_name, r.installed_version ?? '', r.fixed_version ?? ''].join('|')
+    let out = byKey.get(key)
+    if (!out) {
+      out = {
+        image,
+        packageName: r.package_name,
+        current: r.installed_version,
+        fixed: r.fixed_version,
+        namespaces: [],
+        scanners: [],
+      }
+      byKey.set(key, out)
     }
-  })
-  return rows.sort((a, b) => Math.max(b.trivy ?? 0, b.grype ?? 0) - Math.max(a.trivy ?? 0, a.grype ?? 0))
+    const ns = Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []
+    for (const n of ns) if (!out.namespaces.includes(n)) out.namespaces.push(n)
+    if (!out.scanners.includes(r.scanner)) out.scanners.push(r.scanner)
+  }
+  const out = [...byKey.values()]
+  for (const r of out) {
+    r.namespaces.sort()
+    r.scanners.sort(
+      (a, b) =>
+        (SCANNER_ORDER as readonly string[]).indexOf(a) -
+        (SCANNER_ORDER as readonly string[]).indexOf(b),
+    )
+  }
+  return out.sort(
+    (a, b) =>
+      a.image.localeCompare(b.image) ||
+      a.packageName.localeCompare(b.packageName) ||
+      (a.fixed ?? '').localeCompare(b.fixed ?? ''),
+  )
 }
