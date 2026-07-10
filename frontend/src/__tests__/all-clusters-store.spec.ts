@@ -6,10 +6,10 @@ import { useAllClustersStore } from '@/stores/allClusters'
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } })
 
 vi.mock('@/api/generated', () => ({
-  listClustersApiV1ClustersGet: vi.fn(),
-  facetFindingsApiV1FindingsFacetsGet: vi.fn(),
-  scannerFreshnessApiV1ScannersFreshnessGet: vi.fn(),
-  listRunningImagesApiV1ImagesGet: vi.fn(),
+  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
+  facetFindingsApiV1FindingsFacetsGet: vi.fn<() => Promise<unknown>>(),
+  scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
+  listRunningImagesApiV1ImagesGet: vi.fn<() => Promise<unknown>>(),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 

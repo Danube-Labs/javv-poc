@@ -20,8 +20,7 @@ const router = createRouter({
         {
           path: 'clusters',
           name: 'clusters',
-          component: () => import('@/views/PlaceholderView.vue'),
-          props: { title: 'All clusters', bolt: 'M9c' },
+          component: () => import('@/views/AllClustersView.vue'),
         },
         {
           path: 'views',
