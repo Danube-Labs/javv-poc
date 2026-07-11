@@ -442,6 +442,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .sev-band {
   grid-template-columns: repeat(5, 1fr);
+  margin-bottom: 16px;
 }
 .kpi-cell {
   cursor: default;
