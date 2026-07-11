@@ -186,9 +186,10 @@ function openFinding(row: FindingRow) {
 const COLS_KEY = 'javv.findings.hidden_cols'
 const DENSE_KEY = 'javv.findings.dense'
 // first-run default hides the low-signal columns (operator 2026-07-11: KEV mostly empty,
-// versions live in the detail view) — the Columns menu + localStorage override per user
+// versions live in the detail view; last_scan is the hidden sibling of first_seen) — the
+// Columns menu + localStorage override per user
 const hiddenCols = ref<Set<string>>(
-  new Set(JSON.parse(localStorage.getItem(COLS_KEY) ?? '["epss","kev","current","fixed"]')),
+  new Set(JSON.parse(localStorage.getItem(COLS_KEY) ?? '["epss","kev","current","fixed","last_scan"]')),
 )
 const dense = ref(localStorage.getItem(DENSE_KEY) !== 'false')
 

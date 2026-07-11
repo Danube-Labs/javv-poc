@@ -31,6 +31,7 @@ import ScannerTag from '@/components/chips/ScannerTag.vue'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS, type FindingsColumnKey } from '@/findings/columns'
 import type { FindingRow } from '@/stores/findings'
+import { lastDataAt } from '@/system/freshness'
 
 const props = withDefaults(
   defineProps<{
@@ -63,6 +64,8 @@ const orderedKeys = computed(
 )
 
 const COL_HEADER: Record<FindingsColumnKey, string> = {
+  first_seen: 'First seen',
+  last_scan: 'Last scan',
   epss: 'EPSS',
   kev: 'KEV',
   package: 'Package',
@@ -79,6 +82,8 @@ const COL_HEADER: Record<FindingsColumnKey, string> = {
 // every cell left-anchored (operator 2026-07-11: we read left to right — no r/c columns);
 // narrow data columns shrink to content so layout slack pools in the text columns
 const FIT_COLS = new Set<FindingsColumnKey>([
+  'first_seen',
+  'last_scan',
   'epss',
   'kev',
   'current',
@@ -91,6 +96,13 @@ const FIT_COLS = new Set<FindingsColumnKey>([
 ])
 const colClass = (key: FindingsColumnKey) =>
   [FIT_COLS.has(key) ? 'fit' : '', props.reorderable ? 'th-drag' : ''].join(' ').trim()
+
+// the server's sort whitelist, column → field (severity_rank rides the pinned column)
+const SORT_FIELD: Partial<Record<FindingsColumnKey, SortField>> = {
+  first_seen: 'first_seen_at',
+  last_scan: 'last_scan_at',
+  epss: 'epss',
+}
 
 const emit = defineEmits<{
   sort: [field: SortField]
@@ -158,8 +170,8 @@ const nsLabel = (r: FindingRow): string => {
         v-for="key in orderedKeys"
         :key="key"
         :column-key="key"
-        :field="key === 'epss' ? 'epss' : undefined"
-        :sortable="key === 'epss'"
+        :field="SORT_FIELD[key]"
+        :sortable="key in SORT_FIELD"
         :class="colClass(key)"
       >
         <template #header>
@@ -167,7 +179,9 @@ const nsLabel = (r: FindingRow): string => {
           <span v-else>{{ COL_HEADER[key] }}</span>
         </template>
         <template #body="{ data }">
-          <EpssBar v-if="key === 'epss'" :v="data.epss" />
+          <span v-if="key === 'first_seen'" class="mono-cell sm nowrap" :title="data.first_seen_at ?? ''">{{ lastDataAt(data.first_seen_at ?? null) }}</span>
+          <span v-else-if="key === 'last_scan'" class="mono-cell sm nowrap" :title="data.last_scan_at ?? ''">{{ lastDataAt(data.last_scan_at ?? null) }}</span>
+          <EpssBar v-else-if="key === 'epss'" :v="data.epss" />
           <KevTag v-else-if="key === 'kev'" :on="data.kev === true" />
           <span v-else-if="key === 'package'" class="pkg" :title="data.package_name"
             ><em class="pkg-name">{{ data.package_name }}</em><i class="pkg-type">{{ data.ptype ?? 'unknown' }}</i></span

@@ -5,6 +5,10 @@
  * else — State included (operator 2026-07-11) — moves and toggles freely.
  */
 export const FINDINGS_COLUMNS = [
+  // the time lens (operator 2026-07-11): identity leads, time sits first after the pins —
+  // sortable so "newest ingest wave first" is one header click, never the default sort
+  ['first_seen', 'First seen'],
+  ['last_scan', 'Last scan'],
   ['epss', 'EPSS'],
   ['kev', 'KEV'],
   ['package', 'Package'],
