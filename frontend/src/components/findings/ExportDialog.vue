@@ -20,6 +20,7 @@ import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FilterField } from '@/filters/fields.config'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
+import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 
 const props = defineProps<{
@@ -52,8 +53,12 @@ const error = ref<string | null>(null)
 const report = ref<{ id: string; status: string; token?: string; expires_at?: string } | null>(null)
 let poll: ReturnType<typeof setInterval> | null = null
 
+const timeTravel = useTimeTravelStore()
 const lensQuery = computed(() =>
-  buildFilterQuery(props.fields, props.selections, withGlobals()),
+  buildFilterQuery(props.fields, props.selections, {
+    ...withGlobals(),
+    window_days: timeTravel.windowDays,
+  }),
 )
 /** ExportParams has no namespace/ptype — a lens using them cannot be scheduled faithfully. */
 const scheduleBlocked = computed(() => {

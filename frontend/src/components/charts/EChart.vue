@@ -15,6 +15,7 @@ import VChart from 'vue-echarts'
 use([LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
 
 const props = defineProps<{ option: EChartsOption; height?: number }>()
+const emit = defineEmits<{ 'point-click': [params: { dataIndex: number; seriesName?: string }] }>()
 
 const raw = shallowRef(markRaw(props.option))
 watchEffect(() => {
@@ -23,5 +24,10 @@ watchEffect(() => {
 </script>
 
 <template>
-  <VChart :option="raw" :style="{ height: `${height ?? 250}px` }" autoresize />
+  <VChart
+    :option="raw"
+    :style="{ height: `${height ?? 250}px` }"
+    autoresize
+    @click="emit('point-click', $event as { dataIndex: number; seriesName?: string })"
+  />
 </template>

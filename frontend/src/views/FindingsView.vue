@@ -20,6 +20,7 @@ import FilterBar from '@/components/filters/FilterBar.vue'
 import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
 import ExportDialog from '@/components/findings/ExportDialog.vue'
 import BulkTriageBar from '@/components/triage/BulkTriageBar.vue'
+import IngestLens from '@/components/dashboards/IngestLens.vue'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -54,8 +55,11 @@ const facetsFailed = ref(false)
 filters.fromQuery(route.query)
 
 /* ---- facets (M9a) ---- */
+// window_days feeds ONLY the "new in range" flag; changing the picker window re-fires both
+// reads while that flag is on (the computed tracks the store)
+const filterGlobals = () => ({ ...withGlobals(), window_days: timeTravel.windowDays })
 const facetsQuery = computed(() =>
-  clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, withGlobals()) : null,
+  clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, filterGlobals()) : null,
 )
 
 async function loadFacets(q: typeof facetsQuery.value) {
@@ -82,7 +86,7 @@ watch(facetsQuery, (q, old) => {
 
 const rowsQuery = computed(() =>
   clusterStore.selectedId
-    ? buildFindingsQuery(FINDINGS_FIELDS, filters.selections, withGlobals(), {
+    ? buildFindingsQuery(FINDINGS_FIELDS, filters.selections, filterGlobals(), {
         sort: grid.sort,
         order: grid.order,
         size: grid.size,
@@ -188,13 +192,15 @@ function setDense(value: boolean) {
 
 <template>
   <div class="screen">
-    <div class="screen-head">
-      <div>
+    <div class="screen-head screen-head-band">
+      <div class="head-card">
         <h1>Findings</h1>
-        <p class="screen-sub">
-          <b>{{ grid.total.toLocaleString('en-US') }}</b> findings · kept per-scanner, no cross-merge
+        <p class="head-stat">
+          {{ grid.total.toLocaleString('en-US') }}<span class="head-unit"> findings</span>
         </p>
+        <p class="head-note">kept per-scanner, no cross-merge</p>
       </div>
+      <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
     </div>
 
     <div class="findings-layout">

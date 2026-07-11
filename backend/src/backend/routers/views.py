@@ -62,6 +62,7 @@ class ViewPreset(BaseModel):
     ptype: str | None = Field(default=None, max_length=64, pattern=r"^[a-z0-9][a-z0-9+._-]*$")
     q: str | None = Field(default=None, min_length=2, max_length=128)
     present: bool = True
+    new_within_days: int | None = Field(default=None, ge=1, le=365)
 
     @field_validator("severity")
     @classmethod

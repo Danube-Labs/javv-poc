@@ -24,6 +24,7 @@ from opensearchpy import AsyncOpenSearch
 from opensearchpy.exceptions import NotFoundError, RequestError
 
 from backend.core.settings import get_settings
+from backend.query.trends import window_bounds
 from backend.tenancy.chokepoint import tenant_query
 
 log = structlog.get_logger()
@@ -57,6 +58,9 @@ class SearchFilters:
     ptype: str | None = None  # package type (M8d/B-1): "os" | ecosystem string
     q: str | None = None  # contains-search across cve/image/namespace/assignee/package (slice 4)
     present: bool = True  # the "now" grid; tombstones are opt-in
+    # "new in range": first_seen_at ≥ the trend window's day-floored start — the SAME bounds
+    # the trend charts use, so the lens bars and the filtered rows always agree
+    new_within_days: int | None = None
 
 
 def build_search_body(
@@ -97,6 +101,9 @@ def build_search_body(
     ):
         if term is not None:
             fl.append({"term": {field: term}})
+    if filters.new_within_days is not None:
+        gte, _upper = window_bounds(filters.new_within_days)
+        fl.append({"range": {"first_seen_at": {"gte": gte}}})
     bool_q: dict[str, Any] = {"filter": fl}
     if filters.q is not None:
         # contains-match across the identifier fields (M9b slice 4, operator ask). Structured

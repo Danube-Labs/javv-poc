@@ -21,13 +21,16 @@ export interface FacetItem {
   /** Server-side count; null when the backend has no aggregation for this value. */
   count: number | null
   byScanner: Record<string, number> | null
+  /** Config-declared hover explanation (flags only); wins over the scanner split. */
+  hint?: string
 }
 
-const item = (value: string, label: string, bucket?: FacetBucket): FacetItem => ({
+const item = (value: string, label: string, bucket?: FacetBucket, hint?: string): FacetItem => ({
   value,
   label,
   count: bucket ? bucket.count : null,
   byScanner: bucket ? bucket.by_scanner : null,
+  ...(hint !== undefined ? { hint } : {}),
 })
 
 /** Display items for one field, or null when the field has no listable values (text fields). */
@@ -36,7 +39,7 @@ export function facetItems(field: FilterField, facets: FacetsResponse): FacetIte
 
   if (field.type === 'flags') {
     return field.values.map((flag) =>
-      item(flag.key, flag.label, (facets[flag.param] ?? []).find((b) => b.key === 'true')),
+      item(flag.key, flag.label, (facets[flag.param] ?? []).find((b) => b.key === 'true'), flag.hint),
     )
   }
 

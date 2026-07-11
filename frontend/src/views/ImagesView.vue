@@ -16,6 +16,7 @@ import { useRoute, useRouter } from 'vue-router'
 import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
 import SevChip from '@/components/chips/SevChip.vue'
+import IngestLens from '@/components/dashboards/IngestLens.vue'
 import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import ImagesTable, { type ImagesSortField } from '@/components/images/ImagesTable.vue'
@@ -128,21 +129,22 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 
 <template>
   <div class="screen">
-    <div class="screen-head">
-      <div>
+    <div class="screen-head screen-head-band">
+      <div class="head-card">
         <h1>Running images</h1>
-        <p class="screen-sub">
-          <template v-if="images.inventory">
-            <b class="mono-cell">{{ fmt(filtered.length) }}</b>
-            <template v-if="filtered.length !== images.images.length"> of {{ fmt(images.images.length) }}</template>
-            image{{ filtered.length === 1 ? '' : 's' }} ·
-            <b class="mono-cell">{{ fmt(totalReplicas) }}</b> replicas
-            <template v-if="inventoryAt"> · inventory as of <span class="mono-cell">{{ inventoryAt }}</span></template>
-            · digest-deduped
-          </template>
-          <template v-else>the latest committed inventory, per digest</template>
-        </p>
+        <template v-if="images.inventory">
+          <p class="head-stat">
+            {{ fmt(filtered.length) }}<span class="head-unit">
+              <template v-if="filtered.length !== images.images.length">of {{ fmt(images.images.length) }} </template>image{{ filtered.length === 1 ? '' : 's' }}</span>
+            · {{ fmt(totalReplicas) }}<span class="head-unit"> replicas</span>
+          </p>
+          <p class="head-note">
+            <template v-if="inventoryAt">inventory as of <span class="mono-cell">{{ inventoryAt }}</span> · </template>digest-deduped
+          </p>
+        </template>
+        <p v-else class="head-note">the latest committed inventory, per digest</p>
       </div>
+      <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
     </div>
 
     <div v-if="images.loading" aria-busy="true" aria-label="Loading images">

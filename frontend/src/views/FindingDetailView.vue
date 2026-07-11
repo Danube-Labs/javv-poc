@@ -8,7 +8,7 @@
  * overdue (B-5). Historical rows null fields out — everything here tolerates that.
  */
 import { computed, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import {
   readAuditLogApiV1AuditGet,
@@ -316,7 +316,18 @@ watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { im
             </div>
             <div class="fact">
               <em>Image</em>
-              <span class="fact-val mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span>
+              <RouterLink
+                v-if="digest && primary?.image_repo"
+                class="fact-val mono-cell fact-link"
+                :to="{
+                  path: `/images/${digest}`,
+                  query: { repo: primary.image_repo, ...(primary.tag ? { tag: primary.tag } : {}) },
+                }"
+                title="Open this image's detail"
+                >{{ primary.image_repo }}{{ primary.tag ? ':' + primary.tag : ''
+                }}<AppIcon class="fact-go" name="chevron" :size="11"
+              /></RouterLink>
+              <span v-else class="fact-val mono-cell">{{ primary?.image_repo }}{{ primary?.tag ? ':' + primary.tag : '' }}</span>
             </div>
             <div class="fact">
               <em>First seen</em>
@@ -589,6 +600,27 @@ watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { im
 .fact-val {
   font-size: var(--text-body);
   color: var(--ink);
+}
+.fact-link {
+  text-decoration: none;
+  transition: color var(--dur-quick);
+}
+.fact-link:hover {
+  color: var(--coral-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fact-link:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+.fact-go {
+  color: var(--dash-muted);
+  margin-left: 3px;
+  vertical-align: -1px;
+}
+.fact-link:hover .fact-go {
+  color: var(--coral-text);
 }
 .fact-num {
   font-size: var(--text-kpi);

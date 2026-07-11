@@ -63,6 +63,48 @@ a {
   font-size: var(--text-body);
   margin-top: 2px;
 }
+/* the lens band (operator A/B → A, 2026-07-11): the head mirrors the findings-layout columns —
+   the title card sits on the rail track, the ingest lens spans exactly the table track, and the
+   band hugs the toolbar (tight margin) so it reads as part of the grid below */
+.screen-head-band {
+  gap: var(--grid-gap);
+  align-items: stretch;
+  margin-bottom: 14px;
+}
+.head-card {
+  flex: none;
+  width: var(--facet-rail-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+}
+.head-card h1 {
+  margin: 0;
+}
+.head-stat {
+  margin: 4px 0 0;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 20px;
+  color: var(--ink);
+}
+.head-unit {
+  margin-left: 4px;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: var(--text-sm);
+  color: var(--soft);
+}
+.head-note {
+  margin: auto 0 0;
+  padding-top: 6px;
+  font-size: var(--text-sm);
+  color: var(--soft);
+}
 .findings-layout {
   display: flex;
   gap: var(--grid-gap);

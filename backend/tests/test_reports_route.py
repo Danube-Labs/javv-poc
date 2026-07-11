@@ -102,6 +102,7 @@ async def test_enqueue_writes_a_pending_doc_and_status_reads_it_back(env) -> Non
         "ptype": None,  # M8d/#241 — mirrors SearchFilters
         "q": None,  # M9b slice 4 — the contains-search lens
         "present": True,
+        "new_within_days": None,  # the new-in-range event lens
     }
 
     # the status view returns the public shape, never the params blob or claim internals

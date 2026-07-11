@@ -68,6 +68,17 @@ def test_every_facet_filter_is_a_filter_clause_never_scoring() -> None:
     assert "must" not in body["query"]["bool"]  # facets never score
 
 
+def test_new_within_days_is_a_range_filter_on_the_trend_window_start() -> None:
+    from backend.query.trends import window_bounds
+
+    body = build_search_body(SearchFilters(new_within_days=30), size=1)
+    gte, _upper = window_bounds(30)
+    assert {"range": {"first_seen_at": {"gte": gte}}} in body["query"]["bool"]["filter"]
+    # absent by default — the flag is opt-in, never an implicit recency cut
+    default = build_search_body(SearchFilters(), size=1)
+    assert not [c for c in default["query"]["bool"]["filter"] if "range" in c]
+
+
 def test_present_false_is_expressible_for_the_tombstone_view() -> None:
     body = build_search_body(SearchFilters(present=False), size=10)
     assert {"term": {"present": False}} in body["query"]["bool"]["filter"]
