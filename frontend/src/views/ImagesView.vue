@@ -24,6 +24,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { useApi } from '@/composables/useApi'
 import { IMAGES_COLUMNS, IMAGES_FIELDS } from '@/images/fields.config'
+import { reorderFromDrag, restoreOrder } from '@/system/columnOrder'
 import { filterImages, imagesCsv, imagesFacets } from '@/images/imageFilters'
 import { logger } from '@/lib/logger'
 import { makeFiltersStore } from '@/stores/filters'
@@ -102,6 +103,24 @@ function toggleCol(key: string) {
 function setDense(value: boolean) {
   dense.value = value
   localStorage.setItem(DENSE_KEY, String(value))
+}
+
+/* column order (task 92) — the findings pattern, images-scoped key */
+const ORDER_KEY = 'javv.images.col_order'
+const colOrder = ref<string[]>(
+  restoreOrder(localStorage.getItem(ORDER_KEY), IMAGES_COLUMNS.map(([key]) => key)),
+)
+const orderedCols = computed(() =>
+  colOrder.value.map((key) => IMAGES_COLUMNS.find(([k]) => k === key)!),
+)
+function setColOrder(next: string[]) {
+  colOrder.value = next
+  localStorage.setItem(ORDER_KEY, JSON.stringify(next))
+}
+function onHeaderReorder(dragIndex: number, dropIndex: number) {
+  // 1 = the pinned Image identity column the PrimeVue indexes count past
+  const next = reorderFromDrag(colOrder.value, hiddenCols.value, dragIndex, dropIndex, 1)
+  if (next) setColOrder(next)
 }
 
 function openImage(row: ImageRow) {
@@ -212,11 +231,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             <AppIcon name="download" :size="14" /> Export CSV
           </UiButton>
           <ColumnsMenu
-            :cols="IMAGES_COLUMNS"
+            :cols="orderedCols"
             :hidden="hiddenCols"
             :dense="dense"
+            reorderable
             @toggle-col="toggleCol"
             @update:dense="setDense"
+            @reorder="setColOrder"
           />
         </div>
         <ImagesTable
@@ -226,9 +247,12 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           :loading="images.loading"
           :filtered="filters.hasFilters"
           :hidden="hiddenCols"
+          :col-order="colOrder"
+          reorderable
           :dense="dense"
           @sort="onSort"
           @row-click="openImage"
+          @reorder="onHeaderReorder"
         />
         <GridPager
           :total="filtered.length"

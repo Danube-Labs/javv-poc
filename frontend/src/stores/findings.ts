@@ -32,6 +32,8 @@ export interface FindingRow {
   assignee?: string | null
   overdue: boolean
   due_at: string | null
+  first_seen_at?: string | null
+  last_scan_at?: string | null
   [key: string]: unknown
 }
 

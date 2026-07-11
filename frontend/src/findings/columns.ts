@@ -1,9 +1,14 @@
 /**
  * The togglable findings-grid columns — ONE list drives both the table's `v-if`s and the
- * Columns menu (same one-config-drives-both discipline as the filter module). Vulnerability,
- * Severity and State are fixed and not listed: a findings grid without them is meaningless.
+ * Columns menu (same one-config-drives-both discipline as the filter module). Only
+ * Vulnerability and Severity are fixed and not listed (the row's identity); everything
+ * else — State included (operator 2026-07-11) — moves and toggles freely.
  */
 export const FINDINGS_COLUMNS = [
+  // the time lens (operator 2026-07-11): identity leads, time sits first after the pins —
+  // sortable so "newest ingest wave first" is one header click, never the default sort
+  ['first_seen', 'First seen'],
+  ['last_scan', 'Last scan'],
   ['epss', 'EPSS'],
   ['kev', 'KEV'],
   ['package', 'Package'],
@@ -14,6 +19,7 @@ export const FINDINGS_COLUMNS = [
   ['images', 'Affected images'],
   ['scanner', 'Scanner'],
   ['sla', 'SLA'],
+  ['state', 'State'],
   ['assignee', 'Assignee'],
 ] as const
 
