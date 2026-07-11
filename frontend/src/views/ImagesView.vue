@@ -1,38 +1,51 @@
 <script setup lang="ts">
 /**
- * Running images — the committed-inventory surface (M9c slice 3; SCREENS-v5 §7). Rows are the
- * server's image docs verbatim: the mix bar and Findings count belong to the doc's OWN
- * scanner(s) (labeled), the D5b `T/G Δ` pair is the cross-scanner signal — never merged.
- * Fully time-travelable: the global T rides `as_of` into the same backend primitives as the
- * M8b reader; no committed inventory at T = "unknown", never an empty cluster. Image naming
+ * Running images — the committed-inventory surface (M9c slice 3; SCREENS-v5 §7, prototype
+ * screens-images.jsx). The M9a filter module drives the rail + bar (imported, never re-built;
+ * an images-scoped store instance keeps shareable URLs); the grid is the M9b table grammar
+ * with image columns. The inventory is ONE committed run, fully served — filtering, facet
+ * counts (image counts), sorting, and paging are pure client operations over those served
+ * rows (unit-tested in imageFilters.ts); every underlying number is still the server's.
+ * Fully time-travelable: the global T rides `as_of` into the same primitives as the M8b
+ * reader; no committed inventory at T = "unknown", never an empty cluster. Image naming
  * composes `image_repo` + `tag` — no combined image_ref field exists on the docs.
  */
-import { computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
-import ScannerTag from '@/components/chips/ScannerTag.vue'
-import MixBar from '@/components/dashboards/MixBar.vue'
+import FacetRail from '@/components/filters/FacetRail.vue'
+import FilterBar from '@/components/filters/FilterBar.vue'
+import SevChip from '@/components/chips/SevChip.vue'
+import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
+import GridPager from '@/components/findings/GridPager.vue'
+import ImagesTable, { type ImagesSortField } from '@/components/images/ImagesTable.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import { useApi } from '@/composables/useApi'
+import { IMAGES_COLUMNS, IMAGES_FIELDS } from '@/images/fields.config'
+import { filterImages, imagesCsv, imagesFacets } from '@/images/imageFilters'
+import { logger } from '@/lib/logger'
+import { makeFiltersStore } from '@/stores/filters'
+import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useImagesStore, type ImageRow } from '@/stores/images'
 import { useTimeTravelStore } from '@/stores/timeTravel'
-import type { Severity } from '@/styles/tokens'
 import { lastDataAt } from '@/system/freshness'
 
+const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
 const images = useImagesStore()
+const filters = makeFiltersStore('imageFilters', IMAGES_FIELDS)()
 const { withGlobals } = useApi()
 
-function openImage(row: ImageRow) {
-  void router.push({
-    name: 'image-detail',
-    params: { digest: row.image_digest },
-    query: { repo: row.image_repo, tag: row.tag },
-  })
-}
+filters.fromQuery(route.query)
+watch(
+  () => filters.toQuery(),
+  (q) => void router.replace({ query: q }),
+)
 
 watch(
   () => [clusterStore.selectedId, timeTravel.t] as const,
@@ -42,28 +55,75 @@ watch(
   { immediate: true },
 )
 
-/** The doc's severity buckets under canonical names — they are the doc's own scanner's. */
-function mixOf(row: ImageRow): Partial<Record<Severity, number>> {
-  return {
-    critical: row.crit,
-    high: row.high,
-    medium: row.med,
-    low: row.low,
-    negligible: row.negligible,
-    unknown: row.unknown,
+/* ---- pure client pipeline over the served run: filter → facets → sort → slice ---- */
+const filtered = computed(() => filterImages(images.images, filters.selections))
+const facets = computed(() => imagesFacets(images.images))
+
+const sort = ref<ImagesSortField | null>(null)
+const order = ref<'asc' | 'desc'>('desc')
+const size = ref(25)
+const page = ref(0)
+watch([filtered, size], () => (page.value = 0))
+
+const sorted = computed(() => {
+  if (!sort.value) return filtered.value
+  const key = sort.value
+  const dir = order.value === 'desc' ? -1 : 1
+  return [...filtered.value].sort((a, b) => ((a[key] ?? 0) as number) - ((b[key] ?? 0) as number) > 0 ? dir : -dir)
+})
+const pageRows = computed(() => sorted.value.slice(page.value * size.value, (page.value + 1) * size.value))
+
+function onSort(field: ImagesSortField) {
+  if (sort.value === field) {
+    order.value = order.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sort.value = field
+    order.value = 'desc'
   }
 }
 
-/** Registry prefix split off for the quiet second line (docker.io/library/nginx → nginx). */
-const shortRepo = (repo: string) => repo.split('/').at(-1) ?? repo
-const registryOf = (repo: string) => (repo.includes('/') ? repo.slice(0, repo.lastIndexOf('/')) : null)
+/* columns + density — the findings pattern, images-scoped keys */
+const COLS_KEY = 'javv.images.hidden_cols'
+const DENSE_KEY = 'javv.images.dense'
+const hiddenCols = ref<Set<string>>(new Set(JSON.parse(localStorage.getItem(COLS_KEY) ?? '[]')))
+const dense = ref(localStorage.getItem(DENSE_KEY) !== 'false')
+function toggleCol(key: string) {
+  const next = new Set(hiddenCols.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  hiddenCols.value = next
+  localStorage.setItem(COLS_KEY, JSON.stringify([...next]))
+}
+function setDense(value: boolean) {
+  dense.value = value
+  localStorage.setItem(DENSE_KEY, String(value))
+}
+
+function openImage(row: ImageRow) {
+  void router.push({
+    name: 'image-detail',
+    params: { digest: row.image_digest },
+    query: { repo: row.image_repo, tag: row.tag },
+  })
+}
+
+/** The list export — inventory rows already served; findings exports stay M6/M7's. */
+function exportCsv() {
+  const csv = imagesCsv(sorted.value)
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `javv-images-${clusterStore.selectedId ?? 'cluster'}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  logger.info('images_csv_exported', { rows: sorted.value.length })
+}
 
 const totalReplicas = computed(() => images.images.reduce((n, r) => n + (r.replicas ?? 0), 0))
 const inventoryAt = computed(() =>
   images.inventory?.completed_at ? lastDataAt(images.inventory.completed_at) : null,
 )
 const fmt = (n: number) => n.toLocaleString('en-US')
-const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
 </script>
 
 <template>
@@ -73,10 +133,12 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
         <h1>Running images</h1>
         <p class="screen-sub">
           <template v-if="images.inventory">
-            <b class="mono-cell">{{ fmt(images.images.length) }}</b>
-            image{{ images.images.length === 1 ? '' : 's' }} ·
+            <b class="mono-cell">{{ fmt(filtered.length) }}</b>
+            <template v-if="filtered.length !== images.images.length"> of {{ fmt(images.images.length) }}</template>
+            image{{ filtered.length === 1 ? '' : 's' }} ·
             <b class="mono-cell">{{ fmt(totalReplicas) }}</b> replicas
             <template v-if="inventoryAt"> · inventory as of <span class="mono-cell">{{ inventoryAt }}</span></template>
+            · digest-deduped
           </template>
           <template v-else>the latest committed inventory, per digest</template>
         </p>
@@ -99,61 +161,81 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
       </p>
     </div>
 
-    <div v-else-if="images.images.length === 0" class="first-run">
-      <h2>No running images</h2>
-      <p>The inventory committed{{ inventoryAt ? ` at ${inventoryAt}` : '' }} is empty.</p>
-    </div>
+    <div v-else class="findings-layout">
+      <div class="rail-col">
+        <div class="facet-search">
+          <AppIcon name="search" :size="14" />
+          <input
+            :value="filters.selections.q?.[0] ?? ''"
+            placeholder="image, registry, namespace…"
+            aria-label="Search images (contains match)"
+            @keydown.enter="filters.setText('q', ($event.target as HTMLInputElement).value)"
+          />
+        </div>
+        <FacetRail
+          :fields="IMAGES_FIELDS"
+          :selections="filters.selections"
+          :facets="facets"
+          @toggle="filters.toggle"
+        >
+          <template #value="{ field, value, label }">
+            <SevChip v-if="field.key === 'severity'" :level="value" :dot="true" />
+            <template v-else>{{ label }}</template>
+          </template>
+        </FacetRail>
+      </div>
 
-    <section v-else class="card fleet-card">
-      <table class="tbl tbl-hover">
-        <thead>
-          <tr>
-            <th>Image</th>
-            <th>Tag</th>
-            <th>Namespaces</th>
-            <th>Severity mix</th>
-            <th class="r">Findings</th>
-            <th class="r">T / G · Δ</th>
-            <th class="r">Replicas</th>
-            <th class="r">Scanners</th>
-            <th class="r">Last seen</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in images.images"
-            :key="row.image_digest"
-            :title="`Open ${shortRepo(row.image_repo)}:${row.tag}`"
-            @click="openImage(row)"
+      <div class="findings-main">
+        <div class="toolbar-row">
+          <FilterBar
+            :fields="IMAGES_FIELDS"
+            :selections="filters.selections"
+            :facets="facets"
+            @toggle="filters.toggle"
+            @set-text="filters.setText"
+            @clear-field="filters.clearField"
+            @clear-all="filters.clearAll"
+          />
+          <UiButton
+            v-if="auth.hasCapability('can_export')"
+            variant="ghost"
+            :disabled="filtered.length === 0"
+            @click="exportCsv"
           >
-            <td>
-              <span class="img-name img-link">{{ shortRepo(row.image_repo) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-              <span v-if="registryOf(row.image_repo)" class="img-registry mono-cell">{{ registryOf(row.image_repo) }}</span>
-            </td>
-            <td class="mono-cell">{{ row.tag }}</td>
-            <td class="mono-cell ns-cell" :title="row.namespaces.join(', ')">{{ row.namespaces.join(', ') }}</td>
-            <td class="mix-cell">
-              <MixBar :counts="mixOf(row)" :label="row.scanners.join('+')" />
-            </td>
-            <td class="r mono-cell"><b>{{ fmt(row.total) }}</b></td>
-            <td class="r mono-cell">
-              <template v-if="row.trivy_count != null && row.grype_count != null">
-                {{ fmt(row.trivy_count) }} / {{ fmt(row.grype_count) }}
-                · <b :class="{ 'delta-warn': row.count_delta !== 0 }">Δ {{ delta(row.count_delta ?? 0) }}</b>
-              </template>
-              <span v-else class="muted-dash">-</span>
-            </td>
-            <td class="r mono-cell">{{ fmt(row.replicas ?? 0) }}</td>
-            <td class="r">
-              <span class="scanner-stack">
-                <ScannerTag v-for="s in row.scanners" :key="s" :name="s" />
-              </span>
-            </td>
-            <td class="r mono-cell">{{ lastDataAt(row['@timestamp']) }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+            <AppIcon name="download" :size="14" /> Export CSV
+          </UiButton>
+          <ColumnsMenu
+            :cols="IMAGES_COLUMNS"
+            :hidden="hiddenCols"
+            :dense="dense"
+            @toggle-col="toggleCol"
+            @update:dense="setDense"
+          />
+        </div>
+        <ImagesTable
+          :rows="pageRows"
+          :sort="sort"
+          :order="order"
+          :loading="images.loading"
+          :filtered="filters.hasFilters"
+          :hidden="hiddenCols"
+          :dense="dense"
+          @sort="onSort"
+          @row-click="openImage"
+        />
+        <GridPager
+          :total="filtered.length"
+          :page="page"
+          :size="size"
+          :shown="pageRows.length"
+          :has-prev="page > 0"
+          :has-next="(page + 1) * size < filtered.length"
+          @prev="page -= 1"
+          @next="page += 1"
+          @update:size="(s: number) => (size = s)"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -173,126 +255,62 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
   color: var(--soft);
   font-size: var(--text-body);
 }
-
-/* flush table card + anchored cells — the ruled all-clusters grammar */
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-}
-.fleet-card {
-  overflow: hidden;
-}
-.fleet-card .tbl th:first-child,
-.fleet-card .tbl td:first-child {
-  padding-left: 16px;
-}
-.fleet-card .tbl th:last-child,
-.fleet-card .tbl td:last-child {
-  padding-right: 16px;
-}
-.fleet-card .tbl tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-body);
-}
-.tbl th {
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--soft);
-  text-align: left;
-  padding: 7px 12px;
-  border-bottom: 1px solid var(--line2);
-  background: var(--panel);
-}
-.tbl td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
-.tbl th + th,
-.tbl td + td {
-  border-left: 1px solid var(--line2);
-}
-.tbl .r {
-  text-align: center;
-  width: 1%;
-  white-space: nowrap;
-}
-.tbl td.r {
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.tbl-hover tbody tr {
-  cursor: default;
-  transition: background var(--dur-quick);
-}
-.tbl-hover tbody tr:hover {
-  background: var(--row-hover);
-}
-@media (prefers-reduced-motion: reduce) {
-  .tbl-hover tbody tr,
-  .img-link,
-  .cell-go {
-    transition: none;
-  }
-}
-
-.img-name {
+.head-actions {
   display: flex;
   align-items: center;
-  font-weight: 600;
+  gap: 10px;
+}
+
+/* the shared findings-layout grammar (M9a rail + main column) */
+.findings-layout {
+  display: flex;
+  gap: var(--grid-gap);
+  align-items: flex-start;
+}
+.rail-col {
+  flex: none;
+  width: var(--facet-rail-w);
+}
+.rail-col > :last-child {
+  width: 100%;
+}
+.facet-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: 9px 12px;
+  color: var(--soft);
+  margin-bottom: 10px;
+}
+.facet-search:focus-within {
+  border-color: var(--coral);
+}
+.facet-search input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-mono-cell);
   color: var(--ink);
 }
-/* the affordance carrier — identifier takes the link treatment on row hover (ruled) */
-.img-link {
-  transition: color var(--dur-quick);
+.findings-main {
+  flex: 1;
+  min-width: 0;
 }
-.tbl-hover tbody tr:hover .img-link {
-  color: var(--coral-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.toolbar-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: var(--space-2);
 }
-.cell-go {
-  color: var(--dash-muted);
-  margin-left: 4px;
-  transition: color var(--dur-quick);
-}
-.tbl-hover tbody tr:hover .cell-go {
-  color: var(--coral-text);
-}
-.tbl-hover tbody tr:active {
-  background: var(--line2);
-}
-.img-registry {
-  font-size: var(--text-sm);
-  color: var(--soft);
-}
-.ns-cell {
-  max-width: 160px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mix-cell {
-  min-width: 150px;
-}
-.delta-warn {
-  color: var(--sev-medium-fg);
-}
-.muted-dash {
-  color: var(--dash-muted);
-}
-.scanner-stack {
-  display: inline-flex;
-  gap: 4px;
+.toolbar-row > :first-child {
+  flex: 1;
 }
 
 .load-error {

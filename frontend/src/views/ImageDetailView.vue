@@ -12,11 +12,22 @@ import { useRoute, useRouter } from 'vue-router'
 
 import type {
   FacetFindingsApiV1FindingsFacetsGetData,
+  ImageTimelineApiV1ImagesTimelineGetData,
+  ListRunningImagesApiV1ImagesGetData,
   SearchFindingsApiV1FindingsGetData,
 } from '@/api/generated'
-import { facetFindingsApiV1FindingsFacetsGet, searchFindingsApiV1FindingsGet } from '@/api/generated'
+import {
+  facetFindingsApiV1FindingsFacetsGet,
+  imageTimelineApiV1ImagesTimelineGet,
+  listRunningImagesApiV1ImagesGet,
+  searchFindingsApiV1FindingsGet,
+} from '@/api/generated'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
 import GridPager from '@/components/findings/GridPager.vue'
+import DigestSubTimeline from '@/components/images/DigestSubTimeline.vue'
+import { buildImageAtTQuery } from '@/images/buildImageAtTQuery'
+import { notYetScannedAt, type TimelineEvent } from '@/images/subTimeline'
+import type { ImageRow } from '@/stores/images'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
@@ -155,6 +166,49 @@ function goPrev() {
 const sevCount = (s: Severity) => facets.value.severity?.find((b) => b.key === s)?.count ?? 0
 const presentTotal = computed(() => facets.value.present?.find((b) => b.key === 'true')?.count ?? 0)
 
+/* ---- the two questions (D38/H6): runtime inventory vs as-scanned — never conflated ---- */
+const inventoryRow = ref<ImageRow | null>(null)
+const inventoryKnown = ref<boolean | null>(null) // null = loading; false = no committed inventory at T
+async function loadInventoryAtT() {
+  if (!clusterStore.selectedId) return
+  const q = buildImageAtTQuery(clusterStore.selectedId, digest.value, scanner.value, timeTravel.t)
+  const { data, response } = await listRunningImagesApiV1ImagesGet({
+    query: q.runtime_inventory_at_T as ListRunningImagesApiV1ImagesGetData['query'],
+  })
+  if (response?.ok && data) {
+    const body = data as { inventory: unknown; images: ImageRow[] }
+    inventoryKnown.value = body.inventory !== null
+    inventoryRow.value = body.images.find((i) => i.image_digest === digest.value) ?? null
+  } else {
+    inventoryKnown.value = null
+    logger.warn('image_detail_inventory_failed', { status: response?.status })
+  }
+}
+watch([() => clusterStore.selectedId, () => timeTravel.t, digest], () => void loadInventoryAtT(), {
+  immediate: true,
+})
+
+/* ---- build history: the committed scan-event trail of this repo:tag ---- */
+const timeline = ref<TimelineEvent[]>([])
+async function loadTimeline() {
+  if (!clusterStore.selectedId || !repo.value || !tag.value) return
+  const { data, response } = await imageTimelineApiV1ImagesTimelineGet({
+    query: {
+      cluster_id: clusterStore.selectedId,
+      image_repo: repo.value,
+      tag: tag.value,
+    } as ImageTimelineApiV1ImagesTimelineGetData['query'],
+  })
+  if (response?.ok && data) {
+    timeline.value = (data as { events: TimelineEvent[] }).events ?? []
+  } else {
+    logger.warn('image_detail_timeline_failed', { status: response?.status })
+  }
+}
+watch([() => clusterStore.selectedId, repo, tag], () => void loadTimeline(), { immediate: true })
+
+const notYetScanned = computed(() => notYetScannedAt(timeline.value, scanner.value, timeTravel.t))
+
 function openFinding(row: FindingRow) {
   logger.debug('image_finding_row_clicked', { finding_key: row.finding_key })
   void router.push({
@@ -168,16 +222,24 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 
 <template>
   <div class="screen">
+    <UiButton variant="quiet" class="back-btn" @click="router.push('/images')">
+      <AppIcon name="arrowback" :size="13" /> Running images
+    </UiButton>
     <div class="screen-head">
-      <div>
-        <UiButton variant="quiet" class="back-btn" @click="router.push('/images')">
-          <AppIcon name="arrowback" :size="13" /> Running images
-        </UiButton>
-        <h1>{{ title }}</h1>
-        <p class="screen-sub">
-          <template v-if="repo"><span class="mono-cell">{{ repo }}{{ tag ? `:${tag}` : '' }}</span> · </template>
-          <span class="mono-cell digest" :title="digest">{{ digest }}</span>
-        </p>
+      <div class="img-id-head">
+        <div class="img-cube" aria-hidden="true"><AppIcon name="cube" :size="22" /></div>
+        <div>
+          <h1>{{ title }}</h1>
+          <p v-if="repo" class="screen-sub mono-cell">{{ repo }}{{ tag ? `:${tag}` : '' }}</p>
+          <p class="digest-line mono-cell" :title="digest">
+            <AppIcon name="key" :size="11" />{{ digest }}
+            <i class="digest-note">identity is the content digest — repo:tag is just a handle</i>
+          </p>
+          <div v-if="inventoryRow" class="img-meta">
+            <span class="mono-cell"><b>{{ fmt(inventoryRow.replicas ?? 0) }}</b> replicas at last sweep</span>
+            <span class="mono-cell">{{ inventoryRow.namespaces.join(', ') }}</span>
+          </div>
+        </div>
       </div>
       <div class="head-actions">
         <span class="lens-label">Showing results from</span>
@@ -185,9 +247,57 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       </div>
     </div>
 
+    <!-- two distinct questions, two answers — never conflated (D38/H6) -->
+    <div class="kpi-band two-q">
+      <div class="kpi-cell kpi-static">
+        <span class="kpi-label"><i class="kpi-dot kpi-dot-inv" />running {{ timeTravel.isNow ? 'now' : 'at T' }}?</span>
+        <span class="kpi-num tq-ans">
+          <template v-if="inventoryKnown === null">—</template>
+          <template v-else-if="inventoryKnown === false">unknown</template>
+          <template v-else-if="inventoryRow">yes · {{ fmt(inventoryRow.replicas ?? 0) }} replicas</template>
+          <template v-else>no</template>
+        </span>
+        <span class="kpi-sub">runtime inventory{{ inventoryKnown === false ? ' — none committed at this T' : '' }}</span>
+      </div>
+      <div class="kpi-cell kpi-static">
+        <span class="kpi-label"><i class="kpi-dot kpi-dot-scan" />what did {{ scanner }} find?</span>
+        <span class="kpi-num tq-ans">
+          <template v-if="notYetScanned">not yet scanned</template>
+          <template v-else>{{ fmt(presentTotal) }} findings</template>
+        </span>
+        <span class="kpi-sub">as-scanned, not as-running</span>
+      </div>
+    </div>
+
+    <!-- per-digest build history: a rebuilt tag is a NEW digest — never a silent gap -->
+    <section class="card tl-card">
+      <div class="card-head">
+        <div>
+          <h3>Build history</h3>
+          <p class="card-sub">{{ scanner }}'s committed scans of this tag · a rebuilt tag is a new digest</p>
+        </div>
+      </div>
+      <div class="card-body">
+        <DigestSubTimeline
+          :events="timeline"
+          :scanner="scanner"
+          :t="timeTravel.t"
+          :current-digest="digest"
+        />
+      </div>
+    </section>
+
     <p v-if="failed" class="load-error" role="alert">
       Image findings unavailable. Check the backend connection.
     </p>
+
+    <div v-else-if="notYetScanned" class="card first-run">
+      <h2>Not yet scanned then</h2>
+      <p>
+        No committed {{ scanner }} scan of this tag exists at or before this T. Reach is bounded
+        by this cluster's retained data.
+      </p>
+    </div>
 
     <template v-else>
       <!-- per-scanner severity cards: one scanner's buckets only — the lens swaps, never merges -->
@@ -247,7 +357,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   margin-bottom: 18px;
 }
 .back-btn {
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .screen-head h1 {
   margin: 0 0 4px;
@@ -257,13 +367,61 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   color: var(--soft);
   font-size: var(--text-body);
 }
-.digest {
-  display: inline-block;
-  max-width: 420px;
+.img-id-head {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.img-cube {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--slate);
+  color: var(--side-brand-fg);
+  display: grid;
+  place-items: center;
+  flex: none;
+  margin-top: 2px;
+}
+.digest-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+  color: var(--soft);
+  max-width: 720px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  vertical-align: bottom;
+}
+.digest-note {
+  font-style: normal;
+  color: var(--muted);
+  font-family: var(--font-ui);
+}
+.img-meta {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: var(--text-sm);
+  color: var(--soft);
+}
+.two-q {
+  grid-template-columns: repeat(2, 1fr);
+  margin-bottom: 16px;
+}
+.kpi-dot-inv {
+  background: var(--teal);
+}
+.kpi-dot-scan {
+  background: var(--slate);
+}
+.tq-ans {
+  font-size: var(--text-card-title);
+}
+.tl-card {
+  margin: 0 0 16px;
 }
 .head-actions {
   display: flex;
@@ -336,6 +494,24 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   border-radius: var(--r);
   box-shadow: var(--shadow);
   margin-top: 16px;
+}
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 0;
+}
+.card-head h3 {
+  margin: 0;
+}
+.card-sub {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--soft);
+}
+.card-body {
+  padding: 10px 16px 14px;
 }
 .grid-card {
   overflow: hidden;
