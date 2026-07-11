@@ -193,7 +193,6 @@ function onKeydown(e: KeyboardEvent) {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-bottom: 12px;
 }
 .fpill {
   display: inline-flex;

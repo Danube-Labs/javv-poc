@@ -1812,6 +1812,10 @@ export type ListRunningImagesApiV1ImagesGetData = {
          * Cluster Id
          */
         cluster_id: string;
+        /**
+         * As Of
+         */
+        as_of?: string | null;
     };
     url: '/api/v1/images';
 };
@@ -1837,6 +1841,48 @@ export type ListRunningImagesApiV1ImagesGetResponses = {
 };
 
 export type ListRunningImagesApiV1ImagesGetResponse = ListRunningImagesApiV1ImagesGetResponses[keyof ListRunningImagesApiV1ImagesGetResponses];
+
+export type ImageTimelineApiV1ImagesTimelineGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+        /**
+         * Image Repo
+         */
+        image_repo: string;
+        /**
+         * Tag
+         */
+        tag: string;
+    };
+    url: '/api/v1/images/timeline';
+};
+
+export type ImageTimelineApiV1ImagesTimelineGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ImageTimelineApiV1ImagesTimelineGetError = ImageTimelineApiV1ImagesTimelineGetErrors[keyof ImageTimelineApiV1ImagesTimelineGetErrors];
+
+export type ImageTimelineApiV1ImagesTimelineGetResponses = {
+    /**
+     * Response Image Timeline Api V1 Images Timeline Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ImageTimelineApiV1ImagesTimelineGetResponse = ImageTimelineApiV1ImagesTimelineGetResponses[keyof ImageTimelineApiV1ImagesTimelineGetResponses];
 
 export type IngestScanApiV1IngestScanPostData = {
     body?: never;

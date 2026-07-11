@@ -4000,6 +4000,23 @@
               "title": "Cluster Id",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
           }
         ],
         "responses": {
@@ -4027,6 +4044,71 @@
           }
         },
         "summary": "List Running Images",
+        "tags": [
+          "images"
+        ]
+      }
+    },
+    "/api/v1/images/timeline": {
+      "get": {
+        "description": "One repo:tag's committed scan-event history for the DigestSubTimeline \u2014 build-change\n(digest flips) and gap (per-scanner `scan_order` jumps) markers are derived client-side.",
+        "operationId": "image_timeline_api_v1_images_timeline_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "image_repo",
+            "required": true,
+            "schema": {
+              "maxLength": 512,
+              "title": "Image Repo",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "tag",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "title": "Tag",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Image Timeline Api V1 Images Timeline Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Image Timeline",
         "tags": [
           "images"
         ]

@@ -12,6 +12,7 @@ import { useRouter } from 'vue-router'
 
 import HealthChip from '@/components/chips/HealthChip.vue'
 import LimitedHistoricalNotice from '@/components/dashboards/LimitedHistoricalNotice.vue'
+import MixBar from '@/components/dashboards/MixBar.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { useAllClustersStore, type ClusterRow } from '@/stores/allClusters'
 import { useClusterStore } from '@/stores/cluster'
@@ -78,15 +79,14 @@ const needAttention = computed(
   () => fleet.rows.filter((r) => r.failed || freshnessStatus(r.freshness) !== 'ok').length,
 )
 
-/** One mix bar per scanner (never merged): proportional segments of that scanner's buckets. */
-function mixFor(row: ClusterRow, sc: (typeof SCANNERS)[number]) {
-  const counts = MIX_SEVERITIES.map((sev) => ({
-    sev,
-    n: row.facets.severity?.find((x) => x.key === sev)?.by_scanner[sc] ?? 0,
-  }))
-  const total = counts.reduce((n, c) => n + c.n, 0)
-  if (total === 0) return null
-  return counts.filter((c) => c.n > 0).map((c) => ({ sev: c.sev, pct: (c.n / total) * 100 }))
+/** One mix bar per scanner (never merged): that scanner's by_scanner severity buckets. */
+function mixFor(row: ClusterRow, sc: (typeof SCANNERS)[number]): Partial<Record<Severity, number>> {
+  return Object.fromEntries(
+    MIX_SEVERITIES.map((sev) => [
+      sev,
+      row.facets.severity?.find((x) => x.key === sev)?.by_scanner[sc] ?? 0,
+    ]),
+  )
 }
 const visibleScanners = computed(() =>
   scanner.value === 'all' ? SCANNERS : ([scanner.value] as const),
@@ -197,17 +197,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                 <td class="r"><HealthChip :rows="row.freshness" /></td>
                 <td class="mix-cell">
                   <template v-if="!row.failed">
-                    <div v-for="sc in visibleScanners" :key="sc" class="mix-row">
-                      <span class="mix-scanner">{{ sc }}</span>
-                      <span v-if="mixFor(row, sc)" class="mix-bar">
-                        <i
-                          v-for="seg in mixFor(row, sc)"
-                          :key="seg.sev"
-                          :style="{ width: `${seg.pct}%`, background: CHART_SEV[seg.sev] }"
-                        />
-                      </span>
-                      <span v-else class="muted-dash">-</span>
-                    </div>
+                    <MixBar
+                      v-for="sc in visibleScanners"
+                      :key="sc"
+                      :counts="mixFor(row, sc)"
+                      :label="sc"
+                      class="mix-stack"
+                    />
                   </template>
                   <span v-else class="row-degraded">unavailable</span>
                 </td>
@@ -387,12 +383,15 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .tbl td + td {
   border-left: 1px solid var(--line2);
 }
-.tbl .r {
+/* .tbl.tbl matches the base-skin weight — this screen's centered-value ruling must outrank
+   the shared right-align default */
+.tbl.tbl th.r,
+.tbl.tbl td.r {
   text-align: center;
   width: 1%;
   white-space: nowrap;
 }
-.tbl td.r {
+.tbl.tbl td.r {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -460,31 +459,8 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .mix-cell {
   min-width: 180px;
 }
-.mix-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mix-row + .mix-row {
+.mix-stack + .mix-stack {
   margin-top: 4px;
-}
-.mix-scanner {
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  color: var(--soft);
-  width: 38px;
-  flex: none;
-}
-.mix-bar {
-  display: flex;
-  flex: 1;
-  height: 6px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: var(--line2);
-}
-.mix-bar i {
-  height: 100%;
 }
 .muted-dash {
   color: var(--dash-muted);

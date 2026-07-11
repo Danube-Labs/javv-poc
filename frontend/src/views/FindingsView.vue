@@ -289,71 +289,8 @@ function setDense(value: boolean) {
 </template>
 
 <style scoped>
-.screen-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: var(--space-6); /* the page band boundary — generous */
-}
-.screen-sub {
-  color: var(--soft);
-  font-size: var(--text-body);
-  margin-top: 2px;
-}
-.rail-col {
-  flex: none;
-  width: var(--facet-rail-w);
-}
-.rail-col > :last-child {
-  width: 100%;
-}
-/* prototype .facet-search on tokens — exact-match CVE lookup for triage */
-.facet-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  padding: 9px 12px;
-  color: var(--soft);
-  margin-bottom: 10px;
-}
-.facet-search:focus-within {
-  border-color: var(--coral);
-}
-.facet-search input {
-  border: 0;
-  background: transparent;
-  outline: none;
-  flex: 1;
-  min-width: 0;
-  font-family: var(--font-ui);
-  font-size: var(--text-mono-cell);
-  color: var(--ink);
-}
-.findings-layout {
-  display: flex;
-  gap: var(--grid-gap);
-  align-items: flex-start;
-}
-.findings-main {
-  flex: 1;
-  min-width: 0;
-}
-.toolbar-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: var(--space-2); /* toolbar/note/table are ONE functional group */
-}
-.toolbar-row > :first-child {
-  flex: 1;
-}
+/* head/layout/toolbar scaffolding lives in base.css (shared data-screen grammar) */
 .load-error {
-  color: var(--health-down-fg);
-  font-size: var(--text-body);
   margin: 0 0 10px;
 }
 </style>

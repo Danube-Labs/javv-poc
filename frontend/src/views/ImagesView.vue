@@ -1,0 +1,276 @@
+<script setup lang="ts">
+/**
+ * Running images — the committed-inventory surface (M9c slice 3; SCREENS-v5 §7, prototype
+ * screens-images.jsx). The M9a filter module drives the rail + bar (imported, never re-built;
+ * an images-scoped store instance keeps shareable URLs); the grid is the M9b table grammar
+ * with image columns. The inventory is ONE committed run, fully served — filtering, facet
+ * counts (image counts), sorting, and paging are pure client operations over those served
+ * rows (unit-tested in imageFilters.ts); every underlying number is still the server's.
+ * Fully time-travelable: the global T rides `as_of` into the same primitives as the M8b
+ * reader; no committed inventory at T = "unknown", never an empty cluster. Image naming
+ * composes `image_repo` + `tag` — no combined image_ref field exists on the docs.
+ */
+import { computed, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
+import FacetRail from '@/components/filters/FacetRail.vue'
+import FilterBar from '@/components/filters/FilterBar.vue'
+import SevChip from '@/components/chips/SevChip.vue'
+import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
+import GridPager from '@/components/findings/GridPager.vue'
+import ImagesTable, { type ImagesSortField } from '@/components/images/ImagesTable.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import { useApi } from '@/composables/useApi'
+import { IMAGES_COLUMNS, IMAGES_FIELDS } from '@/images/fields.config'
+import { filterImages, imagesCsv, imagesFacets } from '@/images/imageFilters'
+import { logger } from '@/lib/logger'
+import { makeFiltersStore } from '@/stores/filters'
+import { useAuthStore } from '@/stores/auth'
+import { useClusterStore } from '@/stores/cluster'
+import { useImagesStore, type ImageRow } from '@/stores/images'
+import { useTimeTravelStore } from '@/stores/timeTravel'
+import { lastDataAt } from '@/system/freshness'
+
+const route = useRoute()
+const router = useRouter()
+const auth = useAuthStore()
+const clusterStore = useClusterStore()
+const timeTravel = useTimeTravelStore()
+const images = useImagesStore()
+const filters = makeFiltersStore('imageFilters', IMAGES_FIELDS)()
+const { withGlobals } = useApi()
+
+filters.fromQuery(route.query)
+watch(
+  () => filters.toQuery(),
+  (q) => void router.replace({ query: q }),
+)
+
+watch(
+  () => [clusterStore.selectedId, timeTravel.t] as const,
+  ([id]) => {
+    if (id) void images.load(withGlobals({ cluster_id: id }))
+  },
+  { immediate: true },
+)
+
+/* ---- pure client pipeline over the served run: filter → facets → sort → slice ---- */
+const filtered = computed(() => filterImages(images.images, filters.selections))
+const facets = computed(() => imagesFacets(images.images))
+
+const sort = ref<ImagesSortField | null>(null)
+const order = ref<'asc' | 'desc'>('desc')
+const size = ref(25)
+const page = ref(0)
+watch([filtered, size], () => (page.value = 0))
+
+const sorted = computed(() => {
+  if (!sort.value) return filtered.value
+  const key = sort.value
+  const dir = order.value === 'desc' ? -1 : 1
+  return [...filtered.value].sort((a, b) => ((a[key] ?? 0) as number) - ((b[key] ?? 0) as number) > 0 ? dir : -dir)
+})
+const pageRows = computed(() => sorted.value.slice(page.value * size.value, (page.value + 1) * size.value))
+
+function onSort(field: ImagesSortField) {
+  if (sort.value === field) {
+    order.value = order.value === 'desc' ? 'asc' : 'desc'
+  } else {
+    sort.value = field
+    order.value = 'desc'
+  }
+}
+
+/* columns + density — the findings pattern, images-scoped keys */
+const COLS_KEY = 'javv.images.hidden_cols'
+const DENSE_KEY = 'javv.images.dense'
+const hiddenCols = ref<Set<string>>(new Set(JSON.parse(localStorage.getItem(COLS_KEY) ?? '[]')))
+const dense = ref(localStorage.getItem(DENSE_KEY) !== 'false')
+function toggleCol(key: string) {
+  const next = new Set(hiddenCols.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  hiddenCols.value = next
+  localStorage.setItem(COLS_KEY, JSON.stringify([...next]))
+}
+function setDense(value: boolean) {
+  dense.value = value
+  localStorage.setItem(DENSE_KEY, String(value))
+}
+
+function openImage(row: ImageRow) {
+  void router.push({
+    name: 'image-detail',
+    params: { digest: row.image_digest },
+    query: { repo: row.image_repo, tag: row.tag },
+  })
+}
+
+/** The list export — inventory rows already served; findings exports stay M6/M7's. */
+function exportCsv() {
+  const csv = imagesCsv(sorted.value)
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `javv-images-${clusterStore.selectedId ?? 'cluster'}.csv`
+  a.click()
+  URL.revokeObjectURL(url)
+  logger.info('images_csv_exported', { rows: sorted.value.length })
+}
+
+const totalReplicas = computed(() => images.images.reduce((n, r) => n + (r.replicas ?? 0), 0))
+const inventoryAt = computed(() =>
+  images.inventory?.completed_at ? lastDataAt(images.inventory.completed_at) : null,
+)
+const fmt = (n: number) => n.toLocaleString('en-US')
+</script>
+
+<template>
+  <div class="screen">
+    <div class="screen-head">
+      <div>
+        <h1>Running images</h1>
+        <p class="screen-sub">
+          <template v-if="images.inventory">
+            <b class="mono-cell">{{ fmt(filtered.length) }}</b>
+            <template v-if="filtered.length !== images.images.length"> of {{ fmt(images.images.length) }}</template>
+            image{{ filtered.length === 1 ? '' : 's' }} ·
+            <b class="mono-cell">{{ fmt(totalReplicas) }}</b> replicas
+            <template v-if="inventoryAt"> · inventory as of <span class="mono-cell">{{ inventoryAt }}</span></template>
+            · digest-deduped
+          </template>
+          <template v-else>the latest committed inventory, per digest</template>
+        </p>
+      </div>
+    </div>
+
+    <div v-if="images.loading" aria-busy="true" aria-label="Loading images">
+      <div class="skel skel-card" />
+    </div>
+
+    <p v-else-if="images.failed" class="load-error" role="alert">
+      Inventory unavailable. Check the backend connection.
+    </p>
+
+    <div v-else-if="images.unknown" class="first-run">
+      <h2>No inventory committed{{ timeTravel.isNow ? ' yet' : ' at this point in time' }}</h2>
+      <p>
+        Images appear once a scanner cycle completes and certifies its inventory.
+        <template v-if="!timeTravel.isNow">This T predates the first committed run.</template>
+      </p>
+    </div>
+
+    <div v-else class="findings-layout">
+      <div class="rail-col">
+        <div class="facet-search">
+          <AppIcon name="search" :size="14" />
+          <input
+            :value="filters.selections.q?.[0] ?? ''"
+            placeholder="image, registry, namespace…"
+            aria-label="Search images (contains match)"
+            @keydown.enter="filters.setText('q', ($event.target as HTMLInputElement).value)"
+          />
+        </div>
+        <FacetRail
+          :fields="IMAGES_FIELDS"
+          :selections="filters.selections"
+          :facets="facets"
+          @toggle="filters.toggle"
+        >
+          <template #value="{ field, value, label }">
+            <SevChip v-if="field.key === 'severity'" :level="value" :dot="true" />
+            <template v-else>{{ label }}</template>
+          </template>
+        </FacetRail>
+      </div>
+
+      <div class="findings-main">
+        <div class="toolbar-row">
+          <FilterBar
+            :fields="IMAGES_FIELDS"
+            :selections="filters.selections"
+            :facets="facets"
+            @toggle="filters.toggle"
+            @set-text="filters.setText"
+            @clear-field="filters.clearField"
+            @clear-all="filters.clearAll"
+          />
+          <UiButton
+            v-if="auth.hasCapability('can_export')"
+            variant="control"
+            :disabled="filtered.length === 0"
+            @click="exportCsv"
+          >
+            <AppIcon name="download" :size="14" /> Export CSV
+          </UiButton>
+          <ColumnsMenu
+            :cols="IMAGES_COLUMNS"
+            :hidden="hiddenCols"
+            :dense="dense"
+            @toggle-col="toggleCol"
+            @update:dense="setDense"
+          />
+        </div>
+        <ImagesTable
+          :rows="pageRows"
+          :sort="sort"
+          :order="order"
+          :loading="images.loading"
+          :filtered="filters.hasFilters"
+          :hidden="hiddenCols"
+          :dense="dense"
+          @sort="onSort"
+          @row-click="openImage"
+        />
+        <GridPager
+          :total="filtered.length"
+          :page="page"
+          :size="size"
+          :shown="pageRows.length"
+          :has-prev="page > 0"
+          :has-next="(page + 1) * size < filtered.length"
+          @prev="page -= 1"
+          @next="page += 1"
+          @update:size="(s: number) => (size = s)"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* head/layout/toolbar scaffolding lives in base.css (shared data-screen grammar) */
+.first-run {
+  padding: 48px 0;
+  text-align: center;
+  color: var(--soft);
+}
+.first-run h2 {
+  color: var(--ink);
+  margin: 0 0 6px;
+}
+
+.skel {
+  border-radius: var(--r);
+  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+.skel-card {
+  height: 320px;
+}
+@keyframes skel-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+  }
+}
+</style>

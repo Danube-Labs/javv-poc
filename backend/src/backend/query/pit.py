@@ -228,6 +228,40 @@ async def images_for_inventory_run(
     return [h["_source"] for h in resp["hits"]["hits"]]
 
 
+async def scan_events_for_image(
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    image_repo: str,
+    tag: str,
+    *,
+    prefix: str = "",
+) -> list[dict[str, Any]]:
+    """One repo:tag's full committed scan-event history (every event doc IS its commit marker),
+    ordered `(scan_order, scanner)` — the DigestSubTimeline's raw material: digest changes are
+    build-change markers, per-scanner `scan_order` jumps are gaps. Retention bounds the size."""
+    try:
+        resp = await client.search(
+            index=f"{prefix}javv-scan-events-{cluster_id}-*",
+            body={
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"cluster_id": cluster_id}},
+                            {"term": {"image_repo": image_repo}},
+                            {"term": {"tag": tag}},
+                        ]
+                    }
+                },
+                "size": _MAX_ROWS,
+                "sort": [{"scan_order": "asc"}, {"scanner": "asc"}],
+            },
+            params={"ignore_unavailable": "true"},
+        )
+    except NotFoundError:
+        return []
+    return [h["_source"] for h in resp["hits"]["hits"]]
+
+
 async def running_images_at(
     client: AsyncOpenSearch,
     cluster_id: str,

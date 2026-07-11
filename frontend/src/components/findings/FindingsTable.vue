@@ -157,58 +157,8 @@ const nsLabel = (r: FindingRow): string => {
 </template>
 
 <style scoped>
-.tbl-wrap {
-  overflow-x: auto;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-}
-
-/* prototype .tbl family — element selectors, so PrimeVue's internal classes don't matter */
-:deep(.tbl) {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-mono-cell);
-  cursor: default; /* arrow, not the I-beam — text stays selectable (operator ruling) */
-}
-:deep(.tbl thead th) {
-  text-align: left;
-  font-weight: 600;
-  color: var(--soft);
-  font-size: var(--text-table-header);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  white-space: nowrap;
-  font-family: var(--font-mono);
-}
-:deep(.tbl tbody td) {
-  padding: 9px 12px;
-  /* row separator on the STRONG hairline (operator, 2026-07-11): line2 read too faint
-     between dense vuln rows */
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
-:deep(.tbl-dense thead th) {
-  padding: 8px 12px;
-}
-:deep(.tbl-dense tbody td) {
-  padding: 7px 12px;
-}
-:deep(.tbl tbody tr:last-child td) {
-  border-bottom: 0;
-}
-:deep(.tbl-hover tbody tr) {
-  /* arrow cursor, not pointer — desktop-app convention (operator ruling; Linear model).
-     the affordance is the hover treatment, not the hand */
-  transition: background 0.12s ease-out;
-}
-:deep(.tbl-hover tbody tr:hover) {
-  background: var(--row-hover);
-}
+/* the table skin (.tbl-wrap / .tbl family / th-note / empty-row) lives in base.css —
+   only this grid's own cells and chips are styled here */
 /* the affordance carrier: the identifier reads as a link once the row is live (research: link
    cells > loud row hovers on dense tables) */
 :deep(.cve-link) {
@@ -219,31 +169,10 @@ const nsLabel = (r: FindingRow): string => {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-:deep(.tbl-hover tbody tr:active) {
-  background: var(--line2);
-}
 @media (prefers-reduced-motion: reduce) {
-  :deep(.tbl-hover tbody tr),
   :deep(.cve-link) {
     transition: none;
   }
-}
-:deep(.tbl th.r),
-:deep(.tbl td.r) {
-  text-align: right;
-}
-:deep(.tbl th.c),
-:deep(.tbl td.c) {
-  text-align: center;
-}
-:deep(.mono-cell) {
-  font-family: var(--font-mono);
-}
-:deep(.strong) {
-  font-weight: 700;
-}
-:deep(.nowrap) {
-  white-space: nowrap;
 }
 :deep(.img-cell) {
   display: inline-block;
@@ -252,16 +181,6 @@ const nsLabel = (r: FindingRow): string => {
   text-overflow: ellipsis;
   white-space: nowrap;
   vertical-align: middle;
-}
-:deep(.tbl .sm) {
-  font-size: var(--text-sm);
-}
-:deep(.th-note) {
-  font-size: var(--text-dd-head);
-  color: var(--soft);
-  text-transform: none;
-  letter-spacing: 0;
-  margin-left: 5px;
 }
 :deep(.ver-cur) {
   color: var(--soft);
@@ -308,9 +227,6 @@ const nsLabel = (r: FindingRow): string => {
   gap: 4px;
 }
 .empty-row {
-  text-align: center;
-  color: var(--soft);
-  padding: 34px 12px;
-  font-size: var(--text-body);
+  padding: 34px 12px; /* the primary grid breathes more than the skin default */
 }
 </style>

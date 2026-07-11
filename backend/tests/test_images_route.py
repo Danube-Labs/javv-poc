@@ -70,8 +70,9 @@ async def _manifest(
     inventory_run_id: str,
     inventory_order: int,
     status: str = "committed",
+    ts: str | None = None,
 ) -> None:
-    now = datetime.now(UTC).isoformat()
+    now = ts or datetime.now(UTC).isoformat()
     await client.index(
         index=f"javv-inventory-runs-{cluster_id}-000001",
         id=inventory_run_id,
@@ -173,7 +174,182 @@ async def test_route_rows_equal_the_time_travel_reader_at_now(env) -> None:
 
     r = await http.get("/api/v1/images", params={"cluster_id": cid})
     reader_rows = await running_images_at(client, cid, datetime.now(UTC))
-    assert r.json()["images"] == reader_rows
+    # the wire adds the per-scanner severity decoration ON TOP of the reader's rows
+    stripped = [
+        {k: v for k, v in row.items() if k != "severity_by_scanner"} for row in r.json()["images"]
+    ]
+    assert stripped == reader_rows
+
+
+async def test_as_of_rewinds_to_the_inventory_committed_at_t(env) -> None:
+    """M9c slice 3 (D28/FR-23): `as_of` dispatches through the SAME primitives at T — the
+    inventory committed ≤ T answers, a later run doesn't leak backwards, pre-history is
+    unknown (`inventory: null`), and a malformed T is a 422."""
+    http, client = env
+    cid = f"c-img-{uuid.uuid4().hex[:8]}"
+    # explicit, well-separated stamps — date fields are millis-precision, `lte` includes equal
+    await _manifest(
+        client,
+        cluster_id=cid,
+        inventory_run_id="inv-old",
+        inventory_order=1,
+        ts="2026-07-01T00:00:00+00:00",
+    )
+    await _image(client, cluster_id=cid, inventory_run_id="inv-old", digest="sha256:old", total=1)
+    await _refresh(client, cid)
+    t_between = "2026-07-02T00:00:00+00:00"
+
+    await _manifest(client, cluster_id=cid, inventory_run_id="inv-new", inventory_order=2)
+    await _image(client, cluster_id=cid, inventory_run_id="inv-new", digest="sha256:new", total=2)
+    await _refresh(client, cid)
+
+    # now = the new run; at T between = the old run; before history = unknown
+    r = await http.get("/api/v1/images", params={"cluster_id": cid})
+    assert r.json()["inventory"]["inventory_run_id"] == "inv-new"
+    r = await http.get("/api/v1/images", params={"cluster_id": cid, "as_of": t_between})
+    assert r.json()["inventory"]["inventory_run_id"] == "inv-old"
+    assert [i["image_digest"] for i in r.json()["images"]] == ["sha256:old"]
+    r = await http.get(
+        "/api/v1/images", params={"cluster_id": cid, "as_of": "2020-01-01T00:00:00+00:00"}
+    )
+    assert r.json()["inventory"] is None and r.json()["images"] == []
+    r = await http.get("/api/v1/images", params={"cluster_id": cid, "as_of": "not-a-time"})
+    assert r.status_code == 422
+
+
+async def _scan_event(
+    client: AsyncOpenSearch,
+    *,
+    cluster_id: str,
+    scanner: str,
+    digest: str,
+    scan_order: int,
+    total: int,
+    ts: str,
+    crit: int = 0,
+) -> None:
+    await client.index(
+        index=f"javv-scan-events-{cluster_id}-000001",
+        id=uuid.uuid4().hex,
+        body={
+            "@timestamp": ts,
+            "scan_run_id": f"run-{scan_order}",
+            "scan_order": scan_order,
+            "cluster_id": cluster_id,
+            "scanner": scanner,
+            "image_digest": digest,
+            "image_repo": "nginx",
+            "tag": "1.21",
+            "crit": crit,
+            "total": total,
+            "schema_version": 4,
+        },
+    )
+
+
+async def test_rows_carry_per_scanner_severity_buckets_from_the_catalog(env) -> None:
+    """M9c slice 3: each image row is decorated with `severity_by_scanner` — every scanner's
+    latest committed counts for that digest (R-CATALOG, max scan_order) — so the UI can show
+    BOTH mixes without merging. The image doc's own buckets stay the committing scanner's."""
+    http, client = env
+    cid = f"c-img-{uuid.uuid4().hex[:8]}"
+    await _manifest(client, cluster_id=cid, inventory_run_id="inv-s", inventory_order=1)
+    await _image(client, cluster_id=cid, inventory_run_id="inv-s", digest="sha256:sv", total=5)
+    # trivy scanned twice (order 2 supersedes 1); grype once — counts land per scanner
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="trivy",
+        digest="sha256:sv",
+        scan_order=1,
+        total=9,
+        ts="2026-07-01T00:00:00+00:00",
+        crit=9,
+    )
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="trivy",
+        digest="sha256:sv",
+        scan_order=2,
+        total=5,
+        ts="2026-07-02T00:00:00+00:00",
+        crit=2,
+    )
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="grype",
+        digest="sha256:sv",
+        scan_order=1,
+        total=7,
+        ts="2026-07-01T00:01:00+00:00",
+        crit=4,
+    )
+    await client.indices.refresh(index=f"javv-scan-events-{cid}-*")
+    await _refresh(client, cid)
+
+    r = await http.get("/api/v1/images", params={"cluster_id": cid})
+    row = r.json()["images"][0]
+    by = row["severity_by_scanner"]
+    assert by["trivy"]["crit"] == 2 and by["trivy"]["total"] == 5  # max scan_order wins
+    assert by["grype"]["crit"] == 4 and by["grype"]["total"] == 7  # never merged with trivy's
+
+
+async def test_timeline_is_the_per_image_scan_event_history_in_scan_order(env) -> None:
+    """M9c slice 3 (DigestSubTimeline): the committed scan-events for one repo:tag, ordered by
+    (scan_order, scanner) — digest changes and order gaps are the client's build-change/gap
+    markers. Tenant-scoped; unknown repo:tag = empty, not an error."""
+    http, client = env
+    cid = f"c-img-{uuid.uuid4().hex[:8]}"
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="trivy",
+        digest="sha256:v1",
+        scan_order=1,
+        total=5,
+        ts="2026-07-01T00:00:00+00:00",
+    )
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="grype",
+        digest="sha256:v1",
+        scan_order=1,
+        total=7,
+        ts="2026-07-01T00:01:00+00:00",
+    )
+    # order 2 skipped for trivy (a gap), build changed to v2 by order 3
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="trivy",
+        digest="sha256:v2",
+        scan_order=3,
+        total=0,
+        ts="2026-07-03T00:00:00+00:00",
+    )
+    await client.indices.refresh(index=f"javv-scan-events-{cid}-*")
+
+    r = await http.get(
+        "/api/v1/images/timeline",
+        params={"cluster_id": cid, "image_repo": "nginx", "tag": "1.21"},
+    )
+    assert r.status_code == 200
+    events = r.json()["events"]
+    assert [(e["scan_order"], e["scanner"], e["image_digest"]) for e in events] == [
+        (1, "grype", "sha256:v1"),
+        (1, "trivy", "sha256:v1"),
+        (3, "trivy", "sha256:v2"),
+    ]
+    assert events[0]["total"] == 7  # counts ride along verbatim
+
+    r = await http.get(
+        "/api/v1/images/timeline",
+        params={"cluster_id": cid, "image_repo": "nginx", "tag": "other"},
+    )
+    assert r.json()["events"] == []
 
 
 async def test_no_inventory_is_unknown_not_empty_and_tenant_scoped(env) -> None:
