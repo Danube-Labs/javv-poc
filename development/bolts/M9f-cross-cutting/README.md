@@ -30,6 +30,8 @@ In the layered tree, not here (paths proposed):
 - `frontend/playwright.config.ts` + `frontend/tests/e2e/*.spec.ts` — **the E2E smoke suite** ([`testing.md §4`](../../standards/testing.md)): app-loads/login, the M9b core triage round-trip, the OpenSearch-degraded banner on `/readyz` down, and server-side paging asserted via network calls. A few fast, deterministic specs — wired into the `Frontend` CI gate, run against a **built FE + seeded backend**. (Playwright **MCP** drives the browser during authoring — [`TOOLING-AND-MCP.md`](../../../docs/research/TOOLING-AND-MCP.md).)
 
 ## Definition of Done
+Every screen this bolt ships inherits the UI conventions settled in M9a-M9c: [`ui-foundations.md`](../../standards/ui-foundations.md) **Audit rules** (honest errors, contract guards, restorable state, the D28 semantics surface via `IngestLens`, provenance stamps on now-claims, silence-is-a-bug) and the shared M9 surfaces (filter module, table skin, kit controls) - reuse them, never re-solve.
+
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test):
 - **Server-side everything (keystone):** every grid/search/notification count comes from an OpenSearch query/agg; a test proves no endpoint ships raw findings to the client to compute counts/pages, and `from/size` paging stays under 10k (PIT+`search_after` beyond).
 - Notifications poll (no broker, NFR-9); badge reflects server-computed unread count; SLA-breach/assignment/ready-export categories each surface.

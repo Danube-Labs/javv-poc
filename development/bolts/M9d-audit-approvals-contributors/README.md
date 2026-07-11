@@ -31,6 +31,8 @@ In the layered tree, not here (paths proposed):
 - Backend read endpoints (if not already in M5d): `GET /audit`, `GET /approvals`, `POST /approvals/{id}/accept` (server-side `can_accept_audit_final` enforcement), `GET /contributors`, `GET /scanner-status` — all carrying the always-applied `cluster_id` chokepoint filter (SEC-4).
 
 ## Definition of Done
+Every screen this bolt ships inherits the UI conventions settled in M9a-M9c: [`ui-foundations.md`](../../standards/ui-foundations.md) **Audit rules** (honest errors, contract guards, restorable state, the D28 semantics surface via `IngestLens`, provenance stamps on now-claims, silence-is-a-bug) and the shared M9 surfaces (filter module, table skin, kit controls) - reuse them, never re-solve.
+
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test):
 - **Capability gate (server-side, keystone):** a principal **without** `can_accept_audit_final` is rejected (403) on `POST /approvals/{id}/accept` regardless of the client state (UI-only gating is not sufficient — D33/SEC-2).
 - Audit trail replays in **causal order**: same-field edits order by `revision`, not `event_id` (D38/H8, D40/H-r3); `target_ids` render as the frozen affected set, never a re-evaluated selector.
