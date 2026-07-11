@@ -70,6 +70,11 @@ const router = createRouter({
           component: () => import('@/views/ImagesView.vue'),
         },
         {
+          path: 'images/:digest',
+          name: 'image-detail',
+          component: () => import('@/views/ImageDetailView.vue'),
+        },
+        {
           path: 'audit',
           name: 'audit',
           component: () => import('@/views/PlaceholderView.vue'),

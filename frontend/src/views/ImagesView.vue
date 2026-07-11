@@ -8,9 +8,11 @@
  * composes `image_repo` + `tag` — no combined image_ref field exists on the docs.
  */
 import { computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import MixBar from '@/components/dashboards/MixBar.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
 import { useApi } from '@/composables/useApi'
 import { useClusterStore } from '@/stores/cluster'
 import { useImagesStore, type ImageRow } from '@/stores/images'
@@ -18,10 +20,19 @@ import { useTimeTravelStore } from '@/stores/timeTravel'
 import type { Severity } from '@/styles/tokens'
 import { lastDataAt } from '@/system/freshness'
 
+const router = useRouter()
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
 const images = useImagesStore()
 const { withGlobals } = useApi()
+
+function openImage(row: ImageRow) {
+  void router.push({
+    name: 'image-detail',
+    params: { digest: row.image_digest },
+    query: { repo: row.image_repo, tag: row.tag },
+  })
+}
 
 watch(
   () => [clusterStore.selectedId, timeTravel.t] as const,
@@ -109,9 +120,14 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in images.images" :key="row.image_digest">
+          <tr
+            v-for="row in images.images"
+            :key="row.image_digest"
+            :title="`Open ${shortRepo(row.image_repo)}:${row.tag}`"
+            @click="openImage(row)"
+          >
             <td>
-              <span class="img-name">{{ shortRepo(row.image_repo) }}</span>
+              <span class="img-name img-link">{{ shortRepo(row.image_repo) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
               <span v-if="registryOf(row.image_repo)" class="img-registry mono-cell">{{ registryOf(row.image_repo) }}</span>
             </td>
             <td class="mono-cell">{{ row.tag }}</td>
@@ -222,15 +238,38 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
   background: var(--row-hover);
 }
 @media (prefers-reduced-motion: reduce) {
-  .tbl-hover tbody tr {
+  .tbl-hover tbody tr,
+  .img-link,
+  .cell-go {
     transition: none;
   }
 }
 
 .img-name {
-  display: block;
+  display: flex;
+  align-items: center;
   font-weight: 600;
   color: var(--ink);
+}
+/* the affordance carrier — identifier takes the link treatment on row hover (ruled) */
+.img-link {
+  transition: color var(--dur-quick);
+}
+.tbl-hover tbody tr:hover .img-link {
+  color: var(--coral-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cell-go {
+  color: var(--dash-muted);
+  margin-left: 4px;
+  transition: color var(--dur-quick);
+}
+.tbl-hover tbody tr:hover .cell-go {
+  color: var(--coral-text);
+}
+.tbl-hover tbody tr:active {
+  background: var(--line2);
 }
 .img-registry {
   font-size: var(--text-sm);
