@@ -20,6 +20,7 @@ path; a past T dispatches through `query/as_of.py` to M8b's registered `as_of_t`
 (501 at the seam until M8b lands — D28, these routes never reconstruct).
 """
 
+from collections.abc import Awaitable
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
@@ -66,6 +67,16 @@ def _reader_or_501() -> AsOfTReader:
         return as_of_t_reader()
     except AsOfTUnavailable as exc:
         raise HTTPException(501, str(exc)) from exc
+
+
+async def _reconstructed(coro: Awaitable[dict[str, Any]]) -> dict[str, Any]:
+    """Past-T delegation seam: the reader re-validates inputs and rejects unrecorded filters
+    with ValueError — that must cost the caller a 422, never a 500 (audit 343: every past-T
+    route call rides through here)."""
+    try:
+        return await coro
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 def _filters(
@@ -249,15 +260,17 @@ async def search_findings(
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
-        return await _reader_or_501().findings_page(
-            client,
-            cluster_id=cluster_id,
-            t=as_of_t,
-            filters=filters,
-            sort=sort,
-            order=order,
-            size=size,
-            cursor=cursor,
+        return await _reconstructed(
+            _reader_or_501().findings_page(
+                client,
+                cluster_id=cluster_id,
+                t=as_of_t,
+                filters=filters,
+                sort=sort,
+                order=order,
+                size=size,
+                cursor=cursor,
+            )
         )
     # no read-side refresh (audit A-m2/#191): reads observe what's committed; triage writes with
     # refresh=wait_for and ingest refreshes post-merge, so a forced per-read Lucene refresh on the
@@ -314,8 +327,10 @@ async def facet_findings(
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:
-        return await _reader_or_501().findings_facets(
-            client, cluster_id=cluster_id, t=as_of_t, filters=filters, fields=fields
+        return await _reconstructed(
+            _reader_or_501().findings_facets(
+                client, cluster_id=cluster_id, t=as_of_t, filters=filters, fields=fields
+            )
         )
     # no read-side refresh (audit A-m2/#191) — see search_findings
     try:
@@ -344,14 +359,16 @@ async def group_findings(
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:
-        return await _reader_or_501().findings_groups(
-            client,
-            cluster_id=cluster_id,
-            t=as_of_t,
-            filters=filters,
-            by=by,
-            size=size,
-            cursor=cursor,
+        return await _reconstructed(
+            _reader_or_501().findings_groups(
+                client,
+                cluster_id=cluster_id,
+                t=as_of_t,
+                filters=filters,
+                by=by,
+                size=size,
+                cursor=cursor,
+            )
         )
     # no read-side refresh (audit A-m2/#191) — see search_findings
     try:

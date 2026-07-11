@@ -22,16 +22,24 @@ import {
 import {
   bucketEndT,
   buildIngestLensOption,
+  ingestInterval,
   ingestLensDates,
 } from '@/charts/buildIngestLensOption'
 import type { ScanActivityData } from '@/charts/buildScanActivityOption'
-import { buildTrendQuery } from '@/charts/buildTrendQuery'
+import { buildTrendQuery, isSubDayWindow } from '@/charts/buildTrendQuery'
 import EChart from '@/components/charts/EChart.vue'
 import { logger } from '@/lib/logger'
 import { lastDataAt, silentFor, type FreshnessRow } from '@/system/freshness'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 
-const props = defineProps<{ clusterId: string }>()
+const props = withDefaults(
+  defineProps<{
+    clusterId: string
+    /** What the D28 clause points at — "the table" on grid screens, "this screen" on overview. */
+    subject?: string
+  }>(),
+  { subject: 'the table' },
+)
 const timeTravel = useTimeTravelStore()
 
 const series = ref<ScanActivityData>({})
@@ -45,7 +53,7 @@ watch(
     const [scans, fresh] = await Promise.all([
       scansTrendApiV1TrendsScansGet({
         client,
-        query: buildTrendQuery(id, days, t) as never,
+        query: { ...buildTrendQuery(id, days, t), interval: ingestInterval(days, t) } as never,
       }),
       scannerFreshnessApiV1ScannersFreshnessGet({ client, query: { cluster_id: id } }),
     ])
@@ -73,12 +81,18 @@ const latest = computed(
       .filter((r) => r.last_ingest_at !== null)
       .sort((a, b) => (a.last_ingest_at! < b.last_ingest_at! ? 1 : -1))[0] ?? null,
 )
-const option = computed(() => buildIngestLensOption(series.value))
+const interval = computed(() => ingestInterval(timeTravel.windowDays, timeTravel.t))
+const option = computed(() => buildIngestLensOption(series.value, interval.value))
+// daily bars only mislead when the range is sub-day AND the buckets stayed daily (past T)
+const subDay = computed(() => interval.value === 'day' && isSubDayWindow(timeTravel.windowDays))
+/** Quiet range = the one state worth a visual flag (operator 2026-07-11): the amber wash
+ * only when NOTHING was committed in the range — data present stays a plain card. */
+const quiet = computed(() => !failed.value && totalRuns.value === 0)
 
 function onPointClick(params: { dataIndex: number }) {
   const bucket = ingestLensDates(series.value)[params.dataIndex]
   if (!bucket) return
-  const t = bucketEndT(bucket, Date.now())
+  const t = bucketEndT(bucket, Date.now(), interval.value)
   if (t === null) {
     timeTravel.backToNow()
     return
@@ -89,12 +103,13 @@ function onPointClick(params: { dataIndex: number }) {
 </script>
 
 <template>
-  <section class="ingest-lens" aria-label="Scan ingest activity">
+  <section class="ingest-lens" :class="{ 'il-quiet': quiet }" aria-label="Scan ingest activity">
     <div class="il-head">
       <h3 class="il-title">Scan ingest</h3>
       <span class="il-sub"
-        >runs per day · {{ timeTravel.windowLabel.toLowerCase() }} · the table shows the state at
-        the <b>end</b> of this range</span
+        >runs per {{ interval }} · {{ timeTravel.windowLabel.toLowerCase()
+        }}<template v-if="subDay"> (daily bars — covers the last 1 day)</template> ·
+        {{ subject }} shows the state at the <b>end</b> of this range</span
       >
       <span v-if="timeTravel.isNow && latest" class="il-last mono-cell">
         last ingest {{ latest.scanner }} · {{ lastDataAt(latest.last_ingest_at) }} ({{
@@ -105,7 +120,7 @@ function onPointClick(params: { dataIndex: number }) {
     <p v-if="failed" class="il-empty">Ingest activity unavailable.</p>
     <p v-else-if="totalRuns === 0" class="il-empty">
       No scans committed in this range<template v-if="timeTravel.isNow && latest">
-        — the table shows the state last updated {{ lastDataAt(latest.last_ingest_at) }},
+        — {{ subject }} shows the state last updated {{ lastDataAt(latest.last_ingest_at) }},
         {{ silentFor(latest.silent_for_seconds) }} ago</template
       >.
     </p>
@@ -128,6 +143,12 @@ function onPointClick(params: { dataIndex: number }) {
   box-shadow: var(--shadow);
   padding: 10px 14px 4px;
 }
+/* the quiet-range flag: the history/staleness amber — attention ONLY when the range holds
+   no commits and the table is older than it looks (operator ruling) */
+.il-quiet {
+  background: var(--hist-bg);
+  border-color: var(--hist-line);
+}
 .il-head {
   display: flex;
   align-items: baseline;
@@ -142,27 +163,31 @@ function onPointClick(params: { dataIndex: number }) {
   text-transform: uppercase;
   color: var(--ink);
 }
+/* one size, ink-dark (operator: the small soft text was unreadable) — only the explanatory
+   clause stays soft */
 .il-sub {
-  font-size: var(--text-sm);
-  color: var(--soft);
+  font-size: var(--text-control);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .il-sub b {
   font-weight: 700;
-  color: var(--soft);
+  color: var(--ink);
 }
 .il-last {
   margin-left: auto;
-  font-size: var(--text-sm);
-  color: var(--soft);
+  font-size: var(--text-control);
+  color: var(--ink);
   text-align: right;
 }
+/* warning-grade copy reads at body size, never fine print (operator ruling) */
 .il-empty {
   margin: auto 0;
   padding-bottom: 6px;
   font-size: var(--text-body);
-  color: var(--soft);
+  font-weight: 500;
+  color: var(--ink);
 }
 </style>

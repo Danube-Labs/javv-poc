@@ -20,14 +20,14 @@ describe('GlobalTimePicker (single range control)', () => {
     vi.useRealTimers()
   })
 
-  it('quick select rounds sub-day spans UP to one day but keeps the exact label', async () => {
+  it('quick select keeps the TRUE sub-day span — builders clamp at emission (audit 343)', async () => {
     const w = mount(GlobalTimePicker)
     const store = useTimeTravelStore()
     await open(w)
     await w.find('input[aria-label="Range length"]').setValue(90)
     await w.find('select[aria-label="Range unit"]').setValue('minutes')
     await w.find('.time-rel .time-apply').trigger('click')
-    expect(store.windowDays).toBe(1) // trends contract: int days ≥1
+    expect(store.windowDays).toBeCloseTo(0.0625) // isSubDayWindow drives the honesty notes
     expect(store.windowLabel).toBe('Last 90 minutes')
     expect(store.t).toBeNull() // quick selects end now — no as_of
   })

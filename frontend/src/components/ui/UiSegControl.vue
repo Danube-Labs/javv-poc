@@ -1,22 +1,22 @@
 <script setup lang="ts" generic="T extends string">
 /**
  * THE segmented bar (DESIGN.md §2: inner padding + per-option radius so the selected ring is
- * never clipped). Two tones: `accent` = coral selection language (dialog choices), `neutral` =
- * quiet card-lift selection (toolbar/menu toggles). Feedback contract lives here, once.
+ * never clipped). ONE selection language — the coral tint (operator ruling 2026-07-11: the old
+ * `neutral` tone's white-on-panel selection was unreadable; every seg control selects loudly).
+ * Feedback contract lives here, once.
  */
 withDefaults(
   defineProps<{
     options: readonly { value: T; label: string }[]
     modelValue: T
-    tone?: 'accent' | 'neutral'
   }>(),
-  { tone: 'accent' },
+  {},
 )
 const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
 </script>
 
 <template>
-  <div class="ui-seg" :class="`ui-seg--${tone}`" role="group">
+  <div class="ui-seg" role="group">
     <button
       v-for="opt in options"
       :key="opt.value"
@@ -47,6 +47,9 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
   font-size: var(--text-sm);
   white-space: nowrap;
   cursor: default;
+  background: var(--card);
+  padding: 7px 12px;
+  color: var(--ink);
   transition:
     background 120ms ease,
     color 120ms ease;
@@ -62,28 +65,11 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
 .ui-seg-opt:active:not(.ui-seg-on) {
   background: var(--control-active-bg);
 }
-.ui-seg--accent .ui-seg-opt {
-  background: var(--card);
-  padding: 7px 12px;
-  color: var(--ink);
-}
-.ui-seg--accent .ui-seg-on {
+.ui-seg-on {
   background: var(--dd-on-bg);
   color: var(--coral-text);
   box-shadow: inset 0 0 0 1px var(--coral);
   font-weight: 600;
-}
-.ui-seg--neutral .ui-seg-opt {
-  background: transparent;
-  padding: 5px 12px;
-  font-size: var(--text-control);
-  font-weight: 500;
-  color: var(--soft);
-}
-.ui-seg--neutral .ui-seg-on {
-  background: var(--card);
-  color: var(--ink);
-  box-shadow: var(--shadow);
 }
 @media (prefers-reduced-motion: reduce) {
   .ui-seg-opt {

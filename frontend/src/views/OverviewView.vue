@@ -17,6 +17,7 @@ import { buildScanActivityOption } from '@/charts/buildScanActivityOption'
 import { buildSeverityTrendOption, type SeverityTrendData } from '@/charts/buildSeverityTrendOption'
 import { isSubDayWindow } from '@/charts/buildTrendQuery'
 import EChart from '@/components/charts/EChart.vue'
+import IngestLens from '@/components/dashboards/IngestLens.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -161,12 +162,19 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </p>
       </div>
       <div class="head-actions">
-        <UiSegControl v-model="scanner" tone="neutral" :options="SCANNER_OPTS" />
+        <UiSegControl v-model="scanner" :options="SCANNER_OPTS" />
         <UiButton variant="primary" @click="goFindings({ severity: 'critical' })">
           Triage critical <AppIcon name="chevron" :size="13" />
         </UiButton>
       </div>
     </div>
+
+    <IngestLens
+      v-if="clusterStore.selectedId"
+      class="ov-lens"
+      :cluster-id="clusterStore.selectedId"
+      subject="this screen"
+    />
 
     <div v-if="overview.loading" aria-busy="true" aria-label="Loading overview">
       <div class="skel skel-band" />
@@ -242,7 +250,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             <UiSegControl
               v-if="timeTravel.isNow"
               v-model="trendLens"
-              tone="neutral"
+
               :options="LENS_OPTS"
             />
           </div>
@@ -332,6 +340,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 </template>
 
 <style scoped>
+.ov-lens {
+  margin-bottom: 16px;
+}
 .screen-head {
   display: flex;
   align-items: flex-start;

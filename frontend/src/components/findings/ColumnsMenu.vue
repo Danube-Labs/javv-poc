@@ -32,7 +32,7 @@ const DENSITY_OPTS = [
     <div class="dd-menu cols-menu">
       <div class="dd-head">Density</div>
       <UiSegControl
-        tone="neutral"
+
         class="density-seg"
         :model-value="dense ? 'compact' : 'comfortable'"
         :options="DENSITY_OPTS"

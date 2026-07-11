@@ -6,8 +6,8 @@
  * the 56px topbar (cluster switcher · global time picker · search/bell slots (M9f, disabled) ·
  * avatar). Nav items whose screen is capability-gated are HIDDEN without the capability (A-4).
  */
-import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { RouterLink, RouterView, useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import iconSvg from '@/assets/brand/icon.svg'
 import ClusterSwitcher from '@/components/chrome/ClusterSwitcher.vue'
@@ -20,6 +20,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useHealthStore } from '@/stores/health'
 import { useTimeTravelStore } from '@/stores/timeTravel'
+import { lastDataAt } from '@/system/freshness'
+import { ttFromQuery, ttToQuery } from '@/system/timeTravelUrl'
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? 'dev'
 
@@ -28,6 +30,37 @@ const clusterStore = useClusterStore()
 const health = useHealthStore()
 const timeTravel = useTimeTravelStore()
 const router = useRouter()
+const route = useRoute()
+
+/* ---- the global range ⇄ URL (restorable-state rule, audit 343) ---- */
+// restore BEFORE child views mount, so their first reads already carry the range
+const fromUrl = ttFromQuery(route.query)
+if (fromUrl) {
+  if (fromUrl.t !== null) {
+    timeTravel.rewindTo(fromUrl.t)
+    timeTravel.setWindow(fromUrl.win, `→ ${lastDataAt(fromUrl.t)}`)
+  } else {
+    // sub-hour windows label in minutes — rounding 30min to "0 hours" lied (operator catch)
+    const hours = fromUrl.win * 24
+    const label =
+      fromUrl.win >= 1
+        ? `Last ${fromUrl.win} day${fromUrl.win === 1 ? '' : 's'}`
+        : hours >= 1
+          ? `Last ${Math.round(hours)} hour${Math.round(hours) === 1 ? '' : 's'}`
+          : `Last ${Math.max(1, Math.round(hours * 60))} minutes`
+    timeTravel.setWindow(fromUrl.win, label)
+  }
+}
+// re-stamp on NAVIGATION too — a bare next-page URL would lose the range on ITS refresh
+// (operator bug report: set 24h → navigate → refresh → back to 30 days)
+watch(
+  () => [timeTravel.t, timeTravel.windowDays, route.path] as const,
+  ([t, win]) => {
+    const tt = ttToQuery(t, win)
+    if (route.query.t === (tt.t ?? undefined) && route.query.win === (tt.win ?? undefined)) return
+    void router.replace({ query: { ...route.query, t: tt.t, win: tt.win } })
+  },
+)
 
 interface NavItem {
   label: string
@@ -136,7 +169,7 @@ onUnmounted(() => health.stopPolling())
           <span class="sweep-dot" :class="{ down: health.degraded }" aria-hidden="true" />
           <div v-if="!collapsed">
             <b>{{ health.degraded ? 'Store degraded' : 'Store healthy' }}</b>
-            <span>{{ clusterStore.clusters.length }} cluster(s) · live</span>
+            <span>{{ clusterStore.clusters.length }} cluster{{ clusterStore.clusters.length === 1 ? '' : 's' }} · live</span>
           </div>
         </div>
         <div v-if="!collapsed" class="side-version">v{{ APP_VERSION }} · schema 4 · MVP</div>
@@ -164,6 +197,9 @@ onUnmounted(() => health.stopPolling())
 
       <BackendHealthBanner />
       <ScannerFreshnessBanner />
+      <p v-if="clusterStore.failed && clusterStore.clusters.length === 0" class="load-error" role="alert">
+        Cluster list unavailable — every read needs it. Check the backend, then reload.
+      </p>
       <Transition name="t-fade">
         <div v-if="!timeTravel.isNow" class="history-banner" role="status">
           <AppIcon name="rewind" :size="15" />

@@ -82,3 +82,29 @@ sidebar collapse rail is the one ruled exception), everything collapses under
 built through the kit animates by default; in-flow appearances (banners) use `t-fade`.
 Feedback text (error/success notes) is deliberately INSTANT — never animate urgency.
 Binding detail: `frontend/DESIGN.md` §5 "Motion".
+
+## Audit rules (ruled 2026-07-11, #343) — every screen, present and future
+
+1. **Honest errors.** A 4xx caused by user input names the input, never blames the backend.
+   Every status the FE can receive (401 / 410 / 422 / 429 / 5xx) maps to distinct copy — one
+   generic "check the backend connection" for everything is a bug. Findings' mapping lives in
+   `src/findings/failureCopy.ts` (unit-tested); new grids follow it.
+2. **Contract guards.** Any constraint the API enforces (min-length, numeric ranges) gets a
+   matching guard at the input AND in the query builder (which omits, never emits, invalid
+   values) — a keystroke or a pasted URL must never produce a known-invalid request. Pinned by
+   builder specs.
+3. **Feedback within 200ms.** Every user-triggered action (export, apply, bulk, rewind) shows
+   visible feedback — toast, spinner, or state change. Silent success is indistinguishable
+   from silent failure.
+4. **Restorable state.** Any state that changes what the data MEANS (time range `t`/`win`,
+   filters, cluster) rides the URL and survives reload — `src/system/timeTravelUrl.ts` +
+   `makeFiltersStore.toQuery/fromQuery`. Screens that own their query spread `keepTT()` in so
+   `router.replace` never wipes the global range.
+5. **Semantics surface.** Every data-table screen carries the D28 line ("the table shows the
+   state at the END of this range") — the `IngestLens` provides it; a screen that can't host
+   the lens states it another visible way.
+6. **Silence is a bug.** No store fetch may fail without either a visible state (alert/banner)
+   or a health-store mark. `if (ok) …` with no else is a review blocker.
+7. **Standing gates.** The Playwright zero-console-error walk over every route and the
+   measured-parity checks (getBoundingClientRect against the findings reference) run as part
+   of any UI-touching review.

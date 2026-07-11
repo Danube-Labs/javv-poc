@@ -37,10 +37,12 @@ export interface FlagsField extends BaseField {
   }[]
 }
 
-/** Free-text single-value param (no facet buckets). */
+/** Free-text single-value param (no facet buckets). `minLength` mirrors the API's own
+ * validation — a keystroke must never emit a known-invalid query (contract-guard, audit 343). */
 export interface TextField extends BaseField {
   type: 'text'
   param: string
+  minLength?: number
 }
 
 export type FilterField = TermsField | FlagsField | TextField
@@ -54,7 +56,7 @@ export const emptySelections = (fields: readonly FilterField[]): Selections =>
 /** Findings screen config (FR-12). Owned here; M9b+ screens import, never copy. */
 export const FINDINGS_FIELDS: readonly FilterField[] = [
   // the rail search box writes this — CONTAINS across cve/image/namespace/assignee/package
-  { key: 'q', label: 'Search', type: 'text', param: 'q' },
+  { key: 'q', label: 'Search', type: 'text', param: 'q', minLength: 2 },
   { key: 'severity', label: 'Severity', type: 'terms', param: 'severity', multi: true, facetKey: 'severity', values: SEVERITIES },
   { key: 'scanner', label: 'Scanner', type: 'terms', param: 'scanner', facetKey: 'scanner', values: ['trivy', 'grype'] },
   {

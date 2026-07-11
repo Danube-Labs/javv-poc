@@ -48,9 +48,9 @@ function applyPreset(label: string, days: number) {
 
 function applyRelative() {
   if (!relN.value || relN.value < 1) return
-  // charts take whole days (trends contract int 1..365) — sub-day spans round up to 1 day
-  // for the days param; the label keeps the user's exact choice
-  const days = Math.min(365, Math.max(1, Math.ceil((relN.value * UNIT_MS[relUnit.value]) / DAY_MS)))
+  // the store keeps the TRUE (possibly sub-day) span; query builders ceil+clamp to the
+  // day-grained 1..365 contract at emission — pre-clamping here killed isSubDayWindow (audit 343)
+  const days = Math.min(365, (relN.value * UNIT_MS[relUnit.value]) / DAY_MS)
   const unit = relUnit.value.slice(0, -1)
   timeTravel.backToNow()
   timeTravel.setWindow(days, `Last ${relN.value} ${unit}${relN.value === 1 ? '' : 's'}`)
