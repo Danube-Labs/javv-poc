@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.8](https://github.com/Danube-Labs/javv-poc/compare/v0.3.7...v0.3.8) (2026-07-11)
+
+
+### Features
+
+* **api:** severity split on the findings trend ([#333](https://github.com/Danube-Labs/javv-poc/issues/333)) ([77801c6](https://github.com/Danube-Labs/javv-poc/commit/77801c6a0788e265a5bf9bc854d638c5554e3c48))
+* **ui:** m9c slice 1 — the overview dashboard ([#332](https://github.com/Danube-Labs/javv-poc/issues/332)) ([406dedf](https://github.com/Danube-Labs/javv-poc/commit/406dedf866da65acf720da33ffcd6d9c4892cc14)), closes [#37](https://github.com/Danube-Labs/javv-poc/issues/37)
+* **ui:** M9c slice 2 — the all-clusters fleet view ([#338](https://github.com/Danube-Labs/javv-poc/issues/338)) ([bcf7485](https://github.com/Danube-Labs/javv-poc/commit/bcf748510f02c41f4e019482cdfd5f15fe36f101))
+* **ui:** M9c slice 3 — running images + image detail on the committed inventory ([#339](https://github.com/Danube-Labs/javv-poc/issues/339)) ([4312607](https://github.com/Danube-Labs/javv-poc/commit/431260720b3ba48ed4587d91ad9e99fd840b4909))
+* **ui:** overview 1b — severity lens, signal band, at-rest affordances ([#334](https://github.com/Danube-Labs/javv-poc/issues/334)) ([486e2ae](https://github.com/Danube-Labs/javv-poc/commit/486e2aef008e457ccf103f6137bee142773339c0)), closes [#37](https://github.com/Danube-Labs/javv-poc/issues/37)
+* **ui:** scan-ingest lens above the findings + images tables ([#340](https://github.com/Danube-Labs/javv-poc/issues/340)) ([95eaa2f](https://github.com/Danube-Labs/javv-poc/commit/95eaa2fdc75ca96300574c6344df96824b273b7a)), closes [#37](https://github.com/Danube-Labs/javv-poc/issues/37)
+
+
+### Bug Fixes
+
+* **ui:** audit-343 wave — honest errors, restorable time range, semantics everywhere ([#344](https://github.com/Danube-Labs/javv-poc/issues/344)) ([19d3dfb](https://github.com/Danube-Labs/javv-poc/commit/19d3dfb7ec5cbc2d98845d82bbb2c96986bb52f3)), closes [#343](https://github.com/Danube-Labs/javv-poc/issues/343)
+* **ui:** freshness banner — urgency treatment, 24h times, durations, 10-min poll ([#330](https://github.com/Danube-Labs/javv-poc/issues/330)) ([7e1c991](https://github.com/Danube-Labs/javv-poc/commit/7e1c9910a2ef0c0e293eeb091211d62ef269756a))
+* **ui:** overview + findings polish — cursor, donut links, palette, note, column diet ([#335](https://github.com/Danube-Labs/javv-poc/issues/335)) ([ae706ce](https://github.com/Danube-Labs/javv-poc/commit/ae706ce686ef16a15208ab8a25a5023659be697f))
+* **ui:** system-default cursor truly global — universal rule + ratchet ([#337](https://github.com/Danube-Labs/javv-poc/issues/337)) ([023f19b](https://github.com/Danube-Labs/javv-poc/commit/023f19b7c7f4336820cc9a19e7463a9bc8f23b32)), closes [#37](https://github.com/Danube-Labs/javv-poc/issues/37)
+
 ## [0.3.7](https://github.com/Danube-Labs/javv-poc/compare/v0.3.6...v0.3.7) (2026-07-10)
 
 
