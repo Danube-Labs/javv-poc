@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.9](https://github.com/Danube-Labs/javv-poc/compare/v0.3.8...v0.3.9) (2026-07-11)
+
+
+### Features
+
+* **ui:** chip language A — derived hues, severity escalation, one depth treatment ([#350](https://github.com/Danube-Labs/javv-poc/issues/350)) ([229a728](https://github.com/Danube-Labs/javv-poc/commit/229a728728fdb733ce81cac128da9ad1f91b444b))
+* **ui:** grid ergonomics — column drag-reorder on findings + images, cursor contract, first-seen column ([#348](https://github.com/Danube-Labs/javv-poc/issues/348)) ([a24e768](https://github.com/Danube-Labs/javv-poc/commit/a24e768c55d919d1f25714050f294e56ef494f09))
+
+
+### Bug Fixes
+
+* **api:** cap hourly trend buckets at a month of span ([#346](https://github.com/Danube-Labs/javv-poc/issues/346)) ([a562b1e](https://github.com/Danube-Labs/javv-poc/commit/a562b1e49d93b43b403bd324368a030e1e9b20d0)), closes [#343](https://github.com/Danube-Labs/javv-poc/issues/343)
+
 ## [0.3.8](https://github.com/Danube-Labs/javv-poc/compare/v0.3.7...v0.3.8) (2026-07-11)
 
 
