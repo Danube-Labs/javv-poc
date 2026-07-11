@@ -9,7 +9,7 @@
  * Per-scanner rows are distinct (one scanner tag per row, disagree flagged) — never merged.
  *
  * Column order (task 92): the toggleable columns render from `colOrder`; Vulnerability +
- * Severity stay pinned left (row identity), State pinned right (the triage anchor). With
+ * Severity alone stay pinned left (row identity — operator unpinned State 2026-07-11). With
  * `reorderable`, headers drag (Kibana grammar) — the table emits raw PrimeVue indexes and
  * the OWNER maps + persists them (`findings/columnOrder.ts`), same parent-owns-state
  * discipline as `hidden`.
@@ -73,6 +73,7 @@ const COL_HEADER: Record<FindingsColumnKey, string> = {
   images: 'Affected',
   scanner: 'Scanner',
   sla: 'SLA',
+  state: 'State',
   assignee: 'Assignee',
 }
 // every cell left-anchored (operator 2026-07-11: we read left to right — no r/c columns);
@@ -85,6 +86,7 @@ const FIT_COLS = new Set<FindingsColumnKey>([
   'images',
   'scanner',
   'sla',
+  'state',
   'assignee',
 ])
 const colClass = (key: FindingsColumnKey) =>
@@ -108,7 +110,7 @@ const dt = ref<InstanceType<typeof DataTable> | null>(null)
 // could violate the pins. `colOrder` is the truth — re-assert it on every change and drop.
 function syncPrimeOrder() {
   const inst = dt.value as unknown as { d_columnOrder?: string[] } | null
-  if (inst) inst.d_columnOrder = ['cve', 'severity', ...orderedKeys.value, 'state']
+  if (inst) inst.d_columnOrder = ['cve', 'severity', ...orderedKeys.value]
 }
 watch(orderedKeys, () => void nextTick(syncPrimeOrder))
 
@@ -188,12 +190,8 @@ const nsLabel = (r: FindingRow): string => {
             <DisagreementBadge v-if="data.disagree" />
           </span>
           <SlaCell v-else-if="key === 'sla'" :due-at="data.due_at" :overdue="data.overdue === true" />
+          <StateTag v-else-if="key === 'state'" :state="data.state" />
           <span v-else-if="key === 'assignee'" class="sm">{{ data.assignee ?? '-' }}</span>
-        </template>
-      </Column>
-      <Column column-key="state" header="State" :reorderable-column="false" class="fit">
-        <template #body="{ data }">
-          <StateTag :state="data.state" />
         </template>
       </Column>
       <template #empty>
