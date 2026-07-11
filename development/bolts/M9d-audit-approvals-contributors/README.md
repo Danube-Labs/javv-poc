@@ -51,6 +51,25 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - VEX import (decision-from-VEX) → v1.1.
 
 ## Updates
+- **2026-07-12 — v0.3.9 reusables (task 92 + chip language A, PRs #348/#350):** the four
+  screens here are grid-heavy — reuse, never re-solve:
+  - **Grids:** the base.css table skin now includes `fit` (shrink-to-content data columns,
+    slack pools in text columns), `th-drag` (draggable-header light-up), and left-anchored
+    cells (no `r`/`c` on data grids — operator ruling). Column drag-reorder is a solved
+    grammar: `system/columnOrder.ts` (pure, tested) + `ColumnsMenu` `reorderable` +
+    the header-drag wiring — port from `FindingsTable`/`ImagesTable`, and mind the THREE
+    PrimeVue traps documented in their comments (unique `column-key` per column;
+    re-assert the parent order onto `d_columnOrder` after every change/drop; drops onto
+    pinned headers aren't blocked, clamp them). Pins are for ROW IDENTITY only.
+  - **Chips (language A, DESIGN.md §2):** statuses use the quiet register — `StateTag`
+    grammar (soft tint + lifecycle dot) for decision/approval states; the scanner-status
+    staleness display is exactly `HealthChip`'s dot-and-word grammar; alarms alone get the
+    depth treatment. Never re-invent a status pill.
+  - **Timestamps:** `lastDataAt` + absolute `title`, sortable time columns follow the
+    First-seen pattern (SORT_FIELD map, server whitelist first). Provenance stamps on every
+    now-claim stand (audit rule 5).
+  - **Cursor contract:** PrimeVue never decides a cursor (global neutralizer in base.css);
+    drag surfaces show grab (DESIGN.md §5) — comes free, don't fight it.
 - **2026-07-10 — presentation grammar (#319 ruling):** the audit-log screen renders on the
   **Nuxt UI Timeline grammar** (vertical timeline: marker + who/what/when per event) on our
   tokens — never the library. Build from the UI kit (`frontend/DESIGN.md` §5) — dropdown/modal/

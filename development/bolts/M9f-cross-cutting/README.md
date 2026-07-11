@@ -68,6 +68,24 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > ([CONFIGURATION.md §2b](../../../docs/CONFIGURATION.md)); never log tokens/cookies/bodies (NFR-5).
 
 ## Updates
+- **2026-07-12 — v0.3.9 reusables + designed-here items (task 92 + chip language A; #349/#351):**
+  - **Saved views bundle the whole workbench (#351 §2):** column ORDER now exists
+    (`javv.{findings,images}.col_order` via `system/columnOrder.ts`) alongside hidden/density —
+    a saved view should capture **filters + columns + order + density + time range** so views
+    are complete and shareable; while at it, version the localStorage prefs (#351 §4).
+  - **Filter negation is designed HERE (#349 §2):** the Kibana click-to-exclude grammar
+    (NOT pills, cell ± affordance, `must_not` semantics incl. the missing-field trap) shares
+    its URL/preset grammar with saved views — design once, together.
+  - **The E2E suite absorbs the manual standing gates (#351 §3):** the zero-console 10-route
+    walk + measured-parity checks (ui-foundations audit rule 7) become scripted Playwright
+    specs in the Frontend CI gate.
+  - **`useLazyGrid` folds the reorder grammar in:** pins-are-identity-only, unique
+    `column-key`, parent-order re-assert (the PrimeVue traps — see FindingsTable comments).
+  - **Keyboard triage candidate (#351 §5):** j/k row nav + one-key state change (Linear
+    grammar) — decide at kickoff whether it lands here or in the a11y pass (task 83, which
+    also owes the pre-existing IngestLens `h1→h3` heading-skip fix).
+  - Chips/empty states follow **chip language A** (DESIGN.md §2); cursor contract incl. the
+    grab drag-surface exception is global — comes free.
 - **2026-07-10 — presentation grammar + follow-up (#319 rulings):** global search ships as a
   **⌘K command palette** (Nuxt UI CommandPalette grammar on our tokens — search CVE/image/
   package + jump-to-screen), replacing the disabled topbar input. **Directly after this bolt**:

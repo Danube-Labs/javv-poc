@@ -77,6 +77,15 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-07-12 — settled visual contracts (v0.3.9, PRs #348/#350) — polish must not re-litigate:**
+  chip language A (derived hues, severity escalation, the one depth treatment), the chart
+  escalation ramp (`--sev-*-chart`, critical/high test-pinned to the solids), the cursor
+  contract (arrow everywhere, grab on drag surfaces, PrimeVue neutralized), pins-are-identity-only
+  reorderable grids, and left-anchored data cells are all operator-ruled and gate-enforced
+  (contrast gate, style ratchet, tokens pins). The polish pass verifies against DESIGN.md §2/§5 +
+  `ui-foundations.md` §Audit rules — deviations need a new ruling, not taste. The dev seed
+  cluster (`development/setup/seed-vuln-workloads.yaml`, 5 namespaces / ~13 images) is the
+  UI-scale fixture for the final walk.
 - **2026-07-07** — M7 storage decision (#32): M10 now also renders **`report-drain` + `report-sweep`**
   CronJobs (deferred from M7). Report results are stored **in OpenSearch** (chunked), so M10 provisions
   **no object store for reports** — S3/MinIO stays snapshot-only (M2). The download is a backend endpoint
