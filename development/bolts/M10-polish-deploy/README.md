@@ -41,6 +41,8 @@ In the deploy tree, not here (paths proposed):
 - Attribution / NOTICE.
 
 ## Definition of Done
+Every screen this bolt ships inherits the UI conventions settled in M9a-M9c: [`ui-foundations.md`](../../standards/ui-foundations.md) **Audit rules** (honest errors, contract guards, restorable state, the D28 semantics surface via `IngestLens`, provenance stamps on now-claims, silence-is-a-bug) and the shared M9 surfaces (filter module, table skin, kit controls) - reuse them, never re-solve.
+
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated check):
 - **Helm lint + template render** clean; `helm template` produces valid manifests for default + prod values.
 - **vuln-DB cache (NFR-11):** PVC mounts in both scanner jobs; the refresh CronJob populates it; a scanner run with the offline/cached DB succeeds **without** reaching upstream (deterministic-test guarantee, testing.md "no calls to real vuln-DBs").

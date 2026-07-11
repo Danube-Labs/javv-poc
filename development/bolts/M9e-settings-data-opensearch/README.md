@@ -36,6 +36,8 @@ In the layered tree, not here (paths proposed):
 - `backend/jobs/findings_cleanup.py` — the **long-window `findings` cleanup CronJob (D37/M12)**: `delete_by_query` on `findings` rows (+ their `javv-scan-watermarks` docs) whose image has been gone from inventory / `present=false` for the **long** retention window (a `system-config` knob this panel edits; independent of, and much longer than, the staleness timers). This is the job that bounds the `findings` plateau — **never** runs on the freshness timer, k8s CronJob `Forbid`, journaled to `system-audit-log`. *(Ownership was previously implied by D37/M12 but unowned — landed here because it pairs with the retention panel that configures it.)*
 
 ## Definition of Done
+Every screen this bolt ships inherits the UI conventions settled in M9a-M9c: [`ui-foundations.md`](../../standards/ui-foundations.md) **Audit rules** (honest errors, contract guards, restorable state, the D28 semantics surface via `IngestLens`, provenance stamps on now-claims, silence-is-a-bug) and the shared M9 surfaces (filter module, table skin, kit controls) - reuse them, never re-solve.
+
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus** (each an automated test):
 - **Retention = drop whole indices (keystone):** applying a `retention_days` change results in expired time-partitioned indices being **dropped whole** by the lifecycle sweep (`indices.delete`); a test asserts the retention path **never** issues a `delete_by_query` against append families (hard constraint).
 - `stale` and **delete** are independent: changing the staleness timer flips the `stale` flag only; `findings`/occurrences docs are removed solely on the separate long retention window (D37/M12).
