@@ -11,13 +11,22 @@ const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } })
 vi.mock('@/api/generated', () => ({
   facetFindingsApiV1FindingsFacetsGet: vi.fn<() => Promise<unknown>>(),
   searchFindingsApiV1FindingsGet: vi.fn<() => Promise<unknown>>(),
+  listRunningImagesApiV1ImagesGet: vi.fn<() => Promise<unknown>>(),
+  imageTimelineApiV1ImagesTimelineGet: vi.fn<() => Promise<unknown>>(),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 
-import { facetFindingsApiV1FindingsFacetsGet, searchFindingsApiV1FindingsGet } from '@/api/generated'
+import {
+  facetFindingsApiV1FindingsFacetsGet,
+  imageTimelineApiV1ImagesTimelineGet,
+  listRunningImagesApiV1ImagesGet,
+  searchFindingsApiV1FindingsGet,
+} from '@/api/generated'
 
 const facetsMock = vi.mocked(facetFindingsApiV1FindingsFacetsGet)
 const searchMock = vi.mocked(searchFindingsApiV1FindingsGet)
+const inventoryMock = vi.mocked(listRunningImagesApiV1ImagesGet)
+const timelineMock = vi.mocked(imageTimelineApiV1ImagesTimelineGet)
 
 const row = (key: string, scanner: string) =>
   ({
@@ -54,6 +63,10 @@ describe('ImageDetailView (M9c slice 3)', () => {
     vi.clearAllMocks()
     useClusterStore().clusters = [{ cluster_id: 'c-1', cluster_name: 'c-1' }]
     useClusterStore().selectedId = 'c-1'
+    inventoryMock.mockResolvedValue(
+      ok({ inventory: { inventory_run_id: 'r1' }, images: [] }) as never,
+    )
+    timelineMock.mockResolvedValue(ok({ events: [] }) as never)
   })
 
   it('scanner lens SWAPS the per-scanner reads — rows replaced, never merged', async () => {
