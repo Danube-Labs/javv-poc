@@ -75,12 +75,20 @@ const COL_HEADER: Record<FindingsColumnKey, string> = {
   sla: 'SLA',
   assignee: 'Assignee',
 }
-const COL_CLASS: Partial<Record<FindingsColumnKey, string>> = {
-  epss: 'r',
-  kev: 'c',
-  images: 'r',
-  sla: 'c',
-}
+// every cell left-anchored (operator 2026-07-11: we read left to right — no r/c columns);
+// narrow data columns shrink to content so layout slack pools in the text columns
+const FIT_COLS = new Set<FindingsColumnKey>([
+  'epss',
+  'kev',
+  'current',
+  'fixed',
+  'images',
+  'scanner',
+  'sla',
+  'assignee',
+])
+const colClass = (key: FindingsColumnKey) =>
+  [FIT_COLS.has(key) ? 'fit' : '', props.reorderable ? 'th-drag' : ''].join(' ').trim()
 
 const emit = defineEmits<{
   sort: [field: SortField]
@@ -129,7 +137,7 @@ const nsLabel = (r: FindingRow): string => {
       :loading="props.loading"
       data-key="finding_key"
       :reorderable-columns="props.reorderable"
-      :pt="{ table: { class: `tbl tbl-hover ${props.dense ? 'tbl-dense' : ''}` } }"
+      :pt="{ table: { class: `tbl tbl-hover ${props.dense ? 'tbl-dense' : ''} ${props.reorderable ? 'tbl-reorder' : ''}` } }"
       @sort="onSort"
       @column-reorder="onColReorder"
       @row-click="(e) => emit('rowClick', e.data as FindingRow)"
@@ -139,7 +147,7 @@ const nsLabel = (r: FindingRow): string => {
           <span class="mono-cell strong nowrap cve-link">{{ data.cve_id }}</span>
         </template>
       </Column>
-      <Column column-key="severity" field="severity_rank" header="Severity" sortable :reorderable-column="false">
+      <Column column-key="severity" field="severity_rank" header="Severity" sortable :reorderable-column="false" class="fit">
         <template #body="{ data }">
           <SevChip :level="data.severity_canonical" />
         </template>
@@ -150,7 +158,7 @@ const nsLabel = (r: FindingRow): string => {
         :column-key="key"
         :field="key === 'epss' ? 'epss' : undefined"
         :sortable="key === 'epss'"
-        :class="COL_CLASS[key]"
+        :class="colClass(key)"
       >
         <template #header>
           <span v-if="key === 'epss'">EPSS<span class="th-note">via Grype</span></span>
@@ -183,7 +191,7 @@ const nsLabel = (r: FindingRow): string => {
           <span v-else-if="key === 'assignee'" class="sm">{{ data.assignee ?? '-' }}</span>
         </template>
       </Column>
-      <Column column-key="state" header="State" :reorderable-column="false">
+      <Column column-key="state" header="State" :reorderable-column="false" class="fit">
         <template #body="{ data }">
           <StateTag :state="data.state" />
         </template>

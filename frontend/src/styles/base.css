@@ -234,6 +234,22 @@ a {
 .p-datatable-row-reorder-indicator-down {
   color: var(--coral);
 }
+/* draggable headers answer the pointer (operator 2026-07-11): wash + coral title — a header
+   you can grab must light up like every other interactive control */
+.tbl-reorder.tbl-reorder thead th.th-drag {
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+.tbl-reorder.tbl-reorder thead th.th-drag:hover {
+  background: var(--control-hover-bg);
+  color: var(--coral-text);
+}
+/* narrow data columns shrink to content; layout slack pools in the text columns
+   (cve/package/image/namespace) instead of stretching numbers away from their headers */
+.tbl.tbl th.fit,
+.tbl.tbl td.fit {
+  width: 1%;
+  white-space: nowrap;
+}
 .tbl.tbl th.r,
 .tbl.tbl td.r {
   text-align: right;
