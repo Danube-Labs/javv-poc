@@ -41,25 +41,25 @@ const title = computed(() =>
 .cd-split {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
+  font-size: var(--text-mono-cell);
   white-space: nowrap;
 }
 .cd-t,
 .cd-g {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-weight: 600;
+  gap: 4px;
+  font-weight: 700;
 }
 .cd-split i {
   font-style: normal;
-  font-size: var(--text-chip-sm);
+  font-size: var(--text-sm);
   font-weight: 700;
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
   display: inline-grid;
   place-items: center;
 }
@@ -72,11 +72,11 @@ const title = computed(() =>
   color: var(--scanner-grype-fg);
 }
 .cd-delta {
-  font-size: var(--text-chip-sm);
+  font-size: var(--text-sm);
   font-weight: 700;
   color: var(--health-degraded-fg);
   background: var(--health-degraded-bg);
-  padding: 1px 5px;
+  padding: 2px 6px;
   border-radius: 4px;
 }
 </style>
