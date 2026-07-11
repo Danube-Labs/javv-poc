@@ -36,6 +36,7 @@ import { useApi } from '@/composables/useApi'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
+import { lastDataAt } from '@/system/freshness'
 import type { FindingRow } from '@/stores/findings'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
@@ -170,6 +171,7 @@ const presentTotal = computed(() => facets.value.present?.find((b) => b.key === 
 /* ---- the two questions (D38/H6): runtime inventory vs as-scanned — never conflated ---- */
 const inventoryRow = ref<ImageRow | null>(null)
 const inventoryKnown = ref<boolean | null>(null) // null = loading; false = no committed inventory at T
+const inventoryAt = ref<string | null>(null) // WHEN that truth was committed — the provenance stamp
 async function loadInventoryAtT() {
   if (!clusterStore.selectedId) return
   const q = buildImageAtTQuery(clusterStore.selectedId, digest.value, scanner.value, timeTravel.t)
@@ -177,8 +179,9 @@ async function loadInventoryAtT() {
     query: q.runtime_inventory_at_T as ListRunningImagesApiV1ImagesGetData['query'],
   })
   if (response?.ok && data) {
-    const body = data as { inventory: unknown; images: ImageRow[] }
+    const body = data as { inventory: { completed_at: string | null } | null; images: ImageRow[] }
     inventoryKnown.value = body.inventory !== null
+    inventoryAt.value = body.inventory?.completed_at ?? null
     inventoryRow.value = body.images.find((i) => i.image_digest === digest.value) ?? null
   } else {
     inventoryKnown.value = null
@@ -210,6 +213,17 @@ watch([() => clusterStore.selectedId, repo, tag], () => void loadTimeline(), { i
 
 const notYetScanned = computed(() => notYetScannedAt(timeline.value, scanner.value, timeTravel.t))
 
+/** The current lens scanner's most recent committed scan ≤ T — the findings answer's stamp. */
+const lastScanAt = computed(() => {
+  const cut = timeTravel.t
+  return timeline.value
+    .filter((e) => e.scanner === scanner.value && (cut === null || e['@timestamp'] <= cut))
+    .reduce<string | null>(
+      (max, e) => (max === null || e['@timestamp'] > max ? e['@timestamp'] : max),
+      null,
+    )
+})
+
 function openFinding(row: FindingRow) {
   logger.debug('image_finding_row_clicked', { finding_key: row.finding_key })
   void router.push({
@@ -237,7 +251,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             <i class="digest-note">identity is the content digest — repo:tag is just a handle</i>
           </p>
           <div v-if="inventoryRow" class="img-meta">
-            <span class="mono-cell"><b>{{ fmt(inventoryRow.replicas ?? 0) }}</b> replicas at last sweep</span>
+            <span class="mono-cell"><b>{{ fmt(inventoryRow.replicas ?? 0) }}</b> replica{{ (inventoryRow.replicas ?? 0) === 1 ? '' : 's' }} at last sweep</span>
             <span class="mono-cell">{{ inventoryRow.namespaces.join(', ') }}</span>
           </div>
         </div>
@@ -255,10 +269,18 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         <span class="kpi-num tq-ans">
           <template v-if="inventoryKnown === null">—</template>
           <template v-else-if="inventoryKnown === false">unknown</template>
-          <template v-else-if="inventoryRow">yes · {{ fmt(inventoryRow.replicas ?? 0) }} replicas</template>
+          <template v-else-if="inventoryRow"
+            >yes · {{ fmt(inventoryRow.replicas ?? 0) }} replica{{
+              (inventoryRow.replicas ?? 0) === 1 ? '' : 's'
+            }}</template
+          >
           <template v-else>no</template>
         </span>
-        <span class="kpi-sub">runtime inventory{{ inventoryKnown === false ? ' — none committed at this T' : '' }}</span>
+        <span class="kpi-sub"
+          >runtime inventory<template v-if="inventoryKnown === false">
+            — none committed at this T</template
+          ><template v-else-if="inventoryAt"> · committed {{ lastDataAt(inventoryAt) }}</template></span
+        >
       </div>
       <div class="kpi-cell kpi-static">
         <span class="kpi-label"><i class="kpi-dot kpi-dot-scan" />what did {{ scanner }} find?</span>
@@ -266,7 +288,11 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <template v-if="notYetScanned">not yet scanned</template>
           <template v-else>{{ fmt(presentTotal) }} findings</template>
         </span>
-        <span class="kpi-sub">as-scanned, not as-running</span>
+        <span class="kpi-sub"
+          >as-scanned, not as-running<template v-if="lastScanAt">
+            · last scan {{ lastDataAt(lastScanAt) }}</template
+          ></span
+        >
       </div>
     </div>
 

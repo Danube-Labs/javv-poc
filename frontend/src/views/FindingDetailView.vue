@@ -431,7 +431,7 @@ watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { im
           <div class="card-head">
             <div>
               <h3>Affected components <span class="count-badge">{{ affected.length }}{{ affectedTruncated ? '+' : '' }}</span></h3>
-              <p class="card-sub">across what's actually running · one row per image + package, scanners listed, never merged</p>
+              <p class="card-sub">across the last committed inventory · one row per image + package, scanners listed, never merged</p>
             </div>
           </div>
           <div class="card-body">

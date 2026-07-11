@@ -166,7 +166,7 @@ onUnmounted(() => health.stopPolling())
           <span class="sweep-dot" :class="{ down: health.degraded }" aria-hidden="true" />
           <div v-if="!collapsed">
             <b>{{ health.degraded ? 'Store degraded' : 'Store healthy' }}</b>
-            <span>{{ clusterStore.clusters.length }} cluster(s) · live</span>
+            <span>{{ clusterStore.clusters.length }} cluster{{ clusterStore.clusters.length === 1 ? '' : 's' }} · live</span>
           </div>
         </div>
         <div v-if="!collapsed" class="side-version">v{{ APP_VERSION }} · schema 4 · MVP</div>
