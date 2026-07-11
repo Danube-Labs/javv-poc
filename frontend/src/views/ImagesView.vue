@@ -198,7 +198,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           />
           <UiButton
             v-if="auth.hasCapability('can_export')"
-            variant="ghost"
+            variant="control"
             :disabled="filtered.length === 0"
             @click="exportCsv"
           >
@@ -240,83 +240,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 </template>
 
 <style scoped>
-.screen-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-.screen-head h1 {
-  margin: 0 0 4px;
-}
-.screen-sub {
-  margin: 0;
-  color: var(--soft);
-  font-size: var(--text-body);
-}
-.head-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-/* the shared findings-layout grammar (M9a rail + main column) */
-.findings-layout {
-  display: flex;
-  gap: var(--grid-gap);
-  align-items: flex-start;
-}
-.rail-col {
-  flex: none;
-  width: var(--facet-rail-w);
-}
-.rail-col > :last-child {
-  width: 100%;
-}
-.facet-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  padding: 9px 12px;
-  color: var(--soft);
-  margin-bottom: 10px;
-}
-.facet-search:focus-within {
-  border-color: var(--coral);
-}
-.facet-search input {
-  border: 0;
-  background: transparent;
-  outline: none;
-  flex: 1;
-  min-width: 0;
-  font-family: var(--font-ui);
-  font-size: var(--text-mono-cell);
-  color: var(--ink);
-}
-.findings-main {
-  flex: 1;
-  min-width: 0;
-}
-.toolbar-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: var(--space-2);
-}
-.toolbar-row > :first-child {
-  flex: 1;
-}
-
-.load-error {
-  color: var(--health-down-fg);
-  font-size: var(--text-body);
-}
+/* head/layout/toolbar scaffolding lives in base.css (shared data-screen grammar) */
 .first-run {
   padding: 48px 0;
   text-align: center;

@@ -49,6 +49,75 @@ a {
   cursor: default;
 }
 
+/* ---- shared data-screen scaffolding (the findings grammar; operator ruling 2026-07-11:
+   findings is the reference, sibling screens follow) — head rhythm, rail + main layout,
+   toolbar row. One source so screens can't drift; scoped styles may override, not re-own. */
+.screen-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-6); /* the page band boundary — generous */
+}
+.screen-sub {
+  color: var(--soft);
+  font-size: var(--text-body);
+  margin-top: 2px;
+}
+.findings-layout {
+  display: flex;
+  gap: var(--grid-gap);
+  align-items: flex-start;
+}
+.findings-main {
+  flex: 1;
+  min-width: 0;
+}
+.toolbar-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: var(--space-2); /* toolbar/note/table are ONE functional group */
+}
+.toolbar-row > :first-child {
+  flex: 1;
+}
+.rail-col {
+  flex: none;
+  width: var(--facet-rail-w);
+}
+.rail-col > :last-child {
+  width: 100%;
+}
+.facet-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  padding: 9px 12px;
+  color: var(--soft);
+  margin-bottom: 10px;
+}
+.facet-search:focus-within {
+  border-color: var(--coral);
+}
+.facet-search input {
+  border: 0;
+  background: transparent;
+  outline: none;
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-ui);
+  font-size: var(--text-mono-cell);
+  color: var(--ink);
+}
+.load-error {
+  color: var(--health-down-fg);
+  font-size: var(--text-body);
+}
+
 /* Interactive controls: VISIBLE hover feedback (operator ruling 2026-07-10) — a border-color
    shift alone can't be seen; every clickable control gets the wash + the border shift. Scoped
    component rules may add to this; they must not remove it. */
