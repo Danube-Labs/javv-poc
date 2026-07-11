@@ -25,7 +25,6 @@ import { CHART_PTYPE_RAMP, CHART_SEV, type Severity } from '@/styles/tokens'
 import { useClusterStore } from '@/stores/cluster'
 import { useOverviewStore, type FacetBucket } from '@/stores/overview'
 import { useTimeTravelStore } from '@/stores/timeTravel'
-import { silentFor } from '@/system/freshness'
 import { ref } from 'vue'
 
 const KPI_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low']
@@ -141,18 +140,6 @@ const lastSweep = computed(() => {
 })
 
 const subDayNote = computed(() => isSubDayWindow(timeTravel.windowDays))
-
-/** Quiet range (audit 343, ruled onto the existing card — no duplicate lens here): zero
- * committed runs in the span → the amber flag + the state's actual mint time. */
-const scansQuiet = computed(
-  () =>
-    !overview.loading &&
-    Object.values(overview.scans).every((rows) => (rows ?? []).every((p) => p.scans === 0)),
-)
-const lastSweepAgo = computed(() => {
-  if (!overview.lastIngestAt) return null
-  return silentFor((Date.now() - new Date(overview.lastIngestAt).getTime()) / 1000)
-})
 
 function goFindings(query: Record<string, string>) {
   void router.push({ path: '/findings', query })
@@ -301,25 +288,14 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <div class="card-head">
             <div>
               <h3>Scan activity</h3>
-              <p class="card-sub">
-                committed runs per day, per scanner · this screen shows the state at the end of
-                the range
-              </p>
+              <p class="card-sub">committed runs per day, per scanner</p>
             </div>
           </div>
-          <div class="card-body" :class="{ 'scans-quiet': scansQuiet }">
-            <p v-if="scansQuiet" class="scans-quiet-note">
-              No scans committed in this range<template v-if="lastSweep">
-                — the numbers on this screen show the state last updated
-                {{ lastSweep }}<template v-if="lastSweepAgo">, {{ lastSweepAgo }} ago</template></template
-              >.
+          <div class="card-body">
+            <EChart :option="scansOption" :height="190" />
+            <p v-if="subDayNote" class="chart-note">
+              Trend at daily resolution — chart covers the last 1 day.
             </p>
-            <template v-else>
-              <EChart :option="scansOption" :height="190" />
-              <p v-if="subDayNote" class="chart-note">
-                Trend at daily resolution — chart covers the last 1 day.
-              </p>
-            </template>
           </div>
         </section>
         <section class="card">
@@ -552,21 +528,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   margin: 6px 0 0;
   font-size: var(--text-sm);
   color: var(--soft);
-}
-/* quiet range = the amber staleness flag (same language as the ingest lens / history banner) */
-.scans-quiet {
-  background: var(--hist-bg);
-  border-radius: var(--r-sm);
-  display: grid;
-  place-items: center;
-  min-height: 190px;
-}
-.scans-quiet-note {
-  margin: 0;
-  padding: 0 24px;
-  font-size: var(--text-control);
-  color: var(--ink);
-  text-align: center;
 }
 
 .donut-legend {
