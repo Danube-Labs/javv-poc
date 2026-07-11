@@ -243,7 +243,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       </div>
       <div class="head-actions">
         <span class="lens-label">Showing results from</span>
-        <UiSegControl v-model="scanner" tone="neutral" :options="SCANNER_OPTS" />
+        <UiSegControl v-model="scanner" tone="accent" :options="SCANNER_OPTS" />
       </div>
     </div>
 
