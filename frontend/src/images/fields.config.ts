@@ -11,9 +11,7 @@ export const IMAGES_COLUMNS = [
   ['tag', 'Tag'],
   ['namespace', 'Namespace'],
   ['replicas', 'Replicas'],
-  ['delta', 'T / G · Δ'],
   ['mix', 'Severity mix'],
-  ['scanners', 'Scanners'],
   ['seen', 'Last seen'],
 ] as const
 

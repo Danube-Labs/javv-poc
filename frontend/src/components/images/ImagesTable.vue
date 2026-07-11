@@ -8,14 +8,14 @@
 import Column from 'primevue/column'
 import DataTable, { type DataTableSortEvent } from 'primevue/datatable'
 
-import ScannerTag from '@/components/chips/ScannerTag.vue'
+import CountDisagree from '@/components/chips/CountDisagree.vue'
 import MixBar from '@/components/dashboards/MixBar.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import type { ImageRow } from '@/stores/images'
 import type { Severity } from '@/styles/tokens'
 import { lastDataAt } from '@/system/freshness'
 
-export type ImagesSortField = 'total' | 'replicas' | 'count_delta'
+export type ImagesSortField = 'total' | 'replicas'
 
 const props = withDefaults(
   defineProps<{
@@ -56,7 +56,6 @@ const mixOf = (r: ImageRow): Partial<Record<Severity, number>> => ({
 const nsLabel = (r: ImageRow) =>
   r.namespaces.length <= 1 ? (r.namespaces[0] ?? '-') : `${r.namespaces[0]} +${r.namespaces.length - 1}`
 const fmt = (n: number) => n.toLocaleString('en-US')
-const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
 </script>
 
 <template>
@@ -90,7 +89,7 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
           <span class="mono-cell sm" :title="data.namespaces.join(', ')">{{ nsLabel(data) }}</span>
         </template>
       </Column>
-      <Column v-if="show('replicas')" field="replicas" sortable class="r">
+      <Column v-if="show('replicas')" field="replicas" sortable>
         <template #header>
           <span>Replicas<span class="th-note">at last sweep</span></span>
         </template>
@@ -98,36 +97,17 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
           <span class="mono-cell">{{ fmt(data.replicas ?? 0) }}</span>
         </template>
       </Column>
-      <Column field="total" sortable class="r">
+      <Column field="total" sortable>
         <template #header>
-          <span>Findings<span class="th-note">per scanner · never summed</span></span>
+          <span>Vulns<span class="th-note">Trivy / Grype · never summed</span></span>
         </template>
         <template #body="{ data }">
-          <span class="mono-cell"><b>{{ fmt(data.total) }}</b></span>
-        </template>
-      </Column>
-      <Column v-if="show('delta')" field="count_delta" sortable class="r">
-        <template #header>
-          <span>T / G · Δ<span class="th-note">count disagreement</span></span>
-        </template>
-        <template #body="{ data }">
-          <span v-if="data.trivy_count != null && data.grype_count != null" class="mono-cell sm nowrap">
-            {{ fmt(data.trivy_count) }} / {{ fmt(data.grype_count) }} ·
-            <b :class="{ 'delta-warn': data.count_delta !== 0 }">Δ {{ delta(data.count_delta ?? 0) }}</b>
-          </span>
-          <span v-else class="muted-dash">-</span>
+          <CountDisagree :trivy="data.trivy_count" :grype="data.grype_count" :total="data.total" />
         </template>
       </Column>
       <Column v-if="show('mix')" header="Severity mix">
         <template #body="{ data }">
           <MixBar :counts="mixOf(data)" :label="data.scanners.join('+')" class="mix-sized" />
-        </template>
-      </Column>
-      <Column v-if="show('scanners')" header="Scanners">
-        <template #body="{ data }">
-          <span class="scanner-stack">
-            <ScannerTag v-for="s in data.scanners" :key="s" :name="s" />
-          </span>
         </template>
       </Column>
       <Column v-if="show('seen')" header="Last seen">
@@ -180,16 +160,6 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
 }
 .mix-sized {
   min-width: 140px;
-}
-.delta-warn {
-  color: var(--sev-medium-fg);
-}
-.muted-dash {
-  color: var(--dash-muted);
-}
-.scanner-stack {
-  display: inline-flex;
-  gap: 4px;
 }
 @media (prefers-reduced-motion: reduce) {
   :deep(.tbl-hover tbody tr),
