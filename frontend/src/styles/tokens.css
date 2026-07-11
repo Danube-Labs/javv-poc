@@ -126,6 +126,15 @@
   /* chip depth (language A): inner highlight + soft drop on the solid/alarm chips */
   --chip-hi: rgb(255 255 255 / 22%);
   --chip-crit-drop: rgb(192 39 29 / 28%);
+  /* chart AREA ramp (language A, operator 2026-07-12): critical/high keep the full-saturation
+     solids, the tail recedes so the eye lands on what matters. Charts/MixBars/KPI dots read
+     CHART_SEV (pinned to THESE by the tokens test); chips keep the -solid family. */
+  --sev-critical-chart: #c0271d;
+  --sev-high-chart: #e2640f;
+  --sev-medium-chart: #d9a637;
+  --sev-low-chart: #8fb3cb;
+  --sev-negligible-chart: #b2c0ba;
+  --sev-unknown-chart: #bcc4ca;
 
   /* -- status / semantic ------------------------------------------------ */
   /* Language A: workflow reads QUIETER than severity — soft 9% tint + a solid dot,
@@ -173,10 +182,14 @@
   --health-none-dot: #c4ccd2;
   --health-down-fg: #b5231a;
   --health-down-bg: #fbe7e4;
+  /* scanner identity tags (language A): tint + ring derived from the scanner hue (10%/30%) —
+     quiet, no dot, no escalation (identity, not status) */
   --scanner-trivy-fg: #17685f;
-  --scanner-trivy-bg: #e7f0ef;
+  --scanner-trivy-bg: #e8f0ef;
+  --scanner-trivy-line: #b9d2cf;
   --scanner-grype-fg: #5a4f9e;
-  --scanner-grype-bg: #eaeaf3;
+  --scanner-grype-bg: #efedf5;
+  --scanner-grype-line: #cecae2;
 
   /* -- dark chrome (sidebar) — promoted from the prototype's shell CSS ----- */
   --side-fg: #aeb9c2; /* nav item text */
