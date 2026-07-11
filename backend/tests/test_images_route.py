@@ -213,6 +213,90 @@ async def test_as_of_rewinds_to_the_inventory_committed_at_t(env) -> None:
     assert r.status_code == 422
 
 
+async def _scan_event(
+    client: AsyncOpenSearch,
+    *,
+    cluster_id: str,
+    scanner: str,
+    digest: str,
+    scan_order: int,
+    total: int,
+    ts: str,
+) -> None:
+    await client.index(
+        index=f"javv-scan-events-{cluster_id}-000001",
+        id=uuid.uuid4().hex,
+        body={
+            "@timestamp": ts,
+            "scan_run_id": f"run-{scan_order}",
+            "scan_order": scan_order,
+            "cluster_id": cluster_id,
+            "scanner": scanner,
+            "image_digest": digest,
+            "image_repo": "nginx",
+            "tag": "1.21",
+            "total": total,
+            "schema_version": 4,
+        },
+    )
+
+
+async def test_timeline_is_the_per_image_scan_event_history_in_scan_order(env) -> None:
+    """M9c slice 3 (DigestSubTimeline): the committed scan-events for one repo:tag, ordered by
+    (scan_order, scanner) — digest changes and order gaps are the client's build-change/gap
+    markers. Tenant-scoped; unknown repo:tag = empty, not an error."""
+    http, client = env
+    cid = f"c-img-{uuid.uuid4().hex[:8]}"
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="trivy",
+        digest="sha256:v1",
+        scan_order=1,
+        total=5,
+        ts="2026-07-01T00:00:00+00:00",
+    )
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="grype",
+        digest="sha256:v1",
+        scan_order=1,
+        total=7,
+        ts="2026-07-01T00:01:00+00:00",
+    )
+    # order 2 skipped for trivy (a gap), build changed to v2 by order 3
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="trivy",
+        digest="sha256:v2",
+        scan_order=3,
+        total=0,
+        ts="2026-07-03T00:00:00+00:00",
+    )
+    await client.indices.refresh(index=f"javv-scan-events-{cid}-*")
+
+    r = await http.get(
+        "/api/v1/images/timeline",
+        params={"cluster_id": cid, "image_repo": "nginx", "tag": "1.21"},
+    )
+    assert r.status_code == 200
+    events = r.json()["events"]
+    assert [(e["scan_order"], e["scanner"], e["image_digest"]) for e in events] == [
+        (1, "grype", "sha256:v1"),
+        (1, "trivy", "sha256:v1"),
+        (3, "trivy", "sha256:v2"),
+    ]
+    assert events[0]["total"] == 7  # counts ride along verbatim
+
+    r = await http.get(
+        "/api/v1/images/timeline",
+        params={"cluster_id": cid, "image_repo": "nginx", "tag": "other"},
+    )
+    assert r.json()["events"] == []
+
+
 async def test_no_inventory_is_unknown_not_empty_and_tenant_scoped(env) -> None:
     http, client = env
     cid, other = (f"c-img-{uuid.uuid4().hex[:8]}" for _ in range(2))

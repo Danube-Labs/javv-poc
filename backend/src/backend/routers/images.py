@@ -19,13 +19,36 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
 from backend.query.as_of import parse_as_of
-from backend.query.pit import images_for_inventory_run, latest_committed_inventory
+from backend.query.pit import (
+    images_for_inventory_run,
+    latest_committed_inventory,
+    scan_events_for_image,
+)
 
 router = APIRouter(prefix="/api/v1/images", tags=["images"])
 
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
 _MANIFEST_FIELDS = ("inventory_run_id", "inventory_order", "started_at", "completed_at")
+_EVENT_FIELDS = ("scan_order", "@timestamp", "scanner", "image_digest", "total")
+
+
+@router.get("/timeline")
+async def image_timeline(
+    request: Request,
+    principal: Authenticated,
+    cluster_id: ClusterId,
+    image_repo: Annotated[str, Query(max_length=512)],
+    tag: Annotated[str, Query(max_length=256)],
+) -> dict[str, Any]:
+    """One repo:tag's committed scan-event history for the DigestSubTimeline — build-change
+    (digest flips) and gap (per-scanner `scan_order` jumps) markers are derived client-side."""
+    client = cast(Any, request.app.state.opensearch)
+    events = await scan_events_for_image(client, cluster_id, image_repo, tag)
+    return {
+        "cluster_id": cluster_id,
+        "events": [{k: e.get(k) for k in _EVENT_FIELDS} for e in events],
+    }
 
 
 @router.get("")
