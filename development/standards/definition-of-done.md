@@ -50,6 +50,14 @@ demonstrated - by an automated test wherever possible.
   audit found API.md at 6 of 34 routes because this line didn't exist). The capability column's source
   of truth is `tests/security/test_rbac_idor_contract.py` — the doc says what the registry says.
 
+- **UI surfaces follow the binding UI standards.** Any bolt touching `frontend/` satisfies
+  [`frontend/DESIGN.md`](../../frontend/DESIGN.md) and
+  [`ui-foundations.md`](ui-foundations.md) — including the **Audit rules** (issue 343: honest
+  errors, contract guards, feedback within 200ms, restorable state, the D28 semantics surface,
+  silence-is-a-bug, the Playwright zero-console-error + measured-parity gates) and the shared
+  patterns they produced (`IngestLens`, provenance stamps on now-claims, `failureCopy`,
+  `keepTT`/`stripTT` URL sync). Re-solving one of these ad hoc is drift.
+
 ## 7. Review & CI
 - `code-review-and-quality` skill pass on the diff.
 - One bolt (or thin slice) → one PR; CI green; reviewed before merge to `main`.
