@@ -312,38 +312,36 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </div>
       </div>
 
-      <section class="card grid-card">
-        <div v-if="!loading && rows.length === 0" class="first-run">
-          <h2>No findings from {{ scanner }}</h2>
-          <p>
-            {{ timeTravel.isNow
-              ? `No committed ${scanner} findings for this digest — a clean scan or not scanned by ${scanner} yet.`
-              : `As scanned at this T: no committed ${scanner} findings for this digest — clean then, or not yet scanned.` }}
-          </p>
-        </div>
-        <template v-else>
-          <FindingsTable
-            :rows="rows"
-            :sort="sort"
-            :order="order"
-            :loading="loading"
-            :hidden="HIDDEN_COLUMNS"
-            @sort="onSort"
-            @row-click="openFinding"
-          />
-          <GridPager
-            :total="total"
-            :page="page"
-            :size="size"
-            :shown="rows.length"
-            :has-prev="page > 0"
-            :has-next="nextCursor !== null"
-            @prev="goPrev"
-            @next="goNext"
-            @update:size="(s: number) => (size = s)"
-          />
-        </template>
-      </section>
+      <div v-if="!loading && rows.length === 0" class="card first-run">
+        <h2>No findings from {{ scanner }}</h2>
+        <p>
+          {{ timeTravel.isNow
+            ? `No committed ${scanner} findings for this digest — a clean scan or not scanned by ${scanner} yet.`
+            : `As scanned at this T: no committed ${scanner} findings for this digest — clean then, or not yet scanned.` }}
+        </p>
+      </div>
+      <template v-else>
+        <FindingsTable
+          :rows="rows"
+          :sort="sort"
+          :order="order"
+          :loading="loading"
+          :hidden="HIDDEN_COLUMNS"
+          @sort="onSort"
+          @row-click="openFinding"
+        />
+        <GridPager
+          :total="total"
+          :page="page"
+          :size="size"
+          :shown="rows.length"
+          :has-prev="page > 0"
+          :has-next="nextCursor !== null"
+          @prev="goPrev"
+          @next="goNext"
+          @update:size="(s: number) => (size = s)"
+        />
+      </template>
     </template>
   </div>
 </template>
@@ -513,11 +511,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .card-body {
   padding: 10px 16px 14px;
 }
-.grid-card {
-  overflow: hidden;
-  padding: 0 0 4px;
-}
-
 .load-error {
   color: var(--health-down-fg);
   font-size: var(--text-body);
