@@ -118,6 +118,101 @@ a {
   font-size: var(--text-body);
 }
 
+/* ---- shared table skin (the findings grid is the reference) — one source for every data
+   table, PrimeVue (pt class) or plain <table class="tbl">. Columns, identifier link cells,
+   and value chips stay per-component; scoped styles may add, never re-own. */
+.mono-cell {
+  font-family: var(--font-mono);
+}
+.tbl-wrap {
+  overflow-x: auto;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+}
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-mono-cell);
+  cursor: default; /* arrow, not the I-beam — text stays selectable (operator ruling) */
+}
+/* .tbl.tbl doubles the class ON PURPOSE: the scoped :deep() versions these replace carried a
+   data-v attribute that outranked PrimeVue's theme selectors — a single class here would lose
+   the cascade to .p-datatable-* and the grids would regress to PrimeVue's paddings */
+.tbl.tbl thead th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--soft);
+  font-size: var(--text-table-header);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.tbl.tbl tbody td {
+  padding: 9px 12px;
+  /* row separator on the STRONG hairline (operator, 2026-07-11): line2 read too faint */
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+.tbl-dense.tbl-dense thead th {
+  padding: 8px 12px;
+}
+.tbl-dense.tbl-dense tbody td {
+  padding: 7px 12px;
+}
+.tbl.tbl tbody tr:last-child td {
+  border-bottom: 0;
+}
+.tbl-hover.tbl-hover tbody tr {
+  transition: background 0.12s ease-out;
+}
+.tbl-hover.tbl-hover tbody tr:hover {
+  background: var(--row-hover);
+}
+.tbl-hover.tbl-hover tbody tr:active {
+  background: var(--line2);
+}
+.tbl.tbl th.r,
+.tbl.tbl td.r {
+  text-align: right;
+}
+.tbl.tbl th.c,
+.tbl.tbl td.c {
+  text-align: center;
+}
+.tbl .sm {
+  font-size: var(--text-sm);
+}
+.tbl .strong {
+  font-weight: 700;
+}
+.tbl .nowrap {
+  white-space: nowrap;
+}
+.th-note {
+  font-size: var(--text-dd-head);
+  color: var(--soft);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 5px;
+}
+.empty-row {
+  padding: 22px 14px;
+  color: var(--soft);
+  font-size: var(--text-body);
+  text-align: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tbl-hover.tbl-hover tbody tr {
+    transition: none;
+  }
+}
+
 /* Interactive controls: VISIBLE hover feedback (operator ruling 2026-07-10) — a border-color
    shift alone can't be seen; every clickable control gets the wash + the border shift. Scoped
    component rules may add to this; they must not remove it. */

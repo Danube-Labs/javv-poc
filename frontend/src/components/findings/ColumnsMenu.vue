@@ -27,7 +27,7 @@ const DENSITY_OPTS = [
 <template>
   <UiDropdown class="cols-dd">
     <template #trigger="{ toggle }">
-      <UiButton variant="quiet" @click="toggle"><AppIcon name="columns" :size="13" />Columns</UiButton>
+      <UiButton variant="control" @click="toggle"><AppIcon name="columns" :size="13" />Columns</UiButton>
     </template>
     <div class="dd-menu cols-menu">
       <div class="dd-head">Density</div>

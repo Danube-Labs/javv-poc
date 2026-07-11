@@ -383,12 +383,15 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .tbl td + td {
   border-left: 1px solid var(--line2);
 }
-.tbl .r {
+/* .tbl.tbl matches the base-skin weight — this screen's centered-value ruling must outrank
+   the shared right-align default */
+.tbl.tbl th.r,
+.tbl.tbl td.r {
   text-align: center;
   width: 1%;
   white-space: nowrap;
 }
-.tbl td.r {
+.tbl.tbl td.r {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }

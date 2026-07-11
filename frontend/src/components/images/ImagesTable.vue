@@ -145,65 +145,8 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
 </template>
 
 <style scoped>
-.tbl-wrap {
-  overflow-x: auto;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-}
-
-/* prototype .tbl family — element selectors, PrimeVue internals don't matter */
-:deep(.tbl) {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-body);
-}
-:deep(.tbl thead th) {
-  text-align: left;
-  color: var(--soft);
-  font-size: var(--text-table-header);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  white-space: nowrap;
-  font-family: var(--font-mono);
-}
-:deep(.tbl tbody td) {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
-:deep(.tbl-dense tbody td) {
-  padding: 7px 12px;
-}
-:deep(.tbl tbody tr:last-child td) {
-  border-bottom: 0;
-}
-:deep(.tbl-hover tbody tr) {
-  cursor: default; /* arrow, not the I-beam — text stays selectable */
-  transition: background var(--dur-quick);
-}
-:deep(.tbl-hover tbody tr:hover) {
-  background: var(--row-hover);
-}
-:deep(.tbl-hover tbody tr:active) {
-  background: var(--line2);
-}
-:deep(.th-note) {
-  display: block;
-  font-size: var(--text-dd-head);
-  letter-spacing: 0.04em;
-  color: var(--soft);
-  text-transform: none;
-  font-weight: 400;
-}
-:deep(.r),
-:deep(td.r) {
-  text-align: right;
-}
+/* the table skin (.tbl-wrap / .tbl family / th-note / empty-row) lives in base.css —
+   only this grid's own cells are styled here */
 
 .img-id {
   display: flex;
@@ -235,13 +178,6 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
 :deep(.tbl-hover tbody tr:hover) .cell-go {
   color: var(--coral-text);
 }
-.mono-cell.sm,
-.sm {
-  font-size: var(--text-sm);
-}
-.nowrap {
-  white-space: nowrap;
-}
 .mix-sized {
   min-width: 140px;
 }
@@ -254,12 +190,6 @@ const delta = (n: number) => (n > 0 ? `+${fmt(n)}` : fmt(n))
 .scanner-stack {
   display: inline-flex;
   gap: 4px;
-}
-.empty-row {
-  padding: 22px 14px;
-  color: var(--soft);
-  font-size: var(--text-body);
-  text-align: center;
 }
 @media (prefers-reduced-motion: reduce) {
   :deep(.tbl-hover tbody tr),
