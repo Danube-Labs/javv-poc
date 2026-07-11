@@ -52,6 +52,10 @@ async def scans_trend(
     days: Days = 30,
     interval: Literal["day", "hour"] = "day",
 ) -> dict[str, Any]:
+    # contract guard (audit 343): hourly × long spans is a cost knob no UI uses — 365d hourly
+    # is ~8.8k materialized buckets per scanner per request. 31d hourly (744) stays cheap.
+    if interval == "hour" and days > 31:
+        raise HTTPException(422, "interval=hour is limited to days<=31 — use daily buckets")
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
         # the reader reconstructs DAILY only (MVP) — `interval` is a live-path knob; the

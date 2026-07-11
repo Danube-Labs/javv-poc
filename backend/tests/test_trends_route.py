@@ -102,6 +102,22 @@ def _today_bucket(series: list[dict[str, Any]], value_key: str) -> int:
     raise AssertionError(f"no bucket for today in {series!r}")
 
 
+async def test_hourly_interval_is_span_capped(env) -> None:
+    """Contract guard (audit 343): hourly buckets over a year is a ~8.8k-bucket cost knob no
+    UI uses — the combination 422s; a month of hourly stays legal (744 buckets)."""
+    login, _client = env
+    cid = f"c-trend-{uuid.uuid4().hex[:8]}"
+    http = await login()
+    r = await http.get(
+        "/api/v1/trends/scans", params={"cluster_id": cid, "days": 365, "interval": "hour"}
+    )
+    assert r.status_code == 422
+    r = await http.get(
+        "/api/v1/trends/scans", params={"cluster_id": cid, "days": 31, "interval": "hour"}
+    )
+    assert r.status_code == 200 and r.json()["interval"] == "hour"
+
+
 async def test_scans_trend_dedups_the_real_rollover_duplicate(env) -> None:
     login, client = env
     cid = f"c-trend-{uuid.uuid4().hex[:8]}"
