@@ -65,6 +65,19 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-12 — v0.3.9 reusables (task 92 + chip language A, PRs #348/#350):** settings is
+  form/status-heavy — the relevant solved surfaces:
+  - **Kit controls only** (DESIGN.md §5 table): `UiButton` (primary now carries the depth
+    treatment), `UiSegControl` (coral selection), `UiField`, `ModalShell` for the destructive
+    confirms. Every destructive action toasts (audit rule 3) and is journaled.
+  - **Chips (language A):** job/retention/staleness statuses use the QUIET register —
+    `HealthChip`'s dot-and-word grammar or `StateTag`'s soft-tint+dot pill; the depth
+    treatment is reserved for true alarms. Never a hand-rolled status pill.
+  - **Contract guards (audit rule 2):** every numeric knob (retention days, timer windows)
+    guards at the input AND omits-not-emits in the builder; honest 4xx copy via a
+    `failureCopy`-style map, never "check the backend connection" for a user-input error.
+  - Any table this bolt grows (audit-log panel, snapshot list) rides the shared skin +
+    reorder grammar — see the M9d 2026-07-12 entry for the port checklist.
 - **2026-07-07 — backend↔UI drift rulings (major audit #224, 05 §C-4):** the v4 prototype's Settings
   shows **editable** trivy/grype config, schedule, vuln-DB settings and a `config.versions` scanner
   version **selector — that selector violates D41** (version is build-time, operator-swapped via

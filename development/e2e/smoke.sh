@@ -62,8 +62,11 @@ CLOG="$LOGS/cluster.log"; : > "$CLOG"
   kubectl --context "$CTX" apply -f "$ROOT/development/setup/seed-vuln-workloads.yaml"
   kubectl --context "$CTX" -n javv-smoke get deploy nginx-second >/dev/null 2>&1 \
     || kubectl --context "$CTX" -n javv-smoke create deployment nginx-second --image=nginx:1.23.4
-  for d in vuln-nginx vuln-python vuln-alpine nginx-second; do
-    kubectl --context "$CTX" -n javv-smoke rollout status deployment/$d --timeout=120s
+  # wait on EVERY seed namespace (the 2026-07-12 expansion added shop/data/ops/legacy)
+  for ns in javv-smoke shop data ops legacy; do
+    for d in $(kubectl --context "$CTX" -n "$ns" get deploy -o name 2>/dev/null); do
+      kubectl --context "$CTX" -n "$ns" rollout status "$d" --timeout=300s
+    done
   done
   echo "=== running images (name | digest) ==="
   kubectl --context "$CTX" -n javv-smoke get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{range .status.containerStatuses[*]}{.image}{" | "}{.imageID}{"\n"}{end}{end}'
