@@ -244,7 +244,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       </div>
       <div class="head-actions">
         <span class="lens-label">Showing results from</span>
-        <UiSegControl v-model="scanner" tone="accent" :options="SCANNER_OPTS" />
+        <UiSegControl v-model="scanner" :options="SCANNER_OPTS" />
       </div>
     </div>
 
@@ -353,12 +353,18 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 </template>
 
 <style scoped>
+/* the identity panel (prototype .img-detail-head — a card, not bare text on the canvas) */
 .screen-head {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 16px 20px;
 }
 .back-btn {
   margin-bottom: 10px;
@@ -368,7 +374,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .screen-sub {
   margin: 0;
-  color: var(--soft);
+  color: var(--ink);
   font-size: var(--text-body);
 }
 .img-id-head {
@@ -393,7 +399,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   gap: 6px;
   margin: 4px 0 0;
   font-size: var(--text-sm);
-  color: var(--soft);
+  color: var(--ink);
   max-width: 720px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -401,7 +407,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .digest-note {
   font-style: normal;
-  color: var(--muted);
+  color: var(--soft);
   font-family: var(--font-ui);
 }
 .img-meta {
@@ -409,7 +415,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   gap: 14px;
   margin-top: 6px;
   font-size: var(--text-sm);
-  color: var(--soft);
+  color: var(--ink);
 }
 .two-q {
   grid-template-columns: repeat(2, 1fr);

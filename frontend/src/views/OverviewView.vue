@@ -161,7 +161,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </p>
       </div>
       <div class="head-actions">
-        <UiSegControl v-model="scanner" tone="neutral" :options="SCANNER_OPTS" />
+        <UiSegControl v-model="scanner" :options="SCANNER_OPTS" />
         <UiButton variant="primary" @click="goFindings({ severity: 'critical' })">
           Triage critical <AppIcon name="chevron" :size="13" />
         </UiButton>
@@ -242,7 +242,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             <UiSegControl
               v-if="timeTravel.isNow"
               v-model="trendLens"
-              tone="neutral"
+
               :options="LENS_OPTS"
             />
           </div>

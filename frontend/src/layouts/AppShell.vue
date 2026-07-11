@@ -40,10 +40,15 @@ if (fromUrl) {
     timeTravel.rewindTo(fromUrl.t)
     timeTravel.setWindow(fromUrl.win, `→ ${lastDataAt(fromUrl.t)}`)
   } else {
-    timeTravel.setWindow(
-      fromUrl.win,
-      fromUrl.win < 1 ? `Last ${Math.round(fromUrl.win * 24)} hours` : `Last ${fromUrl.win} days`,
-    )
+    // sub-hour windows label in minutes — rounding 30min to "0 hours" lied (operator catch)
+    const hours = fromUrl.win * 24
+    const label =
+      fromUrl.win >= 1
+        ? `Last ${fromUrl.win} day${fromUrl.win === 1 ? '' : 's'}`
+        : hours >= 1
+          ? `Last ${Math.round(hours)} hour${Math.round(hours) === 1 ? '' : 's'}`
+          : `Last ${Math.max(1, Math.round(hours * 60))} minutes`
+    timeTravel.setWindow(fromUrl.win, label)
   }
 }
 watch(

@@ -75,6 +75,9 @@ const latest = computed(
 )
 const option = computed(() => buildIngestLensOption(series.value))
 const subDay = computed(() => isSubDayWindow(timeTravel.windowDays))
+/** Quiet range = the one state worth a visual flag (operator 2026-07-11): the amber wash
+ * only when NOTHING was committed in the range — data present stays a plain card. */
+const quiet = computed(() => !failed.value && totalRuns.value === 0)
 
 function onPointClick(params: { dataIndex: number }) {
   const bucket = ingestLensDates(series.value)[params.dataIndex]
@@ -90,7 +93,7 @@ function onPointClick(params: { dataIndex: number }) {
 </script>
 
 <template>
-  <section class="ingest-lens" aria-label="Scan ingest activity">
+  <section class="ingest-lens" :class="{ 'il-quiet': quiet }" aria-label="Scan ingest activity">
     <div class="il-head">
       <h3 class="il-title">Scan ingest</h3>
       <span class="il-sub"
@@ -130,6 +133,12 @@ function onPointClick(params: { dataIndex: number }) {
   box-shadow: var(--shadow);
   padding: 10px 14px 4px;
 }
+/* the quiet-range flag: the history/staleness amber — attention ONLY when the range holds
+   no commits and the table is older than it looks (operator ruling) */
+.il-quiet {
+  background: var(--hist-bg);
+  border-color: var(--hist-line);
+}
 .il-head {
   display: flex;
   align-items: baseline;
@@ -144,27 +153,29 @@ function onPointClick(params: { dataIndex: number }) {
   text-transform: uppercase;
   color: var(--ink);
 }
+/* one size, ink-dark (operator: the small soft text was unreadable) — only the explanatory
+   clause stays soft */
 .il-sub {
-  font-size: var(--text-sm);
-  color: var(--soft);
+  font-size: var(--text-control);
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .il-sub b {
   font-weight: 700;
-  color: var(--soft);
+  color: var(--ink);
 }
 .il-last {
   margin-left: auto;
-  font-size: var(--text-sm);
-  color: var(--soft);
+  font-size: var(--text-control);
+  color: var(--ink);
   text-align: right;
 }
 .il-empty {
   margin: auto 0;
   padding-bottom: 6px;
-  font-size: var(--text-body);
-  color: var(--soft);
+  font-size: var(--text-control);
+  color: var(--ink);
 }
 </style>

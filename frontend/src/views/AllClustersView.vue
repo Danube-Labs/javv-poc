@@ -126,7 +126,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </p>
       </div>
       <div v-if="!fleet.limited" class="head-actions">
-        <UiSegControl v-model="scanner" tone="neutral" :options="SCANNER_OPTS" />
+        <UiSegControl v-model="scanner" :options="SCANNER_OPTS" />
       </div>
     </div>
 
