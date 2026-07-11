@@ -8,6 +8,7 @@ M5b writer — the read must see exactly what the journal contract produces."""
 
 import os
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -16,6 +17,7 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.audit.writer import append_field_change
 from backend.auth.passwords import hash_password
+from backend.core.settings import get_settings
 from backend.main import create_app
 from backend.query.audit import AuditFilters, build_audit_body
 
@@ -31,6 +33,13 @@ def _os_up() -> bool:
 
 
 pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+
+
+@pytest.fixture(autouse=True)
+def _clear_settings_cache():
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
 
 
 @pytest.fixture
@@ -172,3 +181,152 @@ def test_finding_key_filter_scopes_to_one_finding() -> None:
     # M9b slice 4: the detail screen's per-finding activity list
     body = build_audit_body(AuditFilters(finding_key="fk-abc"), size=5)
     assert {"term": {"finding_key": "fk-abc"}} in body["query"]["bool"]["filter"]
+
+
+def test_until_bounds_the_walk_at_t() -> None:
+    # M9d slice 1 (D28): a rewound picker must not see post-T events — full-precision lte
+    t = datetime(2026, 7, 10, 12, 30, 45, 123456, tzinfo=UTC)
+    body = build_audit_body(AuditFilters(until=t), size=10)
+    assert {"range": {"@timestamp": {"lte": t.isoformat()}}} in body["query"]["bool"]["filter"]
+    assert "query" not in build_audit_body(AuditFilters(), size=10)
+
+
+async def test_facets_count_the_rail_dims_tenant_scoped(env) -> None:
+    # M9d rework: the rail needs honest server counts (entity_type/action/actor terms aggs)
+    http, client = env
+    cid, other = (f"c-audit-{uuid.uuid4().hex[:8]}" for _ in range(2))
+    await _journal(client, cid, n=3, action="assign", actor="u-facet-a")
+    await _journal(client, cid, n=2, action="note", actor="u-facet-b")
+    await _journal(client, other, n=7, action="assign")  # invisible to cid
+
+    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid})
+    assert r.status_code == 200
+    facets = r.json()["facets"]
+    as_map = {f: {b["key"]: b["count"] for b in buckets} for f, buckets in facets.items()}
+    assert as_map["action"] == {"assign": 3, "note": 2}
+    assert as_map["actor"] == {"u-facet-a": 3, "u-facet-b": 2}
+    assert as_map["entity_type"] == {"finding": 5}
+
+    # facets honor the active filters (counts describe the OTHER dims of the current lens)
+    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid, "action": "note"})
+    assert {b["key"]: b["count"] for b in r.json()["facets"]["actor"]} == {"u-facet-b": 2}
+
+
+async def test_finding_rows_are_decorated_with_their_identity(env) -> None:
+    # M9d rework (operator): an opaque finding_key answers nothing — rows carry the finding's
+    # (cve, image, scanner) at read time; a finding aged out of the store degrades honestly
+    http, client = env
+    cid = f"c-audit-{uuid.uuid4().hex[:8]}"
+    fk = f"fk-{cid}-0"
+    await client.index(
+        index="findings",
+        id=fk,
+        body={
+            "finding_key": fk,
+            "cluster_id": cid,
+            "cve_id": "CVE-2024-0001",
+            "image_repo": "bench/app",
+            "image_digest": "sha256:aa00",
+            "scanner": "trivy",
+            "package_name": "openssl",
+            "severity_canonical": "high",
+        },
+        params={"refresh": "true"},
+    )
+    await _journal(client, cid, n=2)  # row 0 → the doc above; row 1 → no finding doc exists
+
+    r = await http.get("/api/v1/audit", params={"cluster_id": cid, "order": "asc"})
+    rows = {row["entity_id"]: row for row in r.json()["data"]}
+    deco = rows[fk]["finding"]
+    assert deco["cve_id"] == "CVE-2024-0001"
+    assert deco["image_repo"] == "bench/app"
+    assert deco["scanner"] == "trivy"
+    assert rows[f"fk-{cid}-1"]["finding"] is None  # aged out — the bare key stays honest
+
+
+async def test_decoration_never_crosses_the_tenant_boundary(env) -> None:
+    # the mget path bypasses tenant_query — the cluster check must happen per doc (SEC-4)
+    http, client = env
+    cid, other = (f"c-audit-{uuid.uuid4().hex[:8]}" for _ in range(2))
+    fk = f"fk-{cid}-0"
+    await client.index(
+        index="findings",
+        id=fk,
+        body={"finding_key": fk, "cluster_id": other, "cve_id": "CVE-LEAK", "scanner": "trivy"},
+        params={"refresh": "true"},
+    )
+    await _journal(client, cid, n=1)
+    r = await http.get("/api/v1/audit", params={"cluster_id": cid})
+    assert r.json()["data"][0]["finding"] is None  # same key, other tenant's doc — no leak
+
+
+async def test_facets_activity_histogram_buckets_the_window(env) -> None:
+    # M9d lens: audit events over time under the current lens — server-side date_histogram
+    http, client = env
+    cid = f"c-audit-{uuid.uuid4().hex[:8]}"
+    await _journal(client, cid, n=3)
+
+    r = await http.get(
+        "/api/v1/audit/facets",
+        params={"cluster_id": cid, "interval": "day", "window_days": 7},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    activity = body["activity"]
+    assert sum(b["count"] for b in activity) == 3  # today's bucket holds the three rows
+    assert len(activity) >= 7  # extended_bounds: quiet days render as zero bars, not gaps
+    assert all(set(b) == {"date", "count"} for b in activity)
+
+    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid, "interval": "week"})
+    assert r.status_code == 422  # not day|hour
+    # no interval → facets only, no activity key (the read stays cheap for the rail)
+    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid})
+    assert "activity" not in r.json()
+
+
+async def test_export_csv_streams_decorated_sanitized_rows(env, monkeypatch) -> None:
+    # M9d (operator): the prototype's Export CSV — same lens, injection-sanitized, decorated
+    http, client = env
+    cid = f"c-audit-{uuid.uuid4().hex[:8]}"
+    fk = f"fk-{cid}-0"
+    await client.index(
+        index="findings",
+        id=fk,
+        body={
+            "finding_key": fk,
+            "cluster_id": cid,
+            "cve_id": "CVE-2024-0002",
+            "image_repo": "bench/app",
+            "scanner": "grype",
+        },
+        params={"refresh": "true"},
+    )
+    await append_field_change(
+        client,
+        actor="u-csv-actor",
+        action="note",
+        entity_type="finding",
+        entity_id=fk,
+        field="notes",
+        old_value=None,
+        new_value="=HYPERLINK() would arm in a spreadsheet",
+        revision=1,
+        cluster_id=cid,
+        finding_key=fk,
+    )
+    await client.indices.refresh(index="system-audit-log-*")
+
+    r = await http.get("/api/v1/audit/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+    lines = r.text.strip().splitlines()
+    header, row = lines[0], lines[1]
+    assert header.split(",")[:4] == ["@timestamp", "actor", "action", "entity_type"]
+    assert "CVE-2024-0002" in row and "bench/app" in row  # decoration rides the export
+    assert "'=HYPERLINK" in row  # CSV-injection neutralized
+
+    await _journal(client, cid, n=2)  # lens now holds 3 rows
+    monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "1")
+    get_settings.cache_clear()
+    r = await http.get("/api/v1/audit/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 413  # over the cap → clean reject before any stream
