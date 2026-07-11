@@ -30,16 +30,18 @@ export const SEV_COLOR: Record<Severity, SeverityTokens> = Object.fromEntries(
 ) as Record<Severity, SeverityTokens>
 
 /**
- * Chart series colors (ECharts SVG can't resolve CSS vars in every context, so charts use the
- * literal solid values — same hexes as tokens.css, pinned equal by the tokens unit test).
+ * Chart AREA colors (ECharts SVG can't resolve CSS vars in every context, so charts use
+ * literals — same hexes as the `--sev-*-chart` tokens, pinned equal by the tokens unit test).
+ * Language A (operator 2026-07-12): the ramp ESCALATES — critical/high keep the full
+ * solids, the tail (low/negligible/unknown) recedes. Chips keep the `-solid` family.
  */
 export const CHART_SEV: Record<Severity, string> = {
   critical: '#c0271d',
   high: '#e2640f',
-  medium: '#c68a12',
-  low: '#3d7da6',
-  negligible: '#6f8378',
-  unknown: '#74808a',
+  medium: '#d9a637',
+  low: '#8fb3cb',
+  negligible: '#b2c0ba',
+  unknown: '#bcc4ca',
 }
 
 export const STATES = ['open', 'stale', 'ack', 'resolved'] as const

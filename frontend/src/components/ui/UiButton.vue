@@ -77,6 +77,8 @@ withDefaults(
   border-color: var(--coral-d);
   background: var(--coral);
   color: var(--kev-fg);
+  /* chip-language-A depth: inner highlight + soft brand drop; pressed goes flat */
+  box-shadow: inset 0 1px 0 var(--chip-hi), 0 1px 2px var(--coral-drop);
 }
 .ui-btn--primary:hover:not(:disabled) {
   background: var(--coral-d);
@@ -84,6 +86,7 @@ withDefaults(
 }
 .ui-btn--primary:active:not(:disabled) {
   background: var(--coral-d);
+  box-shadow: none;
 }
 .ui-btn--block {
   width: 100%;

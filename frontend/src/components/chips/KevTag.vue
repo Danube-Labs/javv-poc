@@ -9,15 +9,17 @@ defineProps<{ on: boolean }>()
 </template>
 
 <style scoped>
+/* the one true alarm chip earns real depth (language A): gradient fill + inner highlight */
 .kev-tag {
   font-family: var(--font-mono);
   font-size: var(--text-chip-sm);
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--kev-fg);
-  background: var(--kev-bg);
-  padding: 2px 6px;
+  background: var(--kev-grad);
+  padding: 2.5px 7px;
   border-radius: 5px;
+  box-shadow: inset 0 1px 0 var(--chip-hi), 0 1px 2px var(--kev-drop);
 }
 .muted-dash {
   color: var(--dash-muted);

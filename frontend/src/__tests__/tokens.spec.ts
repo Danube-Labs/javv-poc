@@ -27,11 +27,18 @@ describe('severity token map (D46 vocabulary)', () => {
     }
   })
 
-  it.each(SEVERITIES)('CHART_SEV.%s is pinned to the same hex as the CSS solid token', (sev) => {
-    const m = tokensCss.match(new RegExp(`--sev-${sev}-solid:\\s*(#[0-9a-f]{6})`, 'i'))
+  // language A (2026-07-12): charts have their OWN escalation ramp — the -chart family
+  // (critical/high == the solids; the tail recedes). Chips keep -solid.
+  it.each(SEVERITIES)('CHART_SEV.%s is pinned to the same hex as the CSS -chart token', (sev) => {
+    const m = tokensCss.match(new RegExp(`--sev-${sev}-chart:\\s*(#[0-9a-f]{6})`, 'i'))
     const hex = m?.[1]
-    expect(hex, `--sev-${sev}-solid missing from tokens.css`).toBeDefined()
+    expect(hex, `--sev-${sev}-chart missing from tokens.css`).toBeDefined()
     expect(CHART_SEV[sev].toLowerCase()).toBe(hex!.toLowerCase())
+  })
+
+  it.each(['critical', 'high'] as const)('the %s chart hue stays the full-saturation solid', (sev) => {
+    const m = tokensCss.match(new RegExp(`--sev-${sev}-solid:\\s*(#[0-9a-f]{6})`, 'i'))
+    expect(CHART_SEV[sev].toLowerCase()).toBe(m![1]!.toLowerCase())
   })
 
   it('negligible is muted, never red (A-1 ruling)', () => {

@@ -23,7 +23,7 @@ theme). High information density: subtle borders and panel tints, almost no deco
 | Bucket | Tokens | Rule |
 |---|---|---|
 | **Brand** | `--coral` `--coral-d` `--amber` `--teal` `--slate*` | Chrome, buttons, active nav, focus, links. Coral/amber must **never** encode severity. Teal = info only. |
-| **Severity** | `--sev-<severity>-{fg,bg,line,solid}` | **DATA ONLY.** Six D46 canonicals: `critical high medium low negligible unknown`. `negligible` is muted, never red (A-1). From script use `SEV_COLOR` / `CHART_SEV` (`@/styles/tokens`). |
+| **Severity** | `--sev-<severity>-{fg,bg,line,solid}` | **DATA ONLY.** Six D46 canonicals: `critical high medium low negligible unknown`. `negligible` is muted, never red (A-1). From script use `SEV_COLOR` / `CHART_SEV` (`@/styles/tokens`). **Chip language A (operator 2026-07-11):** `-bg`/`-line` are DERIVED from the level's `-solid` (10% / 30% flattened on white — never hand-picked pastels); weight ESCALATES: critical renders solid + inner highlight (`--chip-hi`), high the heavy `--sev-high-ring`, tails near-neutral. State pills = soft 9% tint + `--state-*-solid` dot, no ring (workflow reads quieter than severity). Alarms (KEV `--kev-grad`, SLA overdue) + primary buttons carry the ONE depth treatment: `inset 0 1px 0 var(--chip-hi)` + a soft drop (`--chip-crit-drop`/`--kev-drop`/`--coral-drop`). |
 | **Status** | `--state-<open\|stale\|ack\|resolved>-*` · `--health-{ok,degraded,down}-*` · `--kev-*` · `--scanner-{trivy,grype}-*` | Finding state pills, health ramp (the same ramp as the degraded banner), KEV tag, scanner tags. |
 
 ### Surfaces & text

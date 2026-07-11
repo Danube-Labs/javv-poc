@@ -22,10 +22,12 @@ const days = computed(() => {
 </template>
 
 <style scoped>
+/* language A: quiet until it isn't — plain mono day counts; overdue is an alarm chip
+   with the depth treatment (inner highlight + soft drop), like KEV */
 .sla {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  font-weight: 700;
+  font-weight: 600;
   color: var(--soft);
 }
 .sla-tight {
@@ -34,9 +36,11 @@ const days = computed(() => {
 .sla-over {
   background: var(--sla-over-bg);
   color: var(--kev-fg);
-  padding: 3px 8px;
+  font-weight: 700;
+  padding: 2.5px 8px;
   border-radius: 5px;
   font-size: var(--text-facet-label);
+  box-shadow: inset 0 1px 0 var(--chip-hi), 0 1px 2px var(--chip-crit-drop);
 }
 .muted-dash {
   color: var(--dash-muted);
