@@ -414,6 +414,7 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "ptype": "os",
         "q": "krb5",
         "present": False,
+        "new_within_days": 30,
     }
     missing = set(probe_values) ^ {f.name for f in dc_fields(SearchFilters)}
     assert not missing, f"probe map drifted from SearchFilters: {missing}"

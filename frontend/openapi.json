@@ -2603,6 +2603,24 @@
           },
           {
             "in": "query",
+            "name": "new_within_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 365,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "New Within Days"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {
@@ -2938,6 +2956,24 @@
           },
           {
             "in": "query",
+            "name": "new_within_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 365,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "New Within Days"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {
@@ -3238,6 +3274,24 @@
               "default": true,
               "title": "Present",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "new_within_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 365,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "New Within Days"
             }
           },
           {
@@ -3551,6 +3605,24 @@
               "default": true,
               "title": "Present",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "new_within_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 365,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "New Within Days"
             }
           },
           {
@@ -3884,6 +3956,24 @@
               "default": true,
               "title": "Present",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "new_within_days",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 365,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "New Within Days"
             }
           },
           {

@@ -1326,6 +1326,10 @@ export type SearchFindingsApiV1FindingsGetData = {
          */
         present?: boolean;
         /**
+         * New Within Days
+         */
+        new_within_days?: number | null;
+        /**
          * As Of
          */
         as_of?: string | null;
@@ -1445,6 +1449,10 @@ export type ExportCsvApiV1FindingsExportCsvGetData = {
          */
         present?: boolean;
         /**
+         * New Within Days
+         */
+        new_within_days?: number | null;
+        /**
          * As Of
          */
         as_of?: string | null;
@@ -1536,6 +1544,10 @@ export type ExportVexApiV1FindingsExportVexGetData = {
          * Present
          */
         present?: boolean;
+        /**
+         * New Within Days
+         */
+        new_within_days?: number | null;
         /**
          * As Of
          */
@@ -1634,6 +1646,10 @@ export type FacetFindingsApiV1FindingsFacetsGetData = {
          * Present
          */
         present?: boolean;
+        /**
+         * New Within Days
+         */
+        new_within_days?: number | null;
         /**
          * As Of
          */
@@ -1740,6 +1756,10 @@ export type GroupFindingsApiV1FindingsGroupsGetData = {
          * Present
          */
         present?: boolean;
+        /**
+         * New Within Days
+         */
+        new_within_days?: number | null;
         /**
          * As Of
          */

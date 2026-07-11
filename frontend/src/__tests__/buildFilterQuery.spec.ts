@@ -61,6 +61,24 @@ describe('buildFilterQuery', () => {
     expect(q.assignee).toBe('admin')
   })
 
+  it('the "new" window flag emits the picker days (API-clamped), never a bare true', () => {
+    const q = buildFilterQuery(FINDINGS_FIELDS, sel({ attr: ['new'] }), {
+      cluster_id: CID,
+      window_days: 30,
+    })
+    expect(q.new_within_days).toBe(30)
+    // sub-day windows round up to the day-grained 1..365 contract, like the trend charts
+    const day = buildFilterQuery(FINDINGS_FIELDS, sel({ attr: ['new'] }), {
+      cluster_id: CID,
+      window_days: 0.0625,
+    })
+    expect(day.new_within_days).toBe(1)
+    // and it refuses to guess a window
+    expect(() =>
+      buildFilterQuery(FINDINGS_FIELDS, sel({ attr: ['new'] }), { cluster_id: CID }),
+    ).toThrow(/window_days/)
+  })
+
   it('drives entirely off the config: a new field needs no builder change', () => {
     const fields: FilterField[] = [
       ...FINDINGS_FIELDS,

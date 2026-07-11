@@ -12,6 +12,8 @@ import type { FilterField, Selections } from './fields.config'
 export interface FilterGlobals {
   cluster_id: string
   as_of?: string
+  /** The picker's trend window — consumed ONLY by `window` flags ("new in range"). */
+  window_days?: number
 }
 
 export type FilterQuery = Record<string, string | string[] | boolean | number>
@@ -41,7 +43,15 @@ export function buildFilterQuery(
       }
     } else if (field.type === 'flags') {
       for (const flag of field.values) {
-        if (selected.includes(flag.key)) query[flag.param] = true
+        if (!selected.includes(flag.key)) continue
+        if (flag.window) {
+          if (globals.window_days === undefined)
+            throw new Error(`buildFilterQuery: '${flag.key}' needs window_days in globals`)
+          // the API's day-grained 1..365 contract, same rounding as the trend charts
+          query[flag.param] = Math.min(365, Math.max(1, Math.ceil(globals.window_days)))
+        } else {
+          query[flag.param] = true
+        }
       }
     } else {
       const text = (selected[0] ?? '').trim()

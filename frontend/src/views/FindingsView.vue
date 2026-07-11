@@ -55,8 +55,11 @@ const facetsFailed = ref(false)
 filters.fromQuery(route.query)
 
 /* ---- facets (M9a) ---- */
+// window_days feeds ONLY the "new in range" flag; changing the picker window re-fires both
+// reads while that flag is on (the computed tracks the store)
+const filterGlobals = () => ({ ...withGlobals(), window_days: timeTravel.windowDays })
 const facetsQuery = computed(() =>
-  clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, withGlobals()) : null,
+  clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, filterGlobals()) : null,
 )
 
 async function loadFacets(q: typeof facetsQuery.value) {
@@ -83,7 +86,7 @@ watch(facetsQuery, (q, old) => {
 
 const rowsQuery = computed(() =>
   clusterStore.selectedId
-    ? buildFindingsQuery(FINDINGS_FIELDS, filters.selections, withGlobals(), {
+    ? buildFindingsQuery(FINDINGS_FIELDS, filters.selections, filterGlobals(), {
         sort: grid.sort,
         order: grid.order,
         size: grid.size,

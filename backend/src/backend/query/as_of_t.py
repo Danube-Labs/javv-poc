@@ -308,6 +308,9 @@ class AsOfTQuery:
             # contains-search spans image_repo, which occurrences don't record — a partial match
             # at a past T would silently LIE (rows missing for the wrong reason). Reject loudly.
             raise _unrecorded("q")
+        if f.new_within_days is not None:
+            # first_seen_at is the findings-cache D21 group clock — occurrences don't record it
+            raise _unrecorded("new_within_days")
         sev = set(f.severity) if f.severity else None
         out = []
         for r in rows:

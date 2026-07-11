@@ -92,7 +92,10 @@ function onPointClick(params: { dataIndex: number }) {
   <section class="ingest-lens" aria-label="Scan ingest activity">
     <div class="il-head">
       <h3 class="il-title">Scan ingest</h3>
-      <span class="il-sub">runs per day · {{ timeTravel.windowLabel.toLowerCase() }}</span>
+      <span class="il-sub"
+        >runs per day · {{ timeTravel.windowLabel.toLowerCase() }} · the table shows the state at
+        the <b>end</b> of this range</span
+      >
       <span v-if="timeTravel.isNow && latest" class="il-last mono-cell">
         last ingest {{ latest.scanner }} · {{ lastDataAt(latest.last_ingest_at) }} ({{
           silentFor(latest.silent_for_seconds)
@@ -143,6 +146,12 @@ function onPointClick(params: { dataIndex: number }) {
   font-size: var(--text-sm);
   color: var(--soft);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.il-sub b {
+  font-weight: 700;
+  color: var(--soft);
 }
 .il-last {
   margin-left: auto;

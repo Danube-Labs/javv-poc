@@ -20,6 +20,7 @@ import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FilterField } from '@/filters/fields.config'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
+import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 
 const props = defineProps<{
@@ -52,13 +53,18 @@ const error = ref<string | null>(null)
 const report = ref<{ id: string; status: string; token?: string; expires_at?: string } | null>(null)
 let poll: ReturnType<typeof setInterval> | null = null
 
+const timeTravel = useTimeTravelStore()
 const lensQuery = computed(() =>
-  buildFilterQuery(props.fields, props.selections, withGlobals()),
+  buildFilterQuery(props.fields, props.selections, {
+    ...withGlobals(),
+    window_days: timeTravel.windowDays,
+  }),
 )
-/** ExportParams has no namespace/ptype — a lens using them cannot be scheduled faithfully. */
+/** ExportParams has no namespace/ptype/new_within_days — such a lens cannot be scheduled
+ * faithfully (run-now honors all three). */
 const scheduleBlocked = computed(() => {
   const q = lensQuery.value as Record<string, unknown>
-  const offenders = ['namespace', 'ptype'].filter((k) => q[k] !== undefined)
+  const offenders = ['namespace', 'ptype', 'new_within_days'].filter((k) => q[k] !== undefined)
   return offenders.length
     ? `${offenders.join(', ')} filter(s) are not part of scheduled-export params — ` +
         'clear them or use Run now.'

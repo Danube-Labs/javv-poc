@@ -83,6 +83,7 @@ def _filters(
     ptype: Annotated[str | None, Query(max_length=64)] = None,
     q: Annotated[str | None, Query(min_length=2, max_length=128)] = None,
     present: bool = True,
+    new_within_days: Annotated[int | None, Query(ge=1, le=365)] = None,
 ) -> SearchFilters:
     return SearchFilters(
         severity=severity,
@@ -99,6 +100,7 @@ def _filters(
         ptype=ptype,
         q=q,
         present=present,
+        new_within_days=new_within_days,
     )
 
 

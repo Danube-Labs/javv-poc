@@ -25,7 +25,7 @@ _MAX_DAYS = 365
 _BY_SCANNER_TERMS = {"field": "scanner", "size": 4}
 
 
-def _window(days: int, anchor: datetime | None = None) -> tuple[str, str]:
+def window_bounds(days: int, anchor: datetime | None = None) -> tuple[str, str]:
     """(gte, upper-bound) — ALWAYS absolute ISO dates; unanchored = anchored at now (M8b: a
     trend at T is the SAME aggregation with the window ending at T, D28).
 
@@ -51,7 +51,7 @@ def _timeline(date_field: str, gte: str, upper: str) -> dict[str, Any]:
 
 
 def build_scans_trend_body(*, days: int, anchor: datetime | None = None) -> dict[str, Any]:
-    gte, upper = _window(days, anchor)
+    gte, upper = window_bounds(days, anchor)
     timeline = _timeline("ingested_at", gte, upper)
     # THE dedup rule (task B, #139): committed scans = cardinality(commit_key), never doc counts
     timeline["aggs"] = {"scans": {"cardinality": {"field": "commit_key"}}}
@@ -76,7 +76,7 @@ _SPLIT_TERMS: dict[str, dict[str, Any]] = {
 def build_findings_trend_body(
     *, days: int, split: str = "scanner", scanner: str | None = None
 ) -> dict[str, Any]:
-    gte, upper = _window(days)
+    gte, upper = window_bounds(days)
     terms = _SPLIT_TERMS[split]
 
     def series(date_field: str) -> dict[str, Any]:
