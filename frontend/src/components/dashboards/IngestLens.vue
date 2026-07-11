@@ -25,7 +25,7 @@ import {
   ingestLensDates,
 } from '@/charts/buildIngestLensOption'
 import type { ScanActivityData } from '@/charts/buildScanActivityOption'
-import { buildTrendQuery } from '@/charts/buildTrendQuery'
+import { buildTrendQuery, isSubDayWindow } from '@/charts/buildTrendQuery'
 import EChart from '@/components/charts/EChart.vue'
 import { logger } from '@/lib/logger'
 import { lastDataAt, silentFor, type FreshnessRow } from '@/system/freshness'
@@ -74,6 +74,7 @@ const latest = computed(
       .sort((a, b) => (a.last_ingest_at! < b.last_ingest_at! ? 1 : -1))[0] ?? null,
 )
 const option = computed(() => buildIngestLensOption(series.value))
+const subDay = computed(() => isSubDayWindow(timeTravel.windowDays))
 
 function onPointClick(params: { dataIndex: number }) {
   const bucket = ingestLensDates(series.value)[params.dataIndex]
@@ -93,8 +94,9 @@ function onPointClick(params: { dataIndex: number }) {
     <div class="il-head">
       <h3 class="il-title">Scan ingest</h3>
       <span class="il-sub"
-        >runs per day · {{ timeTravel.windowLabel.toLowerCase() }} · the table shows the state at
-        the <b>end</b> of this range</span
+        >runs per day · {{ timeTravel.windowLabel.toLowerCase()
+        }}<template v-if="subDay"> (daily bars — covers the last 1 day)</template> · the table
+        shows the state at the <b>end</b> of this range</span
       >
       <span v-if="timeTravel.isNow && latest" class="il-last mono-cell">
         last ingest {{ latest.scanner }} · {{ lastDataAt(latest.last_ingest_at) }} ({{

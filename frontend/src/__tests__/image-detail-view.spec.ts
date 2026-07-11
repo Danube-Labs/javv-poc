@@ -13,6 +13,9 @@ vi.mock('@/api/generated', () => ({
   searchFindingsApiV1FindingsGet: vi.fn<() => Promise<unknown>>(),
   listRunningImagesApiV1ImagesGet: vi.fn<() => Promise<unknown>>(),
   imageTimelineApiV1ImagesTimelineGet: vi.fn<() => Promise<unknown>>(),
+  // the ingest lens (audit 343) mounts inside the view and calls these two
+  scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
+  scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 
@@ -20,6 +23,8 @@ import {
   facetFindingsApiV1FindingsFacetsGet,
   imageTimelineApiV1ImagesTimelineGet,
   listRunningImagesApiV1ImagesGet,
+  scannerFreshnessApiV1ScannersFreshnessGet,
+  scansTrendApiV1TrendsScansGet,
   searchFindingsApiV1FindingsGet,
 } from '@/api/generated'
 
@@ -67,6 +72,10 @@ describe('ImageDetailView (M9c slice 3)', () => {
       ok({ inventory: { inventory_run_id: 'r1' }, images: [] }) as never,
     )
     timelineMock.mockResolvedValue(ok({ events: [] }) as never)
+    vi.mocked(scansTrendApiV1TrendsScansGet).mockResolvedValue(ok({ series: {}, days: 30 }) as never)
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(
+      ok({ scanners: [] }) as never,
+    )
   })
 
   it('scanner lens SWAPS the per-scanner reads — rows replaced, never merged', async () => {

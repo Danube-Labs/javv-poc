@@ -54,8 +54,10 @@ export function buildFilterQuery(
         }
       }
     } else {
+      // under-minLength text is OMITTED, never sent — the API would 422 it; the input layer
+      // owns the user feedback (contract-guard, audit 343)
       const text = (selected[0] ?? '').trim()
-      if (text) query[field.param] = text
+      if (text && text.length >= (field.minLength ?? 1)) query[field.param] = text
     }
   }
 

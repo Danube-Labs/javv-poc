@@ -30,6 +30,7 @@ import type { FacetsResponse } from '@/filters/facets'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { buildFindingsQuery } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS } from '@/findings/columns'
+import { FAILURE_COPY, failureKind } from '@/findings/failureCopy'
 import { logger } from '@/lib/logger'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
@@ -37,6 +38,7 @@ import { useFindingsStore, type FindingRow } from '@/stores/findings'
 import { makeFiltersStore } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
+import { keepTT, stripTT } from '@/system/timeTravelUrl'
 
 const useFindingsFilters = makeFiltersStore('findings-filters', FINDINGS_FIELDS)
 const filters = useFindingsFilters()
@@ -110,17 +112,20 @@ async function loadRows(q: typeof rowsQuery.value) {
       }
       grid.setResult(body.data, body.total.value, body.next_cursor)
       grid.failed = false
-      grid.failedNotSupportedAtPastT = false
+      grid.failedStatus = null
     } else if (grid.page > 0) {
       // stale PIT cursor is the usual culprit — rebuild from page 0
       logger.warn('findings_page_failed_reset', { status: response.response?.status })
       grid.resetPaging()
   } else {
     grid.failed = true
-    grid.failedNotSupportedAtPastT = response.response?.status === 501
+    grid.failedStatus = response.response?.status ?? null
     logger.warn('findings_search_failed', { status: response.response?.status })
   }
 }
+const failureMessage = computed(
+  () => FAILURE_COPY[failureKind(grid.failedStatus, timeTravel.t !== null)],
+)
 watch(
   rowsQuery,
   (q, old) => {
@@ -131,6 +136,15 @@ watch(
 )
 
 /** A bulk apply changed rows under the current lens — reload both surfaces in place. */
+function applySearch(value: string) {
+  const text = value.trim()
+  if (text.length === 1) {
+    toast.info('Search needs at least 2 characters.')
+    return
+  }
+  filters.setText('q', value)
+}
+
 function refreshAfterBulk(count: number) {
   toast.success(`Bulk triage applied · ${count.toLocaleString('en-US')} findings`)
   grid.resetPaging()
@@ -138,17 +152,17 @@ function refreshAfterBulk(count: number) {
   void loadFacets(facetsQuery.value)
 }
 
-/* ---- URL sync (M9a) ---- */
+/* ---- URL sync (M9a); the global t/win keys are the shell's — preserve, never wipe (audit 343) ---- */
 watch(
   () => filters.toQuery(),
   (q) => {
-    void router.replace({ query: q })
+    void router.replace({ query: { ...keepTT(route.query), ...q } })
   },
 )
 watch(
   () => route.query,
   (q) => {
-    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(q)) filters.fromQuery(q)
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripTT(q))) filters.fromQuery(q)
   },
 )
 
@@ -211,7 +225,7 @@ function setDense(value: boolean) {
             :value="filters.selections.q?.[0] ?? ''"
             placeholder="CVE, image, namespace…"
             aria-label="Search findings (contains match)"
-            @keydown.enter="filters.setText('q', ($event.target as HTMLInputElement).value)"
+            @keydown.enter="applySearch(($event.target as HTMLInputElement).value)"
           />
         </div>
       <FacetRail
@@ -261,11 +275,7 @@ function setDense(value: boolean) {
           />
         </div>
         <p v-if="grid.failed || facetsFailed" class="load-error" role="alert">
-          <template v-if="grid.failedNotSupportedAtPastT">
-            This filter isn't answerable at a past point in time — return to now, or drop the
-            search/attribute filters.
-          </template>
-          <template v-else>Findings unavailable — check the backend connection.</template>
+          {{ failureMessage }}
         </p>
         <FindingsTable
           :rows="grid.rows"

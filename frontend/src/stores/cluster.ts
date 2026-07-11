@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 
 import { client } from '@/api/client'
 import { listClustersApiV1ClustersGet } from '@/api/generated'
+import { logger } from '@/lib/logger'
 
 export interface ClusterEntry {
   cluster_id: string
@@ -16,7 +17,12 @@ export interface ClusterEntry {
 const STORAGE_KEY = 'javv.selected_cluster_id'
 
 export const useClusterStore = defineStore('cluster', {
-  state: () => ({ clusters: [] as ClusterEntry[], selectedId: null as string | null, loaded: false }),
+  state: () => ({
+    clusters: [] as ClusterEntry[],
+    selectedId: null as string | null,
+    loaded: false,
+    failed: false,
+  }),
   getters: {
     selected: (s) => s.clusters.find((c) => c.cluster_id === s.selectedId) ?? null,
   },
@@ -28,6 +34,12 @@ export const useClusterStore = defineStore('cluster', {
         const remembered = localStorage.getItem(STORAGE_KEY)
         const valid = this.clusters.some((c) => c.cluster_id === remembered)
         this.selectedId = valid ? remembered : (this.clusters[0]?.cluster_id ?? null)
+        this.failed = false
+      } else {
+        // silence-is-a-bug (audit 343): without the registry every screen renders empty —
+        // the shell shows the alert off this flag
+        this.failed = true
+        logger.warn('clusters_fetch_failed', { status: response?.status })
       }
       this.loaded = true
     },

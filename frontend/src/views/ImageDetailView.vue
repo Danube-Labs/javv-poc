@@ -22,6 +22,7 @@ import {
   listRunningImagesApiV1ImagesGet,
   searchFindingsApiV1FindingsGet,
 } from '@/api/generated'
+import IngestLens from '@/components/dashboards/IngestLens.vue'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import DigestSubTimeline from '@/components/images/DigestSubTimeline.vue'
@@ -300,6 +301,11 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     </div>
 
     <template v-else>
+      <IngestLens
+        v-if="clusterStore.selectedId"
+        class="detail-lens"
+        :cluster-id="clusterStore.selectedId"
+      />
       <!-- per-scanner severity cards: one scanner's buckets only — the lens swaps, never merges -->
       <div class="kpi-band sev-band">
         <div v-for="s in CARD_SEVERITIES" :key="s" class="kpi-cell kpi-static">
@@ -442,6 +448,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .sev-band {
   grid-template-columns: repeat(5, 1fr);
+  margin-bottom: 16px;
+}
+.detail-lens {
   margin-bottom: 16px;
 }
 .kpi-cell {

@@ -31,13 +31,16 @@ import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useImagesStore, type ImageRow } from '@/stores/images'
 import { useTimeTravelStore } from '@/stores/timeTravel'
+import { useToastStore } from '@/stores/toast'
 import { lastDataAt } from '@/system/freshness'
+import { keepTT } from '@/system/timeTravelUrl'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
+const toast = useToastStore()
 const images = useImagesStore()
 const filters = makeFiltersStore('imageFilters', IMAGES_FIELDS)()
 const { withGlobals } = useApi()
@@ -45,7 +48,8 @@ const { withGlobals } = useApi()
 filters.fromQuery(route.query)
 watch(
   () => filters.toQuery(),
-  (q) => void router.replace({ query: q }),
+  // the global t/win keys are the shell's — preserve, never wipe (audit 343)
+  (q) => void router.replace({ query: { ...keepTT(route.query), ...q } }),
 )
 
 watch(
@@ -118,6 +122,7 @@ function exportCsv() {
   a.click()
   URL.revokeObjectURL(url)
   logger.info('images_csv_exported', { rows: sorted.value.length })
+  toast.success(`Exported ${sorted.value.length.toLocaleString('en-US')} image rows to CSV.`)
 }
 
 const totalReplicas = computed(() => images.images.reduce((n, r) => n + (r.replicas ?? 0), 0))

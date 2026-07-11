@@ -49,7 +49,10 @@ export function makeFiltersStore(storeId: string, fields: readonly FilterField[]
           if (typeof raw !== 'string' || raw === '') continue
           const values = raw.split(',').filter(Boolean)
           if (field.type === 'text') {
-            next[field.key] = values.slice(0, 1)
+            // a shared URL can carry under-minLength text — drop it here so the chip never
+            // shows a filter the builder refuses to emit (contract-guard, audit 343)
+            const min = field.minLength ?? 1
+            next[field.key] = values.slice(0, 1).filter((v) => v.trim().length >= min)
           } else if (field.type === 'flags') {
             const known = new Set(field.values.map((v) => v.key))
             next[field.key] = values.filter((v) => known.has(v))

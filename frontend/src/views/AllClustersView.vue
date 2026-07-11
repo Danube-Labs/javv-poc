@@ -114,11 +114,14 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <div>
         <h1>All clusters</h1>
         <p class="screen-sub">
-          Fleet current state · <b class="mono-cell">{{ fleet.rows.length }}</b>
-          cluster{{ fleet.rows.length === 1 ? '' : 's' }}
-          <template v-if="!fleet.limited && !fleet.loading && fleet.rows.length">
-            · <span v-if="needAttention" class="deg-note">{{ needAttention }} need{{ needAttention === 1 ? 's' : '' }} attention</span>
-            <template v-else>all healthy</template>
+          <template v-if="fleet.limited">Historical fleet view — limited until the v1.1 rollup</template>
+          <template v-else>
+            Fleet current state · <b class="mono-cell">{{ fleet.rows.length }}</b>
+            cluster{{ fleet.rows.length === 1 ? '' : 's' }}
+            <template v-if="!fleet.loading && fleet.rows.length">
+              · <span v-if="needAttention" class="deg-note">{{ needAttention }} need{{ needAttention === 1 ? 's' : '' }} attention</span>
+              <template v-else>all healthy</template>
+            </template>
           </template>
         </p>
       </div>
