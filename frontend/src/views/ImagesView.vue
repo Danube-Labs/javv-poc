@@ -16,6 +16,7 @@ import { useRoute, useRouter } from 'vue-router'
 import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
 import SevChip from '@/components/chips/SevChip.vue'
+import IngestLens from '@/components/dashboards/IngestLens.vue'
 import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import ImagesTable, { type ImagesSortField } from '@/components/images/ImagesTable.vue'
@@ -212,6 +213,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             @update:dense="setDense"
           />
         </div>
+        <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
         <ImagesTable
           :rows="pageRows"
           :sort="sort"

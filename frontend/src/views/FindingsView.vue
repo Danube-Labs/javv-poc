@@ -20,6 +20,7 @@ import FilterBar from '@/components/filters/FilterBar.vue'
 import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
 import ExportDialog from '@/components/findings/ExportDialog.vue'
 import BulkTriageBar from '@/components/triage/BulkTriageBar.vue'
+import IngestLens from '@/components/dashboards/IngestLens.vue'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -254,6 +255,7 @@ function setDense(value: boolean) {
             @update:dense="setDense"
           />
         </div>
+        <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
         <p v-if="grid.failed || facetsFailed" class="load-error" role="alert">
           <template v-if="grid.failedNotSupportedAtPastT">
             This filter isn't answerable at a past point in time — return to now, or drop the
