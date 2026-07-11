@@ -94,6 +94,40 @@ as pure units** (Vitest).
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-11 — time-semantics round (operator debug session — PR #340; bolt #341 filed):**
+  "Last 24 hours shows a full findings table" ruled **correct** (D28: tables show state at the
+  range **END** — an empty state table would claim the cluster was clean), but the idle-scanner
+  signal must be visible on the screen. Shipped: the **ingest lens** — a reusable strip in a
+  two-track screen-head band (title card on the rail track in the kpi voice; lens spans exactly
+  the table track), reading `/trends/scans` + `/scanners/freshness`; a quiet range names the
+  moment the shown state was committed; **clicking a day bar rewinds the whole app** to that
+  day's end (a still-running day = back to now); the lens sub states the D28 semantics
+  permanently ("the table shows the state at the end of this range"). **"New in range"** ruled
+  in as the event view of the state table: an Attribute flag → `new_within_days` on
+  `GET /findings` + `/findings/facets` (range on `first_seen_at`, day-floored via the SAME
+  `window_bounds` as the trend charts so lens bars and rows always agree; a quiet window
+  honestly answers 0); mirrors pinned on `ExportParams`/`ViewPreset` (the 1:1 guards caught the
+  gap in CI); past T = `_unrecorded` 422; hover hint on the rail row. Also: finding-detail
+  **image fact links** to `/images/<digest>?repo&tag` (digest identity implies the navigation);
+  image-detail table's nested card unwrapped (pager on page bg like every sibling screen);
+  scanner lens selection tone → **accent** (neutral read white-on-white). Long-form home for
+  this mental model = the **About/tutorial page bolt, issue #341**.
+- **2026-07-11 — slice 3 rulings (operator review rounds — PR #339):** images screen rebuilt to
+  **full findings parity** ("findings is the reference screen" — measured with Playwright, not
+  eyeballed): M9a rail/FilterBar via `makeFiltersStore('imageFilters', IMAGES_FIELDS)` with URL
+  sync, ColumnsMenu + density (images-scoped keys), client CSV export of the served run
+  (`can_export`-gated), GridPager. Shared extractions: the data-screen scaffolding AND the whole
+  table skin moved to `base.css` — the **`.tbl.tbl` doubled selector is load-bearing** against
+  the PrimeVue theme cascade (single-class rules lose the padding war; scoped overrides must
+  match the weight). Readability rulings: **CountDisagree chip** (T/G scanner-colored letter
+  chips + amber Δ badge, sentence tooltip) replaced the cryptic T/G·Δ trio; **two per-scanner
+  severity-mix columns** (bar + colored counts under it; zeros = a committed clean scan, dash =
+  never scanned) fed by the server-side `severity_by_scanner` decoration from the scan-events
+  catalog (R-CATALOG max `scan_order` — the image doc's own buckets are the committing
+  scanner's alone); the Scanners column **dropped** (an inventory run is ONE scanner's cycle —
+  the tag misled; the other scanner shows via the D5b pair); `as_of` lands on `GET /images` +
+  new `GET /images/timeline` (digest eras / build-history sub-timeline); table headers ink/700;
+  toolbar centered on the search-box midline.
 - **2026-07-11 — slice 2 rulings (operator, live A/B — PR #338):** per-cluster **signal
   columns ruled as explicit columns** (variant A) over an exception-based signals cell:
   KEV (alarm-red when >0) · Fix % · Disagree · Triage (stacked state bar + % triaged) — all
