@@ -144,6 +144,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <template v-else>the latest committed inventory, per digest</template>
         </p>
       </div>
+      <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
     </div>
 
     <div v-if="images.loading" aria-busy="true" aria-label="Loading images">
@@ -213,7 +214,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             @update:dense="setDense"
           />
         </div>
-        <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
         <ImagesTable
           :rows="pageRows"
           :sort="sort"

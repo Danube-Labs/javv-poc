@@ -196,6 +196,7 @@ function setDense(value: boolean) {
           <b>{{ grid.total.toLocaleString('en-US') }}</b> findings · kept per-scanner, no cross-merge
         </p>
       </div>
+      <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
     </div>
 
     <div class="findings-layout">
@@ -255,7 +256,6 @@ function setDense(value: boolean) {
             @update:dense="setDense"
           />
         </div>
-        <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
         <p v-if="grid.failed || facetsFailed" class="load-error" role="alert">
           <template v-if="grid.failedNotSupportedAtPastT">
             This filter isn't answerable at a past point in time — return to now, or drop the
