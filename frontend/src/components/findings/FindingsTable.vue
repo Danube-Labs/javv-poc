@@ -7,9 +7,19 @@
  * Sortable columns = the server's sort whitelist only (severity_rank, epss — bolt README
  * 2026-07-09); the prototype's client-side sort on cve/state/assignee has no server field.
  * Per-scanner rows are distinct (one scanner tag per row, disagree flagged) — never merged.
+ *
+ * Column order (task 92): the toggleable columns render from `colOrder`; Vulnerability +
+ * Severity stay pinned left (row identity), State pinned right (the triage anchor). With
+ * `reorderable`, headers drag (Kibana grammar) — the table emits raw PrimeVue indexes and
+ * the OWNER maps + persists them (`findings/columnOrder.ts`), same parent-owns-state
+ * discipline as `hidden`.
  */
 import Column from 'primevue/column'
-import DataTable, { type DataTableSortEvent } from 'primevue/datatable'
+import DataTable, {
+  type DataTableColumnReorderEvent,
+  type DataTableSortEvent,
+} from 'primevue/datatable'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import DisagreementBadge from '@/components/chips/DisagreementBadge.vue'
 import EpssBar from '@/components/chips/EpssBar.vue'
@@ -19,6 +29,7 @@ import SlaCell from '@/components/chips/SlaCell.vue'
 import StateTag from '@/components/chips/StateTag.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
+import { FINDINGS_COLUMNS, type FindingsColumnKey } from '@/findings/columns'
 import type { FindingRow } from '@/stores/findings'
 
 const props = withDefaults(
@@ -29,22 +40,74 @@ const props = withDefaults(
     loading: boolean
     /** keys from FINDINGS_COLUMNS hidden via the Columns menu (cve/severity/state are fixed) */
     hidden?: ReadonlySet<string>
+    /** FINDINGS_COLUMNS keys in display order (hidden keys keep their slot) */
+    colOrder?: readonly string[]
+    /** header drag-reorder on; the parent owns + persists the order */
+    reorderable?: boolean
     dense?: boolean
     /** any filter active? drives filtered-empty vs first-run empty copy */
     filtered?: boolean
   }>(),
-  { hidden: () => new Set<string>(), dense: true, filtered: false },
+  {
+    hidden: () => new Set<string>(),
+    colOrder: () => FINDINGS_COLUMNS.map(([key]) => key),
+    reorderable: false,
+    dense: true,
+    filtered: false,
+  },
 )
 
-const show = (key: string) => !props.hidden.has(key)
+/** rendered orderable columns: display order minus the hidden set */
+const orderedKeys = computed(
+  () => props.colOrder.filter((k) => !props.hidden.has(k)) as FindingsColumnKey[],
+)
+
+const COL_HEADER: Record<FindingsColumnKey, string> = {
+  epss: 'EPSS',
+  kev: 'KEV',
+  package: 'Package',
+  current: 'Current',
+  fixed: 'Fixed',
+  image: 'Image',
+  namespace: 'Namespace',
+  images: 'Affected',
+  scanner: 'Scanner',
+  sla: 'SLA',
+  assignee: 'Assignee',
+}
+const COL_CLASS: Partial<Record<FindingsColumnKey, string>> = {
+  epss: 'r',
+  kev: 'c',
+  images: 'r',
+  sla: 'c',
+}
 
 const emit = defineEmits<{
   sort: [field: SortField]
   rowClick: [row: FindingRow]
+  /** raw PrimeVue rendered-column indexes — map with reorderFromDrag(pinnedLeft=2) */
+  reorder: [dragIndex: number, dropIndex: number]
 }>()
 
 function onSort(e: DataTableSortEvent) {
   if (typeof e.sortField === 'string') emit('sort', e.sortField as SortField)
+}
+const dt = ref<InstanceType<typeof DataTable> | null>(null)
+
+// PrimeVue tracks its own column order (d_columnOrder) in parallel and renders BY IT once
+// reorderable: an order change arriving from outside (the Columns-menu drag) would not show,
+// and a header drop onto a reorderable-column=false pin (PrimeVue only blocks the DRAG side)
+// could violate the pins. `colOrder` is the truth — re-assert it on every change and drop.
+function syncPrimeOrder() {
+  const inst = dt.value as unknown as { d_columnOrder?: string[] } | null
+  if (inst) inst.d_columnOrder = ['cve', 'severity', ...orderedKeys.value, 'state']
+}
+watch(orderedKeys, () => void nextTick(syncPrimeOrder))
+
+async function onColReorder(e: DataTableColumnReorderEvent) {
+  emit('reorder', e.dragIndex, e.dropIndex)
+  await nextTick()
+  syncPrimeOrder()
 }
 
 const shortImage = (r: FindingRow) => `${(r.image_repo ?? '').split('/').pop()}${r.tag ? ':' + r.tag : ''}`
@@ -58,93 +121,71 @@ const nsLabel = (r: FindingRow): string => {
 <template>
   <div class="tbl-wrap">
     <DataTable
+      ref="dt"
       :value="props.rows"
       lazy
       :sort-field="props.sort"
       :sort-order="props.order === 'desc' ? -1 : 1"
       :loading="props.loading"
       data-key="finding_key"
+      :reorderable-columns="props.reorderable"
       :pt="{ table: { class: `tbl tbl-hover ${props.dense ? 'tbl-dense' : ''}` } }"
       @sort="onSort"
+      @column-reorder="onColReorder"
       @row-click="(e) => emit('rowClick', e.data as FindingRow)"
     >
-      <Column header="Vulnerability">
+      <Column column-key="cve" header="Vulnerability" :reorderable-column="false">
         <template #body="{ data }">
           <span class="mono-cell strong nowrap cve-link">{{ data.cve_id }}</span>
         </template>
       </Column>
-      <Column field="severity_rank" header="Severity" sortable>
+      <Column column-key="severity" field="severity_rank" header="Severity" sortable :reorderable-column="false">
         <template #body="{ data }">
           <SevChip :level="data.severity_canonical" />
         </template>
       </Column>
-      <Column v-if="show('epss')" field="epss" sortable class="r">
+      <Column
+        v-for="key in orderedKeys"
+        :key="key"
+        :column-key="key"
+        :field="key === 'epss' ? 'epss' : undefined"
+        :sortable="key === 'epss'"
+        :class="COL_CLASS[key]"
+      >
         <template #header>
-          <span>EPSS<span class="th-note">via Grype</span></span>
+          <span v-if="key === 'epss'">EPSS<span class="th-note">via Grype</span></span>
+          <span v-else>{{ COL_HEADER[key] }}</span>
         </template>
         <template #body="{ data }">
-          <EpssBar :v="data.epss" />
-        </template>
-      </Column>
-      <Column v-if="show('kev')" header="KEV" class="c">
-        <template #body="{ data }">
-          <KevTag :on="data.kev === true" />
-        </template>
-      </Column>
-      <Column v-if="show('package')" header="Package">
-        <template #body="{ data }">
-          <span class="pkg" :title="data.package_name"
+          <EpssBar v-if="key === 'epss'" :v="data.epss" />
+          <KevTag v-else-if="key === 'kev'" :on="data.kev === true" />
+          <span v-else-if="key === 'package'" class="pkg" :title="data.package_name"
             ><em class="pkg-name">{{ data.package_name }}</em><i class="pkg-type">{{ data.ptype ?? 'unknown' }}</i></span
           >
-        </template>
-      </Column>
-      <Column v-if="show('current')" header="Current">
-        <template #body="{ data }">
-          <span class="mono-cell sm ver-cur">{{ data.installed_version ?? '-' }}</span>
-        </template>
-      </Column>
-      <Column v-if="show('fixed')" header="Fixed">
-        <template #body="{ data }">
-          <span v-if="data.fixed_version" class="mono-cell sm ver-fix">{{ data.fixed_version }}</span>
-          <span v-else class="ver-none">no fix</span>
-        </template>
-      </Column>
-      <Column v-if="show('image')" header="Image">
-        <template #body="{ data }">
-          <span class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
-        </template>
-      </Column>
-      <Column v-if="show('namespace')" header="Namespace">
-        <template #body="{ data }">
-          <span class="mono-cell sm ns-cell" :title="Array.isArray(data.namespaces) ? data.namespaces.join(', ') : ''">{{ nsLabel(data) }}</span>
-        </template>
-      </Column>
-      <Column v-if="show('images')" header="Affected" class="r">
-        <template #body="{ data }">
-          <span class="mono-cell sm">{{ data.images_affected ?? '-' }}</span>
-        </template>
-      </Column>
-      <Column v-if="show('scanner')" header="Scanner">
-        <template #body="{ data }">
-          <span class="scanner-stack">
+          <span v-else-if="key === 'current'" class="mono-cell sm ver-cur">{{ data.installed_version ?? '-' }}</span>
+          <template v-else-if="key === 'fixed'">
+            <span v-if="data.fixed_version" class="mono-cell sm ver-fix">{{ data.fixed_version }}</span>
+            <span v-else class="ver-none">no fix</span>
+          </template>
+          <span v-else-if="key === 'image'" class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
+          <span
+            v-else-if="key === 'namespace'"
+            class="mono-cell sm ns-cell"
+            :title="Array.isArray(data.namespaces) ? data.namespaces.join(', ') : ''"
+            >{{ nsLabel(data) }}</span
+          >
+          <span v-else-if="key === 'images'" class="mono-cell sm">{{ data.images_affected ?? '-' }}</span>
+          <span v-else-if="key === 'scanner'" class="scanner-stack">
             <ScannerTag :name="data.scanner" />
             <DisagreementBadge v-if="data.disagree" />
           </span>
+          <SlaCell v-else-if="key === 'sla'" :due-at="data.due_at" :overdue="data.overdue === true" />
+          <span v-else-if="key === 'assignee'" class="sm">{{ data.assignee ?? '-' }}</span>
         </template>
       </Column>
-      <Column v-if="show('sla')" header="SLA" class="c">
-        <template #body="{ data }">
-          <SlaCell :due-at="data.due_at" :overdue="data.overdue === true" />
-        </template>
-      </Column>
-      <Column header="State">
+      <Column column-key="state" header="State" :reorderable-column="false">
         <template #body="{ data }">
           <StateTag :state="data.state" />
-        </template>
-      </Column>
-      <Column v-if="show('assignee')" header="Assignee">
-        <template #body="{ data }">
-          <span class="sm">{{ data.assignee ?? '-' }}</span>
         </template>
       </Column>
       <template #empty>

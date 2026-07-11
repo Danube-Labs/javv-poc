@@ -30,6 +30,7 @@ import type { FacetsResponse } from '@/filters/facets'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { buildFindingsQuery } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS } from '@/findings/columns'
+import { reorderFromDrag, restoreOrder } from '@/findings/columnOrder'
 import { FAILURE_COPY, failureKind } from '@/findings/failureCopy'
 import { logger } from '@/lib/logger'
 import { useAuthStore } from '@/stores/auth'
@@ -202,6 +203,24 @@ function setDense(value: boolean) {
   dense.value = value
   localStorage.setItem(DENSE_KEY, String(value))
 }
+
+/* ---- column order (task 92): header drag + Columns-menu drag, one persisted order ---- */
+const ORDER_KEY = 'javv.findings.col_order'
+const COL_KEYS = FINDINGS_COLUMNS.map(([key]) => key)
+const colOrder = ref<string[]>(restoreOrder(localStorage.getItem(ORDER_KEY), COL_KEYS))
+const orderedCols = computed(() =>
+  colOrder.value.map((key) => FINDINGS_COLUMNS.find(([k]) => k === key)!),
+)
+
+function setColOrder(next: string[]) {
+  colOrder.value = next
+  localStorage.setItem(ORDER_KEY, JSON.stringify(next))
+}
+function onHeaderReorder(dragIndex: number, dropIndex: number) {
+  // 2 = the pinned Vulnerability + Severity columns the PrimeVue indexes count past
+  const next = reorderFromDrag(colOrder.value, hiddenCols.value, dragIndex, dropIndex, 2)
+  if (next) setColOrder(next)
+}
 </script>
 
 <template>
@@ -267,11 +286,13 @@ function setDense(value: boolean) {
             @applied="refreshAfterBulk"
           />
           <ColumnsMenu
-            :cols="FINDINGS_COLUMNS"
+            :cols="orderedCols"
             :hidden="hiddenCols"
             :dense="dense"
+            reorderable
             @toggle-col="toggleCol"
             @update:dense="setDense"
+            @reorder="setColOrder"
           />
         </div>
         <p v-if="grid.failed || facetsFailed" class="load-error" role="alert">
@@ -283,10 +304,13 @@ function setDense(value: boolean) {
           :order="grid.order"
           :loading="grid.loading"
           :hidden="hiddenCols"
+          :col-order="colOrder"
+          reorderable
           :dense="dense"
           :filtered="Object.values(filters.selections).some((v) => v.length > 0)"
           @sort="grid.setSort"
           @row-click="openFinding"
+          @reorder="onHeaderReorder"
         />
         <GridPager
           :total="grid.total"

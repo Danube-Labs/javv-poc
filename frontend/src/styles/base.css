@@ -228,6 +228,12 @@ a {
 .tbl-hover.tbl-hover tbody tr:active {
   background: var(--line2);
 }
+/* column drag-reorder (task 92): PrimeVue's drop-slot arrows in the one insertion language —
+   coral, like the Columns-menu insertion line (its default is a near-invisible black glyph) */
+.p-datatable-row-reorder-indicator-up,
+.p-datatable-row-reorder-indicator-down {
+  color: var(--coral);
+}
 .tbl.tbl th.r,
 .tbl.tbl td.r {
   text-align: right;
