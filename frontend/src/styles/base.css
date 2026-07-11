@@ -74,12 +74,20 @@ a {
 }
 .toolbar-row {
   display: flex;
-  align-items: flex-start;
+  /* centered against the rail's 39px search box so Add-filter and the buttons share its
+     baseline (operator, 2026-07-11) */
+  align-items: center;
+  min-height: 39px;
   gap: 10px;
   margin-bottom: var(--space-2); /* toolbar/note/table are ONE functional group */
 }
 .toolbar-row > :first-child {
   flex: 1;
+  /* the flexed filter bar default-stretches to the row height — center its pills too */
+  align-self: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
 }
 .rail-col {
   flex: none;
@@ -142,8 +150,9 @@ a {
    the cascade to .p-datatable-* and the grids would regress to PrimeVue's paddings */
 .tbl.tbl thead th {
   text-align: left;
-  font-weight: 600;
-  color: var(--soft);
+  /* header legibility (operator, 2026-07-11): soft/600 read faint over dense rows */
+  font-weight: 700;
+  color: var(--ink);
   font-size: var(--text-table-header);
   letter-spacing: 0.05em;
   text-transform: uppercase;
