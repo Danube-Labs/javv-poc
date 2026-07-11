@@ -48,6 +48,15 @@ a {
 * {
   cursor: default;
 }
+/* PrimeVue never decides a cursor. Its stylesheet ships class-level cursors (move on every
+   header once column reorder is on — the pinned ones included, pointer on sortable headers,
+   col-resize) that outrank the zero-specificity universal above. `inherit` (not `default`)
+   so PrimeVue's inner wrappers follow whatever OUR rule on the host element says (grab on
+   draggable headers reaches the header-content span). Our class rules still outrank this. */
+html [class^='p-'],
+html [class*=' p-'] {
+  cursor: inherit;
+}
 
 /* ---- shared data-screen scaffolding (the findings grammar; operator ruling 2026-07-11:
    findings is the reference, sibling screens follow) — head rhythm, rail + main layout,
