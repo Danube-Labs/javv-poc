@@ -189,12 +189,13 @@ function setDense(value: boolean) {
 
 <template>
   <div class="screen">
-    <div class="screen-head">
-      <div>
+    <div class="screen-head screen-head-band">
+      <div class="head-card">
         <h1>Findings</h1>
-        <p class="screen-sub">
-          <b>{{ grid.total.toLocaleString('en-US') }}</b> findings · kept per-scanner, no cross-merge
+        <p class="head-stat">
+          {{ grid.total.toLocaleString('en-US') }}<span class="head-unit"> findings</span>
         </p>
+        <p class="head-note">kept per-scanner, no cross-merge</p>
       </div>
       <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
     </div>

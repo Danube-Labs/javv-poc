@@ -107,22 +107,23 @@ function onPointClick(params: { dataIndex: number }) {
       >.
     </p>
     <div v-else title="Click a day to view the whole app as of the end of that day">
-      <EChart :option="option" :height="60" @point-click="onPointClick" />
+      <EChart :option="option" :height="84" @point-click="onPointClick" />
     </div>
   </section>
 </template>
 
 <style scoped>
 .ingest-lens {
-  /* built for the screen-head right slot — flexes down before crowding the heading */
-  flex: 0 1 620px;
-  min-width: 380px;
-  margin-left: 24px;
+  /* fills the screen-head-band's table track — flush with the grid edges below */
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r);
   box-shadow: var(--shadow);
-  padding: 8px 14px 4px;
+  padding: 10px 14px 4px;
 }
 .il-head {
   display: flex;
@@ -150,8 +151,9 @@ function onPointClick(params: { dataIndex: number }) {
   text-align: right;
 }
 .il-empty {
-  margin: 6px 0 10px;
-  font-size: var(--text-sm);
+  margin: auto 0;
+  padding-bottom: 6px;
+  font-size: var(--text-body);
   color: var(--soft);
 }
 </style>
