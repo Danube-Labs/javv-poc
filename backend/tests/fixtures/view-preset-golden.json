@@ -13,7 +13,8 @@
     "scanner": null,
     "severity": null,
     "state": null,
-    "q": null
+    "q": null,
+    "new_within_days": null
   },
   "populated": {
     "assignee": null,
@@ -34,6 +35,7 @@
     "state": [
       "open"
     ],
-    "q": null
+    "q": null,
+    "new_within_days": null
   }
 }

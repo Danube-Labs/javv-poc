@@ -27,7 +27,14 @@ export interface TermsField extends BaseField {
  * the picker's trend-window days instead of `true` — the "new in range" event lens. */
 export interface FlagsField extends BaseField {
   type: 'flags'
-  values: readonly { key: string; param: string; label: string; window?: boolean }[]
+  values: readonly {
+    key: string
+    param: string
+    label: string
+    window?: boolean
+    /** Hover explanation for non-obvious flags (rail row title). */
+    hint?: string
+  }[]
 }
 
 /** Free-text single-value param (no facet buckets). */
@@ -59,7 +66,15 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
       { key: 'fixable', param: 'fixable', label: 'Fix available' },
       { key: 'disagree', param: 'disagree', label: 'Scanners disagree' },
       // first_seen_at within the global range — the event view of the state table
-      { key: 'new', param: 'new_within_days', label: 'New in range', window: true },
+      {
+        key: 'new',
+        param: 'new_within_days',
+        label: 'New in range',
+        window: true,
+        hint:
+          'Only findings first seen inside the selected time range — a quiet range shows 0. ' +
+          'Off, the table shows everything currently present.',
+      },
     ],
   },
   { key: 'state', label: 'State', type: 'terms', param: 'state', multi: true, facetKey: 'state', values: ['open', 'acknowledged', 'not_affected', 'risk_accepted', 'resolved', 'stale'] },

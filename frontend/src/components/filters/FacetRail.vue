@@ -40,7 +40,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         :key="it.value"
         class="facet-row"
         :class="{ 'facet-on': (selections[g.field.key] ?? []).includes(it.value) }"
-        :title="scannerSplit(it.byScanner)"
+        :title="it.hint ?? scannerSplit(it.byScanner)"
         @click="emit('toggle', g.field.key, it.value)"
       >
         <span class="facet-check" />

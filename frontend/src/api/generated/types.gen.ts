@@ -316,6 +316,10 @@ export type ExportParams = {
      */
     namespace?: string | null;
     /**
+     * New Within Days
+     */
+    new_within_days?: number | null;
+    /**
      * Present
      */
     present?: boolean;
@@ -564,6 +568,10 @@ export type ViewPreset = {
      * Namespace
      */
     namespace?: string | null;
+    /**
+     * New Within Days
+     */
+    new_within_days?: number | null;
     /**
      * Present
      */

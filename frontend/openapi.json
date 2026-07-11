@@ -655,6 +655,19 @@
             ],
             "title": "Namespace"
           },
+          "new_within_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Within Days"
+          },
           "present": {
             "default": true,
             "title": "Present",
@@ -1142,6 +1155,19 @@
               }
             ],
             "title": "Namespace"
+          },
+          "new_within_days": {
+            "anyOf": [
+              {
+                "maximum": 365.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Within Days"
           },
           "present": {
             "default": true,

@@ -60,11 +60,10 @@ const lensQuery = computed(() =>
     window_days: timeTravel.windowDays,
   }),
 )
-/** ExportParams has no namespace/ptype/new_within_days — such a lens cannot be scheduled
- * faithfully (run-now honors all three). */
+/** ExportParams has no namespace/ptype — a lens using them cannot be scheduled faithfully. */
 const scheduleBlocked = computed(() => {
   const q = lensQuery.value as Record<string, unknown>
-  const offenders = ['namespace', 'ptype', 'new_within_days'].filter((k) => q[k] !== undefined)
+  const offenders = ['namespace', 'ptype'].filter((k) => q[k] !== undefined)
   return offenders.length
     ? `${offenders.join(', ')} filter(s) are not part of scheduled-export params — ` +
         'clear them or use Run now.'
