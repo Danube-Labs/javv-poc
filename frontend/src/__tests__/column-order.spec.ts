@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { moveKey, reorderFromDrag, restoreOrder } from '@/findings/columnOrder'
+import { moveKey, reorderFromDrag, restoreOrder } from '@/system/columnOrder'
 
 const KNOWN = ['a', 'b', 'c', 'd'] as const
 

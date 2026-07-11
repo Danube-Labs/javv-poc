@@ -14,7 +14,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiDropdown from '@/components/ui/UiDropdown.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
-import { moveKey } from '@/findings/columnOrder'
+import { moveKey } from '@/system/columnOrder'
 
 const props = withDefaults(
   defineProps<{
@@ -169,6 +169,10 @@ function onDragEnd() {
 }
 .row-reorderable {
   border-top: 2px solid transparent; /* reserved so the insertion line never shifts rows */
+  cursor: grab; /* the ruled drag-surface exception (DESIGN.md §5) */
+}
+.row-reorderable:active {
+  cursor: grabbing;
 }
 .row-grip {
   color: var(--soft);

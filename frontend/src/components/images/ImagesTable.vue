@@ -6,11 +6,16 @@
  * (emitted to the parent, which sorts + slices), never a server round-trip.
  */
 import Column from 'primevue/column'
-import DataTable, { type DataTableSortEvent } from 'primevue/datatable'
+import DataTable, {
+  type DataTableColumnReorderEvent,
+  type DataTableSortEvent,
+} from 'primevue/datatable'
+import { computed, nextTick, ref, watch } from 'vue'
 
 import CountDisagree from '@/components/chips/CountDisagree.vue'
 import MixBar from '@/components/dashboards/MixBar.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import { IMAGES_COLUMNS, type ImagesColumnKey } from '@/images/fields.config'
 import type { ImageRow } from '@/stores/images'
 import type { Severity } from '@/styles/tokens'
 import { lastDataAt } from '@/system/freshness'
@@ -24,22 +29,60 @@ const props = withDefaults(
     order: 'asc' | 'desc'
     loading: boolean
     filtered: boolean
-    /** keys from IMAGES_COLUMNS hidden via the Columns menu (Image/Findings are fixed) */
+    /** keys from IMAGES_COLUMNS hidden via the Columns menu (only Image is fixed) */
     hidden?: ReadonlySet<string>
+    /** IMAGES_COLUMNS keys in display order (hidden keys keep their slot) */
+    colOrder?: readonly string[]
+    /** header drag-reorder on; the parent owns + persists the order */
+    reorderable?: boolean
     dense?: boolean
   }>(),
-  { hidden: () => new Set<string>(), dense: true },
+  {
+    hidden: () => new Set<string>(),
+    colOrder: () => IMAGES_COLUMNS.map(([key]) => key),
+    reorderable: false,
+    dense: true,
+  },
 )
 
-const show = (key: string) => !props.hidden.has(key)
+const orderedKeys = computed(
+  () => props.colOrder.filter((k) => !props.hidden.has(k)) as ImagesColumnKey[],
+)
+
+const SORT_FIELD: Partial<Record<ImagesColumnKey, ImagesSortField>> = {
+  replicas: 'replicas',
+  vulns: 'total',
+}
+// narrow data columns shrink to content; slack pools in the Image identity column
+const FIT_COLS = new Set<ImagesColumnKey>(['tag', 'replicas', 'vulns', 'seen'])
+const colClass = (key: ImagesColumnKey) =>
+  [FIT_COLS.has(key) ? 'fit' : '', props.reorderable ? 'th-drag' : ''].join(' ').trim()
 
 const emit = defineEmits<{
   sort: [field: ImagesSortField]
   rowClick: [row: ImageRow]
+  /** raw PrimeVue rendered-column indexes — map with reorderFromDrag(pinnedLeft=1) */
+  reorder: [dragIndex: number, dropIndex: number]
 }>()
 
 function onSort(e: DataTableSortEvent) {
   if (typeof e.sortField === 'string') emit('sort', e.sortField as ImagesSortField)
+}
+
+const dt = ref<InstanceType<typeof DataTable> | null>(null)
+
+// same PrimeVue parallel-order trap as the findings grid (see FindingsTable) — the
+// parent-owned order is the truth; re-assert it on every change and drop
+function syncPrimeOrder() {
+  const inst = dt.value as unknown as { d_columnOrder?: string[] } | null
+  if (inst) inst.d_columnOrder = ['image', ...orderedKeys.value]
+}
+watch(orderedKeys, () => void nextTick(syncPrimeOrder))
+
+async function onColReorder(e: DataTableColumnReorderEvent) {
+  emit('reorder', e.dragIndex, e.dropIndex)
+  await nextTick()
+  syncPrimeOrder()
 }
 
 const shortRepo = (r: ImageRow) => r.image_repo.split('/').at(-1) ?? r.image_repo
@@ -79,17 +122,20 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 <template>
   <div class="tbl-wrap">
     <DataTable
+      ref="dt"
       :value="props.rows"
       lazy
       :sort-field="props.sort ?? undefined"
       :sort-order="props.order === 'desc' ? -1 : 1"
       :loading="props.loading"
       data-key="image_digest"
-      :pt="{ table: { class: `tbl tbl-hover ${props.dense ? 'tbl-dense' : ''}` } }"
+      :reorderable-columns="props.reorderable"
+      :pt="{ table: { class: `tbl tbl-hover ${props.dense ? 'tbl-dense' : ''} ${props.reorderable ? 'tbl-reorder' : ''}` } }"
       @sort="onSort"
+      @column-reorder="onColReorder"
       @row-click="(e) => emit('rowClick', e.data as ImageRow)"
     >
-      <Column header="Image">
+      <Column column-key="image" header="Image" :reorderable-column="false">
         <template #body="{ data }">
           <div class="img-id">
             <span class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
@@ -97,53 +143,37 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           </div>
         </template>
       </Column>
-      <Column v-if="show('tag')" header="Tag">
-        <template #body="{ data }">
-          <span class="mono-cell sm">{{ data.tag }}</span>
-        </template>
-      </Column>
-      <Column v-if="show('namespace')" header="Namespace">
-        <template #body="{ data }">
-          <span class="mono-cell sm" :title="data.namespaces.join(', ')">{{ nsLabel(data) }}</span>
-        </template>
-      </Column>
-      <Column v-if="show('replicas')" field="replicas" sortable>
+      <Column
+        v-for="key in orderedKeys"
+        :key="key"
+        :column-key="key"
+        :field="SORT_FIELD[key]"
+        :sortable="key in SORT_FIELD"
+        :class="colClass(key)"
+      >
         <template #header>
-          <span>Replicas<span class="th-note">at last sweep</span></span>
+          <span v-if="key === 'tag'">Tag</span>
+          <span v-else-if="key === 'namespace'">Namespace</span>
+          <span v-else-if="key === 'replicas'">Replicas<span class="th-note">at last sweep</span></span>
+          <span v-else-if="key === 'vulns'">Vulns<span class="th-note">Trivy / Grype · never summed</span></span>
+          <span v-else-if="key === 'mixTrivy'">Severity mix<span class="th-note">trivy</span></span>
+          <span v-else-if="key === 'mixGrype'">Severity mix<span class="th-note">grype</span></span>
+          <span v-else-if="key === 'seen'">Last seen</span>
         </template>
         <template #body="{ data }">
-          <span class="mono-cell">{{ fmt(data.replicas ?? 0) }}</span>
-        </template>
-      </Column>
-      <Column field="total" sortable>
-        <template #header>
-          <span>Vulns<span class="th-note">Trivy / Grype · never summed</span></span>
-        </template>
-        <template #body="{ data }">
-          <CountDisagree :trivy="data.trivy_count" :grype="data.grype_count" :total="data.total" />
-        </template>
-      </Column>
-      <Column v-if="show('mixTrivy')">
-        <template #header>
-          <span>Severity mix<span class="th-note">trivy</span></span>
-        </template>
-        <template #body="{ data }">
-          <MixBar v-if="mixFor(data, 'trivy')" :counts="mixFor(data, 'trivy')!" numbers attribution="trivy" class="mix-sized" />
-          <span v-else class="muted-dash" title="No committed trivy scan of this digest">-</span>
-        </template>
-      </Column>
-      <Column v-if="show('mixGrype')">
-        <template #header>
-          <span>Severity mix<span class="th-note">grype</span></span>
-        </template>
-        <template #body="{ data }">
-          <MixBar v-if="mixFor(data, 'grype')" :counts="mixFor(data, 'grype')!" numbers attribution="grype" class="mix-sized" />
-          <span v-else class="muted-dash" title="No committed grype scan of this digest">-</span>
-        </template>
-      </Column>
-      <Column v-if="show('seen')" header="Last seen">
-        <template #body="{ data }">
-          <span class="mono-cell sm nowrap">{{ lastDataAt(data['@timestamp']) }}</span>
+          <span v-if="key === 'tag'" class="mono-cell sm">{{ data.tag }}</span>
+          <span v-else-if="key === 'namespace'" class="mono-cell sm" :title="data.namespaces.join(', ')">{{ nsLabel(data) }}</span>
+          <span v-else-if="key === 'replicas'" class="mono-cell">{{ fmt(data.replicas ?? 0) }}</span>
+          <CountDisagree v-else-if="key === 'vulns'" :trivy="data.trivy_count" :grype="data.grype_count" :total="data.total" />
+          <template v-else-if="key === 'mixTrivy'">
+            <MixBar v-if="mixFor(data, 'trivy')" :counts="mixFor(data, 'trivy')!" numbers attribution="trivy" class="mix-sized" />
+            <span v-else class="muted-dash" title="No committed trivy scan of this digest">-</span>
+          </template>
+          <template v-else-if="key === 'mixGrype'">
+            <MixBar v-if="mixFor(data, 'grype')" :counts="mixFor(data, 'grype')!" numbers attribution="grype" class="mix-sized" />
+            <span v-else class="muted-dash" title="No committed grype scan of this digest">-</span>
+          </template>
+          <span v-else-if="key === 'seen'" class="mono-cell sm nowrap">{{ lastDataAt(data['@timestamp']) }}</span>
         </template>
       </Column>
       <template #empty>

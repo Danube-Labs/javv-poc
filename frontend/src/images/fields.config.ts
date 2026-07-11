@@ -6,15 +6,19 @@
 import type { FilterField } from '@/filters/fields.config'
 import { SEVERITIES } from '@/styles/tokens'
 
-/** Columns menu vocabulary (Image + Findings stay fixed, like cve/severity/state in findings). */
+/** Columns menu vocabulary — only Image stays fixed (row identity; pins are identity-only,
+ * operator 2026-07-11); everything else moves and toggles, same as the findings grid. */
 export const IMAGES_COLUMNS = [
   ['tag', 'Tag'],
   ['namespace', 'Namespace'],
   ['replicas', 'Replicas'],
+  ['vulns', 'Vulns'],
   ['mixTrivy', 'Mix · trivy'],
   ['mixGrype', 'Mix · grype'],
   ['seen', 'Last seen'],
 ] as const
+
+export type ImagesColumnKey = (typeof IMAGES_COLUMNS)[number][0]
 
 export const IMAGES_FIELDS: readonly FilterField[] = [
   // the rail search box — CONTAINS across repo/tag/namespaces

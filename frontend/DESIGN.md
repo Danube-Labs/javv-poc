@@ -155,7 +155,10 @@ convention) — hover-only affordance is not discoverable.
 **Cursor (operator ruling, re-affirmed 2026-07-11):** the SYSTEM DEFAULT arrow everywhere —
 never `pointer`, never the I-beam over clickable text (`cursor: default` on clickable
 rows/cells; text stays selectable). Affordance comes from the chevron + wash + link treatment,
-never the cursor (Linear-style desktop-app convention).
+never the cursor (Linear-style desktop-app convention). **One ruled exception (operator
+2026-07-11, task 92): DRAG surfaces show `grab`/`grabbing`** — reorderable table headers and
+menu grip rows. Drag is a different verb than click; the arrow there hid a real affordance.
+`pointer` stays banned (ratchet-enforced).
 
 ### Motion (#319) — the one scale, applied through the kit
 

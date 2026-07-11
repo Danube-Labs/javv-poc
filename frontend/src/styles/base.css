@@ -237,7 +237,11 @@ a {
 /* draggable headers answer the pointer (operator 2026-07-11): wash + coral title — a header
    you can grab must light up like every other interactive control */
 .tbl-reorder.tbl-reorder thead th.th-drag {
+  cursor: grab; /* the ruled exception to arrow-everywhere: drag is a different verb (DESIGN.md §5) */
   transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+.tbl-reorder.tbl-reorder thead th.th-drag:active {
+  cursor: grabbing;
 }
 .tbl-reorder.tbl-reorder thead th.th-drag:hover {
   background: var(--control-hover-bg);
