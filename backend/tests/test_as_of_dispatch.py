@@ -42,10 +42,14 @@ class _StubReader:
 
     def __init__(self) -> None:
         self.calls: list[tuple[str, dict[str, Any]]] = []
+        self.raise_value_error = False  # simulate the reader's unrecorded-filter rejection
 
     async def _record(self, surface: str, kwargs: dict[str, Any]) -> dict[str, Any]:
         kwargs.pop("client", None)
         self.calls.append((surface, kwargs))
+        if self.raise_value_error:
+            self.raise_value_error = False
+            raise ValueError("filter is not recorded in per-scan history")
         return {"from": "as_of_t", "surface": surface}
 
     async def findings_page(self, client: Any, **kw: Any) -> dict[str, Any]:
@@ -135,6 +139,18 @@ async def test_a_past_t_delegates_each_surface_with_the_parsed_instant(http) -> 
     # the route's own params ride through the seam untouched
     assert reader.calls[2][1]["by"] == "image_repo"
     assert reader.calls[5][1]["days"] == 30
+
+
+async def test_reader_rejections_are_422_never_500(http) -> None:
+    """The reader refuses unrecorded filters with ValueError (q, kev, new_within_days…) —
+    the route seam must map that to 422; a 500 hid it behind generic FE copy (audit 343)."""
+    reader = _StubReader()
+    register_as_of_t(reader)
+    cid = f"c-asof-{uuid.uuid4().hex[:8]}"
+    for extra in ({"q": "krb5"}, {"new_within_days": "7"}, {"kev": "true"}):
+        reader.raise_value_error = True
+        r = await http.get("/api/v1/findings", params={"cluster_id": cid, "as_of": PAST_T, **extra})
+        assert r.status_code == 422, (extra, r.status_code, r.text)
 
 
 async def test_t_now_never_touches_the_seam(http) -> None:

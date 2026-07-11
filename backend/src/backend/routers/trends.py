@@ -23,7 +23,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 
 from backend.core.identifiers import ClusterId
 from backend.query.trends import build_findings_trend_body, build_scans_trend_body
-from backend.routers.findings import AsOf, Authenticated, _reader_or_501
+from backend.routers.findings import AsOf, Authenticated, _reader_or_501, _reconstructed
 from backend.tenancy.chokepoint import tenant_search
 
 router = APIRouter(prefix="/api/v1/trends", tags=["trends"])
@@ -53,8 +53,8 @@ async def scans_trend(
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
-        return await _reader_or_501().trends_scans(
-            client, cluster_id=cluster_id, t=as_of_t, days=days
+        return await _reconstructed(
+            _reader_or_501().trends_scans(client, cluster_id=cluster_id, t=as_of_t, days=days)
         )
     index = f"javv-scan-events-{cluster_id}-*"
     resp = await tenant_search(
@@ -80,8 +80,8 @@ async def findings_trend(
     if as_of_t is not None:
         if split != "scanner":  # the M8b reader reconstructs per-scanner only (MVP; like the
             raise HTTPException(422, "split=severity is not available at a past T")  # A-m1 422s
-        return await _reader_or_501().trends_findings(
-            client, cluster_id=cluster_id, t=as_of_t, days=days
+        return await _reconstructed(
+            _reader_or_501().trends_findings(client, cluster_id=cluster_id, t=as_of_t, days=days)
         )
     # no read-side refresh (audit A-m2/#191): reads observe committed state; writers refresh
     resp = await tenant_search(

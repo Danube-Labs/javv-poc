@@ -19,7 +19,7 @@ from backend.query.contributors import (
     build_actions_body,
     compute_ttr_sla,
 )
-from backend.routers.findings import AsOf, Authenticated, _reader_or_501
+from backend.routers.findings import AsOf, Authenticated, _reader_or_501, _reconstructed
 from backend.sla.policy import read_sla_policy
 from backend.tenancy.chokepoint import tenant_query, tenant_search
 
@@ -124,8 +124,8 @@ async def contributors(
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
-        return await _reader_or_501().contributors(
-            client, cluster_id=cluster_id, t=as_of_t, days=days
+        return await _reconstructed(
+            _reader_or_501().contributors(client, cluster_id=cluster_id, t=as_of_t, days=days)
         )
     # no read-side refresh (audit A-m2/#191): the audit log is append-only; the leaderboard is a
     # metrics view (eventual consistency is fine), and triage writes already refresh
