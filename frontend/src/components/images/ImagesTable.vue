@@ -45,14 +45,32 @@ function onSort(e: DataTableSortEvent) {
 const shortRepo = (r: ImageRow) => r.image_repo.split('/').at(-1) ?? r.image_repo
 const registryOf = (r: ImageRow) =>
   r.image_repo.includes('/') ? r.image_repo.slice(0, r.image_repo.lastIndexOf('/')) : null
-const mixOf = (r: ImageRow): Partial<Record<Severity, number>> => ({
-  critical: r.crit,
-  high: r.high,
-  medium: r.med,
-  low: r.low,
-  negligible: r.negligible,
-  unknown: r.unknown,
-})
+/** One scanner's mix from the server decoration (never merged); the doc's own buckets are
+ * the fallback for its committing scanner; null = no committed scan by that scanner. */
+function mixFor(r: ImageRow, sc: 'trivy' | 'grype'): Partial<Record<Severity, number>> | null {
+  const c = r.severity_by_scanner?.[sc]
+  if (c) {
+    return {
+      critical: c.crit ?? 0,
+      high: c.high ?? 0,
+      medium: c.med ?? 0,
+      low: c.low ?? 0,
+      negligible: c.negligible ?? 0,
+      unknown: c.unknown ?? 0,
+    }
+  }
+  if (!r.severity_by_scanner && r.scanners.includes(sc)) {
+    return {
+      critical: r.crit,
+      high: r.high,
+      medium: r.med,
+      low: r.low,
+      negligible: r.negligible,
+      unknown: r.unknown,
+    }
+  }
+  return null
+}
 const nsLabel = (r: ImageRow) =>
   r.namespaces.length <= 1 ? (r.namespaces[0] ?? '-') : `${r.namespaces[0]} +${r.namespaces.length - 1}`
 const fmt = (n: number) => n.toLocaleString('en-US')
@@ -105,9 +123,22 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <CountDisagree :trivy="data.trivy_count" :grype="data.grype_count" :total="data.total" />
         </template>
       </Column>
-      <Column v-if="show('mix')" header="Severity mix">
+      <Column v-if="show('mixTrivy')">
+        <template #header>
+          <span>Severity mix<span class="th-note">trivy</span></span>
+        </template>
         <template #body="{ data }">
-          <MixBar :counts="mixOf(data)" numbers :attribution="data.scanners.join('+')" class="mix-sized" />
+          <MixBar v-if="mixFor(data, 'trivy')" :counts="mixFor(data, 'trivy')!" numbers attribution="trivy" class="mix-sized" />
+          <span v-else class="muted-dash" title="No committed trivy scan of this digest">-</span>
+        </template>
+      </Column>
+      <Column v-if="show('mixGrype')">
+        <template #header>
+          <span>Severity mix<span class="th-note">grype</span></span>
+        </template>
+        <template #body="{ data }">
+          <MixBar v-if="mixFor(data, 'grype')" :counts="mixFor(data, 'grype')!" numbers attribution="grype" class="mix-sized" />
+          <span v-else class="muted-dash" title="No committed grype scan of this digest">-</span>
         </template>
       </Column>
       <Column v-if="show('seen')" header="Last seen">
@@ -160,6 +191,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 .mix-sized {
   min-width: 140px;
+}
+.muted-dash {
+  color: var(--dash-muted);
 }
 @media (prefers-reduced-motion: reduce) {
   :deep(.tbl-hover tbody tr),

@@ -174,7 +174,11 @@ async def test_route_rows_equal_the_time_travel_reader_at_now(env) -> None:
 
     r = await http.get("/api/v1/images", params={"cluster_id": cid})
     reader_rows = await running_images_at(client, cid, datetime.now(UTC))
-    assert r.json()["images"] == reader_rows
+    # the wire adds the per-scanner severity decoration ON TOP of the reader's rows
+    stripped = [
+        {k: v for k, v in row.items() if k != "severity_by_scanner"} for row in r.json()["images"]
+    ]
+    assert stripped == reader_rows
 
 
 async def test_as_of_rewinds_to_the_inventory_committed_at_t(env) -> None:
@@ -222,6 +226,7 @@ async def _scan_event(
     scan_order: int,
     total: int,
     ts: str,
+    crit: int = 0,
 ) -> None:
     await client.index(
         index=f"javv-scan-events-{cluster_id}-000001",
@@ -235,10 +240,60 @@ async def _scan_event(
             "image_digest": digest,
             "image_repo": "nginx",
             "tag": "1.21",
+            "crit": crit,
             "total": total,
             "schema_version": 4,
         },
     )
+
+
+async def test_rows_carry_per_scanner_severity_buckets_from_the_catalog(env) -> None:
+    """M9c slice 3: each image row is decorated with `severity_by_scanner` — every scanner's
+    latest committed counts for that digest (R-CATALOG, max scan_order) — so the UI can show
+    BOTH mixes without merging. The image doc's own buckets stay the committing scanner's."""
+    http, client = env
+    cid = f"c-img-{uuid.uuid4().hex[:8]}"
+    await _manifest(client, cluster_id=cid, inventory_run_id="inv-s", inventory_order=1)
+    await _image(client, cluster_id=cid, inventory_run_id="inv-s", digest="sha256:sv", total=5)
+    # trivy scanned twice (order 2 supersedes 1); grype once — counts land per scanner
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="trivy",
+        digest="sha256:sv",
+        scan_order=1,
+        total=9,
+        ts="2026-07-01T00:00:00+00:00",
+        crit=9,
+    )
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="trivy",
+        digest="sha256:sv",
+        scan_order=2,
+        total=5,
+        ts="2026-07-02T00:00:00+00:00",
+        crit=2,
+    )
+    await _scan_event(
+        client,
+        cluster_id=cid,
+        scanner="grype",
+        digest="sha256:sv",
+        scan_order=1,
+        total=7,
+        ts="2026-07-01T00:01:00+00:00",
+        crit=4,
+    )
+    await client.indices.refresh(index=f"javv-scan-events-{cid}-*")
+    await _refresh(client, cid)
+
+    r = await http.get("/api/v1/images", params={"cluster_id": cid})
+    row = r.json()["images"][0]
+    by = row["severity_by_scanner"]
+    assert by["trivy"]["crit"] == 2 and by["trivy"]["total"] == 5  # max scan_order wins
+    assert by["grype"]["crit"] == 4 and by["grype"]["total"] == 7  # never merged with trivy's
 
 
 async def test_timeline_is_the_per_image_scan_event_history_in_scan_order(env) -> None:

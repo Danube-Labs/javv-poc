@@ -41,12 +41,12 @@ const title = computed(() => {
   <div class="mix">
     <div class="mix-row">
       <span v-if="label" class="mix-scanner">{{ label }}</span>
-      <span v-if="segments" class="mix-bar" :title="title">
-        <i v-for="seg in segments" :key="seg.sev" :style="{ width: `${seg.pct}%`, background: seg.color }" />
+      <span v-if="segments || numbers" class="mix-bar" :title="title">
+        <i v-for="seg in segments ?? []" :key="seg.sev" :style="{ width: `${seg.pct}%`, background: seg.color }" />
       </span>
       <span v-else class="muted-dash" :title="title">-</span>
     </div>
-    <span v-if="numbers && segments" class="mix-nums" :title="title">
+    <span v-if="numbers" class="mix-nums" :title="title">
       <b v-for="sev in NUMBER_SEVERITIES" :key="sev" :class="`mn-${sev}`">{{ fmt(counts[sev] ?? 0) }}</b>
     </span>
   </div>

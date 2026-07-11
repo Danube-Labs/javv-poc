@@ -28,6 +28,12 @@ export interface ImageRow {
   trivy_count?: number | null
   grype_count?: number | null
   count_delta?: number | null
+  /** every scanner's latest committed counts for this digest (server-decorated, R-CATALOG) —
+   * the doc's own buckets above are the committing scanner's alone */
+  severity_by_scanner?: Record<
+    string,
+    { crit: number; high: number; med: number; low: number; negligible: number; unknown: number; total: number; fixable: number }
+  >
   '@timestamp': string
 }
 
