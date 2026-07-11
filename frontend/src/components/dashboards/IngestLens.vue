@@ -31,7 +31,14 @@ import { logger } from '@/lib/logger'
 import { lastDataAt, silentFor, type FreshnessRow } from '@/system/freshness'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 
-const props = defineProps<{ clusterId: string }>()
+const props = withDefaults(
+  defineProps<{
+    clusterId: string
+    /** What the D28 clause points at — "the table" on grid screens, "this screen" on overview. */
+    subject?: string
+  }>(),
+  { subject: 'the table' },
+)
 const timeTravel = useTimeTravelStore()
 
 const series = ref<ScanActivityData>({})
@@ -98,8 +105,8 @@ function onPointClick(params: { dataIndex: number }) {
       <h3 class="il-title">Scan ingest</h3>
       <span class="il-sub"
         >runs per day · {{ timeTravel.windowLabel.toLowerCase()
-        }}<template v-if="subDay"> (daily bars — covers the last 1 day)</template> · the table
-        shows the state at the <b>end</b> of this range</span
+        }}<template v-if="subDay"> (daily bars — covers the last 1 day)</template> ·
+        {{ subject }} shows the state at the <b>end</b> of this range</span
       >
       <span v-if="timeTravel.isNow && latest" class="il-last mono-cell">
         last ingest {{ latest.scanner }} · {{ lastDataAt(latest.last_ingest_at) }} ({{
@@ -110,7 +117,7 @@ function onPointClick(params: { dataIndex: number }) {
     <p v-if="failed" class="il-empty">Ingest activity unavailable.</p>
     <p v-else-if="totalRuns === 0" class="il-empty">
       No scans committed in this range<template v-if="timeTravel.isNow && latest">
-        — the table shows the state last updated {{ lastDataAt(latest.last_ingest_at) }},
+        — {{ subject }} shows the state last updated {{ lastDataAt(latest.last_ingest_at) }},
         {{ silentFor(latest.silent_for_seconds) }} ago</template
       >.
     </p>
@@ -172,10 +179,12 @@ function onPointClick(params: { dataIndex: number }) {
   color: var(--ink);
   text-align: right;
 }
+/* warning-grade copy reads at body size, never fine print (operator ruling) */
 .il-empty {
   margin: auto 0;
   padding-bottom: 6px;
-  font-size: var(--text-control);
+  font-size: var(--text-body);
+  font-weight: 500;
   color: var(--ink);
 }
 </style>
