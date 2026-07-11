@@ -14,31 +14,39 @@ const LABEL = { ok: 'healthy', stale: 'stale', none: 'no data' } as const
 </script>
 
 <template>
-  <span class="health-chip" :class="`hc-${status}`">{{ LABEL[status] }}</span>
+  <span class="health-chip" :class="`hc-${status}`"><i class="hc-dot" aria-hidden="true" />{{ LABEL[status] }}</span>
 </template>
 
 <style scoped>
+/* language A: status dot + plain word — the sidebar sweep-dot grammar, reused; the halo
+   ring (the family tint) is the depth accent */
 .health-chip {
-  font-family: var(--font-mono);
-  font-size: var(--text-chip-sm);
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  padding: 2px 7px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--ink);
   white-space: nowrap;
 }
-.hc-ok {
-  color: var(--health-ok-fg);
-  background: var(--health-ok-bg);
+.hc-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
 }
-.hc-stale {
-  color: var(--health-degraded-fg);
-  background: var(--health-degraded-bg);
+.hc-ok .hc-dot {
+  background: var(--health-ok-dot);
+  box-shadow: 0 0 0 3px var(--health-ok-bg);
+}
+.hc-stale .hc-dot {
+  background: var(--health-degraded-dot);
+  box-shadow: 0 0 0 3px var(--health-degraded-bg);
 }
 .hc-none {
   color: var(--soft);
-  background: var(--panel);
-  border: 1px solid var(--line2);
+}
+.hc-none .hc-dot {
+  background: var(--health-none-dot);
 }
 </style>

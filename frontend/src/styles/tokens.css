@@ -28,6 +28,7 @@
   --muted: #9aa3aa; /* decorative/disabled ONLY (dashes, gauge fills) — never text (fails AA) */
   --coral: #ec7e54;
   --coral-d: #d96a41;
+  --coral-drop: rgb(217 106 65 / 30%); /* primary-button depth (chip language A) */
   --coral-text: #a8481f; /* coral as TEXT — AA on card/panel/washes; coral/coral-d are fills only */
   --amber: #f4a368;
   --teal: #1f8e84; /* fills/accents; as TEXT use --teal-text (this fails AA on light) */
@@ -94,50 +95,65 @@
 
   /* -- severity (DATA ONLY — six D46 canonicals; never brand) ----------- */
   /* negligible is the one bucket beyond the v4 sheet (D46/A-1): muted, never red. */
+  /* Chip language A (operator ruling 2026-07-11): -bg/-line are DERIVED from the level's
+     -solid hue flattened on white (bg = 10%, line/ring = 30%) — one hue per level, crisper
+     edge than the old hand-picked pastels. Critical renders solid (escalation). */
   --sev-critical-fg: #b5231a;
-  --sev-critical-bg: #fbe7e4;
-  --sev-critical-line: #e7c0bb;
+  --sev-critical-bg: #f9e9e8;
+  --sev-critical-line: #ecbebb;
   --sev-critical-solid: #c0271d;
   --sev-high-fg: #aa4a0a;
-  --sev-high-bg: #fcebdd;
-  --sev-high-line: #edd0b6;
+  --sev-high-bg: #fcf0e7;
+  --sev-high-line: #f6d1b7;
+  --sev-high-ring: #efaa7b; /* the heavier 55% ring — high alone */
   --sev-high-solid: #e2640f;
   --sev-medium-fg: #82590a;
-  --sev-medium-bg: #fbf1d6;
-  --sev-medium-line: #ebddae;
+  --sev-medium-bg: #f9f3e7;
+  --sev-medium-line: #eedcb8;
   --sev-medium-solid: #c68a12;
   --sev-low-fg: #2f6e96;
-  --sev-low-bg: #e4f0f6;
-  --sev-low-line: #c2dce8;
+  --sev-low-bg: #ecf2f6;
+  --sev-low-line: #c5d8e4;
   --sev-low-solid: #3d7da6;
   --sev-negligible-fg: #55675f;
-  --sev-negligible-bg: #e9eeeb;
-  --sev-negligible-line: #d3ddd7;
+  --sev-negligible-bg: #f1f3f2;
+  --sev-negligible-line: #d4dad7;
   --sev-negligible-solid: #6f8378;
   --sev-unknown-fg: #5b6770;
-  --sev-unknown-bg: #ecedee;
-  --sev-unknown-line: #d8dcdf;
+  --sev-unknown-bg: #f1f2f3;
+  --sev-unknown-line: #d5d9dc;
   --sev-unknown-solid: #74808a;
+  /* chip depth (language A): inner highlight + soft drop on the solid/alarm chips */
+  --chip-hi: rgb(255 255 255 / 22%);
+  --chip-crit-drop: rgb(192 39 29 / 28%);
 
   /* -- status / semantic ------------------------------------------------ */
+  /* Language A: workflow reads QUIETER than severity — soft 9% tint + a solid dot,
+     no ring (the -solid dots are new; -bg re-derived from them; -line kept for legacy). */
   --state-open-fg: #aa4a0a;
-  --state-open-bg: #fcebdd;
+  --state-open-bg: #fcf1e9;
   --state-open-line: #efd3b7;
+  --state-open-solid: #e2640f;
   --state-stale-fg: #696358;
-  --state-stale-bg: #edeae4;
+  --state-stale-bg: #f5f5f4;
   --state-stale-line: #ded9cf;
+  --state-stale-solid: #9a927f;
   --state-ack-fg: #2f6e96;
-  --state-ack-bg: #e4f0f6;
+  --state-ack-bg: #eef3f7;
   --state-ack-line: #c5dde9;
+  --state-ack-solid: #3d7da6;
   --state-resolved-fg: #277146;
-  --state-resolved-bg: #e3f1e7;
+  --state-resolved-bg: #edf5f0;
   --state-resolved-line: #c3e2cc;
+  --state-resolved-solid: #38935d;
   --state-na-fg: #46586a;
-  --state-na-bg: #e9eef2;
+  --state-na-bg: #f1f3f5;
   --state-na-line: #cbd6df;
+  --state-na-solid: #64788c;
   --state-risk-fg: #8a5a23;
-  --state-risk-bg: #f3e9dc;
+  --state-risk-bg: #f8f4ee;
   --state-risk-line: #e2cfb4;
+  --state-risk-solid: #b3803e;
   --sla-tight-fg: #aa4a0a;
   --sla-over-bg: #c0271d;
   --dash-muted: #c3cad0;
@@ -146,11 +162,15 @@
   --note-info-line: rgba(31, 142, 132, 0.16);
   --kev-fg: #ffffff;
   --kev-bg: #8b1e16;
+  --kev-grad: linear-gradient(180deg, #a02419, #8b1e16); /* the alarm chip's depth fill */
+  --kev-drop: rgb(139 30 22 / 30%);
   --health-ok-fg: #277146;
   --health-ok-bg: #e3f1e7;
   --health-ok-dot: #3fb37f;
   --health-degraded-fg: #82590a;
   --health-degraded-bg: #fbf1d6;
+  --health-degraded-dot: #c68a12;
+  --health-none-dot: #c4ccd2;
   --health-down-fg: #b5231a;
   --health-down-bg: #fbe7e4;
   --scanner-trivy-fg: #17685f;
