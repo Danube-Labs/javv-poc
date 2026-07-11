@@ -48,6 +48,15 @@ a {
 * {
   cursor: default;
 }
+/* PrimeVue never decides a cursor. Its stylesheet ships class-level cursors (move on every
+   header once column reorder is on — the pinned ones included, pointer on sortable headers,
+   col-resize) that outrank the zero-specificity universal above. `inherit` (not `default`)
+   so PrimeVue's inner wrappers follow whatever OUR rule on the host element says (grab on
+   draggable headers reaches the header-content span). Our class rules still outrank this. */
+html [class^='p-'],
+html [class*=' p-'] {
+  cursor: inherit;
+}
 
 /* ---- shared data-screen scaffolding (the findings grammar; operator ruling 2026-07-11:
    findings is the reference, sibling screens follow) — head rhythm, rail + main layout,
@@ -227,6 +236,32 @@ a {
 }
 .tbl-hover.tbl-hover tbody tr:active {
   background: var(--line2);
+}
+/* column drag-reorder (task 92): PrimeVue's drop-slot arrows in the one insertion language —
+   coral, like the Columns-menu insertion line (its default is a near-invisible black glyph) */
+.p-datatable-row-reorder-indicator-up,
+.p-datatable-row-reorder-indicator-down {
+  color: var(--coral);
+}
+/* draggable headers answer the pointer (operator 2026-07-11): wash + coral title — a header
+   you can grab must light up like every other interactive control */
+.tbl-reorder.tbl-reorder thead th.th-drag {
+  cursor: grab; /* the ruled exception to arrow-everywhere: drag is a different verb (DESIGN.md §5) */
+  transition: background 0.12s ease-out, color 0.12s ease-out;
+}
+.tbl-reorder.tbl-reorder thead th.th-drag:active {
+  cursor: grabbing;
+}
+.tbl-reorder.tbl-reorder thead th.th-drag:hover {
+  background: var(--control-hover-bg);
+  color: var(--coral-text);
+}
+/* narrow data columns shrink to content; layout slack pools in the text columns
+   (cve/package/image/namespace) instead of stretching numbers away from their headers */
+.tbl.tbl th.fit,
+.tbl.tbl td.fit {
+  width: 1%;
+  white-space: nowrap;
 }
 .tbl.tbl th.r,
 .tbl.tbl td.r {
