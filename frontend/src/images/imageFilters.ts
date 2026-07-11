@@ -19,6 +19,17 @@ const sevCount = (row: ImageRow, sev: Severity): number => {
   return (row[key] as number) ?? 0
 }
 
+/** The scanners with a committed scan of this digest: the doc's own cycle scanner PLUS the
+ * D5b pair evidence — the pair only exists when the OTHER scanner has a committed scan, so
+ * `scanners: [trivy]` with a grype_count means grype scanned it too (the doc's severity
+ * buckets still belong to the committing scanner alone). */
+export function scannersOf(row: ImageRow): string[] {
+  const out = new Set(row.scanners)
+  if (row.trivy_count != null) out.add('trivy')
+  if (row.grype_count != null) out.add('grype')
+  return [...out]
+}
+
 interface Bucket {
   key: string
   count: number
@@ -32,7 +43,7 @@ export function imagesFacets(rows: ImageRow[]): Record<string, Bucket[]> {
     bucket(sev, rows.filter((r) => sevCount(r, sev) > 0).length),
   ).filter((b) => b.count > 0)
   const scanners = ['trivy', 'grype'].map((s) =>
-    bucket(s, rows.filter((r) => r.scanners.includes(s)).length),
+    bucket(s, rows.filter((r) => scannersOf(r).includes(s)).length),
   )
   const nsCounts = new Map<string, number>()
   for (const r of rows) for (const ns of r.namespaces) nsCounts.set(ns, (nsCounts.get(ns) ?? 0) + 1)
@@ -53,7 +64,7 @@ export function filterImages(rows: ImageRow[], sel: Selections): ImageRow[] {
     if (q && !`${r.image_repo} ${r.tag} ${r.namespaces.join(' ')}`.toLowerCase().includes(q))
       return false
     if (sevs.length > 0 && !sevs.some((s) => sevCount(r, s) > 0)) return false
-    if (scanners.length > 0 && !scanners.some((s) => r.scanners.includes(s))) return false
+    if (scanners.length > 0 && !scanners.some((s) => scannersOf(r).includes(s))) return false
     if (attrs.includes('fixable') && !(r.fixable > 0)) return false
     if (namespaces.length > 0 && !namespaces.some((ns) => r.namespaces.includes(ns))) return false
     return true

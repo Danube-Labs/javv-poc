@@ -107,7 +107,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       </Column>
       <Column v-if="show('mix')" header="Severity mix">
         <template #body="{ data }">
-          <MixBar :counts="mixOf(data)" :label="data.scanners.join('+')" class="mix-sized" />
+          <MixBar :counts="mixOf(data)" numbers :attribution="data.scanners.join('+')" class="mix-sized" />
         </template>
       </Column>
       <Column v-if="show('seen')" header="Last seen">

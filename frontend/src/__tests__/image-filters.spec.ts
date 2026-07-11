@@ -62,6 +62,19 @@ describe('filterImages (OR within a field, AND across)', () => {
     expect(filterImages(rows, { ...sel(), namespace: ['payments'] })).toHaveLength(1)
   })
 
+  it('scanner matches the D5b pair evidence, not just the committing cycle (corpus shape)', () => {
+    // the real corpus: every doc committed by trivy's cycle, grype evidenced only by the pair
+    const corpus = [
+      row({ image_digest: 'sha256:p', scanners: ['trivy'], trivy_count: 761, grype_count: 746, count_delta: 15 }),
+      row({ image_digest: 'sha256:q', scanners: ['trivy'], trivy_count: 5, grype_count: null }),
+    ]
+    expect(filterImages(corpus, { ...sel(), scanner: ['grype'] }).map((r) => r.image_digest)).toEqual(['sha256:p'])
+    expect(imagesFacets(corpus).scanner).toEqual([
+      { key: 'trivy', count: 2, by_scanner: {} },
+      { key: 'grype', count: 1, by_scanner: {} },
+    ])
+  })
+
   it('q contains-matches repo, tag, and namespaces', () => {
     expect(filterImages(rows, { ...sel(), q: ['klipper'] })).toHaveLength(1)
     expect(filterImages(rows, { ...sel(), q: ['v0.4'] })).toHaveLength(1)
