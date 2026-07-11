@@ -51,10 +51,13 @@ if (fromUrl) {
     timeTravel.setWindow(fromUrl.win, label)
   }
 }
+// re-stamp on NAVIGATION too — a bare next-page URL would lose the range on ITS refresh
+// (operator bug report: set 24h → navigate → refresh → back to 30 days)
 watch(
-  () => [timeTravel.t, timeTravel.windowDays] as const,
+  () => [timeTravel.t, timeTravel.windowDays, route.path] as const,
   ([t, win]) => {
     const tt = ttToQuery(t, win)
+    if (route.query.t === (tt.t ?? undefined) && route.query.win === (tt.win ?? undefined)) return
     void router.replace({ query: { ...route.query, t: tt.t, win: tt.win } })
   },
 )

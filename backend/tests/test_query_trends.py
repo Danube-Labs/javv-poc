@@ -45,6 +45,16 @@ def test_scans_trend_days_is_bounded() -> None:
         build_scans_trend_body(days=366)
 
 
+def test_scans_trend_hourly_interval_for_short_ranges() -> None:
+    """Sub-day scanner cadences (every 4h) are invisible in daily bars — the lens asks for
+    hourly buckets on short ranges (audit 343). The vocabulary is closed."""
+    body = build_scans_trend_body(days=1, interval="hour")
+    dh = body["aggs"]["by_scanner"]["aggs"]["timeline"]["date_histogram"]
+    assert dh["calendar_interval"] == "hour"
+    with pytest.raises(ValueError):
+        build_scans_trend_body(days=1, interval="minute")
+
+
 def test_findings_trend_builds_new_and_resolved_series_per_scanner() -> None:
     body = build_findings_trend_body(days=30)
     assert body["size"] == 0

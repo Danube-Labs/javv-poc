@@ -2335,6 +2335,10 @@ export type ScansTrendApiV1TrendsScansGetData = {
          */
         days?: number;
         /**
+         * Interval
+         */
+        interval?: 'day' | 'hour';
+        /**
          * As Of
          */
         as_of?: string | null;

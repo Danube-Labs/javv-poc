@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { BarSeriesOption } from 'echarts'
 
-import { bucketEndT, buildIngestLensOption, ingestLensDates } from '@/charts/buildIngestLensOption'
+import {
+  bucketEndT,
+  buildIngestLensOption,
+  ingestInterval,
+  ingestLensDates,
+} from '@/charts/buildIngestLensOption'
 import type { ScanActivityData } from '@/charts/buildScanActivityOption'
 import { CHART_SCANNER } from '@/styles/tokens'
 
@@ -45,5 +50,27 @@ describe('click-to-rewind mapping (D28: a day bucket → the whole-app T)', () =
     const nowMs = Date.parse('2026-07-10T12:00:00Z')
     expect(bucketEndT('2026-07-08T00:00:00.000Z', nowMs)).toBe('2026-07-08T23:59:59.999Z')
     expect(bucketEndT('2026-07-10T00:00:00.000Z', nowMs)).toBeNull()
+  })
+
+  it('hourly buckets rewind to the hour end (the 4-hour-cadence lens, audit 343)', () => {
+    const nowMs = Date.parse('2026-07-10T12:30:00Z')
+    expect(bucketEndT('2026-07-10T08:00:00.000Z', nowMs, 'hour')).toBe('2026-07-10T08:59:59.999Z')
+    expect(bucketEndT('2026-07-10T12:00:00.000Z', nowMs, 'hour')).toBeNull()
+  })
+})
+
+describe('ingestInterval (short live ranges bucket hourly)', () => {
+  it('≤2 days at T=now → hour; longer or past T → day', () => {
+    expect(ingestInterval(1, null)).toBe('hour')
+    expect(ingestInterval(0.02, null)).toBe('hour')
+    expect(ingestInterval(2, null)).toBe('hour')
+    expect(ingestInterval(30, null)).toBe('day')
+    expect(ingestInterval(1, '2026-07-08T00:00:00Z')).toBe('day') // the reader is daily-only
+  })
+
+  it('hourly option relabels the axis in HH:mm', () => {
+    const series = { trivy: [{ date: '2026-07-10T08:00:00.000Z', scans: 2 }] }
+    const opt = buildIngestLensOption(series, 'hour')
+    expect((opt.xAxis as { data: string[] }).data.every((l) => /^\d{2}:\d{2}$/.test(l))).toBe(true)
   })
 })

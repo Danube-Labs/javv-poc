@@ -50,20 +50,26 @@ async def scans_trend(
     cluster_id: ClusterId,
     as_of_t: AsOf,
     days: Days = 30,
+    interval: Literal["day", "hour"] = "day",
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
+        # the reader reconstructs DAILY only (MVP) — `interval` is a live-path knob; the
+        # reader's payload rides verbatim (the dispatch pin)
         return await _reconstructed(
             _reader_or_501().trends_scans(client, cluster_id=cluster_id, t=as_of_t, days=days)
         )
     index = f"javv-scan-events-{cluster_id}-*"
     resp = await tenant_search(
-        client, index=index, cluster_id=cluster_id, body=build_scans_trend_body(days=days)
+        client,
+        index=index,
+        cluster_id=cluster_id,
+        body=build_scans_trend_body(days=days, interval=interval),
     )
     # a cluster with no scan-events yet matches zero indices — no aggregations at all
     aggs = resp.get("aggregations")
     series = _series(aggs["by_scanner"], metric="scans") if aggs else {}
-    return {"series": series, "days": days}
+    return {"series": series, "days": days, "interval": interval}
 
 
 @router.get("/findings")

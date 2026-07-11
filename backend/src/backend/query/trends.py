@@ -39,20 +39,26 @@ def window_bounds(days: int, anchor: datetime | None = None) -> tuple[str, str]:
     return (day - timedelta(days=days)).isoformat(), day.isoformat()
 
 
-def _timeline(date_field: str, gte: str, upper: str) -> dict[str, Any]:
+def _timeline(date_field: str, gte: str, upper: str, interval: str = "day") -> dict[str, Any]:
+    if interval not in ("day", "hour"):  # a scanner cadence lens, not a free-form histogram
+        raise ValueError("interval must be day or hour")
     return {
         "date_histogram": {
             "field": date_field,
-            "calendar_interval": "day",
-            "min_doc_count": 0,  # quiet days are real data points — a continuous axis
+            "calendar_interval": interval,
+            "min_doc_count": 0,  # quiet buckets are real data points — a continuous axis
             "extended_bounds": {"min": gte, "max": upper},
         }
     }
 
 
-def build_scans_trend_body(*, days: int, anchor: datetime | None = None) -> dict[str, Any]:
+def build_scans_trend_body(
+    *, days: int, anchor: datetime | None = None, interval: str = "day"
+) -> dict[str, Any]:
+    # hourly buckets answer "does the scanner run every N hours?" on short ranges — daily
+    # bars over a 1-day window collapse any cadence into one bar (operator, audit 343)
     gte, upper = window_bounds(days, anchor)
-    timeline = _timeline("ingested_at", gte, upper)
+    timeline = _timeline("ingested_at", gte, upper, interval)
     # THE dedup rule (task B, #139): committed scans = cardinality(commit_key), never doc counts
     timeline["aggs"] = {"scans": {"cardinality": {"field": "commit_key"}}}
     window: dict[str, Any] = {"gte": gte}

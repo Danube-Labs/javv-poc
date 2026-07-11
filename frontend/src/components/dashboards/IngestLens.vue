@@ -22,6 +22,7 @@ import {
 import {
   bucketEndT,
   buildIngestLensOption,
+  ingestInterval,
   ingestLensDates,
 } from '@/charts/buildIngestLensOption'
 import type { ScanActivityData } from '@/charts/buildScanActivityOption'
@@ -52,7 +53,7 @@ watch(
     const [scans, fresh] = await Promise.all([
       scansTrendApiV1TrendsScansGet({
         client,
-        query: buildTrendQuery(id, days, t) as never,
+        query: { ...buildTrendQuery(id, days, t), interval: ingestInterval(days, t) } as never,
       }),
       scannerFreshnessApiV1ScannersFreshnessGet({ client, query: { cluster_id: id } }),
     ])
@@ -80,8 +81,10 @@ const latest = computed(
       .filter((r) => r.last_ingest_at !== null)
       .sort((a, b) => (a.last_ingest_at! < b.last_ingest_at! ? 1 : -1))[0] ?? null,
 )
-const option = computed(() => buildIngestLensOption(series.value))
-const subDay = computed(() => isSubDayWindow(timeTravel.windowDays))
+const interval = computed(() => ingestInterval(timeTravel.windowDays, timeTravel.t))
+const option = computed(() => buildIngestLensOption(series.value, interval.value))
+// daily bars only mislead when the range is sub-day AND the buckets stayed daily (past T)
+const subDay = computed(() => interval.value === 'day' && isSubDayWindow(timeTravel.windowDays))
 /** Quiet range = the one state worth a visual flag (operator 2026-07-11): the amber wash
  * only when NOTHING was committed in the range — data present stays a plain card. */
 const quiet = computed(() => !failed.value && totalRuns.value === 0)
@@ -89,7 +92,7 @@ const quiet = computed(() => !failed.value && totalRuns.value === 0)
 function onPointClick(params: { dataIndex: number }) {
   const bucket = ingestLensDates(series.value)[params.dataIndex]
   if (!bucket) return
-  const t = bucketEndT(bucket, Date.now())
+  const t = bucketEndT(bucket, Date.now(), interval.value)
   if (t === null) {
     timeTravel.backToNow()
     return
@@ -104,7 +107,7 @@ function onPointClick(params: { dataIndex: number }) {
     <div class="il-head">
       <h3 class="il-title">Scan ingest</h3>
       <span class="il-sub"
-        >runs per day · {{ timeTravel.windowLabel.toLowerCase()
+        >runs per {{ interval }} · {{ timeTravel.windowLabel.toLowerCase()
         }}<template v-if="subDay"> (daily bars — covers the last 1 day)</template> ·
         {{ subject }} shows the state at the <b>end</b> of this range</span
       >
