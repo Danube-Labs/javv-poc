@@ -215,8 +215,8 @@ async function exportCsv() {
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
           />
-          <UiButton variant="ghost" :disabled="exporting" @click="exportCsv">
-            <AppIcon name="download" :size="14" />{{ exporting ? 'Exporting…' : 'Export CSV' }}
+          <UiButton variant="control" :disabled="exporting" @click="exportCsv">
+            <AppIcon name="download" :size="13" />{{ exporting ? 'Exporting…' : 'Export CSV' }}
           </UiButton>
         </div>
 
