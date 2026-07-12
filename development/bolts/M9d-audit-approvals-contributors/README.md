@@ -56,8 +56,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
     (head-card + the **handled-findings lens** — `handled_over_time` from the read itself, so
     the strip and the board can never disagree) → team-KPI band → podium → leaderboard, feed
     alongside. The KPI strip renders on the **ruled Overview stat-band grammar** (joined
-    hairline cells), not the prototype's accent-topped cards — flagged for the §8.5 specimen
-    ruling in the slice PR.
+    hairline cells), not the prototype's accent-topped cards — **RULED (operator, 2026-07-12,
+    on the built specimen): the stat band stays**; the joined hairline band is the app's
+    stat-strip grammar wherever a KPI row appears.
   - **Backend `totals` block** on `GET /contributors` (PR #360): exact team-wide `by_action`
     (top-level agg, never board-capped), **pooled** median TTR / SLA-hit (median-of-medians is
     wrong — why the strip is server-side), `critical_cleared` (canonicalized severity — the
