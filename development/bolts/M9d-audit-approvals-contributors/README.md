@@ -51,6 +51,35 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - VEX import (decision-from-VEX) → v1.1.
 
 ## Updates
+- **2026-07-12 — slice 3 rulings (Contributors, plan + amendments on #38):**
+  - **Layout = the shared data-screen grammar**, not the prototype's plain screen-head: band
+    (head-card + the **handled-findings lens** — `handled_over_time` from the read itself, so
+    the strip and the board can never disagree) → team-KPI band → podium → leaderboard, feed
+    alongside. The KPI strip renders on the **ruled Overview stat-band grammar** (joined
+    hairline cells), not the prototype's accent-topped cards — **RULED (operator, 2026-07-12,
+    on the built specimen): the stat band stays**; the joined hairline band is the app's
+    stat-strip grammar wherever a KPI row appears.
+  - **Backend `totals` block** on `GET /contributors` (PR #360): exact team-wide `by_action`
+    (top-level agg, never board-capped), **pooled** median TTR / SLA-hit (median-of-medians is
+    wrong — why the strip is server-side), `critical_cleared` (canonicalized severity — the
+    verbatim-casing lesson, issue 274). Same block at a rewound `as_of`.
+  - **Trimmed to the wire's truth:** per-actor severity mix, roles, pace sparks, streaks
+    (nothing on the wire); the **scan-observed resolved chart is DROPPED** on this screen —
+    A-m9 says never conflate scan-observed with human resolutions, and a series unattributable
+    to contributors has no place on their board. CSV export → issue #359.
+  - **Feed stays flat** (prototype grammar; a connected timeline was considered and rejected —
+    connectors imply sequence). Reuses the audit read + decoration verbatim; capped at a
+    glance + "View all in Audit log"; click-through only where decoration survives (A-5).
+  - New reusables: `ContributorIdentity` (Nuxt UUser composition — one person atom for
+    podium/board/feed; initials + deterministic ramp tone are presentation, never data),
+    `SlaPctChip` (chips/ — tier pills good≥88 · ok≥80 · low), `viewModel.ts` (pure, tested).
+  - **Enhancements (operator, same day):** podium + leaderboard person → **`/audit?actor=X`**
+    (the board is derived from the audit trail, so the click shows the rows the numbers came
+    from — never `assignee`, which is current ownership, a different question); **Triage
+    progress** panel — per-severity "X of Y triaged" from TWO `/findings/facets` reads
+    (totals; filtered to triaged states), server-side, per-scanner row counts (the Overview
+    KPI unit), labeled **current state** so it can't be conflated with the trend window;
+    rows click through to the work LEFT (`/findings?severity=…&state=open,stale`).
 - **2026-07-12 — slice 1 rulings (operator, live on the built screen):**
   - **The 2026-07-10 timeline note is SUPERSEDED**: the audit screen renders the **prototype's
     table grammar** (screens-audit.jsx — When · User · Action · Target · Detail on the shared
