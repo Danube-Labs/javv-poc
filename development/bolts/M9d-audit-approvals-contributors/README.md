@@ -51,6 +51,27 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - VEX import (decision-from-VEX) → v1.1.
 
 ## Updates
+- **2026-07-12 — slice 3 rulings (Contributors, plan + amendments on #38):**
+  - **Layout = the shared data-screen grammar**, not the prototype's plain screen-head: band
+    (head-card + the **handled-findings lens** — `handled_over_time` from the read itself, so
+    the strip and the board can never disagree) → team-KPI band → podium → leaderboard, feed
+    alongside. The KPI strip renders on the **ruled Overview stat-band grammar** (joined
+    hairline cells), not the prototype's accent-topped cards — flagged for the §8.5 specimen
+    ruling in the slice PR.
+  - **Backend `totals` block** on `GET /contributors` (PR #360): exact team-wide `by_action`
+    (top-level agg, never board-capped), **pooled** median TTR / SLA-hit (median-of-medians is
+    wrong — why the strip is server-side), `critical_cleared` (canonicalized severity — the
+    verbatim-casing lesson, issue 274). Same block at a rewound `as_of`.
+  - **Trimmed to the wire's truth:** per-actor severity mix, roles, pace sparks, streaks
+    (nothing on the wire); the **scan-observed resolved chart is DROPPED** on this screen —
+    A-m9 says never conflate scan-observed with human resolutions, and a series unattributable
+    to contributors has no place on their board. CSV export → issue #359.
+  - **Feed stays flat** (prototype grammar; a connected timeline was considered and rejected —
+    connectors imply sequence). Reuses the audit read + decoration verbatim; capped at a
+    glance + "View all in Audit log"; click-through only where decoration survives (A-5).
+  - New reusables: `ContributorIdentity` (Nuxt UUser composition — one person atom for
+    podium/board/feed; initials + deterministic ramp tone are presentation, never data),
+    `SlaPctChip` (chips/ — tier pills good≥88 · ok≥80 · low), `viewModel.ts` (pure, tested).
 - **2026-07-12 — slice 1 rulings (operator, live on the built screen):**
   - **The 2026-07-10 timeline note is SUPERSEDED**: the audit screen renders the **prototype's
     table grammar** (screens-audit.jsx — When · User · Action · Target · Detail on the shared

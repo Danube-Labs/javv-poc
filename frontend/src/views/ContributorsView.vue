@@ -104,7 +104,9 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
       <div class="head-card">
         <h1>Contributors</h1>
         <p class="head-stat">
-          {{ board.length }}<span class="head-unit"> contributors</span>
+          {{ board.length }}<span class="head-unit">
+            contributor{{ board.length === 1 ? '' : 's' }}</span
+          >
         </p>
         <p class="head-note">derived from the audit trail · triage actions, not scan deltas</p>
       </div>
@@ -246,12 +248,14 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
   text-overflow: ellipsis;
 }
 
-/* prototype .podiums grid — 2·1·3 staging only with a full podium */
+/* prototype .podiums grid — 2·1·3 staging only with a full podium; a short roster keeps
+   card-sized columns instead of one contributor stretching the whole stage */
 .podiums {
   display: grid;
   gap: 12px;
   align-items: end;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 240px));
+  justify-content: center;
   padding-top: 12px;
 }
 .podiums-full {
