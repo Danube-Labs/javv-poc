@@ -25,13 +25,22 @@ const timeTravel = useTimeTravelStore()
 
 const rows = ref<ActivityPoint[]>([])
 const failed = ref(false)
+// no claim before evidence: quiet/failed/chart render only once a response has LANDED —
+// the pre-data default used to satisfy `quiet` and flash the amber panel on every load
+const settled = ref(false)
 
 const interval = computed(() => ingestInterval(timeTravel.windowDays, timeTravel.t))
 
 watch(
   () => [props.query, timeTravel.windowDays] as const,
-  async ([q, days]) => {
+  async ([q, days], old) => {
     if (!q) return
+    // a cluster switch invalidates what's on screen; filter/T/window changes on the same
+    // cluster keep the current chart until the new one lands
+    if (old?.[0] && old[0].cluster_id !== q.cluster_id) {
+      settled.value = false
+      rows.value = []
+    }
     const response = await auditFacetsApiV1AuditFacetsGet({
       query: {
         ...q,
@@ -43,16 +52,17 @@ watch(
     if (failed.value) {
       logger.warn('audit_lens_failed', { status: response.response?.status })
       rows.value = []
-      return
+    } else {
+      rows.value = ((response.data as { activity?: ActivityPoint[] }).activity ?? [])
     }
-    rows.value = ((response.data as { activity?: ActivityPoint[] }).activity ?? [])
+    settled.value = true
   },
   { immediate: true, deep: true },
 )
 
 const totalEvents = computed(() => rows.value.reduce((n, p) => n + p.count, 0))
 const option = computed(() => buildAuditLensOption(rows.value, interval.value))
-const quiet = computed(() => !failed.value && totalEvents.value === 0)
+const quiet = computed(() => settled.value && !failed.value && totalEvents.value === 0)
 
 function onPointClick(params: { dataIndex: number }) {
   const bucket = rows.value[params.dataIndex]?.date
@@ -76,7 +86,8 @@ function onPointClick(params: { dataIndex: number }) {
         current filters · the table lists <b>all</b> events up to the range end</span
       >
     </div>
-    <p v-if="failed" class="il-empty">Audit activity unavailable.</p>
+    <div v-if="!settled" class="il-skel" aria-busy="true" aria-label="Loading audit activity" />
+    <p v-else-if="failed" class="il-empty">Audit activity unavailable.</p>
     <p v-else-if="totalEvents === 0" class="il-empty">
       No journaled activity in this range — older events are still in the table below.
     </p>
@@ -134,5 +145,28 @@ function onPointClick(params: { dataIndex: number }) {
   font-size: var(--text-body);
   font-weight: 500;
   color: var(--ink);
+}
+/* pre-data: a shimmer where the chart will be — never the amber claim (a quiet range is an
+   ANSWER; before the response lands there is none) */
+.il-skel {
+  height: 84px;
+  margin-bottom: 6px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
+  background-size: 200% 100%;
+  animation: il-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes il-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .il-skel {
+    animation: none;
+  }
 }
 </style>

@@ -45,11 +45,21 @@ const timeTravel = useTimeTravelStore()
 const series = ref<ScanActivityData>({})
 const freshness = ref<FreshnessRow[]>([])
 const failed = ref(false)
+// no claim before evidence: quiet/failed/chart render only once a response has LANDED —
+// the pre-data default used to satisfy `quiet` and flash the amber panel on every load
+const settled = ref(false)
 
 watch(
   () => [props.clusterId, timeTravel.t, timeTravel.windowDays] as const,
-  async ([id, t, days]) => {
+  async ([id, t, days], old) => {
     if (!id) return
+    // a cluster switch invalidates what's on screen (another tenant's chart would be a lie);
+    // a T/window change on the same cluster keeps the current chart until the new one lands
+    if (old && old[0] !== id) {
+      settled.value = false
+      series.value = {}
+      freshness.value = []
+    }
     const [scans, fresh] = await Promise.all([
       scansTrendApiV1TrendsScansGet({
         client,
@@ -65,6 +75,7 @@ watch(
     if (fresh.response?.ok && fresh.data) {
       freshness.value = (fresh.data as { scanners: FreshnessRow[] }).scanners ?? []
     }
+    settled.value = true
   },
   { immediate: true },
 )
@@ -87,7 +98,7 @@ const option = computed(() => buildIngestLensOption(series.value, interval.value
 const subDay = computed(() => interval.value === 'day' && isSubDayWindow(timeTravel.windowDays))
 /** Quiet range = the one state worth a visual flag (operator 2026-07-11): the amber wash
  * only when NOTHING was committed in the range — data present stays a plain card. */
-const quiet = computed(() => !failed.value && totalRuns.value === 0)
+const quiet = computed(() => settled.value && !failed.value && totalRuns.value === 0)
 
 function onPointClick(params: { dataIndex: number }) {
   const bucket = ingestLensDates(series.value)[params.dataIndex]
@@ -117,7 +128,8 @@ function onPointClick(params: { dataIndex: number }) {
         }} ago)
       </span>
     </div>
-    <p v-if="failed" class="il-empty">Ingest activity unavailable.</p>
+    <div v-if="!settled" class="il-skel" aria-busy="true" aria-label="Loading ingest activity" />
+    <p v-else-if="failed" class="il-empty">Ingest activity unavailable.</p>
     <p v-else-if="totalRuns === 0" class="il-empty">
       No scans committed in this range<template v-if="timeTravel.isNow && latest">
         — {{ subject }} shows the state last updated {{ lastDataAt(latest.last_ingest_at) }},
@@ -189,5 +201,28 @@ function onPointClick(params: { dataIndex: number }) {
   font-size: var(--text-body);
   font-weight: 500;
   color: var(--ink);
+}
+/* pre-data: a shimmer where the chart will be — never the amber claim (a quiet range is an
+   ANSWER; before the response lands there is none) */
+.il-skel {
+  height: 84px;
+  margin-bottom: 6px;
+  border-radius: var(--r-sm);
+  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
+  background-size: 200% 100%;
+  animation: il-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes il-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .il-skel {
+    animation: none;
+  }
 }
 </style>
