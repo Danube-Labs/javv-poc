@@ -18,6 +18,7 @@ before changing anything in that area; don't guess or work from memory.
 | Adding/changing **HTTP endpoints** or their contracts | `docs/API.md` (+ the router in `backend/src/backend/routers/`) |
 | Working a **bolt** (any milestone slice) | that bolt's `development/bolts/<bolt>/README.md` — the spec of record, incl. its `## Updates` |
 | Writing/modifying **frontend UI / styling** | `frontend/DESIGN.md` (binding: tokens, Hanken Grotesk, AA floor, §8 fidelity protocol — **a screen's grammar is the prototype's; substituting it needs a live operator ruling on a built specimen, §8.5** — §9 ruled exceptions) → `development/standards/ui-foundations.md` · `handoff/v5/docs/SCREENS-v5.md` |
+| Adding/changing **any config knob, env var, or threshold** | `docs/CONFIGURATION.md` — document the knob there the **same PR**; hardcoding a tunable is a review-fail. Constants only when they mirror an already-documented cap (say so in a comment). |
 | **Committing / branching / PRs** | `development/standards/git-workflow.md` (bolt tracking, housekeeping, the pre-commit trap) |
 | Running/extending the **e2e rigs** | `development/e2e/README.md` |
 | Verifying a change | `/qa` (delta-scoped) · UI deltas: `/visual-test` |
@@ -98,6 +99,9 @@ Invoke the matching skill before starting that kind of work:
 - PIT + `search_after` (delete the PIT in `finally`) for deep paging/sweeps; `from/size` only under 10k.
 - FE: lazy server-side `DataTable`; `shallowRef`+`markRaw` for ECharts options/instances; manual ECharts
   module imports; test the option-builder + emitted query params as pure units.
+- **Logging = shared library, both stacks:** backend `structlog.get_logger()` only; FE `@/lib/logger` only
+  (`console.*` is lint-banned). Bounded endpoints log a `warning` + bump a metric on 413/429 caps, and count
+  export rows/bytes in the stream's `finally` — ops parity is not optional on capped/streamed paths.
 
 ## Audit outcomes - now decided in V4 (see `docs/research/INDEPENDENT-AUDIT-v3.md`)
 The independent audit was worked through in full; rulings are folded into V4:
