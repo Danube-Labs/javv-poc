@@ -24,6 +24,7 @@ from backend.services.disagreement import (
 )
 from backend.services.merge import merge_action
 from backend.services.reconcile import reconcile_absent
+from backend.services.sla_clock import recompute_sla_clocks
 from backend.services.watermarks import advance_watermark
 from backend.snapshots.occurrences import OCCURRENCES_SERIES, build_occurrence_rows
 
@@ -225,6 +226,12 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
     # 3d) D5a severity-disagreement flags — recomputed for the whole digest AFTER merge+reconcile
     #     (fresh presence), so reconvergence / a dropped finding clears the flag on both sides
     await recompute_disagreement(client, env.cluster_id, env.image_digest, prefix=prefix)
+    # 3d′) the materialized D21 group clock (issue 363) — same derived-family discipline: a new
+    #      row joining an existing (cve, digest) group inherits the group's older clock; an
+    #      earlier sighting lowers it on the siblings; a departed earliest-holder raises it
+    stamped = await recompute_sla_clocks(client, env.cluster_id, env.image_digest, prefix=prefix)
+    if stamped:
+        log.debug("ingest: sla clocks stamped", image_digest=env.image_digest, count=stamped)
     # 3e) D19 projection-on-new-only: decisions cascade onto the CVEs this commit touched
     # (one terms query; only CVEs that HAVE decisions reproject — delta-only, never a clobber)
     from backend.decisions.reproject import project_at_ingest

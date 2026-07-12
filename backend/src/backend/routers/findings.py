@@ -24,13 +24,14 @@ from collections.abc import Awaitable
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from opensearchpy.exceptions import ConnectionError as OSConnectionError
 from opensearchpy.exceptions import ConnectionTimeout
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
-from backend.core.metrics import OS_REQUEST_ERRORS
+from backend.core.metrics import OS_REQUEST_ERRORS, SLA_CLOCK_MISSING
 from backend.query import pit_guard
 from backend.query.aggs import (
     build_composite_body,
@@ -40,9 +41,11 @@ from backend.query.aggs import (
 )
 from backend.query.as_of import AsOfTReader, AsOfTUnavailable, as_of_t_reader, parse_as_of
 from backend.query.search import CursorExpired, SearchFilters, run_search
-from backend.sla.overdue import compute_overdue
+from backend.sla.overdue import compute_overdue, overdue_cutoffs
 from backend.sla.policy import read_sla_policy
 from backend.tenancy.chokepoint import tenant_search
+
+log = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/findings", tags=["findings"])
 
@@ -95,6 +98,7 @@ def _filters(
     q: Annotated[str | None, Query(min_length=2, max_length=128)] = None,
     present: bool = True,
     new_within_days: Annotated[int | None, Query(ge=1, le=365)] = None,
+    overdue: bool | None = None,
 ) -> SearchFilters:
     return SearchFilters(
         severity=severity,
@@ -112,6 +116,7 @@ def _filters(
         q=q,
         present=present,
         new_within_days=new_within_days,
+        overdue=overdue,
     )
 
 
@@ -119,15 +124,71 @@ Filters = Annotated[SearchFilters, Depends(_filters)]
 AsOf = Annotated[datetime | None, Depends(_resolve_as_of)]
 
 
+async def _sla_cutoffs(client: Any, filters: SearchFilters) -> dict[str, str] | None:
+    """LIVE-policy cutoffs for an `overdue` lens (issue 363) — None when the filter is unset.
+    facets/groups resolve here; the grid's `run_search` resolves (and cursor-freezes) its own."""
+    if filters.overdue is None:
+        return None
+    return overdue_cutoffs(await read_sla_policy(client), now=datetime.now(UTC))
+
+
 async def _decorate_overdue(client: Any, cluster_id: str, page: list[dict[str, Any]]) -> None:
     if not page:
         return
     # The D21 group clock = the EARLIEST first_seen_at across each row's (cve_id, image_digest)
-    # group, including siblings OFF this page (a scanner the page filter hid). Fetch it as an EXACT
-    # min per pair via a bounded composite aggregation over just the page's actual pairs — never the
-    # old truncatable doc fetch of the cve×digest cross-product, which at scale could drop the
-    # earliest holder and silently under-report overdue (audit A-M4).
-    pairs = sorted({(d["cve_id"], d["image_digest"]) for d in page})
+    # group, including siblings OFF this page (a scanner the page filter hid). Since issue 363 it
+    # is MATERIALIZED on every doc (`sla_clock_at`, owned by services.sla_clock), so the page
+    # already carries it — no sibling fetch. Rows missing it (pre-backfill store, or a recompute
+    # the commit crashed out of) fall back to the exact per-pair aggregation and are surfaced
+    # loudly: silent under-reporting of overdue is the exact bug this field exists to kill.
+    clocks: dict[tuple[str, str], str] = {}
+    missing: set[tuple[str, str]] = set()
+    for d in page:
+        pair = (d["cve_id"], d["image_digest"])
+        clk = d.get("sla_clock_at")
+        if clk is None:
+            missing.add(pair)
+        elif pair not in clocks or clk < clocks[pair]:
+            clocks[pair] = clk
+    if missing:
+        SLA_CLOCK_MISSING.inc()
+        log.warning(
+            "findings rows missing sla_clock_at — agg fallback (rebuild-state backfills)",
+            cluster_id=cluster_id,
+            pairs=len(missing),
+        )
+        clocks |= await _agg_group_clocks(client, cluster_id, sorted(missing))
+
+    # feed the true per-group min as a synthetic clock row (compute_overdue derives `earliest`
+    # across the rows it's given; page rows stay authoritative for their own fields — D21)
+    clock_rows: list[dict[str, Any]] = [
+        {
+            "finding_key": f"__clock__:{c}:{d}",
+            "cve_id": c,
+            "image_digest": d,
+            "first_seen_at": seen,
+            "severity": "critical",  # ignored — a synthetic row's own verdict is never read
+            "state": "open",
+            "kev": False,
+        }
+        for (c, d), seen in clocks.items()
+    ]
+    verdicts = compute_overdue(
+        clock_rows + page, policy=await read_sla_policy(client), now=datetime.now(UTC)
+    )
+    for doc in page:
+        v = verdicts[doc["finding_key"]]
+        doc["overdue"] = v.overdue
+        doc["due_at"] = v.due_at
+
+
+async def _agg_group_clocks(
+    client: Any, cluster_id: str, pairs: list[tuple[str, str]]
+) -> dict[tuple[str, str], str]:
+    """The pre-363 clock fetch, kept as the missing-field fallback: an EXACT min per pair via a
+    bounded composite aggregation over just the given pairs — never a truncatable doc fetch of
+    the cve×digest cross-product, which at scale could drop the earliest holder and silently
+    under-report overdue (audit A-M4)."""
     should = [
         {"bool": {"filter": [{"term": {"cve_id": c}}, {"term": {"image_digest": d}}]}}
         for c, d in pairs
@@ -181,28 +242,7 @@ async def _decorate_overdue(client: Any, cluster_id: str, page: list[dict[str, A
         after = groups.get("after_key")
         if after is None or not buckets:
             break
-
-    # feed the true per-group min as a synthetic clock row (compute_overdue derives `earliest`
-    # across the rows it's given; page rows stay authoritative for their own fields — D21)
-    clock_rows: list[dict[str, Any]] = [
-        {
-            "finding_key": f"__clock__:{c}:{d}",
-            "cve_id": c,
-            "image_digest": d,
-            "first_seen_at": seen,
-            "severity": "critical",  # ignored — a synthetic row's own verdict is never read
-            "state": "open",
-            "kev": False,
-        }
-        for (c, d), seen in clocks.items()
-    ]
-    verdicts = compute_overdue(
-        clock_rows + page, policy=await read_sla_policy(client), now=datetime.now(UTC)
-    )
-    for doc in page:
-        v = verdicts[doc["finding_key"]]
-        doc["overdue"] = v.overdue
-        doc["due_at"] = v.due_at
+    return clocks
 
 
 async def _decorate_images_affected(
@@ -334,7 +374,9 @@ async def facet_findings(
         )
     # no read-side refresh (audit A-m2/#191) — see search_findings
     try:
-        body = build_facets_body(filters, fields=fields)
+        body = build_facets_body(
+            filters, fields=fields, sla_cutoffs=await _sla_cutoffs(client, filters)
+        )
     except ValueError as exc:  # non-whitelisted facet field
         raise HTTPException(422, str(exc)) from exc
     resp = await tenant_search(client, index="findings", cluster_id=cluster_id, body=body)
@@ -373,7 +415,13 @@ async def group_findings(
     # no read-side refresh (audit A-m2/#191) — see search_findings
     try:
         after = decode_after(cursor) if cursor else None
-        body = build_composite_body(filters, by=by, size=size, after=after)
+        body = build_composite_body(
+            filters,
+            by=by,
+            size=size,
+            after=after,
+            sla_cutoffs=await _sla_cutoffs(client, filters),
+        )
     except ValueError as exc:  # non-whitelisted dim / unreadable-or-tampered cursor
         raise HTTPException(422, str(exc)) from exc
     resp = await tenant_search(client, index="findings", cluster_id=cluster_id, body=body)

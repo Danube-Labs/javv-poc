@@ -49,6 +49,7 @@ class ExportParams(BaseModel):
     q: str | None = Field(default=None, min_length=2, max_length=128)
     present: bool = True
     new_within_days: int | None = Field(default=None, ge=1, le=365)
+    overdue: bool | None = None
 
     @model_validator(mode="after")
     def _vex_needs_scanner(self) -> "ExportParams":

@@ -17,7 +17,11 @@ reconciled it away). Presence-only: cache docs the crash lost entirely come back
 cycle (D30), and pre-M8a findings with no occurrence history are left untouched.
 **Never touches `javv-scan-orders`** — authoritative, not derived (D45).
 
-Both arms write exactly nothing over a healthy cache. On-demand + after a detected crash;
+**SLA-clock arm** (issue 363) — reconstruct the materialized D21 group clock `sla_clock_at`
+by running the incremental path's own per-digest recompute over every cached digest (parity
+by construction); one run doubles as the backfill for a pre-363 store.
+
+All arms write exactly nothing over a healthy cache. On-demand + after a detected crash;
 k8s CronJob `Forbid`.
 """
 
@@ -31,6 +35,7 @@ from backend.decisions.lifecycle import DECISIONS_INDEX
 from backend.decisions.reproject import reproject_cve
 from backend.services import watermarks as wm
 from backend.services.merge import SCANNER_FIELDS
+from backend.services.sla_clock import recompute_sla_clocks
 
 log = structlog.get_logger()
 
@@ -349,6 +354,52 @@ async def rebuild_scanner_presence(client: AsyncOpenSearch, *, prefix: str = "")
     }
 
 
+# --- the sla-clock arm (issue 363) ---------------------------------------------
+
+
+async def _cache_digests(client: AsyncOpenSearch, prefix: str) -> set[tuple[str, str]]:
+    """Every distinct (cluster_id, image_digest) in the findings cache via a composite agg."""
+    pairs: set[tuple[str, str]] = set()
+    after: dict[str, Any] | None = None
+    while True:
+        composite: dict[str, Any] = {
+            "size": _PAGE,
+            "sources": [
+                {"cluster": {"terms": {"field": "cluster_id"}}},
+                {"digest": {"terms": {"field": "image_digest"}}},
+            ],
+        }
+        if after is not None:
+            composite["after"] = after
+        try:
+            resp = await client.search(
+                index=f"{prefix}findings",
+                body={"size": 0, "aggs": {"d": {"composite": composite}}},
+            )
+        except NotFoundError:
+            return pairs
+        agg = resp["aggregations"]["d"]
+        for b in agg["buckets"]:
+            pairs.add((b["key"]["cluster"], b["key"]["digest"]))
+        after = agg.get("after_key")
+        if after is None or not agg["buckets"]:
+            return pairs
+
+
+async def rebuild_sla_clocks(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, int]:
+    """Reconstruct `sla_clock_at` (issue 363) across the whole cache by running the SAME
+    per-digest recompute the incremental path uses — parity by construction, and one run is
+    the backfill for a pre-363 store. Delta-only: a healthy cache takes zero writes."""
+    await client.indices.refresh(index=f"{prefix}findings", params={"ignore_unavailable": "true"})
+    digests = 0
+    updated = 0
+    for cluster_id, digest in sorted(await _cache_digests(client, prefix)):
+        digests += 1
+        updated += await recompute_sla_clocks(client, cluster_id, digest, prefix=prefix)
+    log.info("rebuild-state (sla-clock arm) done", digests=digests, updated=updated)
+    return {"digests": digests, "updated": updated}
+
+
 if __name__ == "__main__":  # manual/self-heal entrypoint (CronJob-shaped, like the sweeps)
     from backend.core.settings import get_settings
 
@@ -358,6 +409,7 @@ if __name__ == "__main__":  # manual/self-heal entrypoint (CronJob-shaped, like 
         try:
             print(f"rebuild-state (decisions): {await rebuild_decision_projection(client)}")
             print(f"rebuild-state (presence): {await rebuild_scanner_presence(client)}")
+            print(f"rebuild-state (sla-clock): {await rebuild_sla_clocks(client)}")
         finally:
             await client.close()
 

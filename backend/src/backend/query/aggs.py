@@ -53,19 +53,24 @@ GROUP_FIELDS = ("image_repo", "image_digest", "namespaces", "cve_id", "assignee"
 _BY_SCANNER = {"by_scanner": {"terms": {"field": "scanner", "size": 4}}}
 
 
-def _base(filters: SearchFilters) -> dict[str, Any]:
+def _base(filters: SearchFilters, sla_cutoffs: dict[str, str] | None = None) -> dict[str, Any]:
     """The filter context, agg-shaped: same facets as the grid, no hits, no sort."""
-    body = build_search_body(filters, size=0)
+    body = build_search_body(filters, size=0, sla_cutoffs=sla_cutoffs)
     del body["sort"], body["track_total_hits"]
     return body
 
 
-def build_facets_body(filters: SearchFilters, fields: list[str] | None = None) -> dict[str, Any]:
+def build_facets_body(
+    filters: SearchFilters,
+    fields: list[str] | None = None,
+    *,
+    sla_cutoffs: dict[str, str] | None = None,
+) -> dict[str, Any]:
     chosen = fields if fields is not None else list(FACET_FIELDS)
     bad = [f for f in chosen if f not in FACET_FIELDS]
     if bad:
         raise ValueError(f"not facetable (whitelist {FACET_FIELDS}): {bad}")
-    body = _base(filters)
+    body = _base(filters, sla_cutoffs)
     body["aggs"] = {
         f: {
             "terms": {
@@ -86,6 +91,7 @@ def build_composite_body(
     by: str,
     size: int,
     after: dict[str, Any] | None = None,
+    sla_cutoffs: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     if by not in GROUP_FIELDS:
         raise ValueError(f"not groupable (whitelist {GROUP_FIELDS}): {by!r}")
@@ -95,7 +101,7 @@ def build_composite_body(
     }
     if after is not None:
         composite["after"] = after
-    body = _base(filters)
+    body = _base(filters, sla_cutoffs)
     body["aggs"] = {"groups": {"composite": composite, "aggs": dict(_BY_SCANNER)}}
     return body
 

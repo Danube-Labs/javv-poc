@@ -17,6 +17,7 @@ import base64
 import binascii
 import json
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -25,6 +26,8 @@ from opensearchpy.exceptions import NotFoundError, RequestError
 
 from backend.core.settings import get_settings
 from backend.query.trends import window_bounds
+from backend.sla.overdue import HANDLED_STATES, overdue_cutoffs
+from backend.sla.policy import read_sla_policy
 from backend.tenancy.chokepoint import tenant_query
 
 log = structlog.get_logger()
@@ -61,6 +64,49 @@ class SearchFilters:
     # "new in range": first_seen_at ≥ the trend window's day-floored start — the SAME bounds
     # the trend charts use, so the lens bars and the filtered rows always agree
     new_within_days: int | None = None
+    # SLA breached (issue 363): ranges on the materialized D21 group clock `sla_clock_at`
+    # against LIVE-policy cutoffs — the body needs `sla_cutoffs` (see overdue_cutoffs)
+    overdue: bool | None = None
+
+
+_SLA_SEVERITIES = ("critical", "high", "medium", "low")  # the FR-10 buckets that carry an SLA
+
+
+def _overdue_clause(cutoffs: dict[str, str]) -> dict[str, Any]:
+    """The DSL mirror of compute_overdue over the materialized `sla_clock_at` (issue 363):
+    KEV rows judge against the kev cutoff regardless of severity (the FR-10 fast-lane —
+    severity branches exclude them); negligible/unknown carry no SLA, so no branch matches;
+    handled states are never overdue (shared HANDLED_STATES — chip ≡ filter by construction).
+    Rows missing `sla_clock_at` (pre-backfill) match nothing — rebuild-state backfills."""
+    should: list[dict[str, Any]] = [
+        {
+            "bool": {
+                "filter": [
+                    {"term": {"kev": True}},
+                    {"range": {"sla_clock_at": {"lt": cutoffs["kev"]}}},
+                ]
+            }
+        }
+    ]
+    for sev in _SLA_SEVERITIES:
+        should.append(
+            {
+                "bool": {
+                    "filter": [
+                        {"term": {"severity_canonical": sev}},
+                        {"range": {"sla_clock_at": {"lt": cutoffs[sev]}}},
+                    ],
+                    "must_not": [{"term": {"kev": True}}],
+                }
+            }
+        )
+    return {
+        "bool": {
+            "should": should,
+            "minimum_should_match": 1,
+            "must_not": [{"terms": {"state": sorted(HANDLED_STATES)}}],
+        }
+    }
 
 
 def build_search_body(
@@ -70,9 +116,12 @@ def build_search_body(
     sort: str = "severity_rank",
     order: str = "desc",
     search_after: list[Any] | None = None,
+    sla_cutoffs: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Pure — the unit-tested contract. Does NOT include the tenant filter (tenant_query
-    forces that in) or the PIT (the executor owns its lifecycle)."""
+    forces that in) or the PIT (the executor owns its lifecycle). An `overdue` filter REQUIRES
+    `sla_cutoffs` (derive via `overdue_cutoffs` from the live policy) — raising instead of
+    silently dropping the facet is what keeps every consumer honest."""
     if sort not in _SORT_FIELDS:
         raise ValueError(f"sort must be one of {_SORT_FIELDS}")
     if order not in ("asc", "desc"):
@@ -105,6 +154,14 @@ def build_search_body(
         gte, _upper = window_bounds(filters.new_within_days)
         fl.append({"range": {"first_seen_at": {"gte": gte}}})
     bool_q: dict[str, Any] = {"filter": fl}
+    if filters.overdue is not None:
+        if sla_cutoffs is None:
+            raise ValueError("overdue filter requires sla_cutoffs (from the live SLA policy)")
+        clause = _overdue_clause(sla_cutoffs)
+        if filters.overdue:
+            fl.append(clause)
+        else:
+            bool_q["must_not"] = [clause]
     if filters.q is not None:
         # contains-match across the identifier fields (M9b slice 4, operator ask). Structured
         # wildcard clauses — NEVER query_string (DSL injection surface). `*`/`?` in user input
@@ -136,15 +193,29 @@ def build_search_body(
     return body
 
 
-def encode_cursor(*, pit_id: str, search_after: list[Any], sort: str, order: str) -> str:
-    raw = json.dumps({"p": pit_id, "a": search_after, "s": sort, "o": order})
+def encode_cursor(
+    *,
+    pit_id: str,
+    search_after: list[Any],
+    sort: str,
+    order: str,
+    sla_cutoffs: dict[str, str] | None = None,
+) -> str:
+    payload: dict[str, Any] = {"p": pit_id, "a": search_after, "s": sort, "o": order}
+    if sla_cutoffs is not None:
+        # freeze the overdue cutoffs with the walk (issue 363): the PIT freezes the docs, so the
+        # query must freeze too — a wall-clock cutoff drifting between pages could flip a row's
+        # match mid-walk and skip/duplicate it across a page boundary
+        payload["sc"] = sla_cutoffs
+    raw = json.dumps(payload)
     return base64.urlsafe_b64encode(raw.encode()).decode()
 
 
-def decode_cursor(cursor: str) -> tuple[str, list[Any], str, str]:
+def decode_cursor(cursor: str) -> tuple[str, list[Any], str, str, dict[str, str] | None]:
     try:
         c = json.loads(base64.urlsafe_b64decode(cursor.encode()))
         pit_id, search_after, sort, order = c["p"], c["a"], c["s"], c["o"]
+        sla_cutoffs = c.get("sc")
     except (binascii.Error, json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
         raise ValueError("invalid cursor") from exc
     # a base64/JSON-valid cursor can still carry tampered fields that would sail past decode and
@@ -156,7 +227,13 @@ def decode_cursor(cursor: str) -> tuple[str, list[Any], str, str]:
         v is None or isinstance(v, _SCALAR) for v in search_after
     ):
         raise ValueError("invalid cursor")
-    return pit_id, search_after, sort, order
+    if sla_cutoffs is not None and not (
+        isinstance(sla_cutoffs, dict)
+        and set(sla_cutoffs) == {"kev", *_SLA_SEVERITIES}
+        and all(isinstance(v, str) for v in sla_cutoffs.values())
+    ):
+        raise ValueError("invalid cursor")
+    return pit_id, search_after, sort, order, sla_cutoffs
 
 
 async def run_search(
@@ -173,15 +250,27 @@ async def run_search(
     """One page. Returns `{data, next_cursor, total}`; `next_cursor=None` ends the walk."""
     keep_alive = get_settings().search_pit_keep_alive
     search_after: list[Any] | None = None
+    sla_cutoffs: dict[str, str] | None = None
     if cursor is not None:
-        pit_id, search_after, sort, order = decode_cursor(cursor)
+        pit_id, search_after, sort, order, sla_cutoffs = decode_cursor(cursor)
     else:
         pit_id = (
             await client.create_pit(index=f"{prefix}findings", params={"keep_alive": keep_alive})
         )["pit_id"]
+    if filters.overdue is not None and sla_cutoffs is None:
+        # first page resolves the LIVE policy once; continuations reuse the cursor-frozen cutoffs
+        policy = await read_sla_policy(client, prefix=prefix)
+        sla_cutoffs = overdue_cutoffs(policy, now=datetime.now(UTC))
 
     opened_here = cursor is None  # this call created the PIT (vs. a client-owned cursor PIT)
-    body = build_search_body(filters, size=size, sort=sort, order=order, search_after=search_after)
+    body = build_search_body(
+        filters,
+        size=size,
+        sort=sort,
+        order=order,
+        search_after=search_after,
+        sla_cutoffs=sla_cutoffs,
+    )
     body = tenant_query(cluster_id, body)  # SEC-4 — the only guard on the index-less PIT path
     body["pit"] = {"id": pit_id, "keep_alive": keep_alive}
     try:
@@ -212,7 +301,11 @@ async def run_search(
         next_cursor = None
     else:
         next_cursor = encode_cursor(
-            pit_id=pit_id, search_after=hits[-1]["sort"], sort=sort, order=order
+            pit_id=pit_id,
+            search_after=hits[-1]["sort"],
+            sort=sort,
+            order=order,
+            sla_cutoffs=sla_cutoffs if filters.overdue is not None else None,
         )
     return {
         "data": [h["_source"] for h in hits],

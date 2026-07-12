@@ -52,7 +52,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             SearchFilters mirror, enabled:false; all-visible, owner-or-admin mutations)
 #          v15 + severity_canonical on findings + javv-finding-occurrences (D46/#274 — the
 #             full-word canonical query key; verbatim severity stays display-only)
-MAPPING_VERSION = 15
+#          v16 + sla_clock_at on findings (issue 363 — the materialized D21 group clock; the
+#             overdue FILTER ranges on it, the verdict stays read-time against the live policy)
+MAPPING_VERSION = 16
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -102,6 +104,9 @@ _FINDINGS_PROPERTIES: dict[str, Any] = {
     "ptype": _KW,  # package type (M8d/B-1): "os" | ecosystem string; null = pre-v4 observation
     "disagree": _BOOL,  # precomputed severity disagreement (D5a)
     "first_seen_at": _DATE,  # full precision (D37/M13)
+    # the materialized D21 group clock (issue 363): min first_seen_at across the finding's
+    # (cve_id, image_digest) group, cross-scanner — derived, owned by services.sla_clock
+    "sla_clock_at": _DATE,
     "last_seen_at": _DATE,
     "last_scan_run_id": _KW,
     "last_scan_order": {"type": "long"},  # newer-scan-wins guard key (D40/C-r3)

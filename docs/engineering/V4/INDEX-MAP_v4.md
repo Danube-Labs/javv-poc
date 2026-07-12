@@ -225,6 +225,7 @@ kev               boolean        grype only
 ptype             keyword        package type (M8d/B-1): "os" | verbatim-lowercase ecosystem; null until a v4 scan observes (D30 heals)
 disagree          boolean        precomputed severity disagreement (D5a)
 first_seen_at     date           full precision (not day-grain - D37/M13)
+sla_clock_at      date           materialized D21 group clock (issue 363): min first_seen_at across the (cve_id, image_digest) group, cross-scanner, PRESENT rows - derived family like `disagree`, owned by services.sla_clock (recomputed per digest at commit; rebuild-state = backfill/heal). The overdue FILTER ranges on it against live-policy cutoffs; the VERDICT stays read-time (never stored - FR-10 instantness)
 last_seen_at      date           full precision; freshness/stale timer reads this
 last_scan_run_id  keyword        the run that last reported this finding (D37/C2)
 last_scan_order   long           newer-scan-wins guard key: create/update no-op if scan_order ≤ this OR < digest watermark (D40/C-r3)
