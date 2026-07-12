@@ -942,6 +942,10 @@ export type ReadAuditLogApiV1AuditGetData = {
          * Cursor
          */
         cursor?: string | null;
+        /**
+         * As Of
+         */
+        as_of?: string | null;
     };
     url: '/api/v1/audit';
 };
@@ -967,6 +971,108 @@ export type ReadAuditLogApiV1AuditGetResponses = {
 };
 
 export type ReadAuditLogApiV1AuditGetResponse = ReadAuditLogApiV1AuditGetResponses[keyof ReadAuditLogApiV1AuditGetResponses];
+
+export type ExportAuditCsvApiV1AuditExportCsvGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+        /**
+         * Entity Type
+         */
+        entity_type?: string | null;
+        /**
+         * Action
+         */
+        action?: string | null;
+        /**
+         * Actor
+         */
+        actor?: string | null;
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+    };
+    url: '/api/v1/audit/export.csv';
+};
+
+export type ExportAuditCsvApiV1AuditExportCsvGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExportAuditCsvApiV1AuditExportCsvGetError = ExportAuditCsvApiV1AuditExportCsvGetErrors[keyof ExportAuditCsvApiV1AuditExportCsvGetErrors];
+
+export type ExportAuditCsvApiV1AuditExportCsvGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
+export type AuditFacetsApiV1AuditFacetsGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+        /**
+         * Entity Type
+         */
+        entity_type?: string | null;
+        /**
+         * Action
+         */
+        action?: string | null;
+        /**
+         * Actor
+         */
+        actor?: string | null;
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+        /**
+         * Interval
+         */
+        interval?: string | null;
+        /**
+         * Window Days
+         */
+        window_days?: number;
+    };
+    url: '/api/v1/audit/facets';
+};
+
+export type AuditFacetsApiV1AuditFacetsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type AuditFacetsApiV1AuditFacetsGetError = AuditFacetsApiV1AuditFacetsGetErrors[keyof AuditFacetsApiV1AuditFacetsGetErrors];
+
+export type AuditFacetsApiV1AuditFacetsGetResponses = {
+    /**
+     * Response Audit Facets Api V1 Audit Facets Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type AuditFacetsApiV1AuditFacetsGetResponse = AuditFacetsApiV1AuditFacetsGetResponses[keyof AuditFacetsApiV1AuditFacetsGetResponses];
 
 export type ListClustersApiV1ClustersGetData = {
     body?: never;

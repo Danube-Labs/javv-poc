@@ -11,6 +11,7 @@ same opaque cursor contract (`encode_cursor`/`decode_cursor` reused verbatim) �
 (SEC-4 — a PIT search carries no index name, so the body filter is the only guard)."""
 
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -18,6 +19,7 @@ from opensearchpy import AsyncOpenSearch
 from opensearchpy.exceptions import NotFoundError, RequestError
 
 from backend.core.settings import get_settings
+from backend.query.aggs import _FACET_TERMS_SIZE
 from backend.query.search import CursorExpired, decode_cursor, encode_cursor
 from backend.tenancy.chokepoint import tenant_query
 
@@ -35,6 +37,7 @@ class AuditFilters:
     action: str | None = None
     actor: str | None = None
     finding_key: str | None = None  # per-finding activity (M9b slice 4 — the detail screen)
+    until: datetime | None = None  # D28: a rewound picker must not see post-T events (M9d)
 
 
 def build_audit_body(
@@ -59,6 +62,8 @@ def build_audit_body(
         )
         if value is not None
     ]
+    if filters.until is not None:
+        fl.append({"range": {_SORT_KEY: {"lte": filters.until.isoformat()}}})
     body: dict[str, Any] = {
         "size": size,
         "track_total_hits": True,
@@ -133,8 +138,98 @@ async def run_audit_search(
         next_cursor = encode_cursor(
             pit_id=pit_id, search_after=hits[-1]["sort"], sort=_SORT_KEY, order=order
         )
+    rows = [h["_source"] for h in hits]
+    await decorate_rows(client, cluster_id=cluster_id, rows=rows, prefix=prefix)
     return {
-        "data": [h["_source"] for h in hits],
+        "data": rows,
         "next_cursor": next_cursor,
         "total": resp["hits"]["total"],
     }
+
+
+_FINDING_DECOR = (
+    "cve_id",
+    "image_repo",
+    "image_digest",
+    "scanner",
+    "package_name",
+    "severity_canonical",
+)
+_DECISION_DECOR = ("cve_id", "type", "scanner", "apply_both_scanners")
+
+
+async def decorate_rows(
+    client: AsyncOpenSearch, *, cluster_id: str, rows: list[dict[str, Any]], prefix: str = ""
+) -> None:
+    """Attach the touched entity's human identity to each page row (M9d, operator ruling: an
+    opaque `finding_key` answers nothing) — `finding`/`decision` sub-objects from one mget per
+    index, display-only. `None` when the doc is gone (history outlives current state by design)
+    or belongs to another tenant: mget bypasses `tenant_query`, so the cluster check happens
+    HERE, per doc (SEC-4)."""
+
+    async def resolve(
+        index: str, ids: list[str], fields: tuple[str, ...]
+    ) -> dict[str, dict[str, Any]]:
+        resp = await client.mget(index=f"{prefix}{index}", body={"ids": ids})
+        out: dict[str, dict[str, Any]] = {}
+        for doc in resp["docs"]:
+            src = doc.get("_source")
+            if not doc.get("found") or not src or src.get("cluster_id") != cluster_id:
+                continue
+            out[doc["_id"]] = {k: src.get(k) for k in fields}
+        return out
+
+    finding_ids = sorted({r["entity_id"] for r in rows if r.get("entity_type") == "finding"})
+    decision_ids = sorted({r["entity_id"] for r in rows if r.get("entity_type") == "decision"})
+    findings = await resolve("findings", finding_ids, _FINDING_DECOR) if finding_ids else {}
+    decisions = (
+        await resolve("system-decisions", decision_ids, _DECISION_DECOR) if decision_ids else {}
+    )
+    for row in rows:
+        if row.get("entity_type") == "finding":
+            row["finding"] = findings.get(row["entity_id"])
+        elif row.get("entity_type") == "decision":
+            row["decision"] = decisions.get(row["entity_id"])
+
+
+def build_audit_facets_body(
+    filters: AuditFilters,
+    *,
+    interval: str | None = None,
+    window_days: int = 30,
+    now: datetime | None = None,
+) -> dict[str, Any]:
+    """Terms counts for the rail dims (entity_type/action/actor) under the SAME filters as the
+    walk — pure builder, tenant filter forced in by the executor's `tenant_query`. With
+    `interval` (day|hour), adds the `activity` date_histogram over the picker window ending at
+    the D28 bound (the audit lens): `extended_bounds` renders quiet buckets as zeros, and the
+    window's `gte` scopes ONLY the histogram — the rail counts stay whole-lens."""
+    body = build_audit_body(filters, size=0)
+    body.pop("sort")
+    body.pop("track_total_hits")
+    body["aggs"] = {
+        field: {"terms": {"field": field, "size": _FACET_TERMS_SIZE}}  # the findings rail cap
+        for field in ("entity_type", "action", "actor")
+    }
+    if interval is not None:
+        if interval not in ("day", "hour"):
+            raise ValueError("interval must be day or hour")
+        end = filters.until or now or datetime.now(UTC)
+        start = end - timedelta(days=window_days)
+        body["aggs"]["activity"] = {
+            "filter": {"range": {_SORT_KEY: {"gte": start.isoformat(), "lte": end.isoformat()}}},
+            "aggs": {
+                "buckets": {
+                    "date_histogram": {
+                        "field": _SORT_KEY,
+                        "calendar_interval": interval,
+                        "min_doc_count": 0,
+                        "extended_bounds": {
+                            "min": start.isoformat(),
+                            "max": end.isoformat(),
+                        },
+                    }
+                }
+            },
+        }
+    return body

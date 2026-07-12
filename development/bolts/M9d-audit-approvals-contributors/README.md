@@ -51,6 +51,24 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - VEX import (decision-from-VEX) → v1.1.
 
 ## Updates
+- **2026-07-12 — slice 1 rulings (operator, live on the built screen):**
+  - **The 2026-07-10 timeline note is SUPERSEDED**: the audit screen renders the **prototype's
+    table grammar** (screens-audit.jsx — When · User · Action · Target · Detail on the shared
+    skin + GridPager), ruled against the built timeline specimen. The general rule is now
+    DESIGN.md §8.5: grammar substitutions need a live operator ruling on a specimen — a spec
+    note alone never overrides the prototype.
+  - **Read-time decoration**: `GET /audit` rows carry `finding`/`decision` sub-objects (cve,
+    image, scanner, severity / type) resolved by mget at read, tenant-checked per doc (SEC-4),
+    `null` once the doc ages out — an opaque `finding_key` answers nothing on screen.
+  - **`GET /audit/facets`**: entity_type/action/actor terms counts under the lens filters +
+    `as_of`; with `interval=day|hour` + `window_days` also returns the `activity` histogram
+    that feeds the **audit lens** (`AuditLens.vue` — the ingest-lens strip grammar pointed at
+    the journal, filter-scoped, click-to-rewind; `CHART_ACCENT` = coral, token-pinned).
+  - **`GET /audit/export.csv`**: the prototype's Export CSV — decorated, injection-sanitized,
+    constant-memory PIT stream; same `JAVV_EXPORT_MAX_ROWS` 413 + PIT-slot 429 bounds as the
+    findings export.
+  - `as_of` (D28) bounds both the walk and the facets — a rewound picker never sees post-T
+    events. Same-field edits display by `revision` (`causalOrder`, unit-tested golden).
 - **2026-07-12 — v0.3.9 reusables (task 92 + chip language A, PRs #348/#350):** the four
   screens here are grid-heavy — reuse, never re-solve:
   - **Grids:** the base.css table skin now includes `fit` (shrink-to-content data columns,

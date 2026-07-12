@@ -279,6 +279,13 @@ copy. Structural fidelity is a process rule:
 4. **Deviations are rulings, not taste.** Departing from the prototype requires a recorded reason
    (a SCREENS-v5 ruling, a shipped-backend constraint) noted in the PR — same discipline as the
    DECIDE register.
+5. **Grammar substitutions need a LIVE ruling (operator 2026-07-12, M9d).** Swapping a screen's
+   presentation grammar wholesale (the prototype's table → a timeline/cards/feed) is never covered
+   by a written note alone — not even a bolt-README `## Updates` entry: notes are made blind,
+   before the thing exists, and the audit screen proved they don't survive contact with the built
+   result. A substitution requires the operator ruling **against the built specimen (or an A/B)**
+   at build time. When a spec note and the prototype disagree on grammar, the prototype is the
+   default and the disagreement is a question for the operator, not a license to pick.
 
 ## 9. Anti-pattern detector — ruled exceptions
 

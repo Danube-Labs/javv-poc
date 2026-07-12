@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import {
+  CHART_ACCENT,
   CHART_PTYPE_RAMP,
   CHART_SCANNER,
   CHART_SEV,
@@ -57,6 +58,10 @@ describe('chart literals stay pinned to the CSS tokens (M9c)', () => {
   it('scanner series colors equal --scanner-*-fg', () => {
     expect(CHART_SCANNER.trivy.toLowerCase()).toBe(cssHex('--scanner-trivy-fg'))
     expect(CHART_SCANNER.grype.toLowerCase()).toBe(cssHex('--scanner-grype-fg'))
+  })
+
+  it('the activity-lens accent equals --coral (M9d audit lens)', () => {
+    expect(CHART_ACCENT.toLowerCase()).toBe(cssHex('--coral'))
   })
 
   it('chart chrome literals equal their named tokens', () => {

@@ -192,7 +192,7 @@ const downloadHref = computed(() =>
 <template>
   <div class="export-wrap">
     <UiButton variant="control" @click="openDialog">
-      <AppIcon name="download" :size="13" />Export
+      <AppIcon name="download" :size="13" />Export CSV
     </UiButton>
 
     <ModalShell

@@ -6,19 +6,33 @@ Cursor-paged with the A-m1 machinery (`query/audit.py`): opaque cursor, 410 on a
 422 on a tampered cursor/bad order, 503 when the store is down — never a 500. Cursor-less pages
 reserve a per-principal PIT slot (A-m12/#189), same budget as the findings grid."""
 
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from opensearchpy.exceptions import ConnectionError as OSConnectionError
 from opensearchpy.exceptions import ConnectionTimeout
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
-from backend.core.metrics import OS_REQUEST_ERRORS
+from backend.core.metrics import EXPORT_BYTES, EXPORT_ROWS, LIMIT_REJECTIONS, OS_REQUEST_ERRORS
+from backend.core.settings import get_settings
+from backend.export.audit_csv import count_audit_lens, stream_audit_csv
 from backend.query import pit_guard
-from backend.query.audit import AuditFilters, CursorExpired, run_audit_search
+from backend.query.as_of import parse_as_of
+from backend.query.audit import (
+    AuditFilters,
+    CursorExpired,
+    build_audit_facets_body,
+    run_audit_search,
+)
+from backend.tenancy.chokepoint import tenant_search
 
 router = APIRouter(prefix="/api/v1/audit", tags=["audit"])
+log = structlog.get_logger()
 
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
@@ -35,10 +49,15 @@ async def read_audit_log(
     order: Annotated[str, Query(max_length=4)] = "desc",
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     cursor: Annotated[str | None, Query(max_length=4096)] = None,
+    as_of: Annotated[str | None, Query(max_length=64)] = None,
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
+    try:
+        until = parse_as_of(as_of)  # D28: absent/now = unbounded; a past T = lte bound
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
     filters = AuditFilters(
-        entity_type=entity_type, action=action, actor=actor, finding_key=finding_key
+        entity_type=entity_type, action=action, actor=actor, finding_key=finding_key, until=until
     )
     opened = cursor is None  # a cursor-less page opens a fresh PIT; a continuation reuses one
     if opened:
@@ -76,3 +95,112 @@ async def read_audit_log(
     if out["next_cursor"] is None:  # PIT closed this request (final page) — release its slot
         pit_guard.release_one(principal.user_id)
     return out
+
+
+@router.get("/facets")
+async def audit_facets(
+    request: Request,
+    principal: Authenticated,
+    cluster_id: ClusterId,
+    entity_type: Annotated[str | None, Query(max_length=64)] = None,
+    action: Annotated[str | None, Query(max_length=64)] = None,
+    actor: Annotated[str | None, Query(max_length=128)] = None,
+    as_of: Annotated[str | None, Query(max_length=64)] = None,
+    interval: Annotated[str | None, Query(max_length=8)] = None,
+    window_days: Annotated[int, Query(ge=1, le=365)] = 30,
+) -> dict[str, Any]:
+    """Rail counts for the audit screen (M9d rework): entity_type/action/actor terms under the
+    same filters + D28 bound as the walk — the counts describe the current lens, server-side.
+    With `interval` (day|hour) the response adds `activity`: the audit lens's events-over-time
+    histogram across the picker window (quiet buckets included as zeros)."""
+    client = cast(Any, request.app.state.opensearch)
+    try:
+        until = parse_as_of(as_of)
+        filters = AuditFilters(entity_type=entity_type, action=action, actor=actor, until=until)
+        body = build_audit_facets_body(filters, interval=interval, window_days=window_days)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    try:
+        resp = await tenant_search(
+            client,
+            index="system-audit-log-*",
+            cluster_id=cluster_id,
+            body=body,
+        )
+    except (OSConnectionError, ConnectionTimeout) as exc:
+        kind = "timeout" if isinstance(exc, ConnectionTimeout) else "conn"
+        OS_REQUEST_ERRORS.labels(kind).inc()
+        raise HTTPException(503, "search backend unavailable — retry") from exc
+    aggs = resp["aggregations"]
+    activity = aggs.pop("activity", None)
+    out: dict[str, Any] = {
+        "facets": {
+            field: [
+                {"key": b["key"], "count": b["doc_count"], "by_scanner": {}} for b in agg["buckets"]
+            ]
+            for field, agg in aggs.items()
+        }
+    }
+    if activity is not None:
+        out["activity"] = [
+            {"date": b["key_as_string"], "count": b["doc_count"]}
+            for b in activity["buckets"]["buckets"]
+        ]
+    return out
+
+
+@router.get("/export.csv")
+async def export_audit_csv(
+    request: Request,
+    principal: Authenticated,
+    cluster_id: ClusterId,
+    entity_type: Annotated[str | None, Query(max_length=64)] = None,
+    action: Annotated[str | None, Query(max_length=64)] = None,
+    actor: Annotated[str | None, Query(max_length=128)] = None,
+    as_of: Annotated[str | None, Query(max_length=64)] = None,
+) -> StreamingResponse:
+    """The prototype's Export CSV (M9d): streams the current audit lens — decorated,
+    injection-sanitized, constant-memory. Same inline bounds as the findings export: a cheap
+    pre-count 413s over `JAVV_EXPORT_MAX_ROWS` before any PIT opens; the PIT slot is the
+    principal's (429 at the cap) and is released when the stream ends."""
+    client = cast(Any, request.app.state.opensearch)
+    try:
+        until = parse_as_of(as_of)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    filters = AuditFilters(entity_type=entity_type, action=action, actor=actor, until=until)
+    max_rows = get_settings().export_max_rows
+    n = await count_audit_lens(client, cluster_id=cluster_id, filters=filters)
+    if n > max_rows:
+        log.warning("inline export capped", cluster_id=cluster_id, cap=max_rows, format="audit")
+        LIMIT_REJECTIONS.labels("export_rows").inc()  # M-4 (#220)
+        raise HTTPException(
+            413,
+            f"{n} events exceed the inline export limit ({max_rows}) — narrow the filters",
+        )
+    try:
+        pit_guard.acquire(principal.user_id)
+    except pit_guard.PitCapExceeded as exc:
+        log.warning("PIT cap reached for principal", format="audit")
+        raise HTTPException(429, str(exc), headers={"Retry-After": "5"}) from exc
+
+    async def body() -> AsyncIterator[str]:
+        # M-4 (#220): rows/bytes counted in the same finally that frees the PIT slot — a
+        # client that disconnects mid-stream reports what was ACTUALLY streamed
+        rows, size = 0, 0
+        try:
+            async for line in stream_audit_csv(client, cluster_id=cluster_id, filters=filters):
+                rows += 1
+                size += len(line)
+                yield line
+        finally:
+            pit_guard.release_one(principal.user_id)
+            EXPORT_ROWS.labels("audit_csv").inc(max(0, rows - 1))  # minus the header line
+            EXPORT_BYTES.labels("audit_csv").inc(size)
+
+    stamp = datetime.now(UTC).strftime("%Y-%m-%d")
+    return StreamingResponse(
+        body(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="javv-audit-{stamp}.csv"'},
+    )

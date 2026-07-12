@@ -79,8 +79,8 @@ const router = createRouter({
         {
           path: 'audit',
           name: 'audit',
-          component: () => import('@/views/PlaceholderView.vue'),
-          props: { title: 'Audit', bolt: 'M9d' },
+          component: () => import('@/views/AuditTrailView.vue'),
+          meta: { wide: true },
         },
         {
           path: 'settings',
