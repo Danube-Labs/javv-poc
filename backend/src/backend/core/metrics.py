@@ -54,6 +54,11 @@ OS_BACKOFF_RETRIES = Counter(
     "Per-item 429/503 bulk retries — the only flow control without a broker; its rate IS the"
     " saturation signal",
 )
+SLA_CLOCK_MISSING = Counter(
+    "javv_sla_clock_missing_total",
+    "Findings pages hitting rows without a materialized sla_clock_at (issue 363) — the agg"
+    " fallback served them; a sustained rate means run rebuild-state to backfill",
+)
 
 # --- M-3: concurrency-control churn ----------------------------------------------
 

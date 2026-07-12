@@ -77,7 +77,13 @@ All session-auth, no capability (reads). All take the filter family (`cluster_id
 display-only in rows. `ptype` (M8d/#241) is also a facet (pre-v4 rows bucket as
 `"unknown"` until a sweep heals them, D30) and a group dim — and unlike `kev`/`epss` it IS
 recorded on occurrences, so it stays filterable/facetable at a past `as_of` (v3-era rows are
-honestly `null` there). **T<now dispatches to the M8b reader (live since #34)** — results are
+honestly `null` there). `overdue=true|false` (issue #363) filters on the **materialized D21 group
+clock** (`sla_clock_at`) against cutoffs derived from the **live SLA policy at query time** — a
+policy edit moves the filter instantly, chip ≡ filter by construction (shared handled-states set,
+KEV fast-lane included); works on grid/facets/groups/exports, and at a past `as_of` it filters the
+reconstruction's own read-time verdict (judged at `now=T`, never the cache field). Multi-page grid
+walks freeze the cutoffs in the cursor (the PIT freezes docs, the query freezes with them).
+**T<now dispatches to the M8b reader (live since #34)** — results are
 reconstructed from the append logs as-scanned: fields history deliberately does not record
 (`kev`, `epss`, `disagree`, `image_repo`, `tag`, `app`) come back `null`; a filter/sort/group on
 one of them at a past T is a 422; whitelisted facets on them return empty buckets. Queued exports

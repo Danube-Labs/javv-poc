@@ -10,6 +10,7 @@ structurally present on the index-less PIT path (SEC-4) — same guard as the gr
 """
 
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
@@ -17,11 +18,23 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.core.settings import get_settings
 from backend.query.search import SearchFilters, build_search_body
+from backend.sla.overdue import overdue_cutoffs
+from backend.sla.policy import read_sla_policy
 from backend.tenancy.chokepoint import tenant_query
 
 log = structlog.get_logger()
 
 _PAGE_SIZE = 500  # small pages (FR-13) — constant memory whatever the lens size
+
+
+async def _cutoffs(
+    client: AsyncOpenSearch, filters: SearchFilters, prefix: str
+) -> dict[str, str] | None:
+    """An `overdue` lens (issue 363) needs live-policy cutoffs; resolved once per call —
+    the sweep computes them BEFORE the walk, so the whole export judges one deadline."""
+    if filters.overdue is None:
+        return None
+    return overdue_cutoffs(await read_sla_policy(client, prefix=prefix), now=datetime.now(UTC))
 
 
 async def count_lens(
@@ -33,7 +46,13 @@ async def count_lens(
 ) -> int:
     """Cheap pre-count of the lens through the tenant chokepoint (audit A-M6/#189) — lets an
     export enforce its row cap with a clean 413 BEFORE opening a PIT / streaming a body."""
-    body = build_search_body(filters, size=0, sort="first_seen_at", order="asc")
+    body = build_search_body(
+        filters,
+        size=0,
+        sort="first_seen_at",
+        order="asc",
+        sla_cutoffs=await _cutoffs(client, filters, prefix),
+    )
     del body["track_total_hits"]  # count has its own total; drop the search-only knob
     body = tenant_query(cluster_id, body)  # SEC-4 — the cluster filter is forced in
     resp = await client.count(index=f"{prefix}findings", body={"query": body["query"]})
@@ -49,6 +68,7 @@ async def sweep_findings(
 ) -> AsyncIterator[dict[str, Any]]:
     """Yield every finding doc matching the lens, one page at a time."""
     keep_alive = get_settings().search_pit_keep_alive
+    sla_cutoffs = await _cutoffs(client, filters, prefix)  # frozen for the whole walk
     pit_id = (
         await client.create_pit(index=f"{prefix}findings", params={"keep_alive": keep_alive})
     )["pit_id"]
@@ -61,6 +81,7 @@ async def sweep_findings(
                 sort="first_seen_at",
                 order="asc",
                 search_after=search_after,
+                sla_cutoffs=sla_cutoffs,
             )
             body = tenant_query(cluster_id, body)  # SEC-4 — the only guard on the PIT path
             body["pit"] = {"id": pit_id, "keep_alive": keep_alive}

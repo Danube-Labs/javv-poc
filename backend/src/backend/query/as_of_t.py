@@ -316,6 +316,11 @@ class AsOfTQuery:
         for r in rows:
             if r["present"] != f.present:
                 continue
+            # overdue at T filters the reconstruction's OWN read-time verdict (judged at now=t
+            # by _decorate_overdue above) — never the live cache's sla_clock_at (issue 363):
+            # history has no cache, and the materialized clock describes now, not T
+            if f.overdue is not None and r["overdue"] != f.overdue:
+                continue
             # D46/#274: compare the CANONICAL bucket, mirroring the live filter's target field
             if sev and r["severity_canonical"] not in sev:
                 continue

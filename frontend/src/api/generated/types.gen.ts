@@ -320,6 +320,10 @@ export type ExportParams = {
      */
     new_within_days?: number | null;
     /**
+     * Overdue
+     */
+    overdue?: boolean | null;
+    /**
      * Present
      */
     present?: boolean;
@@ -572,6 +576,10 @@ export type ViewPreset = {
      * New Within Days
      */
     new_within_days?: number | null;
+    /**
+     * Overdue
+     */
+    overdue?: boolean | null;
     /**
      * Present
      */
@@ -1444,6 +1452,10 @@ export type SearchFindingsApiV1FindingsGetData = {
          */
         new_within_days?: number | null;
         /**
+         * Overdue
+         */
+        overdue?: boolean | null;
+        /**
          * As Of
          */
         as_of?: string | null;
@@ -1567,6 +1579,10 @@ export type ExportCsvApiV1FindingsExportCsvGetData = {
          */
         new_within_days?: number | null;
         /**
+         * Overdue
+         */
+        overdue?: boolean | null;
+        /**
          * As Of
          */
         as_of?: string | null;
@@ -1662,6 +1678,10 @@ export type ExportVexApiV1FindingsExportVexGetData = {
          * New Within Days
          */
         new_within_days?: number | null;
+        /**
+         * Overdue
+         */
+        overdue?: boolean | null;
         /**
          * As Of
          */
@@ -1764,6 +1784,10 @@ export type FacetFindingsApiV1FindingsFacetsGetData = {
          * New Within Days
          */
         new_within_days?: number | null;
+        /**
+         * Overdue
+         */
+        overdue?: boolean | null;
         /**
          * As Of
          */
@@ -1874,6 +1898,10 @@ export type GroupFindingsApiV1FindingsGroupsGetData = {
          * New Within Days
          */
         new_within_days?: number | null;
+        /**
+         * Overdue
+         */
+        overdue?: boolean | null;
         /**
          * As Of
          */

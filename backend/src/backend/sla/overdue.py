@@ -13,7 +13,8 @@ from typing import Any
 
 from backend.sla.policy import SlaPolicy
 
-_HANDLED_STATES = frozenset({"risk_accepted", "not_affected", "resolved"})
+# shared with the DSL overdue filter (issue 363) — chip and filter must use the SAME set
+HANDLED_STATES = frozenset({"risk_accepted", "not_affected", "resolved"})
 
 
 @dataclass(frozen=True)
@@ -36,9 +37,23 @@ def compute_overdue(
     out: dict[str, Overdue] = {}
     for doc in findings:
         days = policy.days_for(severity=doc["severity"], kev=bool(doc.get("kev")))
-        if days is None or doc.get("state") in _HANDLED_STATES:
+        if days is None or doc.get("state") in HANDLED_STATES:
             out[doc["finding_key"]] = Overdue(overdue=False, due_at=None)
             continue
         due = earliest[(doc["cve_id"], doc["image_digest"])] + timedelta(days=days)
         out[doc["finding_key"]] = Overdue(overdue=now > due, due_at=due.isoformat())
     return out
+
+
+def overdue_cutoffs(policy: SlaPolicy, *, now: datetime) -> dict[str, str]:
+    """severity/kev → the `sla_clock_at` cutoff (ISO) for the DSL overdue filter (issue 363):
+    `clock < cutoff ⟺ overdue`. Strict `lt` mirrors compute_overdue's strict `now > due`
+    (`due == now` is due, not past-due). Derived from the LIVE policy at query-build time — the
+    doc stores the clock, never the verdict, so a policy edit moves every cutoff instantly."""
+    return {
+        "kev": (now - timedelta(days=policy.kev_days)).isoformat(),
+        "critical": (now - timedelta(days=policy.critical_days)).isoformat(),
+        "high": (now - timedelta(days=policy.high_days)).isoformat(),
+        "medium": (now - timedelta(days=policy.medium_days)).isoformat(),
+        "low": (now - timedelta(days=policy.low_days)).isoformat(),
+    }

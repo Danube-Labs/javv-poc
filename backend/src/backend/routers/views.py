@@ -63,6 +63,7 @@ class ViewPreset(BaseModel):
     q: str | None = Field(default=None, min_length=2, max_length=128)
     present: bool = True
     new_within_days: int | None = Field(default=None, ge=1, le=365)
+    overdue: bool | None = None
 
     @field_validator("severity")
     @classmethod
