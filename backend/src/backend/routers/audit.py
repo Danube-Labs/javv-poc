@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from opensearchpy.exceptions import ConnectionError as OSConnectionError
@@ -17,7 +18,7 @@ from opensearchpy.exceptions import ConnectionTimeout
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
-from backend.core.metrics import OS_REQUEST_ERRORS
+from backend.core.metrics import EXPORT_BYTES, EXPORT_ROWS, LIMIT_REJECTIONS, OS_REQUEST_ERRORS
 from backend.core.settings import get_settings
 from backend.export.audit_csv import count_audit_lens, stream_audit_csv
 from backend.query import pit_guard
@@ -31,6 +32,7 @@ from backend.query.audit import (
 from backend.tenancy.chokepoint import tenant_search
 
 router = APIRouter(prefix="/api/v1/audit", tags=["audit"])
+log = structlog.get_logger()
 
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
@@ -170,6 +172,8 @@ async def export_audit_csv(
     max_rows = get_settings().export_max_rows
     n = await count_audit_lens(client, cluster_id=cluster_id, filters=filters)
     if n > max_rows:
+        log.warning("inline export capped", cluster_id=cluster_id, cap=max_rows, format="audit")
+        LIMIT_REJECTIONS.labels("export_rows").inc()  # M-4 (#220)
         raise HTTPException(
             413,
             f"{n} events exceed the inline export limit ({max_rows}) — narrow the filters",
@@ -177,14 +181,22 @@ async def export_audit_csv(
     try:
         pit_guard.acquire(principal.user_id)
     except pit_guard.PitCapExceeded as exc:
+        log.warning("PIT cap reached for principal", format="audit")
         raise HTTPException(429, str(exc), headers={"Retry-After": "5"}) from exc
 
     async def body() -> AsyncIterator[str]:
+        # M-4 (#220): rows/bytes counted in the same finally that frees the PIT slot — a
+        # client that disconnects mid-stream reports what was ACTUALLY streamed
+        rows, size = 0, 0
         try:
             async for line in stream_audit_csv(client, cluster_id=cluster_id, filters=filters):
+                rows += 1
+                size += len(line)
                 yield line
         finally:
             pit_guard.release_one(principal.user_id)
+            EXPORT_ROWS.labels("audit_csv").inc(max(0, rows - 1))  # minus the header line
+            EXPORT_BYTES.labels("audit_csv").inc(size)
 
     stamp = datetime.now(UTC).strftime("%Y-%m-%d")
     return StreamingResponse(
