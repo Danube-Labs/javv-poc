@@ -20,7 +20,7 @@ import binascii
 import json
 from typing import Any
 
-from backend.query.search import SearchFilters, build_search_body
+from backend.query.search import SearchFilters, build_search_body, overdue_clause
 
 # bounded-vocabulary fields — capped terms cannot truncate these (NFR-1: keyword/bool only) —
 # plus two capped-WITH-INTENT rail dims (M9b slice 4): `namespaces`/`assignee` show the top-N
@@ -36,6 +36,7 @@ FACET_FIELDS = (
     "ptype",
     "namespaces",
     "assignee",
+    "overdue",  # issue 363: a filter agg over the overdue clause, not a terms agg
 )
 _FACET_TERMS_SIZE = 32  # ≥ the largest bounded vocabulary; the top-N cap for the rail dims
 
@@ -81,7 +82,15 @@ def build_facets_body(
             "aggs": dict(_BY_SCANNER),
         }
         for f in chosen
+        if f != "overdue"
     }
+    if "overdue" in chosen:
+        # the rail chip's count (issue 363): overdue is an EXPRESSION over the materialized
+        # clock, so its facet is a `filter` agg on the same clause the grid filter uses —
+        # count ≡ filtered rows by construction. Cutoffs required, same rule as the search body.
+        if sla_cutoffs is None:
+            raise ValueError("the overdue facet requires sla_cutoffs (from the live SLA policy)")
+        body["aggs"]["overdue"] = {"filter": overdue_clause(sla_cutoffs), "aggs": dict(_BY_SCANNER)}
     return body
 
 

@@ -43,9 +43,32 @@ def test_facets_reject_non_whitelisted_fields() -> None:
     assert "severity" in FACET_FIELDS and "image_repo" not in FACET_FIELDS
 
 
+_CUTOFFS = {
+    "kev": "2026-07-11T00:00:00+00:00",
+    "critical": "2026-07-10T00:00:00+00:00",
+    "high": "2026-07-05T00:00:00+00:00",
+    "medium": "2026-06-12T00:00:00+00:00",
+    "low": "2026-04-13T00:00:00+00:00",
+}
+
+
 def test_facets_default_to_the_full_whitelist() -> None:
-    body = build_facets_body(SearchFilters())
+    body = build_facets_body(SearchFilters(), sla_cutoffs=_CUTOFFS)
     assert set(body["aggs"]) == set(FACET_FIELDS)
+
+
+def test_overdue_facet_is_a_filter_agg_on_the_shared_clause() -> None:
+    """Issue 363: the rail chip's count — a `filter` agg over the SAME clause the grid filter
+    uses (count ≡ filtered rows by construction), never a terms agg (overdue is an expression,
+    not a field value). Requesting it without cutoffs is refused, same rule as the search body."""
+    from backend.query.search import overdue_clause
+
+    body = build_facets_body(SearchFilters(), fields=["overdue"], sla_cutoffs=_CUTOFFS)
+    agg = body["aggs"]["overdue"]
+    assert agg["filter"] == overdue_clause(_CUTOFFS)
+    assert agg["aggs"]["by_scanner"]["terms"]["field"] == "scanner"  # per-scanner is sacred
+    with pytest.raises(ValueError):
+        build_facets_body(SearchFilters(), fields=["overdue"])
 
 
 def test_composite_body_pages_via_after_key() -> None:

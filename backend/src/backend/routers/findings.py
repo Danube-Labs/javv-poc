@@ -124,10 +124,14 @@ Filters = Annotated[SearchFilters, Depends(_filters)]
 AsOf = Annotated[datetime | None, Depends(_resolve_as_of)]
 
 
-async def _sla_cutoffs(client: Any, filters: SearchFilters) -> dict[str, str] | None:
-    """LIVE-policy cutoffs for an `overdue` lens (issue 363) — None when the filter is unset.
-    facets/groups resolve here; the grid's `run_search` resolves (and cursor-freezes) its own."""
-    if filters.overdue is None:
+async def _sla_cutoffs(
+    client: Any, filters: SearchFilters, *, facet: bool = False
+) -> dict[str, str] | None:
+    """LIVE-policy cutoffs for an `overdue` lens (issue 363) — None when nothing needs them.
+    facets/groups resolve here (facets also when the overdue FACET is requested — the rail
+    count needs the clause even with the filter off); the grid's `run_search` resolves (and
+    cursor-freezes) its own."""
+    if filters.overdue is None and not facet:
         return None
     return overdue_cutoffs(await read_sla_policy(client), now=datetime.now(UTC))
 
@@ -373,16 +377,25 @@ async def facet_findings(
             )
         )
     # no read-side refresh (audit A-m2/#191) — see search_findings
+    wants_overdue = fields is None or "overdue" in fields
     try:
         body = build_facets_body(
-            filters, fields=fields, sla_cutoffs=await _sla_cutoffs(client, filters)
+            filters,
+            fields=fields,
+            sla_cutoffs=await _sla_cutoffs(client, filters, facet=wants_overdue),
         )
     except ValueError as exc:  # non-whitelisted facet field
         raise HTTPException(422, str(exc)) from exc
     resp = await tenant_search(client, index="findings", cluster_id=cluster_id, body=body)
     return {
         "facets": {
-            field: [_bucket(b) for b in agg["buckets"]]
+            # `overdue` is a filter agg (one count, no buckets) — shaped as a true-bucket so
+            # the wire looks exactly like the boolean terms facets the rail already reads
+            field: (
+                [_bucket(b) for b in agg["buckets"]]
+                if "buckets" in agg
+                else [_bucket({"key": "true", "doc_count": agg["doc_count"], **agg})]
+            )
             for field, agg in resp["aggregations"].items()
         }
     }

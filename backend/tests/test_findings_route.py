@@ -668,6 +668,16 @@ async def test_overdue_filter_agrees_with_the_chip_on_a_coverage_lag_group(env) 
     assert fac.status_code == 200
     assert {b["key"]: b["count"] for b in fac.json()["facets"]["severity"]} == {"critical": 2}
 
+    # the rail chip's own count: the overdue FACET (filter off) ≡ the filtered row count,
+    # shaped as a true-bucket with the per-scanner split (per-scanner is sacred)
+    count = await http.get(
+        "/api/v1/findings/facets", params={"cluster_id": cid, "fields": "overdue"}
+    )
+    assert count.status_code == 200
+    (bucket,) = count.json()["facets"]["overdue"]
+    assert bucket["key"] == "true" and bucket["count"] == len(chip_overdue) == 2
+    assert bucket["by_scanner"] == {"grype": 1, "trivy": 1}
+
 
 async def test_unbackfilled_rows_keep_their_chip_but_escape_the_filter_loudly(env) -> None:
     """The pre-backfill degradation contract: a row missing sla_clock_at still gets a correct
