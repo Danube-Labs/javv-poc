@@ -92,6 +92,12 @@ async def _commit_event(
             "effective_config": {"scope": {"namespaces": []}, "tuning": {}},
             "total": total,
             "fixable": 1,
+            "crit": 1,
+            "high": 1,
+            "med": 1,
+            "low": 0,
+            "negligible": 0,
+            "unknown": 0,
             "schema_version": 3,
         },
     )
@@ -213,6 +219,15 @@ async def test_last_n_runs_aggregate_per_run_newest_first(env) -> None:
     r3 = row["runs"][0]
     assert r3["images"] == 2 and r3["findings_total"] == 6 and r3["fixable_total"] == 2
     assert r3["started_at"] is not None and r3["finished_at"] is not None
+    # M9d slice 2 rider: per-run severity mix — the six buckets sum across the run's images
+    assert r3["severity"] == {
+        "critical": 2,
+        "high": 2,
+        "medium": 2,
+        "low": 0,
+        "negligible": 0,
+        "unknown": 0,
+    }
     assert row["scanner_version"] == "v2"  # the latest run's stamp
 
 

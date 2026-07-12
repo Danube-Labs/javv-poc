@@ -11,9 +11,17 @@
  * never here. Staleness is HealthChip's dot-and-word grammar on the D20 freshness row. The
  * committed-runs table renders SEPARATELY below this panel, on the shared table template.
  */
+import { computed } from 'vue'
+
 import HealthChip from '@/components/chips/HealthChip.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
-import { lastDataAt, silentFor, type FreshnessRow } from '@/system/freshness'
+import {
+  DB_AGE_WARN_AFTER_S,
+  dbAgeSeconds,
+  lastDataAt,
+  silentFor,
+  type FreshnessRow,
+} from '@/system/freshness'
 
 export interface ScanRunRow {
   scan_run_id: string
@@ -21,6 +29,8 @@ export interface ScanRunRow {
   images: number
   findings_total: number
   fixable_total: number
+  /** per-run severity mix (M9d slice 2) — the committing scanner's own buckets, summed */
+  severity?: Partial<Record<string, number>>
   started_at: string | null
   finished_at: string | null
 }
@@ -42,6 +52,15 @@ const props = defineProps<{
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 const lastRun = () => props.provenance?.runs?.[0] ?? null
+
+/** amber when the vuln DB the last committed run scanned with is older than the warn window */
+const dbStale = computed(() => {
+  const age = dbAgeSeconds(props.provenance?.scanner_db_built ?? null)
+  return age !== null && age > DB_AGE_WARN_AFTER_S
+})
+const dbAgeLabel = computed(() =>
+  silentFor(dbAgeSeconds(props.provenance?.scanner_db_built ?? null)),
+)
 </script>
 
 <template>
@@ -90,7 +109,13 @@ const lastRun = () => props.provenance?.runs?.[0] ?? null
           ><em>DB built</em>
           <span class="mono-cell" :title="provenance.scanner_db_built ?? ''">{{
             lastDataAt(provenance.scanner_db_built ?? null)
-          }}</span></span
+          }}</span>
+          <span
+            v-if="dbStale"
+            class="db-stale"
+            title="A running scanner with a stale vulnerability database quietly under-reports — refresh the published image"
+            >· {{ dbAgeLabel }} old</span
+          ></span
         >
         <span class="scan-gitops"
           >operator-managed (GitOps) — versions change by swapping the published image tag</span
@@ -184,5 +209,11 @@ const lastRun = () => props.provenance?.runs?.[0] ?? null
   font-size: var(--text-sm);
   color: var(--soft);
   text-align: right;
+}
+/* the history/staleness amber family — same register as the quiet-lens flag */
+.db-stale {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--hist-fg);
 }
 </style>

@@ -127,6 +127,7 @@ const scanners = computed(() => {
           <ScannerRunsTable
             v-if="(s.provenance?.runs ?? []).length"
             :runs="s.provenance!.runs!"
+            :scanner="s.name"
             :cap="RUNS_FETCHED"
           />
         </div>

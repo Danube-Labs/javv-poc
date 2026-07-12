@@ -106,6 +106,17 @@ def build_provenance_body() -> dict[str, Any]:
     }
 
 
+# wire name (the D16 canonical vocabulary) → the scan-events doc's bucket field
+_SEVERITY_SUMS = (
+    ("critical", "crit"),
+    ("high", "high"),
+    ("medium", "med"),
+    ("low", "low"),
+    ("negligible", "negligible"),
+    ("unknown", "unknown"),
+)
+
+
 def build_runs_body(after: dict[str, Any] | None = None) -> dict[str, Any]:
     """Pure builder: one composite bucket per (scanner, scan_run_id) — image count (doc_count),
     finding totals (sums), started/finished (min/max on a DATE — epoch-ms < 2^53, exact in a
@@ -128,6 +139,9 @@ def build_runs_body(after: dict[str, Any] | None = None) -> dict[str, Any]:
                 "aggs": {
                     "findings": {"sum": {"field": "total"}},
                     "fixable": {"sum": {"field": "fixable"}},
+                    # per-run severity mix (M9d slice 2): the doc buckets sum across the
+                    # run's images — one scanner's own counts, never cross-scanner (FR-12)
+                    **{sev: {"sum": {"field": field}} for sev, field in _SEVERITY_SUMS},
                     "started": {"min": {"field": "@timestamp"}},
                     "finished": {"max": {"field": "@timestamp"}},
                     "latest": {
@@ -152,6 +166,7 @@ def _run_row(bucket: dict[str, Any]) -> dict[str, Any]:
         "images": bucket["doc_count"],
         "findings_total": int(bucket["findings"]["value"]),
         "fixable_total": int(bucket["fixable"]["value"]),
+        "severity": {sev: int(bucket[sev]["value"]) for sev, _ in _SEVERITY_SUMS},
         "started_at": bucket["started"].get("value_as_string"),
         "finished_at": bucket["finished"].get("value_as_string"),
     }

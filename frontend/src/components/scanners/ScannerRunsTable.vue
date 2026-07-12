@@ -8,16 +8,23 @@
  */
 import { computed, ref, watch } from 'vue'
 
+import MixBar from '@/components/dashboards/MixBar.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import { lastDataAt } from '@/system/freshness'
+import type { Severity } from '@/styles/tokens'
 
 import type { ScanRunRow } from './ScannerStatusCard.vue'
 
 const props = defineProps<{
   runs: ScanRunRow[]
+  /** whose committed runs these are — MixBar names it in the tooltip (per-scanner sacred) */
+  scanner: string
   /** the fetch asked for this many — runs.length === cap means "there may be older ones" */
   cap: number
 }>()
+
+const mix = (run: ScanRunRow): Partial<Record<Severity, number>> =>
+  (run.severity ?? {}) as Partial<Record<Severity, number>>
 
 const page = ref(0)
 const size = ref(10)
@@ -47,6 +54,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         <tr>
           <th class="fit">Committed{{ atCap ? ` · last ${cap}` : '' }}</th>
           <th>Run</th>
+          <th class="mix-col">Mix</th>
           <th class="fit">Images</th>
           <th class="fit">Findings</th>
           <th class="fit">Fixable</th>
@@ -61,6 +69,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           </td>
           <td>
             <span class="mono-cell sm run-id" :title="run.scan_run_id">{{ run.scan_run_id }}</span>
+          </td>
+          <td class="mix-col">
+            <MixBar :counts="mix(run)" :attribution="scanner" />
           </td>
           <td class="fit mono-cell sm">{{ fmt(run.images) }}</td>
           <td class="fit mono-cell sm">{{ fmt(run.findings_total) }}</td>
@@ -85,6 +96,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 </template>
 
 <style scoped>
+.mix-col {
+  width: 110px;
+}
 /* the full run id, ellipsized by the column instead of hand-truncated — Run owns the slack */
 .run-id {
   display: block;

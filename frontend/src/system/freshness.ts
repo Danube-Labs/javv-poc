@@ -30,6 +30,19 @@ export function silentRows(
   return rows.filter((r) => (r.silent_for_seconds ?? 0) > thresholdS)
 }
 
+/** Vuln-DB age flag (M9d slice 2): a running scanner with a stale database quietly under-reports
+ * — flag `scanner_db_built` older than `VITE_DB_AGE_WARN_DAYS` (build-time; default 7: both
+ * scanners refresh their DBs daily, a week behind is a real smell). */
+const DB_DAYS = Number(import.meta.env.VITE_DB_AGE_WARN_DAYS)
+export const DB_AGE_WARN_AFTER_S =
+  Number.isFinite(DB_DAYS) && DB_DAYS > 0 ? DB_DAYS * 86_400 : 7 * 86_400
+
+export function dbAgeSeconds(builtIso: string | null, nowMs: number = Date.now()): number | null {
+  if (!builtIso) return null
+  const built = Date.parse(builtIso)
+  return Number.isFinite(built) ? Math.max(0, (nowMs - built) / 1000) : null
+}
+
 /** "4 days" / "1 day" / "26 hours" — the urgency number, coarse on purpose. */
 export function silentFor(seconds: number | null): string {
   const s = seconds ?? 0
