@@ -44,6 +44,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import type { FindingRow } from '@/stores/findings'
 import { useTimeTravelStore } from '@/stores/timeTravel'
+import { refNowMs } from '@/system/clock'
 import { useToastStore } from '@/stores/toast'
 
 const route = useRoute()
@@ -153,8 +154,10 @@ const slaTier = computed(() => {
 const slaDaysLeft = computed(() => {
   const due = primary.value?.due_at
   if (typeof due !== 'string') return null
-  // display-only countdown derived FROM the server deadline (B-5: the deadline itself is never client math)
-  return Math.ceil((new Date(due).getTime() - Date.now()) / 86_400_000)
+  // display-only countdown derived FROM the server deadline (B-5: the deadline itself is never
+  // client math), measured from the D28 display clock — at a rewound T, counting from today
+  // showed -1 for a deadline that was still open at T
+  return Math.ceil((new Date(due).getTime() - refNowMs(timeTravel.t)) / 86_400_000)
 })
 function num(v: unknown): string {
   return typeof v === 'number' ? String(v) : '—'

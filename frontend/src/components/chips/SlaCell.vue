@@ -2,14 +2,17 @@
 /**
  * SLA cell (prototype `Sla` + `.sla` CSS). Deadline + overdue are SERVER-computed (B-5) — this
  * component only formats `due_at` as days-remaining for display; it never derives the deadline.
+ * The countdown measures from `nowMs` (the D28 display clock: T when rewound) — counting from
+ * the wall clock showed "0d" for deadlines that were still open at T.
  */
 import { computed } from 'vue'
 
-const props = defineProps<{ dueAt: string | null; overdue: boolean }>()
+const props = defineProps<{ dueAt: string | null; overdue: boolean; nowMs?: number }>()
 
 const days = computed(() => {
   if (!props.dueAt) return null
-  return Math.max(0, Math.ceil((new Date(props.dueAt).getTime() - Date.now()) / 86_400_000))
+  const ref = props.nowMs ?? Date.now()
+  return Math.max(0, Math.ceil((new Date(props.dueAt).getTime() - ref) / 86_400_000))
 })
 </script>
 
