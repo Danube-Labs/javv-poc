@@ -76,3 +76,40 @@ export function slaTier(pct: number | null): 'good' | 'ok' | 'low' | null {
 export function daysFromWindow(windowDays: number): number {
   return Math.min(365, Math.max(1, Math.ceil(windowDays)))
 }
+
+/* ---- triage progress (facets-fed, state-at-T — NOT window-scoped like the board) ---- */
+
+/** the states that mean "a human has triaged this" — everything else is work left */
+export const TRIAGED_STATES = ['acknowledged', 'not_affected', 'risk_accepted', 'resolved'] as const
+export const UNTRIAGED_STATES = ['open', 'stale'] as const
+
+export interface FacetBucket {
+  key: string
+  count: number
+  by_scanner: Record<string, number>
+}
+
+export interface ProgressRow {
+  severity: string
+  done: number
+  total: number
+}
+
+/** Per-severity done/total from TWO server facet reads (totals; same read filtered to
+ * TRIAGED_STATES) — severity order is the canonical ramp, zero-total severities drop out.
+ * Counts are the server's per-scanner finding rows (the Overview KPI unit); done is clamped
+ * to total (the two reads are not atomic — a triage landing between them must not show 6/5). */
+export function progressRows(
+  total: FacetBucket[] | undefined,
+  done: FacetBucket[] | undefined,
+  order: readonly string[],
+): ProgressRow[] {
+  const totalBy = new Map((total ?? []).map((b) => [b.key, b.count]))
+  const doneBy = new Map((done ?? []).map((b) => [b.key, b.count]))
+  return order
+    .filter((sev) => (totalBy.get(sev) ?? 0) > 0)
+    .map((sev) => {
+      const t = totalBy.get(sev) ?? 0
+      return { severity: sev, done: Math.min(t, doneBy.get(sev) ?? 0), total: t }
+    })
+}

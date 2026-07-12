@@ -9,6 +9,7 @@ import {
   daysFromWindow,
   fmtMedian,
   initials,
+  progressRows,
   resolvedOf,
   slaTier,
   sortBoard,
@@ -98,5 +99,32 @@ describe('daysFromWindow', () => {
     expect(daysFromWindow(1)).toBe(1)
     expect(daysFromWindow(0.5)).toBe(1) // Last 12h → 1 day
     expect(daysFromWindow(400)).toBe(365)
+  })
+})
+
+describe('progressRows', () => {
+  const b = (key: string, count: number) => ({ key, count, by_scanner: {} })
+  const ORDER = ['critical', 'high', 'medium'] as const
+
+  it('pairs done/total per severity in ramp order, dropping zero-total rows', () => {
+    const total = [b('high', 10), b('critical', 4)]
+    const done = [b('critical', 1), b('high', 10)]
+    expect(progressRows(total, done, ORDER)).toEqual([
+      { severity: 'critical', done: 1, total: 4 },
+      { severity: 'high', done: 10, total: 10 },
+    ])
+  })
+
+  it('clamps done to total — the two reads are not atomic', () => {
+    expect(progressRows([b('critical', 5)], [b('critical', 6)], ORDER)).toEqual([
+      { severity: 'critical', done: 5, total: 5 },
+    ])
+  })
+
+  it('tolerates missing reads', () => {
+    expect(progressRows(undefined, undefined, ORDER)).toEqual([])
+    expect(progressRows([b('medium', 3)], undefined, ORDER)).toEqual([
+      { severity: 'medium', done: 0, total: 3 },
+    ])
   })
 })

@@ -72,6 +72,13 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   - New reusables: `ContributorIdentity` (Nuxt UUser composition — one person atom for
     podium/board/feed; initials + deterministic ramp tone are presentation, never data),
     `SlaPctChip` (chips/ — tier pills good≥88 · ok≥80 · low), `viewModel.ts` (pure, tested).
+  - **Enhancements (operator, same day):** podium + leaderboard person → **`/audit?actor=X`**
+    (the board is derived from the audit trail, so the click shows the rows the numbers came
+    from — never `assignee`, which is current ownership, a different question); **Triage
+    progress** panel — per-severity "X of Y triaged" from TWO `/findings/facets` reads
+    (totals; filtered to triaged states), server-side, per-scanner row counts (the Overview
+    KPI unit), labeled **current state** so it can't be conflated with the trend window;
+    rows click through to the work LEFT (`/findings?severity=…&state=open,stale`).
 - **2026-07-12 — slice 1 rulings (operator, live on the built screen):**
   - **The 2026-07-10 timeline note is SUPERSEDED**: the audit screen renders the **prototype's
     table grammar** (screens-audit.jsx — When · User · Action · Target · Detail on the shared

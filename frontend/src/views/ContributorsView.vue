@@ -19,6 +19,7 @@ import ActivityFeed from '@/components/contributors/ActivityFeed.vue'
 import ContributorsLens from '@/components/contributors/ContributorsLens.vue'
 import LeaderboardTable from '@/components/contributors/LeaderboardTable.vue'
 import PodiumCard from '@/components/contributors/PodiumCard.vue'
+import ProgressPanel from '@/components/contributors/ProgressPanel.vue'
 import { useApi } from '@/composables/useApi'
 import {
   daysFromWindow,
@@ -178,13 +179,23 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
           </section>
         </div>
 
-        <section class="card-section contrib-side">
-          <div class="card-head">
-            <h2>Recent activity</h2>
-            <p class="card-sub">from the audit trail</p>
-          </div>
-          <ActivityFeed :query="query" />
-        </section>
+        <div class="contrib-side">
+          <section class="card-section">
+            <div class="card-head">
+              <h2>Triage progress</h2>
+              <p class="card-sub">triaged vs open · current state, not the trend window</p>
+            </div>
+            <ProgressPanel :query="query" />
+          </section>
+
+          <section class="card-section">
+            <div class="card-head">
+              <h2>Recent activity</h2>
+              <p class="card-sub">from the audit trail</p>
+            </div>
+            <ActivityFeed :query="query" />
+          </section>
+        </div>
       </div>
     </template>
   </div>
@@ -199,7 +210,8 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
   align-items: start;
   margin-top: 14px;
 }
-.contrib-main {
+.contrib-main,
+.contrib-side {
   display: flex;
   flex-direction: column;
   gap: 14px;

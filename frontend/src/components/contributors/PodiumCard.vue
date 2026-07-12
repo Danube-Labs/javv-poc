@@ -3,9 +3,12 @@
  * Top-contributor podium card (M9d slice 3; prototype `PodiumCard`, structure-only onto
  * tokens). Trimmed to the wire's truth: resolved count + SLA / median meta — no severity mix,
  * roles, or streaks (not on the wire; backlogged). Rank 1 gets the coral badge + emphasis
- * border, never a fabricated gradient.
+ * border, never a fabricated gradient. The card links to the audit log filtered to this
+ * actor — the board is DERIVED from the audit trail, so the click shows the rows the numbers
+ * came from (never `assignee`, which is current ownership, a different question).
  */
 import { computed } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import ContributorIdentity from '@/components/contributors/ContributorIdentity.vue'
 import { fmtMedian, resolvedOf, type BoardRow } from '@/contributors/viewModel'
@@ -20,7 +23,12 @@ const sla = computed(() =>
 </script>
 
 <template>
-  <div class="podium" :class="{ 'podium-first': rank === 1 }">
+  <RouterLink
+    class="podium"
+    :class="{ 'podium-first': rank === 1 }"
+    :to="{ name: 'audit', query: { actor: row.actor } }"
+    :title="`${row.actor}'s actions in the audit log`"
+  >
     <div class="podium-rank" aria-hidden="true">{{ rank }}</div>
     <ContributorIdentity :actor="row.actor" :size="rank === 1 ? 56 : 46" vertical />
     <div class="podium-num">
@@ -30,11 +38,12 @@ const sla = computed(() =>
       <span><b>{{ sla }}</b> SLA</span>
       <span><b>{{ fmtMedian(row.median_ttr_seconds) }}</b> median</span>
     </div>
-  </div>
+  </RouterLink>
 </template>
 
 <style scoped>
-/* prototype .podium family on tokens; rank-1 emphasis = coral badge + line, no gradients */
+/* prototype .podium family on tokens; rank-1 emphasis = coral badge + line, no gradients.
+   The card is a link — wash + border light-up on hover (feedback mandatory) */
 .podium {
   display: flex;
   flex-direction: column;
@@ -43,8 +52,24 @@ const sla = computed(() =>
   border: 1px solid var(--line);
   border-radius: var(--r);
   padding: 18px 14px 16px;
+  color: inherit;
+  text-decoration: none;
+  transition:
+    background var(--dur-quick),
+    border-color var(--dur-quick);
   background: var(--panel);
   position: relative;
+}
+.podium:hover {
+  background: var(--control-hover-bg);
+  border-color: var(--coral);
+}
+.podium:active {
+  background: var(--control-active-bg);
+}
+.podium:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 2px;
 }
 .podium-first {
   border-color: var(--coral);

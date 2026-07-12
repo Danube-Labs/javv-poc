@@ -7,6 +7,7 @@
  * At the board cap the header says so.
  */
 import { computed, ref, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 
 import SlaPctChip from '@/components/chips/SlaPctChip.vue'
 import ContributorIdentity from '@/components/contributors/ContributorIdentity.vue'
@@ -61,11 +62,18 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         <tr v-for="(row, i) in shown" :key="row.actor">
           <td class="fit rank-cell mono-cell sm">{{ page * size + i + 1 }}</td>
           <td>
-            <ContributorIdentity
-              :actor="row.actor"
-              :sub="`${fmt(row.handled)} handled`"
-              :size="30"
-            />
+            <!-- the board is derived from the audit trail — the person links to their rows -->
+            <RouterLink
+              class="lb-link"
+              :to="{ name: 'audit', query: { actor: row.actor } }"
+              :title="`${row.actor}'s actions in the audit log`"
+            >
+              <ContributorIdentity
+                :actor="row.actor"
+                :sub="`${fmt(row.handled)} handled`"
+                :size="30"
+              />
+            </RouterLink>
           </td>
           <td class="r fit mono-cell sm strong">{{ fmt(resolvedOf(row)) }}</td>
           <td class="r fit mono-cell sm">{{ fmt(ackOf(row)) }}</td>
@@ -92,6 +100,28 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 </template>
 
 <style scoped>
+/* person link — wash + name underline on hover (feedback mandatory) */
+.lb-link {
+  display: inline-flex;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--r-sm);
+  padding: 2px 6px 2px 2px;
+  transition: background var(--dur-quick);
+}
+.lb-link:hover {
+  background: var(--control-hover-bg);
+}
+.lb-link:hover :deep(.cid-name) {
+  text-decoration: underline;
+}
+.lb-link:active {
+  background: var(--control-active-bg);
+}
+.lb-link:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
 .rank-cell {
   color: var(--muted);
   font-weight: 700;
