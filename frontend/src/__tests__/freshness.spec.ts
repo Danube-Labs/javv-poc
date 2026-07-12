@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { lastDataAt, silentFor, silentRows } from '@/system/freshness'
+import { DB_AGE_WARN_AFTER_S, dbAgeSeconds, lastDataAt, silentFor, silentRows } from '@/system/freshness'
 
 const row = (scanner: string, silent: number | null) => ({
   scanner,
@@ -29,5 +29,21 @@ describe('freshness banner view-model (D20)', () => {
     expect(label).not.toMatch(/AM|PM/i)
     expect(label).toMatch(/Jul/)
     expect(lastDataAt(null)).toBe('never')
+  })
+})
+
+describe('vuln-DB age flag (M9d slice 2)', () => {
+  const now = Date.parse('2026-07-12T12:00:00Z')
+
+  it('ages a built stamp against now; unparseable/missing stays null (no claim)', () => {
+    expect(dbAgeSeconds('2026-07-11T12:00:00Z', now)).toBe(86_400)
+    expect(dbAgeSeconds(null, now)).toBeNull()
+    expect(dbAgeSeconds('not-a-date', now)).toBeNull()
+  })
+
+  it('the default warn window is 7 days (VITE_DB_AGE_WARN_DAYS overrides at build)', () => {
+    expect(DB_AGE_WARN_AFTER_S).toBe(7 * 86_400)
+    expect(dbAgeSeconds('2026-07-03T12:00:00Z', now)! > DB_AGE_WARN_AFTER_S).toBe(true)
+    expect(dbAgeSeconds('2026-07-08T12:00:00Z', now)! > DB_AGE_WARN_AFTER_S).toBe(false)
   })
 })

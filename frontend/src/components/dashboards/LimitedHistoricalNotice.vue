@@ -1,21 +1,26 @@
 <script setup lang="ts">
-/** I3 graceful degradation (D38/M16, D39/M11-r2): the all-clusters screen at T<now renders
- * this notice INSTEAD of data — there is no historical all-clusters read until the v1.1
- * metrics rollup, and no code path may attempt one. Prose is --ink on a neutral panel; the
- * info hue lives in the icon only (the "green on green" ruling). */
+/** I3 graceful degradation (D38/M16, D39/M11-r2): a screen with no historical read renders
+ * this notice INSTEAD of data at T<now, and no code path may attempt one. Defaults carry the
+ * all-clusters copy (its original home); M9d's scanner status passes its own (C-1/D39).
+ * Prose is --ink on a neutral panel; the info hue lives in the icon only (the "green on
+ * green" ruling). */
 import AppIcon from '@/components/ui/AppIcon.vue'
+
+withDefaults(defineProps<{ title?: string; body?: string }>(), {
+  title: 'Historical all-clusters view is limited until the v1.1 metrics rollup',
+  body:
+    'Single-cluster screens rewind fully — pick a cluster and travel from its Overview. ' +
+    'Fleet-wide numbers at a past T need the metrics rollup (v1.1); until then this screen ' +
+    'only answers for now.',
+})
 </script>
 
 <template>
   <div class="lim-notice" role="status">
     <AppIcon name="info" :size="18" class="lim-icon" />
     <div>
-      <h2>Historical all-clusters view is limited until the v1.1 metrics rollup</h2>
-      <p>
-        Single-cluster screens rewind fully — pick a cluster and travel from its Overview.
-        Fleet-wide numbers at a past T need the metrics rollup (v1.1); until then this screen
-        only answers for now.
-      </p>
+      <h2>{{ title }}</h2>
+      <p>{{ body }}</p>
     </div>
   </div>
 </template>
