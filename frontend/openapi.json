@@ -668,6 +668,17 @@
             ],
             "title": "New Within Days"
           },
+          "overdue": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overdue"
+          },
           "present": {
             "default": true,
             "title": "Present",
@@ -1168,6 +1179,17 @@
               }
             ],
             "title": "New Within Days"
+          },
+          "overdue": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overdue"
           },
           "present": {
             "default": true,
@@ -2915,6 +2937,22 @@
           },
           {
             "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Overdue"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {
@@ -3268,6 +3306,22 @@
           },
           {
             "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Overdue"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {
@@ -3586,6 +3640,22 @@
                 }
               ],
               "title": "New Within Days"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Overdue"
             }
           },
           {
@@ -3917,6 +3987,22 @@
                 }
               ],
               "title": "New Within Days"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Overdue"
             }
           },
           {
@@ -4268,6 +4354,22 @@
                 }
               ],
               "title": "New Within Days"
+            }
+          },
+          {
+            "in": "query",
+            "name": "overdue",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Overdue"
             }
           },
           {
