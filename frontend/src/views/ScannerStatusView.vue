@@ -17,18 +17,19 @@ import {
 import { client } from '@/api/client'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
 import LimitedHistoricalNotice from '@/components/dashboards/LimitedHistoricalNotice.vue'
+import ScannerRunsTable from '@/components/scanners/ScannerRunsTable.vue'
 import ScannerStatusCard, {
   type ProvenanceRow,
 } from '@/components/scanners/ScannerStatusCard.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useTimeTravelStore } from '@/stores/timeTravel'
-import { lastDataAt, type FreshnessRow } from '@/system/freshness'
+import type { FreshnessRow } from '@/system/freshness'
 
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
 
-const RUNS_SHOWN = 5 // last-N committed runs per card (endpoint caps at 50)
+const RUNS_FETCHED = 50 // the provenance endpoint's own last-N cap; GridPager slices it
 
 const freshness = ref<FreshnessRow[]>([])
 const provenance = ref<ProvenanceRow[]>([])
@@ -44,7 +45,7 @@ watch(
       scannerFreshnessApiV1ScannersFreshnessGet({ client, query: { cluster_id: id } }),
       scannerProvenanceApiV1ScannersProvenanceGet({
         client,
-        query: { cluster_id: id, runs: RUNS_SHOWN } as never,
+        query: { cluster_id: id, runs: RUNS_FETCHED } as never,
       }),
     ])
     loading.value = false
@@ -122,37 +123,12 @@ const scanners = computed(() => {
             :provenance="s.provenance"
             :freshness="s.freshness"
           />
-          <!-- the committed-run timeline, on the shared table template -->
-          <div v-if="(s.provenance?.runs ?? []).length" class="tbl-wrap">
-            <table class="tbl tbl-dense tbl-hover">
-              <thead>
-                <tr>
-                  <th>Committed</th>
-                  <th>Run</th>
-                  <th class="fit">Images</th>
-                  <th class="fit">Findings</th>
-                  <th class="fit">Fixable</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="run in s.provenance!.runs" :key="run.scan_run_id">
-                  <td>
-                    <span class="mono-cell sm nowrap" :title="run.started_at ?? ''">{{
-                      lastDataAt(run.started_at)
-                    }}</span>
-                  </td>
-                  <td>
-                    <span class="mono-cell sm" :title="run.scan_run_id"
-                      >{{ run.scan_run_id.slice(0, 8) }}… · #{{ run.scan_order }}</span
-                    >
-                  </td>
-                  <td class="fit mono-cell sm">{{ run.images.toLocaleString('en-US') }}</td>
-                  <td class="fit mono-cell sm">{{ run.findings_total.toLocaleString('en-US') }}</td>
-                  <td class="fit mono-cell sm">{{ run.fixable_total.toLocaleString('en-US') }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          <!-- the committed-run timeline: shared table template + shared pager -->
+          <ScannerRunsTable
+            v-if="(s.provenance?.runs ?? []).length"
+            :runs="s.provenance!.runs!"
+            :cap="RUNS_FETCHED"
+          />
         </div>
       </div>
     </template>
