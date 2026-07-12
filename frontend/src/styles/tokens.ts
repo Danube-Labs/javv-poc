@@ -66,6 +66,10 @@ export const CHART_SCANNER: Record<'trivy' | 'grype', string> = {
   grype: '#5a4f9e',
 }
 
+/** The one-series accent for non-severity, non-scanner activity charts (the audit lens) —
+ * same hex as --coral (pinned by the tokens test). Severity charts stay on CHART_SEV. */
+export const CHART_ACCENT = '#ec7e54'
+
 /** Chart chrome literals — same hexes as the named tokens (pinned by the tokens test).
  * ECharts canvas can't resolve CSS vars, so charts read these instead of raw hexes. */
 export const CHART_UI = {
