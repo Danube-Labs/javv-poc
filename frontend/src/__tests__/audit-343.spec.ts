@@ -54,3 +54,12 @@ describe('the global range ⇄ URL (audit 343 rule 4)', () => {
     expect(stripTT(q)).toEqual({ severity: 'critical' })
   })
 })
+
+describe('the SLA-breached lens (issue 363)', () => {
+  it('the overdue flag emits overdue=true and round-trips the URL like any attr chip', () => {
+    const q = buildFilterQuery(FINDINGS_FIELDS, { attr: ['overdue'] }, { cluster_id: 'c-1' })
+    expect(q.overdue).toBe(true)
+    const off = buildFilterQuery(FINDINGS_FIELDS, { attr: [] }, { cluster_id: 'c-1' })
+    expect(off).not.toHaveProperty('overdue') // opt-in — never an implicit filter
+  })
+})
