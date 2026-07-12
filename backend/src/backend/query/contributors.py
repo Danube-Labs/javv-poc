@@ -23,6 +23,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from backend.models.envelope import canonical_severity
 from backend.sla.policy import SlaPolicy
 
 # the closed human-triage vocabulary (triage/service.py + decisions/lifecycle.py + bulk)
@@ -119,7 +120,9 @@ def _row_samples(
         ttr = (handled_at - first_seen).total_seconds()
         days = policy.days_for(severity=finding["severity"], kev=bool(finding.get("kev")))
         hit = None if days is None else handled_at <= first_seen + timedelta(days=days)
-        yield actor, ttr, hit, finding["severity"]
+        # findings carry the scanner's VERBATIM severity (D16) — canonicalize here so consumers
+        # compare against the D46 vocabulary, never a raw "Critical" (the days_for lesson, #274)
+        yield actor, ttr, hit, canonical_severity(finding["severity"] or "")
 
 
 def compute_ttr_sla(

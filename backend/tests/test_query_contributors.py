@@ -151,7 +151,10 @@ def test_compute_team_totals_counts_critical_and_degrades_like_the_board() -> No
         _row("cy", "fk-gone", t0),  # vanished (retention) — work, no sample at all
     ]
     findings = {
-        "fk-c": _finding("fk-c", t0),
+        # findings store the scanner's VERBATIM severity (D16) — real docs say "Critical",
+        # never the lowercase canonical the tests would otherwise self-consistently seed
+        # (the exact history of the days_for bug, #274)
+        "fk-c": _finding("fk-c", t0, severity="Critical"),
         "fk-n": _finding("fk-n", t0, severity="negligible"),
     }
     out = compute_team_totals(rows, findings, policy=SlaPolicy())
