@@ -91,6 +91,34 @@ describe('GlobalTimePicker (single range control)', () => {
     expect((w.find('.time-abs .time-apply').element as HTMLButtonElement).disabled).toBe(true)
   })
 
+  it('rewound, the chip names T from `t` itself — a URL-borne rewind can never hide its instant', async () => {
+    // operator bug 2026-07-12: a pasted ?t=…Z URL sets no windowLabel, so the chip read
+    // "Last 30 days" while the app was rewound — and the URL's UTC frame beside local
+    // on-screen dates made an honest SLA look like a reset
+    const w = mount(GlobalTimePicker)
+    const store = useTimeTravelStore()
+    store.rewindTo('2026-07-08T23:59:59.999Z') // as ttFromQuery would — no setWindow call
+    await w.vm.$nextTick()
+    const chip = w.find('.time-range')
+    const local = new Date('2026-07-08T23:59:59.999Z').toLocaleString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    expect(chip.text()).toContain(`At ${local}`) // derived from t, not picker state
+    expect(chip.attributes('title')).toContain('2026-07-08T23:59:59.999Z')
+    expect(chip.attributes('title')).toContain('UTC') // the local↔UTC bridge on hover
+  })
+
+  it('at T=now the chip keeps the window label and carries no title', async () => {
+    const w = mount(GlobalTimePicker)
+    const chip = w.find('.time-range')
+    expect(chip.text()).toContain('Last 30 days')
+    expect(chip.attributes('title')).toBeUndefined()
+  })
+
   it('back-to-now clears as_of and restores the default window', async () => {
     const w = mount(GlobalTimePicker)
     const store = useTimeTravelStore()

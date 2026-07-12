@@ -38,7 +38,29 @@ const PRESETS: readonly [string, number][] = [
 
 const DAY_MS = 86_400_000
 
-const buttonLabel = computed(() => timeTravel.windowLabel)
+/* 24-hour display everywhere — never AM/PM */
+const fmtD = (d: Date) =>
+  d.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  })
+
+// Rewound, the chip names the T being viewed — derived from `t` ITSELF (local rendering),
+// never from picker state: a URL-borne `t` (pasted link, hand-edited) sets no windowLabel,
+// and the URL's ISO is UTC while every on-screen date is local — without this the screen
+// shows rows stamped "after" a T the user believes they picked (operator bug, 2026-07-12).
+const buttonLabel = computed(() =>
+  timeTravel.isNow || timeTravel.t === null
+    ? timeTravel.windowLabel
+    : `At ${fmtD(new Date(timeTravel.t))}`,
+)
+// hover answers "which exact instant?" in the URL's own frame — the local↔UTC bridge
+const buttonTitle = computed(() =>
+  timeTravel.t === null ? undefined : `Viewing state at ${timeTravel.t} (UTC)`,
+)
 
 function applyPreset(label: string, days: number) {
   timeTravel.backToNow()
@@ -56,16 +78,6 @@ function applyRelative() {
   timeTravel.setWindow(days, `Last ${relN.value} ${unit}${relN.value === 1 ? '' : 's'}`)
   open.value = false
 }
-
-/* 24-hour display everywhere — never AM/PM */
-const fmtD = (d: Date) =>
-  d.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
 
 const parseSide = (date: string, time: string): Date | null => {
   if (!date || !TIME_RE.test(time)) return null
@@ -109,6 +121,7 @@ function backToNow() {
         class="time-range"
         :class="{ 'time-range-hist': !timeTravel.isNow }"
         aria-label="Time range"
+        :title="buttonTitle"
         @click="toggle"
       >
         <AppIcon :name="timeTravel.isNow ? 'calendar' : 'rewind'" :size="14" />
