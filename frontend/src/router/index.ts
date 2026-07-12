@@ -31,8 +31,8 @@ const router = createRouter({
         {
           path: 'scanner-status',
           name: 'scanner-status',
-          component: () => import('@/views/PlaceholderView.vue'),
-          props: { title: 'Scanner status', bolt: 'M9d' },
+          component: () => import('@/views/ScannerStatusView.vue'),
+          meta: { wide: true },
         },
         {
           path: 'approvals',
