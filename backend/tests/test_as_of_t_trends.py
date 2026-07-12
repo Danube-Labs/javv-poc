@@ -150,11 +150,14 @@ async def test_contributors_board_anchors_at_t(real_os: tuple[AsyncOpenSearch, s
 
     at0 = await READER.contributors(client, cluster_id=CLUSTER, t=t0, days=30, prefix=prefix)
     assert at0["leaderboard"] == []  # nothing had happened by t0
+    assert at0["totals"]["handled"] == 0  # the zero contract holds at a rewound T too
 
     at1 = await READER.contributors(client, cluster_id=CLUSTER, t=t1, days=30, prefix=prefix)
     board = {row["actor"]: row for row in at1["leaderboard"]}
     assert board["alice"]["actions"] == 1 and board["alice"]["handled"] == 1
     assert board["alice"]["median_ttr_seconds"] is not None  # first_seen → handled sample
     assert sum(p["count"] for p in at1["handled_over_time"]) == 1
+    # contract parity with the live route (M9d slice 3): the KPI totals ride the T-read too
+    assert at1["totals"]["handled"] == 1 and at1["totals"]["by_action"] == {"acknowledge": 1}
     with pytest.raises(ValueError, match="days"):
         await READER.contributors(client, cluster_id=CLUSTER, t=t1, days=999, prefix=prefix)

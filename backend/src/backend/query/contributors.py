@@ -19,9 +19,11 @@ The tenant filter is forced by the chokepoint at execution (audit rows carry `cl
 """
 
 import statistics
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from backend.models.envelope import canonical_severity
 from backend.sla.policy import SlaPolicy
 
 # the closed human-triage vocabulary (triage/service.py + decisions/lifecycle.py + bulk)
@@ -77,6 +79,9 @@ def build_actions_body(*, days: int, anchor: datetime | None = None) -> dict[str
                 "terms": {"field": "actor", "size": _BOARD_SIZE},
                 "aggs": {"by_action": {"terms": {"field": "action", "size": 16}}},
             },
+            # team-wide action counts for the KPI strip — a top-level agg, exact by construction;
+            # summing the actor buckets instead would drop any tail beyond the 100-actor board
+            "by_action": {"terms": {"field": "action", "size": 16}},
             "handled_over_time": {
                 "filter": {"terms": {"action": sorted(HANDLING_ACTIONS)}},
                 "aggs": {
@@ -94,6 +99,32 @@ def build_actions_body(*, days: int, anchor: datetime | None = None) -> dict[str
     }
 
 
+def _row_samples(
+    handling_rows: list[dict[str, Any]],
+    findings_by_key: dict[str, dict[str, Any]],
+    *,
+    policy: SlaPolicy,
+) -> Iterator[tuple[str, float | None, bool | None, str | None]]:
+    """One `(actor, ttr_seconds, sla_hit, severity)` per handling row — the single sample walk
+    the per-actor board and the team totals both consume, so the two can never disagree. A row
+    whose finding is gone (retention) yields all-None measures; a no-SLA severity yields a TTR
+    but no SLA verdict."""
+    for row in handling_rows:
+        actor = row["actor"]
+        finding = findings_by_key.get(row.get("finding_key") or "")
+        if finding is None:
+            yield actor, None, None, None
+            continue
+        handled_at = datetime.fromisoformat(row["@timestamp"])
+        first_seen = datetime.fromisoformat(finding["first_seen_at"])
+        ttr = (handled_at - first_seen).total_seconds()
+        days = policy.days_for(severity=finding["severity"], kev=bool(finding.get("kev")))
+        hit = None if days is None else handled_at <= first_seen + timedelta(days=days)
+        # findings carry the scanner's VERBATIM severity (D16) — canonicalize here so consumers
+        # compare against the D46 vocabulary, never a raw "Critical" (the days_for lesson, #274)
+        yield actor, ttr, hit, canonical_severity(finding["severity"] or "")
+
+
 def compute_ttr_sla(
     handling_rows: list[dict[str, Any]],
     findings_by_key: dict[str, dict[str, Any]],
@@ -109,22 +140,58 @@ def compute_ttr_sla(
     per_actor: dict[str, dict[str, Any]] = {}
     samples: dict[str, list[float]] = {}
     sla: dict[str, list[bool]] = {}
-    for row in handling_rows:
-        actor = row["actor"]
+    for actor, ttr, hit, _severity in _row_samples(handling_rows, findings_by_key, policy=policy):
         acc = per_actor.setdefault(actor, {"handled": 0})
         acc["handled"] += 1
-        finding = findings_by_key.get(row.get("finding_key") or "")
-        if finding is None:
-            continue
-        handled_at = datetime.fromisoformat(row["@timestamp"])
-        first_seen = datetime.fromisoformat(finding["first_seen_at"])
-        samples.setdefault(actor, []).append((handled_at - first_seen).total_seconds())
-        days = policy.days_for(severity=finding["severity"], kev=bool(finding.get("kev")))
-        if days is not None:  # no-SLA severities: work done, but never an SLA sample
-            sla.setdefault(actor, []).append(handled_at <= first_seen + timedelta(days=days))
+        if ttr is not None:
+            samples.setdefault(actor, []).append(ttr)
+        if hit is not None:  # no-SLA severities: work done, but never an SLA sample
+            sla.setdefault(actor, []).append(hit)
     for actor, acc in per_actor.items():
-        ttr = samples.get(actor)
+        ttr_list = samples.get(actor)
         hits = sla.get(actor)
-        acc["median_ttr_seconds"] = statistics.median(ttr) if ttr else None
+        acc["median_ttr_seconds"] = statistics.median(ttr_list) if ttr_list else None
         acc["sla_hit_pct"] = (100.0 * sum(hits) / len(hits)) if hits else None
     return per_actor
+
+
+def compute_team_totals(
+    handling_rows: list[dict[str, Any]],
+    findings_by_key: dict[str, dict[str, Any]],
+    *,
+    policy: SlaPolicy,
+) -> dict[str, Any]:
+    """Team-wide `{handled, median_ttr_seconds, sla_hit_pct, critical_cleared}` — pure (M9d
+    slice 3, the KPI strip). The median pools EVERY sample: a median of per-actor medians is a
+    different (wrong) number, which is why the strip is computed here and never client-side."""
+    ttrs: list[float] = []
+    hits: list[bool] = []
+    handled = 0
+    critical = 0
+    for _actor, ttr, hit, severity in _row_samples(handling_rows, findings_by_key, policy=policy):
+        handled += 1
+        if ttr is not None:
+            ttrs.append(ttr)
+        if hit is not None:
+            hits.append(hit)
+        if severity == "critical":
+            critical += 1
+    return {
+        "handled": handled,
+        "median_ttr_seconds": statistics.median(ttrs) if ttrs else None,
+        "sla_hit_pct": (100.0 * sum(hits) / len(hits)) if hits else None,
+        "critical_cleared": critical,
+    }
+
+
+def empty_totals() -> dict[str, Any]:
+    """The stable zero `totals` contract (fresh dict — never a shared constant a caller could
+    mutate): what a cluster with no triage history answers."""
+    return {
+        "actions": 0,
+        "by_action": {},
+        "handled": 0,
+        "median_ttr_seconds": None,
+        "sla_hit_pct": None,
+        "critical_cleared": 0,
+    }

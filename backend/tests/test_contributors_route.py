@@ -236,6 +236,51 @@ async def test_handling_rows_fully_paged_not_truncated(env, monkeypatch) -> None
     assert row["sla_hit_pct"] == 100.0  # every crit handled within the 2d SLA
 
 
+async def test_totals_block_pools_the_team(env) -> None:
+    """M9d slice 3: the KPI strip's `totals` — team-wide by_action (exact, never board-capped),
+    pooled median TTR / SLA-hit (median-of-medians is a different, wrong number — the reason the
+    strip is server-side), critical_cleared. Machines stay excluded; an empty cluster answers
+    the stable zero contract."""
+    login, client = env
+    cid = f"c-contrib-{uuid.uuid4().hex[:8]}"
+    ana, bo = f"ana-{uuid.uuid4().hex[:6]}", f"bo-{uuid.uuid4().hex[:6]}"
+    now = datetime.now(UTC)
+
+    # ana: crit handled in 1d (hit) + crit handled in 3d (miss); bo: crit handled in 1d (hit)
+    await _seed_finding(client, cid, "fk-t1", first_seen=now - timedelta(days=1))
+    await _journal(client, cid, ana, "fk-t1", "resolve")
+    await _seed_finding(client, cid, "fk-t2", first_seen=now - timedelta(days=3))
+    await _journal(client, cid, ana, "fk-t2", "acknowledge")
+    await _seed_finding(client, cid, "fk-t3", first_seen=now - timedelta(days=1))
+    await _journal(client, cid, bo, "fk-t3", "resolve")
+    await _journal_decision(client, cid, ana, "decision_create")  # actions, never handling
+    await _journal(client, cid, "system", "fk-t1", "resolve")  # machines never count
+    await client.indices.refresh(index="system-audit-log-*")
+
+    http = await login()
+    r = await http.get("/api/v1/contributors", params={"cluster_id": cid, "days": 30})
+    assert r.status_code == 200
+    totals = r.json()["totals"]
+    assert totals["actions"] == 4  # 3 handling + 1 decision; system's resolve excluded
+    assert totals["by_action"] == {"resolve": 2, "acknowledge": 1, "decision_create": 1}
+    assert totals["handled"] == 3
+    assert totals["median_ttr_seconds"] == pytest.approx(1 * 86400, rel=0.02)  # pooled [1,3,1]d
+    assert totals["sla_hit_pct"] == pytest.approx(200 / 3)  # 2 hits of 3
+    assert totals["critical_cleared"] == 3
+
+    other = f"c-contrib-{uuid.uuid4().hex[:8]}"
+    r = await http.get("/api/v1/contributors", params={"cluster_id": other, "days": 30})
+    assert r.status_code == 200
+    assert r.json()["totals"] == {
+        "actions": 0,
+        "by_action": {},
+        "handled": 0,
+        "median_ttr_seconds": None,
+        "sla_hit_pct": None,
+        "critical_cleared": 0,
+    }
+
+
 async def test_vanished_finding_degrades_gracefully(env) -> None:
     login, client = env
     cid = f"c-contrib-{uuid.uuid4().hex[:8]}"

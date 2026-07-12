@@ -17,7 +17,9 @@ from backend.core.settings import get_settings
 from backend.query.contributors import (
     HANDLING_ACTIONS,
     build_actions_body,
+    compute_team_totals,
     compute_ttr_sla,
+    empty_totals,
 )
 from backend.routers.findings import AsOf, Authenticated, _reader_or_501, _reconstructed
 from backend.sla.policy import read_sla_policy
@@ -137,13 +139,20 @@ async def contributors(
     )
     aggs = resp.get("aggregations")
     if not aggs:  # a cluster with no audit history yet
-        return {"days": days, "leaderboard": [], "handled_over_time": []}
+        return {"days": days, "leaderboard": [], "handled_over_time": [], "totals": empty_totals()}
 
     rows = await _handling_rows(client, cluster_id, days)
     findings = await _findings_for(
         client, cluster_id, sorted({r["finding_key"] for r in rows if r.get("finding_key")})
     )
-    verdicts = compute_ttr_sla(rows, findings, policy=await read_sla_policy(client))
+    policy = await read_sla_policy(client)
+    verdicts = compute_ttr_sla(rows, findings, policy=policy)
+    by_action = {a["key"]: a["doc_count"] for a in aggs["by_action"]["buckets"]}
+    totals = {
+        "actions": sum(by_action.values()),
+        "by_action": by_action,
+        **compute_team_totals(rows, findings, policy=policy),
+    }
 
     leaderboard = []
     for bucket in aggs["by_actor"]["buckets"]:
@@ -163,4 +172,9 @@ async def contributors(
         {"date": b["key_as_string"], "count": b["doc_count"]}
         for b in aggs["handled_over_time"]["timeline"]["buckets"]
     ]
-    return {"days": days, "leaderboard": leaderboard, "handled_over_time": timeline}
+    return {
+        "days": days,
+        "leaderboard": leaderboard,
+        "handled_over_time": timeline,
+        "totals": totals,
+    }
