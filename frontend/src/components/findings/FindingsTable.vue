@@ -31,6 +31,8 @@ import ScannerTag from '@/components/chips/ScannerTag.vue'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS, type FindingsColumnKey } from '@/findings/columns'
 import type { FindingRow } from '@/stores/findings'
+import { useTimeTravelStore } from '@/stores/timeTravel'
+import { refNowMs } from '@/system/clock'
 import { lastDataAt } from '@/system/freshness'
 
 const props = withDefaults(
@@ -62,6 +64,10 @@ const props = withDefaults(
 const orderedKeys = computed(
   () => props.colOrder.filter((k) => !props.hidden.has(k)) as FindingsColumnKey[],
 )
+
+const timeTravel = useTimeTravelStore()
+/** the D28 display clock: SLA countdowns measure from T when rewound, never from today */
+const slaNowMs = computed(() => refNowMs(timeTravel.t))
 
 const COL_HEADER: Record<FindingsColumnKey, string> = {
   first_seen: 'First seen',
@@ -203,7 +209,7 @@ const nsLabel = (r: FindingRow): string => {
             <ScannerTag :name="data.scanner" />
             <DisagreementBadge v-if="data.disagree" />
           </span>
-          <SlaCell v-else-if="key === 'sla'" :due-at="data.due_at" :overdue="data.overdue === true" />
+          <SlaCell v-else-if="key === 'sla'" :due-at="data.due_at" :overdue="data.overdue === true" :now-ms="slaNowMs" />
           <StateTag v-else-if="key === 'state'" :state="data.state" />
           <span v-else-if="key === 'assignee'" class="sm">{{ data.assignee ?? '-' }}</span>
         </template>
