@@ -15,7 +15,9 @@ from backend.query.contributors import (
     HANDLING_ACTIONS,
     TRIAGE_ACTIONS,
     build_actions_body,
+    compute_team_totals,
     compute_ttr_sla,
+    empty_totals,
 )
 from backend.sla.policy import SlaPolicy
 
@@ -110,3 +112,62 @@ def test_compute_ttr_sla_tolerates_a_vanished_finding() -> None:
     assert out["cy"]["handled"] == 1
     assert out["cy"]["median_ttr_seconds"] is None  # no clock to measure against
     assert out["cy"]["sla_hit_pct"] is None
+
+
+def test_actions_body_has_a_team_wide_by_action_agg() -> None:
+    """M9d slice 3: the team KPI strip needs exact team action counts — a TOP-LEVEL terms agg,
+    never a client-side sum over the actor buckets (the board is capped at 100 actors; a tail
+    actor's actions would silently vanish from the team numbers)."""
+    body = build_actions_body(days=30)
+    assert body["aggs"]["by_action"] == {"terms": {"field": "action", "size": 16}}
+
+
+def test_compute_team_totals_pools_samples_never_median_of_medians() -> None:
+    """Team median TTR pools EVERY sample — median-of-per-actor-medians is a different (wrong)
+    number, which is exactly why the strip is computed server-side."""
+    t0 = datetime(2026, 7, 1, tzinfo=UTC)
+    rows = [
+        _row("ana", "fk-1", t0 + timedelta(days=1)),  # 1d — inside the 2d crit SLA
+        _row("bo", "fk-2", t0 + timedelta(days=3)),  # 3d — missed
+        _row("bo", "fk-3", t0 + timedelta(days=5)),  # 5d — missed
+    ]
+    findings = {
+        f["finding_key"]: f
+        for f in [_finding("fk-1", t0), _finding("fk-2", t0), _finding("fk-3", t0)]
+    }
+    out = compute_team_totals(rows, findings, policy=SlaPolicy())
+    assert out["handled"] == 3
+    # pooled [1d, 3d, 5d] → 3d; median-of-medians would be (1d + 4d) / 2 = 2.5d
+    assert out["median_ttr_seconds"] == 3 * 86400
+    assert out["sla_hit_pct"] == pytest.approx(100 / 3)
+    assert out["critical_cleared"] == 3
+
+
+def test_compute_team_totals_counts_critical_and_degrades_like_the_board() -> None:
+    t0 = datetime(2026, 7, 1, tzinfo=UTC)
+    rows = [
+        _row("ana", "fk-c", t0 + timedelta(days=1)),  # crit — hit, cleared
+        _row("bo", "fk-n", t0 + timedelta(days=4)),  # negligible — work, no SLA sample
+        _row("cy", "fk-gone", t0),  # vanished (retention) — work, no sample at all
+    ]
+    findings = {
+        "fk-c": _finding("fk-c", t0),
+        "fk-n": _finding("fk-n", t0, severity="negligible"),
+    }
+    out = compute_team_totals(rows, findings, policy=SlaPolicy())
+    assert out["handled"] == 3
+    assert out["critical_cleared"] == 1  # only the crit finding
+    assert out["median_ttr_seconds"] == 2.5 * 86400  # pooled [1d, 4d]
+    assert out["sla_hit_pct"] == 100.0  # denominator = the one SLA-bearing sample
+
+
+def test_empty_totals_is_the_stable_zero_contract() -> None:
+    assert empty_totals() == {
+        "actions": 0,
+        "by_action": {},
+        "handled": 0,
+        "median_ttr_seconds": None,
+        "sla_hit_pct": None,
+        "critical_cleared": 0,
+    }
+    assert empty_totals() is not empty_totals()  # fresh dict — callers can't alias-mutate

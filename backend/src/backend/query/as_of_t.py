@@ -556,7 +556,12 @@ class AsOfTQuery:
         days: int,
         prefix: str = "",
     ) -> dict[str, Any]:
-        from backend.query.contributors import build_actions_body, compute_ttr_sla
+        from backend.query.contributors import (
+            build_actions_body,
+            compute_team_totals,
+            compute_ttr_sla,
+            empty_totals,
+        )
         from backend.routers.contributors import _findings_for, _handling_rows
         from backend.sla.policy import read_sla_policy as _policy
         from backend.tenancy.chokepoint import tenant_search
@@ -567,7 +572,12 @@ class AsOfTQuery:
         )
         aggs = resp.get("aggregations")
         if not aggs:
-            return {"days": days, "leaderboard": [], "handled_over_time": []}
+            return {
+                "days": days,
+                "leaderboard": [],
+                "handled_over_time": [],
+                "totals": empty_totals(),
+            }
 
         rows = await _handling_rows(client, cluster_id, days, anchor=t, prefix=prefix)
         findings = await _findings_for(
@@ -576,7 +586,14 @@ class AsOfTQuery:
             sorted({r["finding_key"] for r in rows if r.get("finding_key")}),
             prefix=prefix,
         )
-        verdicts = compute_ttr_sla(rows, findings, policy=await _policy(client, prefix=prefix))
+        policy = await _policy(client, prefix=prefix)
+        verdicts = compute_ttr_sla(rows, findings, policy=policy)
+        by_action = {a["key"]: a["doc_count"] for a in aggs["by_action"]["buckets"]}
+        totals = {
+            "actions": sum(by_action.values()),
+            "by_action": by_action,
+            **compute_team_totals(rows, findings, policy=policy),
+        }
         leaderboard = []
         for bucket in aggs["by_actor"]["buckets"]:
             actor = bucket["key"]
@@ -595,4 +612,9 @@ class AsOfTQuery:
             {"date": b["key_as_string"], "count": b["doc_count"]}
             for b in aggs["handled_over_time"]["timeline"]["buckets"]
         ]
-        return {"days": days, "leaderboard": leaderboard, "handled_over_time": timeline}
+        return {
+            "days": days,
+            "leaderboard": leaderboard,
+            "handled_over_time": timeline,
+            "totals": totals,
+        }
