@@ -44,8 +44,8 @@ const router = createRouter({
         {
           path: 'contributors',
           name: 'contributors',
-          component: () => import('@/views/PlaceholderView.vue'),
-          props: { title: 'Contributors', bolt: 'M9d' },
+          component: () => import('@/views/ContributorsView.vue'),
+          meta: { wide: true },
         },
         {
           path: 'overview',

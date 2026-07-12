@@ -21,6 +21,7 @@ const hourLabel = (iso: string): string =>
 export function buildAuditLensOption(
   rows: ActivityPoint[],
   interval: IngestInterval = 'day',
+  seriesName = 'events',
 ): EChartsOption {
   const label = interval === 'hour' ? hourLabel : dayLabel
   return {
@@ -53,7 +54,7 @@ export function buildAuditLensOption(
     },
     series: [
       {
-        name: 'events',
+        name: seriesName,
         type: 'bar',
         cursor: 'default',
         data: rows.map((p) => p.count),
