@@ -45,7 +45,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     <table class="tbl tbl-dense tbl-hover">
       <thead>
         <tr>
-          <th>Committed{{ atCap ? ` · last ${cap}` : '' }}</th>
+          <th class="fit">Committed{{ atCap ? ` · last ${cap}` : '' }}</th>
           <th>Run</th>
           <th class="fit">Images</th>
           <th class="fit">Findings</th>
@@ -54,13 +54,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       </thead>
       <tbody>
         <tr v-for="run in shown" :key="run.scan_run_id">
-          <td>
+          <td class="fit">
             <span class="mono-cell sm nowrap" :title="run.started_at ?? ''">{{
               lastDataAt(run.started_at)
             }}</span>
           </td>
           <td>
-            <span class="mono-cell sm" :title="run.scan_run_id">{{ run.scan_run_id.slice(0, 8) }}…</span>
+            <span class="mono-cell sm run-id" :title="run.scan_run_id">{{ run.scan_run_id }}</span>
           </td>
           <td class="fit mono-cell sm">{{ fmt(run.images) }}</td>
           <td class="fit mono-cell sm">{{ fmt(run.findings_total) }}</td>
@@ -85,6 +85,15 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 </template>
 
 <style scoped>
+/* the full run id, ellipsized by the column instead of hand-truncated — Run owns the slack */
+.run-id {
+  display: block;
+  max-width: 0;
+  min-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 /* the pager sits inside the table card here (card-width surface, not a full-page grid) */
 .runs-pager {
   padding: 0 12px 10px;
