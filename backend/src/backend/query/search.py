@@ -72,7 +72,7 @@ class SearchFilters:
 _SLA_SEVERITIES = ("critical", "high", "medium", "low")  # the FR-10 buckets that carry an SLA
 
 
-def _overdue_clause(cutoffs: dict[str, str]) -> dict[str, Any]:
+def overdue_clause(cutoffs: dict[str, str]) -> dict[str, Any]:
     """The DSL mirror of compute_overdue over the materialized `sla_clock_at` (issue 363):
     KEV rows judge against the kev cutoff regardless of severity (the FR-10 fast-lane —
     severity branches exclude them); negligible/unknown carry no SLA, so no branch matches;
@@ -157,7 +157,7 @@ def build_search_body(
     if filters.overdue is not None:
         if sla_cutoffs is None:
             raise ValueError("overdue filter requires sla_cutoffs (from the live SLA policy)")
-        clause = _overdue_clause(sla_cutoffs)
+        clause = overdue_clause(sla_cutoffs)
         if filters.overdue:
             fl.append(clause)
         else:

@@ -67,6 +67,17 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
       { key: 'kev', param: 'kev', label: 'KEV' },
       { key: 'fixable', param: 'fixable', label: 'Fix available' },
       { key: 'disagree', param: 'disagree', label: 'Scanners disagree' },
+      // issue 363: ranges on the materialized D21 group clock against the LIVE SLA policy —
+      // exactly the rows whose SLA cell reads overdue (chip ≡ filter, pinned server-side)
+      {
+        key: 'overdue',
+        param: 'overdue',
+        label: 'SLA breached',
+        hint:
+          'Findings past their SLA deadline under the current policy — the same rows whose ' +
+          'SLA column shows overdue. Handled findings (risk-accepted, not-affected, resolved) ' +
+          'are never counted.',
+      },
       // first_seen_at within the global range — the event view of the state table
       {
         key: 'new',

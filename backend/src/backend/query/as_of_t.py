@@ -42,7 +42,17 @@ from backend.sla.policy import read_sla_policy
 _PAGE = 1_000
 # whitelists at past T — the reconstructable subset of the current-state vocabularies
 _SORT_FIELDS = ("severity_rank", "first_seen_at", "last_scan_at", "cvss")  # epss: not recorded
-_FACET_FIELDS = ("severity", "state", "scanner", "fixable", "kev", "disagree", "present", "ptype")
+_FACET_FIELDS = (
+    "severity",
+    "state",
+    "scanner",
+    "fixable",
+    "kev",
+    "disagree",
+    "present",
+    "ptype",
+    "overdue",  # issue 363: counts the reconstruction's own at-T verdict (rows carry the bool)
+)
 _EMPTY_FACETS = ("kev", "disagree")  # whitelisted, but history has no values → empty buckets
 _GROUP_FIELDS = ("image_digest", "namespaces", "cve_id", "assignee", "ptype")  # no image_repo/app
 

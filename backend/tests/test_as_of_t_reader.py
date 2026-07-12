@@ -287,6 +287,24 @@ async def test_facets_and_groups_reconstruct_with_scanner_split(
     for b in facets["facets"]["state"]:
         assert b["by_scanner"] == {"trivy": b["count"]}  # per-scanner is sacred
     assert facets["facets"]["kev"] == []  # whitelisted but unrecorded at T — honest empty
+    # issue 363: the overdue facet at T counts the reconstruction's OWN at-T verdict — pin it
+    # against the page surface's row verdicts (facet ≡ rows), never a constant: the golden
+    # corpus is dated, so the breached share grows with the wall clock
+    overdue = {b["key"]: b["count"] for b in facets["facets"]["overdue"]}
+    page = await READER.findings_page(
+        client,
+        cluster_id=CLUSTER,
+        t=seeded["t1"],
+        filters=SearchFilters(present=True),
+        sort="severity_rank",
+        order="desc",
+        size=500,
+        cursor=None,
+        prefix=prefix,
+    )
+    rows_true = sum(1 for r in page["data"] if r["overdue"])
+    assert sum(overdue.values()) == 29
+    assert overdue.get("true", 0) == rows_true and rows_true > 0  # dated corpus: some breached
 
     groups = await READER.findings_groups(
         client,
