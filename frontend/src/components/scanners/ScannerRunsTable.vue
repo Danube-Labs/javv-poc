@@ -60,9 +60,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             }}</span>
           </td>
           <td>
-            <span class="mono-cell sm" :title="run.scan_run_id"
-              >{{ run.scan_run_id.slice(0, 8) }}… · #{{ run.scan_order }}</span
-            >
+            <span class="mono-cell sm" :title="run.scan_run_id">{{ run.scan_run_id.slice(0, 8) }}…</span>
           </td>
           <td class="fit mono-cell sm">{{ fmt(run.images) }}</td>
           <td class="fit mono-cell sm">{{ fmt(run.findings_total) }}</td>
