@@ -101,10 +101,92 @@ def test_cursor_round_trips_and_rejects_garbage() -> None:
     cur = encode_cursor(
         pit_id="pit-abc", search_after=[5, "fk-1"], sort="severity_rank", order="desc"
     )
-    pit_id, search_after, sort, order = decode_cursor(cur)
+    pit_id, search_after, sort, order, sla_cutoffs = decode_cursor(cur)
     assert (pit_id, search_after, sort, order) == ("pit-abc", [5, "fk-1"], "severity_rank", "desc")
+    assert sla_cutoffs is None  # absent unless the walk carries an overdue lens
     with pytest.raises(ValueError):
         decode_cursor("not-base64-json!!")
+
+
+_CUTOFFS = {
+    "kev": "2026-07-11T00:00:00+00:00",
+    "critical": "2026-07-10T00:00:00+00:00",
+    "high": "2026-07-05T00:00:00+00:00",
+    "medium": "2026-06-12T00:00:00+00:00",
+    "low": "2026-04-13T00:00:00+00:00",
+}
+
+
+def test_cursor_freezes_overdue_cutoffs_for_the_whole_walk() -> None:
+    """Issue 363: the PIT freezes the docs, so the query must freeze too — cutoffs ride the
+    cursor and round-trip exactly; a wall-clock cutoff drifting between pages could flip a
+    row's match mid-walk. Tampered cutoff shapes are a 422 at decode, never a 500."""
+    cur = encode_cursor(
+        pit_id="p", search_after=[1], sort="severity_rank", order="desc", sla_cutoffs=_CUTOFFS
+    )
+    *_, sla_cutoffs = decode_cursor(cur)
+    assert sla_cutoffs == _CUTOFFS
+    for bad in (
+        {"kev": "x"},  # missing severity keys
+        {**_CUTOFFS, "critical": 5},  # non-string cutoff
+        {**_CUTOFFS, "extra": "x"},  # unknown key
+    ):
+        tampered = base64.urlsafe_b64encode(
+            json.dumps({"p": "p", "a": [1], "s": "severity_rank", "o": "desc", "sc": bad}).encode()
+        ).decode()
+        with pytest.raises(ValueError):
+            decode_cursor(tampered)
+
+
+def test_overdue_filter_mirrors_compute_overdue_and_requires_cutoffs() -> None:
+    """Issue 363: the DSL clause is the exact mirror of the read-time verdict — KEV fast-lane
+    wins (severity branches exclude kev rows), negligible/unknown carry no SLA branch, handled
+    states are excluded via the SHARED constant (chip ≡ filter), strict `lt` (due == now is
+    due, not past-due). Without cutoffs the builder refuses — no consumer can silently drop
+    the lens."""
+    from backend.sla.overdue import HANDLED_STATES
+
+    body = build_search_body(SearchFilters(overdue=True), size=10, sla_cutoffs=_CUTOFFS)
+    clause = next(c for c in body["query"]["bool"]["filter"] if "bool" in c)["bool"]
+    assert clause["minimum_should_match"] == 1
+    assert clause["must_not"] == [{"terms": {"state": sorted(HANDLED_STATES)}}]
+    kev_branch, *sev_branches = clause["should"]
+    assert kev_branch["bool"]["filter"] == [
+        {"term": {"kev": True}},
+        {"range": {"sla_clock_at": {"lt": _CUTOFFS["kev"]}}},
+    ]
+    assert [b["bool"]["filter"][0] for b in sev_branches] == [
+        {"term": {"severity_canonical": s}} for s in ("critical", "high", "medium", "low")
+    ]  # negligible/unknown have NO branch — they carry no SLA (FR-10 ruling)
+    for branch, sev in zip(sev_branches, ("critical", "high", "medium", "low"), strict=True):
+        assert branch["bool"]["filter"][1] == {"range": {"sla_clock_at": {"lt": _CUTOFFS[sev]}}}
+        assert branch["bool"]["must_not"] == [{"term": {"kev": True}}]  # the fast-lane owns kev
+
+    # overdue=False is the clause negated — NOT-overdue includes handled and no-SLA rows
+    body_f = build_search_body(SearchFilters(overdue=False), size=10, sla_cutoffs=_CUTOFFS)
+    assert body_f["query"]["bool"]["must_not"] == [
+        next(c for c in body["query"]["bool"]["filter"] if "bool" in c)
+    ]
+
+    with pytest.raises(ValueError):  # the lens without cutoffs is unbuildable, never ignored
+        build_search_body(SearchFilters(overdue=True), size=10)
+
+
+def test_overdue_cutoffs_derive_from_the_live_policy() -> None:
+    """A policy edit moves every cutoff instantly (the whole point of storing the clock,
+    never the verdict) — and strict-`lt` semantics match compute_overdue's `now > due`."""
+    from datetime import UTC, datetime, timedelta
+
+    from backend.sla.overdue import overdue_cutoffs
+    from backend.sla.policy import SlaPolicy
+
+    now = datetime(2026, 7, 12, 12, 0, tzinfo=UTC)
+    cut = overdue_cutoffs(SlaPolicy(), now=now)
+    assert cut["kev"] == (now - timedelta(days=1)).isoformat()
+    assert cut["critical"] == (now - timedelta(days=2)).isoformat()
+    assert cut["low"] == (now - timedelta(days=90)).isoformat()
+    edited = overdue_cutoffs(SlaPolicy(critical_days=10), now=now)
+    assert edited["critical"] == (now - timedelta(days=10)).isoformat()
 
 
 def test_decode_cursor_rejects_decodable_but_tampered_fields() -> None:

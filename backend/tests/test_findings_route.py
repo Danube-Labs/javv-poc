@@ -580,3 +580,120 @@ async def test_images_affected_decoration_counts_distinct_digests_per_cve(env) -
     assert r.status_code == 200
     counts = {d["cve_id"]: d["images_affected"] for d in r.json()["data"]}
     assert counts == {"CVE-A": 3, "CVE-B": 1}
+
+
+async def test_overdue_filter_agrees_with_the_chip_on_a_coverage_lag_group(env) -> None:
+    """Issue 363, the keystone: ?overdue=true returns EXACTLY the rows whose chip says overdue —
+    including the coverage-lag row (fresh own sighting, old materialized group clock) that a
+    per-doc first_seen_at filter would have missed. The negation is the exact complement."""
+    login, client = env
+    cid = f"c-srch-{uuid.uuid4().hex[:8]}"
+    old = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+    fresh = datetime.now(UTC).isoformat()
+    digest = "sha256:clockfilter01"
+    await _seed(
+        client,
+        cid,
+        [
+            # grype saw it 30d ago; trivy's row is FRESH but wears the materialized group clock
+            {
+                "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+                "cve_id": "CVE-2024-8801",
+                "image_digest": digest,
+                "scanner": "grype",
+                "first_seen_at": old,
+                "sla_clock_at": old,
+                "severity": "CRITICAL",
+                "severity_rank": 5,
+            },
+            {
+                "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+                "cve_id": "CVE-2024-8801",
+                "image_digest": digest,
+                "scanner": "trivy",
+                "first_seen_at": fresh,
+                "sla_clock_at": old,  # the coverage-lag row — the whole point of the field
+                "severity": "CRITICAL",
+                "severity_rank": 5,
+            },
+            # handled: never overdue, however old (shared HANDLED_STATES — chip ≡ filter)
+            {
+                "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+                "cve_id": "CVE-2024-8802",
+                "image_digest": digest,
+                "scanner": "trivy",
+                "first_seen_at": old,
+                "sla_clock_at": old,
+                "state": "risk_accepted",
+                "severity": "CRITICAL",
+                "severity_rank": 5,
+            },
+            # fresh clock, inside its window — not breached
+            {
+                "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+                "cve_id": "CVE-2024-8803",
+                "image_digest": digest,
+                "scanner": "trivy",
+                "first_seen_at": fresh,
+                "sla_clock_at": fresh,
+                "severity": "CRITICAL",
+                "severity_rank": 5,
+            },
+        ],
+    )
+    http = await login()
+
+    unfiltered = await http.get("/api/v1/findings", params={"cluster_id": cid})
+    assert unfiltered.status_code == 200
+    chip_overdue = {d["finding_key"] for d in unfiltered.json()["data"] if d["overdue"]}
+
+    breached = await http.get("/api/v1/findings", params={"cluster_id": cid, "overdue": "true"})
+    assert breached.status_code == 200
+    assert {d["finding_key"] for d in breached.json()["data"]} == chip_overdue
+    assert {d["cve_id"] for d in breached.json()["data"]} == {
+        "CVE-2024-8801"
+    }  # BOTH scanners' rows
+
+    ok = await http.get("/api/v1/findings", params={"cluster_id": cid, "overdue": "false"})
+    assert ok.status_code == 200
+    ok_keys = {d["finding_key"] for d in ok.json()["data"]}
+    all_keys = {d["finding_key"] for d in unfiltered.json()["data"]}
+    assert ok_keys == all_keys - chip_overdue  # exact complement
+
+    # facets carry the lens like any other filter (the rail count describes the filtered grid)
+    fac = await http.get(
+        "/api/v1/findings/facets",
+        params={"cluster_id": cid, "overdue": "true", "fields": "severity"},
+    )
+    assert fac.status_code == 200
+    assert {b["key"]: b["count"] for b in fac.json()["facets"]["severity"]} == {"critical": 2}
+
+
+async def test_unbackfilled_rows_keep_their_chip_but_escape_the_filter_loudly(env) -> None:
+    """The pre-backfill degradation contract: a row missing sla_clock_at still gets a correct
+    CHIP (agg fallback — never a silent under-report) but cannot match the FILTER (no field to
+    range on). rebuild-state closes the gap; the decorator logs + bumps a metric meanwhile."""
+    login, client = env
+    cid = f"c-srch-{uuid.uuid4().hex[:8]}"
+    old = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+    await _seed(
+        client,
+        cid,
+        [
+            {
+                "finding_key": f"fk-{uuid.uuid4().hex[:10]}",
+                "cve_id": "CVE-2024-8810",
+                "image_digest": "sha256:nobackfill01",
+                "first_seen_at": old,  # NO sla_clock_at — a pre-363 store
+                "severity": "CRITICAL",
+                "severity_rank": 5,
+            },
+        ],
+    )
+    http = await login()
+
+    page = await http.get("/api/v1/findings", params={"cluster_id": cid})
+    assert page.json()["data"][0]["overdue"] is True  # the chip is right (fallback agg)
+
+    breached = await http.get("/api/v1/findings", params={"cluster_id": cid, "overdue": "true"})
+    assert breached.json()["data"] == []  # honest gap until rebuild-state backfills

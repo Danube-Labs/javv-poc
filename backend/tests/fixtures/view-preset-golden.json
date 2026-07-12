@@ -14,7 +14,8 @@
     "severity": null,
     "state": null,
     "q": null,
-    "new_within_days": null
+    "new_within_days": null,
+    "overdue": null
   },
   "populated": {
     "assignee": null,
@@ -36,6 +37,7 @@
       "open"
     ],
     "q": null,
-    "new_within_days": null
+    "new_within_days": null,
+    "overdue": null
   }
 }

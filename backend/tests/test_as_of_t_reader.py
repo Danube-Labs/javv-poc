@@ -415,6 +415,7 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "q": "krb5",
         "present": False,
         "new_within_days": 30,
+        "overdue": True,  # issue 363 — filters the reconstruction's own at-T verdict
     }
     missing = set(probe_values) ^ {f.name for f in dc_fields(SearchFilters)}
     assert not missing, f"probe map drifted from SearchFilters: {missing}"
@@ -431,6 +432,7 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "image_digest": "sha256:y",
         "ptype": None,
         "namespaces": ["default"],
+        "overdue": False,  # the row's at-T verdict (stamped by _decorate_overdue at now=t)
     }
     for name, value in probe_values.items():
         f = SearchFilters(**{name: value})
