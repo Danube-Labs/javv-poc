@@ -152,14 +152,14 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     <template v-else>
       <!-- fleet strip: same joined grammar as Overview, read-only (a fleet severity has no
            single destination — findings are per-cluster; rows below are the drill-down) -->
-      <div class="kpi-band fleet-band">
-        <div class="kpi-cell kpi-static">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-clusters" />clusters</span>
-          <span class="kpi-num">{{ fmt(fleet.rows.length) }}</span>
+      <div class="stat-band fleet-band">
+        <div class="stat-cell">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--slate)" />clusters</span>
+          <span class="stat-num">{{ fmt(fleet.rows.length) }}</span>
         </div>
-        <div v-for="s in KPI_SEVERITIES" :key="s" class="kpi-cell kpi-static">
-          <span class="kpi-label"><i class="kpi-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}</span>
-          <span class="kpi-num">{{ fmt(fleetSev(s)) }}</span>
+        <div v-for="s in KPI_SEVERITIES" :key="s" class="stat-cell">
+          <span class="stat-label"><i class="stat-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}</span>
+          <span class="stat-num">{{ fmt(fleetSev(s)) }}</span>
         </div>
       </div>
 
@@ -268,58 +268,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 
 /* joined stat band (Nuxt stat grammar) — fleet cells are read-only: no wash, no chevron
    (never dress a cell whose destination doesn't exist) */
-.kpi-band {
-  display: grid;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
+/* the joined stat-band SKIN lives in base.css (issue 368) — only this screen's layout here */
 .fleet-band {
   grid-template-columns: repeat(6, 1fr);
-}
-.kpi-cell {
-  cursor: default;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 14px 16px 12px;
-  border: none;
-  background: var(--card);
-  text-align: left;
-}
-.kpi-cell + .kpi-cell {
-  border-left: 1px solid var(--line2);
-}
-.kpi-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  font-weight: 700;
-}
-.kpi-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-.kpi-dot-clusters {
-  background: var(--slate);
-}
-.kpi-num {
-  font-size: var(--text-kpi);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  margin-top: 6px;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
 }
 
 /* flush table card (prototype fleet-card): the table IS the card — no head, no inner panel */
@@ -379,7 +330,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   vertical-align: middle;
 }
 /* anchored numeric columns (operator A/B ruling, sharpened live twice): shrink-to-content +
-   nowrap, HAIRLINE COLUMN DIVIDERS (the kpi-band grammar carried into the table), and the
+   nowrap, HAIRLINE COLUMN DIVIDERS (the stat-band grammar carried into the table), and the
    value CENTERED + weighted in its bounded cell — right-hugging regular-weight digits at the
    top of a tall row read as floating */
 .tbl th + th,
@@ -450,14 +401,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   text-decoration: underline;
   text-underline-offset: 3px;
 }
-.cell-go {
-  color: var(--dash-muted);
-  margin-left: 4px;
-  transition: color var(--dur-quick);
-}
-.tbl-hover tbody tr:hover .cell-go {
-  color: var(--coral-text);
-}
 
 .mix-cell {
   min-width: 180px;
@@ -516,8 +459,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 
 @media (prefers-reduced-motion: reduce) {
   .tbl-hover tbody tr,
-  .cl-link,
-  .cell-go {
+  .cl-link {
     transition: none;
   }
 }

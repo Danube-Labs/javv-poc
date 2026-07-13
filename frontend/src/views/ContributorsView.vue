@@ -11,11 +11,13 @@
  * trends chart (not attributable to contributors, A-m9), CSV export (issue 359).
  */
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { contributorsApiV1ContributorsGet } from '@/api/generated'
 import type { ContributorsApiV1ContributorsGetData } from '@/api/generated'
 import type { ActivityPoint } from '@/charts/buildAuditLensOption'
 import ActivityFeed from '@/components/contributors/ActivityFeed.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
 import ContributorsLens from '@/components/contributors/ContributorsLens.vue'
 import LeaderboardTable from '@/components/contributors/LeaderboardTable.vue'
 import PodiumCard from '@/components/contributors/PodiumCard.vue'
@@ -36,6 +38,12 @@ const BOARD_CAP = 100 // the endpoint's terms-agg board size — the table label
 
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
+const router = useRouter()
+
+/** count cells → the audit rows they derive from (same provenance rule as the podium) */
+function goAudit(action: string) {
+  void router.push({ name: 'audit', query: { action } })
+}
 const { withGlobals } = useApi()
 
 const board = ref<BoardRow[]>([])
@@ -130,32 +138,34 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
     <template v-else>
       <!-- team KPI band: the ruled joined hairline-divided stat grammar (Overview), fed by
            the server's totals block — pooled median/SLA are not client-derivable -->
-      <div v-if="totals" class="kpi-band">
-        <div class="kpi-cell">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-resolved" />resolved</span>
-          <span class="kpi-num">{{ fmt(totals.by_action['resolve'] ?? 0) }}</span>
-          <span class="kpi-sub">{{ windowLabel }}</span>
+      <!-- count cells click through to the audit rows they were derived from (the podium
+           provenance rule); median/SLA stay static — derived numbers, no row set IS them -->
+      <div v-if="totals" class="stat-band stat-band--stat">
+        <button class="stat-cell" title="Open resolve actions in the audit log" @click="goAudit('resolve')">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--state-resolved-solid)" />resolved<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="stat-num">{{ fmt(totals.by_action['resolve'] ?? 0) }}</span>
+          <span class="stat-sub">{{ windowLabel }}</span>
+        </button>
+        <button class="stat-cell" title="Open acknowledge actions in the audit log" @click="goAudit('acknowledge')">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--state-ack-solid)" />acknowledged<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="stat-num">{{ fmt(totals.by_action['acknowledge'] ?? 0) }}</span>
+          <span class="stat-sub">{{ windowLabel }}</span>
+        </button>
+        <div class="stat-cell">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--teal)" />median time-to-resolve</span>
+          <span class="stat-num">{{ fmtMedian(totals.median_ttr_seconds) }}</span>
+          <span class="stat-sub">pooled across the team</span>
         </div>
-        <div class="kpi-cell">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-ack" />acknowledged</span>
-          <span class="kpi-num">{{ fmt(totals.by_action['acknowledge'] ?? 0) }}</span>
-          <span class="kpi-sub">{{ windowLabel }}</span>
+        <div class="stat-cell">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--coral)" />SLA met</span>
+          <span class="stat-num">{{ teamSla }}</span>
+          <span class="stat-sub">of SLA-bearing handled findings</span>
         </div>
-        <div class="kpi-cell">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-ttr" />median time-to-resolve</span>
-          <span class="kpi-num">{{ fmtMedian(totals.median_ttr_seconds) }}</span>
-          <span class="kpi-sub">pooled across the team</span>
-        </div>
-        <div class="kpi-cell">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-sla" />SLA met</span>
-          <span class="kpi-num">{{ teamSla }}</span>
-          <span class="kpi-sub">of SLA-bearing handled findings</span>
-        </div>
-        <div class="kpi-cell">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-crit" />critical cleared</span>
-          <span class="kpi-num">{{ fmt(totals.critical_cleared) }}</span>
-          <span class="kpi-sub">{{ windowLabel }}</span>
-        </div>
+        <button class="stat-cell" title="Open resolve actions in the audit log — all severities; this count is criticals only" @click="goAudit('resolve')">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--sev-critical-solid)" />critical cleared<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="stat-num">{{ fmt(totals.critical_cleared) }}</span>
+          <span class="stat-sub">{{ windowLabel }}</span>
+        </button>
       </div>
 
       <div class="contrib-layout">
@@ -275,71 +285,15 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
 }
 
 /* the ruled KPI band grammar (Overview/finding-detail risk band), static cells */
-.kpi-band {
-  display: grid;
+/* the joined stat-band SKIN lives in base.css (issue 368; this screen = the --stat register)
+   — only this screen's layout here */
+.stat-band {
   grid-template-columns: repeat(5, 1fr);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  overflow: hidden;
 }
 @media (width <= 1100px) {
-  .kpi-band {
+  .stat-band {
     grid-template-columns: repeat(3, 1fr);
   }
-}
-.kpi-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 14px 16px 12px;
-}
-.kpi-cell + .kpi-cell {
-  border-left: 1px solid var(--line2);
-}
-.kpi-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  font-weight: 700;
-}
-.kpi-num {
-  font-family: var(--font-mono);
-  font-size: var(--text-stat);
-  font-weight: 700;
-  color: var(--ink);
-  margin-top: 4px;
-}
-.kpi-sub {
-  font-size: var(--text-control);
-  color: var(--muted);
-}
-.kpi-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-.kpi-dot-resolved {
-  background: var(--state-resolved-solid);
-}
-.kpi-dot-ack {
-  background: var(--state-ack-solid);
-}
-.kpi-dot-ttr {
-  background: var(--teal);
-}
-.kpi-dot-sla {
-  background: var(--coral);
-}
-.kpi-dot-crit {
-  background: var(--sev-critical-solid);
 }
 
 .load-error {
