@@ -406,6 +406,57 @@ async def test_page_walk_is_stateless_and_complete(real_os: tuple[AsyncOpenSearc
     assert len(seen) == 29 and len(set(seen)) == 29  # every row exactly once
 
 
+async def test_snapshot_matches_the_page_walk_from_one_reconstruction(
+    real_os: tuple[AsyncOpenSearch, str], monkeypatch
+) -> None:
+    """The export path's source (audit F-09): `findings_snapshot` returns the page walk's
+    exact row order — but reconstructs the cluster ONCE, where the old per-page drain paid
+    a full reconstruction per 500 rows."""
+    client, prefix = real_os
+    seeded = await _seed(client, prefix)
+
+    calls = 0
+    real_reconstruct = AsOfTQuery._reconstruct
+
+    async def _counted(self, *a, **kw):
+        nonlocal calls
+        calls += 1
+        return await real_reconstruct(self, *a, **kw)
+
+    monkeypatch.setattr(AsOfTQuery, "_reconstruct", _counted)
+
+    snapshot = await READER.findings_snapshot(
+        client,
+        cluster_id=CLUSTER,
+        t=seeded["t1"],
+        filters=SearchFilters(present=True),
+        sort="severity_rank",
+        order="desc",
+        prefix=prefix,
+    )
+    assert calls == 1  # one reconstruction for the whole sweep
+
+    walked: list[str] = []
+    cursor = None
+    while True:
+        page = await READER.findings_page(
+            client,
+            cluster_id=CLUSTER,
+            t=seeded["t1"],
+            filters=SearchFilters(present=True),
+            sort="severity_rank",
+            order="desc",
+            size=7,
+            cursor=cursor,
+            prefix=prefix,
+        )
+        walked += [d["finding_key"] for d in page["data"]]
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    assert [r["finding_key"] for r in snapshot] == walked  # byte-for-byte the same walk
+
+
 def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
     """The parity guard the q gap proved missing (M9b slice 4): a NEW SearchFilters field must
     be either applied by `_apply_filters` or explicitly rejected — silently ignoring one returns

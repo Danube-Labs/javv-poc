@@ -67,24 +67,19 @@ async def _rows_at(
     from backend.query.as_of_t import AsOfTQuery
 
     reader = AsOfTQuery()  # the drain is its own process — no app lifespan/registry here
-    cursor: str | None = None
-    while True:
-        page = await reader.findings_page(
-            client,
-            cluster_id=cluster_id,
-            t=t,
-            filters=filters,
-            sort="severity_rank",
-            order="desc",
-            size=_THROTTLE_EVERY_ROWS,
-            cursor=cursor,
-            prefix=prefix,
-        )
-        for row in page["data"]:
-            yield row
-        cursor = page["next_cursor"]
-        if cursor is None:
-            return
+    # ONE reconstruction for the whole sweep (F-09) — paging findings_page rebuilt and
+    # re-sorted the entire cluster per 500 rows; the snapshot is the same list, held once
+    rows = await reader.findings_snapshot(
+        client,
+        cluster_id=cluster_id,
+        t=t,
+        filters=filters,
+        sort="severity_rank",
+        order="desc",
+        prefix=prefix,
+    )
+    for row in rows:
+        yield row
 
 
 async def _csv_pieces_at(

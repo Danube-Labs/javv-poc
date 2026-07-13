@@ -353,6 +353,40 @@ class AsOfTQuery:
             out.append(r)
         return out
 
+    async def findings_snapshot(
+        self,
+        client: AsyncOpenSearch,
+        *,
+        cluster_id: str,
+        t: datetime,
+        filters: SearchFilters,
+        sort: str,
+        order: str,
+        prefix: str = "",
+    ) -> list[dict[str, Any]]:
+        """Every filtered row at T in walk order, from ONE reconstruction — the export
+        path's source (audit F-09: paging findings_page re-reconstructed the whole cluster
+        per page; a sweep holds the same list one page already materialized, once)."""
+        # re-validate EVERYTHING before reconstructing — a bad input must cost a 422, not a
+        # cluster-wide reconstruction (and never reach an evaluation, per the seam contract)
+        if sort not in _SORT_FIELDS:
+            raise ValueError(f"sort must be one of {_SORT_FIELDS} for a past as_of")
+        if order not in ("asc", "desc"):
+            raise ValueError("order must be asc or desc")
+        self._apply_filters([], filters)  # filter re-validation, before any work
+        rows = self._apply_filters(
+            await self._reconstruct(client, cluster_id, t, prefix=prefix), filters
+        )
+        desc = order == "desc"
+
+        def _key(r: dict[str, Any]) -> Any:
+            v = r.get(sort)
+            return (v is None, v)  # nulls last on asc; stable + comparable
+
+        rows.sort(key=lambda r: r["finding_key"])
+        rows.sort(key=_key, reverse=desc)
+        return rows
+
     async def findings_page(
         self,
         client: AsyncOpenSearch,
@@ -366,26 +400,17 @@ class AsOfTQuery:
         cursor: str | None,
         prefix: str = "",
     ) -> dict[str, Any]:
-        # re-validate EVERYTHING before reconstructing — a bad input must cost a 422, not a
-        # cluster-wide reconstruction (and never reach an evaluation, per the seam contract)
-        if sort not in _SORT_FIELDS:
-            raise ValueError(f"sort must be one of {_SORT_FIELDS} for a past as_of")
-        if order not in ("asc", "desc"):
-            raise ValueError("order must be asc or desc")
-        self._apply_filters([], filters)  # filter re-validation, before any work
         if cursor is not None:
-            _decode(cursor)
-        rows = self._apply_filters(
-            await self._reconstruct(client, cluster_id, t, prefix=prefix), filters
+            _decode(cursor)  # shape check before any reconstruction work
+        rows = await self.findings_snapshot(
+            client,
+            cluster_id=cluster_id,
+            t=t,
+            filters=filters,
+            sort=sort,
+            order=order,
+            prefix=prefix,
         )
-        desc = order == "desc"
-
-        def _key(r: dict[str, Any]) -> Any:
-            v = r.get(sort)
-            return (v is None, v)  # nulls last on asc; stable + comparable
-
-        rows.sort(key=lambda r: r["finding_key"])
-        rows.sort(key=_key, reverse=desc)
         if cursor is not None:
             c = _decode(cursor)
             if c.get("s") != sort or c.get("o") != order:
