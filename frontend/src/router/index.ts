@@ -37,9 +37,8 @@ const router = createRouter({
         {
           path: 'approvals',
           name: 'approvals',
-          component: () => import('@/views/PlaceholderView.vue'),
-          props: { title: 'Approval list', bolt: 'M9d' },
-          meta: { capability: 'can_accept_audit_final' },
+          component: () => import('@/views/ApprovalsView.vue'),
+          meta: { capability: 'can_accept_audit_final', wide: true },
         },
         {
           path: 'contributors',

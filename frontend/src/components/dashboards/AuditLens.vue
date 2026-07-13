@@ -16,11 +16,18 @@ import { logger } from '@/lib/logger'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { lastDataAt } from '@/system/freshness'
 
-const props = defineProps<{
-  /** the screen's full filter query (cluster_id + as_of + term filters) — the lens counts
-   * exactly what the table shows */
-  query: Record<string, unknown> | null
-}>()
+const props = withDefaults(
+  defineProps<{
+    /** the screen's full filter query (cluster_id + as_of + term filters) — the lens counts
+     * exactly what the table shows */
+    query: Record<string, unknown> | null
+    /** strip heading — screens pointing the lens at a SLICE of the journal (e.g. Approvals →
+     * decision activity) rename it so the copy stays honest about what is counted */
+    title?: string
+    sub?: string
+  }>(),
+  { title: 'Audit activity', sub: '' },
+)
 const timeTravel = useTimeTravelStore()
 
 const rows = ref<ActivityPoint[]>([])
@@ -78,10 +85,11 @@ function onPointClick(params: { dataIndex: number }) {
 </script>
 
 <template>
-  <section class="ingest-lens" :class="{ 'il-quiet': quiet }" aria-label="Audit activity">
+  <section class="ingest-lens" :class="{ 'il-quiet': quiet }" :aria-label="props.title">
     <div class="il-head">
-      <h3 class="il-title">Audit activity</h3>
-      <span class="il-sub"
+      <h3 class="il-title">{{ props.title }}</h3>
+      <span v-if="props.sub" class="il-sub">{{ props.sub }}</span>
+      <span v-else class="il-sub"
         >events per {{ interval }} · {{ timeTravel.windowLabel.toLowerCase() }} · under the
         current filters · the table lists <b>all</b> events up to the range end</span
       >

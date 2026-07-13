@@ -51,6 +51,26 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 - VEX import (decision-from-VEX) → v1.1.
 
 ## Updates
+- **2026-07-13 — slice 4 (Approvals) rulings + adaptations:**
+  - Five pre-build decisions RULED (operator, on the #38 plan): rail trimmed v1 · band lens =
+    decision-activity audit strip (`entity_type=decision` — create+revoke are its only actions) ·
+    row → CVE-filtered findings · T<now = LimitedHistoricalNotice (no `as_of` seam on the
+    endpoint) · `VITE_EXPIRY_WARN_DAYS=7` (CONFIGURATION.md §2b).
+  - **Ruling-3 adaptation:** the findings rail has no `cve_id` URL param and a decision carries
+    no package/version, so "CVE-filtered findings" lands as `/findings?q=<cve>` (the contains
+    lens; `&image=` added when scope pins exactly one image). A DIRECT finding-detail link is
+    unbuildable from a decision doc (detail routes need pkg+version) — spec-noted, not deferred.
+  - **Rail RE-RULED IN on the built specimen (operator, same day, §8.5):** the prototype's
+    Status/Approver rail + search returns as **slice 4b** — the endpoint has no server filters,
+    so 4b = backend filter params + facet counts on `GET /decisions/approvals` (status derives
+    from `expiry` vs now, the sla_clock cutoff pattern) + the shared FacetRail. Client-filtering
+    the paged fetch stays banned.
+  - Edit = the server's atomic PATCH (revoke+new, D40 `operation_id`) behind a small prefilled
+    dialog — NOT RiskAcceptDialog (it is finding-coupled); justification + expiry only, scope
+    re-targeting is a new decision from the finding.
+  - Prototype's severity/impact/action/task columns stay dropped (V4-DELTA-2); `revoked`
+    struck-through rows are UNREACHABLE here by construction (the wire excludes them) — the
+    struck-through language lives on the finding detail's decisions card instead.
 - **2026-07-12 — slice 3 rulings (Contributors, plan + amendments on #38):**
   - **Layout = the shared data-screen grammar**, not the prototype's plain screen-head: band
     (head-card + the **handled-findings lens** — `handled_over_time` from the read itself, so
