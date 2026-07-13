@@ -179,7 +179,7 @@ the raw markup/CSS they encapsulate is a review failure — extend the component
 
 | Component | Owns | Use for |
 |---|---|---|
-| `UiButton` | hover wash + pressed + focus + disabled + arrow cursor; variants `mini` / `control` / `quiet` / `ghost` / `primary` (+`block`) | every button |
+| `UiButton` | hover wash + pressed + focus + disabled + arrow cursor; variants `mini` / `control` / `quiet` / `ghost` / `primary` (+`block`) | every **generic action button**. Domain-grammar controls are their own ruled patterns, not re-rolls: `stat-cell` (the stat-band skin), filter `fpill`/`facet-row`, sidebar `side-item`/`side-collapse`, picker `time-range`/`time-preset`, menu rows inside `UiDropdown` (whose table row below says menu markup stays yours), toggle-chips (`ra-chip`), segmented triage states. Each carries the global `:focus-visible` ring (base.css) + its own hover/pressed states — a NEW one-off button with none of these homes is still a review failure |
 | `UiSegControl` | padded seg bar, per-option radius (ring never clipped), `aria-pressed`; tones `accent` (coral selection) / `neutral` (card-lift) | any pick-one bar |
 | `UiField` | mono uppercase micro-label + parenthesized `hint`, 14px band / 6px label gap (`first` zeroes the top) | any labeled control |
 | `UiDropdown` | open state + outside-mousedown + document Escape + relative anchor; `trigger`/default slots (menu markup stays yours) | any popover menu |
