@@ -298,19 +298,17 @@ const fmt = (n: number) => n.toLocaleString('en-US')
               : 'No standing risk-acceptances — accepted findings land here for review.'
           }}
         </div>
-        <div class="queue-pager">
-          <GridPager
-            :total="total"
-            :page="page"
-            :size="size"
-            :shown="rows.length"
-            :has-prev="page > 0"
-            :has-next="(page + 1) * size < total"
-            @prev="page = Math.max(0, page - 1)"
-            @next="page = page + 1"
-            @update:size="(s) => { size = s; page = 0 }"
-          />
-        </div>
+        <GridPager
+          :total="total"
+          :page="page"
+          :size="size"
+          :shown="rows.length"
+          :has-prev="page > 0"
+          :has-next="(page + 1) * size < total"
+          @prev="page = Math.max(0, page - 1)"
+          @next="page = page + 1"
+          @update:size="(s) => { size = s; page = 0 }"
+        />
       </section>
       </div>
     </div>
@@ -401,13 +399,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   .skel-table {
     animation: none;
   }
-}
-/* the in-card pager wrapper — the LeaderboardTable reference (pager never sits flush) */
-.queue-pager {
-  padding: 0 12px 10px;
-}
-.queue-pager :deep(.pager) {
-  margin-top: 6px;
 }
 .load-error {
   margin-top: 16px;

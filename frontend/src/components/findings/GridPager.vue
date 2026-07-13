@@ -49,11 +49,15 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 </template>
 
 <style scoped>
+/* the in-card pager row (operator ruling 2026-07-13, on the approvals specimen): every
+   GridPager sits INSIDE its table card, flush, on a quiet tint that sets it off from rows */
 .pager {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-top: 12px;
+  border-top: 1px solid var(--line2);
+  background: var(--panel);
+  padding: 9px 14px;
 }
 .pager-info {
   font-size: var(--text-quiet-action);

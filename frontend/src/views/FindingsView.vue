@@ -299,6 +299,7 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
         <p v-if="grid.failed || facetsFailed" class="load-error" role="alert">
           {{ failureMessage }}
         </p>
+        <div class="tbl-card">
         <FindingsTable
           :rows="grid.rows"
           :sort="grid.sort"
@@ -324,6 +325,7 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
           @next="grid.goNext()"
           @update:size="grid.setSize"
         />
+        </div>
       </div>
     </div>
   </div>

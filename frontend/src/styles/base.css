@@ -190,6 +190,22 @@ html [class*=' p-'] {
   border-radius: var(--r);
   box-shadow: var(--shadow);
 }
+/* table + its GridPager as ONE card (operator ruling 2026-07-13): views whose table component
+   owns .tbl-wrap wrap both in .tbl-card — the inner wrap sheds its chrome, the pager row sits
+   flush at the card's foot */
+.tbl-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.tbl-card .tbl-wrap {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 .tbl {
   width: 100%;
   border-collapse: collapse;
