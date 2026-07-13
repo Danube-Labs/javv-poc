@@ -71,10 +71,15 @@ export function filterImages(rows: ImageRow[], sel: Selections): ImageRow[] {
   })
 }
 
-/** The filtered rows as CSV (the list export — inventory rows, already served). */
+/** The filtered rows as CSV (the list export — inventory rows, already served).
+ * String cells mirror the server's `sanitize_cell`: a leading `=` `+` `-` `@` TAB or CR
+ * would arm as a spreadsheet formula (CSV injection — repo/tag/namespaces are untrusted
+ * k8s/scanner input), so it's neutralized with a leading apostrophe. Non-strings can't
+ * be formulas and serialize plainly (negative counts stay bare numbers). */
 export function imagesCsv(rows: ImageRow[]): string {
   const esc = (v: unknown) => {
-    const s = String(v ?? '')
+    let s = String(v ?? '')
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`
     return /[",\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
   }
   const header = [
