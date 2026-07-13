@@ -20,8 +20,10 @@ from typing import Any
 
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
+from backend.query.paging import search_to_exhaustion
+
 _PAGE = 1_000  # composite-agg page
-_MAX_ROWS = 10_000  # per-run occurrence rows / per-inventory image docs (from/size ceiling)
+_ROW_PAGE = 10_000  # search_after page for row walks — a batch size, never a result cap (F-06)
 _TERMS_CHUNK = 1_024  # commit_key terms-query batch for the symmetric step
 
 
@@ -114,18 +116,18 @@ async def occurrences_at(
     if not runs:
         return None
     run = runs[0]
-    resp = await client.search(
+    return await search_to_exhaustion(
+        client,
         index=f"{prefix}javv-finding-occurrences-{cluster_id}-*",
         body={
             # the exact-tuple membership: commit_key pins (cluster, scanner, digest, run) in one
             # term — rows of any other run (including uncommitted ghosts) can never bleed in
             "query": {"term": {"commit_key": run["commit_key"]}},
-            "size": _MAX_ROWS,
-            "sort": [{"finding_key": "asc"}],  # deterministic row order for goldens/paging
+            "size": _ROW_PAGE,
+            "sort": [{"finding_key": "asc"}],  # unique per run — the total order paging needs
         },
         params={"ignore_unavailable": "true"},
     )
-    return [h["_source"] for h in resp["hits"]["hits"]]
 
 
 async def images_with_cve_at(
@@ -145,23 +147,25 @@ async def images_with_cve_at(
     commit_keys = [r["commit_key"] for r in runs]
     rows: list[dict[str, Any]] = []
     for i in range(0, len(commit_keys), _TERMS_CHUNK):
-        resp = await client.search(
-            index=f"{prefix}javv-finding-occurrences-{cluster_id}-*",
-            body={
-                "query": {
-                    "bool": {
-                        "filter": [
-                            {"terms": {"commit_key": commit_keys[i : i + _TERMS_CHUNK]}},
-                            {"term": {"vuln_id": cve_id}},
-                        ]
-                    }
+        rows.extend(
+            await search_to_exhaustion(
+                client,
+                index=f"{prefix}javv-finding-occurrences-{cluster_id}-*",
+                body={
+                    "query": {
+                        "bool": {
+                            "filter": [
+                                {"terms": {"commit_key": commit_keys[i : i + _TERMS_CHUNK]}},
+                                {"term": {"vuln_id": cve_id}},
+                            ]
+                        }
+                    },
+                    "size": _ROW_PAGE,
+                    "sort": [{"image_digest": "asc"}, {"finding_key": "asc"}],
                 },
-                "size": _MAX_ROWS,
-                "sort": [{"image_digest": "asc"}, {"finding_key": "asc"}],
-            },
-            params={"ignore_unavailable": "true"},
+                params={"ignore_unavailable": "true"},
+            )
         )
-        rows.extend(h["_source"] for h in resp["hits"]["hits"])
     return rows
 
 
@@ -209,7 +213,8 @@ async def images_for_inventory_run(
     prefix: str = "",
 ) -> list[dict[str, Any]]:
     """The image docs of one inventory run, ordered by `image_digest` (deterministic)."""
-    resp = await client.search(
+    return await search_to_exhaustion(
+        client,
         index=f"{prefix}javv-images-{cluster_id}-*",
         body={
             "query": {
@@ -220,12 +225,11 @@ async def images_for_inventory_run(
                     ]
                 }
             },
-            "size": _MAX_ROWS,
-            "sort": [{"image_digest": "asc"}],
+            "size": _ROW_PAGE,
+            "sort": [{"image_digest": "asc"}],  # digest-deduped run — unique
         },
         params={"ignore_unavailable": "true"},
     )
-    return [h["_source"] for h in resp["hits"]["hits"]]
 
 
 async def scan_events_for_image(
@@ -240,7 +244,8 @@ async def scan_events_for_image(
     ordered `(scan_order, scanner)` — the DigestSubTimeline's raw material: digest changes are
     build-change markers, per-scanner `scan_order` jumps are gaps. Retention bounds the size."""
     try:
-        resp = await client.search(
+        return await search_to_exhaustion(
+            client,
             index=f"{prefix}javv-scan-events-{cluster_id}-*",
             body={
                 "query": {
@@ -252,14 +257,13 @@ async def scan_events_for_image(
                         ]
                     }
                 },
-                "size": _MAX_ROWS,
-                "sort": [{"scan_order": "asc"}, {"scanner": "asc"}],
+                "size": _ROW_PAGE,
+                "sort": [{"scan_order": "asc"}, {"scanner": "asc"}],  # unique pair
             },
             params={"ignore_unavailable": "true"},
         )
     except NotFoundError:
         return []
-    return [h["_source"] for h in resp["hits"]["hits"]]
 
 
 async def running_images_at(

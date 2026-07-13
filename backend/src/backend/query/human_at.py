@@ -23,6 +23,7 @@ from typing import Any
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
 from backend.decisions.lifecycle import DECISIONS_INDEX
+from backend.query.paging import search_to_exhaustion
 
 REPLAY_FIELDS = ("state", "assignee", "notes", "vex_justification")
 HUMAN_DEFAULTS: dict[str, Any] = {
@@ -34,7 +35,7 @@ HUMAN_DEFAULTS: dict[str, Any] = {
 }
 
 _TERMS_CHUNK = 1_024
-_MAX_ROWS = 10_000
+_ROW_PAGE = 10_000  # search_after page for journal walks — a batch size, never a cap (F-05)
 
 # (ts, event_id) — the global order; revision refines within one (entity, field) group
 _Event = tuple[tuple[str, str], int, str, Any]  # (order_key, revision, field, value)
@@ -54,28 +55,30 @@ async def _direct_rows(
     rows: list[dict[str, Any]] = []
     for i in range(0, len(finding_keys), _TERMS_CHUNK):
         try:
-            resp = await client.search(
-                index=f"{prefix}system-audit-log-*",
-                body={
-                    "query": {
-                        "bool": {
-                            "filter": [
-                                {"term": {"cluster_id": cluster_id}},
-                                {"term": {"entity_type": "finding"}},
-                                {"terms": {"finding_key": finding_keys[i : i + _TERMS_CHUNK]}},
-                                {"terms": {"field": list(REPLAY_FIELDS)}},
-                                _lte(t),
-                            ]
-                        }
+            rows.extend(
+                await search_to_exhaustion(
+                    client,
+                    index=f"{prefix}system-audit-log-*",
+                    body={
+                        "query": {
+                            "bool": {
+                                "filter": [
+                                    {"term": {"cluster_id": cluster_id}},
+                                    {"term": {"entity_type": "finding"}},
+                                    {"terms": {"finding_key": finding_keys[i : i + _TERMS_CHUNK]}},
+                                    {"terms": {"field": list(REPLAY_FIELDS)}},
+                                    _lte(t),
+                                ]
+                            }
+                        },
+                        "size": _ROW_PAGE,
+                        "sort": [{"@timestamp": "asc"}, {"event_id": "asc"}],  # event_id unique
                     },
-                    "size": _MAX_ROWS,
-                    "sort": [{"@timestamp": "asc"}, {"event_id": "asc"}],
-                },
-                params={"ignore_unavailable": "true"},
+                    params={"ignore_unavailable": "true"},
+                )
             )
         except NotFoundError:
             return rows
-        rows.extend(h["_source"] for h in resp["hits"]["hits"])
     return rows
 
 
@@ -83,7 +86,8 @@ async def _bulk_rows(
     client: AsyncOpenSearch, cluster_id: str, t: datetime, prefix: str
 ) -> list[dict[str, Any]]:
     try:
-        resp = await client.search(
+        return await search_to_exhaustion(
+            client,
             index=f"{prefix}system-audit-log-*",
             body={
                 "query": {
@@ -95,14 +99,13 @@ async def _bulk_rows(
                         ]
                     }
                 },
-                "size": _MAX_ROWS,
-                "sort": [{"@timestamp": "asc"}, {"event_id": "asc"}],
+                "size": _ROW_PAGE,
+                "sort": [{"@timestamp": "asc"}, {"event_id": "asc"}],  # event_id unique
             },
             params={"ignore_unavailable": "true"},
         )
     except NotFoundError:
         return []
-    return [h["_source"] for h in resp["hits"]["hits"]]
 
 
 def _state_events(order_key: tuple[str, str], revision: int, state: Any, vex: Any) -> list[_Event]:
@@ -205,7 +208,8 @@ async def decisions_active_at(
     at T. Lifecycle stamps make this a pure filter — no replay needed (decisions are the source
     of truth, D39/H5-r2)."""
     iso = t.isoformat()
-    resp = await client.search(
+    return await search_to_exhaustion(
+        client,
         index=f"{prefix}{DECISIONS_INDEX}",
         body={
             "query": {
@@ -220,9 +224,8 @@ async def decisions_active_at(
                     ],
                 }
             },
-            "size": _MAX_ROWS,
-            "sort": [{"effective_at": "asc"}, {"decision_id": "asc"}],
+            "size": _ROW_PAGE,
+            "sort": [{"effective_at": "asc"}, {"decision_id": "asc"}],  # decision_id unique
         },
         params={"ignore_unavailable": "true"},
     )
-    return [h["_source"] for h in resp["hits"]["hits"]]
