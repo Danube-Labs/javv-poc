@@ -28,7 +28,6 @@ import { reorderFromDrag, restoreOrder } from '@/system/columnOrder'
 import { filterImages, imagesCsv, imagesFacets } from '@/images/imageFilters'
 import { logger } from '@/lib/logger'
 import { makeFiltersStore } from '@/stores/filters'
-import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useImagesStore, type ImageRow } from '@/stores/images'
 import { useTimeTravelStore } from '@/stores/timeTravel'
@@ -38,7 +37,6 @@ import { keepTT } from '@/system/timeTravelUrl'
 
 const route = useRoute()
 const router = useRouter()
-const auth = useAuthStore()
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
 const toast = useToastStore()
@@ -223,7 +221,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             @clear-all="filters.clearAll"
           />
           <UiButton
-            v-if="auth.hasCapability('can_export')"
             variant="control"
             :disabled="filtered.length === 0"
             @click="exportCsv"
