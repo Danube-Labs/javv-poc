@@ -97,6 +97,7 @@ rebuild, not a restart).
 | `VITE_LOG_LEVEL` | `debug` (dev) / `warn` (prod build) | Browser-console threshold for the frontend structured logger (`debug`\|`info`\|`warn`\|`error`) — the FE analog of `JAVV_LOG_LEVEL` (observability.md §1: same `timestamp→level→event` line shape; raw `console.*` is ESLint-banned in app code). Unknown value falls back to the default. | n/a (build) |
 | `VITE_FRESHNESS_BANNER_HOURS` | `72` (the D20 N = 3 days) | Hours a scanner must be silent before the red freshness banner fires (`frontend/src/system/freshness.ts`; re-checked on a 10-min poll). Non-numeric/≤0 falls back to the default. Runtime (in-app) configurability is the M9e `staleness` settings deliverable — this knob bridges until then. | M9e |
 | `VITE_DB_AGE_WARN_DAYS` | `7` | Days before the scanner-status card flags the vuln DB as stale (amber `· N days old` next to *DB built*, `frontend/src/system/freshness.ts`) — a running scanner with an old database quietly under-reports (D41: the fix is swapping the published image, never in-app). Non-numeric/≤0 falls back to the default. | no |
+| `VITE_EXPIRY_WARN_DAYS` | `7` | Days before a risk-acceptance's expiry that the Approvals queue's status chip turns amber `expires in Nd` (`frontend/src/approvals/viewModel.ts`) — the review nudge window; at expiry the chip goes alarm-red (the acceptance has released its findings back to open, D19). Non-numeric/≤0 falls back to the default. | no |
 
 ---
 
