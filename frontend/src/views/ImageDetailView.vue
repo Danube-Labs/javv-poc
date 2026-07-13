@@ -263,10 +263,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     </div>
 
     <!-- two distinct questions, two answers — never conflated (D38/H6) -->
-    <div class="kpi-band two-q">
-      <div class="kpi-cell kpi-static">
-        <span class="kpi-label"><i class="kpi-dot kpi-dot-inv" />running {{ timeTravel.isNow ? 'now' : 'at T' }}?</span>
-        <span class="kpi-num tq-ans">
+    <div class="stat-band two-q">
+      <div class="stat-cell">
+        <span class="stat-label"><i class="stat-dot" style="background: var(--teal)" />running {{ timeTravel.isNow ? 'now' : 'at T' }}?</span>
+        <span class="stat-num tq-ans">
           <template v-if="inventoryKnown === null">—</template>
           <template v-else-if="inventoryKnown === false">unknown</template>
           <template v-else-if="inventoryRow"
@@ -276,19 +276,19 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           >
           <template v-else>no</template>
         </span>
-        <span class="kpi-sub"
+        <span class="stat-sub"
           >runtime inventory<template v-if="inventoryKnown === false">
             — none committed at this T</template
           ><template v-else-if="inventoryAt"> · committed {{ lastDataAt(inventoryAt) }}</template></span
         >
       </div>
-      <div class="kpi-cell kpi-static">
-        <span class="kpi-label"><i class="kpi-dot kpi-dot-scan" />what did {{ scanner }} find?</span>
-        <span class="kpi-num tq-ans">
+      <div class="stat-cell">
+        <span class="stat-label"><i class="stat-dot" style="background: var(--slate)" />what did {{ scanner }} find?</span>
+        <span class="stat-num tq-ans">
           <template v-if="notYetScanned">not yet scanned</template>
           <template v-else>{{ fmt(presentTotal) }} findings</template>
         </span>
-        <span class="kpi-sub"
+        <span class="stat-sub"
           >as-scanned, not as-running<template v-if="lastScanAt">
             · last scan {{ lastDataAt(lastScanAt) }}</template
           ></span
@@ -333,14 +333,14 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         :cluster-id="clusterStore.selectedId"
       />
       <!-- per-scanner severity cards: one scanner's buckets only — the lens swaps, never merges -->
-      <div class="kpi-band sev-band">
-        <div v-for="s in CARD_SEVERITIES" :key="s" class="kpi-cell kpi-static">
-          <span class="kpi-label"><i class="kpi-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}</span>
-          <span class="kpi-num">{{ fmt(sevCount(s)) }}</span>
+      <div class="stat-band sev-band">
+        <div v-for="s in CARD_SEVERITIES" :key="s" class="stat-cell">
+          <span class="stat-label"><i class="stat-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}</span>
+          <span class="stat-num">{{ fmt(sevCount(s)) }}</span>
         </div>
-        <div class="kpi-cell kpi-static">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-total" />findings · {{ scanner }}</span>
-          <span class="kpi-num">{{ fmt(presentTotal) }}</span>
+        <div class="stat-cell">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--slate)" />findings · {{ scanner }}</span>
+          <span class="stat-num">{{ fmt(presentTotal) }}</span>
         </div>
       </div>
 
@@ -447,10 +447,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   grid-template-columns: repeat(2, 1fr);
   margin-bottom: 16px;
 }
-.kpi-dot-inv {
+.stat-dot-inv {
   background: var(--teal);
 }
-.kpi-dot-scan {
+.stat-dot-scan {
   background: var(--slate);
 }
 .tq-ans {
@@ -470,62 +470,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 
 /* joined stat band — read-only cards (the ruled Nuxt grammar) */
-.kpi-band {
-  display: grid;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
+/* the joined stat-band SKIN lives in base.css (issue 368) — only this screen's layout here */
 .sev-band {
   grid-template-columns: repeat(5, 1fr);
   margin-bottom: 16px;
 }
 .detail-lens {
   margin-bottom: 16px;
-}
-.kpi-cell {
-  cursor: default;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 14px 16px 12px;
-  border: none;
-  background: var(--card);
-  text-align: left;
-}
-.kpi-cell + .kpi-cell {
-  border-left: 1px solid var(--line2);
-}
-.kpi-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  font-weight: 700;
-}
-.kpi-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-.kpi-dot-total {
-  background: var(--slate);
-}
-.kpi-num {
-  font-size: var(--text-kpi);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  margin-top: 6px;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
 }
 
 .card {

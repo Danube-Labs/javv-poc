@@ -340,6 +340,117 @@ html [class*=' p-'] {
   }
 }
 
+/* ---- joined stat band (§8.5 RULED app-wide, 2026-07-12: hairline-divided cells over the
+   prototype's accent cards) — ONE source for every KPI/stat strip, the tbl-skin discipline
+   (issue 368: this replaced four scoped per-view copies; re-rolling it is a review failure).
+   Views own only their LAYOUT: grid-template-columns (+ narrow breakpoints) and dot colors.
+   Two number registers, both tokenized: the default hero KPI (--text-kpi, dashboards) and
+   `.stat-band--stat` (--text-stat mono, dense/team panels — the Contributors register). */
+.stat-band {
+  display: grid;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.stat-cell {
+  cursor: default; /* affordance is the chevron + wash, never the cursor (DESIGN.md §2) */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px 16px 12px;
+  border: none;
+  background: var(--card);
+  text-align: left;
+}
+.stat-cell + .stat-cell {
+  border-left: 1px solid var(--line2);
+}
+button.stat-cell {
+  transition: background var(--dur-quick);
+}
+button.stat-cell:hover {
+  background: var(--control-hover-bg);
+}
+button.stat-cell:active {
+  background: var(--control-active-bg);
+}
+button.stat-cell:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  button.stat-cell {
+    transition: none;
+  }
+}
+.stat-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: var(--text-table-header);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--soft);
+  font-weight: 700;
+}
+.stat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.stat-num {
+  font-size: var(--text-kpi);
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  margin-top: 6px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.stat-num--alarm {
+  color: var(--sev-critical-fg);
+}
+.stat-sub {
+  font-size: var(--text-sm);
+  color: var(--soft);
+  font-family: var(--font-mono);
+  margin-top: 7px;
+}
+.stat-band--stat .stat-num {
+  font-family: var(--font-mono);
+  font-size: var(--text-stat);
+  font-weight: 700;
+  letter-spacing: normal;
+  margin-top: 4px;
+}
+.stat-band--stat .stat-sub {
+  font-family: inherit;
+  font-size: var(--text-control);
+  color: var(--muted);
+  margin-top: 0;
+}
+
+/* at-rest clickability affordance (operator ruling 2026-07-10, shared by stat cells + table
+   rows): a soft trailing chevron that turns coral with the hover wash */
+.cell-go {
+  color: var(--dash-muted);
+  margin-left: 4px;
+  transition: color var(--dur-quick);
+}
+button.stat-cell:hover .cell-go,
+.tbl-hover tbody tr:hover .cell-go {
+  color: var(--coral-text);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cell-go {
+    transition: none;
+  }
+}
+
 /* ---- motion layer: the shared <Transition> classes, on the motion tokens.
    t-pop  = floating panels (dropdown menus/popovers): fade + 4px rise, quick both ways.
    t-fade = banners and other in-flow appearances: crossfade only — never animate height.

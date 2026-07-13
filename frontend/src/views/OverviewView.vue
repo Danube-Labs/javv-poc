@@ -195,44 +195,44 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 
     <template v-else>
       <!-- KPI band: joined, hairline-divided (Nuxt stat grammar on our tokens) -->
-      <div class="kpi-band">
+      <div class="stat-band">
         <button
           v-for="s in KPI_SEVERITIES"
           :key="s"
-          class="kpi-cell"
+          class="stat-cell"
           :title="`Open findings filtered to ${s}`"
           @click="goFindings({ severity: s })"
         >
-          <span class="kpi-label"><i class="kpi-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="kpi-num">{{ fmt(sevCount(s)) }}</span>
+          <span class="stat-label"><i class="stat-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="stat-num">{{ fmt(sevCount(s)) }}</span>
         </button>
-        <button class="kpi-cell" title="Open findings with a fix available" @click="goFindings({ attr: 'fixable' })">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-fix" />fix available<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="kpi-num">{{ fixPct }}%</span>
-          <span class="kpi-sub">{{ fmt(fixableCount) }} findings patchable today</span>
+        <button class="stat-cell" title="Open findings with a fix available" @click="goFindings({ attr: 'fixable' })">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--teal)" />fix available<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="stat-num">{{ fixPct }}%</span>
+          <span class="stat-sub">{{ fmt(fixableCount) }} findings patchable today</span>
         </button>
       </div>
 
       <!-- signal band (1b): urgency + quality quick views, same joined grammar -->
-      <div class="kpi-band signal-band">
-        <button class="kpi-cell" title="Open known-exploited findings" @click="goFindings({ attr: 'kev' })">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-kev" />KEV · known-exploited<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="kpi-num" :class="{ 'kpi-num-alarm': kevCount > 0 }">{{ fmt(kevCount) }}</span>
+      <div class="stat-band signal-band">
+        <button class="stat-cell" title="Open known-exploited findings" @click="goFindings({ attr: 'kev' })">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--kev-bg)" />KEV · known-exploited<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="stat-num" :class="{ 'stat-num--alarm': kevCount > 0 }">{{ fmt(kevCount) }}</span>
         </button>
-        <button class="kpi-cell" title="Open findings where the scanners disagree" @click="goFindings({ attr: 'disagree' })">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-disagree" />scanners disagree<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="kpi-num">{{ fmt(disagreeCount) }}</span>
+        <button class="stat-cell" title="Open findings where the scanners disagree" @click="goFindings({ attr: 'disagree' })">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--sev-medium-solid)" />scanners disagree<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="stat-num">{{ fmt(disagreeCount) }}</span>
         </button>
-        <button class="kpi-cell" title="Open the untriaged queue" @click="goFindings({ state: 'open' })">
-          <span class="kpi-label"><i class="kpi-dot kpi-dot-progress" />triage progress<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="kpi-num">{{ triage.total === 0 ? '—' : `${Math.round(triage.pct(triage.handled + triage.ack))}%` }}</span>
+        <button class="stat-cell" title="Open the untriaged queue" @click="goFindings({ state: 'open' })">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--state-resolved-fg)" />triage progress<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <span class="stat-num">{{ triage.total === 0 ? '—' : `${Math.round(triage.pct(triage.handled + triage.ack))}%` }}</span>
           <span class="progress-bar" aria-hidden="true">
             <i class="seg-open" :style="{ width: `${triage.pct(triage.open)}%` }" />
             <i class="seg-ack" :style="{ width: `${triage.pct(triage.ack)}%` }" />
             <i class="seg-handled" :style="{ width: `${triage.pct(triage.handled)}%` }" />
             <i class="seg-stale" :style="{ width: `${triage.pct(triage.stale)}%` }" />
           </span>
-          <span class="kpi-sub">{{ fmt(triage.open) }} open · {{ fmt(triage.ack) }} ack · {{ fmt(triage.handled) }} handled<template v-if="triage.stale"> · {{ fmt(triage.stale) }} stale</template></span>
+          <span class="stat-sub">{{ fmt(triage.open) }} open · {{ fmt(triage.ack) }} ack · {{ fmt(triage.handled) }} handled<template v-if="triage.stale"> · {{ fmt(triage.stale) }} stale</template></span>
         </button>
       </div>
 
@@ -364,87 +364,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   gap: 10px;
 }
 
-/* joined stat band — one card, hairline-divided cells (Nuxt stat grammar, risk-band precedent) */
-.kpi-band {
-  display: grid;
+/* the joined stat-band SKIN lives in base.css (issue 368) — only this screen's layout here */
+.stat-band {
   grid-template-columns: repeat(5, 1fr);
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-.kpi-cell {
-  cursor: default; /* system arrow everywhere — affordance is the chevron + wash, never the cursor */
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-  padding: 14px 16px 12px;
-  border: none;
-  background: var(--card);
-  text-align: left;
-  transition: background var(--dur-quick);
-}
-.kpi-cell + .kpi-cell {
-  border-left: 1px solid var(--line2);
-}
-.kpi-cell:hover {
-  background: var(--control-hover-bg);
-}
-.kpi-cell:active {
-  background: var(--control-active-bg);
-}
-.kpi-cell:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: -2px;
-}
-.kpi-label {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--soft);
-  font-weight: 700;
-}
-.kpi-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-}
-.kpi-dot-fix {
-  background: var(--teal);
-}
-.kpi-dot-kev {
-  background: var(--kev-bg);
-}
-.kpi-dot-disagree {
-  background: var(--sev-medium-solid);
-}
-.kpi-dot-progress {
-  background: var(--state-resolved-fg);
-}
-.kpi-num-alarm {
-  color: var(--sev-critical-fg);
 }
 .signal-band {
   grid-template-columns: repeat(3, 1fr);
   margin-top: 12px;
-}
-
-/* at-rest clickability affordance (operator ruling 2026-07-10): navigating cells carry a soft
-   trailing chevron that turns coral with the hover wash — hover alone is not discoverable */
-.cell-go {
-  color: var(--dash-muted);
-  margin-left: 4px;
-  transition: color var(--dur-quick);
-}
-.kpi-cell:hover .cell-go,
-.tbl-hover tbody tr:hover .cell-go {
-  color: var(--coral-text);
 }
 
 .progress-bar {
@@ -471,22 +397,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .seg-stale {
   background: var(--state-stale-line);
 }
-.kpi-num {
-  font-size: var(--text-kpi);
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  margin-top: 6px;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums;
-}
-.kpi-sub {
-  font-size: var(--text-sm);
-  color: var(--soft);
-  font-family: var(--font-mono);
-  margin-top: 7px;
-}
-
 .grid {
   display: grid;
   gap: var(--grid-gap);
@@ -503,10 +413,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   .grid-1-1 {
     grid-template-columns: 1fr;
   }
-  .kpi-band {
+  .stat-band {
     grid-template-columns: repeat(2, 1fr);
   }
-  .kpi-cell + .kpi-cell {
+  .stat-cell + .stat-cell {
     border-left: none;
   }
 }
@@ -632,9 +542,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 }
 @media (prefers-reduced-motion: reduce) {
   .tbl-hover tbody tr,
-  .ns-link,
-  .cell-go,
-  .kpi-cell {
+  .ns-link {
     transition: none;
   }
 }
