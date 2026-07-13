@@ -3,7 +3,7 @@
 > Project-scoped guidance for building JAVV (this folder). The repo of record is **`javv-poc`**
 > (`git@github.com:Danube-Labs/javv-poc.git`); this `javv/` folder is the working copy. Canonical design
 > lives in **`docs/engineering/V4/`** (PLAN_v4 · SPEC_v4 · ARCHITECTURE_v4); V3 and earlier are frozen for the
-> evolution trail. UI reference: `handoff/v4/` (a *reference point, not a 1:1 contract*). Research
+> evolution trail. UI reference: `handoff/v5/` (current; `v4/` is the frozen trail - a *reference point, not a 1:1 contract*). Research
 > backing the v4 revision: `docs/research/`. **Lost? Read `REPO-MAP.md` first** - it maps every folder.
 > **Resuming a session?** Read the newest file in `.claude/sessions/` (the last handoff) before acting;
 > save one with `/save-context` before ending or compacting.
