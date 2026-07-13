@@ -10,6 +10,7 @@ List is a tenant read: `cluster_id` is a REQUIRED filter (the chokepoint discipl
 unscoped cross-cluster read), with task-E pagination (`size`/`offset` + `total`).
 """
 
+from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -25,6 +26,13 @@ from backend.decisions.lifecycle import (
     create_decision,
     edit_decision,
     revoke_decision,
+)
+from backend.query.approvals import (
+    SCANNER_VALUES,
+    STATUS_VALUES,
+    ApprovalFilters,
+    build_approvals_body,
+    shape_facets,
 )
 
 router = APIRouter(prefix="/api/v1/decisions", tags=["decisions"])
@@ -108,37 +116,41 @@ async def approval_list(
     cluster_id: ClusterId,
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
+    q: Annotated[str | None, Query(min_length=2, max_length=128)] = None,
+    status: Annotated[str | None, Query(max_length=16)] = None,
+    created_by: Annotated[str | None, Query(max_length=128)] = None,
+    scanner: Annotated[str | None, Query(max_length=8)] = None,
+    warn_days: Annotated[int, Query(ge=1, le=365)] = 7,
 ) -> dict[str, Any]:
     """M5d/FR-8: the risk-accept review surface for accept_final holders — ACTIVE risk-accept
     decisions, soonest-expiring first (RULING, #30: creation is already SEC-2-gated, so this is
-    a review queue over standing acceptances, not a pending-approval workflow)."""
+    a review queue over standing acceptances, not a pending-approval workflow). Slice 4b
+    (operator re-ruling on the built 4a screen): the prototype rail's dims served server-side —
+    `q` (CVE contains) / `status` (derived from `expiry` at query time against `warn_days`,
+    mirroring the FE chip's window) / `created_by` / `scanner` (the column value, both|trivy|
+    grype) — plus facet counts under the same lens, one round trip."""
+    if status is not None and status not in STATUS_VALUES:
+        raise HTTPException(422, f"status must be one of {STATUS_VALUES}")
+    if scanner is not None and scanner not in SCANNER_VALUES:
+        raise HTTPException(422, f"scanner must be one of {SCANNER_VALUES}")
     client = cast(Any, request.app.state.opensearch)
     # no read-side refresh (audit A-m2/#191): decision writes use refresh=true, so read-your-writes
     # holds without forcing a Lucene refresh on every read
-    resp = await client.search(
-        index=DECISIONS_INDEX,
-        body={
-            "size": size,
-            "from": offset,
-            "track_total_hits": True,
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"term": {"cluster_id": cluster_id}},
-                        {"term": {"type": "risk_accepted"}},
-                    ],
-                    "must_not": [{"exists": {"field": "revoked_at"}}],
-                }
-            },
-            # the review queue: expiring soonest at the top; open-ended acceptances last
-            "sort": [{"expiry": {"order": "asc", "missing": "_last"}}],
-        },
+    body = build_approvals_body(
+        ApprovalFilters(q=q, status=status, created_by=created_by, scanner=scanner),
+        cluster_id=cluster_id,
+        size=size,
+        offset=offset,
+        now=datetime.now(UTC),
+        warn_days=warn_days,
     )
+    resp = await client.search(index=DECISIONS_INDEX, body=body)
     return {
         "approvals": [h["_source"] for h in resp["hits"]["hits"]],
         "total": resp["hits"]["total"]["value"],
         "size": size,
         "offset": offset,
+        "facets": shape_facets(resp["aggregations"]),
     }
 
 

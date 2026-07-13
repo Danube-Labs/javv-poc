@@ -170,7 +170,11 @@ export const createApiV1DecisionsPost = <ThrowOnError extends boolean = false>(o
  *
  * M5d/FR-8: the risk-accept review surface for accept_final holders — ACTIVE risk-accept
  * decisions, soonest-expiring first (RULING, #30: creation is already SEC-2-gated, so this is
- * a review queue over standing acceptances, not a pending-approval workflow).
+ * a review queue over standing acceptances, not a pending-approval workflow). Slice 4b
+ * (operator re-ruling on the built 4a screen): the prototype rail's dims served server-side —
+ * `q` (CVE contains) / `status` (derived from `expiry` at query time against `warn_days`,
+ * mirroring the FE chip's window) / `created_by` / `scanner` (the column value, both|trivy|
+ * grype) — plus facet counts under the same lens, one round trip.
  */
 export const approvalListApiV1DecisionsApprovalsGet = <ThrowOnError extends boolean = false>(options: Options<ApprovalListApiV1DecisionsApprovalsGetData, ThrowOnError>): RequestResult<ApprovalListApiV1DecisionsApprovalsGetResponses, ApprovalListApiV1DecisionsApprovalsGetErrors, ThrowOnError> => (options.client ?? client).get<ApprovalListApiV1DecisionsApprovalsGetResponses, ApprovalListApiV1DecisionsApprovalsGetErrors, ThrowOnError>({ url: '/api/v1/decisions/approvals', ...options });
 

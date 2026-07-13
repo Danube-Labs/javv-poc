@@ -117,7 +117,7 @@ routes stay current-state-only).
 | POST/GET | `/api/v1/decisions` | `can_triage` | Create / list decisions (ignore-rules etc.). **Immutable + lifecycle stamp** — edit = revoke+new. `risk_accepted` type additionally requires `can_accept_audit_final` (SEC-2 → 403 without it) |
 | PATCH | `/api/v1/decisions/{decision_id}` | `can_triage` | The revoke+new edit (one `effective_at`/`operation_id`, D40) |
 | POST | `/api/v1/decisions/{decision_id}/revoke` | `can_triage` | Revoke (projection un-applies) |
-| GET | `/api/v1/decisions/approvals` | `can_accept_audit_final` | The approvals queue (security-lead view) |
+| GET | `/api/v1/decisions/approvals` | `can_accept_audit_final` | The approvals queue (security-lead view): ACTIVE risk-accepts, soonest expiry first, `size`/`offset` paging. Slice 4b filters, all server-side: `q` (CVE contains) · `status` (`active\|expiring\|expired\|open-ended`, derived from `expiry` at query time against `warn_days`, default 7 — mirrors the UI chip) · `created_by` · `scanner` (`both\|trivy\|grype`, the column value). Response carries `facets` (status/created_by/scanner counts under the same lens) |
 
 ### Settings (M5d)
 
