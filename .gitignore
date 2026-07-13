@@ -60,3 +60,6 @@ backend/cookies.txt
 
 # per-developer session breadcrumbs written by the SessionStart hooks — local only, never staged
 notes/
+
+# local dev scratch (uvicorn.log, throwaway scripts) — never staged
+tmp/
