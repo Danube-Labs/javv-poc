@@ -2,8 +2,9 @@
 
 Pins: the status view mints a `download_token` only for a done, unexpired report; download
 requires session + valid token; expiry → **410** (never stale bytes); a pending report has no
-result (404); the bell is strictly own-notifications (server-side filter + IDOR 404 on
-mark-read), with a server-computed unread count. Token unit contract pinned alongside.
+result (404); status + download are OWNER-scoped — another user's report_id is a 404,
+indistinguishable from missing; the bell is strictly own-notifications (server-side filter +
+IDOR 404 on mark-read), with a server-computed unread count. Token unit contract alongside.
 """
 
 import os
@@ -71,7 +72,9 @@ async def env():
     await client.close()
 
 
-async def _seed_done_report(client, *, expires_in_hours: float = 24.0, chunks: int = 2) -> str:
+async def _seed_done_report(
+    client, *, requested_by: str, expires_in_hours: float = 24.0, chunks: int = 2
+) -> str:
     report_id = uuid.uuid4().hex
     attempt_id = uuid.uuid4().hex
     for seq in range(chunks):
@@ -94,7 +97,7 @@ async def _seed_done_report(client, *, expires_in_hours: float = 24.0, chunks: i
             "kind": "export",
             "status": "done",
             "cluster_id": f"c-dl-{uuid.uuid4().hex[:8]}",
-            "requested_by": "u-someone",
+            "requested_by": requested_by,
             "run_mode": "offpeak",
             "params": {"format": "csv"},
             "created_at": datetime.now(UTC).isoformat(),
@@ -115,8 +118,8 @@ async def _seed_done_report(client, *, expires_in_hours: float = 24.0, chunks: i
 
 async def test_status_view_mints_a_token_and_download_streams_the_chunks(env) -> None:
     login, client = env
-    http, _ = await login()
-    report_id = await _seed_done_report(client)
+    http, user = await login()
+    report_id = await _seed_done_report(client, requested_by=user)
 
     status = await http.get(f"/api/v1/reports/{report_id}")
     assert status.status_code == 200
@@ -131,7 +134,7 @@ async def test_status_view_mints_a_token_and_download_streams_the_chunks(env) ->
 
 async def test_pending_report_has_no_token_and_no_download(env) -> None:
     login, client = env
-    http, _ = await login()
+    http, user = await login()
     report_id = uuid.uuid4().hex
     await client.index(
         index=REPORTS_INDEX,
@@ -141,7 +144,7 @@ async def test_pending_report_has_no_token_and_no_download(env) -> None:
             "kind": "export",
             "status": "pending",
             "cluster_id": "c-dl-pending",
-            "requested_by": "u",
+            "requested_by": user,
             "run_mode": "offpeak",
             "params": {"format": "csv"},
             "created_at": datetime.now(UTC).isoformat(),
@@ -159,8 +162,9 @@ async def test_pending_report_has_no_token_and_no_download(env) -> None:
 
 async def test_expired_report_is_410_and_mints_no_token(env) -> None:
     login, client = env
-    http, _ = await login()
-    report_id = await _seed_done_report(client, expires_in_hours=-1)  # already past expiry
+    http, user = await login()
+    # already past expiry
+    report_id = await _seed_done_report(client, requested_by=user, expires_in_hours=-1)
 
     status = await http.get(f"/api/v1/reports/{report_id}")
     assert "download_token" not in status.json()
@@ -171,8 +175,8 @@ async def test_expired_report_is_410_and_mints_no_token(env) -> None:
 
 async def test_bad_token_is_403_and_no_session_is_401(env) -> None:
     login, client = env
-    http, _ = await login()
-    report_id = await _seed_done_report(client)
+    http, user = await login()
+    report_id = await _seed_done_report(client, requested_by=user)
 
     r = await http.get(f"/api/v1/reports/{report_id}/download", params={"token": "9999.fake"})
     assert r.status_code == 403
@@ -185,6 +189,22 @@ async def test_bad_token_is_403_and_no_session_is_401(env) -> None:
     r = await bare.get(f"/api/v1/reports/{report_id}/download", params={"token": good})
     assert r.status_code == 401  # the token never substitutes for the session
     await bare.aclose()
+
+
+async def test_someone_elses_report_is_404_on_status_and_download(env) -> None:
+    """IDOR pin: a foreign report_id must be indistinguishable from a missing one —
+    no status view, no token minting, no download even with a validly-signed token."""
+    login, client = env
+    http_owner, owner = await login()
+    http_other, _ = await login()
+    report_id = await _seed_done_report(client, requested_by=owner)
+
+    assert (await http_owner.get(f"/api/v1/reports/{report_id}")).status_code == 200
+    assert (await http_other.get(f"/api/v1/reports/{report_id}")).status_code == 404
+
+    tok = download_token.mint(report_id)  # even a valid token never crosses owners
+    r = await http_other.get(f"/api/v1/reports/{report_id}/download", params={"token": tok})
+    assert r.status_code == 404
 
 
 def test_download_token_contract() -> None:
