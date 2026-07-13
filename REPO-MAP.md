@@ -5,9 +5,10 @@
 > spec** - when this file and a canonical doc disagree, the canonical doc wins. Keep it current when folders
 > are added or repurposed.
 
-**Status:** backend + scanner shipped through **M7 slice 1** (v0.3.1, releases via release-please).
-Next: the Vue frontend (M9a-f, in progress - `frontend/` landed with M9a slice 1) and Helm
-deploy (M10). There is no `deploy/` yet - that lands at M10.
+**Status:** backend + scanner shipped through **M8** (scheduled reports/drain + the D28 historical
+readers; releases via release-please). Frontend shipped through **M9d** (findings/triage, overview,
+all-clusters, images, audit log, scanner status, contributors, approvals) - **M9e/M9f next**, then
+Helm deploy (M10). There is no `deploy/` yet - that lands at M10.
 
 ## Start here (reading order)
 1. [`README.md`](README.md) - what JAVV is, stack, toolchain table, license.
