@@ -83,8 +83,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </tr>
       </tbody>
     </table>
-    <div class="board-pager">
-      <GridPager
+    <GridPager
         :total="ordered.length"
         :page="page"
         :size="size"
@@ -95,7 +94,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         @next="page += 1"
         @update:size="setSize"
       />
-    </div>
   </div>
 </template>
 
@@ -129,12 +127,5 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .strong {
   font-weight: 700;
   color: var(--ink);
-}
-/* the pager sits inside the table card (card-width surface, not a full-page grid) */
-.board-pager {
-  padding: 0 12px 10px;
-}
-.board-pager :deep(.pager) {
-  margin-top: 6px;
 }
 </style>

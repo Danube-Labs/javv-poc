@@ -224,6 +224,7 @@ async function exportCsv() {
           Audit log unavailable. Check the backend connection, then retry.
         </p>
 
+        <div class="tbl-card">
         <AuditTable
           :rows="grid.rows"
           :loading="grid.loading"
@@ -241,6 +242,7 @@ async function exportCsv() {
           @next="grid.goNext()"
           @update:size="grid.setSize"
         />
+        </div>
       </div>
     </div>
   </div>

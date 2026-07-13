@@ -9,28 +9,43 @@
  * Route + nav are capability-gated (can_accept_audit_final) since the M9a shell.
  */
 import { computed, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import { approvalListApiV1DecisionsApprovalsGet, revokeApiV1DecisionsDecisionIdRevokePost } from '@/api/generated'
-import { scannerLabel, scopeLabel, type ApprovalRow } from '@/approvals/viewModel'
+import { APPROVAL_FIELDS } from '@/approvals/fields.config'
+import { EXPIRY_WARN_DAYS, scannerLabel, scopeLabel, type ApprovalRow } from '@/approvals/viewModel'
 import EditDecisionDialog from '@/components/approvals/EditDecisionDialog.vue'
 import ExpiryChip from '@/components/chips/ExpiryChip.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import AuditLens from '@/components/dashboards/AuditLens.vue'
 import LimitedHistoricalNotice from '@/components/dashboards/LimitedHistoricalNotice.vue'
+import FacetRail from '@/components/filters/FacetRail.vue'
+import FilterBar from '@/components/filters/FilterBar.vue'
 import GridPager from '@/components/findings/GridPager.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import { buildFilterQuery } from '@/filters/buildFilterQuery'
+import type { FacetsResponse } from '@/filters/facets'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
+import { makeFiltersStore } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 import { refNowMs } from '@/system/clock'
 import { lastDataAt } from '@/system/freshness'
+import { keepTT, stripTT } from '@/system/timeTravelUrl'
 
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
 const toast = useToastStore()
+const route = useRoute()
 const router = useRouter()
+
+/* the 4b rail (operator re-ruling on the built 4a screen): one config drives rail + bar +
+   URL sync, the audit-screen wiring verbatim; every dim is served by the endpoint itself */
+const useApprovalFilters = makeFiltersStore('approvals-filters', APPROVAL_FIELDS)
+const filters = useApprovalFilters()
+filters.fromQuery(route.query)
 
 const rows = ref<ApprovalRow[]>([])
 const total = ref(0)
@@ -38,20 +53,45 @@ const page = ref(0)
 const size = ref(25)
 const settled = ref(false)
 const failed = ref(false)
+const facets = ref<FacetsResponse>({})
 
 /** countdowns measure from the display clock (D28) — wall time at now, T when rewound */
 const nowMs = computed(() => refNowMs(timeTravel.t))
 
+// no as_of in the globals: the queue is now-only (the T<now notice owns the rewound state)
+const filterQuery = computed(() =>
+  clusterStore.selectedId
+    ? buildFilterQuery(APPROVAL_FIELDS, filters.selections, { cluster_id: clusterStore.selectedId })
+    : null,
+)
+
 async function fetchQueue() {
-  if (!clusterStore.selectedId || !timeTravel.isNow) return
+  if (!filterQuery.value || !timeTravel.isNow) return
   const response = await approvalListApiV1DecisionsApprovalsGet({
-    query: { cluster_id: clusterStore.selectedId, size: size.value, offset: page.value * size.value },
+    query: {
+      ...filterQuery.value,
+      size: size.value,
+      offset: page.value * size.value,
+      warn_days: EXPIRY_WARN_DAYS,
+    } as never,
   })
   failed.value = !response.response?.ok
   if (!failed.value && response.data) {
-    const data = response.data as { approvals: ApprovalRow[]; total: number }
+    const data = response.data as {
+      approvals: ApprovalRow[]
+      total: number
+      facets: Record<string, { key: string; count: number }[]>
+    }
     rows.value = data.approvals
     total.value = data.total
+    // the endpoint's inline facets → the rail's bucket shape (no per-scanner split here:
+    // a decision is the SUBJECT of scanners, not split by them)
+    facets.value = Object.fromEntries(
+      Object.entries(data.facets).map(([k, buckets]) => [
+        k,
+        buckets.map((b) => ({ ...b, by_scanner: {} })),
+      ]),
+    )
   } else {
     logger.warn('approvals_fetch_failed', { status: response.response?.status })
     rows.value = []
@@ -59,16 +99,32 @@ async function fetchQueue() {
   settled.value = true
 }
 watch(
-  [() => clusterStore.selectedId, () => timeTravel.isNow, page, size],
-  ([cid], old) => {
-    if (old && old[0] !== cid) {
-      settled.value = false
-      page.value = 0
-    }
+  [filterQuery, () => timeTravel.isNow, page, size],
+  ([q], old) => {
+    if (old && JSON.stringify(q) !== JSON.stringify(old[0])) page.value = 0
     void fetchQueue()
   },
-  { immediate: true },
+  { immediate: true, deep: true },
 )
+
+/* selections ⇄ URL (the audit-screen contract: a pasted link reproduces the lens) */
+watch(
+  () => filters.toQuery(),
+  (q) => {
+    if (JSON.stringify(q) !== JSON.stringify(stripTT(route.query)))
+      void router.replace({ query: { ...keepTT(route.query), ...q } })
+  },
+)
+watch(
+  () => route.query,
+  (q) => {
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripTT(q))) filters.fromQuery(q)
+  },
+)
+
+function applySearch(text: string) {
+  filters.setText('q', text)
+}
 
 /* the decision-activity lens (ruling 2): the journal sliced to entity_type=decision —
    create + revoke are the only decision actions, so one term is the exact slice */
@@ -147,7 +203,38 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         The decision-activity lens above still rewinds; return to now to review the queue."
     />
 
-    <template v-else>
+    <div v-else class="findings-layout">
+      <div class="rail-col">
+        <div class="facet-search">
+          <AppIcon name="search" :size="14" />
+          <input
+            :value="filters.selections.q?.[0] ?? ''"
+            placeholder="CVE…"
+            aria-label="Search acceptances by CVE (contains match)"
+            @keydown.enter="applySearch(($event.target as HTMLInputElement).value)"
+          />
+        </div>
+        <FacetRail
+          :fields="APPROVAL_FIELDS"
+          :selections="filters.selections"
+          :facets="facets"
+          @toggle="filters.toggle"
+        />
+      </div>
+
+      <div class="findings-main">
+        <div class="toolbar-row">
+          <FilterBar
+            :fields="APPROVAL_FIELDS"
+            :selections="filters.selections"
+            :facets="facets"
+            @toggle="filters.toggle"
+            @set-text="filters.setText"
+            @clear-field="filters.clearField"
+            @clear-all="filters.clearAll"
+          />
+        </div>
+
       <div v-if="!settled" class="skel skel-table" aria-busy="true" aria-label="Loading approvals" />
       <p v-else-if="failed" class="load-error" role="alert">
         Could not load the queue — check the backend connection.
@@ -205,23 +292,26 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           </tbody>
         </table>
         <div v-if="rows.length === 0" class="empty-row">
-          No standing risk-acceptances — accepted findings land here for review.
+          {{
+            Object.values(filters.selections).some((v) => v.length > 0)
+              ? 'No acceptances match these filters.'
+              : 'No standing risk-acceptances — accepted findings land here for review.'
+          }}
         </div>
-        <div class="queue-pager">
-          <GridPager
-            :total="total"
-            :page="page"
-            :size="size"
-            :shown="rows.length"
-            :has-prev="page > 0"
-            :has-next="(page + 1) * size < total"
-            @prev="page = Math.max(0, page - 1)"
-            @next="page = page + 1"
-            @update:size="(s) => { size = s; page = 0 }"
-          />
-        </div>
+        <GridPager
+          :total="total"
+          :page="page"
+          :size="size"
+          :shown="rows.length"
+          :has-prev="page > 0"
+          :has-next="(page + 1) * size < total"
+          @prev="page = Math.max(0, page - 1)"
+          @next="page = page + 1"
+          @update:size="(s) => { size = s; page = 0 }"
+        />
       </section>
-    </template>
+      </div>
+    </div>
 
     <EditDecisionDialog
       v-if="editing"
@@ -309,13 +399,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   .skel-table {
     animation: none;
   }
-}
-/* the in-card pager wrapper — the LeaderboardTable reference (pager never sits flush) */
-.queue-pager {
-  padding: 0 12px 10px;
-}
-.queue-pager :deep(.pager) {
-  margin-top: 6px;
 }
 .load-error {
   margin-top: 16px;

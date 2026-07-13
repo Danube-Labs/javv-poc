@@ -353,6 +353,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </p>
       </div>
       <template v-else>
+        <div class="tbl-card">
         <FindingsTable
           :rows="rows"
           :sort="sort"
@@ -373,6 +374,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           @next="goNext"
           @update:size="(s: number) => (size = s)"
         />
+        </div>
       </template>
     </template>
   </div>

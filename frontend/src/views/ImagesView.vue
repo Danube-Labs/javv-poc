@@ -240,6 +240,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             @reorder="setColOrder"
           />
         </div>
+<div class="tbl-card">
         <ImagesTable
           :rows="pageRows"
           :sort="sort"
@@ -265,6 +266,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           @next="page += 1"
           @update:size="(s: number) => (size = s)"
         />
+        </div>
       </div>
     </div>
   </div>
