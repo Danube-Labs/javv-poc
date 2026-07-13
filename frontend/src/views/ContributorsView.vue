@@ -11,11 +11,13 @@
  * trends chart (not attributable to contributors, A-m9), CSV export (issue 359).
  */
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { contributorsApiV1ContributorsGet } from '@/api/generated'
 import type { ContributorsApiV1ContributorsGetData } from '@/api/generated'
 import type { ActivityPoint } from '@/charts/buildAuditLensOption'
 import ActivityFeed from '@/components/contributors/ActivityFeed.vue'
+import AppIcon from '@/components/ui/AppIcon.vue'
 import ContributorsLens from '@/components/contributors/ContributorsLens.vue'
 import LeaderboardTable from '@/components/contributors/LeaderboardTable.vue'
 import PodiumCard from '@/components/contributors/PodiumCard.vue'
@@ -36,6 +38,12 @@ const BOARD_CAP = 100 // the endpoint's terms-agg board size — the table label
 
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
+const router = useRouter()
+
+/** count cells → the audit rows they derive from (same provenance rule as the podium) */
+function goAudit(action: string) {
+  void router.push({ name: 'audit', query: { action } })
+}
 const { withGlobals } = useApi()
 
 const board = ref<BoardRow[]>([])
@@ -130,17 +138,19 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
     <template v-else>
       <!-- team KPI band: the ruled joined hairline-divided stat grammar (Overview), fed by
            the server's totals block — pooled median/SLA are not client-derivable -->
+      <!-- count cells click through to the audit rows they were derived from (the podium
+           provenance rule); median/SLA stay static — derived numbers, no row set IS them -->
       <div v-if="totals" class="stat-band stat-band--stat">
-        <div class="stat-cell">
-          <span class="stat-label"><i class="stat-dot" style="background: var(--state-resolved-solid)" />resolved</span>
+        <button class="stat-cell" title="Open resolve actions in the audit log" @click="goAudit('resolve')">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--state-resolved-solid)" />resolved<AppIcon class="cell-go" name="chevron" :size="11" /></span>
           <span class="stat-num">{{ fmt(totals.by_action['resolve'] ?? 0) }}</span>
           <span class="stat-sub">{{ windowLabel }}</span>
-        </div>
-        <div class="stat-cell">
-          <span class="stat-label"><i class="stat-dot" style="background: var(--state-ack-solid)" />acknowledged</span>
+        </button>
+        <button class="stat-cell" title="Open acknowledge actions in the audit log" @click="goAudit('acknowledge')">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--state-ack-solid)" />acknowledged<AppIcon class="cell-go" name="chevron" :size="11" /></span>
           <span class="stat-num">{{ fmt(totals.by_action['acknowledge'] ?? 0) }}</span>
           <span class="stat-sub">{{ windowLabel }}</span>
-        </div>
+        </button>
         <div class="stat-cell">
           <span class="stat-label"><i class="stat-dot" style="background: var(--teal)" />median time-to-resolve</span>
           <span class="stat-num">{{ fmtMedian(totals.median_ttr_seconds) }}</span>
@@ -151,11 +161,11 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
           <span class="stat-num">{{ teamSla }}</span>
           <span class="stat-sub">of SLA-bearing handled findings</span>
         </div>
-        <div class="stat-cell">
-          <span class="stat-label"><i class="stat-dot" style="background: var(--sev-critical-solid)" />critical cleared</span>
+        <button class="stat-cell" title="Open resolve actions in the audit log — all severities; this count is criticals only" @click="goAudit('resolve')">
+          <span class="stat-label"><i class="stat-dot" style="background: var(--sev-critical-solid)" />critical cleared<AppIcon class="cell-go" name="chevron" :size="11" /></span>
           <span class="stat-num">{{ fmt(totals.critical_cleared) }}</span>
           <span class="stat-sub">{{ windowLabel }}</span>
-        </div>
+        </button>
       </div>
 
       <div class="contrib-layout">
