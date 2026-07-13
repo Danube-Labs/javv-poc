@@ -1273,6 +1273,26 @@ export type ApprovalListApiV1DecisionsApprovalsGetData = {
          * Offset
          */
         offset?: number;
+        /**
+         * Q
+         */
+        q?: string | null;
+        /**
+         * Status
+         */
+        status?: string | null;
+        /**
+         * Created By
+         */
+        created_by?: string | null;
+        /**
+         * Scanner
+         */
+        scanner?: string | null;
+        /**
+         * Warn Days
+         */
+        warn_days?: number;
     };
     url: '/api/v1/decisions/approvals';
 };

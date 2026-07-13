@@ -2455,7 +2455,7 @@
     },
     "/api/v1/decisions/approvals": {
       "get": {
-        "description": "M5d/FR-8: the risk-accept review surface for accept_final holders \u2014 ACTIVE risk-accept\ndecisions, soonest-expiring first (RULING, #30: creation is already SEC-2-gated, so this is\na review queue over standing acceptances, not a pending-approval workflow).",
+        "description": "M5d/FR-8: the risk-accept review surface for accept_final holders \u2014 ACTIVE risk-accept\ndecisions, soonest-expiring first (RULING, #30: creation is already SEC-2-gated, so this is\na review queue over standing acceptances, not a pending-approval workflow). Slice 4b\n(operator re-ruling on the built 4a screen): the prototype rail's dims served server-side \u2014\n`q` (CVE contains) / `status` (derived from `expiry` at query time against `warn_days`,\nmirroring the FE chip's window) / `created_by` / `scanner` (the column value, both|trivy|\ngrype) \u2014 plus facet counts under the same lens, one round trip.",
         "operationId": "approval_list_api_v1_decisions_approvals_get",
         "parameters": [
           {
@@ -2488,6 +2488,87 @@
               "maximum": 10000,
               "minimum": 0,
               "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created By"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "warn_days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Warn Days",
               "type": "integer"
             }
           }
