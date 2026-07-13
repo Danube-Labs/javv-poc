@@ -91,9 +91,11 @@ Each bolt README is a self-contained brief (Goal · Canonical refs · Depends on
 | **M5a-d** ✅ | Auth/session · VEX state machine · decisions projection · SLA + bulk |
 | **M6** ✅ | Read/reporting API (T=now): search/facets/groups, exports, trends, contributors |
 | **M7** ◐ | Scheduled export - slice 1 (enqueue/status) shipped; slices 2-5 open (#32) |
-| **M8a / M8b** | Snapshot append (occurrences) / point-in-time query API (T<now) |
-| **M8c / M8d / M8e** | M9-prep (v5 rulings #237): session reads (audit·provenance·inventory·cluster registry) / envelope `ptype` / server-side saved views |
-| **M9a-f** | Frontend: shell+filters · findings grid · overview+images · audit/approvals · settings/data · cross-cutting |
+| **M8a / M8b** ✅ | Snapshot append (occurrences) / point-in-time query API (T<now) |
+| **M8c / M8d / M8e** ✅ | M9-prep (v5 rulings #237): session reads (audit·provenance·inventory·cluster registry) / envelope `ptype` / server-side saved views |
+| **M9a-c** ✅ | Frontend: shell+filters+design gates · findings grid+detail+triage · overview+all-clusters+images |
+| **M9d** ◐ | Audit log ✅ · scanner status ✅ · contributors ✅ · approvals (slice 4, open) — bolt #38 |
+| **M9e / M9f** | Settings: data+scanning · cross-cutting (search, bell, saved views, RBAC, empty states) |
 | **M10** | Polish + deploy (Helm→k3s, scanner CronJobs, vuln-DB cache) |
 | AUDIT-M5c-M5d-M6-remediation ✅ | The #185-#192 audit wave (shipped v0.3.0) |
 
@@ -121,7 +123,11 @@ gates ESLint/oxlint + stylelint + vue-tsc (`npm run lint` / `npm run test`, the 
 **Read [`frontend/DESIGN.md`](frontend/DESIGN.md) before touching any screen** - the agent-facing
 design contract over `src/styles/tokens.css` (the binding token source, ui-foundations.md).
 `src/components/ui/` is the mandatory UI kit (buttons/segs/fields/dropdowns/modals/toasts +
-motion - DESIGN.md §5; re-rolling any of it is a review failure).
+motion - DESIGN.md §5; re-rolling any of it is a review failure). Other shared families:
+`components/chips/` (every same-hue status/severity pair lives here - style-ratchet-enforced),
+`components/filters/` (FacetRail/FilterBar over `filters/fields.config.ts`),
+`components/time-travel/` (the global range picker, D28), `charts/` (pure ECharts option
+builders), and the per-screen dirs (`findings/`, `audit/`, `contributors/`, `scanners/`, …).
 `src/lib/logger.ts` is the only logging pipeline (raw `console.*` is ESLint-banned).
 
 ---
