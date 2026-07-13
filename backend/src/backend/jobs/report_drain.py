@@ -136,11 +136,14 @@ async def _vex_pieces(
 
 async def _ring_bell(client: AsyncOpenSearch, job: ClaimedJob, *, prefix: str = "") -> None:
     doc = job.doc
+    # ONE id for both _id and notification_id — the list serves notification_id, mark-read
+    # gets by _id; two values would make every real notification unmarkable (404)
+    notification_id = uuid.uuid4().hex
     await client.index(
         index=f"{prefix}{NOTIFICATIONS_INDEX}",
-        id=uuid.uuid4().hex,
+        id=notification_id,
         body={
-            "notification_id": uuid.uuid4().hex,
+            "notification_id": notification_id,
             "user_id": doc["requested_by"],
             "type": "report_ready",
             "ref": job.report_id,

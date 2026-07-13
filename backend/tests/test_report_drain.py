@@ -141,9 +141,13 @@ async def test_drain_publishes_a_csv_identical_to_the_inline_export(client) -> N
         index=NOTIFICATIONS_INDEX, body={"query": {"term": {"ref": report_id}}}
     )
     assert bell["hits"]["total"]["value"] == 1
-    note = bell["hits"]["hits"][0]["_source"]
+    hit = bell["hits"]["hits"][0]
+    note = hit["_source"]
     assert note["type"] == "report_ready" and note["user_id"] == doc["requested_by"]
     assert note["read"] is False
+    # the served notification_id IS the _id — mark-read gets by it, so two values
+    # would make every real bell unmarkable (audit F-03; fixtures mirror this invariant)
+    assert hit["_id"] == note["notification_id"]
 
 
 async def test_drain_vex_export_is_valid_json_per_scanner(client) -> None:

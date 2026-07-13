@@ -202,6 +202,7 @@ def test_download_token_contract() -> None:
 
 
 async def _seed_note(client, user_id: str, **over) -> str:
+    # one id for _id AND notification_id — the producer invariant _ring_bell pins (audit F-03)
     nid = uuid.uuid4().hex
     body = {
         "notification_id": nid,
