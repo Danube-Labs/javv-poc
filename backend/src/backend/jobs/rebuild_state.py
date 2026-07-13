@@ -33,6 +33,7 @@ from opensearchpy import AsyncOpenSearch, NotFoundError
 
 from backend.decisions.lifecycle import DECISIONS_INDEX
 from backend.decisions.reproject import reproject_cve
+from backend.query.paging import search_to_exhaustion
 from backend.services import watermarks as wm
 from backend.services.merge import SCANNER_FIELDS
 from backend.services.sla_clock import recompute_sla_clocks
@@ -135,7 +136,8 @@ async def _committed_runs(
     client: AsyncOpenSearch, prefix: str, cluster_id: str, scanner: str, digest: str
 ) -> list[dict[str, Any]]:
     """The digest's committed runs ascending by `scan_order` (the D40 ordering key)."""
-    resp = await client.search(
+    return await search_to_exhaustion(
+        client,
         index=f"{prefix}javv-scan-events-{cluster_id}-*",
         body={
             "query": {
@@ -146,12 +148,11 @@ async def _committed_runs(
                     ]
                 }
             },
-            "sort": [{"scan_order": "asc"}],
+            "sort": [{"scan_order": "asc"}],  # monotonic per (scanner, digest) — unique
             "size": 10_000,
             "_source": ["scan_run_id", "scan_order", "@timestamp"],
         },
     )
-    return [h["_source"] for h in resp["hits"]["hits"]]
 
 
 async def _last_appearances(
@@ -286,7 +287,8 @@ async def rebuild_scanner_presence(client: AsyncOpenSearch, *, prefix: str = "")
         last = await _last_appearances(
             client, prefix, cluster_id, scanner, digest, {r["scan_order"] for r in runs}
         )
-        resp = await client.search(
+        cached = await search_to_exhaustion(
+            client,
             index=findings_index,
             body={
                 "query": {
@@ -299,17 +301,17 @@ async def rebuild_scanner_presence(client: AsyncOpenSearch, *, prefix: str = "")
                     }
                 },
                 "size": 10_000,
+                "sort": [{"finding_key": "asc"}],  # unique per digest — the walk's total order
                 "_source": ["finding_key", *PRESENCE_FIELDS],
             },
         )
-        for hit in resp["hits"]["hits"]:
-            src = hit["_source"]
+        for src in cached:
             target = _presence_target(last.get(src["finding_key"]), runs)
             if target is None or all(src.get(f) == target[f] for f in PRESENCE_FIELDS):
                 continue
             await client.update(
                 index=findings_index,
-                id=hit["_id"],
+                id=src["finding_key"],  # the findings _id IS the finding_key (merge.py)
                 body={"doc": target},
                 params={"refresh": "true", "retry_on_conflict": "3"},
             )
@@ -329,12 +331,24 @@ async def rebuild_scanner_presence(client: AsyncOpenSearch, *, prefix: str = "")
         )
         return {"digests": 0, "watermarks": 0, "updated": 0, "orphan_watermarks_dropped": 0}
     try:
-        resp = await client.search(
-            index=f"{prefix}{wm.INDEX}", body={"size": 10_000, "query": {"match_all": {}}}
+        docs = await search_to_exhaustion(
+            client,
+            index=f"{prefix}{wm.INDEX}",
+            body={
+                "query": {"match_all": {}},
+                "size": 10_000,
+                # the identity triple is the doc's unique key (its _id is their sha256)
+                "sort": [
+                    {"cluster_id": "asc"},
+                    {"scanner": "asc"},
+                    {"image_digest": "asc"},
+                ],
+            },
         )
-        for hit in resp["hits"]["hits"]:
-            if hit["_id"] not in valid_watermark_ids:
-                await client.delete(index=f"{prefix}{wm.INDEX}", id=hit["_id"])
+        for src in docs:
+            doc_id = wm._doc_id(src["cluster_id"], src["scanner"], src["image_digest"])
+            if doc_id not in valid_watermark_ids:
+                await client.delete(index=f"{prefix}{wm.INDEX}", id=doc_id)
                 dropped += 1
     except NotFoundError:
         pass
