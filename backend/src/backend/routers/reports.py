@@ -2,9 +2,11 @@
 
 `POST` writes a `pending` `system-reports` doc; the off-peak drain (`jobs/report_drain`, a later
 slice) claims it via OCC, streams the export through M6's engine, stores the result chunked in
-OpenSearch, and rings the bell. Read = any authenticated principal — a scheduled export is a read,
-gated exactly like the M6 inline export (`get_current_principal`, no extra capability). `cluster_id`
-is a required field, applied on the export query at drain time and re-checked on download.
+OpenSearch, and rings the bell. Status/download are OWNER-scoped (`requested_by` must match the
+principal; a foreign report_id 404s exactly like a missing one) — beyond that a scheduled export
+is a read, gated like the M6 inline export (`get_current_principal`, no extra capability).
+`cluster_id` is a required field, applied on the export query at drain time and re-checked on
+download.
 
 `GET /{report_id}` returns job status (the public view — never the raw params/attempt internals);
 for a `done`, unexpired report it also mints the short-lived signed `download_token` (SEC-10
@@ -104,6 +106,12 @@ def _expired(doc: dict[str, Any]) -> bool:
     return expires_at is not None and datetime.fromisoformat(expires_at) <= datetime.now(UTC)
 
 
+def _require_owner(doc: dict[str, Any], principal: Principal) -> None:
+    # own-report 404 (not 403): a foreign report_id must be indistinguishable from a missing one
+    if doc.get("requested_by") != principal.user_id:
+        raise HTTPException(404, "report not found")
+
+
 @router.get("/{report_id}")
 async def get_report(request: Request, report_id: str, principal: Authenticated) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
@@ -111,6 +119,7 @@ async def get_report(request: Request, report_id: str, principal: Authenticated)
         doc = (await client.get(index=REPORTS_INDEX, id=report_id))["_source"]
     except NotFoundError:
         raise HTTPException(404, "report not found") from None
+    _require_owner(doc, principal)
     view = public_report(doc)
     if doc.get("status") == DONE and not _expired(doc):
         # short-lived (15 min) — the bell/UI refetches this view for a fresh one (SEC-10 intent)
@@ -127,6 +136,7 @@ async def download_report(
         doc = (await client.get(index=REPORTS_INDEX, id=report_id))["_source"]
     except NotFoundError:
         raise HTTPException(404, "report not found") from None
+    _require_owner(doc, principal)
     if doc.get("status") != DONE:
         raise HTTPException(404, "report has no result (not done)")
     if _expired(doc):

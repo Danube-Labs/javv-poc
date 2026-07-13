@@ -143,8 +143,8 @@ routes stay current-state-only).
 | GET | `/api/v1/findings/export.csv` | session | Streaming, **CSV-injection-sanitized** export of any lens. > `JAVV_EXPORT_MAX_ROWS` (50k) → **413** (narrow the lens or schedule) |
 | GET | `/api/v1/findings/export.vex` | session | OpenVEX/CycloneDX per **one scanner** (`scanner` required — per-scanner is sacred); same row cap |
 | POST | `/api/v1/reports` | session · `kind: bulk_triage` → `can_triage` | Enqueue a scheduled job. `kind: export` is session-only *by design* (a scheduled export is a read). `kind: bulk_triage` is gated like the inline bulk (`can_triage`; + `can_accept_audit_final` for risk-accepts) — the selector **freezes to `target_ids` at enqueue**, and the inline 5000 ceiling is lifted (only the 10k freeze cap applies → **413**) |
-| GET | `/api/v1/reports/{report_id}` | session | Job status (public view — never leaks `params`/`attempt_id`/lease fields). 404 unknown. For a `done`, unexpired report also mints the short-lived (15 min) signed `download_token` — refetch for a fresh one |
-| GET | `/api/v1/reports/{report_id}/download` | session + `token` | Streams the result chunks in order (CSV or VEX JSON). **410** past `expires_at` (re-run the export) · 404 no result yet · 403 bad/stale token |
+| GET | `/api/v1/reports/{report_id}` | session (owner) | Job status (public view — never leaks `params`/`attempt_id`/lease fields). 404 unknown **or not yours** (a foreign `report_id` is indistinguishable from missing). For a `done`, unexpired report also mints the short-lived (15 min) signed `download_token` — refetch for a fresh one |
+| GET | `/api/v1/reports/{report_id}/download` | session (owner) + `token` | Streams the result chunks in order (CSV or VEX JSON). **410** past `expires_at` (re-run the export) · 404 no result yet · 403 bad/stale token |
 | GET | `/api/v1/notifications` | session | The bell (FR-16, polled — no broker): own notifications only, newest 50, + server-computed `unread` count |
 | PATCH | `/api/v1/notifications/{notification_id}/read` | session | Mark one of **your own** read — anyone else's id is 404 (IDOR-indistinguishable from missing) |
 
