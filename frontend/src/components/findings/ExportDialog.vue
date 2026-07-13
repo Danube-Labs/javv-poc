@@ -1,11 +1,13 @@
 <script setup lang="ts">
 /**
- * Export the current lens (M9b slice 4, C-2 states). Run-now streams inline (413 past
- * JAVV_EXPORT_MAX_ROWS → offer the schedule path); Schedule enqueues an off-peak report and
- * polls to the signed download link with its expiry. VEX is per-scanner by contract (one
- * scanner per file — per-scanner sacred). Exports describe CURRENT state: at T<now the dialog
- * is read-only (the export-at-past-T seam lands with a later slice). Schedule params carry no
- * namespace/ptype — those lenses BLOCK scheduling rather than silently widening.
+ * Export the current lens (M9b slice 4, C-2 states; lens fidelity + past-T per audit
+ * F-07/F-08). Run-now streams inline (413 past JAVV_EXPORT_MAX_ROWS → offer the schedule
+ * path); Schedule enqueues an off-peak report and polls to the signed download link with its
+ * expiry. VEX is per-scanner by contract (one scanner per file — per-scanner sacred).
+ * Scheduling carries the COMPLETE lens (every ExportParams field); a lens key the contract
+ * can't represent BLOCKS scheduling loudly rather than silently widening the export. At
+ * T<now run-now stays off (inline streams describe current state) but Schedule sends
+ * `as_of_t` — the drain reconstructs the rows as-scanned at T (M8b).
  */
 import { computed, onUnmounted, ref } from 'vue'
 
@@ -17,6 +19,7 @@ import UiField from '@/components/ui/UiField.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { useApi } from '@/composables/useApi'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
+import { scheduleParams, unrepresentableKeys } from '@/findings/exportParams'
 import type { FilterField } from '@/filters/fields.config'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
@@ -60,10 +63,10 @@ const lensQuery = computed(() =>
     window_days: timeTravel.windowDays,
   }),
 )
-/** ExportParams has no namespace/ptype — a lens using them cannot be scheduled faithfully. */
+/** A lens key the schedule contract can't represent BLOCKS scheduling — never silently
+ * widens the export past what's on screen (audit F-07). */
 const scheduleBlocked = computed(() => {
-  const q = lensQuery.value as Record<string, unknown>
-  const offenders = ['namespace', 'ptype'].filter((k) => q[k] !== undefined)
+  const offenders = unrepresentableKeys(lensQuery.value)
   return offenders.length
     ? `${offenders.join(', ')} filter(s) are not part of scheduled-export params — ` +
         'clear them or use Run now.'
@@ -73,7 +76,8 @@ const scheduleBlocked = computed(() => {
 function openDialog() {
   error.value = null
   report.value = null
-  tab.value = 'now'
+  // at a past T only the queued path exists — inline streams describe current state
+  tab.value = props.historical ? 'schedule' : 'now'
   open.value = true
 }
 function close() {
@@ -132,40 +136,56 @@ function expiresIn(iso?: string): string {
 async function schedule() {
   busy.value = true
   error.value = null
-  const q = lensQuery.value as Record<string, unknown>
+  const params = scheduleParams(lensQuery.value, format.value, vexScanner.value)
   const response = await enqueueReportApiV1ReportsPost({
     body: {
       kind: 'export',
       cluster_id: clusterStore.selectedId!,
       run_mode: 'offpeak',
-      params: {
-        format: format.value === 'csv' ? 'csv' : 'openvex',
-        ...(format.value === 'vex' ? { scanner: vexScanner.value } : {}),
-        ...(q.severity !== undefined ? { severity: q.severity } : {}),
-        ...(q.state !== undefined ? { state: q.state } : {}),
-        ...(format.value === 'csv' && q.scanner !== undefined ? { scanner: q.scanner } : {}),
-        ...(q.assignee !== undefined ? { assignee: q.assignee } : {}),
-        ...(q.kev !== undefined ? { kev: q.kev } : {}),
-        ...(q.fixable !== undefined ? { fixable: q.fixable } : {}),
-        ...(q.disagree !== undefined ? { disagree: q.disagree } : {}),
-        ...(q.image_repo !== undefined ? { image_repo: q.image_repo } : {}),
-      },
+      params,
+      // a rewound lens exports AT T — the drain reconstructs as-scanned rows (F-08)
+      ...(timeTravel.t !== null ? { as_of_t: timeTravel.t } : {}),
     } as never,
   })
   busy.value = false
   if (response.response?.ok && response.data) {
     const body = response.data as { report_id: string; status: string }
     report.value = { id: body.report_id, status: body.status }
+    pollFailures = 0
     poll = setInterval(() => void checkReport(), 5_000)
   } else {
     error.value = 'Could not schedule — check the backend connection.'
     logger.warn('export_schedule_failed', { status: response.response?.status })
   }
 }
+/* Polling never fails silently (audit F-11): auth/gone → terminal at once; transient
+ * errors get a bounded number of retries before the dialog says so and stops. */
+const POLL_MAX_FAILURES = 6
+let pollFailures = 0
+function stopPolling() {
+  if (poll) clearInterval(poll)
+  poll = null
+}
 async function checkReport() {
   if (!report.value) return
   const response = await getReportApiV1ReportsReportIdGet({ path: { report_id: report.value.id } })
-  if (!response.response?.ok || !response.data) return
+  if (!response.response?.ok || !response.data) {
+    const status = response.response?.status ?? 0
+    if (status === 401 || status === 403 || status === 404 || status === 410) {
+      stopPolling()
+      error.value =
+        status === 401 || status === 403
+          ? 'Session expired while waiting — sign in again; the report keeps running and rings the bell.'
+          : 'The scheduled report is gone (expired or removed) — re-run the export.'
+      logger.warn('export_poll_terminal', { status, report_id: report.value.id })
+    } else if (++pollFailures >= POLL_MAX_FAILURES) {
+      stopPolling()
+      error.value = 'Lost contact with the backend while polling — the bell will ring when the report is ready.'
+      logger.warn('export_poll_gave_up', { status, report_id: report.value.id })
+    }
+    return
+  }
+  pollFailures = 0
   const body = response.data as {
     status: string
     download_token?: string
@@ -177,10 +197,7 @@ async function checkReport() {
     token: body.download_token,
     expires_at: body.expires_at,
   }
-  if (body.status === 'done' || body.status === 'failed') {
-    if (poll) clearInterval(poll)
-    poll = null
-  }
+  if (body.status === 'done' || body.status === 'failed') stopPolling()
 }
 const downloadHref = computed(() =>
   report.value?.token
@@ -204,11 +221,10 @@ const downloadHref = computed(() =>
     >
           <p v-if="historical" class="ex-blocked">
             <AppIcon name="clock" :size="13" />
-            Exports describe current state — return to now to export. (Past-T exports land with
-            reconstruction sweeps.)
+            Rewound lens — the export is queued off-peak and reconstructs the rows
+            <strong>as they stood at T</strong> (Run now streams current state only).
           </p>
-          <template v-else>
-            <UiSegControl v-model="tab" class="tabs" :options="TAB_OPTS" />
+            <UiSegControl v-if="!historical" v-model="tab" class="tabs" :options="TAB_OPTS" />
 
             <UiField label="Format">
               <UiSegControl v-model="format" :options="FORMAT_OPTS" />
@@ -241,12 +257,11 @@ const downloadHref = computed(() =>
             </template>
 
             <p v-if="error" class="ex-error" role="alert">{{ error }}</p>
-          </template>
 
       <template #actions>
           <UiButton variant="ghost" @click="close">Close</UiButton>
           <UiButton
-            v-if="!historical && tab === 'now'"
+            v-if="tab === 'now'"
             variant="primary"
             :disabled="busy"
             @click="runNow"
@@ -254,7 +269,7 @@ const downloadHref = computed(() =>
             {{ busy ? 'Exporting…' : 'Download' }}
           </UiButton>
           <UiButton
-            v-else-if="!historical"
+            v-else
             variant="primary"
             :disabled="busy || !!scheduleBlocked || report !== null"
             @click="schedule"
