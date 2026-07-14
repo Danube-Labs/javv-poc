@@ -277,6 +277,8 @@ async def test_disable_revokes_sessions_and_blocks_login(admin_env) -> None:
 # --- the last-admin guard ----------------------------------------------------------------
 
 
+@pytest.mark.serial  # disables every OTHER enabled admin for its window — a concurrent xdist
+# worker's admin session then trips the last-admin guard (200 vs 409). CI runs `-m serial` alone.
 async def test_the_last_enabled_admin_cannot_be_demoted_or_disabled(admin_env) -> None:
     make_http, client = admin_env
     admin_http = make_http()
