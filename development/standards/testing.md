@@ -46,6 +46,23 @@ Run Playwright against a **built frontend + a seeded backend** (real OpenSearch 
 drives the same browser interactively during dev (authoring/debugging these specs) - see
 [`TOOLING-AND-MCP.md`](../../docs/research/TOOLING-AND-MCP.md); the committed specs are what gate CI.
 
+**As built (audit F-14/#383, CI job `frontend-smoke`):**
+- **One walk, two consumers.** `frontend/scripts/walk.mjs` owns the route matrix (per-route
+  *data-ready* selector, not the shell), the layout laws (no horizontal scroll · no off-viewport
+  bleed outside a scroller · no sibling-card overlap) and the login flow. The CI gate
+  (`scripts/ci-smoke.mjs`, run via `npm run smoke`) and the authoring visual rig
+  (`scripts/visual-capture.mjs`, screenshots + HTML dumps + forced states, desktop **and** phone)
+  both import it — a renamed selector breaks one file, loudly.
+- **The seed is the golden fixture.** `development/scripts/seed-smoke.sh` logs in as the bootstrap
+  admin (rotating `must_change`), mints an ingest token and pushes
+  `backend/tests/fixtures/envelope-trivy-golden.json` + the inventory-run commit. When the ingest
+  contract changes, the fixture PR updates the smoke for free — never hand-edit a second envelope.
+- **Desktop-only gate** (ruling on #387): no phone layout exists yet; phone runs in the rig as
+  warn-only screenshots and flips to gating when a responsive pass lands.
+- **Determinism rules:** event-based waits only in the gate (no arbitrary sleeps beyond the
+  route-settle pacing); deep interactions (dialogs, forced states, drafts) stay in the rig, out of
+  the gate; the walk's PIT-budget env raise is documented in `docs/CONFIGURATION.md` §8.
+
 ## Conventions
 - **Deterministic:** freeze time; no calls to real registries/vuln-DBs; seed any randomness.
 - **Concurrency tests are required** where the design relies on it: concurrent ingest+triage (`retry_on_conflict`),

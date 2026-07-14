@@ -3,6 +3,9 @@
 Everything here runs against a **real, live stack** (OpenSearch + backend, and for the smoke also
 k3d + real scanners) — unlike `backend/tests/`, which is the pytest suite. Nothing here runs in CI;
 these are operator-driven rigs for proving the whole pipe and for measure-first perf questions.
+(The CI **route smoke** is a different, lighter animal: fixture-seeded, no k3d, gating every PR —
+`frontend/scripts/ci-smoke.mjs` + `development/scripts/seed-smoke.sh`, spec in
+`development/standards/testing.md` §4.)
 
 ## Contents
 
