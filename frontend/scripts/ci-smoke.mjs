@@ -30,7 +30,15 @@ if (!USER || !PASS) {
 }
 
 async function coreLoop(page, issues) {
-  // open the first finding, acknowledge it, prove it survives a reload, put it back
+  // open the first finding, acknowledge it, prove it survives a reload, put it back.
+  // Every step is caught and named — a failed write must report WHAT failed, and the
+  // revert only runs when the write actually landed (a no-op draft disables Save).
+  const patches = []
+  page.on('response', (r) => {
+    if (r.request().method() === 'PATCH' && r.url().includes('/api/v1/findings')) {
+      patches.push(`${r.status()} ${r.url()}`)
+    }
+  })
   const ok = await clickDetail(page, BASE, '/findings', '.detail-head', 'finding-core-loop', issues)
   if (!ok) return
   const url = page.url()
@@ -42,17 +50,37 @@ async function coreLoop(page, issues) {
     return
   }
   const isOn = async (loc) => ((await loc.getAttribute('class')) ?? '').includes('state-opt-on')
+  const step = async (name, fn) => {
+    try {
+      await fn()
+      return true
+    } catch (e) {
+      issues.push(`[core-loop] ${name}: ${e.message.split('\n')[0]} (PATCHes so far: ${patches.join(' · ') || 'none'})`)
+      return false
+    }
+  }
+
   const wasAcked = await isOn(ack)
-  await (wasAcked ? open : ack).click()
-  await save.click()
+  if (!(await step('select state', () => (wasAcked ? open : ack).click({ timeout: 10_000 })))) return
+  if (!(await step('save', () => save.click({ timeout: 10_000 })))) return
   await page.waitForLoadState('networkidle')
-  await page.goto(url)
-  await page.waitForSelector('.detail-head', { timeout: 15_000 })
-  await page.waitForLoadState('networkidle')
-  if ((await isOn(ack)) === wasAcked) issues.push('[core-loop] triage action did not persist across reload')
+  // the reload re-READS the findings index, which refreshes ~1s behind the write (the live
+  // UI never sees this — it applies the PATCH response client-side). Poll, don't assert once.
+  let persisted = false
+  for (let attempt = 0; attempt < 4 && !persisted; attempt++) {
+    if (attempt > 0) await page.waitForTimeout(1_000)
+    await page.goto(url)
+    await page.waitForSelector('.detail-head', { timeout: 15_000 })
+    await page.waitForLoadState('networkidle')
+    persisted = (await isOn(ack)) !== wasAcked
+  }
+  if (!persisted) {
+    issues.push(`[core-loop] triage action did not persist across reload (PATCHes: ${patches.join(' · ') || 'none'})`)
+    return // nothing landed — nothing to revert
+  }
   // revert — leave the store as found
-  await (wasAcked ? ack : open).click()
-  await save.click()
+  await step('revert select', () => (wasAcked ? ack : open).click({ timeout: 10_000 }))
+  await step('revert save', () => save.click({ timeout: 10_000 }))
   await page.waitForLoadState('networkidle')
 }
 
