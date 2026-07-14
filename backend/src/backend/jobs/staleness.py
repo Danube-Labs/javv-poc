@@ -27,6 +27,8 @@ from typing import Any
 from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.query.paging import search_to_exhaustion
+
 STALENESS_KEY = (
     "staleness"  # the fleet-wide default doc _id; per-cluster is `staleness:<cluster_id>`
 )
@@ -169,13 +171,17 @@ async def run_staleness_sweep(
     # Collapse the token docs into the (cluster, scanner) registry: skip DISABLED tokens, and take
     # the MOST RECENT last_ingest across a scanner's tokens — otherwise a rotated/disabled old token
     # (stale last_ingest) would mass-stale a scanner that a newer token is actively feeding (M-2).
-    tokens = await client.search(
+    tokens = await search_to_exhaustion(
+        client,
         index=f"{prefix}system-tokens",
-        body={"size": 10_000, "query": {"bool": {"must_not": [{"term": {"disabled": True}}]}}},
+        body={
+            "size": 10_000,
+            "query": {"bool": {"must_not": [{"term": {"disabled": True}}]}},
+            "sort": [{"token_hash": "asc"}],  # unique + immutable — the walk's total order
+        },
     )
     registry: dict[tuple[str, str], datetime | None] = {}
-    for hit in tokens["hits"]["hits"]:
-        src = hit["_source"]
+    for src in tokens:
         key = (src["cluster_id"], src["scanner"])
         li = _parse_dt(src.get("last_ingest_at"))
         if key not in registry:
@@ -217,7 +223,8 @@ async def run_staleness_sweep(
 
     reprojected = 0
     try:
-        expired = await client.search(
+        expired = await search_to_exhaustion(
+            client,
             index=f"{prefix}{DECISIONS_INDEX}",
             body={
                 "size": 10_000,
@@ -227,12 +234,11 @@ async def run_staleness_sweep(
                         "must_not": [{"exists": {"field": "revoked_at"}}],
                     }
                 },
+                "sort": [{"decision_id": "asc"}],  # unique — the walk's total order
                 "_source": ["cluster_id", "cve_id"],
             },
         )
-        pairs = {
-            (h["_source"]["cluster_id"], h["_source"]["cve_id"]) for h in expired["hits"]["hits"]
-        }
+        pairs = {(d["cluster_id"], d["cve_id"]) for d in expired}
         for cluster_id, cve_id in sorted(pairs):
             reprojected += await reproject_cve(
                 client, cluster_id, cve_id, at=now.isoformat(), prefix=prefix
