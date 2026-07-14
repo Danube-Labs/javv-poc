@@ -1,19 +1,20 @@
 name: CI
 
-# Quality gate for every PR + push to main: backend + scanner (ruff + pyright + pytest)
-# and frontend (eslint + vitest), as required by development/standards/definition-of-done.md
-# and git-workflow.md.
+# Quality gate for every PR + push to main, as required by
+# development/standards/definition-of-done.md, git-workflow.md and testing.md. Active gates:
+#   - commitlint (PR commits; release-please depends on the types)
+#   - javv-common / backend / scanner: ruff + pyright + pytest (backend against a real
+#     OpenSearch service container; coverage ratchet --cov-fail-under, #383)
+#   - frontend: oxlint/eslint/stylelint + vue-tsc + vitest (coverage ratchet in
+#     vitest.config.ts, #383) + the I4/I7 contract gates (openapi.json snapshot must match
+#     the backend code, generated client must match the snapshot — this is what catches a
+#     backend route/model change shipped without regenerating the client)
+#   - frontend-smoke (#383, testing.md §4): the BUILT app + a fixture-seeded live backend,
+#     walked headless through every route (frontend/scripts/ci-smoke.mjs) — route readiness,
+#     zero console errors, layout sanity, server-side-everything, the core triage loop
 #
-# DETECTION (AUDIT.md C1): each job DETECTS its project and no-ops to green when it's absent.
-# Backend and scanner exist — their gates are ACTIVE (incl. the OpenSearch service container
-# for integration tests). Frontend doesn't exist yet (M9x) — its job no-ops until it lands.
-# Jobs always run (never skipped) so they stay valid as required status checks for branch
-# protection (AUDIT.md C2).
-#
-# TODO still pending (tracked in development/AUDIT.md):
-#   - coverage ratchet: pytest --cov-fail-under + vitest thresholds (C3)
-#   - FE/BE contract test: regenerate @hey-api/openapi-ts client, fail on git diff (I7)
-#   - FE E2E smoke: Playwright against a built FE + seeded backend (testing.md §4, owned by M9f)
+# DETECTION (AUDIT.md C1): each job DETECTS its project and no-ops to green when absent, so
+# jobs always run and stay valid as required status checks for branch protection (C2).
 # Layout: backend in ./backend, scanner in ./scanner (uv + pyproject.toml, pyright as a
 #         dev dep), frontend in ./frontend (npm + package.json).
 
@@ -185,8 +186,11 @@ jobs:
         # store-exclusive tests (marker `serial`, e.g. the admin demote race that disables every
         # enabled admin) run AFTER the parallel pass, alone — under -n N they poison concurrent
         # tests' sessions (broke main 2026-07-07). A plain local `pytest` runs everything serially.
+        # Coverage ratchet (#383): 92.4% lines measured 2026-07-15, floored at −2pts on the
+        # parallel pass (the serial pass adds a sliver — the floor stays conservative).
+        # Raise when coverage grows, never lower (docs/CONFIGURATION.md §8).
         run: |
-          uv run pytest -n 2 -m "not serial"
+          uv run pytest -n 2 -m "not serial" --cov=src/backend --cov-fail-under=90
           uv run pytest -m serial
 
   scanner:
@@ -275,10 +279,10 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
-      - name: Test
+      - name: Test (with coverage ratchet, #383)
         if: steps.detect.outputs.present == 'true'
         working-directory: frontend
-        run: npm run test
+        run: npm run test:ci
 
       # I4/I7 contract gate: the committed schema snapshot must match the backend code, and the
       # committed generated client must match the snapshot — a backend Pydantic/route change
@@ -304,3 +308,104 @@ jobs:
           npm run gen:api
           git diff --exit-code src/api/generated \
             || { echo '::error::src/api/generated is stale — run: (cd frontend && npm run gen:api)'; exit 1; }
+
+  frontend-smoke:
+    # The #383 route smoke (testing.md §4): the BUILT app against a live, fixture-seeded
+    # backend, walked headless through every route by frontend/scripts/ci-smoke.mjs.
+    # Desktop-only by ruling (#387 — no phone layout exists yet); the same walk module
+    # drives the local authoring rig (visual-capture.mjs), so selectors live in ONE place.
+    name: Frontend smoke
+    runs-on: ubuntu-latest
+    services:
+      opensearch:
+        image: opensearchproject/opensearch:3.7.0
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl -sf http://localhost:9200/_cluster/health || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 20 --health-start-period 40s
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Detect frontend
+        id: detect
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No frontend/package.json yet — skipping the smoke (scaffold)."
+          fi
+
+      - name: Read uv pin from versions.yaml (D42)
+        if: steps.detect.outputs.present == 'true'
+        id: uv
+        run: echo "version=$(yq -r '.toolchain.uv' versions.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Set up uv
+        if: steps.detect.outputs.present == 'true'
+        uses: astral-sh/setup-uv@v7
+        with:
+          version: ${{ steps.uv.outputs.version }}
+          enable-cache: true
+
+      - name: Start backend
+        if: steps.detect.outputs.present == 'true'
+        working-directory: backend
+        # JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL raised: the walk hops routes faster than a
+        # human and PIT slots self-reap slower than it navigates (docs/CONFIGURATION.md)
+        env:
+          JAVV_ENV: dev
+          JAVV_BOOTSTRAP_ADMIN_USERNAME: admin
+          JAVV_BOOTSTRAP_ADMIN_PASSWORD: ci-smoke-initial-pw
+          JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL: "50"
+        run: |
+          uv sync --all-extras --dev
+          nohup uv run uvicorn backend.main:app --port 8000 > /tmp/backend.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/healthz && break || sleep 2
+          done
+          curl -sf http://localhost:8000/healthz || { cat /tmp/backend.log; exit 1; }
+
+      - name: Seed the corpus (golden fixture)
+        if: steps.detect.outputs.present == 'true'
+        env:
+          ADMIN_PW_INIT: ci-smoke-initial-pw
+          ADMIN_PW: ci-smoke-rotated-pw
+        run: ./development/scripts/seed-smoke.sh
+
+      - name: Set up Node
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build + preview
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install chromium --with-deps
+          npm run build
+          nohup npm run preview -- --port 4173 > /tmp/preview.log 2>&1 &
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:4173/ >/dev/null && break || sleep 2
+          done
+
+      - name: Route smoke (walk every screen, core triage loop)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        env:
+          JAVV_BASE: http://localhost:4173
+          JAVV_USER: admin
+          JAVV_PASS: ci-smoke-rotated-pw
+        run: node scripts/ci-smoke.mjs --core-loop
+
+      - name: Backend log on failure
+        if: failure() && steps.detect.outputs.present == 'true'
+        run: tail -100 /tmp/backend.log

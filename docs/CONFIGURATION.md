@@ -224,3 +224,14 @@ images and backend deploy in lockstep (older envelopes 422 by design).
 > The same class of bug hit `query/pit.py` + `query/human_at.py` (`_MAX_ROWS`, a terminal 10k cap on
 > historical snapshot/replay reads — 2026-07-12 independent audit F-05/F-06): fixed in #377 by the shared
 > `search_to_exhaustion` walk; the constants were renamed `_ROW_PAGE` to say what they now are.
+
+### CI gate parameters (audit F-14/#383) — ratchets, not knobs
+
+Dev-facing gate values, cataloged here because they look tunable and are deliberately not:
+
+| Gate | Value (where) | Rule |
+|---|---|---|
+| Backend coverage floor | `--cov-fail-under=90` (`.github/workflows/ci.yml`, backend job) | Measured 92.4% lines on 2026-07-15, floored at −2pts. **Ratchet: raise when coverage grows, never lower.** A PR that can't meet the floor adds tests, it doesn't move the bar. |
+| Frontend coverage floor | `thresholds.lines: 77` (`frontend/vitest.config.ts`) | Measured 79.7% lines on 2026-07-15 over the unit-testable denominator (TS logic modules; views are proven by the route smoke, `src/api/generated` is generated). Same ratchet rule. |
+| Smoke PIT budget | `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50` (CI smoke job env) | The §1 knob, raised for the walk only: it hops routes faster than a human and slots self-reap slower than it navigates. Not a production recommendation. |
+| Smoke seed | `backend/tests/fixtures/envelope-trivy-golden.json` via `development/scripts/seed-smoke.sh` | The golden contract fixture IS the seed — one source of truth; an ingest-contract change updates both in the same PR. |

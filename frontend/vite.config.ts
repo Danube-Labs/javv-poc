@@ -24,4 +24,14 @@ export default defineConfig({
       '/metrics': 'http://localhost:8000',
     },
   },
+  preview: {
+    // the CI route smoke (scripts/ci-smoke.mjs) serves the BUILT app via `vite preview`,
+    // which does not inherit server.proxy — same backend, same ingress-shaped paths
+    proxy: {
+      '/api': 'http://localhost:8000',
+      '/auth': 'http://localhost:8000',
+      '/readyz': 'http://localhost:8000',
+      '/metrics': 'http://localhost:8000',
+    },
+  },
 })
