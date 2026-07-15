@@ -47,7 +47,7 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 | `JAVV_SEARCH_PIT_KEEP_ALIVE` | `2m` | Findings search (M6): PIT keep-alive per page of the cursor walk — each page renews it; an abandoned cursor's PIT self-expires after this. Longer = clients can idle between pages; shorter = fewer lingering PITs. | n/a (deploy) |
 | `JAVV_EXPORT_MAX_ROWS` | `50000` | Inline "run now" export (CSV + VEX) hard row cap (audit A-M6/[#189](https://github.com/Danube-Labs/javv-poc/issues/189)): a cheap pre-count runs before any PIT/stream — a lens over this → **413** (narrow the filters, or use M7's scheduled export). Applies to the inline path only. | n/a (deploy) |
 | `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL` | `10` | Read-side guard (audit A-m12/[#189](https://github.com/Danube-Labs/javv-poc/issues/189)): max simultaneous open PIT contexts (search cursors + exports) per authenticated principal; past it → **429** with `Retry-After`. In-memory per pod (like the ingest/login limiters) — N replicas ⇒ N× the budget; a slot self-reaps at `keep_alive` + margin. | n/a (deploy) |
-| `JAVV_EXPORT_TTL_HOURS` | `24` | Scheduled reports (M7): global retention for a completed export — the result (stored in OpenSearch as chunks) is TTL-swept `JAVV_EXPORT_TTL_HOURS` after completion; a download past it → **410**. | n/a (deploy) |
+| `JAVV_EXPORT_TTL_HOURS` | `24` | Scheduled reports (M7): global retention for a completed export — the result (stored in OpenSearch as chunks) is TTL-swept `JAVV_EXPORT_TTL_HOURS` after completion; a download past it → **410**. Graduates to a `system-config` knob in M9e (ruling 2026-07-15, row 11); the env stays as the default seed. | M9e |
 | `JAVV_EXPORT_MAX_BYTES` | `524288000` (500 MiB) | Scheduled reports (M7): per-export hard size ceiling — the drain marks a job **failed** past it, so one job can't fill the store. | n/a (deploy) |
 | `JAVV_REPORT_DRAIN_SLEEP_MS` | `200` | Scheduled reports (M7): off-peak throttle — the drain sleeps this long between export pages so a large run doesn't starve ingest (the PLAN gate). | n/a (deploy) |
 | `JAVV_REPORT_LEASE_TTL_SECONDS` | `300` | Scheduled reports (M7): a claimed job's lease — a worker refreshes `heartbeat_at`; past `lease_expires_at` (no heartbeat) the next drain reclaims it (`retry_count`++). Match to the drain CronJob cadence. | n/a (deploy) |
@@ -95,7 +95,7 @@ rebuild, not a restart).
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
 | `VITE_LOG_LEVEL` | `debug` (dev) / `warn` (prod build) | Browser-console threshold for the frontend structured logger (`debug`\|`info`\|`warn`\|`error`) — the FE analog of `JAVV_LOG_LEVEL` (observability.md §1: same `timestamp→level→event` line shape; raw `console.*` is ESLint-banned in app code). Unknown value falls back to the default. | n/a (build) |
-| `VITE_FRESHNESS_BANNER_HOURS` | `72` (the D20 N = 3 days) | Hours a scanner must be silent before the red freshness banner fires (`frontend/src/system/freshness.ts`; re-checked on a 10-min poll). Non-numeric/≤0 falls back to the default. Runtime (in-app) configurability is the M9e `staleness` settings deliverable — this knob bridges until then. | M9e |
+| `VITE_FRESHNESS_BANNER_HOURS` | `72` (the D20 N = 3 days) | Hours a scanner must be silent before the red freshness banner fires (`frontend/src/system/freshness.ts`; re-checked on a 10-min poll). Non-numeric/≤0 falls back to the default. M9e REMOVES this knob (spec-sync 2026-07-15): the banner reads the live staleness timers via the API once the settings panel edits them. | M9e (removed) |
 | `VITE_DB_AGE_WARN_DAYS` | `7` | Days before the scanner-status card flags the vuln DB as stale (amber `· N days old` next to *DB built*, `frontend/src/system/freshness.ts`) — a running scanner with an old database quietly under-reports (D41: the fix is swapping the published image, never in-app). Non-numeric/≤0 falls back to the default. | no |
 | `VITE_EXPIRY_WARN_DAYS` | `7` | Days before a risk-acceptance's expiry that the Approvals queue's status chip turns amber `expires in Nd` (`frontend/src/approvals/viewModel.ts`) — the review nudge window; at expiry the chip goes alarm-red (the acceptance has released its findings back to open, D19). Non-numeric/≤0 falls back to the default. | no |
 
@@ -106,17 +106,17 @@ rebuild, not a restart).
 Source: `scanner/src/scanner/config.py` + `adapters/trivy.py`. **Phase 1 of #91 done:** scan flags are
 now `JAVV_TRIVY_*` env vars (tier ②), each defaulting to the previously-hardcoded value — an unset env
 reproduces the old command exactly. Set them on the scanner CronJob manifest (GitOps). `--format json`
-stays fixed (the parser depends on it). Runtime/UI control is Phase 2 (`system-config` + Settings UI).
+stays fixed (the parser depends on it). Runtime/UI control was "Phase 2" — RULED read-only for MVP (C-4, 2026-07-07); writable-from-UI via the D43 fetch pattern = post-MVP #403.
 Set values are validated against the pinned binary's accepted sets — scanners ∈ `vuln,misconfig,secret,license`,
 severities ∈ `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`, pkg-types ∈ `os,library`, timeout = Go duration (#97).
 
 | Env var | Default | Effect | UI? |
 |---|---|---|---|
-| `JAVV_TRIVY_SCANNERS` | `vuln` | `--scanners` (e.g. `vuln,secret,misconfig`) | ✅ Phase 2 (#91) |
-| `JAVV_TRIVY_IGNORE_UNFIXED` | `false` | adds `--ignore-unfixed` | ✅ Phase 2 |
-| `JAVV_TRIVY_SEVERITIES` | *(unset)* | `--severity CRITICAL,HIGH` (unset = all) | ✅ Phase 2 |
-| `JAVV_TRIVY_PKG_TYPES` | *(unset)* | `--pkg-types os,library` | ✅ Phase 2 |
-| `JAVV_TRIVY_TIMEOUT` | *(unset)* | `--timeout 5m0s` (unset = trivy's own default) | ✅ Phase 2 |
+| `JAVV_TRIVY_SCANNERS` | `vuln` | `--scanners` (e.g. `vuln,secret,misconfig`) | read-only display (C-4); writable = post-MVP #403 |
+| `JAVV_TRIVY_IGNORE_UNFIXED` | `false` | adds `--ignore-unfixed` | read-only display (C-4) |
+| `JAVV_TRIVY_SEVERITIES` | *(unset)* | `--severity CRITICAL,HIGH` (unset = all) | read-only display (C-4) |
+| `JAVV_TRIVY_PKG_TYPES` | *(unset)* | `--pkg-types os,library` | read-only display (C-4) |
+| `JAVV_TRIVY_TIMEOUT` | *(unset)* | `--timeout 5m0s` (unset = trivy's own default) | read-only display (C-4) |
 | Output format | `json` | fixed — parser depends on it | n/a |
 | **Trivy version** | `0.71.2` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; DB pulled at scan time; stamped per envelope via a per-cycle `trivy version --format json` (#96) | ⚙️ read-only display |
@@ -130,9 +130,9 @@ env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (pa
 
 | Env var | Default | Effect | UI? |
 |---|---|---|---|
-| `JAVV_GRYPE_ONLY_FIXED` | `false` | adds `--only-fixed` | ✅ Phase 2 (#91) |
-| `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers\|deep-squashed` (validated, #97; unset = grype default) | ✅ Phase 2 |
-| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag); non-integer → fail-fast with a clear error (#97) | ✅ Phase 2 |
+| `JAVV_GRYPE_ONLY_FIXED` | `false` | adds `--only-fixed` | read-only display (C-4); writable = post-MVP #403 |
+| `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers\|deep-squashed` (validated, #97; unset = grype default) | read-only display (C-4) |
+| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag); non-integer → fail-fast with a clear error (#97) | read-only display (C-4) |
 | Output format | `json` | fixed — parser depends on it | n/a |
 | **Grype version** | `0.115.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; DB pulled at scan time | ⚙️ read-only display |
@@ -167,9 +167,9 @@ home for policy that operators change — no rebuild, no restart.
 | **Staleness** two-timer windows (`freshness_days` N=3, `scanner_down_days` M=7) | **M3** (backend) / **M9e** (UI) | `system-config`: **per-cluster** `staleness:<cluster_id>` overrides the fleet-wide `staleness` default (FR-6); read by the daily `jobs/staleness.py` sweep — **never hardcoded** (D20). Interim CLI: `python -m backend.jobs.staleness --set-freshness-days N --set-scanner-down-days M [--cluster <id>]` | ✅ Backend built; M9e UI |
 | **SLA policy** (days per severity + KEV override) | **M5d** (backend **built**) | `system-config` doc `sla` (fleet-wide; crit 2 / high 7 / med 30 / low 90 + `kev_days` 1 — `negligible`/`unknown` carry **no SLA**). `GET/PUT /api/v1/settings/sla`: read = any principal, write = `can_manage_settings`, journaled with full old/new policy (D17). Overdue is READ-TIME (D21: earliest `first_seen_at` per `(cve_id, image_digest)` — a package bump never resets the clock) | ✅ Backend built; M9e UI |
 | **Scan scope** (namespaces/images/kinds to scan) | **#94** (backend) / **M9e** (UI) | `system-config` `scan_scope:<cluster_id>`; scanner fetches via `GET /api/v1/scan-scope` (D43) | ✅ Backend built; M9e UI |
-| Ingest **push tokens** (mint/rotate/revoke/list) | **M5a** (backend **built**) / **M9a** (UI) | `POST/GET /api/v1/admin/tokens` (+ `/{id}/rotate`, `/{id}/revoke`), capability `can_manage_tokens`, journaled; raw token shown exactly once; optional `expiry` on mint (rotate inherits it — rotation is not extension, task E #142); lists paginate (`size`/`offset`). Interim CLI: `python -m backend.core.tokens --cluster <id> --scanner <trivy\|grype>` | ✅ Backend built; M9a UI |
-| Users / RBAC (capability bundles, D33) | **M5a** (backend **built**) | `system-roles` docs (`_id` = role) hold the bundles — **seed-once defaults** (`viewer`/`triager`/`security_lead`/`admin="*"`); edit the doc to customize, restarts never clobber it. Users carry a `role` + denormalized `capabilities` in `system-users` | ❌ management UI unowned (see gaps) |
-| **User administration** (create / role / disable / password-reset) | **Task D #141** (backend **built**) | `POST/GET /api/v1/admin/users` (+ `PATCH /{u}/role`, `PATCH /{u}/disabled`, `POST /{u}/password-reset`), capability `can_manage_users`, journaled. Created/reset users start `must_change: true` (temp password, SEC-6); a role change updates role+capabilities together and **revokes the user's sessions** (D33); disable revokes too; the **last enabled admin** can't be demoted/disabled (409). Role-bundle *editing* stays doc-level (row above) | ❌ management UI unowned (M9x) |
+| Ingest **push tokens** (mint/rotate/revoke/list) | **M5a** (backend **built**) / **M9e** (UI, §13.5) | `POST/GET /api/v1/admin/tokens` (+ `/{id}/rotate`, `/{id}/revoke`), capability `can_manage_tokens`, journaled; raw token shown exactly once; optional `expiry` on mint (rotate inherits it — rotation is not extension, task E #142); lists paginate (`size`/`offset`). Interim CLI: `python -m backend.core.tokens --cluster <id> --scanner <trivy\|grype>` | ✅ Backend built; M9a UI |
+| Users / RBAC (capability bundles, D33) | **M5a** (backend **built**) | `system-roles` docs (`_id` = role) hold the bundles — **seed-once defaults** (`viewer`/`triager`/`security_lead`/`admin="*"`); edit the doc to customize, restarts never clobber it. Users carry a `role` + denormalized `capabilities` in `system-users` | M9e renders the 4 bundles **read-only** (A-4); bundle *editing* stays doc-level (post-MVP) |
+| **User administration** (create / role / disable / password-reset) | **Task D #141** (backend **built**) | `POST/GET /api/v1/admin/users` (+ `PATCH /{u}/role`, `PATCH /{u}/disabled`, `POST /{u}/password-reset`), capability `can_manage_users`, journaled. Created/reset users start `must_change: true` (temp password, SEC-6); a role change updates role+capabilities together and **revokes the user's sessions** (D33); disable revokes too; the **last enabled admin** can't be demoted/disabled (409). Role-bundle *editing* stays doc-level (row above) | ✅ Backend built; **M9e UI** (§13.6) |
 
 ---
 

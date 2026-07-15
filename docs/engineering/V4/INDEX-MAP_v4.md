@@ -348,7 +348,7 @@ revoked           boolean       revoke-on-role-change / logout-all
 
 ### `system-config` · `system-tags` · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks`
 ```
-# system-config        : SLA policy, rollover/retention/staleness knobs, snapshot-repo ref (creds in OS keystore, not here)
+# system-config        : SLA policy, rollover/retention/staleness knobs, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c)
 # system-tags          : { tag, kind: team|app|org, ... }
 # system-views         : { view_id, name, description, preset, owner, created_at, updated_at }
 #                          (M8e/C-6 ruling, 2026-07-07: renamed from the pre-ruling `system-saved-views`

@@ -158,7 +158,7 @@ from an env/secret and must change the password on first login - FR-18.)
 - **FR-19 Data & OpenSearch settings (Admin, D26).** `Settings → Data & OpenSearch`: per-`cluster_id`
   `retention_days`; **rollover** knobs (doc count / age / size; defaults ~40 GB / 30 d / 50 M docs);
   **snapshot** repository + schedule + manual snapshot/restore; **staleness timers** (FR-6) (here or a
-  sibling "Scanning" section). JAVV applies/updates the ISM policies. (Full index-management UI is v1.x.)
+  sibling "Scanning" section). JAVV applies/updates the ISM policies. *(Superseded by the M4 mechanism decision: the daily lifecycle sweep reads the `system-config` knobs live and drops whole indices at horizon — no ISM policy re-apply; see the M9e bolt README.)* (Full index-management UI is v1.x.)
 - **FR-20 Observability.** `/healthz`, `/readyz`, Prometheus `/metrics` (ingestion rate, 4xx/413/429/503,
   payload sizes, **decompression ratio**, queue depth, latency, memory); structured logs (structlog). M1.
 - **FR-21 Risk metadata.** Capture **EPSS/KEV** from Grype (explicit mapped fields; absent for Trivy).
