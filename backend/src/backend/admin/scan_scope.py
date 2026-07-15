@@ -22,8 +22,10 @@ class ScanScope(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    include_namespaces: tuple[str, ...] = ()  # allowlist; empty = all namespaces
-    ignore_namespaces: tuple[str, ...] = ()  # denylist; wins over include
+    # namespace lists take fnmatch globs too (2026-07-15 ruling — kube* covers the family);
+    # the scanner (`scanner/scope.py`) is the matching authority, this side just stores strings
+    include_namespaces: tuple[str, ...] = ()  # allowlist (fnmatch globs); empty = all namespaces
+    ignore_namespaces: tuple[str, ...] = ()  # denylist (fnmatch globs); wins over include
     exclude_images: tuple[str, ...] = ()  # image_ref globs to skip
     ignore_kinds: tuple[str, ...] = ()  # pod owner-reference kinds to skip (e.g. Job, DaemonSet)
 
