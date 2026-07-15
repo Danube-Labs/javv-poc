@@ -6,8 +6,10 @@
  * "you won't see this again"). Revoke disables (ingest 401s next push); rotate mints the
  * sibling first so the scanner is never token-less (it inherits the old expiry). All mutations
  * are journaled server-side. Cross-cluster listing is BY DESIGN (D38 MVP tenancy).
- * Prototype deltas (ruled, row 7): no registries/imagePullSecrets rows (post-MVP settings
- * issue), no static transport row; optional expiry at mint (task E m-7).
+ * The table rides the shared tbl-card + GridPager grammar (pages are display slices of the
+ * one server answer, the ScannerRunsTable idiom). Prototype deltas (ruled, row 7): no
+ * registries/imagePullSecrets rows (post-MVP settings issue), no static transport row;
+ * optional expiry at mint (task E m-7) via the shared UiDateTime calendar pair.
  */
 import { computed, ref } from 'vue'
 
@@ -20,6 +22,7 @@ import {
 import { client } from '@/api/client'
 import DotWord from '@/components/chips/DotWord.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
+import GridPager from '@/components/findings/GridPager.vue'
 import SettingsCard from '@/components/settings/SettingsCard.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
@@ -63,6 +66,19 @@ async function load() {
 void load()
 
 const now = () => new Date()
+
+// display slices of the one server answer (the ScannerRunsTable idiom)
+const page = ref(0)
+const size = ref(10)
+const shown = computed(() => rows.value.slice(page.value * size.value, (page.value + 1) * size.value))
+const hasNext = computed(() => (page.value + 1) * size.value < rows.value.length)
+function setSize(next: number) {
+  size.value = next
+  page.value = 0
+}
+
+const clusterName = (id: string) =>
+  clusterStore.clusters.find((c) => c.cluster_id === id)?.cluster_name ?? id
 
 // ── mint ────────────────────────────────────────────────────────────────────────────────
 const mintOpen = ref(false)
@@ -155,7 +171,7 @@ const fmt = (iso: string | null) =>
 </script>
 
 <template>
-  <div>
+  <div class="stack">
     <SettingsCard
       title="Access & tokens"
       subtitle="one scoped push token per (cluster, scanner) — HTTPS ingest is the only credential surface"
@@ -171,38 +187,61 @@ const fmt = (iso: string | null) =>
       <p v-else-if="rows.length === 0" class="empty-note" role="status">
         No push tokens yet — mint one per scanner so the cluster can start pushing scans.
       </p>
+      <p v-else-if="total > rows.length" class="cap-note">
+        Showing the {{ rows.length }} newest of {{ total }} tokens.
+      </p>
+    </SettingsCard>
 
-      <div v-else class="tok-scroll">
-        <table class="tbl">
+    <div v-if="!loading && !failed && rows.length" class="tbl-card">
+      <div class="tbl-wrap">
+        <table class="tbl tbl-dense">
           <thead>
             <tr>
-              <th>Scanner</th><th>Cluster</th><th>Scope</th><th>Created</th><th>Expiry</th>
-              <th>Last used</th><th>Status</th><th></th>
+              <th class="fit">Scanner</th>
+              <th>Cluster</th>
+              <th class="fit">Scope</th>
+              <th class="fit">Created</th>
+              <th class="fit">Expiry</th>
+              <th class="fit">Last used</th>
+              <th class="fit">Status</th>
+              <th class="fit"></th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in rows" :key="row.id">
-              <td><ScannerTag :name="row.scanner" /></td>
-              <td class="mono-sm" :title="row.cluster_id">{{ clusterStore.clusters.find(c => c.cluster_id === row.cluster_id)?.cluster_name ?? row.cluster_id }}</td>
-              <td class="mono-sm">{{ row.scope ?? '—' }}</td>
-              <td class="mono-sm" :title="row.created_at ?? undefined">{{ fmt(row.created_at) }}</td>
-              <td class="mono-sm">{{ row.expiry === null ? 'never' : fmt(row.expiry) }}</td>
-              <td class="mono-sm">{{ fmt(row.last_ingest_at) }}</td>
-              <td><DotWord :tone="TOKEN_STATUS_TONE[tokenStatus(row, now())]" :label="tokenStatus(row, now())" /></td>
-              <td class="row-actions">
-                <template v-if="tokenStatus(row, now()) !== 'revoked'">
+            <tr v-for="row in shown" :key="row.id">
+              <td class="fit"><ScannerTag :name="row.scanner" /></td>
+              <td>
+                <span class="mono-cell sm cluster-cell" :title="row.cluster_id">{{
+                  clusterName(row.cluster_id)
+                }}</span>
+              </td>
+              <td class="fit mono-cell sm">{{ row.scope ?? '—' }}</td>
+              <td class="fit mono-cell sm nowrap" :title="row.created_at ?? undefined">{{ fmt(row.created_at) }}</td>
+              <td class="fit mono-cell sm nowrap">{{ row.expiry === null ? 'never' : fmt(row.expiry) }}</td>
+              <td class="fit mono-cell sm nowrap">{{ fmt(row.last_ingest_at) }}</td>
+              <td class="fit"><DotWord :tone="TOKEN_STATUS_TONE[tokenStatus(row, now())]" :label="tokenStatus(row, now())" /></td>
+              <td class="fit">
+                <span v-if="tokenStatus(row, now()) !== 'revoked'" class="row-actions">
                   <UiButton :disabled="busy" @click="confirmAction = { kind: 'rotate', row }">Rotate</UiButton>
                   <UiButton :disabled="busy" @click="confirmAction = { kind: 'revoke', row }">Revoke</UiButton>
-                </template>
+                </span>
               </td>
             </tr>
           </tbody>
         </table>
+        <GridPager
+          :total="rows.length"
+          :page="page"
+          :size="size"
+          :shown="shown.length"
+          :has-prev="page > 0"
+          :has-next="hasNext"
+          @prev="page -= 1"
+          @next="page += 1"
+          @update:size="setSize"
+        />
       </div>
-      <p v-if="total > rows.length" class="cap-note">
-        Showing the {{ rows.length }} newest of {{ total }} tokens.
-      </p>
-    </SettingsCard>
+    </div>
 
     <!-- mint dialog -->
     <ModalShell v-if="mintOpen" title="Mint a push token" subtitle="scoped to one (cluster, scanner) pair" @close="mintOpen = false">
@@ -236,7 +275,7 @@ const fmt = (iso: string | null) =>
       subtitle="it is shown once and cannot be recovered — a lost token is a rotate"
       @close="minted = null"
     >
-      <div class="raw-token mono-sm">{{ minted.token }}</div>
+      <div class="raw-token mono-cell sm">{{ minted.token }}</div>
       <template #actions>
         <UiButton variant="primary" @click="copyToken">{{ copied ? 'Copied ✓' : 'Copy token' }}</UiButton>
         <UiButton variant="ghost" @click="minted = null">Done</UiButton>
@@ -270,18 +309,22 @@ const fmt = (iso: string | null) =>
 </template>
 
 <style scoped>
-.tok-scroll {
-  overflow-x: auto;
-  margin-top: 10px;
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
-.mono-sm {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
+.cluster-cell {
+  display: block;
+  max-width: 0;
+  min-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .row-actions {
-  display: flex;
+  display: inline-flex;
   gap: 6px;
-  justify-content: flex-end;
 }
 .raw-token {
   padding: 12px 14px;
@@ -326,20 +369,18 @@ const fmt = (iso: string | null) =>
   color: var(--ink);
 }
 .empty-note,
-.load-error {
+.cap-note {
   margin: 14px 0 8px;
   color: var(--soft);
 }
-.load-error {
-  color: var(--ink);
-}
 .cap-note {
-  margin: 8px 0 0;
   font-size: var(--text-sm);
-  color: var(--soft);
+}
+.load-error {
+  margin: 14px 0 8px;
 }
 .skel-block {
-  height: 160px;
+  height: 120px;
   margin: 14px 0 8px;
   border-radius: var(--r-sm);
   background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);

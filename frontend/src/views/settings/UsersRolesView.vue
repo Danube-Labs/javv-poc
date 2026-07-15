@@ -7,7 +7,7 @@
  * seeded 5th role appears without a client change. A role change REVOKES the user's sessions
  * (D33) — the confirm dialog says so. 409 on the last enabled admin renders inline.
  */
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 import {
   createUserApiV1AdminUsersPost,
@@ -19,6 +19,7 @@ import {
 } from '@/api/generated'
 import { client } from '@/api/client'
 import DotWord from '@/components/chips/DotWord.vue'
+import GridPager from '@/components/findings/GridPager.vue'
 import SettingsCard from '@/components/settings/SettingsCard.vue'
 import SettingsInput from '@/components/settings/SettingsInput.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -68,6 +69,16 @@ async function load() {
   roles.value = (r.data as { roles: RoleRow[] }).roles
 }
 void load()
+
+// display slices of the one server answer (the ScannerRunsTable idiom)
+const page = ref(0)
+const size = ref(10)
+const shown = computed(() => users.value.slice(page.value * size.value, (page.value + 1) * size.value))
+const hasNext = computed(() => (page.value + 1) * size.value < users.value.length)
+function setSize(next: number) {
+  size.value = next
+  page.value = 0
+}
 
 /** Server messages (409 last-admin, 422 policy) surface VERBATIM — the backend speaks RFC-7807
  * and an HTTPException's text lands in the problem's `title`. Pydantic validation 422s only say
@@ -218,17 +229,28 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
       <p v-else-if="failed" class="load-error" role="alert">
         User list unavailable. Check the backend connection.
       </p>
+    </SettingsCard>
 
-      <div v-else class="usr-scroll">
-        <table class="tbl">
+    <div v-if="!loading && !failed" class="tbl-card">
+      <div class="tbl-wrap">
+        <table class="tbl tbl-dense">
           <thead>
-            <tr><th>User</th><th>Role</th><th>Source</th><th>Status</th><th></th></tr>
+            <tr>
+              <th>User</th>
+              <th class="fit">Role</th>
+              <th class="fit">Source</th>
+              <th class="fit">Status</th>
+              <th class="fit"></th>
+            </tr>
           </thead>
           <tbody>
-            <template v-for="user in users" :key="user.username">
+            <template v-for="user in shown" :key="user.username">
               <tr :class="{ 'row-off': user.disabled }">
-                <td class="mono-sm">{{ user.username }}<span v-if="isSelf(user)" class="self-tag">you</span></td>
                 <td>
+                  <span class="mono-cell sm">{{ user.username }}</span>
+                  <span v-if="isSelf(user)" class="self-tag">you</span>
+                </td>
+                <td class="fit">
                   <select
                     class="set-select"
                     :value="user.role"
@@ -239,20 +261,22 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
                     <option v-for="r in roles" :key="r.role" :value="r.role">{{ r.role }}</option>
                   </select>
                 </td>
-                <td class="mono-sm">{{ user.auth_source }}</td>
-                <td>
+                <td class="fit mono-cell sm">{{ user.auth_source }}</td>
+                <td class="fit">
                   <DotWord v-if="user.disabled" tone="muted" label="disabled" />
                   <DotWord v-else-if="user.must_change" tone="warn" label="must change password" />
                   <DotWord v-else tone="ok" label="active" />
                 </td>
-                <td class="row-actions">
-                  <UiButton
-                    :disabled="busy || user.auth_source !== 'local' || user.disabled"
-                    :title="user.auth_source !== 'local' ? 'Password is managed by the identity provider' : undefined"
-                    @click="openReset(user)"
-                  >Reset password</UiButton>
-                  <UiButton v-if="user.disabled" :disabled="busy" @click="setDisabled(user, false)">Enable</UiButton>
-                  <UiButton v-else :disabled="busy" @click="disableTarget = user">Disable</UiButton>
+                <td class="fit">
+                  <span class="row-actions">
+                    <UiButton
+                      :disabled="busy || user.auth_source !== 'local' || user.disabled"
+                      :title="user.auth_source !== 'local' ? 'Password is managed by the identity provider' : undefined"
+                      @click="openReset(user)"
+                    >Reset password</UiButton>
+                    <UiButton v-if="user.disabled" :disabled="busy" @click="setDisabled(user, false)">Enable</UiButton>
+                    <UiButton v-else :disabled="busy" @click="disableTarget = user">Disable</UiButton>
+                  </span>
                 </td>
               </tr>
               <tr v-if="rowError?.username === user.username">
@@ -261,23 +285,34 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
             </template>
           </tbody>
         </table>
+        <GridPager
+          :total="users.length"
+          :page="page"
+          :size="size"
+          :shown="shown.length"
+          :has-prev="page > 0"
+          :has-next="hasNext"
+          @prev="page -= 1"
+          @next="page += 1"
+          @update:size="setSize"
+        />
       </div>
-    </SettingsCard>
+    </div>
 
     <SettingsCard title="Roles" subtitle="a role is a bundle of capabilities — endpoints check the capability, never the role name">
       <div v-if="!loading && !failed" class="roles-list">
         <div v-for="r in roles" :key="r.role" class="role-row">
-          <span class="role-name mono-sm">{{ r.role }}</span>
+          <span class="role-name mono-cell sm">{{ r.role }}</span>
           <span v-if="r.capabilities.length === 0" class="role-caps-none">read-only dashboards</span>
           <span v-else-if="r.capabilities.includes('*')" class="role-caps-all">every capability, present and future</span>
           <span v-else class="role-caps">
-            <code v-for="cap in r.capabilities" :key="cap" class="cap-chip mono-sm">{{ cap }}</code>
+            <code v-for="cap in r.capabilities" :key="cap" class="cap-chip mono-cell sm">{{ cap }}</code>
           </span>
         </div>
       </div>
       <p class="evidence-note">
         Disable, never delete — a departed user's rows stay attributable in the audit trail.
-        New bundles are seeded as <span class="mono-sm">system-roles</span> data; they appear here without a release.
+        New bundles are seeded as <span class="mono-cell sm">system-roles</span> data; they appear here without a release.
       </p>
     </SettingsCard>
 
@@ -306,7 +341,7 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
     <!-- role-change confirm -->
     <ModalShell v-if="roleChange" title="Change role?" @close="roleChange = null; void load()">
       <p class="confirm-copy">
-        <span class="mono-sm">{{ roleChange.user.username }}</span> becomes
+        <span class="mono-cell sm">{{ roleChange.user.username }}</span> becomes
         <b>{{ roleChange.to }}</b>. Their capabilities change immediately and
         <b>every active session is signed out</b> — a new role never rides an old session.
       </p>
@@ -321,7 +356,7 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
     <!-- disable confirm -->
     <ModalShell v-if="disableTarget" title="Disable this user?" @close="disableTarget = null">
       <p class="confirm-copy">
-        <span class="mono-sm">{{ disableTarget.username }}</span> is signed out everywhere and can no
+        <span class="mono-cell sm">{{ disableTarget.username }}</span> is signed out everywhere and can no
         longer log in. Nothing is deleted — their triage history stays attributable, and you can
         re-enable them any time.<template v-if="isSelf(disableTarget)"> <b>This is your own account.</b></template>
       </p>
@@ -360,14 +395,6 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
   flex-direction: column;
   gap: 14px;
 }
-.usr-scroll {
-  overflow-x: auto;
-  margin-top: 10px;
-}
-.mono-sm {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-}
 .self-tag {
   margin-left: 8px;
   font-family: var(--font-mono);
@@ -383,9 +410,8 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
   color: var(--soft);
 }
 .row-actions {
-  display: flex;
+  display: inline-flex;
   gap: 6px;
-  justify-content: flex-end;
 }
 .row-error {
   color: var(--health-down-fg);
