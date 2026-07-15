@@ -112,7 +112,7 @@ function discard() {
         </SettingsRow>
         <SettingsRow
           label="Included namespaces"
-          hint="Only namespaces in this list are scanned. Empty = every namespace."
+          hint="Only namespaces in this list are scanned. Empty = every namespace. Exact names — patterns like kube* do not match."
           stack
         >
           <ChipsInput
@@ -125,7 +125,7 @@ function discard() {
         </SettingsRow>
         <SettingsRow
           label="Ignored namespaces"
-          hint="Namespaces the scanner skips. Ignore wins over include."
+          hint="Namespaces the scanner skips. Ignore wins over include. Exact names — no patterns."
           stack
         >
           <ChipsInput

@@ -105,11 +105,8 @@ const router = createRouter({
               name: 'settings-sla',
               component: () => import('@/views/settings/SlaPolicyView.vue'),
             },
-            {
-              path: 'ignore-rules',
-              name: 'settings-ignore-rules',
-              component: () => import('@/views/settings/IgnoreRulesStub.vue'),
-            },
+            // 13.4 by ruling: NO nav entry — ignore rules ARE decisions; the old URL just lands there
+            { path: 'ignore-rules', redirect: '/approvals' },
             {
               path: 'tokens',
               name: 'settings-tokens',
