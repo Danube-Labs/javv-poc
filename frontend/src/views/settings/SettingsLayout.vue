@@ -34,9 +34,9 @@ const scopeNote = computed(() => {
 <template>
   <div class="screen">
     <div class="screen-head">
-      <div>
+      <div class="head-card head-card-fluid">
         <h1>Settings</h1>
-        <p class="screen-sub">
+        <p class="head-note">
           each section notes whether it applies per cluster, per scanner, or organization-wide
         </p>
       </div>
@@ -76,6 +76,8 @@ const scopeNote = computed(() => {
   gap: 18px;
   align-items: stretch;
 }
+/* the nav rides in a card track (Nuxt UI pill-tabs grammar, inverted for our darker canvas:
+   the container is the card, selection takes the coral wash — the time-preset idiom) */
 .set-nav {
   position: sticky;
   top: 0;
@@ -83,6 +85,11 @@ const scopeNote = computed(() => {
   flex-direction: column;
   gap: 2px;
   align-self: start;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  padding: 6px;
 }
 .set-nav-item {
   position: relative;
@@ -102,7 +109,7 @@ const scopeNote = computed(() => {
     color var(--dur-quick) var(--ease-out);
 }
 .set-nav-item:hover {
-  background: var(--card);
+  background: var(--panel);
   color: var(--ink);
 }
 .set-nav-item:active {
@@ -112,11 +119,11 @@ const scopeNote = computed(() => {
   outline: var(--focus-ring);
   outline-offset: 1px;
 }
-.set-nav-on {
-  background: var(--card);
-  color: var(--ink);
+.set-nav-on,
+.set-nav-on:hover {
+  background: var(--dd-on-bg);
+  color: var(--coral-text);
   font-weight: 600;
-  box-shadow: var(--shadow);
 }
 .set-nav-on svg {
   color: var(--coral);

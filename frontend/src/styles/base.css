@@ -94,6 +94,13 @@ html [class*=' p-'] {
 .head-card h1 {
   margin: 0;
 }
+/* the boxed title for screens without a lens/stat band (operator ruling 2026-07-15: EVERY
+   page title lives in the head-card chrome — overview/all-clusters/settings included);
+   sizes to its subtitle instead of the rail track */
+.head-card-fluid {
+  width: auto;
+  max-width: 560px;
+}
 .head-stat {
   margin: 4px 0 0;
   font-family: var(--font-mono);
