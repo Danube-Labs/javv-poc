@@ -66,6 +66,7 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 | PATCH | `/api/v1/admin/users/{username}/role` | `can_manage_users` | Role change (revokes the user's sessions) |
 | PATCH | `/api/v1/admin/users/{username}/disabled` | `can_manage_users` | Enable/disable; the **last enabled admin** cannot be disabled (409) |
 | POST | `/api/v1/admin/users/{username}/password-reset` | `can_manage_users` | Temp password + `must_change` |
+| GET | `/api/v1/admin/roles` | `can_manage_users` | The seeded `system-roles` capability bundles (A-4 — the UI renders whatever is seeded; M9e) |
 
 ### Findings — read (M6)
 

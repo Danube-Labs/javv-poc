@@ -396,6 +396,29 @@ async def test_user_list_paginates(admin_env) -> None:
     assert r.json()["total"] >= 1
 
 
+# --- roles listing (M9e §13.6 / A-4) -----------------------------------------------------
+
+
+async def test_roles_list_serves_the_seeded_bundles_and_is_gated(admin_env) -> None:
+    make_http, client = admin_env
+    admin = make_http()
+    await _seed_and_login(admin, client, capabilities=["can_manage_users"])
+
+    r = await admin.get("/api/v1/admin/roles")
+
+    assert r.status_code == 200
+    bundles = {row["role"]: row["capabilities"] for row in r.json()["roles"]}
+    # the D33 defaults are present (a customized/extra role may also exist — content-driven UI)
+    assert bundles["viewer"] == []
+    assert bundles["triager"] == ["can_triage"]
+    assert set(bundles["security_lead"]) == {"can_triage", "can_accept_audit_final"}
+    assert bundles["admin"] == ["*"]
+
+    viewer = make_http()
+    await _seed_and_login(viewer, client, capabilities=[])
+    assert (await viewer.get("/api/v1/admin/roles")).status_code == 403
+
+
 # --- audit-log completeness (D17) + last-admin race (audit #188) ------------------------
 
 

@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(inventory_runs.router)
     app.include_router(tokens.router)
     app.include_router(admin_users.router)
+    app.include_router(admin_users.roles_router)
     app.include_router(triage.router)
     app.include_router(findings.router)
     app.include_router(exports.router)

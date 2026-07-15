@@ -606,6 +606,26 @@ export type ViewPreset = {
     state?: Array<string> | null;
 };
 
+export type ListRolesApiV1AdminRolesGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/roles';
+};
+
+export type ListRolesApiV1AdminRolesGetResponses = {
+    /**
+     * Response List Roles Api V1 Admin Roles Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ListRolesApiV1AdminRolesGetResponse = ListRolesApiV1AdminRolesGetResponses[keyof ListRolesApiV1AdminRolesGetResponses];
+
 export type ListTokensApiV1AdminTokensGetData = {
     body?: never;
     path?: never;

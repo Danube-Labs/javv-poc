@@ -1279,6 +1279,30 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/roles": {
+      "get": {
+        "description": "The seeded `system-roles` bundles (A-4/\u00a713.6) \u2014 the UI renders whatever is seeded, so a\nlater 5th role appears without a client change. Read-only; bundle EDITING stays out of scope.",
+        "operationId": "list_roles_api_v1_admin_roles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Roles Api V1 Admin Roles Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Roles",
+        "tags": [
+          "user-admin"
+        ]
+      }
+    },
     "/api/v1/admin/tokens": {
       "get": {
         "operationId": "list_tokens_api_v1_admin_tokens_get",

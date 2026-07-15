@@ -20,7 +20,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 </script>
 
 <template>
-  <span class="set-input-wrap">
+  <span class="set-input-wrap" :class="{ 'set-input-wrap--block': !num }">
     <input
       :id="id"
       class="set-input"
@@ -40,6 +40,15 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
   display: inline-flex;
   align-items: center;
   gap: 9px;
+}
+/* text inputs fill their row (stacked rows hand them the full track); the inline-flex wrap
+   otherwise collapses to the input's intrinsic ~20ch and truncates long values */
+.set-input-wrap--block {
+  display: flex;
+  width: 100%;
+}
+.set-input-wrap--block .set-input {
+  flex: 1;
 }
 .set-input {
   border: 1px solid var(--line);

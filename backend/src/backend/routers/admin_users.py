@@ -26,6 +26,7 @@ from backend.auth.principal import Principal
 from backend.auth.sessions import revoke_all_for_user
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["user-admin"])
+roles_router = APIRouter(prefix="/api/v1/admin/roles", tags=["user-admin"])
 
 USERS_INDEX = "system-users"
 _PUBLIC_FIELDS = (  # never password_hash — the hash never leaves the server
@@ -153,6 +154,22 @@ async def list_users(
     return {
         "users": [_public(h["_source"]) for h in hits["hits"]["hits"]],
         "total": hits["hits"]["total"]["value"],
+    }
+
+
+@roles_router.get("")
+async def list_roles(request: Request, principal: ManageUsers) -> dict[str, Any]:
+    """The seeded `system-roles` bundles (A-4/§13.6) — the UI renders whatever is seeded, so a
+    later 5th role appears without a client change. Read-only; bundle EDITING stays out of scope."""
+    hits = await _os(request).search(
+        index=ROLES_INDEX,
+        body={"size": 100, "sort": [{"_id": "asc"}], "query": {"match_all": {}}},
+    )
+    return {
+        "roles": [
+            {"role": h["_id"], "capabilities": list(h["_source"].get("capabilities", []))}
+            for h in hits["hits"]["hits"]
+        ]
     }
 
 
