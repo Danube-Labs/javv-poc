@@ -229,11 +229,10 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
       <p v-else-if="failed" class="load-error" role="alert">
         User list unavailable. Check the backend connection.
       </p>
-    </SettingsCard>
 
-    <div v-if="!loading && !failed" class="tbl-card">
+      <div v-if="!loading && !failed" class="set-flush">
       <div class="tbl-wrap">
-        <table class="tbl tbl-dense">
+        <table class="tbl tbl-dense tbl-quiet tbl-hover">
           <thead>
             <tr>
               <th>User</th>
@@ -297,7 +296,8 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
           @update:size="setSize"
         />
       </div>
-    </div>
+      </div>
+    </SettingsCard>
 
     <SettingsCard title="Roles" subtitle="a role is a bundle of capabilities — endpoints check the capability, never the role name">
       <div v-if="!loading && !failed" class="roles-list">
@@ -390,6 +390,16 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
 </template>
 
 <style scoped>
+/* the table IS the card body, full-bleed under the head hairline (the data-panel grammar) —
+   no empty body strip, no card-in-card */
+.set-flush {
+  margin: -4px -16px -14px;
+}
+.set-flush .tbl-wrap {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 .stack {
   display: flex;
   flex-direction: column;

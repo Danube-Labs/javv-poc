@@ -190,11 +190,10 @@ const fmt = (iso: string | null) =>
       <p v-else-if="total > rows.length" class="cap-note">
         Showing the {{ rows.length }} newest of {{ total }} tokens.
       </p>
-    </SettingsCard>
 
-    <div v-if="!loading && !failed && rows.length" class="tbl-card">
+      <div v-if="!loading && !failed && rows.length" class="set-flush">
       <div class="tbl-wrap">
-        <table class="tbl tbl-dense">
+        <table class="tbl tbl-dense tbl-quiet tbl-hover">
           <thead>
             <tr>
               <th class="fit">Scanner</th>
@@ -241,7 +240,8 @@ const fmt = (iso: string | null) =>
           @update:size="setSize"
         />
       </div>
-    </div>
+      </div>
+    </SettingsCard>
 
     <!-- mint dialog -->
     <ModalShell v-if="mintOpen" title="Mint a push token" subtitle="scoped to one (cluster, scanner) pair" @close="mintOpen = false">
@@ -309,6 +309,16 @@ const fmt = (iso: string | null) =>
 </template>
 
 <style scoped>
+/* the table IS the card body, full-bleed under the head hairline (the data-panel grammar) —
+   no empty body strip, no card-in-card */
+.set-flush {
+  margin: -4px -16px -14px;
+}
+.set-flush .tbl-wrap {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
 .stack {
   display: flex;
   flex-direction: column;
