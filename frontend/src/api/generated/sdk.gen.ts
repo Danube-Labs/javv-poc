@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ApprovalListApiV1DecisionsApprovalsGetData, ApprovalListApiV1DecisionsApprovalsGetErrors, ApprovalListApiV1DecisionsApprovalsGetResponses, AuditFacetsApiV1AuditFacetsGetData, AuditFacetsApiV1AuditFacetsGetErrors, AuditFacetsApiV1AuditFacetsGetResponses, BulkTriageApiV1FindingsBulkTriagePostData, BulkTriageApiV1FindingsBulkTriagePostErrors, BulkTriageApiV1FindingsBulkTriagePostResponses, ChangePasswordAuthPasswordPostData, ChangePasswordAuthPasswordPostErrors, ChangePasswordAuthPasswordPostResponses, CommitInventoryApiV1InventoryRunsPostData, CommitInventoryApiV1InventoryRunsPostErrors, CommitInventoryApiV1InventoryRunsPostResponses, ContributorsApiV1ContributorsGetData, ContributorsApiV1ContributorsGetErrors, ContributorsApiV1ContributorsGetResponses, CreateApiV1DecisionsPostData, CreateApiV1DecisionsPostErrors, CreateApiV1DecisionsPostResponses, CreateScanRunApiV1ScanRunsPostData, CreateScanRunApiV1ScanRunsPostResponses, CreateUserApiV1AdminUsersPostData, CreateUserApiV1AdminUsersPostErrors, CreateUserApiV1AdminUsersPostResponses, CreateViewApiV1ViewsPostData, CreateViewApiV1ViewsPostErrors, CreateViewApiV1ViewsPostResponses, DeleteViewApiV1ViewsViewIdDeleteData, DeleteViewApiV1ViewsViewIdDeleteErrors, DeleteViewApiV1ViewsViewIdDeleteResponses, DownloadReportApiV1ReportsReportIdDownloadGetData, DownloadReportApiV1ReportsReportIdDownloadGetErrors, DownloadReportApiV1ReportsReportIdDownloadGetResponses, EditApiV1DecisionsDecisionIdPatchData, EditApiV1DecisionsDecisionIdPatchErrors, EditApiV1DecisionsDecisionIdPatchResponses, EnqueueReportApiV1ReportsPostData, EnqueueReportApiV1ReportsPostErrors, EnqueueReportApiV1ReportsPostResponses, ExportAuditCsvApiV1AuditExportCsvGetData, ExportAuditCsvApiV1AuditExportCsvGetErrors, ExportAuditCsvApiV1AuditExportCsvGetResponses, ExportCsvApiV1FindingsExportCsvGetData, ExportCsvApiV1FindingsExportCsvGetErrors, ExportCsvApiV1FindingsExportCsvGetResponses, ExportVexApiV1FindingsExportVexGetData, ExportVexApiV1FindingsExportVexGetErrors, ExportVexApiV1FindingsExportVexGetResponses, FacetFindingsApiV1FindingsFacetsGetData, FacetFindingsApiV1FindingsFacetsGetErrors, FacetFindingsApiV1FindingsFacetsGetResponses, FindingsTrendApiV1TrendsFindingsGetData, FindingsTrendApiV1TrendsFindingsGetErrors, FindingsTrendApiV1TrendsFindingsGetResponses, GetReportApiV1ReportsReportIdGetData, GetReportApiV1ReportsReportIdGetErrors, GetReportApiV1ReportsReportIdGetResponses, GetScanScopeApiV1ScanScopeGetData, GetScanScopeApiV1ScanScopeGetResponses, GetScanScopeSessionApiV1SettingsScanScopeGetData, GetScanScopeSessionApiV1SettingsScanScopeGetErrors, GetScanScopeSessionApiV1SettingsScanScopeGetResponses, GetSlaApiV1SettingsSlaGetData, GetSlaApiV1SettingsSlaGetResponses, GetStalenessApiV1SettingsStalenessGetData, GetStalenessApiV1SettingsStalenessGetErrors, GetStalenessApiV1SettingsStalenessGetResponses, GroupFindingsApiV1FindingsGroupsGetData, GroupFindingsApiV1FindingsGroupsGetErrors, GroupFindingsApiV1FindingsGroupsGetResponses, HealthzHealthzGetData, HealthzHealthzGetResponses, ImageTimelineApiV1ImagesTimelineGetData, ImageTimelineApiV1ImagesTimelineGetErrors, ImageTimelineApiV1ImagesTimelineGetResponses, IngestScanApiV1IngestScanPostData, IngestScanApiV1IngestScanPostResponses, ListClustersApiV1ClustersGetData, ListClustersApiV1ClustersGetResponses, ListDecisionsApiV1DecisionsGetData, ListDecisionsApiV1DecisionsGetErrors, ListDecisionsApiV1DecisionsGetResponses, ListNotificationsApiV1NotificationsGetData, ListNotificationsApiV1NotificationsGetResponses, ListRolesApiV1AdminRolesGetData, ListRolesApiV1AdminRolesGetResponses, ListRunningImagesApiV1ImagesGetData, ListRunningImagesApiV1ImagesGetErrors, ListRunningImagesApiV1ImagesGetResponses, ListTokensApiV1AdminTokensGetData, ListTokensApiV1AdminTokensGetErrors, ListTokensApiV1AdminTokensGetResponses, ListUsersApiV1AdminUsersGetData, ListUsersApiV1AdminUsersGetErrors, ListUsersApiV1AdminUsersGetResponses, ListViewsApiV1ViewsGetData, ListViewsApiV1ViewsGetResponses, LoginAuthLoginPostData, LoginAuthLoginPostErrors, LoginAuthLoginPostResponses, LogoutAuthLogoutPostData, LogoutAuthLogoutPostResponses, MarkReadApiV1NotificationsNotificationIdReadPatchData, MarkReadApiV1NotificationsNotificationIdReadPatchErrors, MarkReadApiV1NotificationsNotificationIdReadPatchResponses, MeAuthMeGetData, MeAuthMeGetResponses, MetricsMetricsGetData, MetricsMetricsGetResponses, MintApiV1AdminTokensPostData, MintApiV1AdminTokensPostErrors, MintApiV1AdminTokensPostResponses, PasswordResetApiV1AdminUsersUsernamePasswordResetPostData, PasswordResetApiV1AdminUsersUsernamePasswordResetPostErrors, PasswordResetApiV1AdminUsersUsernamePasswordResetPostResponses, PutScanScopeApiV1ScanScopePutData, PutScanScopeApiV1ScanScopePutErrors, PutScanScopeApiV1ScanScopePutResponses, PutSlaApiV1SettingsSlaPutData, PutSlaApiV1SettingsSlaPutErrors, PutSlaApiV1SettingsSlaPutResponses, PutStalenessApiV1SettingsStalenessPutData, PutStalenessApiV1SettingsStalenessPutErrors, PutStalenessApiV1SettingsStalenessPutResponses, ReadAuditLogApiV1AuditGetData, ReadAuditLogApiV1AuditGetErrors, ReadAuditLogApiV1AuditGetResponses, ReadyzReadyzGetData, ReadyzReadyzGetResponses, RenameClusterApiV1ClustersClusterIdNamePutData, RenameClusterApiV1ClustersClusterIdNamePutErrors, RenameClusterApiV1ClustersClusterIdNamePutResponses, RevokeApiV1AdminTokensTokenIdRevokePostData, RevokeApiV1AdminTokensTokenIdRevokePostErrors, RevokeApiV1AdminTokensTokenIdRevokePostResponses, RevokeApiV1DecisionsDecisionIdRevokePostData, RevokeApiV1DecisionsDecisionIdRevokePostErrors, RevokeApiV1DecisionsDecisionIdRevokePostResponses, RotateApiV1AdminTokensTokenIdRotatePostData, RotateApiV1AdminTokensTokenIdRotatePostErrors, RotateApiV1AdminTokensTokenIdRotatePostResponses, ScannerFreshnessApiV1ScannersFreshnessGetData, ScannerFreshnessApiV1ScannersFreshnessGetErrors, ScannerFreshnessApiV1ScannersFreshnessGetResponses, ScannerProvenanceApiV1ScannersProvenanceGetData, ScannerProvenanceApiV1ScannersProvenanceGetErrors, ScannerProvenanceApiV1ScannersProvenanceGetResponses, ScansTrendApiV1TrendsScansGetData, ScansTrendApiV1TrendsScansGetErrors, ScansTrendApiV1TrendsScansGetResponses, SearchFindingsApiV1FindingsGetData, SearchFindingsApiV1FindingsGetErrors, SearchFindingsApiV1FindingsGetResponses, SetDisabledApiV1AdminUsersUsernameDisabledPatchData, SetDisabledApiV1AdminUsersUsernameDisabledPatchErrors, SetDisabledApiV1AdminUsersUsernameDisabledPatchResponses, SetRoleApiV1AdminUsersUsernameRolePatchData, SetRoleApiV1AdminUsersUsernameRolePatchErrors, SetRoleApiV1AdminUsersUsernameRolePatchResponses, TriageApiV1FindingsFindingKeyTriagePatchData, TriageApiV1FindingsFindingKeyTriagePatchErrors, TriageApiV1FindingsFindingKeyTriagePatchResponses, UpdateViewApiV1ViewsViewIdPatchData, UpdateViewApiV1ViewsViewIdPatchErrors, UpdateViewApiV1ViewsViewIdPatchResponses } from './types.gen';
+import type { ApprovalListApiV1DecisionsApprovalsGetData, ApprovalListApiV1DecisionsApprovalsGetErrors, ApprovalListApiV1DecisionsApprovalsGetResponses, AuditFacetsApiV1AuditFacetsGetData, AuditFacetsApiV1AuditFacetsGetErrors, AuditFacetsApiV1AuditFacetsGetResponses, BulkTriageApiV1FindingsBulkTriagePostData, BulkTriageApiV1FindingsBulkTriagePostErrors, BulkTriageApiV1FindingsBulkTriagePostResponses, ChangePasswordAuthPasswordPostData, ChangePasswordAuthPasswordPostErrors, ChangePasswordAuthPasswordPostResponses, CommitInventoryApiV1InventoryRunsPostData, CommitInventoryApiV1InventoryRunsPostErrors, CommitInventoryApiV1InventoryRunsPostResponses, ContributorsApiV1ContributorsGetData, ContributorsApiV1ContributorsGetErrors, ContributorsApiV1ContributorsGetResponses, CreateApiV1DecisionsPostData, CreateApiV1DecisionsPostErrors, CreateApiV1DecisionsPostResponses, CreateScanRunApiV1ScanRunsPostData, CreateScanRunApiV1ScanRunsPostResponses, CreateUserApiV1AdminUsersPostData, CreateUserApiV1AdminUsersPostErrors, CreateUserApiV1AdminUsersPostResponses, CreateViewApiV1ViewsPostData, CreateViewApiV1ViewsPostErrors, CreateViewApiV1ViewsPostResponses, DeleteViewApiV1ViewsViewIdDeleteData, DeleteViewApiV1ViewsViewIdDeleteErrors, DeleteViewApiV1ViewsViewIdDeleteResponses, DownloadReportApiV1ReportsReportIdDownloadGetData, DownloadReportApiV1ReportsReportIdDownloadGetErrors, DownloadReportApiV1ReportsReportIdDownloadGetResponses, EditApiV1DecisionsDecisionIdPatchData, EditApiV1DecisionsDecisionIdPatchErrors, EditApiV1DecisionsDecisionIdPatchResponses, EnqueueReportApiV1ReportsPostData, EnqueueReportApiV1ReportsPostErrors, EnqueueReportApiV1ReportsPostResponses, ExportAuditCsvApiV1AuditExportCsvGetData, ExportAuditCsvApiV1AuditExportCsvGetErrors, ExportAuditCsvApiV1AuditExportCsvGetResponses, ExportCsvApiV1FindingsExportCsvGetData, ExportCsvApiV1FindingsExportCsvGetErrors, ExportCsvApiV1FindingsExportCsvGetResponses, ExportVexApiV1FindingsExportVexGetData, ExportVexApiV1FindingsExportVexGetErrors, ExportVexApiV1FindingsExportVexGetResponses, FacetFindingsApiV1FindingsFacetsGetData, FacetFindingsApiV1FindingsFacetsGetErrors, FacetFindingsApiV1FindingsFacetsGetResponses, FindingsTrendApiV1TrendsFindingsGetData, FindingsTrendApiV1TrendsFindingsGetErrors, FindingsTrendApiV1TrendsFindingsGetResponses, GetDataSettingsApiV1SettingsDataGetData, GetDataSettingsApiV1SettingsDataGetErrors, GetDataSettingsApiV1SettingsDataGetResponses, GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetData, GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses, GetReportApiV1ReportsReportIdGetData, GetReportApiV1ReportsReportIdGetErrors, GetReportApiV1ReportsReportIdGetResponses, GetScanScopeApiV1ScanScopeGetData, GetScanScopeApiV1ScanScopeGetResponses, GetScanScopeSessionApiV1SettingsScanScopeGetData, GetScanScopeSessionApiV1SettingsScanScopeGetErrors, GetScanScopeSessionApiV1SettingsScanScopeGetResponses, GetSlaApiV1SettingsSlaGetData, GetSlaApiV1SettingsSlaGetResponses, GetStalenessApiV1SettingsStalenessGetData, GetStalenessApiV1SettingsStalenessGetErrors, GetStalenessApiV1SettingsStalenessGetResponses, GroupFindingsApiV1FindingsGroupsGetData, GroupFindingsApiV1FindingsGroupsGetErrors, GroupFindingsApiV1FindingsGroupsGetResponses, HealthzHealthzGetData, HealthzHealthzGetResponses, ImageTimelineApiV1ImagesTimelineGetData, ImageTimelineApiV1ImagesTimelineGetErrors, ImageTimelineApiV1ImagesTimelineGetResponses, IngestScanApiV1IngestScanPostData, IngestScanApiV1IngestScanPostResponses, ListClustersApiV1ClustersGetData, ListClustersApiV1ClustersGetResponses, ListDecisionsApiV1DecisionsGetData, ListDecisionsApiV1DecisionsGetErrors, ListDecisionsApiV1DecisionsGetResponses, ListNotificationsApiV1NotificationsGetData, ListNotificationsApiV1NotificationsGetResponses, ListRolesApiV1AdminRolesGetData, ListRolesApiV1AdminRolesGetResponses, ListRunningImagesApiV1ImagesGetData, ListRunningImagesApiV1ImagesGetErrors, ListRunningImagesApiV1ImagesGetResponses, ListSnapshotsApiV1AdminSnapshotsGetData, ListSnapshotsApiV1AdminSnapshotsGetResponses, ListTokensApiV1AdminTokensGetData, ListTokensApiV1AdminTokensGetErrors, ListTokensApiV1AdminTokensGetResponses, ListUsersApiV1AdminUsersGetData, ListUsersApiV1AdminUsersGetErrors, ListUsersApiV1AdminUsersGetResponses, ListViewsApiV1ViewsGetData, ListViewsApiV1ViewsGetResponses, LoginAuthLoginPostData, LoginAuthLoginPostErrors, LoginAuthLoginPostResponses, LogoutAuthLogoutPostData, LogoutAuthLogoutPostResponses, MarkReadApiV1NotificationsNotificationIdReadPatchData, MarkReadApiV1NotificationsNotificationIdReadPatchErrors, MarkReadApiV1NotificationsNotificationIdReadPatchResponses, MeAuthMeGetData, MeAuthMeGetResponses, MetricsMetricsGetData, MetricsMetricsGetResponses, MintApiV1AdminTokensPostData, MintApiV1AdminTokensPostErrors, MintApiV1AdminTokensPostResponses, PasswordResetApiV1AdminUsersUsernamePasswordResetPostData, PasswordResetApiV1AdminUsersUsernamePasswordResetPostErrors, PasswordResetApiV1AdminUsersUsernamePasswordResetPostResponses, PutFindingsCleanupApiV1SettingsFindingsCleanupPutData, PutFindingsCleanupApiV1SettingsFindingsCleanupPutErrors, PutFindingsCleanupApiV1SettingsFindingsCleanupPutResponses, PutReportTtlApiV1SettingsReportTtlPutData, PutReportTtlApiV1SettingsReportTtlPutErrors, PutReportTtlApiV1SettingsReportTtlPutResponses, PutRetentionApiV1SettingsRetentionPutData, PutRetentionApiV1SettingsRetentionPutErrors, PutRetentionApiV1SettingsRetentionPutResponses, PutRolloverApiV1SettingsRolloverPutData, PutRolloverApiV1SettingsRolloverPutErrors, PutRolloverApiV1SettingsRolloverPutResponses, PutScanScopeApiV1ScanScopePutData, PutScanScopeApiV1ScanScopePutErrors, PutScanScopeApiV1ScanScopePutResponses, PutSlaApiV1SettingsSlaPutData, PutSlaApiV1SettingsSlaPutErrors, PutSlaApiV1SettingsSlaPutResponses, PutStalenessApiV1SettingsStalenessPutData, PutStalenessApiV1SettingsStalenessPutErrors, PutStalenessApiV1SettingsStalenessPutResponses, ReadAuditLogApiV1AuditGetData, ReadAuditLogApiV1AuditGetErrors, ReadAuditLogApiV1AuditGetResponses, ReadyzReadyzGetData, ReadyzReadyzGetResponses, RenameClusterApiV1ClustersClusterIdNamePutData, RenameClusterApiV1ClustersClusterIdNamePutErrors, RenameClusterApiV1ClustersClusterIdNamePutResponses, RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostData, RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostErrors, RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostResponses, RevokeApiV1AdminTokensTokenIdRevokePostData, RevokeApiV1AdminTokensTokenIdRevokePostErrors, RevokeApiV1AdminTokensTokenIdRevokePostResponses, RevokeApiV1DecisionsDecisionIdRevokePostData, RevokeApiV1DecisionsDecisionIdRevokePostErrors, RevokeApiV1DecisionsDecisionIdRevokePostResponses, RotateApiV1AdminTokensTokenIdRotatePostData, RotateApiV1AdminTokensTokenIdRotatePostErrors, RotateApiV1AdminTokensTokenIdRotatePostResponses, ScannerFreshnessApiV1ScannersFreshnessGetData, ScannerFreshnessApiV1ScannersFreshnessGetErrors, ScannerFreshnessApiV1ScannersFreshnessGetResponses, ScannerProvenanceApiV1ScannersProvenanceGetData, ScannerProvenanceApiV1ScannersProvenanceGetErrors, ScannerProvenanceApiV1ScannersProvenanceGetResponses, ScansTrendApiV1TrendsScansGetData, ScansTrendApiV1TrendsScansGetErrors, ScansTrendApiV1TrendsScansGetResponses, SearchFindingsApiV1FindingsGetData, SearchFindingsApiV1FindingsGetErrors, SearchFindingsApiV1FindingsGetResponses, SetDisabledApiV1AdminUsersUsernameDisabledPatchData, SetDisabledApiV1AdminUsersUsernameDisabledPatchErrors, SetDisabledApiV1AdminUsersUsernameDisabledPatchResponses, SetRoleApiV1AdminUsersUsernameRolePatchData, SetRoleApiV1AdminUsersUsernameRolePatchErrors, SetRoleApiV1AdminUsersUsernameRolePatchResponses, TakeManualSnapshotApiV1AdminSnapshotsPostData, TakeManualSnapshotApiV1AdminSnapshotsPostResponses, TriageApiV1FindingsFindingKeyTriagePatchData, TriageApiV1FindingsFindingKeyTriagePatchErrors, TriageApiV1FindingsFindingKeyTriagePatchResponses, UpdateViewApiV1ViewsViewIdPatchData, UpdateViewApiV1ViewsViewIdPatchErrors, UpdateViewApiV1ViewsViewIdPatchResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -19,12 +19,43 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
+ * Get Opensearch Runtime
+ *
+ * Allowlist-shaped runtime facts for the read-only card — never a raw API passthrough.
+ */
+export const getOpensearchRuntimeApiV1AdminOpensearchRuntimeGet = <ThrowOnError extends boolean = false>(options?: Options<GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetData, ThrowOnError>): RequestResult<GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses, unknown, ThrowOnError>({ url: '/api/v1/admin/opensearch-runtime', ...options });
+
+/**
  * List Roles
  *
  * The seeded `system-roles` bundles (A-4/§13.6) — the UI renders whatever is seeded, so a
  * later 5th role appears without a client change. Read-only; bundle EDITING stays out of scope.
  */
 export const listRolesApiV1AdminRolesGet = <ThrowOnError extends boolean = false>(options?: Options<ListRolesApiV1AdminRolesGetData, ThrowOnError>): RequestResult<ListRolesApiV1AdminRolesGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListRolesApiV1AdminRolesGetResponses, unknown, ThrowOnError>({ url: '/api/v1/admin/roles', ...options });
+
+/**
+ * List Snapshots
+ *
+ * The configured repo's snapshots, newest first (empty state until a repo ref exists).
+ */
+export const listSnapshotsApiV1AdminSnapshotsGet = <ThrowOnError extends boolean = false>(options?: Options<ListSnapshotsApiV1AdminSnapshotsGetData, ThrowOnError>): RequestResult<ListSnapshotsApiV1AdminSnapshotsGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListSnapshotsApiV1AdminSnapshotsGetResponses, unknown, ThrowOnError>({ url: '/api/v1/admin/snapshots', ...options });
+
+/**
+ * Take Manual Snapshot
+ *
+ * Trigger an on-demand snapshot of the durability set (fire-and-forget; the list shows the
+ * resulting state). 409 until a snapshot repository is configured.
+ */
+export const takeManualSnapshotApiV1AdminSnapshotsPost = <ThrowOnError extends boolean = false>(options?: Options<TakeManualSnapshotApiV1AdminSnapshotsPostData, ThrowOnError>): RequestResult<TakeManualSnapshotApiV1AdminSnapshotsPostResponses, unknown, ThrowOnError> => (options?.client ?? client).post<TakeManualSnapshotApiV1AdminSnapshotsPostResponses, unknown, ThrowOnError>({ url: '/api/v1/admin/snapshots', ...options });
+
+/**
+ * Restore Manual Snapshot
+ *
+ * Restore a snapshot into `restored-*` copies (never onto live indices — the drill's
+ * rename semantics; promoting a copy is a deliberate manual step, so a mistaken restore
+ * costs nothing).
+ */
+export const restoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePost = <ThrowOnError extends boolean = false>(options: Options<RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostData, ThrowOnError>): RequestResult<RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostResponses, RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostErrors, ThrowOnError> => (options.client ?? client).post<RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostResponses, RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostErrors, ThrowOnError>({ url: '/api/v1/admin/snapshots/{snapshot_name}/restore', ...options });
 
 /**
  * List Tokens
@@ -345,6 +376,64 @@ export const scannerFreshnessApiV1ScannersFreshnessGet = <ThrowOnError extends b
  * Scanner Provenance
  */
 export const scannerProvenanceApiV1ScannersProvenanceGet = <ThrowOnError extends boolean = false>(options: Options<ScannerProvenanceApiV1ScannersProvenanceGetData, ThrowOnError>): RequestResult<ScannerProvenanceApiV1ScannersProvenanceGetResponses, ScannerProvenanceApiV1ScannersProvenanceGetErrors, ThrowOnError> => (options.client ?? client).get<ScannerProvenanceApiV1ScannersProvenanceGetResponses, ScannerProvenanceApiV1ScannersProvenanceGetErrors, ThrowOnError>({ url: '/api/v1/scanners/provenance', ...options });
+
+/**
+ * Get Data Settings
+ *
+ * Everything the panel renders in one read: the EFFECTIVE lifecycle knobs for the cluster
+ * (override if set, else fleet default), whether an override doc exists (the editor must know
+ * which doc it edits), the report TTL and findings-cleanup knobs (fleet-wide), and the
+ * non-secret snapshot repo ref (None until M2 config lands in the store).
+ */
+export const getDataSettingsApiV1SettingsDataGet = <ThrowOnError extends boolean = false>(options?: Options<GetDataSettingsApiV1SettingsDataGetData, ThrowOnError>): RequestResult<GetDataSettingsApiV1SettingsDataGetResponses, GetDataSettingsApiV1SettingsDataGetErrors, ThrowOnError> => (options?.client ?? client).get<GetDataSettingsApiV1SettingsDataGetResponses, GetDataSettingsApiV1SettingsDataGetErrors, ThrowOnError>({ url: '/api/v1/settings/data', ...options });
+
+/**
+ * Put Findings Cleanup
+ */
+export const putFindingsCleanupApiV1SettingsFindingsCleanupPut = <ThrowOnError extends boolean = false>(options: Options<PutFindingsCleanupApiV1SettingsFindingsCleanupPutData, ThrowOnError>): RequestResult<PutFindingsCleanupApiV1SettingsFindingsCleanupPutResponses, PutFindingsCleanupApiV1SettingsFindingsCleanupPutErrors, ThrowOnError> => (options.client ?? client).put<PutFindingsCleanupApiV1SettingsFindingsCleanupPutResponses, PutFindingsCleanupApiV1SettingsFindingsCleanupPutErrors, ThrowOnError>({
+    url: '/api/v1/settings/findings-cleanup',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Put Report Ttl
+ */
+export const putReportTtlApiV1SettingsReportTtlPut = <ThrowOnError extends boolean = false>(options: Options<PutReportTtlApiV1SettingsReportTtlPutData, ThrowOnError>): RequestResult<PutReportTtlApiV1SettingsReportTtlPutResponses, PutReportTtlApiV1SettingsReportTtlPutErrors, ThrowOnError> => (options.client ?? client).put<PutReportTtlApiV1SettingsReportTtlPutResponses, PutReportTtlApiV1SettingsReportTtlPutErrors, ThrowOnError>({
+    url: '/api/v1/settings/report-ttl',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Put Retention
+ */
+export const putRetentionApiV1SettingsRetentionPut = <ThrowOnError extends boolean = false>(options: Options<PutRetentionApiV1SettingsRetentionPutData, ThrowOnError>): RequestResult<PutRetentionApiV1SettingsRetentionPutResponses, PutRetentionApiV1SettingsRetentionPutErrors, ThrowOnError> => (options.client ?? client).put<PutRetentionApiV1SettingsRetentionPutResponses, PutRetentionApiV1SettingsRetentionPutErrors, ThrowOnError>({
+    url: '/api/v1/settings/retention',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Put Rollover
+ */
+export const putRolloverApiV1SettingsRolloverPut = <ThrowOnError extends boolean = false>(options: Options<PutRolloverApiV1SettingsRolloverPutData, ThrowOnError>): RequestResult<PutRolloverApiV1SettingsRolloverPutResponses, PutRolloverApiV1SettingsRolloverPutErrors, ThrowOnError> => (options.client ?? client).put<PutRolloverApiV1SettingsRolloverPutResponses, PutRolloverApiV1SettingsRolloverPutErrors, ThrowOnError>({
+    url: '/api/v1/settings/rollover',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Get Scan Scope Session

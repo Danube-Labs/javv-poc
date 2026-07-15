@@ -6,17 +6,16 @@ export interface FreshnessRow {
   silent_for_seconds: number | null
 }
 
-/** Banner window: `VITE_FRESHNESS_BANNER_HOURS` (build-time), defaulting to the D20 N = 3 days.
- * Runtime configurability (the `staleness` settings doc) is the M9e deliverable. */
-const HOURS = Number(import.meta.env.VITE_FRESHNESS_BANNER_HOURS)
-export const FRESHNESS_BANNER_AFTER_S =
-  Number.isFinite(HOURS) && HOURS > 0 ? HOURS * 3600 : 3 * 24 * 3600
+/** The D20 seed default (N = 3 days) — mirrors the backend's `StalenessTimers` default. Only a
+ * fallback while the live read is in flight: callers thread the cluster's EFFECTIVE window from
+ * `stores/staleness` (the settings panel edits it at runtime, so build-time knobs are a lie). */
+export const D20_FRESHNESS_DEFAULT_S = 3 * 24 * 3600
 
 /** Cluster-grade freshness status: ok / stale (any scanner silent past the D20 threshold) /
  * none (no scanner has EVER ingested — first sweep pending, distinct from stale). */
 export function freshnessStatus(
   rows: FreshnessRow[],
-  thresholdS: number = FRESHNESS_BANNER_AFTER_S,
+  thresholdS: number = D20_FRESHNESS_DEFAULT_S,
 ): 'ok' | 'stale' | 'none' {
   const seen = rows.filter((r) => r.last_ingest_at !== null)
   if (seen.length === 0) return 'none'
@@ -25,7 +24,7 @@ export function freshnessStatus(
 
 export function silentRows(
   rows: FreshnessRow[],
-  thresholdS: number = FRESHNESS_BANNER_AFTER_S,
+  thresholdS: number = D20_FRESHNESS_DEFAULT_S,
 ): FreshnessRow[] {
   return rows.filter((r) => (r.silent_for_seconds ?? 0) > thresholdS)
 }

@@ -232,7 +232,10 @@ html [class*=' p-'] {
   text-transform: uppercase;
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  /* the canvas neutral, one step under the card (operator 2026-07-16, the ui.nuxt band
+     grammar): --panel on --card was a 2% step no one could see — the head must read as
+     a band that opens a table */
+  background: var(--bg);
   white-space: nowrap;
   font-family: var(--font-mono);
 }
@@ -247,6 +250,20 @@ html [class*=' p-'] {
 }
 .tbl-dense.tbl-dense tbody td {
   padding: 7px 12px;
+}
+/* settings-grade ledger (operator 2026-07-16, the ui.nuxt/shadcn register): quiet sans head
+   at the body size — the uppercase-mono head is data-GRID grammar and shouts inside a settings
+   card. Identifier cells keep mono; every other cell rides the UI face. */
+.tbl-quiet.tbl-quiet thead th {
+  font-family: var(--font-ui);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+  color: var(--soft);
+  font-size: var(--text-sm);
+}
+.tbl-quiet.tbl-quiet tbody td {
+  font-size: var(--text-sm);
 }
 .tbl.tbl tbody tr:last-child td {
   border-bottom: 0;

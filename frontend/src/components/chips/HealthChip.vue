@@ -6,9 +6,9 @@ import { computed } from 'vue'
 
 import { freshnessStatus, type FreshnessRow } from '@/system/freshness'
 
-const props = defineProps<{ rows: FreshnessRow[] }>()
+const props = defineProps<{ rows: FreshnessRow[]; thresholdS?: number }>()
 
-const status = computed(() => freshnessStatus(props.rows))
+const status = computed(() => freshnessStatus(props.rows, props.thresholdS))
 
 const LABEL = { ok: 'healthy', stale: 'stale', none: 'no data' } as const
 </script>

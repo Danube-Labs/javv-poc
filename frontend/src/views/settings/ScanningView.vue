@@ -25,6 +25,7 @@ import SettingsRow from '@/components/settings/SettingsRow.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
+import { useStalenessStore } from '@/stores/staleness'
 import { useToastStore } from '@/stores/toast'
 
 import { parseWindow } from './slaForm'
@@ -128,6 +129,8 @@ async function save() {
     return
   }
   savedTimers.value = { freshness_days: parsedN.value, scanner_down_days: parsedM.value }
+  // the freshness banner thresholds on these timers live — drop its cache so it re-reads
+  useStalenessStore().invalidate()
   toast.success('Staleness timers saved — the next daily sweep applies them')
 }
 

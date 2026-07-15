@@ -122,6 +122,39 @@ async def test_restore_brings_back_system_config_ref(drill) -> None:
 
 
 @requires_opensearch
+async def test_renamed_restore_never_steals_the_live_write_alias(drill) -> None:
+    """The M9e panel bug: a snapshot of an ALIASED series index restored under a rename used to
+    bring the original write alias along — two write indices on one alias, illegal_state, restore
+    aborted. Renamed copies must come back alias-free with the live series untouched."""
+    c, prefix, repo, token = drill
+    alias = f"{prefix}javv-images-drill"
+    index = f"{alias}-000001"
+    await c.indices.create(index=index, body={"aliases": {alias: {"is_write_index": True}}})
+    await c.index(index=alias, body={"image_digest": "sha256:d"}, params={"refresh": "true"})
+
+    ref = SnapshotRepoRef(repository=repo, type="fs", settings={"location": f"{PATH_REPO}/{token}"})
+    await register_repository(c, ref)
+    await take_snapshot(c, repository=repo, snapshot="drill", indices=index)
+
+    await restore_snapshot(
+        c,
+        repository=repo,
+        snapshot="drill",
+        indices=index,
+        rename_pattern="(.+)",
+        rename_replacement="restored-$1",
+    )
+    await c.indices.refresh(index=f"restored-{index}")
+
+    restored_aliases = (await c.indices.get_alias(index=f"restored-{index}"))[f"restored-{index}"][
+        "aliases"
+    ]
+    assert restored_aliases == {}  # the copy never carries the live alias
+    live = await c.indices.get_alias(name=alias)
+    assert list(live.keys()) == [index]  # the live series kept its single write index
+
+
+@requires_opensearch
 async def test_restore_is_repeatable_no_partial_state(drill) -> None:
     c, prefix, repo, token = drill
     seed = await _seed(c, prefix)

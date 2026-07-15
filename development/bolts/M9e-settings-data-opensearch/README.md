@@ -145,6 +145,15 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-15 (post-slice-3) — slice-5 re-review (operator-requested) + re-slice ruling:**
+  both slice-5 halves verified still needed against code + design docs (`findings_cleanup.py`
+  unbuilt, no other `delete_by_query` touches `findings`; D37/M12 + INDEX-MAP + this README's DoD
+  all stand). **Ruling: the freshness-banner rewire (row 14) moves INTO slice 4** — slice 3 shipped
+  the live staleness editor, so the build-time `VITE_FRESHNESS_BANNER_HOURS` banner now ignores
+  what the panel edits (a user-visible inconsistency today); the rewire is small (the pure
+  functions already take `thresholdS` as a parameter) and closes it. **Design point ruled with it:
+  the banner uses the selected cluster's *effective* timers** (per-cluster overrides exist), not
+  the fleet default. Slice 5 = `findings_cleanup.py` + bolt wrap only.
 - **2026-07-15 (build-time, slice 3) — two operator rulings against built specimens:**
   1. **Ignore-rules nav entry REMOVED entirely** (supersedes the slice-1 redirect stub and table
      row 20's "stub" ruling): decisions live on `/approvals` + finding detail — a settings pointer

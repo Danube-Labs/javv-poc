@@ -150,11 +150,16 @@ async def restore_snapshot(
 ) -> dict[str, Any]:
     """Restore `indices` from a snapshot. Optional rename (`rename_pattern`/`rename_replacement`)
     restores into a fresh index name — used by the restore drill to avoid colliding with the live
-    index. OpenSearch refuses to restore over an open index, so the target must not exist yet."""
+    index. OpenSearch refuses to restore over an open index, so the target must not exist yet.
+
+    A renamed restore drops the snapshotted aliases: the copy would otherwise carry the ORIGINAL
+    write alias and collide with the live write index (`illegal_state_exception`, two write
+    indices on one alias) — a renamed copy must never steal the live series' aliases."""
     body: dict[str, Any] = {"indices": indices, "include_global_state": False}
     if rename_pattern is not None:
         body["rename_pattern"] = rename_pattern
         body["rename_replacement"] = rename_replacement
+        body["include_aliases"] = False
     return await client.snapshot.restore(
         repository=repository,
         snapshot=snapshot,
