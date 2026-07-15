@@ -123,23 +123,13 @@ const router = createRouter({
             {
               path: 'tokens',
               name: 'settings-tokens',
-              component: () => import('@/views/settings/SettingsPlaceholder.vue'),
-              props: {
-                title: 'Access & tokens',
-                subtitle: 'scoped scanner push tokens — mint, rotate, revoke',
-                slice: 'M9e slice 2',
-              },
+              component: () => import('@/views/settings/TokensView.vue'),
               meta: { capability: 'can_manage_tokens' },
             },
             {
               path: 'users',
               name: 'settings-users',
-              component: () => import('@/views/settings/SettingsPlaceholder.vue'),
-              props: {
-                title: 'Users & roles',
-                subtitle: 'local accounts + the four capability bundles (A-4)',
-                slice: 'M9e slice 2',
-              },
+              component: () => import('@/views/settings/UsersRolesView.vue'),
               meta: { capability: 'can_manage_users' },
             },
             {
@@ -156,12 +146,7 @@ const router = createRouter({
             {
               path: 'cluster',
               name: 'settings-cluster',
-              component: () => import('@/views/settings/SettingsPlaceholder.vue'),
-              props: {
-                title: 'Cluster',
-                subtitle: 'identity & ingest contract — cluster_id immutable, name relabelable',
-                slice: 'M9e slice 2',
-              },
+              component: () => import('@/views/settings/ClusterView.vue'),
             },
           ],
         },

@@ -28,6 +28,10 @@ export const ROUTES = [
   { name: 'approvals', path: '/approvals', ready: '.screen' },
   // /settings redirects to the SLA panel; a .set-row exists only once the policy has loaded
   { name: 'settings', path: '/settings', ready: '.set-row' },
+  // slice-2 panels: tokens/users prove DATA (the smoke seed mints a token; admin always exists)
+  { name: 'settings-tokens', path: '/settings/tokens', ready: '.tbl tbody tr' },
+  { name: 'settings-users', path: '/settings/users', ready: '.tbl tbody tr' },
+  { name: 'settings-cluster', path: '/settings/cluster', ready: '.set-row' },
   { name: 'findings', path: '/findings', ready: '.tbl tbody tr' },
   { name: 'images', path: '/images', ready: '.tbl tbody tr' },
 ]

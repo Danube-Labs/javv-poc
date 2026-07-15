@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import type { SlaPolicy } from '@/api/generated'
 import { SETTINGS_SECTIONS } from '@/views/settings/sections'
+import { mintExpiry, tokenStatus, type TokenRow } from '@/views/settings/tokensForm'
 import {
   draftFromPolicy,
   isDirty,
@@ -54,6 +55,41 @@ describe('slaForm', () => {
 
   it('draft covers exactly the SlaPolicy knobs', () => {
     expect(Object.keys(draftFromPolicy(POLICY)).sort()).toEqual([...SLA_KEYS].sort())
+  })
+})
+
+describe('tokensForm', () => {
+  const row = (over: Partial<TokenRow>): TokenRow => ({
+    id: 't1',
+    cluster_id: 'c1',
+    scanner: 'trivy',
+    scope: 'push:findings',
+    created_by: 'admin',
+    created_at: '2026-07-01T00:00:00+00:00',
+    expiry: null,
+    disabled: false,
+    last_ingest_at: null,
+    ...over,
+  })
+  const NOW = new Date('2026-07-15T12:00:00Z')
+
+  it('status: revoked wins over expiry; a past expiry reads expired; else active', () => {
+    expect(tokenStatus(row({}), NOW)).toBe('active')
+    expect(tokenStatus(row({ expiry: '2026-07-01T00:00:00+00:00' }), NOW)).toBe('expired')
+    expect(tokenStatus(row({ expiry: '2026-08-01T00:00:00+00:00' }), NOW)).toBe('active')
+    expect(tokenStatus(row({ disabled: true, expiry: '2026-07-01T00:00:00+00:00' }), NOW)).toBe('revoked')
+  })
+
+  it('mint expiry: both-empty omits; half-filled/garbage/past are INVALID, never silent', () => {
+    expect(mintExpiry({ date: '', time: '' }, NOW)).toEqual({ kind: 'omit' })
+    expect(mintExpiry({ date: '2026-08-01', time: '' }, NOW).kind).toBe('invalid') // half-filled
+    expect(mintExpiry({ date: '', time: '12:00' }, NOW).kind).toBe('invalid')
+    expect(mintExpiry({ date: '2026-08-01', time: '25:99' }, NOW).kind).toBe('invalid')
+    expect(mintExpiry({ date: '2026-07-01', time: '00:00' }, NOW).kind).toBe('invalid') // past
+    expect(mintExpiry({ date: '2026-08-01', time: '00:30' }, NOW)).toEqual({
+      kind: 'iso',
+      iso: new Date('2026-08-01T00:30').toISOString(),
+    })
   })
 })
 
