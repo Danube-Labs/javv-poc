@@ -13,7 +13,7 @@ ignore wins, fail-closed fetch. Registered in the standing RBAC/IDOR suite."""
 
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.admin.scan_scope import ScanScope, read_scan_scope, write_scan_scope
@@ -66,6 +66,10 @@ async def put_scan_scope(
     request: Request, body: ScanScopePut, principal: ManageSettings
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
+    # with globs live (2026-07-15 ruling), a bare '*' in ignore silently stops ALL scanning —
+    # reject it loudly; "pause this cluster" deserves an explicit control, not a footgun
+    if "*" in body.ignore_namespaces:
+        raise HTTPException(422, "a bare '*' in ignore_namespaces would stop all scanning")
     scope = ScanScope(
         include_namespaces=body.include_namespaces,
         ignore_namespaces=body.ignore_namespaces,

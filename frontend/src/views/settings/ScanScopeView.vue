@@ -90,6 +90,16 @@ async function save() {
   toast.success('Scan scope saved — the scanner applies it at its next cycle start')
 }
 
+function addIgnoreChip(value: string) {
+  // the fail-closed footgun: with globs live, a bare '*' in ignore = scan NOTHING, silently.
+  // The server rejects it too — this just keeps the mistake out of the draft.
+  if (value.trim() === '*') {
+    toast.error("A bare '*' in the ignore list would stop all scanning — narrow the include list instead.")
+    return
+  }
+  draft.value.ignore_namespaces = addChip(draft.value.ignore_namespaces, value)
+}
+
 function discard() {
   draft.value = cloneScope(saved.value)
 }
@@ -112,7 +122,7 @@ function discard() {
         </SettingsRow>
         <SettingsRow
           label="Included namespaces"
-          hint="Only namespaces in this list are scanned. Empty = every namespace. Exact names — patterns like kube* do not match."
+          hint="Only matching namespaces are scanned — names or glob patterns (kube* covers every kube- namespace). Empty = every namespace."
           stack
         >
           <ChipsInput
@@ -125,14 +135,14 @@ function discard() {
         </SettingsRow>
         <SettingsRow
           label="Ignored namespaces"
-          hint="Namespaces the scanner skips. Ignore wins over include. Exact names — no patterns."
+          hint="Namespaces the scanner skips — names or globs. Ignore wins over include. A bare * is rejected: it would silently stop all scanning."
           stack
         >
           <ChipsInput
             :items="draft.ignore_namespaces"
             placeholder="add namespace…"
             input-id="scope-ignore"
-            @add="(v) => (draft.ignore_namespaces = addChip(draft.ignore_namespaces, v))"
+            @add="addIgnoreChip"
             @remove="(v) => (draft.ignore_namespaces = removeChip(draft.ignore_namespaces, v))"
           />
         </SettingsRow>

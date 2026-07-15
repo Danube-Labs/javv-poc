@@ -160,6 +160,19 @@ async def test_scan_scope_write_needs_the_capability_but_read_is_any_session(env
     assert get.json()["scope"]["include_namespaces"] == []
 
 
+async def test_a_bare_star_in_ignore_namespaces_is_rejected(env) -> None:
+    # with glob namespaces (2026-07-15 ruling) '*' in ignore = scan nothing, silently — 422 loudly
+    make_http, client, docs = env
+    admin = make_http()
+    await _login(admin, client, ["can_manage_settings"], docs)
+
+    r = await admin.put(
+        "/api/v1/scan-scope", json={"cluster_id": _cluster(), "ignore_namespaces": ["*"]}
+    )
+    assert r.status_code == 422
+    assert "stop all scanning" in r.json()["title"]
+
+
 # --- staleness timers --------------------------------------------------------------------
 
 
