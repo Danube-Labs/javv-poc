@@ -24,7 +24,7 @@ theme). High information density: subtle borders and panel tints, almost no deco
 |---|---|---|
 | **Brand** | `--coral` `--coral-d` `--amber` `--teal` `--slate*` | Chrome, buttons, active nav, focus, links. Coral/amber must **never** encode severity. Teal = info only. |
 | **Severity** | `--sev-<severity>-{fg,bg,line,solid}` | **DATA ONLY.** Six D46 canonicals: `critical high medium low negligible unknown`. `negligible` is muted, never red (A-1). From script use `SEV_COLOR` / `CHART_SEV` (`@/styles/tokens`). **Chip language A (operator 2026-07-11):** `-bg`/`-line` are DERIVED from the level's `-solid` (10% / 30% flattened on white — never hand-picked pastels); weight ESCALATES: critical renders solid + inner highlight (`--chip-hi`), high the heavy `--sev-high-ring`, tails near-neutral. State pills = soft 9% tint + `--state-*-solid` dot, no ring (workflow reads quieter than severity). Alarms (KEV `--kev-grad`, SLA overdue) + primary buttons carry the ONE depth treatment: `inset 0 1px 0 var(--chip-hi)` + a soft drop (`--chip-crit-drop`/`--kev-drop`/`--coral-drop`). |
-| **Status** | `--state-<open\|stale\|ack\|resolved>-*` · `--health-{ok,degraded,down}-*` · `--kev-*` · `--scanner-{trivy,grype}-*` | Finding state pills, health ramp (the same ramp as the degraded banner), KEV tag, scanner tags. |
+| **Status** | `--state-<open\|stale\|ack\|resolved>-*` · `--health-{ok,degraded,down}-*` · `--kev-*` · `--scanner-{trivy,grype}-*` · `--scope-{cluster,scanner,org}` | Finding state pills, health ramp (the same ramp as the degraded banner), KEV tag, scanner tags, settings scope dots/badges (M9e — darkened from the prototype so the white badge label computes AA). |
 
 ### Surfaces & text
 ```
@@ -32,6 +32,7 @@ page bg        var(--bg)          cards        var(--card)
 inset/panel    var(--panel)       borders      var(--line)   subtle: var(--line2)
 primary text   var(--ink)         secondary    var(--soft)
 row hover      var(--row-hover)   dark chrome  var(--slate)
+save-bar dirty var(--save-dirty-bg) + var(--save-dirty-line)  (M9e unsaved-changes surface)
 ```
 `--soft` is the CONTRAST FLOOR for text — AA (≥4.5:1) on every light surface. `--muted` is
 decorative/disabled only (dashes, gauge fills, placeholder glyphs): it fails AA and must never
@@ -302,6 +303,7 @@ are deliberate contract choices, not reflex defaults (operator ruling 2026-07-09
 | `low-contrast` white-on-coral (login/action buttons) | Prototype button treatment; 13px/600 button label, not body text. |
 | `cramped-padding` on `tbl-wrap` | Full-bleed table inside the card is the prototype's design. |
 | `layout-transition: width` on `.sidebar` | The collapse rail (226↔64px) — the one deliberate layout animation: user-initiated, rare, and the standard sidebar pattern (Nuxt UI reference does the same). Nothing else animates layout — the `t-*` classes are transform/opacity only. |
+| `ai-color-palette` purple/violet | The `--scanner-grype-*` identity tokens (chip language A) — Grype's brand tone, deliberately distinct from Trivy's teal. Fires on every dump because tokens.css ships globally; not an accent choice. |
 
 Everything else it flags (real contrast failures, hierarchy problems) gets fixed or gets its
 own row here — never silently ignored.

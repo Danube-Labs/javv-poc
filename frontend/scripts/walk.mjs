@@ -20,14 +20,14 @@ export const VIEWPORTS = {
 export const ROUTES = [
   { name: 'overview', path: '/overview', ready: '.sev-band, .screen' },
   { name: 'clusters', path: '/clusters', ready: '.screen' },
-  // views + settings are M9e/M9f placeholders (no .screen) — tighten these selectors
-  // to '.screen' when the real screens land, so the walk keeps proving data-readiness
+  // views is an M9f placeholder (no .screen) — tighten to '.screen' when the real screen lands
   { name: 'views', path: '/views', ready: '.hint' },
   { name: 'scanner-status', path: '/scanner-status', ready: '.screen' },
   { name: 'audit', path: '/audit', ready: '.screen' },
   { name: 'contributors', path: '/contributors', ready: '.screen' },
   { name: 'approvals', path: '/approvals', ready: '.screen' },
-  { name: 'settings', path: '/settings', ready: '.hint' },
+  // /settings redirects to the SLA panel; a .set-row exists only once the policy has loaded
+  { name: 'settings', path: '/settings', ready: '.set-row' },
   { name: 'findings', path: '/findings', ready: '.tbl tbody tr' },
   { name: 'images', path: '/images', ready: '.tbl tbody tr' },
 ]

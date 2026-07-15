@@ -105,6 +105,13 @@ describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
     // the only AA-legal SOLID sev chip (DESIGN.md §2: solid = critical-only)
     expect.soft(ratio('kev-fg', 'sev-critical-solid'), 'solid critical chip').toBeGreaterThanOrEqual(AA)
     expect.soft(ratio('hist-fg', 'hist-bg'), 'hist control').toBeGreaterThanOrEqual(AA)
+    // settings scope badges (M9e): white mono label on the scope solid
+    for (const sc of ['cluster', 'scanner', 'org']) {
+      expect.soft(ratio('kev-fg', `scope-${sc}`), `scope-${sc} badge`).toBeGreaterThanOrEqual(AA)
+    }
+    // save-bar dirty surface (M9e): the unsaved-changes message on the warm tint
+    expect.soft(ratio('coral-text', 'save-dirty-bg'), 'save-bar dirty msg').toBeGreaterThanOrEqual(AA)
+    expect.soft(ratio('ink', 'save-dirty-bg'), 'save-bar dirty ink').toBeGreaterThanOrEqual(AA)
   })
 
   it('special text tokens on their surfaces', () => {
