@@ -126,6 +126,10 @@ routes stay current-state-only).
 |---|---|---|---|
 | GET | `/api/v1/settings/sla` | session | Read SLA policy (`critical_days`/`high_days`/`medium_days`/`low_days`/`kev_days` — full-word knobs, D46/#274) |
 | PUT | `/api/v1/settings/sla` | `can_manage_settings` | Replace SLA policy |
+| GET | `/api/v1/settings/staleness` | session | Effective D20 timers for `?cluster_id` (its override if set, else the fleet default) + `per_cluster_override` (M9e) |
+| PUT | `/api/v1/settings/staleness` | `can_manage_settings` | Replace the timers; `cluster_id` in the body writes the per-cluster override, absent = the fleet default. Journaled (D17) |
+| GET | `/api/v1/settings/scan-scope` | session | The D-2 session read of `?cluster_id`'s scan scope (the bearer `GET /api/v1/scan-scope` stays scanner-only; M9e) |
+| PUT | `/api/v1/scan-scope` | `can_manage_settings` | Replace a cluster's scan scope (D43/FR-24: empty include = all, ignore wins). Journaled (D17) |
 | PUT | `/api/v1/clusters/{cluster_id}/name` | `can_manage_settings` | Rename a cluster's display name (M8c/#240): journaled per D17 (journal-first), stored in the `system-config` `cluster-registry` doc via a seq_no-CAS write. `cluster_id` itself is immutable |
 
 ### Saved views (M8e, C-6)

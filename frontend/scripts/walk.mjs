@@ -26,9 +26,11 @@ export const ROUTES = [
   { name: 'audit', path: '/audit', ready: '.screen' },
   { name: 'contributors', path: '/contributors', ready: '.screen' },
   { name: 'approvals', path: '/approvals', ready: '.screen' },
-  // /settings redirects to the SLA panel; a .set-row exists only once the policy has loaded
+  // /settings redirects to scan-scope (§13 order); a .set-row exists only once its data loaded
   { name: 'settings', path: '/settings', ready: '.set-row' },
-  // slice-2 panels: tokens/users prove DATA (the smoke seed mints a token; admin always exists)
+  // per-panel walks: tokens/users prove DATA (the smoke seed mints a token; admin always exists)
+  { name: 'settings-scanning', path: '/settings/scanning', ready: '.set-row' },
+  { name: 'settings-sla', path: '/settings/sla', ready: '.set-row' },
   { name: 'settings-tokens', path: '/settings/tokens', ready: '.tbl tbody tr' },
   { name: 'settings-users', path: '/settings/users', ready: '.tbl tbody tr' },
   { name: 'settings-cluster', path: '/settings/cluster', ready: '.set-row' },
