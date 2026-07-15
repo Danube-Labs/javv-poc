@@ -330,7 +330,8 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
             :invalid="parsed.retention_days === null"
           />
         </SettingsRow>
-        <table class="tbl fam-tbl">
+        <div class="tbl-wrap fam-wrap">
+        <table class="tbl tbl-dense tbl-quiet">
           <thead>
             <tr>
               <th>Index family</th>
@@ -354,10 +355,14 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
             </tr>
           </tbody>
         </table>
+        </div>
         <p class="fam-why-note">
-          Protected families take no retention window — hover a
-          <em>protected</em> tag for why. Per-family editable windows stay post-MVP: time-travel
-          reach is min(occurrences, images), a one-window-per-cluster footgun guard.
+          <b>Why one window, not per-family?</b> Time-travel rebuilds any past moment from
+          occurrences, images and inventory runs <em>together</em>, so the app only reaches as
+          far back as the <em>shortest</em> window — separate knobs would silently truncate
+          reach to the minimum while still paying storage for the rest. Per-family windows are
+          planned post-MVP. Protected families take no retention window at all — hover a
+          <em>protected</em> tag for why.
         </p>
         <p class="scope-src">
           {{
@@ -454,7 +459,8 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
             Snapshot now
           </UiButton>
         </SettingsRow>
-        <table v-if="snapshots.length" class="tbl snap-tbl">
+        <div v-if="snapshots.length" class="tbl-wrap snap-wrap">
+        <table class="tbl tbl-dense tbl-quiet">
           <thead>
             <tr>
               <th>Snapshot</th>
@@ -485,6 +491,7 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
             </tr>
           </tbody>
         </table>
+        </div>
         <p v-else class="snap-unconfigured">No snapshots in the repository yet.</p>
       </template>
     </SettingsCard>
@@ -582,9 +589,18 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
   flex: none;
   color: var(--teal);
 }
-/* row-23 family ledger rides the shared .tbl skin — same grammar as the snapshots table */
-.fam-tbl {
-  margin-top: 14px;
+/* in-card tables run FULL-BLEED to the card edges (the ui.nuxt/GitHub settings grammar,
+   operator 2026-07-16): the card is the container — a bordered box floating inside a padded
+   card reads as border-in-border. The card's 16px side padding is cancelled, the head band
+   spans edge to edge, and only hairlines separate the table from the card body. */
+.fam-wrap,
+.snap-wrap {
+  margin: 14px -16px 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
 }
 .fam-note {
   color: var(--soft);
@@ -636,12 +652,11 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
   align-items: center;
   gap: 10px;
 }
+/* the preceding set-row already draws the separator — a border here would double it */
 .rt-node-head {
-  margin: 14px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--line2);
-  font-size: var(--text-sm);
-  font-weight: 600;
+  margin: 16px 0 2px;
+  font-size: var(--text-body);
+  font-weight: 700;
   color: var(--ink);
 }
 .restore-copy {
