@@ -436,6 +436,32 @@ export type RolePatch = {
 };
 
 /**
+ * ScanScopePut
+ */
+export type ScanScopePut = {
+    /**
+     * Cluster Id
+     */
+    cluster_id: string;
+    /**
+     * Exclude Images
+     */
+    exclude_images?: Array<string>;
+    /**
+     * Ignore Kinds
+     */
+    ignore_kinds?: Array<string>;
+    /**
+     * Ignore Namespaces
+     */
+    ignore_namespaces?: Array<string>;
+    /**
+     * Include Namespaces
+     */
+    include_namespaces?: Array<string>;
+};
+
+/**
  * SlaPolicy
  *
  * Per-canonical-severity SLA days + KEV override — editable via PUT /settings/sla.
@@ -463,6 +489,24 @@ export type SlaPolicy = {
      * Medium Days
      */
     medium_days?: number;
+};
+
+/**
+ * StalenessPut
+ */
+export type StalenessPut = {
+    /**
+     * Cluster Id
+     */
+    cluster_id?: string | null;
+    /**
+     * Freshness Days
+     */
+    freshness_days: number;
+    /**
+     * Scanner Down Days
+     */
+    scanner_down_days: number;
 };
 
 /**
@@ -2325,6 +2369,35 @@ export type GetScanScopeApiV1ScanScopeGetResponses = {
 
 export type GetScanScopeApiV1ScanScopeGetResponse = GetScanScopeApiV1ScanScopeGetResponses[keyof GetScanScopeApiV1ScanScopeGetResponses];
 
+export type PutScanScopeApiV1ScanScopePutData = {
+    body: ScanScopePut;
+    path?: never;
+    query?: never;
+    url: '/api/v1/scan-scope';
+};
+
+export type PutScanScopeApiV1ScanScopePutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutScanScopeApiV1ScanScopePutError = PutScanScopeApiV1ScanScopePutErrors[keyof PutScanScopeApiV1ScanScopePutErrors];
+
+export type PutScanScopeApiV1ScanScopePutResponses = {
+    /**
+     * Response Put Scan Scope Api V1 Scan Scope Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutScanScopeApiV1ScanScopePutResponse = PutScanScopeApiV1ScanScopePutResponses[keyof PutScanScopeApiV1ScanScopePutResponses];
+
 export type ScannerFreshnessApiV1ScannersFreshnessGetData = {
     body?: never;
     path?: never;
@@ -2397,6 +2470,40 @@ export type ScannerProvenanceApiV1ScannersProvenanceGetResponses = {
 
 export type ScannerProvenanceApiV1ScannersProvenanceGetResponse = ScannerProvenanceApiV1ScannersProvenanceGetResponses[keyof ScannerProvenanceApiV1ScannersProvenanceGetResponses];
 
+export type GetScanScopeSessionApiV1SettingsScanScopeGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+    };
+    url: '/api/v1/settings/scan-scope';
+};
+
+export type GetScanScopeSessionApiV1SettingsScanScopeGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetScanScopeSessionApiV1SettingsScanScopeGetError = GetScanScopeSessionApiV1SettingsScanScopeGetErrors[keyof GetScanScopeSessionApiV1SettingsScanScopeGetErrors];
+
+export type GetScanScopeSessionApiV1SettingsScanScopeGetResponses = {
+    /**
+     * Response Get Scan Scope Session Api V1 Settings Scan Scope Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetScanScopeSessionApiV1SettingsScanScopeGetResponse = GetScanScopeSessionApiV1SettingsScanScopeGetResponses[keyof GetScanScopeSessionApiV1SettingsScanScopeGetResponses];
+
 export type GetSlaApiV1SettingsSlaGetData = {
     body?: never;
     path?: never;
@@ -2445,6 +2552,69 @@ export type PutSlaApiV1SettingsSlaPutResponses = {
 };
 
 export type PutSlaApiV1SettingsSlaPutResponse = PutSlaApiV1SettingsSlaPutResponses[keyof PutSlaApiV1SettingsSlaPutResponses];
+
+export type GetStalenessApiV1SettingsStalenessGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cluster Id
+         */
+        cluster_id?: string | null;
+    };
+    url: '/api/v1/settings/staleness';
+};
+
+export type GetStalenessApiV1SettingsStalenessGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetStalenessApiV1SettingsStalenessGetError = GetStalenessApiV1SettingsStalenessGetErrors[keyof GetStalenessApiV1SettingsStalenessGetErrors];
+
+export type GetStalenessApiV1SettingsStalenessGetResponses = {
+    /**
+     * Response Get Staleness Api V1 Settings Staleness Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetStalenessApiV1SettingsStalenessGetResponse = GetStalenessApiV1SettingsStalenessGetResponses[keyof GetStalenessApiV1SettingsStalenessGetResponses];
+
+export type PutStalenessApiV1SettingsStalenessPutData = {
+    body: StalenessPut;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/staleness';
+};
+
+export type PutStalenessApiV1SettingsStalenessPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutStalenessApiV1SettingsStalenessPutError = PutStalenessApiV1SettingsStalenessPutErrors[keyof PutStalenessApiV1SettingsStalenessPutErrors];
+
+export type PutStalenessApiV1SettingsStalenessPutResponses = {
+    /**
+     * Response Put Staleness Api V1 Settings Staleness Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutStalenessApiV1SettingsStalenessPutResponse = PutStalenessApiV1SettingsStalenessPutResponses[keyof PutStalenessApiV1SettingsStalenessPutResponses];
 
 export type FindingsTrendApiV1TrendsFindingsGetData = {
     body?: never;

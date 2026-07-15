@@ -88,38 +88,25 @@ const router = createRouter({
           component: () => import('@/views/settings/SettingsLayout.vue'),
           meta: { capability: 'can_manage_settings' },
           children: [
-            // §13 opens on scan-scope; until slice 3 builds it, land on the first real panel
-            { path: '', redirect: '/settings/sla' },
+            // §13 order: settings opens on scan-scope
+            { path: '', redirect: '/settings/scan-scope' },
             {
               path: 'scan-scope',
               name: 'settings-scan-scope',
-              component: () => import('@/views/settings/SettingsPlaceholder.vue'),
-              props: {
-                title: 'Scan scope',
-                subtitle: 'what the scanner module discovers and scans (D43/FR-24)',
-                slice: 'M9e slice 3',
-              },
+              component: () => import('@/views/settings/ScanScopeView.vue'),
             },
             {
               path: 'scanning',
               name: 'settings-scanning',
-              component: () => import('@/views/settings/SettingsPlaceholder.vue'),
-              props: {
-                title: 'Scanning',
-                subtitle: 'staleness timers + read-only per-scanner provenance (C-4/D41)',
-                slice: 'M9e slice 3',
-              },
+              component: () => import('@/views/settings/ScanningView.vue'),
             },
             {
               path: 'sla',
               name: 'settings-sla',
               component: () => import('@/views/settings/SlaPolicyView.vue'),
             },
-            {
-              path: 'ignore-rules',
-              name: 'settings-ignore-rules',
-              component: () => import('@/views/settings/IgnoreRulesStub.vue'),
-            },
+            // 13.4 by ruling: NO nav entry — ignore rules ARE decisions; the old URL just lands there
+            { path: 'ignore-rules', redirect: '/approvals' },
             {
               path: 'tokens',
               name: 'settings-tokens',
