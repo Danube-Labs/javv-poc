@@ -350,6 +350,16 @@ export type ExportParams = {
 };
 
 /**
+ * FindingsCleanupPut
+ */
+export type FindingsCleanupPut = {
+    /**
+     * Cleanup Days
+     */
+    cleanup_days: number;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -426,6 +436,30 @@ export type RenameCluster = {
 };
 
 /**
+ * ReportTtlPut
+ */
+export type ReportTtlPut = {
+    /**
+     * Hours
+     */
+    hours: number;
+};
+
+/**
+ * RetentionPut
+ */
+export type RetentionPut = {
+    /**
+     * Cluster Id
+     */
+    cluster_id?: string | null;
+    /**
+     * Retention Days
+     */
+    retention_days: number;
+};
+
+/**
  * RolePatch
  */
 export type RolePatch = {
@@ -433,6 +467,28 @@ export type RolePatch = {
      * Role
      */
     role: string;
+};
+
+/**
+ * RolloverPut
+ */
+export type RolloverPut = {
+    /**
+     * Cluster Id
+     */
+    cluster_id?: string | null;
+    /**
+     * Max Age Days
+     */
+    max_age_days: number;
+    /**
+     * Max Docs
+     */
+    max_docs: number;
+    /**
+     * Max Size Gb
+     */
+    max_size_gb: number;
 };
 
 /**
@@ -650,6 +706,26 @@ export type ViewPreset = {
     state?: Array<string> | null;
 };
 
+export type GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/opensearch-runtime';
+};
+
+export type GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses = {
+    /**
+     * Response Get Opensearch Runtime Api V1 Admin Opensearch Runtime Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponse = GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses[keyof GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses];
+
 export type ListRolesApiV1AdminRolesGetData = {
     body?: never;
     path?: never;
@@ -669,6 +745,80 @@ export type ListRolesApiV1AdminRolesGetResponses = {
 };
 
 export type ListRolesApiV1AdminRolesGetResponse = ListRolesApiV1AdminRolesGetResponses[keyof ListRolesApiV1AdminRolesGetResponses];
+
+export type ListSnapshotsApiV1AdminSnapshotsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/snapshots';
+};
+
+export type ListSnapshotsApiV1AdminSnapshotsGetResponses = {
+    /**
+     * Response List Snapshots Api V1 Admin Snapshots Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ListSnapshotsApiV1AdminSnapshotsGetResponse = ListSnapshotsApiV1AdminSnapshotsGetResponses[keyof ListSnapshotsApiV1AdminSnapshotsGetResponses];
+
+export type TakeManualSnapshotApiV1AdminSnapshotsPostData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/snapshots';
+};
+
+export type TakeManualSnapshotApiV1AdminSnapshotsPostResponses = {
+    /**
+     * Response Take Manual Snapshot Api V1 Admin Snapshots Post
+     *
+     * Successful Response
+     */
+    202: {
+        [key: string]: unknown;
+    };
+};
+
+export type TakeManualSnapshotApiV1AdminSnapshotsPostResponse = TakeManualSnapshotApiV1AdminSnapshotsPostResponses[keyof TakeManualSnapshotApiV1AdminSnapshotsPostResponses];
+
+export type RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostData = {
+    body?: never;
+    path: {
+        /**
+         * Snapshot Name
+         */
+        snapshot_name: string;
+    };
+    query?: never;
+    url: '/api/v1/admin/snapshots/{snapshot_name}/restore';
+};
+
+export type RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostError = RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostErrors[keyof RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostErrors];
+
+export type RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostResponses = {
+    /**
+     * Response Restore Manual Snapshot Api V1 Admin Snapshots  Snapshot Name  Restore Post
+     *
+     * Successful Response
+     */
+    202: {
+        [key: string]: unknown;
+    };
+};
+
+export type RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostResponse = RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostResponses[keyof RestoreManualSnapshotApiV1AdminSnapshotsSnapshotNameRestorePostResponses];
 
 export type ListTokensApiV1AdminTokensGetData = {
     body?: never;
@@ -2469,6 +2619,156 @@ export type ScannerProvenanceApiV1ScannersProvenanceGetResponses = {
 };
 
 export type ScannerProvenanceApiV1ScannersProvenanceGetResponse = ScannerProvenanceApiV1ScannersProvenanceGetResponses[keyof ScannerProvenanceApiV1ScannersProvenanceGetResponses];
+
+export type GetDataSettingsApiV1SettingsDataGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cluster Id
+         */
+        cluster_id?: string | null;
+    };
+    url: '/api/v1/settings/data';
+};
+
+export type GetDataSettingsApiV1SettingsDataGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetDataSettingsApiV1SettingsDataGetError = GetDataSettingsApiV1SettingsDataGetErrors[keyof GetDataSettingsApiV1SettingsDataGetErrors];
+
+export type GetDataSettingsApiV1SettingsDataGetResponses = {
+    /**
+     * Response Get Data Settings Api V1 Settings Data Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetDataSettingsApiV1SettingsDataGetResponse = GetDataSettingsApiV1SettingsDataGetResponses[keyof GetDataSettingsApiV1SettingsDataGetResponses];
+
+export type PutFindingsCleanupApiV1SettingsFindingsCleanupPutData = {
+    body: FindingsCleanupPut;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/findings-cleanup';
+};
+
+export type PutFindingsCleanupApiV1SettingsFindingsCleanupPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutFindingsCleanupApiV1SettingsFindingsCleanupPutError = PutFindingsCleanupApiV1SettingsFindingsCleanupPutErrors[keyof PutFindingsCleanupApiV1SettingsFindingsCleanupPutErrors];
+
+export type PutFindingsCleanupApiV1SettingsFindingsCleanupPutResponses = {
+    /**
+     * Response Put Findings Cleanup Api V1 Settings Findings Cleanup Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutFindingsCleanupApiV1SettingsFindingsCleanupPutResponse = PutFindingsCleanupApiV1SettingsFindingsCleanupPutResponses[keyof PutFindingsCleanupApiV1SettingsFindingsCleanupPutResponses];
+
+export type PutReportTtlApiV1SettingsReportTtlPutData = {
+    body: ReportTtlPut;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/report-ttl';
+};
+
+export type PutReportTtlApiV1SettingsReportTtlPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutReportTtlApiV1SettingsReportTtlPutError = PutReportTtlApiV1SettingsReportTtlPutErrors[keyof PutReportTtlApiV1SettingsReportTtlPutErrors];
+
+export type PutReportTtlApiV1SettingsReportTtlPutResponses = {
+    /**
+     * Response Put Report Ttl Api V1 Settings Report Ttl Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutReportTtlApiV1SettingsReportTtlPutResponse = PutReportTtlApiV1SettingsReportTtlPutResponses[keyof PutReportTtlApiV1SettingsReportTtlPutResponses];
+
+export type PutRetentionApiV1SettingsRetentionPutData = {
+    body: RetentionPut;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/retention';
+};
+
+export type PutRetentionApiV1SettingsRetentionPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutRetentionApiV1SettingsRetentionPutError = PutRetentionApiV1SettingsRetentionPutErrors[keyof PutRetentionApiV1SettingsRetentionPutErrors];
+
+export type PutRetentionApiV1SettingsRetentionPutResponses = {
+    /**
+     * Response Put Retention Api V1 Settings Retention Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutRetentionApiV1SettingsRetentionPutResponse = PutRetentionApiV1SettingsRetentionPutResponses[keyof PutRetentionApiV1SettingsRetentionPutResponses];
+
+export type PutRolloverApiV1SettingsRolloverPutData = {
+    body: RolloverPut;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/rollover';
+};
+
+export type PutRolloverApiV1SettingsRolloverPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutRolloverApiV1SettingsRolloverPutError = PutRolloverApiV1SettingsRolloverPutErrors[keyof PutRolloverApiV1SettingsRolloverPutErrors];
+
+export type PutRolloverApiV1SettingsRolloverPutResponses = {
+    /**
+     * Response Put Rollover Api V1 Settings Rollover Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutRolloverApiV1SettingsRolloverPutResponse = PutRolloverApiV1SettingsRolloverPutResponses[keyof PutRolloverApiV1SettingsRolloverPutResponses];
 
 export type GetScanScopeSessionApiV1SettingsScanScopeGetData = {
     body?: never;

@@ -16,6 +16,7 @@ import MixBar from '@/components/dashboards/MixBar.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { useAllClustersStore, type ClusterRow } from '@/stores/allClusters'
 import { useClusterStore } from '@/stores/cluster'
+import { useStalenessStore } from '@/stores/staleness'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
@@ -34,6 +35,10 @@ const router = useRouter()
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
 const fleet = useAllClustersStore()
+// health chips threshold on the live FLEET-default window (a per-cluster override is the
+// banner's concern; this cross-cluster surface uses the one shared default)
+const staleness = useStalenessStore()
+void staleness.loadFleet()
 
 const scanner = ref<'all' | 'trivy' | 'grype'>('all')
 
@@ -76,7 +81,10 @@ function triage(row: ClusterRow) {
 const fleetSev = (sev: Severity) => fleet.rows.reduce((n, r) => n + sevCount(r, sev), 0)
 
 const needAttention = computed(
-  () => fleet.rows.filter((r) => r.failed || freshnessStatus(r.freshness) !== 'ok').length,
+  () =>
+    fleet.rows.filter(
+      (r) => r.failed || freshnessStatus(r.freshness, staleness.fleetThresholdS) !== 'ok',
+    ).length,
 )
 
 /** One mix bar per scanner (never merged): that scanner's by_scanner severity buckets. */
@@ -197,7 +205,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                     </div>
                   </div>
                 </td>
-                <td class="r"><HealthChip :rows="row.freshness" /></td>
+                <td class="r"><HealthChip :rows="row.freshness" :threshold-s="staleness.fleetThresholdS" /></td>
                 <td class="mix-cell">
                   <template v-if="!row.failed">
                     <MixBar

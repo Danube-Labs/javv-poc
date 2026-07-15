@@ -14,6 +14,11 @@ vi.mock('@/api/generated', () => ({
   facetFindingsApiV1FindingsFacetsGet: vi.fn<() => Promise<unknown>>(),
   scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
   listRunningImagesApiV1ImagesGet: vi.fn<() => Promise<unknown>>(),
+  // the health chips threshold on the live fleet timers (M9e banner rewire)
+  getStalenessApiV1SettingsStalenessGet: vi.fn<() => Promise<unknown>>().mockResolvedValue({
+    data: { staleness: { freshness_days: 3, scanner_down_days: 7 }, per_cluster_override: false },
+    response: { ok: true, status: 200 },
+  }),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 

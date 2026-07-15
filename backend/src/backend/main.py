@@ -14,6 +14,7 @@ from backend.routers import (
     auth,
     clusters,
     contributors,
+    data_settings,
     decisions,
     exports,
     findings,
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     app.include_router(views.router)
     app.include_router(sla_routes.router)
     app.include_router(staleness_settings.router)
+    app.include_router(data_settings.router)
     app.include_router(bulk_routes.router)
     return app
 

@@ -755,6 +755,21 @@
         "title": "ExportParams",
         "type": "object"
       },
+      "FindingsCleanupPut": {
+        "additionalProperties": false,
+        "properties": {
+          "cleanup_days": {
+            "exclusiveMinimum": 0.0,
+            "title": "Cleanup Days",
+            "type": "number"
+          }
+        },
+        "required": [
+          "cleanup_days"
+        ],
+        "title": "FindingsCleanupPut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -878,6 +893,47 @@
         "title": "RenameCluster",
         "type": "object"
       },
+      "ReportTtlPut": {
+        "additionalProperties": false,
+        "properties": {
+          "hours": {
+            "minimum": 1.0,
+            "title": "Hours",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "hours"
+        ],
+        "title": "ReportTtlPut",
+        "type": "object"
+      },
+      "RetentionPut": {
+        "additionalProperties": false,
+        "properties": {
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "retention_days": {
+            "exclusiveMinimum": 0.0,
+            "title": "Retention Days",
+            "type": "number"
+          }
+        },
+        "required": [
+          "retention_days"
+        ],
+        "title": "RetentionPut",
+        "type": "object"
+      },
       "RolePatch": {
         "additionalProperties": false,
         "properties": {
@@ -892,6 +948,44 @@
           "role"
         ],
         "title": "RolePatch",
+        "type": "object"
+      },
+      "RolloverPut": {
+        "additionalProperties": false,
+        "properties": {
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "max_age_days": {
+            "exclusiveMinimum": 0.0,
+            "title": "Max Age Days",
+            "type": "number"
+          },
+          "max_docs": {
+            "exclusiveMinimum": 0.0,
+            "title": "Max Docs",
+            "type": "integer"
+          },
+          "max_size_gb": {
+            "exclusiveMinimum": 0.0,
+            "title": "Max Size Gb",
+            "type": "number"
+          }
+        },
+        "required": [
+          "max_age_days",
+          "max_docs",
+          "max_size_gb"
+        ],
+        "title": "RolloverPut",
         "type": "object"
       },
       "ScanScopePut": {
@@ -1365,6 +1459,30 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/opensearch-runtime": {
+      "get": {
+        "description": "Allowlist-shaped runtime facts for the read-only card \u2014 never a raw API passthrough.",
+        "operationId": "get_opensearch_runtime_api_v1_admin_opensearch_runtime_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Opensearch Runtime Api V1 Admin Opensearch Runtime Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Opensearch Runtime",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
     "/api/v1/admin/roles": {
       "get": {
         "description": "The seeded `system-roles` bundles (A-4/\u00a713.6) \u2014 the UI renders whatever is seeded, so a\nlater 5th role appears without a client change. Read-only; bundle EDITING stays out of scope.",
@@ -1386,6 +1504,97 @@
         "summary": "List Roles",
         "tags": [
           "user-admin"
+        ]
+      }
+    },
+    "/api/v1/admin/snapshots": {
+      "get": {
+        "description": "The configured repo's snapshots, newest first (empty state until a repo ref exists).",
+        "operationId": "list_snapshots_api_v1_admin_snapshots_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Snapshots Api V1 Admin Snapshots Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Snapshots",
+        "tags": [
+          "settings"
+        ]
+      },
+      "post": {
+        "description": "Trigger an on-demand snapshot of the durability set (fire-and-forget; the list shows the\nresulting state). 409 until a snapshot repository is configured.",
+        "operationId": "take_manual_snapshot_api_v1_admin_snapshots_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Take Manual Snapshot Api V1 Admin Snapshots Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Take Manual Snapshot",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/admin/snapshots/{snapshot_name}/restore": {
+      "post": {
+        "description": "Restore a snapshot into `restored-*` copies (never onto live indices \u2014 the drill's\nrename semantics; promoting a copy is a deliberate manual step, so a mistaken restore\ncosts nothing).",
+        "operationId": "restore_manual_snapshot_api_v1_admin_snapshots__snapshot_name__restore_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "snapshot_name",
+            "required": true,
+            "schema": {
+              "title": "Snapshot Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Restore Manual Snapshot Api V1 Admin Snapshots  Snapshot Name  Restore Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Restore Manual Snapshot",
+        "tags": [
+          "settings"
         ]
       }
     },
@@ -5246,6 +5455,230 @@
         "summary": "Scanner Provenance",
         "tags": [
           "scanners"
+        ]
+      }
+    },
+    "/api/v1/settings/data": {
+      "get": {
+        "description": "Everything the panel renders in one read: the EFFECTIVE lifecycle knobs for the cluster\n(override if set, else fleet default), whether an override doc exists (the editor must know\nwhich doc it edits), the report TTL and findings-cleanup knobs (fleet-wide), and the\nnon-secret snapshot repo ref (None until M2 config lands in the store).",
+        "operationId": "get_data_settings_api_v1_settings_data_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cluster Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Data Settings Api V1 Settings Data Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Data Settings",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/findings-cleanup": {
+      "put": {
+        "operationId": "put_findings_cleanup_api_v1_settings_findings_cleanup_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FindingsCleanupPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Findings Cleanup Api V1 Settings Findings Cleanup Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Findings Cleanup",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/report-ttl": {
+      "put": {
+        "operationId": "put_report_ttl_api_v1_settings_report_ttl_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportTtlPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Report Ttl Api V1 Settings Report Ttl Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Report Ttl",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/retention": {
+      "put": {
+        "operationId": "put_retention_api_v1_settings_retention_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetentionPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Retention Api V1 Settings Retention Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Retention",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/rollover": {
+      "put": {
+        "operationId": "put_rollover_api_v1_settings_rollover_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RolloverPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Rollover Api V1 Settings Rollover Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Rollover",
+        "tags": [
+          "settings"
         ]
       }
     },

@@ -13,11 +13,13 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import { client } from '@/api/client'
 import { scannerFreshnessApiV1ScannersFreshnessGet } from '@/api/generated'
 import { useClusterStore } from '@/stores/cluster'
+import { useStalenessStore } from '@/stores/staleness'
 import { lastDataAt, silentFor, silentRows, type FreshnessRow } from '@/system/freshness'
 
 const POLL_MS = 10 * 60_000
 
 const clusterStore = useClusterStore()
+const staleness = useStalenessStore()
 const rows = ref<FreshnessRow[]>([])
 
 async function fetchFreshness() {
@@ -35,14 +37,17 @@ onUnmounted(() => clearInterval(timer))
 
 watch(
   () => clusterStore.selectedId,
-  () => {
+  (id) => {
     rows.value = []
     void fetchFreshness()
+    // the live window (FR-6/D20): the banner thresholds on the cluster's EFFECTIVE timers —
+    // what the settings panel edits — never a build-time constant
+    if (id) void staleness.loadFor(id)
   },
   { immediate: true },
 )
 
-const silent = computed(() => silentRows(rows.value))
+const silent = computed(() => silentRows(rows.value, staleness.bannerThresholdS))
 const clusterName = computed(() => clusterStore.selected?.cluster_name ?? clusterStore.selectedId)
 </script>
 

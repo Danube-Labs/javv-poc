@@ -122,12 +122,7 @@ const router = createRouter({
             {
               path: 'data-opensearch',
               name: 'settings-data-opensearch',
-              component: () => import('@/views/settings/SettingsPlaceholder.vue'),
-              props: {
-                title: 'Data & OpenSearch',
-                subtitle: 'retention, rollover, snapshots — drop whole indices, never delete_by_query',
-                slice: 'M9e slice 4',
-              },
+              component: () => import('@/views/settings/DataOpenSearchView.vue'),
               meta: { capability: 'can_manage_retention' },
             },
             {

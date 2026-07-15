@@ -28,6 +28,7 @@ from typing import Any
 import structlog
 from opensearchpy import AsyncOpenSearch
 
+from backend.admin.report_ttl import read_report_ttl_hours
 from backend.core.settings import get_settings
 from backend.export.csv_stream import stream_csv
 from backend.export.sweep import sweep_findings
@@ -185,7 +186,9 @@ async def run_job(client: AsyncOpenSearch, job: ClaimedJob, *, prefix: str = "")
             )
             boundlog.error("report drain: bulk_triage job failed", error=str(exc))
             return False
-        expires_at = (datetime.now(UTC) + timedelta(hours=settings.export_ttl_hours)).isoformat()
+        expires_at = (
+            datetime.now(UTC) + timedelta(hours=await read_report_ttl_hours(client, prefix=prefix))
+        ).isoformat()
         published = await finalize(
             client,
             job.report_id,
@@ -262,7 +265,9 @@ async def run_job(client: AsyncOpenSearch, job: ClaimedJob, *, prefix: str = "")
         boundlog.error("report drain: job failed", error=str(exc))
         return False
 
-    expires_at = (datetime.now(UTC) + timedelta(hours=settings.export_ttl_hours)).isoformat()
+    expires_at = (
+        datetime.now(UTC) + timedelta(hours=await read_report_ttl_hours(client, prefix=prefix))
+    ).isoformat()
     published = await finalize(
         client,
         job.report_id,

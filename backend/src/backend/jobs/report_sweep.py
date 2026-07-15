@@ -26,6 +26,7 @@ from typing import Any
 import structlog
 from opensearchpy import AsyncOpenSearch
 
+from backend.admin.report_ttl import read_report_ttl_hours
 from backend.core.settings import get_settings
 from backend.reports.models import DONE, FAILED, REPORT_CHUNKS_INDEX, REPORTS_INDEX
 
@@ -128,7 +129,7 @@ async def sweep(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, int]:
     reports = f"{prefix}{REPORTS_INDEX}"
     chunks = f"{prefix}{REPORT_CHUNKS_INDEX}"
     now = datetime.now(UTC)
-    failed_cutoff = now - timedelta(hours=get_settings().export_ttl_hours)
+    failed_cutoff = now - timedelta(hours=await read_report_ttl_hours(client, prefix=prefix))
 
     expired = await _reap_reports(
         client,

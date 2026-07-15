@@ -67,6 +67,10 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 | PATCH | `/api/v1/admin/users/{username}/disabled` | `can_manage_users` | Enable/disable; the **last enabled admin** cannot be disabled (409) |
 | POST | `/api/v1/admin/users/{username}/password-reset` | `can_manage_users` | Temp password + `must_change` |
 | GET | `/api/v1/admin/roles` | `can_manage_users` | The seeded `system-roles` capability bundles (A-4 — the UI renders whatever is seeded; M9e) |
+| GET | `/api/v1/admin/snapshots` | `can_manage_retention` | The configured repo's snapshots, newest first (`configured: false` empty state until a repo ref exists; M9e) |
+| POST | `/api/v1/admin/snapshots` | `can_manage_retention` | Manual snapshot of the durability set (202 fire-and-forget; 409 without a repo). Journaled (D17) |
+| POST | `/api/v1/admin/snapshots/{snapshot_name}/restore` | `can_restore_snapshot` | Restore into `restored-*` copies — **never onto live indices**; promoting a copy is a manual step. Journaled (D17) |
+| GET | `/api/v1/admin/opensearch-runtime` | `can_manage_settings` | Allowlist-shaped runtime facts (version, health, nodes/roles/heap, `discovery.type`, `path.repo`, security state) — the §D read-only card; never a raw passthrough |
 
 ### Findings — read (M6)
 
@@ -130,6 +134,11 @@ routes stay current-state-only).
 | PUT | `/api/v1/settings/staleness` | `can_manage_settings` | Replace the timers; `cluster_id` in the body writes the per-cluster override, absent = the fleet default. Journaled (D17) |
 | GET | `/api/v1/settings/scan-scope` | session | The D-2 session read of `?cluster_id`'s scan scope (the bearer `GET /api/v1/scan-scope` stays scanner-only; M9e) |
 | PUT | `/api/v1/scan-scope` | `can_manage_settings` | Replace a cluster's scan scope (D43/FR-24: empty include = all, ignore wins). Journaled (D17) |
+| GET | `/api/v1/settings/data` | `can_manage_retention` | The Data & OpenSearch panel's one read: effective lifecycle knobs for `?cluster_id` (+ `per_cluster_override`), report TTL, findings-cleanup window, snapshot repo ref (M9e) |
+| PUT | `/api/v1/settings/retention` | `can_manage_retention` | Set `retention_days` (RMW of the lifecycle doc; `cluster_id` in body = the per-cluster override). Journaled (D17) |
+| PUT | `/api/v1/settings/rollover` | `can_manage_retention` | Set `max_age_days`/`max_docs`/`max_size_gb` (same doc/override rule). Journaled (D17) |
+| PUT | `/api/v1/settings/report-ttl` | `can_manage_retention` | Set the export TTL `hours` (fleet-wide `report_ttl` knob — the row-11 graduation of `JAVV_EXPORT_TTL_HOURS`). Journaled (D17) |
+| PUT | `/api/v1/settings/findings-cleanup` | `can_manage_retention` | Set the D37/M12 long `cleanup_days` window (fleet-wide; consumed by the findings-cleanup job). Journaled (D17) |
 | PUT | `/api/v1/clusters/{cluster_id}/name` | `can_manage_settings` | Rename a cluster's display name (M8c/#240): journaled per D17 (journal-first), stored in the `system-config` `cluster-registry` doc via a seq_no-CAS write. `cluster_id` itself is immutable |
 
 ### Saved views (M8e, C-6)
