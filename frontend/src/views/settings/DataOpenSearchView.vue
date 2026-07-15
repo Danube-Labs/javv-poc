@@ -227,7 +227,7 @@ async function save() {
   busy.value = false
   if (!allOk) {
     logger.warn('data_settings_save_failed', {})
-    toast.error('Saving failed — the store keeps the previous knobs. Reload to see what landed.')
+    toast.error('Saving failed — the store keeps the previous values. Reload to see what landed.')
     if (clusterId) void loadKnobs(clusterId) // partial saves must not fake a clean state
     return
   }
@@ -239,7 +239,7 @@ async function save() {
     cleanup_days: p.cleanup_days!,
     report_ttl_hours: p.report_ttl_hours!,
   }
-  toast.success('Data knobs saved — the daily sweeps apply them on their next run')
+  toast.success('Data settings saved — the daily sweeps apply them on their next run')
 }
 
 function discard() {
@@ -305,7 +305,7 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
     <div class="scanner-banner">
       <AppIcon name="database" :size="14" />
       Retention retires whole time-partitioned indices at the horizon, never single documents.
-      The daily lifecycle sweep reads these knobs live, so an edit applies at its next run.
+      The daily lifecycle sweep reads these settings live, so an edit applies at its next run.
     </div>
 
     <div v-if="loading" class="skel-block" aria-busy="true" aria-label="Loading data settings" />
@@ -331,7 +331,7 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
           />
         </SettingsRow>
         <div class="tbl-wrap fam-wrap">
-        <table class="tbl tbl-dense tbl-quiet">
+        <table class="tbl tbl-dense tbl-quiet tbl-hover">
           <thead>
             <tr>
               <th>Index family</th>
@@ -460,7 +460,7 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
           </UiButton>
         </SettingsRow>
         <div v-if="snapshots.length" class="tbl-wrap snap-wrap">
-        <table class="tbl tbl-dense tbl-quiet">
+        <table class="tbl tbl-dense tbl-quiet tbl-hover">
           <thead>
             <tr>
               <th>Snapshot</th>
@@ -501,42 +501,51 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
       title="OpenSearch runtime"
       subtitle="read-only: static settings are deploy-owned (GitOps); anything displayable is displayed"
     >
-      <SettingsRow label="Version">
-        <span class="mono">{{ runtime.distribution }} {{ runtime.version }}</span>
-      </SettingsRow>
-      <SettingsRow label="Cluster">
-        <span class="rt-inline">
-          <span class="mono">{{ runtime.cluster_name }}</span>
-          <DotWord :tone="healthTone(runtime.status)" :label="runtime.status ?? 'unknown'" />
-        </span>
-      </SettingsRow>
-      <SettingsRow label="Topology">
-        <span
-          >{{ runtime.number_of_nodes }}
-          {{ runtime.number_of_nodes === 1 ? 'node' : 'nodes' }} · {{ runtime.active_shards }}
-          active shards</span
-        >
-      </SettingsRow>
-      <template v-for="n in runtime.nodes" :key="n.name ?? ''">
-        <p class="rt-node-head">
-          Node <span class="mono">{{ n.name }}</span>
-        </p>
-        <SettingsRow label="Roles">
-          <span>{{ n.roles.join(', ') || '—' }}</span>
-        </SettingsRow>
-        <SettingsRow label="JVM heap">
-          <span class="mono">{{ n.heap_used_mb }} / {{ n.heap_max_mb }} MB</span>
-        </SettingsRow>
-        <SettingsRow label="Discovery">
-          <span class="mono">{{ n.discovery_type ?? '—' }}</span>
-        </SettingsRow>
-        <SettingsRow label="Snapshot path (path.repo)">
-          <span class="mono">{{ n.path_repo ?? 'unset' }}</span>
-        </SettingsRow>
-        <SettingsRow label="Security plugin">
-          <span>{{ n.security_enabled ? 'enabled' : 'disabled' }}</span>
-        </SettingsRow>
-      </template>
+      <div class="stat-band stat-band--stat rt-band">
+        <div class="stat-cell">
+          <span class="stat-label">Version</span>
+          <span class="stat-num">{{ runtime.distribution }} {{ runtime.version }}</span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">Cluster</span>
+          <span class="stat-num">{{ runtime.cluster_name }}</span>
+          <span class="stat-sub">
+            <DotWord :tone="healthTone(runtime.status)" :label="runtime.status ?? 'unknown'" />
+          </span>
+        </div>
+        <div class="stat-cell">
+          <span class="stat-label">Topology</span>
+          <span class="stat-num"
+            >{{ runtime.number_of_nodes }}
+            {{ runtime.number_of_nodes === 1 ? 'node' : 'nodes' }}</span
+          >
+          <span class="stat-sub">{{ runtime.active_shards }} active shards</span>
+        </div>
+      </div>
+      <div class="tbl-wrap rt-wrap">
+        <table class="tbl tbl-dense tbl-quiet tbl-hover">
+          <thead>
+            <tr>
+              <th>Node</th>
+              <th>Roles</th>
+              <th class="r">JVM heap</th>
+              <th>Discovery</th>
+              <th>Snapshot path</th>
+              <th>Security</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="n in runtime.nodes" :key="n.name ?? ''">
+              <td class="mono">{{ n.name }}</td>
+              <td>{{ n.roles.join(', ') || '—' }}</td>
+              <td class="mono r">{{ n.heap_used_mb }} / {{ n.heap_max_mb }} MB</td>
+              <td class="mono">{{ n.discovery_type ?? '—' }}</td>
+              <td class="mono">{{ n.path_repo ?? 'unset' }}</td>
+              <td>{{ n.security_enabled ? 'enabled' : 'disabled' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </SettingsCard>
 
     <SaveBar
@@ -593,12 +602,19 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
    operator 2026-07-16): the card is the container — a bordered box floating inside a padded
    card reads as border-in-border. The card's 16px side padding is cancelled, the head band
    spans edge to edge, and only hairlines separate the table from the card body. */
-.fam-wrap,
-.snap-wrap {
+/* the preceding set-row already draws the hairline — the table adds NO top border of its
+   own (the head band's color shift is the opening cue); a bottom hairline only where prose
+   follows the table (fam), never against the card's own edge (snap runs flush) */
+.fam-wrap {
   margin: 14px -16px 0;
   border: 0;
-  border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
+}
+.snap-wrap {
+  margin: 14px -16px -14px;
+  border: 0;
   border-radius: 0;
   box-shadow: none;
 }
@@ -652,12 +668,21 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
   align-items: center;
   gap: 10px;
 }
-/* the preceding set-row already draws the separator — a border here would double it */
-.rt-node-head {
-  margin: 16px 0 2px;
-  font-size: var(--text-body);
-  font-weight: 700;
-  color: var(--ink);
+/* the cluster facts ride the shared stat-band, full-bleed and FLUSH under the card head —
+   the head's own hairline is the only separator (no border + gap + border stacks) */
+.rt-band {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: -4px -16px 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.rt-wrap {
+  margin: 0 -16px -14px;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: none;
 }
 .restore-copy {
   margin: 0 0 16px;
