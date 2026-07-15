@@ -192,6 +192,16 @@
   --scanner-grype-bg: #efedf5;
   --scanner-grype-line: #cecae2;
 
+  /* settings scope markers (M9e, prototype .scope-dot/.scope-badge) — darkened from the
+     prototype hexes so the white badge label computes AA (§8: tokens supersede palette) */
+  --scope-cluster: #2e6285;
+  --scope-scanner: #17706b;
+  --scope-org: #7a5504;
+
+  /* save-bar dirty state (M9e, prototype .save-bar-on) — warm unsaved-changes surface */
+  --save-dirty-bg: #fffcfa;
+  --save-dirty-line: #ead3c4;
+
   /* -- dark chrome (sidebar) — promoted from the prototype's shell CSS ----- */
   --side-fg: #aeb9c2; /* nav item text */
   --side-fg-hover: #e4eaef;

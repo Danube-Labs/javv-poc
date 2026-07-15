@@ -154,9 +154,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 <template>
   <div class="screen">
     <div class="screen-head">
-      <div>
+      <div class="head-card head-card-fluid">
         <h1>Overview</h1>
-        <p class="screen-sub">
+        <p class="head-note">
           Current state across <b class="mono-cell">{{ clusterStore.selected?.cluster_name ?? '—' }}</b>
           <template v-if="lastSweep"> · last sweep <span class="mono-cell">{{ lastSweep }}</span></template>
         </p>
@@ -349,14 +349,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 18px;
-}
-.screen-head h1 {
-  margin: 0 0 4px;
-}
-.screen-sub {
-  margin: 0;
-  color: var(--soft);
-  font-size: var(--text-body);
 }
 .head-actions {
   display: flex;
