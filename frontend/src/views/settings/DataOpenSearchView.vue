@@ -359,8 +359,8 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
         <p class="fam-why-note">
           <b>Why one window, not per-family?</b> Time-travel rebuilds any past moment from
           occurrences, images and inventory runs <em>together</em>, so the app only reaches as
-          far back as the <em>shortest</em> window — separate knobs would silently truncate
-          reach to the minimum while still paying storage for the rest. Per-family windows are
+          far back as the <em>shortest</em> window — separate per-family windows would silently
+          truncate reach to the minimum while still paying storage for the rest. They are
           planned post-MVP. Protected families take no retention window at all — hover a
           <em>protected</em> tag for why.
         </p>
