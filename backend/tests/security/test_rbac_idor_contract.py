@@ -145,6 +145,20 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"critical_days": 2, "high_days": 7, "medium_days": 30, "low_days": 90, "kev_days": 1},
     ),
+    MutatingEndpoint(  # M9e slice 3 — staleness timers (FR-6/D20; admin-gated settings write)
+        method="PUT",
+        path="/api/v1/settings/staleness",
+        route_path="/api/v1/settings/staleness",
+        capability="can_manage_settings",
+        body={"freshness_days": 3, "scanner_down_days": 7},
+    ),
+    MutatingEndpoint(  # M9e slice 3 — scan scope write (D43; the bearer GET stays scanner-only)
+        method="PUT",
+        path="/api/v1/scan-scope",
+        route_path="/api/v1/scan-scope",
+        capability="can_manage_settings",
+        body={"cluster_id": "c-rbac-sample", "ignore_namespaces": ["kube-system"]},
+    ),
     MutatingEndpoint(  # M8c slice 2 — cluster rename (D-5 ruling; display-only cluster_name)
         method="PUT",
         path="/api/v1/clusters/c-rbac-sample1/name",

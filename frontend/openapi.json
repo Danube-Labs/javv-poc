@@ -894,6 +894,60 @@
         "title": "RolePatch",
         "type": "object"
       },
+      "ScanScopePut": {
+        "additionalProperties": false,
+        "properties": {
+          "cluster_id": {
+            "title": "Cluster Id",
+            "type": "string"
+          },
+          "exclude_images": {
+            "default": [],
+            "items": {
+              "maxLength": 253,
+              "type": "string"
+            },
+            "maxItems": 1024,
+            "title": "Exclude Images",
+            "type": "array"
+          },
+          "ignore_kinds": {
+            "default": [],
+            "items": {
+              "maxLength": 253,
+              "type": "string"
+            },
+            "maxItems": 64,
+            "title": "Ignore Kinds",
+            "type": "array"
+          },
+          "ignore_namespaces": {
+            "default": [],
+            "items": {
+              "maxLength": 253,
+              "type": "string"
+            },
+            "maxItems": 1024,
+            "title": "Ignore Namespaces",
+            "type": "array"
+          },
+          "include_namespaces": {
+            "default": [],
+            "items": {
+              "maxLength": 253,
+              "type": "string"
+            },
+            "maxItems": 1024,
+            "title": "Include Namespaces",
+            "type": "array"
+          }
+        },
+        "required": [
+          "cluster_id"
+        ],
+        "title": "ScanScopePut",
+        "type": "object"
+      },
       "SlaPolicy": {
         "additionalProperties": false,
         "description": "Per-canonical-severity SLA days + KEV override \u2014 editable via PUT /settings/sla.\nD46 (#274): full-word knob names, HARD rename from crit_days/med_days (dev data disposable\n\u2014 no aliases; the config doc reseeds on the next write).",
@@ -930,6 +984,38 @@
           }
         },
         "title": "SlaPolicy",
+        "type": "object"
+      },
+      "StalenessPut": {
+        "additionalProperties": false,
+        "properties": {
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "freshness_days": {
+            "exclusiveMinimum": 0.0,
+            "title": "Freshness Days",
+            "type": "number"
+          },
+          "scanner_down_days": {
+            "exclusiveMinimum": 0.0,
+            "title": "Scanner Down Days",
+            "type": "number"
+          }
+        },
+        "required": [
+          "freshness_days",
+          "scanner_down_days"
+        ],
+        "title": "StalenessPut",
         "type": "object"
       },
       "TriagePatch": {
@@ -5020,6 +5106,47 @@
         "tags": [
           "scan-scope"
         ]
+      },
+      "put": {
+        "operationId": "put_scan_scope_api_v1_scan_scope_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanScopePut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Scan Scope Api V1 Scan Scope Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Scan Scope",
+        "tags": [
+          "scan-scope"
+        ]
       }
     },
     "/api/v1/scanners/freshness": {
@@ -5122,6 +5249,51 @@
         ]
       }
     },
+    "/api/v1/settings/scan-scope": {
+      "get": {
+        "description": "The D-2 session read \u2014 the ScanScopeView renders this; the bearer GET stays scanner-only.",
+        "operationId": "get_scan_scope_session_api_v1_settings_scan_scope_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Scan Scope Session Api V1 Settings Scan Scope Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Scan Scope Session",
+        "tags": [
+          "scan-scope"
+        ]
+      }
+    },
     "/api/v1/settings/sla": {
       "get": {
         "operationId": "get_sla_api_v1_settings_sla_get",
@@ -5181,6 +5353,99 @@
           }
         },
         "summary": "Put Sla",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/staleness": {
+      "get": {
+        "description": "The EFFECTIVE timers for a cluster (its override if set, else the fleet default), plus\nwhether a per-cluster override exists \u2014 the editor needs to know which doc it is editing.",
+        "operationId": "get_staleness_api_v1_settings_staleness_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cluster Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Staleness Api V1 Settings Staleness Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Staleness",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "operationId": "put_staleness_api_v1_settings_staleness_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StalenessPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Staleness Api V1 Settings Staleness Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Staleness",
         "tags": [
           "settings"
         ]

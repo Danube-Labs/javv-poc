@@ -27,6 +27,7 @@ from backend.routers import (
     scan_runs,
     scan_scope,
     scanners,
+    staleness_settings,
     tokens,
     trends,
     triage,
@@ -66,6 +67,7 @@ def create_app() -> FastAPI:
     app.include_router(clusters.router)
     app.include_router(views.router)
     app.include_router(sla_routes.router)
+    app.include_router(staleness_settings.router)
     app.include_router(bulk_routes.router)
     return app
 

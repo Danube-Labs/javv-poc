@@ -55,6 +55,14 @@ async def _read_one(client: AsyncOpenSearch, doc_id: str, prefix: str) -> Stalen
     return StalenessTimers.model_validate(got["_source"]["value"])
 
 
+async def has_staleness_override(
+    client: AsyncOpenSearch, cluster_id: str, *, prefix: str = ""
+) -> bool:
+    """Whether a per-cluster `staleness:<cluster_id>` override doc exists (the M9e editor needs
+    to know WHICH doc it is editing — the effective read alone can't tell equal values apart)."""
+    return await _read_one(client, _timers_id(cluster_id), prefix) is not None
+
+
 async def read_staleness_timers(
     client: AsyncOpenSearch, *, cluster_id: str | None = None, prefix: str = ""
 ) -> StalenessTimers:

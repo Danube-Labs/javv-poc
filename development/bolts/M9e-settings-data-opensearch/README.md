@@ -8,8 +8,9 @@ The whole **Settings** area per `SCREENS-v5.md` §13: the Admin **Data & OpenSea
 read-only *OpenSearch runtime* card), the **Scanning** settings (two-timer staleness editor +
 read-only per-scanner provenance/`effective_config` cards), **Scan scope**, **SLA policy**,
 **Access & tokens**, **Users & roles**, **Cluster** — plus the settings sub-nav shell
-(capability-hidden sections, save bar on editable sections only) and the Ignore-rules → Decisions
-redirect stub. Retention is enforced by **dropping whole time-partitioned indices — never
+(capability-hidden sections, save bar on editable sections only). *(The Ignore-rules → Decisions
+redirect stub was REMOVED by operator ruling 2026-07-15 — see Updates; no 13.4 nav entry at all.)*
+Retention is enforced by **dropping whole time-partitioned indices — never
 `delete_by_query`** (hard constraint). Every destructive action is capability-gated and journaled.
 *(The pre-v5 "CVE-audit panel" was STRUCK 2026-07-15 — see Updates: no prototype, no §13 section,
 no FR; its content ships on finding detail + Approvals + Audit.)*
@@ -41,7 +42,9 @@ In the layered tree, not here (paths proposed):
   `UsersRolesView.vue` (13.6 — shipped; disable-never-delete, invite = temp password, 4 read-only
   capability bundles per A-4), `ClusterView.vue` (13.8 — rename shipped M8c; statics show
   `schema_version` 4), the **settings sub-nav shell** (capability-hidden sections, save bar on
-  editable sections only), and the **Ignore rules → Decisions redirect stub** (13.4).
+  editable sections only). ~~The Ignore rules → Decisions redirect stub (13.4)~~ — shipped in
+  slice 1, then **REMOVED entirely** (operator ruling 2026-07-15, against the built specimen):
+  decisions live on `/approvals` + finding detail; a settings pointer earns its nav slot nothing.
 - **Data panel additions (2026-07-15 rulings):** the retention card lists **every** index family —
   protected families render read-only with a hover/why (table row 23); a read-only **OpenSearch
   runtime** card (version, nodes/roles, heap, `discovery.type`, `path.repo`, security state) behind
@@ -96,7 +99,7 @@ In the layered tree, not here (paths proposed):
 | 17 | ✘ drop | Scanner **enable/disable** toggle | no such concept (both CronJobs always run, D30) | dropped |
 | 18 | ✘ drop | **Schedule** section (scan interval, sweep time) | CronJob schedule = GitOps manifest; scanner-status already shows observed cadence | dropped |
 | 19 | ✘ drop | Retry/backoff toggle | always-on ingest behavior | dropped |
-| 20 | ✔ stub | **Ignore rules** table (+ KEV/EPSS always-surface override) | superseded by Decisions (V4-DELTA-2, §13.4) — live today on `/approvals`, finding detail's Decisions card, `/audit` | settings sub-nav entry = redirect stub to the Decisions queue |
+| 20 | ✘ removed | **Ignore rules** table (+ KEV/EPSS always-surface override) | superseded by Decisions (V4-DELTA-2, §13.4) — live today on `/approvals`, finding detail's Decisions card, `/audit` | ~~redirect stub~~ → **no nav entry at all** (operator re-ruled 2026-07-15 against the built stub) |
 | 21 | ✘ defer | **Vuln-DB config** (mirror/repo URLs, refresh cadence, skip-update, CA cert, max-built-age) | **entirely unbuilt** — not even env vars; only provenance display exists | → post-MVP settings issue **#403** (air-gapped mirrors) |
 | 22 | ✘ defer | **Registries** (imagePullSecrets auto-resolve, known-registries list) | **entirely unbuilt**, unruled — §13.5 silently dropped it | → post-MVP settings issue **#403** (private-registry scanning) |
 | 23 | ✔ single + read-only rows | **Per-purpose retention** (prototype drew 4 editable windows) | backend = ONE `retention_days` per cluster; audit-log rollover-only (task F m-6) | **RULED: the retention card lists EVERY index family** — the 4 append families share the one editable window; the protected families (`system-audit-log` "rolls, never dropped" · `findings` "cleaned by the separate D37 long window below" · `javv-scan-watermarks` "prunes with findings" · `javv-scan-orders` "never — authoritative order counter, D45" · `system-*`) render as **read-only rows with a hover/explanation** of why. Per-family editable windows stay post-MVP (time-travel reach = min(occurrences, images) — the footgun) |
@@ -142,6 +145,14 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-15 (build-time, slice 3) — two operator rulings against built specimens:**
+  1. **Ignore-rules nav entry REMOVED entirely** (supersedes the slice-1 redirect stub and table
+     row 20's "stub" ruling): decisions live on `/approvals` + finding detail — a settings pointer
+     earns its nav slot nothing.
+  2. **Namespace scope lists are EXACT matches** (verified in `scanner/scope.py`:
+     `namespace_allowed` is set membership) — `kube*` does NOT work there; globs apply only to
+     `exclude_images` (`fnmatch`). UI hints now say so. Glob support for namespaces would be a
+     scanner-side change — unowned, operator to rule if wanted.
 - **2026-07-15 — pre-kickoff spec-sync (operator-driven, session review of code + docs + the v4
   prototype's 10 settings sub-pages):** full findings; the candidate table above (§Settings surface)
   is the cherry-pick sheet.

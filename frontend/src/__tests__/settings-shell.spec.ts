@@ -6,6 +6,13 @@ import { describe, expect, it } from 'vitest'
 
 import type { SlaPolicy } from '@/api/generated'
 import { SETTINGS_SECTIONS } from '@/views/settings/sections'
+import {
+  addChip,
+  cloneScope,
+  emptyScope,
+  removeChip,
+  scopeDirty,
+} from '@/views/settings/scopeForm'
 import { mintExpiry, tokenStatus, type TokenRow } from '@/views/settings/tokensForm'
 import {
   draftFromPolicy,
@@ -90,6 +97,30 @@ describe('tokensForm', () => {
       kind: 'iso',
       iso: new Date('2026-08-01T00:30').toISOString(),
     })
+  })
+})
+
+describe('scopeForm', () => {
+  it('addChip trims, drops empties and dedupes; removeChip filters', () => {
+    expect(addChip([], '  prod ')).toEqual(['prod'])
+    expect(addChip(['prod'], 'prod')).toEqual(['prod'])
+    expect(addChip(['prod'], '   ')).toEqual(['prod'])
+    expect(removeChip(['a', 'b'], 'a')).toEqual(['b'])
+  })
+
+  it('dirt is order-aware list inequality across the four FR-24 lists', () => {
+    const saved = emptyScope()
+    const draft = cloneScope(saved)
+    expect(scopeDirty(draft, saved)).toBe(false)
+    draft.ignore_kinds = ['Job']
+    expect(scopeDirty(draft, saved)).toBe(true)
+  })
+
+  it('cloneScope detaches every list (a chip edit never mutates the saved copy)', () => {
+    const saved = { ...emptyScope(), include_namespaces: ['prod'] }
+    const draft = cloneScope(saved)
+    draft.include_namespaces.push('dev')
+    expect(saved.include_namespaces).toEqual(['prod'])
   })
 })
 

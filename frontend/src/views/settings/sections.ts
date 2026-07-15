@@ -30,12 +30,12 @@ export const SCOPE_COPY: Record<SettingsScope, { label: string; note: string }> 
   },
 }
 
-// §13 section order (13.1 → 13.8); ignore-rules is the Decisions redirect stub (13.4)
+// §13 section order (13.1 → 13.8). Ignore rules (13.4) has NO entry by operator ruling
+// (2026-07-15): decisions live on /approvals + finding detail — a settings pointer earns nothing.
 export const SETTINGS_SECTIONS: SettingsSection[] = [
   { key: 'scan-scope', label: 'Scan scope', icon: 'filter', scope: 'cluster', capability: 'can_manage_settings' },
   { key: 'scanning', label: 'Scanning', icon: 'shield', scope: 'scanner', capability: 'can_manage_settings' },
   { key: 'sla', label: 'SLA policy', icon: 'alert', scope: 'org', capability: 'can_manage_settings' },
-  { key: 'ignore-rules', label: 'Ignore rules', icon: 'check', scope: 'cluster', capability: 'can_manage_settings' },
   { key: 'tokens', label: 'Access & tokens', icon: 'key', scope: 'cluster', capability: 'can_manage_tokens' },
   { key: 'users', label: 'Users & roles', icon: 'users', scope: 'org', capability: 'can_manage_users' },
   { key: 'data-opensearch', label: 'Data & OpenSearch', icon: 'database', scope: 'cluster', capability: 'can_manage_retention' },
