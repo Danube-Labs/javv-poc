@@ -14,6 +14,10 @@ import httpx
 from pydantic import BaseModel, ConfigDict
 
 
+def _matches_any(value: str, globs: Iterable[str]) -> bool:
+    return any(fnmatch.fnmatch(value, glob) for glob in globs)
+
+
 class ScanScope(BaseModel):
     model_config = ConfigDict(frozen=True)  # lenient: ignore unknown fields (forward-compat)
 
@@ -23,15 +27,18 @@ class ScanScope(BaseModel):
     ignore_kinds: tuple[str, ...] = ()  # pod owner-reference kinds to skip
 
     def namespace_allowed(self, namespace: str) -> bool:
-        if self.include_namespaces and namespace not in self.include_namespaces:
+        """Namespace lists are fnmatch globs (operator ruling 2026-07-15): `kube*` covers the
+        kube- family. Strictly backward compatible — k8s namespaces are DNS-1123 labels, which
+        cannot contain glob metacharacters, so every pre-existing exact entry matches as before."""
+        if self.include_namespaces and not _matches_any(namespace, self.include_namespaces):
             return False
-        return namespace not in self.ignore_namespaces  # ignore wins over include
+        return not _matches_any(namespace, self.ignore_namespaces)  # ignore wins over include
 
     def kinds_allowed(self, owner_kinds: Iterable[str]) -> bool:
         return not any(k in self.ignore_kinds for k in owner_kinds)
 
     def image_allowed(self, image_ref: str) -> bool:
-        return not any(fnmatch.fnmatch(image_ref, glob) for glob in self.exclude_images)
+        return not _matches_any(image_ref, self.exclude_images)
 
 
 def fetch_scan_scope(http: httpx.Client, *, token: str | None) -> ScanScope | None:

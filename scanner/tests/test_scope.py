@@ -30,6 +30,25 @@ def test_ignore_wins_over_include() -> None:
     assert not s.namespace_allowed("team-a")
 
 
+def test_namespace_lists_take_fnmatch_globs() -> None:
+    # operator ruling 2026-07-15: kube* covers the kube- family; literals keep matching exactly
+    s = ScanScope(include_namespaces=("kube*", "prod"))
+    assert s.namespace_allowed("kube-system")
+    assert s.namespace_allowed("kube-public")
+    assert s.namespace_allowed("prod")
+    assert not s.namespace_allowed("team-a")
+
+    ignore = ScanScope(ignore_namespaces=("kube*",))
+    assert not ignore.namespace_allowed("kube-node-lease")
+    assert ignore.namespace_allowed("prod")
+
+
+def test_ignore_glob_wins_over_include_glob() -> None:
+    s = ScanScope(include_namespaces=("*",), ignore_namespaces=("kube*",))
+    assert s.namespace_allowed("prod")
+    assert not s.namespace_allowed("kube-system")
+
+
 def test_kind_and_image_filters() -> None:
     s = ScanScope(ignore_kinds=("Job",), exclude_images=("registry.k8s.io/*",))
     assert not s.kinds_allowed(["Job"])

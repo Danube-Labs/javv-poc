@@ -186,6 +186,8 @@ from an env/secret and must change the password on first login - FR-18.)
   **fetches it from the backend** (`GET /api/v1/scan-scope`) at cycle start and filters discovery **before**
   pull/scan (so "scan only namespace X to test fast" is genuinely cheap). Semantics: empty include = all,
   **ignore wins over include**; a digest spanning namespaces is scanned if it runs in ≥1 in-scope namespace.
+  **All lists take fnmatch globs** (namespaces too — operator ruling 2026-07-15: `kube*` covers the kube-
+  family; backward compatible, DNS-1123 namespace names cannot contain glob metacharacters).
   **Fail-closed:** backend unreachable → scan nothing that cycle; fetched-empty → scan all. Scope is enforced
   scanner-side (not merely at ingest) so "don't scan" means the image is never pulled/scanned. Write path is
   M9e (interim admin CLI); a valid token reads only its own cluster's scope (SEC-4). Not scanner *tuning*
