@@ -98,6 +98,7 @@ rebuild, not a restart).
 | ~~`VITE_FRESHNESS_BANNER_HOURS`~~ | — | **REMOVED (M9e slice 4, ruling row 14):** the banner and the fleet health chips now read the LIVE staleness timers via `GET /api/v1/settings/staleness` (`stores/staleness.ts` — the selected cluster's effective window for the banner, the fleet default for cross-cluster chips), so a settings-panel edit takes effect without a rebuild. The D20 seed (3 days) is the only in-code fallback, used while the read is in flight. | ✅ removed |
 | `VITE_DB_AGE_WARN_DAYS` | `7` | Days before the scanner-status card flags the vuln DB as stale (amber `· N days old` next to *DB built*, `frontend/src/system/freshness.ts`) — a running scanner with an old database quietly under-reports (D41: the fix is swapping the published image, never in-app). Non-numeric/≤0 falls back to the default. | no |
 | `VITE_EXPIRY_WARN_DAYS` | `7` | Days before a risk-acceptance's expiry that the Approvals queue's status chip turns amber `expires in Nd` (`frontend/src/approvals/viewModel.ts`) — the review nudge window; at expiry the chip goes alarm-red (the acceptance has released its findings back to open, D19). Non-numeric/≤0 falls back to the default. | no |
+| `VITE_APP_VERSION` | `dev` | Version string shown in the app shell sidebar (`layouts/AppShell.vue`, `v{version} · schema 4 · MVP`). Display-only. **Nothing sets it yet** — every build renders `dev`; wiring it to the release tag at image build is M10's (deploy) to own. | n/a (build) |
 
 ---
 

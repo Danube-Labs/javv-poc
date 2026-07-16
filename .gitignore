@@ -38,8 +38,9 @@ Thumbs.db
 .claude/settings.local.json
 
 # Session handoffs — local snapshots by default (commit the infra, not the snapshots).
-# git add -f a specific one to share it.
+# git add -f a specific one to share it. archive/ holds rotated-out old handoffs.
 .claude/sessions/*.md
+.claude/sessions/archive/
 !.claude/sessions/README.md
 !.claude/sessions/TEMPLATE.md
 
