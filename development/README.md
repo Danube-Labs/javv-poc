@@ -62,9 +62,11 @@ kubectl --context k3d-alpha get namespace kube-system -o jsonpath='{.metadata.ui
 k3d cluster delete alpha
 ```
 
-> **Need the multi-cluster story?** Only when you're validating per-`cluster_id` index routing (that two
-> clusters never collide). Add `bravo`/`charlie` on ports `8082`/`8083` then - see
-> [`K8S-DEV-CLUSTER.md`](../docs/research/K8S-DEV-CLUSTER.md). Don't run three by default; one keeps the VM light.
+> **Need the multi-cluster story?** Only when you're validating per-`cluster_id` behavior (index
+> routing, tenant-scoped reads, same-name namespaces across tenants). The ready-made second tenant
+> is `beta` — small (3 ns / 4 workloads, one namespace name shared with alpha on purpose):
+> `k3d cluster create beta --servers 1 --agents 0` + `seed-beta-workloads.yaml`, full loop in
+> [`RUNNING-THE-STACK.md`](RUNNING-THE-STACK.md) §B6. Don't run extras by default; one keeps the VM light.
 
 Give the VM ≥2 vCPU / ≥4 GB / ~30 GB disk (image layers + scanner DBs). k3d clusters share the host
 kernel - fine for functional wiring, **not** for benchmarking scan throughput.
