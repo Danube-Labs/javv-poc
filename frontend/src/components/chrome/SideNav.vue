@@ -28,9 +28,10 @@ interface NavItem {
   capability?: string
 }
 /* Prototype nav structure (main.jsx Sidebar) — every screen present, owned by its bolt. */
-const NAV: { group: string; items: NavItem[] }[] = [
+const NAV: { group: string; accent: string; items: NavItem[] }[] = [
   {
     group: 'Monitor',
+    accent: 'var(--sect-monitor)',
     items: [
       { label: 'All clusters', to: '/clusters', icon: 'layers' },
       { label: 'Overview', to: '/overview', icon: 'grid' },
@@ -39,9 +40,10 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { label: 'Scanner status', to: '/scanner-status', icon: 'pulse' },
     ],
   },
-  { group: 'Inventory', items: [{ label: 'Running images', to: '/images', icon: 'cube' }] },
+  { group: 'Inventory', accent: 'var(--sect-inventory)', items: [{ label: 'Running images', to: '/images', icon: 'cube' }] },
   {
     group: 'Audit',
+    accent: 'var(--sect-audit)',
     items: [
       {
         label: 'Approval list',
@@ -52,9 +54,10 @@ const NAV: { group: string; items: NavItem[] }[] = [
       { label: 'Audit log', to: '/audit', icon: 'clock' },
     ],
   },
-  { group: 'Insights', items: [{ label: 'Contributors', to: '/contributors', icon: 'award' }] },
+  { group: 'Insights', accent: 'var(--sect-insights)', items: [{ label: 'Contributors', to: '/contributors', icon: 'award' }] },
   {
     group: 'Configure',
+    accent: 'var(--sect-configure)',
     items: [{ label: 'Settings', to: '/settings', icon: 'gear', capability: 'can_manage_settings' }],
   },
 ]
@@ -92,7 +95,7 @@ function toggleSidebar() {
     </div>
     <div class="side-nav">
       <div v-for="g in nav" :key="g.group" class="side-group">
-        <div v-if="!collapsed" class="side-group-label">{{ g.group }}</div>
+        <div v-if="!collapsed" class="side-group-label"><i class="side-group-dot" :style="{ background: g.accent }" aria-hidden="true" />{{ g.group }}</div>
         <div v-else class="side-sep" aria-hidden="true" />
         <RouterLink
           v-for="i in g.items"
@@ -212,6 +215,14 @@ function toggleSidebar() {
 }
 .side-group {
   margin-bottom: 14px;
+}
+.side-group-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-align: 1px;
 }
 .side-group-label {
   font-family: var(--font-mono);

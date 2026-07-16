@@ -81,7 +81,7 @@
   --facet-check-line: #cfc8ba;
   --fpill-line: #e0d2c5;
   --fpill-x-hover-bg: #f3e2d9;
-  --add-filter-line: #cfc4b5;
+  --add-filter-line: #b0a48c; /* darkened 2026-07-16: the dashed ghost was invisible on the canvas */
   --add-filter-hover-bg: #fdf4ef;
   --dd-on-bg: rgba(236, 126, 84, 0.1);
   --dd-shadow: 0 14px 40px -16px rgba(22, 35, 47, 0.4);
@@ -185,6 +185,22 @@
   --health-down-bg: #fbe7e4;
   /* scanner identity tags (language A): tint + ring derived from the scanner hue (10%/30%) —
      quiet, no dot, no escalation (identity, not status) */
+  /* table-head band (operator ruling 2026-07-16, B2 of the B1/C/B2 specimens — third pass on
+     this surface: --panel-on-card was invisible, --bg merged with the canvas, light/mid washes
+     read faint or busy) — the SOLID slate band: the sidebar's dark ramp carried onto every
+     table head, parchment text (~10:1), bookends the rail */
+  --table-head-bg: var(--slate2);
+  --table-head-fg: #d9e2e8;
+  --table-head-line: #3a5164; /* hairline that reads ON the band — beige dividers slit it */
+
+  /* section identity accents (§8.5 specimen 2026-07-16): one quiet hue per sidebar group,
+     echoed as the head-card's top bar — wayfinding chroma, decorative only (never text) */
+  --sect-monitor: #1f8e84;
+  --sect-inventory: #728a45;
+  --sect-audit: #9c5273;
+  --sect-insights: #b3803e;
+  --sect-configure: #64788c;
+
   --scanner-trivy-fg: #17685f;
   --scanner-trivy-bg: #e8f0ef;
   --scanner-trivy-line: #b9d2cf;

@@ -7,7 +7,7 @@
  */
 withDefaults(
   defineProps<{
-    options: readonly { value: T; label: string }[]
+    options: readonly { value: T; label: string; accent?: string }[]
     modelValue: T
   }>(),
   {},
@@ -26,7 +26,7 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
       :aria-pressed="modelValue === opt.value"
       @click="emit('update:modelValue', opt.value)"
     >
-      {{ opt.label }}
+      <i v-if="opt.accent" class="ui-seg-dot" :style="{ background: opt.accent }" aria-hidden="true" />{{ opt.label }}
     </button>
   </div>
 </template>
@@ -53,6 +53,16 @@ const emit = defineEmits<{ 'update:modelValue': [value: T] }>()
   transition:
     background 120ms ease,
     color 120ms ease;
+}
+/* identity dot (§8.5 specimen): scanner/category hue as a marker — the coral selection
+   language (operator ruling 2026-07-11) stays untouched */
+.ui-seg-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: 1px;
 }
 .ui-seg-opt:focus-visible {
   outline: var(--focus-ring);

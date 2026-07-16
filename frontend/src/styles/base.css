@@ -88,7 +88,11 @@ html [class*=' p-'] {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  box-shadow: var(--shadow);
+  /* the section-identity echo (§8.5 specimen): a 3px inset bar in the route's sidebar-group
+     accent — transparent on section-less screens (login), so no layout shift anywhere */
+  box-shadow:
+    inset 0 3px 0 0 var(--sect-accent, transparent),
+    var(--shadow);
   padding: 12px 14px;
 }
 .head-card h1 {
@@ -226,16 +230,16 @@ html [class*=' p-'] {
   text-align: left;
   /* header legibility (operator, 2026-07-11): soft/600 read faint over dense rows */
   font-weight: 700;
-  color: var(--ink);
   font-size: var(--text-table-header);
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
-  /* the canvas neutral, one step under the card (operator 2026-07-16, the ui.nuxt band
-     grammar): --panel on --card was a 2% step no one could see — the head must read as
-     a band that opens a table */
-  background: var(--bg);
+  /* the solid slate band (operator 2026-07-16, B2 ruling — third pass on this surface:
+     --panel was a 2% step no one could see, --bg merged into the canvas) — the sidebar's
+     dark ramp on every table head; one semantic token so they all move together */
+  color: var(--table-head-fg);
+  background: var(--table-head-bg);
   white-space: nowrap;
   font-family: var(--font-mono);
 }
@@ -251,17 +255,9 @@ html [class*=' p-'] {
 .tbl-dense.tbl-dense tbody td {
   padding: 7px 12px;
 }
-/* settings-grade ledger (operator 2026-07-16, the ui.nuxt/shadcn register): quiet sans head
-   at the body size — the uppercase-mono head is data-GRID grammar and shouts inside a settings
-   card. Identifier cells keep mono; every other cell rides the UI face. */
-.tbl-quiet.tbl-quiet thead th {
-  font-family: var(--font-ui);
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 600;
-  color: var(--soft);
-  font-size: var(--text-sm);
-}
+/* tbl-quiet is DENSITY only (operator 2026-07-16, superseding the same-day quiet-sans-head
+   ruling: two head registers meant settings heads went soft-gray-on-slate when the B2 band
+   landed — one grammar everywhere, findings is the reference) */
 .tbl-quiet.tbl-quiet tbody td {
   font-size: var(--text-sm);
 }

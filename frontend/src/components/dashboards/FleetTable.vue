@@ -219,6 +219,10 @@ function open(row: ClusterRow) {
 .tbl td + td {
   border-left: 1px solid var(--line2);
 }
+/* the header's dividers live on the slate band — the beige hairline slits it */
+.tbl.tbl th + th {
+  border-left-color: var(--table-head-line);
+}
 /* .tbl.tbl matches the base-skin weight — this screen's centered-value ruling must outrank
    the shared right-align default */
 .tbl.tbl th.r,

@@ -62,6 +62,13 @@ watch(
 
 const initials = computed(() => (auth.user?.username ?? '?').slice(0, 2).toUpperCase())
 
+/** Section identity echo (§8.5 specimen): the route's sidebar-group accent, exposed as a CSS
+ * var the head-card's top bar reads — wayfinding chroma only. */
+const sectAccent = computed(() => {
+  const sect = route.meta.section as string | undefined
+  return sect ? { '--sect-accent': `var(--sect-${sect})` } : {}
+})
+
 async function logout() {
   await auth.logout()
   await router.push({ name: 'login' })
@@ -111,7 +118,7 @@ onUnmounted(() => health.stopPolling())
         </div>
       </Transition>
 
-      <main class="content" :class="{ 'content-wide': $route.meta.wide }">
+      <main class="content" :class="{ 'content-wide': $route.meta.wide }" :style="sectAccent">
         <RouterView />
       </main>
     </div>

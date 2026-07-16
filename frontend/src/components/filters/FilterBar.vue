@@ -254,7 +254,7 @@ function onKeydown(e: KeyboardEvent) {
   align-items: center;
   gap: 6px;
   border: 1px dashed var(--add-filter-line);
-  background: transparent;
+  background: var(--card);
   color: var(--ink);
   border-radius: var(--r-sm);
   padding: 6px 11px;

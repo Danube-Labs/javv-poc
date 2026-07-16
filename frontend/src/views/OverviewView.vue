@@ -38,8 +38,8 @@ import { ref } from 'vue'
 
 const SCANNER_OPTS = [
   { value: 'all', label: 'All scanners' },
-  { value: 'trivy', label: 'trivy' },
-  { value: 'grype', label: 'grype' },
+  { value: 'trivy', label: 'trivy', accent: 'var(--scanner-trivy-fg)' },
+  { value: 'grype', label: 'grype', accent: 'var(--scanner-grype-fg)' },
 ] as const
 
 const router = useRouter()

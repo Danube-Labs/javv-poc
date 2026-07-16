@@ -33,6 +33,8 @@ inset/panel    var(--panel)       borders      var(--line)   subtle: var(--line2
 primary text   var(--ink)         secondary    var(--soft)
 row hover      var(--row-hover)   dark chrome  var(--slate)
 save-bar dirty var(--save-dirty-bg) + var(--save-dirty-line)  (M9e unsaved-changes surface)
+table head     var(--table-head-bg) + var(--table-head-fg) + dividers var(--table-head-line)
+section accent var(--sect-monitor|inventory|audit|insights|configure)  (decorative only)
 ```
 `--soft` is the CONTRAST FLOOR for text — AA (≥4.5:1) on every light surface. `--muted` is
 decorative/disabled only (dashes, gauge fills, placeholder glyphs): it fails AA and must never
@@ -138,10 +140,15 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 - Content: max `var(--screen-max-w)` (1380px) centered, padding `var(--content-pad)`; grid gap `var(--grid-gap)`.
   **Data-dense table screens opt out via route `meta: { wide: true }`** (full viewport width —
   operator ruling 2026-07-09: an internal table scrollbar beside dead margin is worse than a
-  wide table). Findings uses it; apply to future grid-dominated screens, not dashboards.
+  wide table). Nearly every data screen carries it — Overview included (operator 2026-07-16,
+  superseding the earlier "not dashboards" clause).
 - Radius: cards `var(--r)` (12px), controls `var(--r-sm)` (8px), chips `var(--r-chip)` (6px), pills/avatars full.
 - Shadow: `var(--shadow)` on cards — nothing heavier.
-- Tables: compact density default (~7px row padding); header row on `var(--panel)`, mono uppercase.
+- Tables: compact density default (~7px row padding); **one head register everywhere** —
+  mono uppercase parchment on the solid slate band (`--table-head-bg`/`--table-head-fg`,
+  operator B2 ruling 2026-07-16; supersedes both the `--panel` head and the short-lived
+  settings "quiet sans head" — `tbl-quiet` is density only). On-band column dividers use
+  `--table-head-line`, never the beige hairlines.
 - Desktop-first; single breakpoint ~1120px (KPI strips 2-up, grids stack, facet rail stacks above the table).
 
 ## 5. Interaction
@@ -221,6 +228,9 @@ Severity chip:  color var(--sev-critical-fg); background var(--sev-critical-bg);
                 border-color var(--sev-critical-line)   (× six severities)
 Chart series:   CHART_SEV.critical … (from '@/styles/tokens' — pinned to tokens.css by test)
 State pill:     var(--state-open-*) etc.   Health dot: var(--health-ok-dot)
+Table head:     background var(--table-head-bg); color var(--table-head-fg)
+Scanner identity: var(--scanner-trivy-*) / var(--scanner-grype-*)  (tags, seg dots, mix labels)
+Section accent: var(--sect-*)   (sidebar group dot + head-card top bar — never text)
 Mono data:      font-family var(--font-mono); font-size var(--text-mono-cell)
 Focus:          outline: var(--focus-ring); outline-offset: 1px
 ```
