@@ -1,5 +1,41 @@
 # Changelog
 
+## [0.3.10](https://github.com/Danube-Labs/javv-poc/compare/v0.3.9...v0.3.10) (2026-07-16)
+
+
+### Features
+
+* **api:** team totals block on the contributors read ([#360](https://github.com/Danube-Labs/javv-poc/issues/360)) ([1096ef4](https://github.com/Danube-Labs/javv-poc/commit/1096ef4aa01258cd50a35fdb7a443d8ff5dbd5da))
+* **backend:** approvals rail filters + facets on the queue endpoint (4b) ([#371](https://github.com/Danube-Labs/javv-poc/issues/371)) ([d82d81f](https://github.com/Danube-Labs/javv-poc/commit/d82d81f92391a11fe120a5a0371d7659ff6decb2)), closes [#38](https://github.com/Danube-Labs/javv-poc/issues/38)
+* **backend:** sla_clock_at — the materialized d21 group clock (issue 363, pr 1/2) ([#365](https://github.com/Danube-Labs/javv-poc/issues/365)) ([1d92235](https://github.com/Danube-Labs/javv-poc/commit/1d92235374e3ccee1b37eee2e25073a0416033b8)), closes [#363](https://github.com/Danube-Labs/javv-poc/issues/363)
+* **jobs:** findings long-window cleanup sweep — m9e slice 5, bolt wrap ([#412](https://github.com/Danube-Labs/javv-poc/issues/412)) ([fd47ed4](https://github.com/Danube-Labs/javv-poc/commit/fd47ed48f0c5291fc6334d5d60041aed75dff06c)), closes [#39](https://github.com/Danube-Labs/javv-poc/issues/39)
+* **scanner:** namespace scope lists take fnmatch globs ([#409](https://github.com/Danube-Labs/javv-poc/issues/409)) ([fc7eba4](https://github.com/Danube-Labs/javv-poc/commit/fc7eba4f934dcbbbe125a46b8bc05ef9867afb5b)), closes [#39](https://github.com/Danube-Labs/javv-poc/issues/39)
+* **ui:** approvals filter rail (m9d slice 4b, frontend) ([#372](https://github.com/Danube-Labs/javv-poc/issues/372)) ([a74b4bb](https://github.com/Danube-Labs/javv-poc/commit/a74b4bb57ce6952c471c91006ef76e09d205476b)), closes [#38](https://github.com/Danube-Labs/javv-poc/issues/38)
+* **ui:** m9d slice 1 — the audit log on the prototype table grammar ([#353](https://github.com/Danube-Labs/javv-poc/issues/353)) ([20b511c](https://github.com/Danube-Labs/javv-poc/commit/20b511ce088ddd0a34629f795d08e008270617c0))
+* **ui:** m9d slice 2 — scanner status on the shared data-screen grammar ([#356](https://github.com/Danube-Labs/javv-poc/issues/356)) ([e8c0529](https://github.com/Danube-Labs/javv-poc/commit/e8c0529570ebeb8ec3e47641ebc270804fe5bc3f))
+* **ui:** m9d slice 3 — contributors on the shared data-screen grammar ([#361](https://github.com/Danube-Labs/javv-poc/issues/361)) ([6f72897](https://github.com/Danube-Labs/javv-poc/commit/6f72897fc494157b7732536b365c2d8efb7cd608)), closes [#38](https://github.com/Danube-Labs/javv-poc/issues/38)
+* **ui:** m9d slice 4 — approvals review queue on the shared grammar ([#370](https://github.com/Danube-Labs/javv-poc/issues/370)) ([a1a66bb](https://github.com/Danube-Labs/javv-poc/commit/a1a66bb31d3898215ae47fbbbe9cf367cc27eae1)), closes [#38](https://github.com/Danube-Labs/javv-poc/issues/38)
+* **ui:** m9e slice 1 — settings shell + SLA policy panel ([#405](https://github.com/Danube-Labs/javv-poc/issues/405)) ([b8b672e](https://github.com/Danube-Labs/javv-poc/commit/b8b672e88d4e1fb983b18d15a04f386e4340b859))
+* **ui:** m9e slice 2 — tokens, users & roles, cluster panels ([#407](https://github.com/Danube-Labs/javv-poc/issues/407)) ([252675b](https://github.com/Danube-Labs/javv-poc/commit/252675b9b152263e64a7611b404d173d27edaab3))
+* **ui:** m9e slice 3 — scan-scope editor + scanning panel ([#408](https://github.com/Danube-Labs/javv-poc/issues/408)) ([3046502](https://github.com/Danube-Labs/javv-poc/commit/304650213d3e1b390a5f07f30452886e74454b1c))
+* **ui:** m9e slice 4 — data & opensearch panel + live freshness banner ([#411](https://github.com/Danube-Labs/javv-poc/issues/411)) ([dcd96bf](https://github.com/Danube-Labs/javv-poc/commit/dcd96bf554b2bdd4336595711b7bb5b567a182cb))
+* **ui:** sla-breached attribute chip on the findings rail (issue 363, pr 2/2) ([#366](https://github.com/Danube-Labs/javv-poc/issues/366)) ([d6fb096](https://github.com/Danube-Labs/javv-poc/commit/d6fb0960753cba00e3627ef443b33eebe238cfc8)), closes [#363](https://github.com/Danube-Labs/javv-poc/issues/363)
+
+
+### Bug Fixes
+
+* **backend:** historical export reconstructs the cluster once (audit f-09) ([#397](https://github.com/Danube-Labs/javv-poc/issues/397)) ([fda2990](https://github.com/Danube-Labs/javv-poc/commit/fda29904df7d49b57c4019df4396da7417c5c9e5))
+* **backend:** historical reads page to exhaustion, never a 10k cap (audit f-05/f-06) ([#392](https://github.com/Danube-Labs/javv-poc/issues/392)) ([8de360b](https://github.com/Danube-Labs/javv-poc/commit/8de360b178d1de35f837058bef7cc7fdf467643b))
+* **backend:** jobs read to exhaustion — no 10k caps in rebuild/staleness ([#391](https://github.com/Danube-Labs/javv-poc/issues/391)) ([#396](https://github.com/Danube-Labs/javv-poc/issues/396)) ([863a6ab](https://github.com/Danube-Labs/javv-poc/commit/863a6abc63bfa47aff4ff3e7270b58ae269d8a95))
+* **backend:** one id for a notification's _id and notification_id (audit f-03/f-13) ([#390](https://github.com/Danube-Labs/javv-poc/issues/390)) ([25aa1e8](https://github.com/Danube-Labs/javv-poc/commit/25aa1e89983354d75456d1335d8a864342f6bd60))
+* **backend:** report status + download are owner-scoped (audit f-01/f-12) ([#388](https://github.com/Danube-Labs/javv-poc/issues/388)) ([d4a4238](https://github.com/Danube-Labs/javv-poc/commit/d4a4238b03550d1d774fd9aad91913b4a5b6ebd8))
+* **ui:** export dialog carries the whole lens + past-t schedules (audit f-07/f-08/f-11) ([#393](https://github.com/Danube-Labs/javv-poc/issues/393)) ([100737a](https://github.com/Danube-Labs/javv-poc/commit/100737a2c860119faef403470274711a44cb33a6))
+* **ui:** image csv export is an authenticated read, not admin-only (audit f-10) ([#395](https://github.com/Danube-Labs/javv-poc/issues/395)) ([7a93781](https://github.com/Danube-Labs/javv-poc/commit/7a93781572ad7f48e966c019813dad710d46705d))
+* **ui:** lenses never flash the amber quiet claim before data lands ([#355](https://github.com/Danube-Labs/javv-poc/issues/355)) ([532f077](https://github.com/Danube-Labs/javv-poc/commit/532f077dc0fe21a9192e59f30b0ce8ce7e743128)), closes [#38](https://github.com/Danube-Labs/javv-poc/issues/38)
+* **ui:** neutralize formula heads in the image csv export (audit f-02) ([#389](https://github.com/Danube-Labs/javv-poc/issues/389)) ([d0279f0](https://github.com/Danube-Labs/javv-poc/commit/d0279f037f2656cd804e604d3daff081f47882de))
+* **ui:** rewound time chip names the viewed T from t itself ([#364](https://github.com/Danube-Labs/javv-poc/issues/364)) ([04dbc7d](https://github.com/Danube-Labs/javv-poc/commit/04dbc7d4e40e1b84168e4490eed07bd251c6acf0))
+* **ui:** sla countdowns measure from the rewound t, never from today ([#362](https://github.com/Danube-Labs/javv-poc/issues/362)) ([a6acdc5](https://github.com/Danube-Labs/javv-poc/commit/a6acdc5bb5b4a8ac8550b3844042d1350ac4a944))
+
 ## [0.3.9](https://github.com/Danube-Labs/javv-poc/compare/v0.3.8...v0.3.9) (2026-07-11)
 
 
