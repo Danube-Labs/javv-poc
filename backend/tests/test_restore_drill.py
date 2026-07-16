@@ -13,7 +13,6 @@ import os
 from pathlib import Path
 from uuid import uuid4
 
-import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
@@ -26,23 +25,11 @@ from backend.admin.snapshot import (
     write_snapshot_repo_ref,
 )
 from backend.core.bootstrap import bootstrap
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 # fs repo root configured via path.repo on the cluster; each drill uses a unique subdir under it
 PATH_REPO = os.environ.get("JAVV_SNAPSHOT_PATH_REPO", "/usr/share/opensearch/data/snapshots")
 GOLDEN = Path(__file__).parent / "fixtures" / "findings-seed-golden.json"
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
 
 
 @pytest.fixture

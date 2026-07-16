@@ -6,7 +6,6 @@ whole log without gaps or duplicates and A-m1 semantics hold (tampered cursor â†
 422); tenant isolation (another cluster's rows never appear). Rows are written through the real
 M5b writer â€” the read must see exactly what the journal contract produces."""
 
-import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -20,19 +19,12 @@ from backend.auth.passwords import hash_password
 from backend.core.settings import get_settings
 from backend.main import create_app
 from backend.query.audit import AuditFilters, build_audit_body
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "audit-route-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture(autouse=True)

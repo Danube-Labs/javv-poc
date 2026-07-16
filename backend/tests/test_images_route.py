@@ -6,7 +6,6 @@ findings) appear as ordinary rows; no inventory yet → `inventory: null` (unkno
 tenant isolation; session auth; and the share-the-query-layer pin — the route's rows are
 byte-identical to M8b's `running_images_at` at `t=now` (the two can never disagree)."""
 
-import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -18,19 +17,12 @@ from opensearchpy import AsyncOpenSearch
 from backend.auth.passwords import hash_password
 from backend.main import create_app
 from backend.query.pit import running_images_at
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "images-route-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture

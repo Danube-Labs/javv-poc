@@ -6,28 +6,23 @@ timeline walk through the same surfaces, the re-validation contract (raw delegat
 ValueError), tombstone parity, and stateless paging."""
 
 import asyncio
-import contextlib
 import json
-import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
-import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.core.bootstrap import bootstrap
 from backend.decisions.lifecycle import DecisionPayload, DecisionScope, create_decision
 from backend.models.envelope import IngestEnvelope, canonical_severity
 from backend.query.as_of_t import AsOfTQuery
 from backend.query.search import SearchFilters, run_search
 from backend.services.ingest import build_docs, ingest_envelope
 from backend.triage.bulk import apply_bulk_triage
+from os_env import requires_opensearch
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 CLUSTER = GOLDEN["cluster_id"]
 DIGEST = GOLDEN["image_digest"]
 ORDER = GOLDEN["scan_order"]
@@ -79,29 +74,6 @@ def _envelope(keep: int, scan_order: int, run_id: str, seen_at: str) -> IngestEn
         "last_seen_at": seen_at,
     }
     return IngestEnvelope.model_validate(e)
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 async def _now(client: AsyncOpenSearch, prefix: str) -> datetime:

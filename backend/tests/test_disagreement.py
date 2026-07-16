@@ -4,24 +4,16 @@ flags mark disagreement, they never merge/sum the scanners; docs stay one-per-sc
 match key = `(cve_id, package_name)` compared via the D16 canonical buckets (verbatim words with
 the same meaning — "HIGH" vs "High" — never disagree). Real OpenSearch for the ingest-path tests."""
 
-import contextlib
 import json
-import os
 from collections import Counter
 from pathlib import Path
-from uuid import uuid4
 
-import httpx
-import pytest
-from opensearchpy import AsyncOpenSearch
-
-from backend.core.bootstrap import bootstrap
 from backend.models.envelope import IngestEnvelope, canonical_severity
 from backend.services.disagreement import severity_flags
 from backend.services.ingest import build_docs, ingest_envelope
+from os_env import requires_opensearch
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 CLUSTER = GOLDEN["cluster_id"]
 GRYPE_TUNING = {"only_fixed": False, "scope": None, "scan_timeout": 300}
 
@@ -83,29 +75,6 @@ def test_different_package_is_not_a_match() -> None:
 
 
 # --- ingest path (real OpenSearch) --------------------------------------------------
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 def _counts(findings: list[dict]) -> dict[str, int]:

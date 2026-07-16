@@ -7,11 +7,9 @@ never touched; chunks whose report doc vanished are reaped; a second sweep reaps
 (idempotence). Uses unique report ids per test — no cross-test/store interference.
 """
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
-import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
@@ -24,18 +22,9 @@ from backend.reports.models import (
     REPORTS_INDEX,
     RUNNING,
 )
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture

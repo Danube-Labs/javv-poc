@@ -3,52 +3,21 @@ refreshing — per-finding freshness (N days), scanner-down escalation (M days),
 them, and revert-on-return. `stale` is a flag on `state`, never a delete; presence is never touched.
 Timers are read from `system-config` (UI-configurable, never hardcoded). Real OpenSearch."""
 
-import contextlib
 import json
-import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from uuid import uuid4
 
-import httpx
-import pytest
-from opensearchpy import AsyncOpenSearch
-
-from backend.core.bootstrap import bootstrap
 from backend.jobs.staleness import (
     StalenessTimers,
     read_staleness_timers,
     run_staleness_sweep,
     write_staleness_timers,
 )
+from os_env import requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
 CLUSTER = GOLDEN["cluster_id"]
 NOW = datetime(2026, 7, 3, tzinfo=UTC)
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 async def _seed_token(

@@ -16,7 +16,6 @@ an always-applied data filter (D38/H9) — reads are guarded structurally by the
 grows the cross-tenant case for every registered endpoint.
 """
 
-import os
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -27,8 +26,8 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.auth.passwords import hash_password
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "correct horse battery staple"
 
 
@@ -254,18 +253,6 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
 )
 
 _MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
 
 
 # ── presence check: an unregistered mutating route fails the build (AUDIT N4) ─────────────────

@@ -10,7 +10,6 @@ preflight; no CORS middleware is configured — also pinned). m-10: a login that
 still-valid session cookie revokes THAT session — switching accounts can't orphan a live session.
 Codex M3: the dev-only token pepper must fail startup in a production profile."""
 
-import os
 import uuid
 from typing import Any
 
@@ -23,21 +22,9 @@ from backend.auth.passwords import hash_password
 from backend.auth.sessions import lookup_session, revoke_all_for_user
 from backend.core.settings import Settings, assert_production_ready, get_settings
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "correct horse battery staple"
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
 
 
 # --- m-1: lockout memory bounds (pure) --------------------------------------------------

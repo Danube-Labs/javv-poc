@@ -6,7 +6,6 @@ all-visible ruling) with `owner` = the creator; creation is journaled (D17 journ
 extra field, bad ptype shape) → 422 and NEVER stored; the preset mirrors `SearchFilters`
 one-to-one (drift here silently breaks the §6 deep-link contract)."""
 
-import os
 import uuid
 
 import httpx
@@ -18,19 +17,12 @@ from backend.core.bootstrap import bootstrap
 from backend.main import create_app
 from backend.query.search import SearchFilters
 from backend.routers.views import ViewPreset
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "views-route-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 async def _login(

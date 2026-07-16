@@ -4,10 +4,8 @@ OpenSearch (skipped when unreachable — locally the dev container is up, CI get
 container in a later slice)."""
 
 import contextlib
-import os
 from uuid import uuid4
 
-import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
@@ -17,8 +15,7 @@ from backend.core.bootstrap import (
     MUTABLE_INDEXES,
     bootstrap,
 )
-
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
+from os_env import OS_URL, requires_opensearch
 
 
 def _mappings(body: dict) -> dict:
@@ -151,18 +148,6 @@ def test_auth_indices_match_index_map() -> None:  # M5a slice 1 (FR-18/SEC-5/SEC
 
 
 # --- integration: real OpenSearch (skipped when unreachable) ----------------
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
 
 
 @pytest.fixture

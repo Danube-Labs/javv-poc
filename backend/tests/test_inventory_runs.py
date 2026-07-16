@@ -6,17 +6,12 @@ kept), and the per-cluster order allocation is strictly increasing with a commit
 self-heal — the D45 contract."""
 
 import asyncio
-import contextlib
-import os
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
 
 import httpx
-import pytest
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
-from backend.core.bootstrap import bootstrap
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
 from backend.main import create_app
@@ -27,9 +22,9 @@ from backend.snapshots.inventory_runs import (
     allocate_inventory_order,
     commit_inventory_run,
 )
+from os_env import requires_opensearch
 
 PEPPER = get_settings().token_pepper
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 STARTED = datetime(2026, 7, 7, 12, 0, tzinfo=UTC)
 
 
@@ -136,29 +131,6 @@ async def test_post_binds_to_the_tokens_cluster_and_counts_server_side() -> None
 
 
 # --- semantics (real OpenSearch) ------------------------------------------------
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 CLUSTER = "cluster-semantics"

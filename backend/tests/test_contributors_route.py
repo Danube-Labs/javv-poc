@@ -5,7 +5,6 @@ rows, not live findings state); machines (`actor=system`) never chart; TTR/SLA a
 live policy (crit handled in 1d = hit, in 3d = miss); tenant isolation; the uniform as_of seam.
 """
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -17,19 +16,12 @@ from backend.audit.writer import append_field_change
 from backend.auth.passwords import hash_password
 from backend.core.settings import get_settings
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "contrib-route-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture(autouse=True)

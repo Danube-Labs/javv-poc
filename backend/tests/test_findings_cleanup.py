@@ -4,48 +4,17 @@ predates `now - cleanup_days` are reaped from the mutable `findings` cache — t
 with them (D40 guard preserved for every digest that still has rows). History is NEVER touched
 (`stale`/`present` stay flags on the freshness path; the cache is rebuildable). Real OpenSearch."""
 
-import contextlib
-import os
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 
-import httpx
-import pytest
-from opensearchpy import AsyncOpenSearch
-
-from backend.core.bootstrap import bootstrap
 from backend.jobs.findings_cleanup import (
     FindingsCleanupKnob,
     run_findings_cleanup,
     write_findings_cleanup_knob,
 )
+from os_env import requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 NOW = datetime.now(UTC)
 CLUSTER = "c-cleanup"
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 def _days_ago(days: float) -> str:
