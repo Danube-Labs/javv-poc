@@ -564,3 +564,24 @@ endpoint; package group conditional.
 | Overview donut, Findings ptype facet/column | `ptype` in envelope + mapping + facets | **M8d** |
 | Saved views CRUD | `system-views` index + `/api/v1/views` endpoints | **M8e** |
 | Image detail point-in-time | M8b point-in-time query API | **M8b** |
+
+## SHIPPED-DELTAS register (ruled deviations — the contract vs what was built)
+
+Added 2026-07-16 (#410) so this contract and the app stop diverging silently. Every deviation
+below was an **operator ruling against a built specimen** (recorded in the owning bolt README's
+`## Updates` + its issue); this register is the one-hop index. The rule stands: a screen's
+grammar is the prototype's — substituting it needs a live ruling (DESIGN.md §8.5).
+
+| § | Contract said | Shipped | Ruling / record |
+|---|---|---|---|
+| 13.4 | Ignore rules → Decisions redirect stub | **No nav entry at all** — decisions live on `/approvals` + finding detail | 2026-07-15, M9e README (supersedes the #237 row-20 stub ruling) |
+| — | (v4 prototype) per-CVE audit panel | **Struck** — no screen; the content ships on finding detail + Approvals + Audit | 2026-07-15, M9e README row 24 |
+| 13.2 | (v4 prototype) scanner version select, tuning writes, enable toggles, Schedule section | **Read-only** provenance + `effective_config` cards; version = image-tag swap (D41), tuning = env/GitOps (C-4), no enable concept (D30), schedule = manifest | 2026-07-07 + 2026-07-15, M9e README §C |
+| 13.2 | — | Namespace scope lists are **exact matches**; globs only on `exclude_images` | 2026-07-15, M9e README (verified in `scanner/scope.py`) |
+| 13.3 | "Security Lead can edit" SLA | Edit gate is **`can_manage_settings`** (admin bundle) | M9e README row 5 |
+| 13.6 | 5-role matrix, user delete | **4 capability bundles** (A-4), **disable-never-delete**, invite = temp password + `must_change` | M9e README row 8 |
+| 13.7 | (v4 prototype) 4 editable per-purpose retention windows | **One** editable window over the 4 append families; protected families render read-only with the why written in the panel | 2026-07-15 ruling, M9e README row 23 |
+| 13.7 | — | Panel additions beyond the contract: report/export-TTL knob (row-11 graduation), findings-cleanup window (D37/M12), read-only **OpenSearch runtime** card (§D), snapshots restore into `restored-*` copies only | M9e README rows 10/11 + §D |
+| 13.8 | `schema_version: 3` | **4** (M8d ptype bump) | M9e README row 9 |
+| global | FE freshness banner on a build-time env var | Banner + fleet chips read the **live staleness timers** (selected cluster's effective window); `VITE_FRESHNESS_BANNER_HOURS` removed | M9e README row 14 |
+| global | — | Severity everywhere is the **six-word canonical vocabulary** (D46); verbatim scanner casing is display-only | D46/#274 |

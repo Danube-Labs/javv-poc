@@ -27,7 +27,7 @@
 | `system-tokens` | mutable | none | **no** | manual revoke |
 | `system-sessions` | mutable | none | **no** | TTL expiry |
 | `system-config` | mutable | none | **no** | none |
-| `system-tags` | mutable | none | **no** | none |
+| `system-tags` | mutable *(planned — not yet created by bootstrap; the tags feature is post-MVP)* | none | **no** | none |
 | `system-views` | mutable | none | **no** | none |
 | `system-notifications` | mutable | none | **no** | bounded delete (old/read) |
 | `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h) |
