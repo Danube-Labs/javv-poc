@@ -1,12 +1,13 @@
-# Running the JAVV stack by hand (M0–M5b)
+# Running the JAVV stack by hand
 
 A copy-paste runbook to bring up **everything built so far** on the dev VM and watch a real
-scan flow end to end. Two paths:
+scan flow end to end. Three paths:
 
 - **Path A — backend only** (~5 min, no Kubernetes): OpenSearch + backend, then push a real
   envelope with `curl`. Proves ingest → findings → scan-events → triage → audit without scanners.
 - **Path B — full stack** (adds k3d + Trivy/Grype): the real scanner discovers running pods and
   pushes for real. This is the end-to-end smoke from risk register #134.
+- **Path F — the frontend** on top of Path A (or B): the Vue app against the local backend.
 
 Every command is run from the repo root (`/home/sirbudd/Desktop/Github/javv-poc`) unless noted.
 Lines starting `#` are comments; don't type them.
@@ -60,8 +61,9 @@ export JAVV_OPENSEARCH_URL=http://localhost:9200
 export JAVV_TOKEN_PEPPER='local-dev-pepper-change-me'      # peppers ingest tokens + session ids
 export JAVV_BOOTSTRAP_ADMIN_USERNAME='admin'
 export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'   # ≥12 chars (password policy)
+export JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50   # default 10 starves rapid UI navigation/rigs with 429s
 
-# create/upgrade every index + template (idempotent, versioned — MAPPING_VERSION 6 today)
+# create/upgrade every index + template (idempotent, versioned — MAPPING_VERSION 16 today)
 uv run python -m backend.core.bootstrap
 
 # start the API (foreground). It re-runs bootstrap, seeds the admin + default roles, then serves.
@@ -174,8 +176,12 @@ These are k8s CronJobs in production; run them manually here (from `backend/`, w
 
 ```bash
 cd backend
-uv run python -m backend.jobs.staleness       # two-timer staleness sweep (D20)
-uv run python -m backend.jobs.lifecycle        # rollover + per-cluster drop-whole-index retention
+uv run python -m backend.jobs.staleness         # two-timer staleness sweep (D20)
+uv run python -m backend.jobs.lifecycle         # rollover + per-cluster drop-whole-index retention
+uv run python -m backend.jobs.findings_cleanup  # long-window findings cache cleanup (D37/M12)
+uv run python -m backend.jobs.report_drain      # scheduled-export worker (leases pending reports)
+uv run python -m backend.jobs.report_sweep      # report TTL + orphan-chunk reaper
+uv run python -m backend.jobs.rebuild_state     # crash self-heal: decisions/presence/SLA-clock arms
 ```
 
 Path A done — you've seen ingest → dedup/merge → commit catalog → triage → immutable audit, plus
@@ -232,8 +238,8 @@ JAVV_TOKEN=$SCAN_TOKEN \
 ```
 
 What happens in one cycle: fetch scan-scope (`GET /api/v1/scan-scope`) → allocate `scan_order`
-(`POST /api/v1/scan-runs`) → discover running pods → run `trivy` on each image → build a v3
-envelope → push to `POST /api/v1/scan` for each. A failed image is logged and skipped, not fatal.
+(`POST /api/v1/scan-runs`) → discover running pods → run `trivy` on each image → build a v4
+envelope → push to `POST /api/v1/ingest/scan` for each. A failed image is logged and skipped, not fatal.
 
 ### B4. Run Grype too (per-scanner is sacred — never merged)
 
@@ -269,14 +275,54 @@ That's the full loop the k8s CronJobs will run on a schedule.
 
 ---
 
+## Path F — the frontend
+
+With the backend up (Path A) the Vue app runs against it via the vite dev proxy:
+
+```bash
+cd frontend
+npm install          # first time only
+npm run dev          # http://localhost:5173 — /api + /auth proxied to :8000
+```
+
+Log in with the bootstrap admin from A4. If the backend was started with the default PIT budget
+(no `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50`), rapid navigation will 429 — restart it with the
+export from A2.
+
+Two frontend gotchas that always bite:
+- **After any backend contract change**: `(cd backend && uv run python -m backend.tools.export_openapi
+  ../frontend/openapi.json) && (cd frontend && npm run gen:api)` — then **restart vite** (its module
+  graph doesn't see new generated exports; imports 500 with "does not provide an export").
+- **The dev backend has no `--reload`** — restart it after backend edits or new routes 404.
+
+---
+
+## R. Operational runbooks (where they live)
+
+The authoritative procedure for each destructive/recovery operation is its module docstring + the
+test that drills it — these can't drift from the code:
+
+| Operation | Drive it | Drilled by |
+|---|---|---|
+| Snapshot / restore | Settings → Data & OpenSearch panel (`POST /api/v1/admin/snapshots` + `…/restore`) | `backend/tests/test_restore_drill.py` + `test_snapshot.py` |
+| Rebuild state (crash self-heal) | `uv run python -m backend.jobs.rebuild_state` | `backend/tests/test_rebuild_presence.py` |
+| Token rotation | Settings → Access & tokens (rotate = new secret, same scope), or `POST /api/v1/admin/tokens/{id}/rotate` | `backend/tests/test_token_admin.py` |
+| Retention / rollover changes | Settings → Data & OpenSearch (applies at the next lifecycle sweep) | `backend/tests/test_lifecycle.py` |
+| Findings cache cleanup | knob in the same panel; `uv run python -m backend.jobs.findings_cleanup` | `backend/tests/test_findings_cleanup.py` |
+
+---
+
 ## T. Teardown
 
 ```bash
-# stop the backend: Ctrl-C in its terminal
+# stop the backend + vite: Ctrl-C in their terminals (or kill by PID from `ss -ltnp`, never pkill)
 docker compose -f development/setup/opensearch-dev.yml down       # keep data
 # docker compose -f development/setup/opensearch-dev.yml down -v   # wipe the data volume
 k3d cluster delete alpha                                           # Path B only
 rm -f backend/cookies.txt scanner/*.dead-letter.jsonl
+
+# after running the backend test suite against this store: sweep the test residue
+# (`nu-*`/`ext-*`/`0-list-*`/`u-*` users, `t-*` indices) — keep {admin, rig}; or `down -v` for a clean slate
 ```
 
 ---

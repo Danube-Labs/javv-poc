@@ -127,6 +127,11 @@ jobs:
         working-directory: backend
         run: uv run pyright
 
+      # Docs-drift gate (#410): API.md route table + CONFIGURATION.md env rows vs code
+      - name: Docs drift
+        if: steps.detect.outputs.present == 'true'
+        run: bash development/scripts/check-docs-drift.sh
+
   backend:
     name: Backend
     runs-on: ubuntu-latest
