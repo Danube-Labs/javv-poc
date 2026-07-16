@@ -4,18 +4,12 @@ run — the C1 guard backing the whole bolt); winners resolve by `scan_order`, n
 (D40); the symmetric read goes catalog-first (D39); running-images reads only committed inventory
 manifests by `inventory_order` (a partial run falls back to the prior committed one)."""
 
-import contextlib
 import json
-import os
 from datetime import UTC, datetime
 from pathlib import Path
-from uuid import uuid4
 
-import httpx
-import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.core.bootstrap import bootstrap
 from backend.models.envelope import IngestEnvelope, canonical_severity
 from backend.query.pit import (
     images_with_cve_at,
@@ -25,9 +19,9 @@ from backend.query.pit import (
 )
 from backend.services.aliases import ensure_write_alias
 from backend.services.ingest import ingest_envelope
+from os_env import requires_opensearch
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 
 CLUSTER = GOLDEN["cluster_id"]
 DIGEST = GOLDEN["image_digest"]
@@ -69,29 +63,6 @@ def _envelope(
     if image_digest is not None:
         e["image_digest"] = image_digest
     return IngestEnvelope.model_validate(e)
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 async def _seed_history(client: AsyncOpenSearch, prefix: str) -> None:

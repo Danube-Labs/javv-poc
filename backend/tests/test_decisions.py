@@ -6,45 +6,20 @@ coverage — never a gap where a risk-acceptance silently lapses). Every lifecyc
 journaled. Real OpenSearch, prefix-isolated."""
 
 import asyncio
-import contextlib
-import os
 from uuid import uuid4
 
-import httpx
 import pytest
-from opensearchpy import AsyncOpenSearch
 from pydantic import ValidationError
 
-from backend.core.bootstrap import bootstrap
 from backend.decisions.lifecycle import (
     DecisionPayload,
     create_decision,
     edit_decision,
     revoke_decision,
 )
+from os_env import requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
+pytestmark = requires_opensearch
 
 
 def _payload(**overrides) -> DecisionPayload:

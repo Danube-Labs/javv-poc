@@ -6,7 +6,6 @@ caveat) instead of silently vanishing; `/findings/groups?by=ptype` pages; the as
 reconstructs ptype (filter + facet at a past T, unknown-bucket mirrored); pure-builder units."""
 
 import json
-import os
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
@@ -22,20 +21,13 @@ from backend.models.envelope import IngestEnvelope
 from backend.query.aggs import build_composite_body, build_facets_body
 from backend.query.search import SearchFilters, build_search_body
 from backend.services.ingest import ingest_envelope
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 FIXTURES = Path(__file__).parent / "fixtures"
 PASSWORD = "ptype-read-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture

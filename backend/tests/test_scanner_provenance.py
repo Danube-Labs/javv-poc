@@ -7,7 +7,6 @@ appended with no scan-events commit doc — never surfaces; last-N runs aggregat
 the #257 precision class (adjacent pre-D45 time_ns-scale orders resolve exactly — `top_hits`
 `_source`, never a float64 metric agg)."""
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -17,19 +16,12 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.auth.passwords import hash_password
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "provenance-route-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture

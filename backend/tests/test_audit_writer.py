@@ -4,43 +4,16 @@ not just forbidden). Replay ordering: `(@timestamp, event_id)` across entities, 
 same-`(entity, field)` causality (D40/H-r3). Absorbs M5a's thin auth appender (same rows, one
 writer). Real OpenSearch, prefix-isolated."""
 
-import contextlib
-import os
-from uuid import uuid4
-
-import httpx
 import pytest
-from opensearchpy import AsyncOpenSearch
 
 from backend.audit.writer import (
     AUDIT_SCHEMA_VERSION,
     append_auth_event,
     append_field_change,
 )
-from backend.core.bootstrap import bootstrap
+from os_env import requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
+pytestmark = requires_opensearch
 
 
 async def _rows(client, prefix) -> list[dict]:

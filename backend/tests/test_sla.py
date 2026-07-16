@@ -14,7 +14,6 @@ Rulings pinned here:
 - Storage: fleet-wide `system-config` doc (`sla`), LifecycleKnobs pattern, read live per request.
 """
 
-import os
 import uuid
 from datetime import UTC, datetime
 
@@ -26,6 +25,7 @@ from backend.auth.passwords import hash_password
 from backend.main import create_app
 from backend.sla.overdue import compute_overdue
 from backend.sla.policy import SlaPolicy
+from os_env import OS_URL, requires_opensearch
 
 NOW = datetime(2026, 7, 10, tzinfo=UTC)
 
@@ -102,20 +102,6 @@ def test_boundary_exactly_at_deadline_is_not_overdue() -> None:
 
 
 # --- routes (integration): read for all, write admin-gated + journaled -----------------
-
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
 
 
 @pytest.fixture

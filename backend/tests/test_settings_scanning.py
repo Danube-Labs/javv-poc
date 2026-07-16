@@ -4,7 +4,6 @@ round-trip: a UI-saved scope is exactly what the BEARER `GET /api/v1/scan-scope`
 scanner. Real OpenSearch (the admin_env idiom from test_admin_users.py); every write journaled."""
 
 import contextlib
-import os
 import uuid
 
 import httpx
@@ -15,19 +14,12 @@ from backend.auth.passwords import hash_password
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "correct horse battery staple"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture

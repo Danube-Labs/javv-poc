@@ -4,10 +4,8 @@ settings **allowlist**, so a credential key (`secret_key`, `password`, …) is s
 un-persistable — it fails validation at the boundary rather than being silently dropped.
 Integration tests run against a real OpenSearch (skipped when unreachable)."""
 
-import os
 from uuid import uuid4
 
-import httpx
 import pytest
 from pydantic import ValidationError
 
@@ -21,9 +19,7 @@ from backend.admin.snapshot import (
     write_snapshot_repo_ref,
 )
 from backend.core.bootstrap import MUTABLE_INDEXES, bootstrap
-
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
-
+from os_env import OS_URL, requires_opensearch
 
 # --- unit: the ref model can't carry credentials ----------------------------
 
@@ -98,18 +94,6 @@ def test_system_config_is_bootstrapped() -> None:
 
 
 # --- integration: real OpenSearch round-trip --------------------------------
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
 
 
 @pytest.fixture
