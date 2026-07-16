@@ -585,3 +585,4 @@ grammar is the prototype's — substituting it needs a live ruling (DESIGN.md §
 | 13.8 | `schema_version: 3` | **4** (M8d ptype bump) | M9e README row 9 |
 | global | FE freshness banner on a build-time env var | Banner + fleet chips read the **live staleness timers** (selected cluster's effective window); `VITE_FRESHNESS_BANNER_HOURS` removed | M9e README row 14 |
 | global | — | Severity everywhere is the **six-word canonical vocabulary** (D46); verbatim scanner casing is display-only | D46/#274 |
+| 2 | (v4 prototype had no Scan-activity card; the built one duplicated IngestLens) | Scan-activity card **dropped**; slot carries **Top components** (restored prototype card, ≤100-package server board w/ per-scanner unique-CVE counts, now-only read) + **Riskiest images** (ranked running images off the images read, rewindable) — both on the shared table skin + GridPager; Overview goes `wide` | 2026-07-16 §8.5 ruling on built specimens: **keep both** |

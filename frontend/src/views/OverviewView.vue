@@ -8,20 +8,23 @@
  * "+new 30d" chips (no per-severity trend agg), namespace severity MixBar (no per-ns severity
  * agg), Top components / Language binaries / Newly published (B-6/B-2).
  * Issue-384 split: the stat bands and the namespaces card live in components/overview/;
- * the scanner-lens count math is the shared pure helper views/overviewLens.ts.
+ * the scanner-lens count math is the shared pure helper lib/scannerLens.ts.
+ * The Scan-activity card is gone (it duplicated IngestLens — same trends/scans read); its slot
+ * runs the A/B specimens (TopComponentsCard vs RiskiestImagesCard) pending the §8.5 ruling.
  */
 import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { buildFindingsTrendOption } from '@/charts/buildFindingsTrendOption'
 import { buildPtypeDonutOption } from '@/charts/buildPtypeDonutOption'
-import { buildScanActivityOption } from '@/charts/buildScanActivityOption'
 import { buildSeverityTrendOption, type SeverityTrendData } from '@/charts/buildSeverityTrendOption'
 import { isSubDayWindow } from '@/charts/buildTrendQuery'
 import EChart from '@/components/charts/EChart.vue'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
 import OverviewNamespacesCard from '@/components/overview/OverviewNamespacesCard.vue'
 import OverviewStatBands from '@/components/overview/OverviewStatBands.vue'
+import RiskiestImagesCard from '@/components/overview/RiskiestImagesCard.vue'
+import TopComponentsCard from '@/components/overview/TopComponentsCard.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -30,7 +33,7 @@ import { CHART_PTYPE_RAMP } from '@/styles/tokens'
 import { useClusterStore } from '@/stores/cluster'
 import { useOverviewStore } from '@/stores/overview'
 import { useTimeTravelStore } from '@/stores/timeTravel'
-import { countOf, fmt, type ScannerLens } from '@/views/overviewLens'
+import { countOf, fmt, type ScannerLens } from '@/lib/scannerLens'
 import { ref } from 'vue'
 
 const SCANNER_OPTS = [
@@ -80,14 +83,6 @@ const trendOption = computed(() => {
     resolved: { [scanner.value]: overview.trend.resolved[scanner.value] },
   })
 })
-
-const scansOption = computed(() =>
-  buildScanActivityOption(
-    scanner.value === 'all'
-      ? overview.scans
-      : { [scanner.value]: overview.scans[scanner.value] },
-  ),
-)
 
 /** ptype buckets minus a lone `unknown` (pre-M8d rows heal on the next sweep, D30). */
 const ptypeBuckets = computed(() => {
@@ -222,20 +217,13 @@ function onDonutClick(e: { name?: string }) {
       </div>
 
       <div class="grid grid-1-1">
-        <section class="card">
-          <div class="card-head">
-            <div>
-              <h3>Scan activity</h3>
-              <p class="card-sub">committed runs per day, per scanner</p>
-            </div>
-          </div>
-          <div class="card-body">
-            <EChart :option="scansOption" :height="190" />
-            <p v-if="subDayNote" class="chart-note">
-              Trend at daily resolution — chart covers the last 1 day.
-            </p>
-          </div>
-        </section>
+        <!-- A/B specimens (§8.5 ruling pending): A = Top components, B = Riskiest images.
+             The winner keeps this row next to the namespaces card; the loser is deleted. -->
+        <TopComponentsCard :scanner="scanner" />
+        <RiskiestImagesCard :scanner="scanner" />
+      </div>
+
+      <div class="grid grid-1-1">
         <OverviewNamespacesCard :scanner="scanner" />
       </div>
     </template>
@@ -263,6 +251,11 @@ function onDonutClick(e: { name?: string }) {
   display: grid;
   gap: var(--grid-gap);
   margin-top: 16px;
+}
+/* grid children default to min-width:auto — an ECharts canvas's rendered width then pins the
+   column and expanding the sidebar shoves the row off-viewport; 0 lets autoresize shrink it */
+.grid > * {
+  min-width: 0;
 }
 .grid-2-1 {
   grid-template-columns: 1.55fr 1fr;

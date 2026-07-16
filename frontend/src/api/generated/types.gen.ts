@@ -2166,6 +2166,108 @@ export type GroupFindingsApiV1FindingsGroupsGetResponses = {
 
 export type GroupFindingsApiV1FindingsGroupsGetResponse = GroupFindingsApiV1FindingsGroupsGetResponses[keyof GroupFindingsApiV1FindingsGroupsGetResponses];
 
+export type TopComponentsFindingsApiV1FindingsTopComponentsGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+        /**
+         * Severity
+         */
+        severity?: Array<string> | null;
+        /**
+         * State
+         */
+        state?: Array<string> | null;
+        /**
+         * Scanner
+         */
+        scanner?: string | null;
+        /**
+         * Assignee
+         */
+        assignee?: string | null;
+        /**
+         * Kev
+         */
+        kev?: boolean | null;
+        /**
+         * Fixable
+         */
+        fixable?: boolean | null;
+        /**
+         * Disagree
+         */
+        disagree?: boolean | null;
+        /**
+         * Cve Id
+         */
+        cve_id?: string | null;
+        /**
+         * Image Digest
+         */
+        image_digest?: string | null;
+        /**
+         * Image Repo
+         */
+        image_repo?: string | null;
+        /**
+         * Namespace
+         */
+        namespace?: string | null;
+        /**
+         * Ptype
+         */
+        ptype?: string | null;
+        /**
+         * Q
+         */
+        q?: string | null;
+        /**
+         * Present
+         */
+        present?: boolean;
+        /**
+         * New Within Days
+         */
+        new_within_days?: number | null;
+        /**
+         * Overdue
+         */
+        overdue?: boolean | null;
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+    };
+    url: '/api/v1/findings/top-components';
+};
+
+export type TopComponentsFindingsApiV1FindingsTopComponentsGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TopComponentsFindingsApiV1FindingsTopComponentsGetError = TopComponentsFindingsApiV1FindingsTopComponentsGetErrors[keyof TopComponentsFindingsApiV1FindingsTopComponentsGetErrors];
+
+export type TopComponentsFindingsApiV1FindingsTopComponentsGetResponses = {
+    /**
+     * Response Top Components Findings Api V1 Findings Top Components Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type TopComponentsFindingsApiV1FindingsTopComponentsGetResponse = TopComponentsFindingsApiV1FindingsTopComponentsGetResponses[keyof TopComponentsFindingsApiV1FindingsTopComponentsGetResponses];
+
 export type TriageApiV1FindingsFindingKeyTriagePatchData = {
     body: TriagePatch;
     path: {

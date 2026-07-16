@@ -11,7 +11,7 @@ import { useRouter } from 'vue-router'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { useOverviewStore } from '@/stores/overview'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
-import { countOf, fmt, type ScannerLens } from '@/views/overviewLens'
+import { countOf, fmt, type ScannerLens } from '@/lib/scannerLens'
 
 const KPI_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low']
 

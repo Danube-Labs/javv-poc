@@ -50,6 +50,7 @@ const router = createRouter({
           path: 'overview',
           name: 'overview',
           component: () => import('@/views/OverviewView.vue'),
+          meta: { wide: true },
         },
         {
           path: 'findings',

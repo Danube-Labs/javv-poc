@@ -14,7 +14,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import { useAllClustersStore, type ClusterRow } from '@/stores/allClusters'
 import { useClusterStore } from '@/stores/cluster'
 import type { Severity } from '@/styles/tokens'
-import { bucketCount, fmt, type ScannerLens } from '@/views/fleetLens'
+import { facetCount, fmt, type ScannerLens } from '@/lib/scannerLens'
 import { lastDataAt } from '@/system/freshness'
 
 const MIX_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']
@@ -27,7 +27,7 @@ const clusterStore = useClusterStore()
 const fleet = useAllClustersStore()
 
 const count = (row: ClusterRow, facet: string, key: string) =>
-  bucketCount(row, facet, key, props.scanner)
+  facetCount(row.facets, facet, key, props.scanner)
 const presentCount = (row: ClusterRow) => count(row, 'present', 'true')
 
 /* per-row signals — all straight facet reads the row already fetched (Overview 1b analogs) */
