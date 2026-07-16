@@ -33,7 +33,7 @@ import { useClusterStore } from '@/stores/cluster'
 import { makeFiltersStore } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
-import { keepTT, stripTT } from '@/system/timeTravelUrl'
+import { keepGlobals, stripGlobals } from '@/system/globalUrl'
 
 const useAuditFilters = makeFiltersStore('audit-filters', AUDIT_FIELDS)
 const filters = useAuditFilters()
@@ -124,13 +124,13 @@ watch(
 watch(
   () => filters.toQuery(),
   (q) => {
-    void router.replace({ query: { ...keepTT(route.query), ...q } })
+    void router.replace({ query: { ...keepGlobals(route.query), ...q } })
   },
 )
 watch(
   () => route.query,
   (q) => {
-    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripTT(q))) filters.fromQuery(q)
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripGlobals(q))) filters.fromQuery(q)
   },
 )
 

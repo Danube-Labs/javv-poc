@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { client } from '@/api/client'
 import { listClustersApiV1ClustersGet } from '@/api/generated'
 import { logger } from '@/lib/logger'
+import { useToastStore } from '@/stores/toast'
 
 export interface ClusterEntry {
   cluster_id: string
@@ -27,13 +28,26 @@ export const useClusterStore = defineStore('cluster', {
     selected: (s) => s.clusters.find((c) => c.cluster_id === s.selectedId) ?? null,
   },
   actions: {
-    async fetchClusters(): Promise<void> {
+    /** `preferredId` = a deep link's `?cluster=` (issue 433). Precedence: valid link > remembered
+     * selection > first cluster. A link's choice is deliberately NOT persisted — opening a
+     * colleague's beta link must not flip this browser's default; an unknown id falls back
+     * loudly (toast) instead of rendering an empty app. */
+    async fetchClusters(preferredId: string | null = null): Promise<void> {
       const { data, response } = await listClustersApiV1ClustersGet({ client })
       if (response?.ok && data) {
         this.clusters = (data as { clusters: ClusterEntry[] }).clusters ?? []
+        const known = (id: string | null): id is string =>
+          id !== null && this.clusters.some((c) => c.cluster_id === id)
+        if (preferredId !== null && !known(preferredId)) {
+          useToastStore().info('The link points at a cluster this store does not know — showing your default.')
+          logger.warn('url_cluster_unknown', { cluster_id: preferredId })
+        }
         const remembered = localStorage.getItem(STORAGE_KEY)
-        const valid = this.clusters.some((c) => c.cluster_id === remembered)
-        this.selectedId = valid ? remembered : (this.clusters[0]?.cluster_id ?? null)
+        this.selectedId = known(preferredId)
+          ? preferredId
+          : known(remembered)
+            ? remembered
+            : (this.clusters[0]?.cluster_id ?? null)
         this.failed = false
       } else {
         // silence-is-a-bug (audit 343): without the registry every screen renders empty —

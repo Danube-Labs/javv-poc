@@ -39,7 +39,7 @@ import { useFindingsStore, type FindingRow } from '@/stores/findings'
 import { makeFiltersStore } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
-import { keepTT, stripTT } from '@/system/timeTravelUrl'
+import { keepGlobals, stripGlobals } from '@/system/globalUrl'
 
 const useFindingsFilters = makeFiltersStore('findings-filters', FINDINGS_FIELDS)
 const filters = useFindingsFilters()
@@ -163,13 +163,13 @@ function refreshAfterBulk(count: number) {
 watch(
   () => filters.toQuery(),
   (q) => {
-    void router.replace({ query: { ...keepTT(route.query), ...q } })
+    void router.replace({ query: { ...keepGlobals(route.query), ...q } })
   },
 )
 watch(
   () => route.query,
   (q) => {
-    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripTT(q))) filters.fromQuery(q)
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripGlobals(q))) filters.fromQuery(q)
   },
 )
 
