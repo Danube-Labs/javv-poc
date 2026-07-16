@@ -6,9 +6,10 @@
 > are added or repurposed.
 
 **Status:** backend + scanner shipped through **M8** (scheduled reports/drain + the D28 historical
-readers; releases via release-please). Frontend shipped through **M9d** (findings/triage, overview,
-all-clusters, images, audit log, scanner status, contributors, approvals) - **M9e/M9f next**, then
-Helm deploy (M10). There is no `deploy/` yet - that lands at M10.
+readers; releases via release-please). Frontend shipped through **M9e** (findings/triage, overview,
+all-clusters, images, audit log, scanner status, contributors, approvals, the full Settings area
+incl. the findings-cleanup sweep) - **M9f next**, then Helm deploy (M10). There is no `deploy/`
+yet - that lands at M10.
 
 ## Start here (reading order)
 1. [`README.md`](README.md) - what JAVV is, stack, toolchain table, license.
@@ -91,12 +92,13 @@ Each bolt README is a self-contained brief (Goal · Canonical refs · Depends on
 | **M4** ✅ | scan-events append logs + ISM retention |
 | **M5a-d** ✅ | Auth/session · VEX state machine · decisions projection · SLA + bulk |
 | **M6** ✅ | Read/reporting API (T=now): search/facets/groups, exports, trends, contributors |
-| **M7** ◐ | Scheduled export - slice 1 (enqueue/status) shipped; slices 2-5 open (#32) |
+| **M7** ✅ | Scheduled export - enqueue/status, lease drain, TTL sweep, capped streams (#32) |
 | **M8a / M8b** ✅ | Snapshot append (occurrences) / point-in-time query API (T<now) |
 | **M8c / M8d / M8e** ✅ | M9-prep (v5 rulings #237): session reads (audit·provenance·inventory·cluster registry) / envelope `ptype` / server-side saved views |
 | **M9a-c** ✅ | Frontend: shell+filters+design gates · findings grid+detail+triage · overview+all-clusters+images |
-| **M9d** ◐ | Audit log ✅ · scanner status ✅ · contributors ✅ · approvals (slice 4, open) — bolt #38 |
-| **M9e / M9f** | Settings: data+scanning · cross-cutting (search, bell, saved views, RBAC, empty states) |
+| **M9d** ✅ | Audit log · scanner status · contributors · approvals (bolt #38) |
+| **M9e** ✅ | Settings: SLA · tokens · users · cluster · scanning · scan scope · Data & OpenSearch · findings-cleanup sweep (bolt #39) |
+| **M9f** | Cross-cutting (search, bell, saved views, RBAC, empty states) |
 | **M10** | Polish + deploy (Helm→k3s, scanner CronJobs, vuln-DB cache) |
 | AUDIT-M5c-M5d-M6-remediation ✅ | The #185-#192 audit wave (shipped v0.3.0) |
 
