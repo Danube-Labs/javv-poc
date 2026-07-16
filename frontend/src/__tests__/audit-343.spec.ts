@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { FAILURE_COPY, failureKind } from '@/findings/failureCopy'
-import { keepTT, stripTT, ttFromQuery, ttToQuery } from '@/system/timeTravelUrl'
+import { clusterFromQuery, keepGlobals, stripGlobals, ttFromQuery, ttToQuery } from '@/system/globalUrl'
 
 describe('honest-error mapping (audit 343 rule 1)', () => {
   it('names the actual cause per status, rewound or not', () => {
@@ -48,10 +48,17 @@ describe('the global range ⇄ URL (audit 343 rule 4)', () => {
     expect(ttFromQuery({ win: '9999' })).toEqual({ t: null, win: 365 })
   })
 
-  it('keepTT/stripTT split a screen query from the global keys', () => {
-    const q = { severity: 'critical', t: '2026-07-08T00:00:00Z', win: '7' }
-    expect(keepTT(q)).toEqual({ t: '2026-07-08T00:00:00Z', win: '7' })
-    expect(stripTT(q)).toEqual({ severity: 'critical' })
+  it('keepGlobals/stripGlobals split a screen query from the global keys — cluster included', () => {
+    const q = { severity: 'critical', t: '2026-07-08T00:00:00Z', win: '7', cluster: 'c-beta-1' }
+    expect(keepGlobals(q)).toEqual({ t: '2026-07-08T00:00:00Z', win: '7', cluster: 'c-beta-1' })
+    expect(stripGlobals(q)).toEqual({ severity: 'critical' })
+  })
+
+  it('clusterFromQuery shape-checks only — existence is the cluster store’s call (issue 433)', () => {
+    expect(clusterFromQuery({})).toBeNull()
+    expect(clusterFromQuery({ cluster: '' })).toBeNull()
+    expect(clusterFromQuery({ cluster: ['a', 'b'] })).toBeNull() // repeated key = malformed
+    expect(clusterFromQuery({ cluster: ' c-beta-1 ' })).toBe('c-beta-1')
   })
 })
 

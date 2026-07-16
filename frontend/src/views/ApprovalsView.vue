@@ -33,7 +33,7 @@ import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 import { refNowMs } from '@/system/clock'
 import { lastDataAt } from '@/system/freshness'
-import { keepTT, stripTT } from '@/system/timeTravelUrl'
+import { keepGlobals, stripGlobals } from '@/system/globalUrl'
 
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
@@ -111,14 +111,14 @@ watch(
 watch(
   () => filters.toQuery(),
   (q) => {
-    if (JSON.stringify(q) !== JSON.stringify(stripTT(route.query)))
-      void router.replace({ query: { ...keepTT(route.query), ...q } })
+    if (JSON.stringify(q) !== JSON.stringify(stripGlobals(route.query)))
+      void router.replace({ query: { ...keepGlobals(route.query), ...q } })
   },
 )
 watch(
   () => route.query,
   (q) => {
-    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripTT(q))) filters.fromQuery(q)
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripGlobals(q))) filters.fromQuery(q)
   },
 )
 

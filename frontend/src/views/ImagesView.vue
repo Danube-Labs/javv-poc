@@ -33,7 +33,7 @@ import { useImagesStore, type ImageRow } from '@/stores/images'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 import { lastDataAt } from '@/system/freshness'
-import { keepTT } from '@/system/timeTravelUrl'
+import { keepGlobals } from '@/system/globalUrl'
 
 const route = useRoute()
 const router = useRouter()
@@ -48,7 +48,7 @@ filters.fromQuery(route.query)
 watch(
   () => filters.toQuery(),
   // the global t/win keys are the shell's — preserve, never wipe (audit 343)
-  (q) => void router.replace({ query: { ...keepTT(route.query), ...q } }),
+  (q) => void router.replace({ query: { ...keepGlobals(route.query), ...q } }),
 )
 
 watch(
