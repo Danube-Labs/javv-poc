@@ -7,7 +7,7 @@
  * server's by_scanner split, exactly like Overview). I3: at T<now the store goes `limited`,
  * the screen renders LimitedHistoricalNotice, and no query is emitted (unit-guarded).
  * Issue-384 split: the fleet table lives in components/dashboards/FleetTable.vue; the
- * scanner-lens bucket math is the shared pure helper views/fleetLens.ts.
+ * scanner-lens bucket math is the shared pure helper lib/scannerLens.ts.
  */
 import { computed, ref, watch } from 'vue'
 
@@ -19,7 +19,7 @@ import { useTimeTravelStore } from '@/stores/timeTravel'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
 import { freshnessStatus } from '@/system/freshness'
-import { fmt, sevCount, type ScannerLens } from '@/views/fleetLens'
+import { facetCount, fmt, type ScannerLens } from '@/lib/scannerLens'
 
 const KPI_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'negligible']
 const SCANNER_OPTS = [
@@ -44,7 +44,8 @@ watch(
 )
 
 /** Fleet strip: per-severity server buckets added across clusters (see header). */
-const fleetSev = (sev: Severity) => fleet.rows.reduce((n, r) => n + sevCount(r, sev, scanner.value), 0)
+const fleetSev = (sev: Severity) =>
+  fleet.rows.reduce((n, r) => n + facetCount(r.facets, 'severity', sev, scanner.value), 0)
 
 const needAttention = computed(
   () =>

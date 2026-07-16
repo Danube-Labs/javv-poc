@@ -8,10 +8,8 @@ import {
   facetFindingsApiV1FindingsFacetsGet,
   scannerFreshnessApiV1ScannersFreshnessGet,
   findingsTrendApiV1TrendsFindingsGet,
-  scansTrendApiV1TrendsScansGet,
 } from '@/api/generated'
 import type { FindingsTrendData } from '@/charts/buildFindingsTrendOption'
-import type { ScanActivityData } from '@/charts/buildScanActivityOption'
 import { buildTrendQuery } from '@/charts/buildTrendQuery'
 import { logger } from '@/lib/logger'
 
@@ -27,7 +25,6 @@ export const useOverviewStore = defineStore('overview', {
     facets: {} as Facets,
     trend: { new: {}, resolved: {} } as FindingsTrendData,
     sevTrend: {} as Record<string, { date: string; count: number }[]>,
-    scans: {} as ScanActivityData,
     lastIngestAt: null as string | null,
     loading: false,
     failed: false,
@@ -43,29 +40,26 @@ export const useOverviewStore = defineStore('overview', {
       this.loading = true
       this.failed = false
       const trendQ = buildTrendQuery(params.cluster_id, windowDays, params.as_of ?? null)
-      const [facets, trend, scans, fresh] = await Promise.all([
+      const [facets, trend, fresh] = await Promise.all([
         facetFindingsApiV1FindingsFacetsGet({ client, query: params as never }),
         findingsTrendApiV1TrendsFindingsGet({ client, query: trendQ as never }),
-        scansTrendApiV1TrendsScansGet({ client, query: trendQ as never }),
         scannerFreshnessApiV1ScannersFreshnessGet({
           client,
           query: { cluster_id: params.cluster_id },
         }),
       ])
       this.loading = false
-      if (!facets.response?.ok || !trend.response?.ok || !scans.response?.ok) {
+      if (!facets.response?.ok || !trend.response?.ok) {
         this.failed = true
         logger.warn('overview_load_failed', {
           facets: facets.response?.status,
           trend: trend.response?.status,
-          scans: scans.response?.status,
         })
         return
       }
       this.facets = (facets.data as { facets: Facets }).facets ?? {}
       const t = trend.data as { new?: FindingsTrendData['new']; resolved?: FindingsTrendData['resolved'] }
       this.trend = { new: t.new ?? {}, resolved: t.resolved ?? {} }
-      this.scans = (scans.data as { series: ScanActivityData }).series ?? {}
       if (fresh.response?.ok && fresh.data) {
         const rows = (fresh.data as { scanners: { last_ingest_at: string | null }[] }).scanners
         this.lastIngestAt =

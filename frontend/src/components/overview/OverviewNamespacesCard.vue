@@ -11,7 +11,7 @@ import { useRouter } from 'vue-router'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { useOverviewStore } from '@/stores/overview'
-import { countOf, fmt, type ScannerLens } from '@/views/overviewLens'
+import { countOf, fmt, type ScannerLens } from '@/lib/scannerLens'
 
 const props = defineProps<{ scanner: ScannerLens }>()
 

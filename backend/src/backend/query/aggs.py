@@ -94,6 +94,32 @@ def build_facets_body(
     return body
 
 
+# the Overview Top-components card's row budget — a display contract (the ns card's top-10
+# analog), not a tunable
+TOP_COMPONENTS_SIZE = 10
+
+
+def build_top_components_body(filters: SearchFilters) -> dict[str, Any]:
+    """Top components (Overview card): capped `terms` over `package_name` ordered by finding
+    rows, each bucket carrying a PER-SCANNER unique-CVE cardinality. There is deliberately no
+    cross-scanner cardinality — distinct CVEs across scanners would be a merge (per-scanner is
+    sacred); the "all scanners" display adds the per-scanner uniques, same additive grammar as
+    every facet."""
+    body = _base(filters)
+    body["aggs"] = {
+        "components": {
+            "terms": {"field": "package_name", "size": TOP_COMPONENTS_SIZE},
+            "aggs": {
+                "by_scanner": {
+                    "terms": {"field": "scanner", "size": 4},
+                    "aggs": {"unique_cves": {"cardinality": {"field": "cve_id"}}},
+                }
+            },
+        }
+    }
+    return body
+
+
 def build_composite_body(
     filters: SearchFilters,
     *,

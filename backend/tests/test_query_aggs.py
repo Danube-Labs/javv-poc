@@ -15,8 +15,10 @@ import pytest
 from backend.query.aggs import (
     FACET_FIELDS,
     GROUP_FIELDS,
+    TOP_COMPONENTS_SIZE,
     build_composite_body,
     build_facets_body,
+    build_top_components_body,
     decode_after,
     encode_after,
 )
@@ -106,3 +108,18 @@ def test_rail_dims_are_facetable_top_n() -> None:
     assert body["aggs"]["namespaces"]["terms"]["field"] == "namespaces"
     assert body["aggs"]["assignee"]["terms"]["field"] == "assignee"
     assert body["aggs"]["namespaces"]["terms"]["size"] == 32
+
+
+def test_top_components_body_is_per_scanner_cardinality_only() -> None:
+    # the Overview Top-components card: unique-CVE counts exist ONLY under the by_scanner
+    # split — a top-level cardinality would dedupe CVEs across scanners (forbidden)
+    body = build_top_components_body(SearchFilters(fixable=True))
+    comp = body["aggs"]["components"]
+    assert comp["terms"] == {"field": "package_name", "size": TOP_COMPONENTS_SIZE}
+    by_scanner = comp["aggs"]["by_scanner"]
+    assert by_scanner["terms"]["field"] == "scanner"
+    assert by_scanner["aggs"]["unique_cves"] == {"cardinality": {"field": "cve_id"}}
+    assert set(comp["aggs"]) == {"by_scanner"}  # no cross-scanner unique count, ever
+    assert body["size"] == 0
+    # the caller's filter context applies to the body like every other agg
+    assert {"term": {"fixable": True}} in body["query"]["bool"]["filter"]

@@ -36,6 +36,7 @@ from backend.query import pit_guard
 from backend.query.aggs import (
     build_composite_body,
     build_facets_body,
+    build_top_components_body,
     decode_after,
     encode_after,
 )
@@ -398,6 +399,38 @@ async def facet_findings(
             )
             for field, agg in resp["aggregations"].items()
         }
+    }
+
+
+@router.get("/top-components")
+async def top_components_findings(
+    request: Request,
+    principal: Authenticated,
+    cluster_id: ClusterId,
+    filters: Filters,
+    as_of_t: AsOf,
+) -> dict[str, Any]:
+    """The Overview Top-components card: top packages by finding rows, each with a per-scanner
+    unique-CVE count. A now-only read (same rule as the severity-trend split — the card gates at
+    a rewound T); "all scanners" is the SUM of per-scanner uniques, never a cross-scanner
+    distinct count."""
+    if as_of_t is not None:
+        raise HTTPException(422, "top-components is a now-only read")
+    client = cast(Any, request.app.state.opensearch)
+    resp = await tenant_search(
+        client, index="findings", cluster_id=cluster_id, body=build_top_components_body(filters)
+    )
+    return {
+        "components": [
+            {
+                "package_name": b["key"],
+                "count": b["doc_count"],
+                "unique_cves_by_scanner": {
+                    s["key"]: s["unique_cves"]["value"] for s in b["by_scanner"]["buckets"]
+                },
+            }
+            for b in resp["aggregations"]["components"]["buckets"]
+        ]
     }
 
 
