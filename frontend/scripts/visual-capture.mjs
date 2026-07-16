@@ -21,9 +21,9 @@ import { chromium } from 'playwright'
 import { VIEWPORTS, ROUTES, collectPageIssues, layoutIssues, login, clickDetail } from './walk.mjs'
 
 const BASE = process.env.JAVV_BASE ?? 'http://localhost:5173'
-// default output anchors to the REPO-ROOT .playwright-mcp (one artifact dir to purge) — a
+// default output anchors to the REPO-ROOT tmp/screenshots (the one screenshot home) — a
 // cwd-relative default is how a second copy under frontend/ once accumulated 40MB unnoticed
-const REPO_ROOT_OUT = new URL('../../.playwright-mcp/visual-test/', import.meta.url).pathname
+const REPO_ROOT_OUT = new URL('../../tmp/screenshots/visual-test/', import.meta.url).pathname
 const OUT =
   process.argv[2] ?? `${REPO_ROOT_OUT}${new Date().toISOString().slice(0, 19).replaceAll(':', '-')}`
 const USER = process.env.JAVV_USER
