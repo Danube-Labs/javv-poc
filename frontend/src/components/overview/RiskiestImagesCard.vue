@@ -1,15 +1,16 @@
 <script setup lang="ts">
 /**
- * Overview "Riskiest images" card (B specimen of the Scan-activity replacement A/B): top 10
- * running images ranked by the server's per-image severity buckets under the scanner lens —
- * critical first, then high (ties broken down the ramp). Every number is the images read's
- * server-decorated `severity_by_scanner`; the lens picks a scanner's buckets, `all` adds the
- * per-scanner counts (additive, same grammar as the fleet strip — never a cross-scanner dedupe).
- * Rows click through to the image detail.
+ * Overview "Riskiest images" card (§8.5 ruling 2026-07-16: kept alongside TopComponentsCard):
+ * every running image with findings, ranked by the server's per-image severity buckets under
+ * the scanner lens — critical first, then down the ramp — paged as display slices through the
+ * shared GridPager. Every number is the images read's server-decorated `severity_by_scanner`;
+ * the lens picks a scanner's buckets, `all` adds the per-scanner counts (additive, same
+ * grammar as the fleet strip — never a cross-scanner dedupe). Rows open the image detail.
  */
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
+import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { fmt, type ScannerLens } from '@/lib/scannerLens'
@@ -42,7 +43,7 @@ function sev(row: ImageRow, key: (typeof RANK_KEYS)[number]): number {
   return Object.values(per).reduce((n, b) => n + (b[key] ?? 0), 0)
 }
 
-const rows = computed(() =>
+const ordered = computed(() =>
   images.images
     .map((r) => ({ row: r, rank: RANK_KEYS.map((k) => sev(r, k)) }))
     .filter((x) => x.rank.some((n) => n > 0))
@@ -51,9 +52,22 @@ const rows = computed(() =>
         if (a.rank[i] !== b.rank[i]) return (b.rank[i] ?? 0) - (a.rank[i] ?? 0)
       }
       return 0
-    })
-    .slice(0, 10),
+    }),
 )
+
+const page = ref(0)
+const size = ref(10)
+watch([ordered], () => {
+  page.value = 0
+})
+const shown = computed(() =>
+  ordered.value.slice(page.value * size.value, (page.value + 1) * size.value),
+)
+const hasNext = computed(() => (page.value + 1) * size.value < ordered.value.length)
+function setSize(next: number) {
+  size.value = next
+  page.value = 0
+}
 
 function open(row: ImageRow) {
   void router.push({
@@ -64,59 +78,68 @@ function open(row: ImageRow) {
 </script>
 
 <template>
-  <section class="card">
+  <section class="tbl-card">
     <div class="card-head">
       <div>
         <h3>Riskiest images</h3>
-        <p class="card-sub">top 10 by critical, then high</p>
+        <p class="card-sub">ranked by critical, then high</p>
       </div>
       <UiButton variant="mini" @click="router.push('/images')">View inventory</UiButton>
     </div>
-    <div class="card-body">
-      <p v-if="rows.length === 0" class="empty-row">No image findings in the running inventory.</p>
-      <table v-else class="tbl tbl-hover">
-        <thead>
-          <tr>
-            <th>Image</th>
-            <th class="r">Critical</th>
-            <th class="r">High</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="x in rows"
-            :key="x.row.image_digest"
-            :title="`Open ${x.row.image_repo}:${x.row.tag}`"
-            @click="open(x.row)"
-          >
-            <td class="mono-cell img-link">
-              {{ x.row.image_repo }}:{{ x.row.tag
-              }}<AppIcon class="cell-go" name="chevron" :size="11" />
-            </td>
-            <td class="r mono-cell">
-              <b :class="{ 'crit-alarm': (x.rank[0] ?? 0) > 0 }">{{ fmt(x.rank[0] ?? 0) }}</b>
-            </td>
-            <td class="r mono-cell"><b>{{ fmt(x.rank[1] ?? 0) }}</b></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <p v-if="ordered.length === 0" class="empty-row">
+      No image findings in the running inventory.
+    </p>
+    <template v-else>
+      <div class="tbl-wrap">
+        <table class="tbl tbl-dense tbl-hover">
+          <thead>
+            <tr>
+              <th>Image</th>
+              <th class="r fit">Critical</th>
+              <th class="r fit">High</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="x in shown"
+              :key="x.row.image_digest"
+              :title="`Open ${x.row.image_repo}:${x.row.tag}`"
+              @click="open(x.row)"
+            >
+              <td class="mono-cell img-link">
+                {{ x.row.image_repo }}:{{ x.row.tag
+                }}<AppIcon class="cell-go" name="chevron" :size="11" />
+              </td>
+              <td class="r fit mono-cell sm strong">
+                <span :class="{ 'crit-alarm': (x.rank[0] ?? 0) > 0 }">{{ fmt(x.rank[0] ?? 0) }}</span>
+              </td>
+              <td class="r fit mono-cell sm">{{ fmt(x.rank[1] ?? 0) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <GridPager
+        :total="ordered.length"
+        :page="page"
+        :size="size"
+        :shown="shown.length"
+        :has-prev="page > 0"
+        :has-next="hasNext"
+        @prev="page -= 1"
+        @next="page += 1"
+        @update:size="setSize"
+      />
+    </template>
   </section>
 </template>
 
 <style scoped>
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-}
 .card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px 0;
+  padding: 14px 16px 10px;
 }
 .card-head h3 {
   margin: 0;
@@ -126,42 +149,9 @@ function open(row: ImageRow) {
   font-size: var(--text-sm);
   color: var(--soft);
 }
-.card-body {
-  padding: 10px 16px 14px;
-}
-
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-body);
-}
-.tbl th {
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--soft);
-  text-align: left;
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--line2);
-  background: var(--panel);
-}
-.tbl td {
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--line2);
-}
-.tbl .r {
-  text-align: right;
-}
-.tbl-hover tbody tr {
-  cursor: default; /* arrow, not the I-beam — text stays selectable */
-  transition: background var(--dur-quick);
-}
-.tbl-hover tbody tr:hover {
-  background: var(--row-hover);
-}
-.tbl-hover tbody tr:active {
-  background: var(--line2);
+.strong {
+  font-weight: 700;
+  color: var(--ink);
 }
 .crit-alarm {
   color: var(--sev-critical-fg);
@@ -176,7 +166,6 @@ function open(row: ImageRow) {
   text-underline-offset: 3px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .tbl-hover tbody tr,
   .img-link {
     transition: none;
   }

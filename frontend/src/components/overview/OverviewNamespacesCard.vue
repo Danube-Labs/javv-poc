@@ -1,9 +1,9 @@
 <script setup lang="ts">
 /**
- * The Overview "Per namespace" card (issue 384 split — extracted from OverviewView, no behavior
- * change): top-10 namespaces by findings under the scanner lens, each row a click-through to the
+ * The Overview "Per namespace" card (issue 384 split — extracted from OverviewView): top-10
+ * namespaces by findings under the scanner lens, each row a click-through to the
  * namespace-filtered grid. Per-namespace counts overlap by design (D30 — the all-namespaces
- * total is the only deduped number).
+ * total is the only deduped number). Skinned by the shared base.css table (no scoped re-own).
  */
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -31,7 +31,7 @@ function goFindings(query: Record<string, string>) {
 </script>
 
 <template>
-  <section class="card">
+  <section class="tbl-card">
     <div class="card-head">
       <div>
         <h3>Per namespace</h3>
@@ -39,11 +39,14 @@ function goFindings(query: Record<string, string>) {
       </div>
       <UiButton variant="mini" @click="router.push('/images')">View inventory</UiButton>
     </div>
-    <div class="card-body">
-      <p v-if="namespaces.length === 0" class="empty-row">No namespace data in range.</p>
-      <table v-else class="tbl tbl-hover">
+    <p v-if="namespaces.length === 0" class="empty-row">No namespace data in range.</p>
+    <div v-else class="tbl-wrap">
+      <table class="tbl tbl-dense tbl-hover">
         <thead>
-          <tr><th>Namespace</th><th class="r">Findings</th></tr>
+          <tr>
+            <th>Namespace</th>
+            <th class="r fit">Findings</th>
+          </tr>
         </thead>
         <tbody>
           <tr
@@ -53,7 +56,7 @@ function goFindings(query: Record<string, string>) {
             @click="goFindings({ namespace: n.key })"
           >
             <td class="mono-cell ns-link">{{ n.key }}<AppIcon class="cell-go" name="chevron" :size="11" /></td>
-            <td class="r mono-cell"><b>{{ fmt(n.count) }}</b></td>
+            <td class="r fit mono-cell sm strong">{{ fmt(n.count) }}</td>
           </tr>
         </tbody>
       </table>
@@ -62,18 +65,12 @@ function goFindings(query: Record<string, string>) {
 </template>
 
 <style scoped>
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-}
 .card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px 0;
+  padding: 14px 16px 10px;
 }
 .card-head h3 {
   margin: 0;
@@ -83,42 +80,9 @@ function goFindings(query: Record<string, string>) {
   font-size: var(--text-sm);
   color: var(--soft);
 }
-.card-body {
-  padding: 10px 16px 14px;
-}
-
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-body);
-}
-.tbl th {
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--soft);
-  text-align: left;
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--line2);
-  background: var(--panel);
-}
-.tbl td {
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--line2);
-}
-.tbl .r {
-  text-align: right;
-}
-.tbl-hover tbody tr {
-  cursor: default; /* arrow, not the I-beam — text stays selectable */
-  transition: background var(--dur-quick);
-}
-.tbl-hover tbody tr:hover {
-  background: var(--row-hover);
-}
-.tbl-hover tbody tr:active {
-  background: var(--line2);
+.strong {
+  font-weight: 700;
+  color: var(--ink);
 }
 /* the affordance carrier — same convention as the grid's cve-link */
 .ns-link {
@@ -130,7 +94,6 @@ function goFindings(query: Record<string, string>) {
   text-underline-offset: 3px;
 }
 @media (prefers-reduced-motion: reduce) {
-  .tbl-hover tbody tr,
   .ns-link {
     transition: none;
   }

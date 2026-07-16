@@ -94,9 +94,9 @@ def build_facets_body(
     return body
 
 
-# the Overview Top-components card's row budget — a display contract (the ns card's top-10
-# analog), not a tunable
-TOP_COMPONENTS_SIZE = 10
+# the Overview Top-components board cap — the contributors-leaderboard model (a ≤100-row
+# server board the card pages as display slices), not a tunable
+TOP_COMPONENTS_SIZE = 100
 
 
 def build_top_components_body(filters: SearchFilters) -> dict[str, Any]:
