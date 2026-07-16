@@ -762,6 +762,17 @@
             "exclusiveMinimum": 0.0,
             "title": "Cleanup Days",
             "type": "number"
+          },
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
           }
         },
         "required": [
@@ -5789,7 +5800,7 @@
     },
     "/api/v1/settings/data": {
       "get": {
-        "description": "Everything the panel renders in one read: the EFFECTIVE lifecycle knobs for the cluster\n(override if set, else fleet default), whether an override doc exists (the editor must know\nwhich doc it edits), the report TTL and findings-cleanup knobs (fleet-wide), and the\nnon-secret snapshot repo ref (None until M2 config lands in the store).",
+        "description": "Everything the panel renders in one read: the EFFECTIVE lifecycle + findings-cleanup\nknobs for the cluster (override if set, else fleet default), whether each override doc\nexists (the editor must know which doc it edits), the report TTL (fleet-wide), and the\nnon-secret snapshot repo ref (None until M2 config lands in the store).",
         "operationId": "get_data_settings_api_v1_settings_data_get",
         "parameters": [
           {

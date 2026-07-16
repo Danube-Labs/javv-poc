@@ -220,6 +220,29 @@ async def test_findings_cleanup_knob_round_trips_and_is_journaled(env) -> None:
     assert "findings_cleanup_change" in await _audit_actions(client, "findings_cleanup")
 
 
+async def test_findings_cleanup_per_cluster_override_routes(env) -> None:
+    """PUT with cluster_id writes the `findings_cleanup:<cluster_id>` override (never the fleet
+    doc) and the panel GET serves that cluster's effective window + override flag (issue 431)."""
+    from backend.jobs.findings_cleanup import read_findings_cleanup_knob
+
+    make_http, client, docs = env
+    admin = make_http()
+    await _login(admin, client, ["can_manage_retention"], docs)
+
+    cid = "c-cleanup-rt"
+    docs.append(("system-config", f"findings_cleanup:{cid}"))
+    r = await admin.put(
+        "/api/v1/settings/findings-cleanup", json={"cleanup_days": 30, "cluster_id": cid}
+    )
+    assert r.status_code == 200
+    assert (await read_findings_cleanup_knob(client, cluster_id=cid)).cleanup_days == 30.0
+
+    got = await admin.get(f"/api/v1/settings/data?cluster_id={cid}")
+    assert got.json()["findings_cleanup"] == {"cleanup_days": 30.0}
+    assert got.json()["findings_cleanup_override"] is True
+    assert "findings_cleanup_change" in await _audit_actions(client, f"findings_cleanup:{cid}")
+
+
 # --- snapshots (NFR-6; wraps the M2 machinery the restore drill proves) --------------------
 
 

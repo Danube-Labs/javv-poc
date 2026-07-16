@@ -81,6 +81,7 @@ async function loadKnobs(clusterId: string) {
     per_cluster_override: boolean
     report_ttl_hours: number
     findings_cleanup: { cleanup_days: number }
+    findings_cleanup_override: boolean
   }
   saved.value = {
     retention_days: body.lifecycle.retention_days,
@@ -90,7 +91,9 @@ async function loadKnobs(clusterId: string) {
     cleanup_days: body.findings_cleanup.cleanup_days,
     report_ttl_hours: body.report_ttl_hours,
   }
-  override.value = body.per_cluster_override
+  // one toggle for the panel: "this cluster is overridden" = any override doc exists
+  // (saving with it on writes per-cluster docs for every changed group)
+  override.value = body.per_cluster_override || body.findings_cleanup_override
   draft.value = draftFromKnobs(saved.value)
 }
 
@@ -114,7 +117,7 @@ async function save() {
   busy.value = true
   let allOk = true
   // per-cluster knobs edit the doc the effective read served (the staleness editor's rule);
-  // cleanup + TTL are fleet-wide by design
+  // TTL is fleet-wide by design
   const clusterArg = override.value && clusterId ? { cluster_id: clusterId } : {}
   if (groups.retention) {
     const { response } = await putRetentionApiV1SettingsRetentionPut({
@@ -138,7 +141,7 @@ async function save() {
   if (groups.cleanup && allOk) {
     const { response } = await putFindingsCleanupApiV1SettingsFindingsCleanupPut({
       client,
-      body: { cleanup_days: p.cleanup_days! },
+      body: { cleanup_days: p.cleanup_days!, ...clusterArg },
     })
     allOk &&= response?.ok ?? false
   }
@@ -287,7 +290,7 @@ function discard() {
       >
         <SettingsRow
           label="Findings cleanup window"
-          hint="Cache rows whose image has been gone this long are deleted (history is untouched). The cleanup job ships with the final M9e slice; the window takes effect then."
+          hint="Cache rows whose image has been gone this long are deleted (history is untouched). Follows the per-cluster override toggle — each cluster can carry its own window."
         >
           <SettingsInput
             id="cleanup-days"

@@ -33,6 +33,7 @@ from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal
 from backend.core.identifiers import ClusterId
 from backend.jobs.findings_cleanup import (
+    FINDINGS_CLEANUP_KEY,
     FindingsCleanupKnob,
     read_findings_cleanup_knob,
     write_findings_cleanup_knob,
@@ -58,6 +59,14 @@ def _lifecycle_entity(cluster_id: str | None) -> str:
 
 async def _has_lifecycle_override(client: Any, cluster_id: str) -> bool:
     return bool(await client.exists(index="system-config", id=f"{LIFECYCLE_KEY}:{cluster_id}"))
+
+
+def _cleanup_entity(cluster_id: str | None) -> str:
+    return FINDINGS_CLEANUP_KEY if cluster_id is None else f"{FINDINGS_CLEANUP_KEY}:{cluster_id}"
+
+
+async def _has_cleanup_override(client: Any, cluster_id: str) -> bool:
+    return bool(await client.exists(index="system-config", id=_cleanup_entity(cluster_id)))
 
 
 class RetentionPut(BaseModel):
@@ -86,6 +95,7 @@ class FindingsCleanupPut(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     cleanup_days: float = Field(gt=0)
+    cluster_id: ClusterId | None = None  # None = the fleet-wide default doc
 
 
 @router.get("/settings/data")
@@ -94,19 +104,22 @@ async def get_data_settings(
     principal: ManageRetention,
     cluster_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
-    """Everything the panel renders in one read: the EFFECTIVE lifecycle knobs for the cluster
-    (override if set, else fleet default), whether an override doc exists (the editor must know
-    which doc it edits), the report TTL and findings-cleanup knobs (fleet-wide), and the
+    """Everything the panel renders in one read: the EFFECTIVE lifecycle + findings-cleanup
+    knobs for the cluster (override if set, else fleet default), whether each override doc
+    exists (the editor must know which doc it edits), the report TTL (fleet-wide), and the
     non-secret snapshot repo ref (None until M2 config lands in the store)."""
     client = _client(request)
     knobs = await read_lifecycle_knobs(client, cluster_id=cluster_id)
     override = cluster_id is not None and await _has_lifecycle_override(client, cluster_id)
+    cleanup = await read_findings_cleanup_knob(client, cluster_id=cluster_id)
+    cleanup_override = cluster_id is not None and await _has_cleanup_override(client, cluster_id)
     repo = await read_snapshot_repo_ref(client)
     return {
         "lifecycle": knobs.model_dump(),
         "per_cluster_override": override,
         "report_ttl_hours": await read_report_ttl_hours(client),
-        "findings_cleanup": (await read_findings_cleanup_knob(client)).model_dump(),
+        "findings_cleanup": cleanup.model_dump(),
+        "findings_cleanup_override": cleanup_override,
         "snapshot_repo": repo.model_dump() if repo is not None else None,
     }
 
@@ -196,21 +209,23 @@ async def put_findings_cleanup(
     request: Request, body: FindingsCleanupPut, principal: ManageRetention
 ) -> dict[str, Any]:
     client = _client(request)
-    old = await read_findings_cleanup_knob(client)
+    old = await read_findings_cleanup_knob(client, cluster_id=body.cluster_id)
     knob = FindingsCleanupKnob(cleanup_days=body.cleanup_days)
     await append_field_change(
         client,
         actor=principal.user_id,
         action="findings_cleanup_change",
         entity_type="config",
-        entity_id="findings_cleanup",
+        entity_id=_cleanup_entity(body.cluster_id),
         field="cleanup_days",
         old_value=str(old.cleanup_days),
         new_value=str(knob.cleanup_days),
         revision=1,
-        cluster_id="fleet",
+        cluster_id=body.cluster_id or "fleet",
     )
-    await write_findings_cleanup_knob(client, knob, updated_by=principal.user_id)
+    await write_findings_cleanup_knob(
+        client, knob, updated_by=principal.user_id, cluster_id=body.cluster_id
+    )
     return {"findings_cleanup": knob.model_dump()}
 
 

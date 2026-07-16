@@ -357,6 +357,10 @@ export type FindingsCleanupPut = {
      * Cleanup Days
      */
     cleanup_days: number;
+    /**
+     * Cluster Id
+     */
+    cluster_id?: string | null;
 };
 
 /**
