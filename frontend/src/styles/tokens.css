@@ -191,6 +191,7 @@
      table head, parchment text (~10:1), bookends the rail */
   --table-head-bg: var(--slate2);
   --table-head-fg: #d9e2e8;
+  --table-head-line: #3a5164; /* hairline that reads ON the band — beige dividers slit it */
 
   /* section identity accents (§8.5 specimen 2026-07-16): one quiet hue per sidebar group,
      echoed as the head-card's top bar — wayfinding chroma, decorative only (never text) */
