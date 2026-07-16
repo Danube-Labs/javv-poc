@@ -312,13 +312,55 @@ test that drills it — these can't drift from the code:
 
 ---
 
+## B6. Second cluster (`beta`) — the two-tenant loop
+
+For the expanded two-cluster behavior check (task 2026-07-16): a deliberately small second
+tenant — 3 namespaces, 4 workloads. `payments` reuses cluster alpha's namespace NAME and
+images (same digests, different tenant — the case where cluster_id scoping can actually
+confuse); `billing`/`iot` are new names.
+
+```bash
+# 1. create (small: 1 server, 0 agents; no LB port — nothing serves HTTP here)
+k3d cluster create beta --servers 1 --agents 0
+kubectl --context k3d-beta apply -f development/setup/seed-beta-workloads.yaml
+kubectl --context k3d-beta get pods -A                  # wait for Running
+
+# 2. its cluster_id (distinct kube-system UID = a second tenant)
+export BETA_CID=$(kubectl --context k3d-beta get namespace kube-system -o jsonpath='{.metadata.uid}')
+
+# 3. mint per-scanner tokens for the NEW cluster_id (admin cookies from A4)
+export BETA_TOKEN_TRIVY=$(curl -s -b cookies.txt -X POST localhost:8000/api/v1/admin/tokens \
+  -H 'content-type: application/json' -d "{\"cluster_id\":\"$BETA_CID\",\"scanner\":\"trivy\"}" | jq -r .token)
+export BETA_TOKEN_GRYPE=$(curl -s -b cookies.txt -X POST localhost:8000/api/v1/admin/tokens \
+  -H 'content-type: application/json' -d "{\"cluster_id\":\"$BETA_CID\",\"scanner\":\"grype\"}" | jq -r .token)
+
+# 4. one cycle per scanner. The scanner follows the kubeconfig's CURRENT context (no
+#    context env) — give it a beta-only kubeconfig instead of flipping the global one:
+export BETA_KUBECONFIG=$(k3d kubeconfig write beta)
+cd scanner
+KUBECONFIG=$BETA_KUBECONFIG \
+JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://localhost:8000 \
+JAVV_CLUSTER_ID=$BETA_CID JAVV_TOKEN=$BETA_TOKEN_TRIVY uv run python -m scanner
+KUBECONFIG=$BETA_KUBECONFIG \
+JAVV_SCANNER=grype JAVV_BACKEND_URL=http://localhost:8000 \
+JAVV_CLUSTER_ID=$BETA_CID JAVV_TOKEN=$BETA_TOKEN_GRYPE uv run python -m scanner
+cd ..
+```
+
+What to walk afterwards: All clusters (two rows, fleet strip adds server buckets across
+clusters), the cluster switcher, per-cluster Overview isolation (beta must NOT show alpha's
+payments findings under its `payments` facet), scanner status per cluster, staleness banners
+(beta's window starts at its first commit).
+
+---
+
 ## T. Teardown
 
 ```bash
 # stop the backend + vite: Ctrl-C in their terminals (or kill by PID from `ss -ltnp`, never pkill)
 docker compose -f development/setup/opensearch-dev.yml down       # keep data
 # docker compose -f development/setup/opensearch-dev.yml down -v   # wipe the data volume
-k3d cluster delete alpha                                           # Path B only
+k3d cluster delete alpha beta                                      # Path B / B6 only
 rm -f backend/cookies.txt scanner/*.dead-letter.jsonl
 
 # after running the backend test suite against this store: sweep the test residue
