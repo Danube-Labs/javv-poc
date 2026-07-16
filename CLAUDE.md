@@ -57,6 +57,54 @@ single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scann
   consumers. Code libs (pyproject), GH Actions, pre-commit hooks stay native — don't centralize those.
 - **Diagrams are Mermaid** (working-agreement). `.deprecated/docs/deprecated/original_notes_for_app.md` is read-only.
 
+## Hard-won reflexes (each line has bitten ≥ 2 sessions — check them, don't rediscover them)
+
+**Verify, don't trust the happy path**
+- A commit isn't committed until `git log --oneline -1` shows it — pre-commit hooks reformat-and-abort
+  silently ("Everything up-to-date" on push = it never landed). A merge isn't merged until
+  `gh pr view N --json mergedAt` is non-null — `gh pr merge` on a behind branch no-ops with a clean exit.
+- Exit codes are the gate, never printed output: vitest reports "N passed" and still fails CI on
+  unhandled rejections; run the EXACT CI commands (`npm run lint` / `npm run test:ci` from `frontend/`,
+  tree-wide `pyright` from `backend/` with no path args, full pytest).
+- Status-code checks lie — the SPA answers 200 HTML for ANY GET; verify proxied responses by body.
+- The Bash cwd drifts after `cd`-compounds — re-anchor to the repo root before git/npm; stage explicit
+  paths, never `git add -A` (it has swept gitignored files into commits).
+- No stacked PRs, ever: every slice bases on `main`; hold finished work rather than stacking
+  (merging a stacked base closed its child once, and one PR merged INTO a feature branch).
+
+**Reuse before writing — code and design (grep first, build second)**
+- Before any new control/panel/helper: the kit probably has it — `components/ui/`, `components/chips/`,
+  the M9a filter module, the shared table skin + GridPager, StatBand, `query/paging.py`, the bulk
+  helpers. A raw parallel implementation of a solved surface fails review.
+- UI grammar comes from the prototype and research, never memory: build with the `handoff/v4/` jsx open
+  (DESIGN.md §8), borrow composition grammar from ui.nuxt.com onto JAVV tokens, run
+  `npx impeccable detect` on changed screens (§9 ruled exceptions stand — don't relitigate).
+- **VISUAL FEEDBACK IS A MUST**: every interactive element ships hover (wash + border, never
+  border-only), pressed and focus states; rows get the hover wash too.
+- After ANY design pass on a view, `wc -l` it — passes accrete markup; crossing ~500 lines means
+  extracting self-contained panels in the same PR (issue 384's F-15 pattern: DataOpenSearchView
+  quietly hit 721 before anyone re-measured).
+
+**Contract changes carry their artifacts in the same PR**
+- New mutating route → the RBAC/IDOR registry (`tests/security/test_rbac_idor_contract.py`).
+  Any route/param change → `docs/API.md` + regenerated `frontend/openapi.json` + `npm run gen:api`
+  client (the contract gate diffs the snapshot). Mapping change → `MAPPING_VERSION` bump + INDEX-MAP.
+  New knob → CONFIGURATION.md (§ "Read this FIRST" table).
+- New field on a shared shape (SearchFilters and friends) → sweep every consumer and the parity
+  guards; targeted test runs have missed these.
+- Scanner vocabulary is canonicalized at every boundary (`canonical_severity()`); seed tests with the
+  raw verbatim casing, never pre-canonicalized — self-consistent tests hide the bug (bit twice).
+
+**Environment quirks (they will not fix themselves)**
+- Kill dev processes by PID/port (`ss -ltnp`), NEVER `pkill -f` (it matches its own wrapper). The dev
+  backend has no reload — restart it after backend edits or new routes 404; restart vite after
+  `gen:api` (stale module graph "does not provide an export").
+- Backend pytest against the shared dev store leaves residue (`nu-*`/`ext-*`/`0-list-*` users,
+  `t-*` indices) — sweep AFTER the last run, keep `{admin, rig}`.
+- Commit subjects: lowercase first word even for identifiers (`m5c`, `opensearch` — CI commitlint is
+  stricter than the local hook), header ≤ 100 chars, types `feat|fix|chore|docs|test|refactor` only.
+- `#NNN` in a code comment reads as a hex color to the style ratchet — write "issue NNN".
+
 ## Use these skills (when the work matches)
 Invoke the matching skill before starting that kind of work:
 - **incremental-implementation** - default for any multi-file feature. Build in thin vertical slices.
