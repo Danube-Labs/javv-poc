@@ -7,6 +7,8 @@
  * server already returned. Cut vs prototype (recorded in the bolt README): KPI sparklines +
  * "+new 30d" chips (no per-severity trend agg), namespace severity MixBar (no per-ns severity
  * agg), Top components / Language binaries / Newly published (B-6/B-2).
+ * Issue-384 split: the stat bands and the namespaces card live in components/overview/;
+ * the scanner-lens count math is the shared pure helper views/overviewLens.ts.
  */
 import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -18,17 +20,19 @@ import { buildSeverityTrendOption, type SeverityTrendData } from '@/charts/build
 import { isSubDayWindow } from '@/charts/buildTrendQuery'
 import EChart from '@/components/charts/EChart.vue'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
+import OverviewNamespacesCard from '@/components/overview/OverviewNamespacesCard.vue'
+import OverviewStatBands from '@/components/overview/OverviewStatBands.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { useApi } from '@/composables/useApi'
-import { CHART_PTYPE_RAMP, CHART_SEV, type Severity } from '@/styles/tokens'
+import { CHART_PTYPE_RAMP } from '@/styles/tokens'
 import { useClusterStore } from '@/stores/cluster'
-import { useOverviewStore, type FacetBucket } from '@/stores/overview'
+import { useOverviewStore } from '@/stores/overview'
 import { useTimeTravelStore } from '@/stores/timeTravel'
+import { countOf, fmt, type ScannerLens } from '@/views/overviewLens'
 import { ref } from 'vue'
 
-const KPI_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low']
 const SCANNER_OPTS = [
   { value: 'all', label: 'All scanners' },
   { value: 'trivy', label: 'trivy' },
@@ -41,7 +45,7 @@ const timeTravel = useTimeTravelStore()
 const overview = useOverviewStore()
 const { withGlobals } = useApi()
 
-const scanner = ref<'all' | 'trivy' | 'grype'>('all')
+const scanner = ref<ScannerLens>('all')
 const LENS_OPTS = [
   { value: 'scanner', label: 'by scanner' },
   { value: 'severity', label: 'by severity' },
@@ -66,19 +70,6 @@ watch(
   },
 )
 
-/** A bucket's display count under the scanner lens — the server's by_scanner split, never a
- * client re-aggregation. */
-function countOf(bucket: FacetBucket | null): number {
-  if (!bucket) return 0
-  return scanner.value === 'all' ? bucket.count : (bucket.by_scanner[scanner.value] ?? 0)
-}
-const sevCount = (s: Severity) => countOf(overview.bucket('severity', s))
-const totalPresent = computed(() => countOf(overview.bucket('present', 'true')))
-const fixableCount = computed(() => countOf(overview.bucket('fixable', 'true')))
-const fixPct = computed(() =>
-  totalPresent.value === 0 ? 0 : Math.round((fixableCount.value / totalPresent.value) * 100),
-)
-
 const trendOption = computed(() => {
   if (trendLens.value === 'severity') {
     return buildSeverityTrendOption(overview.sevTrend as SeverityTrendData)
@@ -90,22 +81,6 @@ const trendOption = computed(() => {
   })
 })
 
-/* 1b quick views — all straight facet reads */
-const kevCount = computed(() => countOf(overview.bucket('kev', 'true')))
-const disagreeCount = computed(() => countOf(overview.bucket('disagree', 'true')))
-const stateCount = (k: string) => countOf(overview.bucket('state', k))
-const handledCount = computed(
-  () => stateCount('resolved') + stateCount('not_affected') + stateCount('risk_accepted'),
-)
-const triage = computed(() => {
-  const open = stateCount('open')
-  const ack = stateCount('acknowledged')
-  const stale = stateCount('stale')
-  const handled = handledCount.value
-  const total = open + ack + stale + handled
-  const pct = (n: number) => (total === 0 ? 0 : (n / total) * 100)
-  return { open, ack, stale, handled, total, pct }
-})
 const scansOption = computed(() =>
   buildScanActivityOption(
     scanner.value === 'all'
@@ -116,18 +91,14 @@ const scansOption = computed(() =>
 
 /** ptype buckets minus a lone `unknown` (pre-M8d rows heal on the next sweep, D30). */
 const ptypeBuckets = computed(() => {
-  const all = (overview.facets.ptype ?? []).map((b) => ({ key: b.key, count: countOf(b) }))
+  const all = (overview.facets.ptype ?? []).map((b) => ({
+    key: b.key,
+    count: countOf(b, scanner.value),
+  }))
   const real = all.filter((b) => b.key !== 'unknown' && b.count > 0)
   return real
 })
 const donutOption = computed(() => buildPtypeDonutOption(ptypeBuckets.value))
-
-const namespaces = computed(() =>
-  (overview.facets.namespaces ?? [])
-    .map((b) => ({ key: b.key, count: countOf(b) }))
-    .filter((b) => b.count > 0)
-    .slice(0, 10),
-)
 
 const lastSweep = computed(() => {
   if (!overview.lastIngestAt) return null
@@ -148,7 +119,6 @@ function goFindings(query: Record<string, string>) {
 function onDonutClick(e: { name?: string }) {
   if (e?.name) goFindings({ ptype: e.name })
 }
-const fmt = (n: number) => n.toLocaleString('en-US')
 </script>
 
 <template>
@@ -194,47 +164,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     </div>
 
     <template v-else>
-      <!-- KPI band: joined, hairline-divided (Nuxt stat grammar on our tokens) -->
-      <div class="stat-band">
-        <button
-          v-for="s in KPI_SEVERITIES"
-          :key="s"
-          class="stat-cell"
-          :title="`Open findings filtered to ${s}`"
-          @click="goFindings({ severity: s })"
-        >
-          <span class="stat-label"><i class="stat-dot" :style="{ background: CHART_SEV[s] }" />{{ s }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="stat-num">{{ fmt(sevCount(s)) }}</span>
-        </button>
-        <button class="stat-cell" title="Open findings with a fix available" @click="goFindings({ attr: 'fixable' })">
-          <span class="stat-label"><i class="stat-dot" style="background: var(--teal)" />fix available<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="stat-num">{{ fixPct }}%</span>
-          <span class="stat-sub">{{ fmt(fixableCount) }} findings patchable today</span>
-        </button>
-      </div>
-
-      <!-- signal band (1b): urgency + quality quick views, same joined grammar -->
-      <div class="stat-band signal-band">
-        <button class="stat-cell" title="Open known-exploited findings" @click="goFindings({ attr: 'kev' })">
-          <span class="stat-label"><i class="stat-dot" style="background: var(--kev-bg)" />KEV · known-exploited<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="stat-num" :class="{ 'stat-num--alarm': kevCount > 0 }">{{ fmt(kevCount) }}</span>
-        </button>
-        <button class="stat-cell" title="Open findings where the scanners disagree" @click="goFindings({ attr: 'disagree' })">
-          <span class="stat-label"><i class="stat-dot" style="background: var(--sev-medium-solid)" />scanners disagree<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="stat-num">{{ fmt(disagreeCount) }}</span>
-        </button>
-        <button class="stat-cell" title="Open the untriaged queue" @click="goFindings({ state: 'open' })">
-          <span class="stat-label"><i class="stat-dot" style="background: var(--state-resolved-fg)" />triage progress<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-          <span class="stat-num">{{ triage.total === 0 ? '—' : `${Math.round(triage.pct(triage.handled + triage.ack))}%` }}</span>
-          <span class="progress-bar" aria-hidden="true">
-            <i class="seg-open" :style="{ width: `${triage.pct(triage.open)}%` }" />
-            <i class="seg-ack" :style="{ width: `${triage.pct(triage.ack)}%` }" />
-            <i class="seg-handled" :style="{ width: `${triage.pct(triage.handled)}%` }" />
-            <i class="seg-stale" :style="{ width: `${triage.pct(triage.stale)}%` }" />
-          </span>
-          <span class="stat-sub">{{ fmt(triage.open) }} open · {{ fmt(triage.ack) }} ack · {{ fmt(triage.handled) }} handled<template v-if="triage.stale"> · {{ fmt(triage.stale) }} stale</template></span>
-        </button>
-      </div>
+      <OverviewStatBands :scanner="scanner" />
 
       <div class="grid grid-2-1">
         <section class="card">
@@ -306,34 +236,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             </p>
           </div>
         </section>
-        <section class="card">
-          <div class="card-head">
-            <div>
-              <h3>Per namespace</h3>
-              <p class="card-sub">top 10 by findings</p>
-            </div>
-            <UiButton variant="mini" @click="router.push('/images')">View inventory</UiButton>
-          </div>
-          <div class="card-body">
-            <p v-if="namespaces.length === 0" class="empty-row">No namespace data in range.</p>
-            <table v-else class="tbl tbl-hover">
-              <thead>
-                <tr><th>Namespace</th><th class="r">Findings</th></tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="n in namespaces"
-                  :key="n.key"
-                  :title="`Open findings in ${n.key}`"
-                  @click="goFindings({ namespace: n.key })"
-                >
-                  <td class="mono-cell ns-link">{{ n.key }}<AppIcon class="cell-go" name="chevron" :size="11" /></td>
-                  <td class="r mono-cell"><b>{{ fmt(n.count) }}</b></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+        <OverviewNamespacesCard :scanner="scanner" />
       </div>
     </template>
   </div>
@@ -356,39 +259,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   gap: 10px;
 }
 
-/* the joined stat-band SKIN lives in base.css (issue 368) — only this screen's layout here */
-.stat-band {
-  grid-template-columns: repeat(5, 1fr);
-}
-.signal-band {
-  grid-template-columns: repeat(3, 1fr);
-  margin-top: 12px;
-}
-
-.progress-bar {
-  display: flex;
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  overflow: hidden;
-  margin-top: 8px;
-  background: var(--line2);
-}
-.progress-bar i {
-  height: 100%;
-}
-.seg-open {
-  background: var(--state-open-fg);
-}
-.seg-ack {
-  background: var(--state-ack-fg);
-}
-.seg-handled {
-  background: var(--state-resolved-fg);
-}
-.seg-stale {
-  background: var(--state-stale-line);
-}
 .grid {
   display: grid;
   gap: var(--grid-gap);
@@ -404,12 +274,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   .grid-2-1,
   .grid-1-1 {
     grid-template-columns: 1fr;
-  }
-  .stat-band {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .stat-cell + .stat-cell {
-    border-left: none;
   }
 }
 
@@ -488,55 +352,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   color: var(--ink);
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-}
-
-.tbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-body);
-}
-.tbl th {
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--soft);
-  text-align: left;
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--line2);
-  background: var(--panel);
-}
-.tbl td {
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--line2);
-}
-.tbl .r {
-  text-align: right;
-}
-.tbl-hover tbody tr {
-  cursor: default; /* arrow, not the I-beam — text stays selectable */
-  transition: background var(--dur-quick);
-}
-.tbl-hover tbody tr:hover {
-  background: var(--row-hover);
-}
-.tbl-hover tbody tr:active {
-  background: var(--line2);
-}
-/* the affordance carrier — same convention as the grid's cve-link */
-.ns-link {
-  transition: color var(--dur-quick);
-}
-.tbl-hover tbody tr:hover .ns-link {
-  color: var(--coral-text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-@media (prefers-reduced-motion: reduce) {
-  .tbl-hover tbody tr,
-  .ns-link {
-    transition: none;
-  }
 }
 
 .load-error {
