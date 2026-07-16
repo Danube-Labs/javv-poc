@@ -108,6 +108,7 @@ routes stay current-state-only).
 | GET | `/api/v1/audit/facets` | Rail counts for the audit screen (M9d): `entity_type`/`action`/`actor` terms aggs under the same filters + `as_of` bound as the walk. `interval=day\|hour` + `window_days` adds `activity` — the audit lens's events-over-time histogram (quiet buckets as zeros) |
 | GET | `/api/v1/audit/export.csv` | Streaming CSV of the audit lens (M9d): decorated + CSV-injection-sanitized, constant-memory PIT sweep; > `JAVV_EXPORT_MAX_ROWS` → **413**, PIT cap → **429** (same bounds as the findings export) |
 | GET | `/api/v1/images` | Running images = the latest **committed** inventory run's image docs (M8c/#240; the T=now case of M8b's `running_images_at` — shared primitives). Partial runs never leak; clean (zero-finding) images appear; `inventory: null` = no committed inventory yet (unknown ≠ empty) |
+| GET | `/api/v1/images/timeline` | One `repo:tag`'s committed scan-event history (`cluster_id` + `image_repo` + `tag` query params) for the image-detail digest sub-timeline — build-change (digest flips) and per-scanner gap markers derive client-side |
 | GET | `/api/v1/clusters` | Cluster listing (D-5): token-derived `cluster_id`s ∪ registry names; `cluster_name` defaults to the id. **Display-only** — never a query key |
 
 **Cursor errors (A-m1):** expired PIT → **410** (re-run the search); tampered/invalid cursor →
