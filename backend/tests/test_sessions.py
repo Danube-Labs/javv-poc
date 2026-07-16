@@ -4,14 +4,7 @@ request); the raw value lives solely in the httpOnly cookie. Expiry is the serve
 `expires_at`; logout / role-change flip `revoked` — the cookie's own lifetime is advisory.
 Real OpenSearch."""
 
-import contextlib
-import os
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
-
-import httpx
-import pytest
-from opensearchpy import AsyncOpenSearch
 
 from backend.auth.sessions import (
     lookup_session,
@@ -19,33 +12,9 @@ from backend.auth.sessions import (
     revoke_all_for_user,
     revoke_session,
 )
-from backend.core.bootstrap import bootstrap
+from os_env import requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 NOW = datetime(2026, 7, 4, 12, 0, tzinfo=UTC)
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 @requires_opensearch

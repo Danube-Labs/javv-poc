@@ -4,18 +4,14 @@ integration tests prove the D39 ordering against a real OpenSearch — append is
 a clean scan writes zero rows but still commits, and a failed occurrences bulk BLOCKS the catalog
 commit so an uncertified snapshot is never read as "latest"."""
 
-import contextlib
 import json
-import os
 from pathlib import Path
 from typing import Any, cast
-from uuid import uuid4
 
-import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch, TransportError
 
-from backend.core.bootstrap import _OCCURRENCES_PROPERTIES, bootstrap
+from backend.core.bootstrap import _OCCURRENCES_PROPERTIES
 from backend.models.envelope import IngestEnvelope
 from backend.services.ingest import build_docs, ingest_envelope
 from backend.snapshots.occurrences import (
@@ -23,9 +19,9 @@ from backend.snapshots.occurrences import (
     build_occurrence_rows,
     occurrence_id,
 )
+from os_env import requires_opensearch
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 
 
 def _golden_docs() -> dict[str, Any]:
@@ -84,29 +80,6 @@ def test_clean_scan_builds_zero_rows() -> None:
 
 
 # --- integration: the D39 ordering against a real OpenSearch -------------------
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 async def _occurrence_hits(client: AsyncOpenSearch, prefix: str, cluster_id: str) -> list[dict]:

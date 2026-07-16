@@ -3,23 +3,21 @@
 
 import gzip
 import json
-import os
 import uuid
 from pathlib import Path
 from typing import Any
 
 import httpx
-import pytest
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
 GOLDEN = (Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text()
 CLUSTER = json.loads(GOLDEN)["cluster_id"]
 PEPPER = get_settings().token_pepper
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 
 
 class FakeOS:
@@ -203,14 +201,7 @@ async def test_garbage_gzip_is_400() -> None:
 # --- golden round-trip: real OpenSearch (guarded) ---------------------------
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-@pytest.mark.skipif(not _os_up(), reason="OpenSearch not reachable")
+@requires_opensearch
 async def test_golden_envelope_round_trip_against_real_opensearch() -> None:
     from backend.core.bootstrap import bootstrap
     from backend.models.envelope import IngestEnvelope
@@ -259,7 +250,7 @@ async def test_oversized_compressed_body_is_413_even_with_lying_header() -> None
     assert r.status_code == 413
 
 
-@pytest.mark.skipif(not _os_up(), reason="OpenSearch not reachable")
+@requires_opensearch
 async def test_repush_is_idempotent_counts_stay_stable() -> None:
     from backend.models.envelope import IngestEnvelope
     from backend.services.ingest import ingest_envelope

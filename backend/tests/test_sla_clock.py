@@ -9,24 +9,17 @@ it runs the same recompute); occurrences never carry the field (history has no c
 as_of_t no-change pin, structural); policy-edit instantness on the filter (the doc stores the
 CLOCK, never the verdict). Real OpenSearch, prefix-isolated."""
 
-import contextlib
 import json
-import os
 from collections import Counter
 from pathlib import Path
-from uuid import uuid4
 
-import httpx
-import pytest
-from opensearchpy import AsyncOpenSearch
-
-from backend.core.bootstrap import _OCCURRENCES_PROPERTIES, bootstrap
+from backend.core.bootstrap import _OCCURRENCES_PROPERTIES
 from backend.models.envelope import IngestEnvelope, canonical_severity
 from backend.services.ingest import build_docs, ingest_envelope
 from backend.services.sla_clock import group_clocks
+from os_env import requires_opensearch
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 GRYPE_TUNING = {"only_fixed": False, "scope": None, "scan_timeout": 300}
 
 T1 = "2026-07-01T12:00:00+00:00"  # the group's true first sighting
@@ -73,29 +66,6 @@ def test_occurrences_never_carry_the_clock() -> None:
 
 
 # --- the ingest arm (real OpenSearch, prefix-isolated) ------------------------------
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 def _counts(findings: list[dict]) -> dict[str, int]:

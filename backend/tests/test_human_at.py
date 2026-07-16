@@ -6,18 +6,12 @@ actions — the D39/D40 contract: latest per `(entity, field)` by revision, cros
 `target_ids`. Slice 3's I11 keystone closes the loop end-to-end; these pin the replay core."""
 
 import asyncio
-import contextlib
-import os
 from datetime import UTC, datetime
 from typing import Any
-from uuid import uuid4
 
-import httpx
-import pytest
 from opensearchpy import AsyncOpenSearch
 
 from backend.audit.writer import append_field_change
-from backend.core.bootstrap import bootstrap
 from backend.decisions.lifecycle import (
     DecisionPayload,
     DecisionScope,
@@ -26,32 +20,9 @@ from backend.decisions.lifecycle import (
 )
 from backend.query.human_at import HUMAN_DEFAULTS, decisions_active_at, finding_states_at
 from backend.triage.bulk import apply_bulk_triage
+from os_env import requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 CLUSTER = "cluster-human-at"
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 async def _now() -> datetime:

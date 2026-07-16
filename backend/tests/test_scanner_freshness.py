@@ -5,7 +5,6 @@ Read-time compute off `system-tokens.last_ingest_at` — NOT written by the stal
 Contract pins: per-(cluster,scanner) max over multiple tokens; disabled tokens still count
 (data freshness ≠ token validity); never-ingested → nulls; tenant isolation; session auth."""
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -16,19 +15,12 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.auth.passwords import hash_password
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "freshness-route-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 def _iso(dt: datetime) -> str:

@@ -14,24 +14,18 @@ end-state invariants hold regardless of arrival order:
   exactly nothing (the incremental path and the reconstruction can't disagree, §9)."""
 
 import asyncio
-import contextlib
 import json
-import os
 from pathlib import Path
-from uuid import uuid4
 
-import httpx
-import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.core.bootstrap import bootstrap
 from backend.jobs.rebuild_state import rebuild_scanner_presence
 from backend.models.envelope import IngestEnvelope, canonical_severity
 from backend.services.ingest import build_docs, ingest_envelope
 from backend.services.watermarks import _doc_id as watermark_id
+from os_env import requires_opensearch
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 
 
 def _envelope(keep: int, scan_order: int, run_id: str, seen_at: str) -> IngestEnvelope:
@@ -56,29 +50,6 @@ def _envelope(keep: int, scan_order: int, run_id: str, seen_at: str) -> IngestEn
         "last_seen_at": seen_at,
     }
     return IngestEnvelope.model_validate(e)
-
-
-def _opensearch_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-requires_opensearch = pytest.mark.skipif(
-    not _opensearch_up(), reason=f"OpenSearch not reachable at {OS_URL}"
-)
-
-
-@pytest.fixture
-async def real_os():
-    prefix = f"t-{uuid4().hex[:8]}-"
-    client = AsyncOpenSearch(hosts=[OS_URL])
-    await bootstrap(client, prefix=prefix)
-    yield client, prefix
-    with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
-    await client.close()
 
 
 # the two cycles: OLD = the full golden run (29 findings), NEW = one order later with 5 resolved

@@ -7,7 +7,6 @@ indistinguishable from missing; the bell is strictly own-notifications (server-s
 IDOR 404 on mark-read), with a server-computed unread count. Token unit contract alongside.
 """
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -19,19 +18,12 @@ from backend.auth.passwords import hash_password
 from backend.main import create_app
 from backend.reports import download_token
 from backend.reports.models import NOTIFICATIONS_INDEX, REPORT_CHUNKS_INDEX, REPORTS_INDEX
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "download-route-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture

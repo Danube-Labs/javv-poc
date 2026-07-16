@@ -6,7 +6,6 @@ behind (D38 — the sweep case); tenant isolation via the chokepoint (a bait row
 cluster never leaks into the file); auth required; `as_of` in the past is 501 (D28 seam).
 """
 
-import os
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -19,19 +18,12 @@ import backend.export.sweep as sweep_mod
 from backend.auth.passwords import hash_password
 from backend.core.settings import get_settings
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "export-route-password"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture(autouse=True)

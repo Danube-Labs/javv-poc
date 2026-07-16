@@ -15,19 +15,12 @@ stays as is."""
 
 import asyncio
 import contextlib
-import os
+from uuid import uuid4
 
 import httpx
 import pytest
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
+from os_env import OS_URL, opensearch_up
 
 
 async def _bootstrap_once() -> None:
@@ -48,8 +41,26 @@ async def _bootstrap_once() -> None:
 def shared_bootstrap() -> None:
     """Bootstrap the real (unprefixed) indices + role seed ONCE per session. No-op (fast fail on
     the reachability probe) when OpenSearch is down — the integration tests skip themselves."""
-    if _os_up():
+    if opensearch_up():
         asyncio.run(_bootstrap_once())
+
+
+@pytest.fixture
+async def real_os():
+    """A prefix-isolated store: private `t-*` indices bootstrapped for this test alone, deleted
+    on teardown. The suite-wide convention for anything that mutates index-level state (#368
+    dedup — this was copy-pasted into 23 files)."""
+    from opensearchpy import AsyncOpenSearch
+
+    from backend.core.bootstrap import bootstrap
+
+    prefix = f"t-{uuid4().hex[:8]}-"
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    await bootstrap(client, prefix=prefix)
+    yield client, prefix
+    with contextlib.suppress(Exception):
+        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
+    await client.close()
 
 
 # The test-residue sweep (2026-07-10): integration fixtures seed `c-*` clusters and `u-*` users
@@ -120,7 +131,7 @@ def sweep_test_residue():
     """Session-end sweep of everything the integration fixtures seeded. Best-effort: a failed
     sweep must never fail the suite (it reruns next session)."""
     yield
-    if not _os_up():
+    if not opensearch_up():
         return
     with contextlib.suppress(Exception):
         _sweep_residue()

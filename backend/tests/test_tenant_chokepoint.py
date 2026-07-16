@@ -3,17 +3,15 @@ body a caller passes, the emitted DSL carries the `cluster_id` term filter. Pure
 round-trip proving cross-tenant rows cannot come back."""
 
 import contextlib
-import os
 from uuid import uuid4
 
-import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
 from backend.core.bootstrap import bootstrap
 from backend.tenancy.chokepoint import tenant_query, tenant_search
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 FILTER = {"term": {"cluster_id": "c-1"}}
 
 
@@ -78,14 +76,7 @@ async def test_query_string_param_is_refused() -> None:
 # --- one real round-trip: cross-tenant rows cannot come back --------------------------
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-@pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+@requires_opensearch
 async def test_tenant_search_never_returns_another_clusters_rows() -> None:
     prefix = f"t-{uuid4().hex[:8]}-"
     client = AsyncOpenSearch(hosts=[OS_URL])

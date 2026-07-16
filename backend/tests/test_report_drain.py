@@ -6,11 +6,9 @@ bytes/chunk_count/expires_at; the bell rings for the requester; over-ceiling →
 `as_of_t` job fails loud with the M8b pointer; a fenced drain publishes nothing and rings nothing.
 """
 
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
-import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
@@ -27,18 +25,9 @@ from backend.reports.models import (
     ExportParams,
 )
 from backend.reports.storage import stream_chunks
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
-
-
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture

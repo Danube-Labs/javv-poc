@@ -3,7 +3,6 @@ chokepoint every protected route declares. 401 = who are you (no/dead session); 
 (missing capability, or a `must_change` session touching anything but the password routes). Admin
 holds all via the "*" marker. Real OpenSearch, real routes, unique per-test usernames."""
 
-import os
 import uuid
 from typing import Annotated
 
@@ -16,19 +15,12 @@ from backend.auth.capabilities import ROLE_BUNDLES, require_capability, seed_def
 from backend.auth.passwords import hash_password
 from backend.auth.principal import Principal
 from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
 
-OS_URL = os.environ.get("JAVV_OPENSEARCH_URL", "http://localhost:9200")
 PASSWORD = "correct horse battery staple"
 
 
-def _os_up() -> bool:
-    try:
-        return httpx.get(OS_URL, timeout=2.0).status_code == 200
-    except Exception:
-        return False
-
-
-pytestmark = pytest.mark.skipif(not _os_up(), reason=f"OpenSearch not reachable at {OS_URL}")
+pytestmark = requires_opensearch
 
 
 @pytest.fixture
