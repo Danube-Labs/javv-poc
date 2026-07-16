@@ -252,6 +252,11 @@ function onDonutClick(e: { name?: string }) {
   gap: var(--grid-gap);
   margin-top: 16px;
 }
+/* grid children default to min-width:auto — an ECharts canvas's rendered width then pins the
+   column and expanding the sidebar shoves the row off-viewport; 0 lets autoresize shrink it */
+.grid > * {
+  min-width: 0;
+}
 .grid-2-1 {
   grid-template-columns: 1.55fr 1fr;
 }
