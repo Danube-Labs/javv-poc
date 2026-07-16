@@ -255,17 +255,9 @@ html [class*=' p-'] {
 .tbl-dense.tbl-dense tbody td {
   padding: 7px 12px;
 }
-/* settings-grade ledger (operator 2026-07-16, the ui.nuxt/shadcn register): quiet sans head
-   at the body size — the uppercase-mono head is data-GRID grammar and shouts inside a settings
-   card. Identifier cells keep mono; every other cell rides the UI face. */
-.tbl-quiet.tbl-quiet thead th {
-  font-family: var(--font-ui);
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 600;
-  color: var(--soft);
-  font-size: var(--text-sm);
-}
+/* tbl-quiet is DENSITY only (operator 2026-07-16, superseding the same-day quiet-sans-head
+   ruling: two head registers meant settings heads went soft-gray-on-slate when the B2 band
+   landed — one grammar everywhere, findings is the reference) */
 .tbl-quiet.tbl-quiet tbody td {
   font-size: var(--text-sm);
 }
