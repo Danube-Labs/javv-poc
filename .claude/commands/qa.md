@@ -29,7 +29,7 @@ just make it a *decision*, and report it.
 
 **Always report visual-test status explicitly** — never leave it ambiguous:
 - **Ran** → shot count + **the screenshot dir as an absolute path** (linkifies in the terminal),
-  e.g. `visual-test: ran · 6 shots · /home/…/javv-poc/.playwright-mcp/visual-test/<run>/`.
+  e.g. `visual-test: ran · 6 shots · /home/…/javv-poc/tmp/screenshots/visual-test/<run>/`.
 - **Skipped** → say so with the reason: `visual-test: skipped (no rendered-surface delta)`.
 
 ## Docs-only / config-only
