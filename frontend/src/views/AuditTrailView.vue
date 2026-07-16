@@ -31,6 +31,7 @@ import { logger } from '@/lib/logger'
 import { useAuditStore, type AuditEvent } from '@/stores/audit'
 import { useClusterStore } from '@/stores/cluster'
 import { makeFiltersStore } from '@/stores/filters'
+import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 import { keepTT, stripTT } from '@/system/timeTravelUrl'
 
@@ -38,6 +39,7 @@ const useAuditFilters = makeFiltersStore('audit-filters', AUDIT_FIELDS)
 const filters = useAuditFilters()
 const grid = useAuditStore()
 const clusterStore = useClusterStore()
+const timeTravel = useTimeTravelStore()
 const { withGlobals } = useApi()
 const route = useRoute()
 const router = useRouter()
@@ -72,6 +74,12 @@ watch(facetsQuery, (q) => void loadFacets(q), { immediate: true })
 watch(facetsQuery, (q, old) => {
   if (old && JSON.stringify(q) !== JSON.stringify(old)) grid.resetPaging()
 })
+// cluster/T switched → the held rows are another tenant's/world's; readable-but-stale rows
+// under a slow network misled the issue-431 §4 walk, so drop them, don't just re-page
+watch(
+  () => [clusterStore.selectedId, timeTravel.t],
+  () => grid.clearResults(),
+)
 
 const rowsQuery = computed(() => {
   if (!clusterStore.selectedId) return null

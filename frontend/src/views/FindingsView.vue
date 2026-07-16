@@ -86,6 +86,12 @@ watch(facetsQuery, (q) => void loadFacets(q), { immediate: true })
 watch(facetsQuery, (q, old) => {
   if (old && JSON.stringify(q) !== JSON.stringify(old)) grid.resetPaging()
 })
+// cluster/T switched → the held rows are another tenant's/world's; readable-but-stale rows
+// under a slow network misled the issue-431 §4 walk, so drop them, don't just re-page
+watch(
+  () => [clusterStore.selectedId, timeTravel.t],
+  () => grid.clearResults(),
+)
 
 const rowsQuery = computed(() =>
   clusterStore.selectedId

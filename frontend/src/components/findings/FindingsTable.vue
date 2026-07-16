@@ -215,8 +215,11 @@ const nsLabel = (r: FindingRow): string => {
         </template>
       </Column>
       <template #empty>
+        <!-- while a fresh lens loads (rows just cleared), say loading — "no findings" would lie -->
         <div class="empty-row">
-          {{ filtered ? 'No findings match these filters.' : 'No findings yet — the first committed scan populates this grid.' }}
+          {{ props.loading ? 'Loading findings…'
+            : filtered ? 'No findings match these filters.'
+            : 'No findings yet — the first committed scan populates this grid.' }}
         </div>
       </template>
     </DataTable>

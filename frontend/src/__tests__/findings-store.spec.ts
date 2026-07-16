@@ -65,4 +65,16 @@ describe('findings store (cursor-stack paging)', () => {
     expect(s.page).toBe(0)
     expect(s.nextCursor).toBeNull()
   })
+
+  it('clearResults drops rows AND total (a cluster/T switch must not leave readable stale data)', () => {
+    const s = useFindingsStore()
+    s.setResult([row('a')], 4291, 'cur-1')
+    s.goNext()
+    s.clearResults()
+    expect(s.rows).toEqual([])
+    expect(s.total).toBe(0)
+    expect(s.page).toBe(0)
+    expect(s.cursors).toEqual([null])
+    expect(s.nextCursor).toBeNull()
+  })
 })
