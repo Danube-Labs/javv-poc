@@ -40,7 +40,7 @@ const title = computed(() => {
 <template>
   <div class="mix">
     <div class="mix-row">
-      <span v-if="label" class="mix-scanner">{{ label }}</span>
+      <span v-if="label" class="mix-scanner" :data-scanner="label.toLowerCase()">{{ label }}</span>
       <span v-if="segments || numbers" class="mix-bar" :title="title">
         <i v-for="seg in segments ?? []" :key="seg.sev" :style="{ width: `${seg.pct}%`, background: seg.color }" />
       </span>
@@ -64,6 +64,14 @@ const title = computed(() => {
   color: var(--soft);
   width: 38px;
   flex: none;
+}
+/* scanner identity (§8.5 specimen): the label wears its scanner's hue — same identity language
+   as ScannerTag, no escalation */
+.mix-scanner[data-scanner='trivy'] {
+  color: var(--scanner-trivy-fg);
+}
+.mix-scanner[data-scanner='grype'] {
+  color: var(--scanner-grype-fg);
 }
 .mix-bar {
   display: flex;

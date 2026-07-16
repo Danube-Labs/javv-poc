@@ -88,7 +88,11 @@ html [class*=' p-'] {
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  box-shadow: var(--shadow);
+  /* the section-identity echo (§8.5 specimen): a 3px inset bar in the route's sidebar-group
+     accent — transparent on section-less screens (login), so no layout shift anywhere */
+  box-shadow:
+    inset 0 3px 0 0 var(--sect-accent, transparent),
+    var(--shadow);
   padding: 12px 14px;
 }
 .head-card h1 {

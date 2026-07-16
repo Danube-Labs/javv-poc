@@ -185,6 +185,14 @@
   --health-down-bg: #fbe7e4;
   /* scanner identity tags (language A): tint + ring derived from the scanner hue (10%/30%) —
      quiet, no dot, no escalation (identity, not status) */
+  /* section identity accents (§8.5 specimen 2026-07-16): one quiet hue per sidebar group,
+     echoed as the head-card's top bar — wayfinding chroma, decorative only (never text) */
+  --sect-monitor: #1f8e84;
+  --sect-inventory: #728a45;
+  --sect-audit: #9c5273;
+  --sect-insights: #b3803e;
+  --sect-configure: #64788c;
+
   --scanner-trivy-fg: #17685f;
   --scanner-trivy-bg: #e8f0ef;
   --scanner-trivy-line: #b9d2cf;

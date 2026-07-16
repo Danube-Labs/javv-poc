@@ -21,73 +21,76 @@ const router = createRouter({
           path: 'clusters',
           name: 'clusters',
           component: () => import('@/views/AllClustersView.vue'),
+          meta: { section: 'monitor' },
         },
         {
           path: 'views',
           name: 'views',
           component: () => import('@/views/PlaceholderView.vue'),
+          meta: { section: 'monitor' },
           props: { title: 'Saved views', bolt: 'M9f' },
         },
         {
           path: 'scanner-status',
           name: 'scanner-status',
           component: () => import('@/views/ScannerStatusView.vue'),
-          meta: { wide: true },
+          meta: { section: 'monitor', wide: true },
         },
         {
           path: 'approvals',
           name: 'approvals',
           component: () => import('@/views/ApprovalsView.vue'),
-          meta: { capability: 'can_accept_audit_final', wide: true },
+          meta: { section: 'audit', capability: 'can_accept_audit_final', wide: true },
         },
         {
           path: 'contributors',
           name: 'contributors',
           component: () => import('@/views/ContributorsView.vue'),
-          meta: { wide: true },
+          meta: { section: 'insights', wide: true },
         },
         {
           path: 'overview',
           name: 'overview',
           component: () => import('@/views/OverviewView.vue'),
-          meta: { wide: true },
+          meta: { wide: true, section: 'monitor' },
         },
         {
           path: 'findings',
           name: 'findings',
           component: () => import('@/views/FindingsView.vue'),
-          meta: { wide: true },
+          meta: { section: 'monitor', wide: true },
         },
         {
           // identity = (cve_id, image_digest); scanner query = the clicked row, for header continuity
           path: 'findings/:cveId',
           name: 'finding',
           component: () => import('@/views/FindingDetailView.vue'),
+          meta: { section: 'monitor' },
         },
         {
           path: 'images',
           name: 'images',
           component: () => import('@/views/ImagesView.vue'),
-          meta: { wide: true },
+          meta: { section: 'inventory', wide: true },
         },
         {
           path: 'images/:digest',
           name: 'image-detail',
           component: () => import('@/views/ImageDetailView.vue'),
-          meta: { wide: true },
+          meta: { section: 'inventory', wide: true },
         },
         {
           path: 'audit',
           name: 'audit',
           component: () => import('@/views/AuditTrailView.vue'),
-          meta: { wide: true },
+          meta: { section: 'audit', wide: true },
         },
         {
           // the §13 settings shell — each child carries ITS OWN capability (the merged child
           // meta overrides the parent's, so e.g. tokens gates on can_manage_tokens alone)
           path: 'settings',
           component: () => import('@/views/settings/SettingsLayout.vue'),
-          meta: { capability: 'can_manage_settings' },
+          meta: { section: 'configure', capability: 'can_manage_settings' },
           children: [
             // §13 order: settings opens on scan-scope
             { path: '', redirect: '/settings/scan-scope' },
