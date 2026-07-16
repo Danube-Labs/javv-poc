@@ -124,8 +124,11 @@ function onRowClick(row: AuditEvent) {
         </template>
       </Column>
       <template #empty>
+        <!-- while a fresh lens loads (rows just cleared), say loading — "no activity" would lie -->
         <div class="empty-row">
-          {{ filtered ? 'No events match these filters.' : 'No journaled activity for this cluster yet — triage actions, decisions and config edits will land here.' }}
+          {{ props.loading ? 'Loading events…'
+            : filtered ? 'No events match these filters.'
+            : 'No journaled activity for this cluster yet — triage actions, decisions and config edits will land here.' }}
         </div>
       </template>
     </DataTable>

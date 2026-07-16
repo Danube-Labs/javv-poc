@@ -81,5 +81,13 @@ export const useAuditStore = defineStore('audit', {
       this.cursors = [null]
       this.nextCursor = null
     },
+    /** Cluster or T switched — the held rows belong to another tenant/world; drop them so the
+     * loading state shows instead of readable stale data while the new read is in flight. */
+    clearResults() {
+      this.rows = []
+      this.total = 0
+      this.totalIsLowerBound = false
+      this.resetPaging()
+    },
   },
 })
