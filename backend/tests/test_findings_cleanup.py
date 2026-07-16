@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 from backend.jobs.findings_cleanup import (
     FindingsCleanupKnob,
+    read_findings_cleanup_knob,
     run_findings_cleanup,
     write_findings_cleanup_knob,
 )
@@ -30,13 +31,14 @@ async def _seed_finding(
     present: bool,
     resolved_at: str | None = None,
     state: str = "new",
+    cluster: str = CLUSTER,
 ) -> None:
     await client.index(
         index=f"{prefix}findings",
         id=key,
         body={
             "finding_key": key,
-            "cluster_id": CLUSTER,
+            "cluster_id": cluster,
             "scanner": "trivy",
             "image_digest": digest,
             "cve_id": "CVE-2024-0001",
@@ -150,6 +152,57 @@ async def test_watermarks_prune_only_when_old_and_orphaned(real_os) -> None:
     }
 
 
+# --- per-cluster windows (D26 pattern: override doc beats the fleet default) -----------------
+
+
+@requires_opensearch
+async def test_knob_read_resolves_override_then_fleet_then_default(real_os) -> None:
+    client, prefix = real_os
+
+    async def effective(cluster_id: str) -> float:
+        knob = await read_findings_cleanup_knob(client, cluster_id=cluster_id, prefix=prefix)
+        return knob.cleanup_days
+
+    assert await effective("c-a") == 180
+    await write_findings_cleanup_knob(
+        client, FindingsCleanupKnob(cleanup_days=42), updated_by="t", prefix=prefix
+    )
+    assert await effective("c-a") == 42
+    await write_findings_cleanup_knob(
+        client,
+        FindingsCleanupKnob(cleanup_days=7),
+        updated_by="t",
+        cluster_id="c-a",
+        prefix=prefix,
+    )
+    assert await effective("c-a") == 7
+    # the override never bleeds onto other tenants
+    assert await effective("c-b") == 42
+
+
+@requires_opensearch
+async def test_the_sweep_applies_each_clusters_own_window(real_os) -> None:
+    """Fleet default 180d, cluster c-a overridden to 30d: a 60-day-gone row is reaped in c-a and
+    KEPT in c-b — the retention asymmetry the two-cluster walk flagged (issue 431)."""
+    client, prefix = real_os
+    await write_findings_cleanup_knob(
+        client,
+        FindingsCleanupKnob(cleanup_days=30),
+        updated_by="t",
+        cluster_id="c-a",
+        prefix=prefix,
+    )
+    for key, cluster in (("a-gone", "c-a"), ("b-gone", "c-b")):
+        await _seed_finding(
+            client, prefix, key, cluster=cluster, present=False, resolved_at=_days_ago(60)
+        )
+
+    counts = await run_findings_cleanup(client, now=NOW, prefix=prefix)
+
+    assert counts["findings_deleted"] == 1
+    assert await _ids(client, f"{prefix}findings") == {"b-gone"}
+
+
 # --- history is untouchable (keystone) ------------------------------------------------------
 
 
@@ -218,5 +271,7 @@ async def test_each_run_journals_its_counts(real_os) -> None:
     assert row["new_value_json"] == {
         "findings_deleted": 1,
         "watermarks_pruned": 0,
-        "cleanup_days": 180.0,
+        "by_cluster": {
+            CLUSTER: {"cleanup_days": 180.0, "findings_deleted": 1, "watermarks_pruned": 0}
+        },
     }

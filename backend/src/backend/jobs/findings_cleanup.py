@@ -3,8 +3,11 @@ cache (+ their paired `javv-scan-watermarks` docs) whose image has been gone fro
 run (`present=false`) longer than `cleanup_days` are the ONE sanctioned `delete_by_query` on
 `findings` — deletion never rides the freshness timer (`stale` stays a flag, D20), and history
 (`javv-finding-occurrences-*`, `javv-scan-events-*`, `javv-images-*`) is untouched: the cache is
-rebuildable, so nothing audit-relevant is lost. The knob is tier-③ runtime config (`system-config`
-doc `findings_cleanup`, fleet-wide), edited from the Data & OpenSearch panel.
+rebuildable, so nothing audit-relevant is lost. The knob is tier-③ runtime config in
+`system-config` — fleet-wide `findings_cleanup` default + a per-cluster
+`findings_cleanup:<cluster_id>` override (the lifecycle sweep's D26 pattern; the two-cluster walk
+on issue 431 flagged the old fleet-only knob as a tenancy asymmetry) — edited from the Data &
+OpenSearch panel. The sweep runs per cluster with each tenant's effective window.
 
 **"Gone since" = `resolved_at`** — the reconcile stamp set the moment a committed run stopped
 reporting the finding (`services/reconcile.py`), cleared by the merge on re-appearance and
@@ -50,24 +53,46 @@ class FindingsCleanupKnob(BaseModel):
     cleanup_days: float = Field(default=180, gt=0)
 
 
-async def read_findings_cleanup_knob(
-    client: AsyncOpenSearch, *, prefix: str = ""
-) -> FindingsCleanupKnob:
+def _knob_id(cluster_id: str | None) -> str:
+    return FINDINGS_CLEANUP_KEY if cluster_id is None else f"{FINDINGS_CLEANUP_KEY}:{cluster_id}"
+
+
+async def _read_one(
+    client: AsyncOpenSearch, doc_id: str, prefix: str
+) -> FindingsCleanupKnob | None:
     try:
-        got = await client.get(index=f"{prefix}system-config", id=FINDINGS_CLEANUP_KEY)
+        got = await client.get(index=f"{prefix}system-config", id=doc_id)
     except NotFoundError:
-        return FindingsCleanupKnob()
+        return None
     return FindingsCleanupKnob.model_validate(got["_source"]["value"])
 
 
+async def read_findings_cleanup_knob(
+    client: AsyncOpenSearch, *, cluster_id: str | None = None, prefix: str = ""
+) -> FindingsCleanupKnob:
+    """A cluster's effective window: per-cluster `findings_cleanup:<cluster_id>` if set, else the
+    fleet-wide `findings_cleanup` default, else the D37 default (the lifecycle-knobs rule)."""
+    if cluster_id is not None:
+        per_cluster = await _read_one(client, _knob_id(cluster_id), prefix)
+        if per_cluster is not None:
+            return per_cluster
+    return await _read_one(client, FINDINGS_CLEANUP_KEY, prefix) or FindingsCleanupKnob()
+
+
 async def write_findings_cleanup_knob(
-    client: AsyncOpenSearch, knob: FindingsCleanupKnob, *, updated_by: str, prefix: str = ""
+    client: AsyncOpenSearch,
+    knob: FindingsCleanupKnob,
+    *,
+    updated_by: str,
+    cluster_id: str | None = None,
+    prefix: str = "",
 ) -> None:
+    doc_id = _knob_id(cluster_id)
     await client.index(
         index=f"{prefix}system-config",
-        id=FINDINGS_CLEANUP_KEY,
+        id=doc_id,
         body={
-            "key": FINDINGS_CLEANUP_KEY,
+            "key": doc_id,
             "value": knob.model_dump(),
             "updated_at": datetime.now(UTC).isoformat(),
             "updated_by": updated_by,
@@ -76,11 +101,28 @@ async def write_findings_cleanup_knob(
     )
 
 
+async def _cluster_ids(client: AsyncOpenSearch, *indices: str) -> set[str]:
+    """Every tenant with a row in any of `indices` — the sweep's work list. A terms agg is
+    enough: the fleet is operator-bounded, nowhere near the bucket cap."""
+    found: set[str] = set()
+    for index in indices:
+        resp = await client.search(
+            index=index,
+            body={"size": 0, "aggs": {"c": {"terms": {"field": "cluster_id", "size": 1000}}}},
+        )
+        found.update(b["key"] for b in resp["aggregations"]["c"]["buckets"])
+    return found
+
+
 async def _prune_watermarks(
-    client: AsyncOpenSearch, findings_index: str, watermarks_index: str, cutoff: str
+    client: AsyncOpenSearch,
+    findings_index: str,
+    watermarks_index: str,
+    cutoff: str,
+    cluster_id: str,
 ) -> int:
-    """Delete watermarks older than `cutoff` whose digest has NO remaining findings row."""
-    await client.indices.refresh(index=watermarks_index)
+    """Delete THIS cluster's watermarks older than its `cutoff` whose digest has NO remaining
+    findings row."""
     candidates: list[dict[str, Any]] = []
     after: list[Any] | None = None
     while True:  # collect first, then decide — deleting mid-page would shift the cursor
@@ -88,7 +130,14 @@ async def _prune_watermarks(
             "size": _PAGE,
             "seq_no_primary_term": True,
             "sort": [{"image_digest": "asc"}, {"scanner": "asc"}, {"cluster_id": "asc"}],
-            "query": {"range": {"max_committed_scan_at": {"lt": cutoff}}},
+            "query": {
+                "bool": {
+                    "filter": [
+                        {"term": {"cluster_id": cluster_id}},
+                        {"range": {"max_committed_scan_at": {"lt": cutoff}}},
+                    ]
+                }
+            },
         }
         if after is not None:
             body["search_after"] = after
@@ -137,36 +186,52 @@ async def _prune_watermarks(
 async def run_findings_cleanup(
     client: AsyncOpenSearch, *, now: datetime | None = None, prefix: str = ""
 ) -> dict[str, int]:
-    """One cleanup cycle: reap long-absent `findings` rows, then prune orphaned watermarks.
-    Returns counts (all zero on a clean store — idempotence). `now` is injectable for tests."""
+    """One cleanup cycle, per cluster with each tenant's effective window: reap long-absent
+    `findings` rows, then prune orphaned watermarks. Returns fleet totals (all zero on a clean
+    store — idempotence). `now` is injectable for tests."""
     now = now or datetime.now(UTC)
-    knob = await read_findings_cleanup_knob(client, prefix=prefix)
-    cutoff = (now - timedelta(days=knob.cleanup_days)).isoformat()
     findings_index = f"{prefix}findings"
     watermarks_index = f"{prefix}{WATERMARKS_INDEX}"
 
     # a delete decision must see everything that was indexed (the lifecycle-sweep rule)
     await client.indices.refresh(index=findings_index)
-    resp = await client.delete_by_query(
-        index=findings_index,
-        body={
-            "query": {
-                "bool": {
-                    "filter": [
-                        {"term": {"present": False}},
-                        {"range": {"resolved_at": {"lt": cutoff}}},
-                    ]
-                }
-            }
-        },
-        params={"conflicts": "proceed", "refresh": "true"},
-    )
-    deleted = int(resp.get("deleted", 0))
+    await client.indices.refresh(index=watermarks_index)
 
-    pruned = await _prune_watermarks(client, findings_index, watermarks_index, cutoff)
+    deleted = 0
+    pruned = 0
+    by_cluster: dict[str, dict[str, float]] = {}
+    for cluster_id in sorted(await _cluster_ids(client, findings_index, watermarks_index)):
+        knob = await read_findings_cleanup_knob(client, cluster_id=cluster_id, prefix=prefix)
+        cutoff = (now - timedelta(days=knob.cleanup_days)).isoformat()
+        resp = await client.delete_by_query(
+            index=findings_index,
+            body={
+                "query": {
+                    "bool": {
+                        "filter": [
+                            {"term": {"cluster_id": cluster_id}},
+                            {"term": {"present": False}},
+                            {"range": {"resolved_at": {"lt": cutoff}}},
+                        ]
+                    }
+                }
+            },
+            params={"conflicts": "proceed", "refresh": "true"},
+        )
+        c_deleted = int(resp.get("deleted", 0))
+        c_pruned = await _prune_watermarks(
+            client, findings_index, watermarks_index, cutoff, cluster_id
+        )
+        deleted += c_deleted
+        pruned += c_pruned
+        by_cluster[cluster_id] = {
+            "cleanup_days": knob.cleanup_days,
+            "findings_deleted": c_deleted,
+            "watermarks_pruned": c_pruned,
+        }
 
     counts = {"findings_deleted": deleted, "watermarks_pruned": pruned}
-    log.info("findings cleanup: cycle complete", cleanup_days=knob.cleanup_days, **counts)
+    log.info("findings cleanup: cycle complete", by_cluster=by_cluster, **counts)
     await append_field_change(
         client,
         actor="findings-cleanup-job",
@@ -176,7 +241,7 @@ async def run_findings_cleanup(
         field="counts",
         old_value=None,
         new_value=None,
-        new_value_json={**counts, "cleanup_days": knob.cleanup_days},
+        new_value_json={**counts, "by_cluster": by_cluster},
         revision=1,
         cluster_id="fleet",
         prefix=prefix,
