@@ -297,8 +297,8 @@ are deliberate contract choices, not reflex defaults (operator ruling 2026-07-09
 
 | Finding | Ruling |
 |---|---|
-| `overused-font: Space Grotesk` | v4 brand contract. Only changes by an operator-approved token swap. |
-| `cream-palette` (#f4f1ea) | The v4 warm-paper identity — deliberate palette, not a default. |
+| `overused-font: Hanken Grotesk` | The brand UI face (operator-picked 2026-07-09, A/B vs Space/Schibsted Grotesk). Only changes by an operator-approved token swap. |
+| `cream-palette` (`--bg` #efeadf / `--panel` #fbfaf6) | The warm-paper identity — deliberate palette, not a default. |
 | `tiny-text 10–11.5px` on mono micro-scale | Ops-tool density (table headers, counts, chips) per the v4 scale. Body text stays ≥13px. |
 | `low-contrast` white-on-coral (login/action buttons) | Prototype button treatment; 13px/600 button label, not body text. |
 | `cramped-padding` on `tbl-wrap` | Full-bleed table inside the card is the prototype's design. |
