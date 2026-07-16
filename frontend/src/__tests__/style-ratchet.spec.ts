@@ -78,7 +78,8 @@ describe('style ratchet — no pointer cursor', () => {
 const CHIP_EXEMPT = [/^components\/chips\//]
 const CHIP_SELECTOR =
   // chip-class: short bold data labels with gate-tested pairs, plus the sidebar's own dark ramp
-  /\.(time-range-hist|kev-tag|kev-lg|both-tag|state-opt-on|vm-fp|vm-ne|side-item)\b/
+  // (incl. the table-head band — B2 ruling 2026-07-16: slate2 + parchment, ~10:1)
+  /\.(time-range-hist|kev-tag|kev-lg|both-tag|state-opt-on|vm-fp|vm-ne|side-item|tbl)\b/
 
 describe('style ratchet — no same-hue text on its own tint', () => {
   const files = walk(SRC)
