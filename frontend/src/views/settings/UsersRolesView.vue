@@ -20,6 +20,7 @@ import {
 import { client } from '@/api/client'
 import DotWord from '@/components/chips/DotWord.vue'
 import GridPager from '@/components/findings/GridPager.vue'
+import RolesCard, { type RoleRow } from '@/components/settings/RolesCard.vue'
 import SettingsCard from '@/components/settings/SettingsCard.vue'
 import SettingsInput from '@/components/settings/SettingsInput.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -38,10 +39,6 @@ interface UserRow {
   disabled: boolean
   auth_source: string
   created_at: string | null
-}
-interface RoleRow {
-  role: string
-  capabilities: string[]
 }
 
 const auth = useAuthStore()
@@ -299,22 +296,7 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
       </div>
     </SettingsCard>
 
-    <SettingsCard title="Roles" subtitle="a role is a bundle of capabilities — endpoints check the capability, never the role name">
-      <div v-if="!loading && !failed" class="roles-list">
-        <div v-for="r in roles" :key="r.role" class="role-row">
-          <span class="role-name mono-cell sm">{{ r.role }}</span>
-          <span v-if="r.capabilities.length === 0" class="role-caps-none">read-only dashboards</span>
-          <span v-else-if="r.capabilities.includes('*')" class="role-caps-all">every capability, present and future</span>
-          <span v-else class="role-caps">
-            <code v-for="cap in r.capabilities" :key="cap" class="cap-chip mono-cell sm">{{ cap }}</code>
-          </span>
-        </div>
-      </div>
-      <p class="evidence-note">
-        Disable, never delete — a departed user's rows stay attributable in the audit trail.
-        New bundles are seeded as <span class="mono-cell sm">system-roles</span> data; they appear here without a release.
-      </p>
-    </SettingsCard>
+    <RolesCard :roles="roles" :ready="!loading && !failed" />
 
     <!-- invite -->
     <ModalShell v-if="inviteOpen" title="Invite a user" subtitle="they log in with the temp password and must change it" @close="inviteOpen = false">
@@ -449,50 +431,6 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
   color: var(--soft);
   background: var(--panel);
   cursor: not-allowed;
-}
-.roles-list {
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-}
-.role-row {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--line2);
-}
-.role-row:last-child {
-  border-bottom: 0;
-}
-.role-name {
-  flex: none;
-  width: 120px;
-  font-weight: 700;
-  color: var(--ink);
-}
-.role-caps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.cap-chip {
-  padding: 2px 7px;
-  background: var(--panel);
-  border: 1px solid var(--line2);
-  border-radius: 5px;
-  color: var(--ink);
-}
-.role-caps-none,
-.role-caps-all {
-  font-size: var(--text-sm);
-  color: var(--soft);
-}
-.evidence-note {
-  margin: 12px 0 0;
-  font-size: var(--text-sm);
-  color: var(--soft);
-  line-height: 1.5;
 }
 .modal-error {
   margin: 10px 0 0;

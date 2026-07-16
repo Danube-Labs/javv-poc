@@ -14,18 +14,15 @@ import type {
   FacetFindingsApiV1FindingsFacetsGetData,
   ImageTimelineApiV1ImagesTimelineGetData,
   ListRunningImagesApiV1ImagesGetData,
-  SearchFindingsApiV1FindingsGetData,
 } from '@/api/generated'
 import {
   facetFindingsApiV1FindingsFacetsGet,
   imageTimelineApiV1ImagesTimelineGet,
   listRunningImagesApiV1ImagesGet,
-  searchFindingsApiV1FindingsGet,
 } from '@/api/generated'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
-import FindingsTable from '@/components/findings/FindingsTable.vue'
-import GridPager from '@/components/findings/GridPager.vue'
 import DigestSubTimeline from '@/components/images/DigestSubTimeline.vue'
+import ImageFindingsPanel from '@/components/images/ImageFindingsPanel.vue'
 import { buildImageAtTQuery } from '@/images/buildImageAtTQuery'
 import { notYetScannedAt, type TimelineEvent } from '@/images/subTimeline'
 import type { ImageRow } from '@/stores/images'
@@ -33,11 +30,9 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { useApi } from '@/composables/useApi'
-import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { lastDataAt } from '@/system/freshness'
-import type { FindingRow } from '@/stores/findings'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
 
@@ -46,8 +41,6 @@ const SCANNER_OPTS = [
   { value: 'trivy', label: 'trivy' },
   { value: 'grype', label: 'grype' },
 ] as const
-/* image/affected-images are this screen's own context; scanner is fixed by the lens */
-const HIDDEN_COLUMNS: ReadonlySet<string> = new Set(['image', 'images', 'scanner'])
 
 const route = useRoute()
 const router = useRouter()
@@ -67,18 +60,6 @@ const scanner = ref<'trivy' | 'grype'>('trivy')
 /* ---- severity cards: the lens scanner's facet buckets, image-scoped ---- */
 const facets = ref<Record<string, { key: string; count: number }[]>>({})
 const facetsFailed = ref(false)
-
-/* ---- rows: cursor-stack paging local to this screen (one query family) ---- */
-const rows = ref<FindingRow[]>([])
-const total = ref(0)
-const loading = ref(false)
-const failed = ref(false)
-const sort = ref<SortField>('severity_rank')
-const order = ref<SortOrder>('desc')
-const size = ref(25)
-const page = ref(0)
-const cursors = ref<(string | null)[]>([null]) // cursor that FETCHES page i
-const nextCursor = ref<string | null>(null)
 
 const baseQuery = computed(() =>
   clusterStore.selectedId
@@ -104,66 +85,7 @@ async function loadFacets() {
   }
 }
 
-async function loadRows() {
-  if (!baseQuery.value) return
-  loading.value = true
-  const { data, response } = await searchFindingsApiV1FindingsGet({
-    query: {
-      ...baseQuery.value,
-      sort: sort.value,
-      order: order.value,
-      size: size.value,
-      ...(cursors.value[page.value] ? { cursor: cursors.value[page.value] } : {}),
-    } as SearchFindingsApiV1FindingsGetData['query'],
-  })
-  loading.value = false
-  if (response?.ok && data) {
-    const body = data as { data: FindingRow[]; total: { value: number }; next_cursor: string | null }
-    rows.value = body.data
-    total.value = body.total.value
-    nextCursor.value = body.next_cursor
-    failed.value = false
-  } else {
-    failed.value = true
-    logger.warn('image_detail_rows_failed', { status: response?.status })
-  }
-}
-
-function resetPaging() {
-  page.value = 0
-  cursors.value = [null]
-  nextCursor.value = null
-}
-
-watch(
-  [baseQuery, sort, order, size],
-  () => {
-    resetPaging()
-    void loadFacets()
-    void loadRows()
-  },
-  { immediate: true },
-)
-
-function onSort(field: SortField) {
-  if (sort.value === field) {
-    order.value = order.value === 'desc' ? 'asc' : 'desc'
-  } else {
-    sort.value = field
-    order.value = 'desc'
-  }
-}
-function goNext() {
-  if (!nextCursor.value) return
-  cursors.value[page.value + 1] = nextCursor.value
-  page.value += 1
-  void loadRows()
-}
-function goPrev() {
-  if (page.value === 0) return
-  page.value -= 1
-  void loadRows()
-}
+watch(baseQuery, () => void loadFacets(), { immediate: true })
 
 const sevCount = (s: Severity) => facets.value.severity?.find((b) => b.key === s)?.count ?? 0
 const presentTotal = computed(() => facets.value.present?.find((b) => b.key === 'true')?.count ?? 0)
@@ -224,14 +146,6 @@ const lastScanAt = computed(() => {
     )
 })
 
-function openFinding(row: FindingRow) {
-  logger.debug('image_finding_row_clicked', { finding_key: row.finding_key })
-  void router.push({
-    name: 'finding',
-    params: { cveId: row.cve_id },
-    query: { digest: digest.value, scanner: row.scanner, package: row.package_name ?? '' },
-  })
-}
 const fmt = (n: number) => n.toLocaleString('en-US')
 </script>
 
@@ -314,11 +228,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       </div>
     </section>
 
-    <p v-if="failed" class="load-error" role="alert">
-      Image findings unavailable. Check the backend connection.
-    </p>
-
-    <div v-else-if="notYetScanned" class="card first-run">
+    <div v-if="notYetScanned" class="card first-run">
       <h2>Not yet scanned then</h2>
       <p>
         No committed {{ scanner }} scan of this tag exists at or before this T. Reach is bounded
@@ -344,38 +254,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </div>
       </div>
 
-      <div v-if="!loading && rows.length === 0" class="card first-run">
-        <h2>No findings from {{ scanner }}</h2>
-        <p>
-          {{ timeTravel.isNow
-            ? `No committed ${scanner} findings for this digest — a clean scan or not scanned by ${scanner} yet.`
-            : `As scanned at this T: no committed ${scanner} findings for this digest — clean then, or not yet scanned.` }}
-        </p>
-      </div>
-      <template v-else>
-        <div class="tbl-card">
-        <FindingsTable
-          :rows="rows"
-          :sort="sort"
-          :order="order"
-          :loading="loading"
-          :hidden="HIDDEN_COLUMNS"
-          @sort="onSort"
-          @row-click="openFinding"
-        />
-        <GridPager
-          :total="total"
-          :page="page"
-          :size="size"
-          :shown="rows.length"
-          :has-prev="page > 0"
-          :has-next="nextCursor !== null"
-          @prev="goPrev"
-          @next="goNext"
-          @update:size="(s: number) => (size = s)"
-        />
-        </div>
-      </template>
+      <ImageFindingsPanel :digest="digest" :scanner="scanner" />
     </template>
   </div>
 </template>
