@@ -1,4 +1,4 @@
-/** All-clusters fleet state (M9c slice 2; SCREENS-v5 §1). Every number is a per-cluster SERVER
+/** All-clusters fleet state (M9c slice 2; SCREENS §1). Every number is a per-cluster SERVER
  * aggregation — facets + freshness + the committed-inventory read, one set per cluster row —
  * kept per-scanner (never merged across scanners). I3 guard (D38/M16, D39/M11-r2): at `T<now`
  * this store flips `limited` and emits NO query — there is no historical all-clusters read in

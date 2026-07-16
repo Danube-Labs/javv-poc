@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** Per-digest build history (M9c slice 3; SCREENS-v5 §8) — ONE scanner's committed scan-events
+/** Per-digest build history (M9c slice 3; SCREENS §8) — ONE scanner's committed scan-events
  * rendered as digest eras: a boundary is a BUILD CHANGE (marked, never a silent gap), a
  * `scan_order` jump is a missed-cycles gap, and a T before the first committed event renders
  * "not yet scanned then". Latest era first. */

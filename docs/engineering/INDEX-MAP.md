@@ -1,9 +1,12 @@
 # JAVV - Index map & mappings (v4)
 
+> **Living doc** (formerly `INDEX-MAP_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
+> The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
+
 > **The single source of truth for every OpenSearch index**: name, partition key, rollover/retention, and
-> pinned mapping. Supersedes the scattered field tables in `PLAN_v4` §5.x. Captured 2026-06-21. All indexes:
+> pinned mapping. Supersedes the scattered field tables in `PLAN` §5.x. Captured 2026-06-21. All indexes:
 > `dynamic: false`. Enum/casing fields use the shared `lc` lowercase normalizer (verbatim in `_source`,
-> normalized for aggs/filters - D16). Companion: `FLOW-EXAMPLE_v4.md` (worked example). Diagrams: Mermaid.
+> normalized for aggs/filters - D16). Companion: `FLOW-EXAMPLE.md` (worked example). Diagrams: Mermaid.
 
 ## Summary - rolls over or not?
 

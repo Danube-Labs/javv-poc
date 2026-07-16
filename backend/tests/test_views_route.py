@@ -157,7 +157,7 @@ async def test_garbage_presets_are_422_and_never_stored(env) -> None:
 
 
 def test_preset_mirrors_search_filters_one_to_one() -> None:
-    """Drift here silently breaks the deep-link contract (SCREENS-v5 §6): a preset must map
+    """Drift here silently breaks the deep-link contract (SCREENS §6): a preset must map
     onto the findings query params exactly — same rule as the ExportParams mirror."""
     assert set(ViewPreset.model_fields) == set(SearchFilters.__dataclass_fields__)
 

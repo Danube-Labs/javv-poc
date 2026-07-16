@@ -1,10 +1,13 @@
 # JAVV v4 - Design audit (consistency · overengineering · soundness · security)
 
+> **Living doc** (formerly `AUDIT_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
+> The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
+
 > Second-round audit of the v4 set, run as **4 independent agents** (consistency, overengineering,
 > architecture-soundness, security/ops) framed on the `code-review-and-quality` five axes. Captured
 > 2026-06-21. Synthesized + de-duped here with a recommendation per finding.
-> **Resolved 2026-06-21:** the rulings were folded into PLAN_v4 (D28–D36 + CON fixes), SPEC_v4 (new FR-23 +
-> FR-2/14/18 updates), ARCHITECTURE_v4, and the new `INDEX-MAP_v4.md`. This doc is the audit *record*; see
+> **Resolved 2026-06-21:** the rulings were folded into PLAN (D28–D36 + CON fixes), SPEC (new FR-23 +
+> FR-2/14/18 updates), ARCHITECTURE, and the new `INDEX-MAP.md`. This doc is the audit *record*; see
 > those for the applied form. (Owner overrides: occurrences/scan-events/scheduled-export/two-timer kept;
 > rebuild-state kept day-one; `apply_both` stays a release gate; whole-app time-travel added.)
 
@@ -24,7 +27,7 @@ also delete security/soundness findings** - simplification and hardening point t
 ## TIER 1 - Fix before building the affected area (Critical/High)
 
 ### Consistency slips (unambiguous - just fix)
-- **CON-1 [High]** `PLAN_v4` §8 M5d cites SLA/KEV as **(FR-13)**; it's **FR-10** (FR-13 is export). Wrong ref.
+- **CON-1 [High]** `PLAN` §8 M5d cites SLA/KEV as **(FR-13)**; it's **FR-10** (FR-13 is export). Wrong ref.
 - **CON-2 [Med]** `D5a`/`D5b` referenced (§5.2, §5.3, M4, FLOW) but never defined - §3 only defines **D5**.
   → split D5 into D5a (severity disagree) / D5b (count disagree), or collapse all refs to `(D5)`.
 - **CON-3 [Med]** Count-delta field is `delta` in PLAN §5.3 / SPEC FR-11 but **`count_delta`** in the FLOW

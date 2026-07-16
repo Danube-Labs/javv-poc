@@ -8,9 +8,9 @@ Register a snapshot repository (FS/MinIO `repository-s3`) and automate ISM snaps
 current-state doc back on a fresh node via `_restore`. Durability is pulled forward so every
 later bolt builds on a recoverable store. (NFR-6.)
 
-**Canonical refs:** [`PLAN_v4 §8 M2`](../../../docs/engineering/V4/PLAN_v4.md) (step 3 — "Gate: tested restore drill") ·
-`SPEC_v4` NFR-6, FR-19 (ISM-automated schedule surfaced in the Data & OpenSearch panel) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`javv-findings`, `javv-images`, `system-config`,
+**Canonical refs:** [`PLAN §8 M2`](../../../docs/engineering/PLAN.md) (step 3 — "Gate: tested restore drill") ·
+`SPEC` NFR-6, FR-19 (ISM-automated schedule surfaced in the Data & OpenSearch panel) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`javv-findings`, `javv-images`, `system-config`,
 `system-*`) · `D26` (rollover/retention/snapshot knobs).
 
 ## Depends on

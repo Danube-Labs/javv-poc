@@ -1,8 +1,11 @@
 # JAVV - End-to-end worked example (v4 snapshot model)
 
+> **Living doc** (formerly `FLOW-EXAMPLE_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
+> The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
+
 > A concrete scan→push→store→query walkthrough of the v4 point-in-time model, with real-ish data, to make
-> the **full-snapshot-per-scan** logic easy to follow. Companion to `PLAN_v4.md` §5.4/§5.5, `SPEC_v4.md`
-> FR-5/FR-5b/FR-14, `ARCHITECTURE_v4.md` §3. Diagrams: Mermaid.
+> the **full-snapshot-per-scan** logic easy to follow. Companion to `PLAN.md` §5.4/§5.5, `SPEC.md`
+> FR-5/FR-5b/FR-14, `ARCHITECTURE.md` §3. Diagrams: Mermaid.
 
 ## The scenario
 
@@ -143,7 +146,7 @@ side-by-side, never merged.)
 Same scenario, plus one triage action so the human-decision indexes have content:
 **Mar 16 - Alice (Triager) risk-accepts `CVE-1` on `sha256:AAA`, approved by Bob (Security Lead), until Jun 1.**
 `cluster_id` here is the `kube-system` UID `9b1e…uid`. Values shown are illustrative; mappings are pinned in
-`PLAN_v4.md` §5.2–§5.7. (`severity` is stored verbatim in `_source`; the lowercase `normalizer` is what the
+`PLAN.md` §5.2–§5.7. (`severity` is stored verbatim in `_source`; the lowercase `normalizer` is what the
 aggregations/filters use - both shown for clarity.)
 
 ### `findings` - current-state ("now"), partial-merge · `_id = finding_key`
@@ -313,7 +316,7 @@ were ever corrupted, the **rebuild-state job** re-derives it from this index + t
 **How they relate:** `findings`/`images` = "now" (fast grid). `scan-events` = cheap trends **and** the commit
 marker. `occurrences` = the timeline (full snapshots). `system-decisions` + `system-audit-log` = the human
 layer that *drives* `findings.state` and is the source of truth behind the rebuildable cache. The cross-index
-write/read paths are in `ARCHITECTURE_v4.md` §1b.
+write/read paths are in `ARCHITECTURE.md` §1b.
 
 ## 7. How the indexes relate (shared-key joins)
 

@@ -12,7 +12,7 @@ COLUMN names on the envelope (`COUNT_COLUMN` — documented physical names, part
 wire/history; renaming them buys nothing a human ever types).
 """
 
-# Fixed order map, highest → lowest (AUDIT-RESPONSE_v4, vocabulary per D46):
+# Fixed order map, highest → lowest (AUDIT-RESPONSE, vocabulary per D46):
 #   critical > high > medium > low > negligible > unknown
 SEVERITIES: tuple[str, ...] = ("critical", "high", "medium", "low", "negligible", "unknown")
 

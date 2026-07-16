@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Global chrome (SCREENS-v5 / prototype fidelity): slate sidebar (226px, collapsible to a 64px
+ * Global chrome (SCREENS / prototype fidelity): slate sidebar (226px, collapsible to a 64px
  * icon rail — Nuxt UI sidebar grammar, state persisted per browser) — brand block, grouped
  * nav with the javv stroke icons + coral active bar, sweep-health footer + version line — and
  * the 56px topbar (cluster switcher · global time picker · search/bell slots (M9f, disabled) ·

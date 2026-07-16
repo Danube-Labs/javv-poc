@@ -1,8 +1,8 @@
 # M3 correctness contract — the one-page cheatsheet
 
-> The distilled rules every M3 slice must honor. Sources of truth: PLAN_v4 (D16, D19, D20, D31,
-> D37–D40, **D45**), INDEX-MAP_v4 (`findings`, `javv-scan-watermarks`, `javv-scan-events-*`,
-> `javv-finding-occurrences-*`), AUDIT-RESPONSE_v4 §3–4. If this page and those disagree, THOSE win —
+> The distilled rules every M3 slice must honor. Sources of truth: PLAN (D16, D19, D20, D31,
+> D37–D40, **D45**), INDEX-MAP (`findings`, `javv-scan-watermarks`, `javv-scan-events-*`,
+> `javv-finding-occurrences-*`), AUDIT-RESPONSE §3–4. If this page and those disagree, THOSE win —
 > then fix this page.
 
 ## 1. Identity — the keys

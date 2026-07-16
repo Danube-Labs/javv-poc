@@ -1,5 +1,8 @@
 # Screens — javv (v5, refreshed against the shipped backend)
 
+> **Living UI contract** (formerly `SCREENS-v5.md` in `handoff/v5/docs/` — suffixes dropped 2026-07-16, #410).
+> Layered over the frozen `handoff/v4/` prototype (the DESIGN.md §8 fidelity source).
+
 Refresh of `handoff/v4/docs/SCREENS.md` against the **shipped** contract (`docs/API.md`, through
 M7 slice 1) and the drift rulings (`05-backend-ui-drift-m9.md`). Information architecture, brand,
 tokens, and layout are preserved from v4 (`DESIGN_SYSTEM.md` / `ui-foundations.md` bind all values);
@@ -195,7 +198,7 @@ Layout preserved: back-link → header → `grid-2-1` (evidence stack left, stic
 right).
 
 **Data**
-- The finding row (all real fields, see DATA_MODEL-v5) from `GET /api/v1/findings?cluster_id=…&cve_id=…&image=…` —
+- The finding row (all real fields, see DATA_MODEL) from `GET /api/v1/findings?cluster_id=…&cve_id=…&image=…` —
   and the **sibling-scanner row** from the same call without the `scanner` filter: that pair IS
   the per-scanner evidence table (A-3/B-2 — "no black box, no merge").
 - Triage: `PATCH /api/v1/findings/{finding_key}/triage` — body `{state, vex_justification?,

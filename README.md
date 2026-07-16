@@ -10,8 +10,8 @@ ASPM platform.
 > append-only audit log, read/reporting API with exports + trends + contributors, scheduled-report
 > queue, validated settings, Prometheus metrics) — releases cut via release-please. Next: M8
 > (time-travel), then the Vue frontend (M9x) and Helm deploy (M10).
-> Canonical design lives in [docs/engineering/V4/](docs/engineering/V4/) - start with
-> [PLAN_v4.md](docs/engineering/V4/PLAN_v4.md) and [SPEC_v4.md](docs/engineering/V4/SPEC_v4.md).
+> Canonical design lives in [docs/engineering/](docs/engineering/) - start with
+> [PLAN.md](docs/engineering/PLAN.md) and [SPEC.md](docs/engineering/SPEC.md).
 
 > 🗺️ **New here? Start with [REPO-MAP.md](REPO-MAP.md)** — a map of every folder, the canonical docs, and the
 > milestone bolts, with a "read in this order" guide. To run the stack by hand, follow
@@ -25,16 +25,16 @@ seam between them.
 
 ## Design docs
 
-**Canonical engineering set - [docs/engineering/V4/](docs/engineering/V4/):**
+**Canonical engineering set - [docs/engineering/](docs/engineering/):**
 
 | Doc | What |
 |---|---|
-| [PLAN_v4.md](docs/engineering/V4/PLAN_v4.md) | Decisions (D1–D45), data model, milestones (M0–M10) |
-| [SPEC_v4.md](docs/engineering/V4/SPEC_v4.md) | Functional + non-functional requirements (FR/NFR) |
-| [ARCHITECTURE_v4.md](docs/engineering/V4/ARCHITECTURE_v4.md) | Layers, data flow, diagrams (Mermaid) |
-| [INDEX-MAP_v4.md](docs/engineering/V4/INDEX-MAP_v4.md) | Source of truth for every OpenSearch index + mapping |
-| [FLOW-EXAMPLE_v4.md](docs/engineering/V4/FLOW-EXAMPLE_v4.md) | Worked ingest / query / time-travel examples |
-| [AUDIT-RESPONSE_v4.md](docs/engineering/V4/AUDIT-RESPONSE_v4.md) | External-audit findings → resolutions (rounds 1–4) |
+| [PLAN.md](docs/engineering/PLAN.md) | Decisions (D1–D45), data model, milestones (M0–M10) |
+| [SPEC.md](docs/engineering/SPEC.md) | Functional + non-functional requirements (FR/NFR) |
+| [ARCHITECTURE.md](docs/engineering/ARCHITECTURE.md) | Layers, data flow, diagrams (Mermaid) |
+| [INDEX-MAP.md](docs/engineering/INDEX-MAP.md) | Source of truth for every OpenSearch index + mapping |
+| [FLOW-EXAMPLE.md](docs/engineering/FLOW-EXAMPLE.md) | Worked ingest / query / time-travel examples |
+| [AUDIT-RESPONSE.md](docs/engineering/AUDIT-RESPONSE.md) | External-audit findings → resolutions (rounds 1–4) |
 
 **Supporting:**
 
@@ -44,7 +44,7 @@ seam between them.
 | [docs/API.md](docs/API.md) | The shipped HTTP surface at a glance (auth regimes, capabilities) |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration knob: default, tier, UI-controllability |
 | [docs/research/](docs/research/) | Stack best-practices, tooling/MCP, audits backing v4 |
-| [handoff/v5/](handoff/v5/) | UI design handoff refreshed against the shipped backend (v4 frozen as the trail) |
+| [handoff/docs/](handoff/docs/) | UI design handoff refreshed against the shipped backend (v4 frozen as the trail) |
 | [design/](design/) | Brand source of record (logos, tokens, guide) |
 | [.deprecated/](.deprecated/) | Frozen evolution trail — superseded V1/V2/V3 docs + the original UI handoff |
 

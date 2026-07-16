@@ -1,4 +1,4 @@
-/** Running-images inventory state (M9c slice 3; SCREENS-v5 §7) — the committed-inventory read,
+/** Running-images inventory state (M9c slice 3; SCREENS §7) — the committed-inventory read,
  * keyed by the global cluster + T (D28 rides in via `as_of`, served by the same backend
  * primitives as the time-travel reader). Rows are the server's image docs verbatim: severity
  * buckets belong to the doc's OWN scanner(s), and the D5b `trivy_count/grype_count/count_delta`

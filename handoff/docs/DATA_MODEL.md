@@ -1,5 +1,8 @@
 # Data Model — javv (v5, UI-facing shapes against the shipped backend)
 
+> **Living UI contract** (formerly `DATA_MODEL-v5.md` in `handoff/v5/docs/` — suffixes dropped 2026-07-16, #410).
+> Layered over the frozen `handoff/v4/` prototype (the DESIGN.md §8 fidelity source).
+
 Replaces `handoff/v4/docs/DATA_MODEL.md`. Every shape below is an **API response the UI consumes**
 (`docs/API.md` is the contract; the live OpenAPI at `/docs` is authoritative). Field names are the
 **real** OpenSearch/Pydantic fields (drift table §B); the v4 prototype names they replace are noted.
@@ -225,7 +228,7 @@ justification/impact/action/task shape is gone (V4-DELTA-2).
 
 ## Audit events (structured, D32 — A-5)
 
-Shape (read endpoint scheduled — **M8c** `GET /api/v1/audit`, plain session; see SCREENS-v5 §10):
+Shape (read endpoint scheduled — **M8c** `GET /api/v1/audit`, plain session; see SCREENS §10):
 
 ```ts
 { event_id: string, "@timestamp": string,

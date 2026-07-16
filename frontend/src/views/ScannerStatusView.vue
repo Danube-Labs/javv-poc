@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Scanner status screen (M9d slice 2; SCREENS-v5 §12, C-3 redesign): the shared data-screen
+ * Scanner status screen (M9d slice 2; SCREENS §12, C-3 redesign): the shared data-screen
  * band (head-card + the scan-ingest lens — the same "committed runs per bucket, per scanner"
  * strip findings/images carry, operator ruling 2026-07-12) over per-(cluster, scanner) cards
  * — D20 freshness + D41 read-only provenance + last-N committed runs. The prototype's

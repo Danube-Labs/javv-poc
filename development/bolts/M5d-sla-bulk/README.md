@@ -8,10 +8,10 @@ via `_bulk`** (202 + async for large sets) with one `system-audit-log` entry per
 recording the **frozen `target_ids`**. Plus the risk-accept approval list. Concurrency-safe
 under `retry_on_conflict`.
 
-**Canonical refs:** [`PLAN_v4 §8 M5d`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` FR-10 (SLA/overdue, KEV 24h, read-time vuln-age D21), FR-7 (bulk via `_bulk`, one audit entry/bulk),
+**Canonical refs:** [`PLAN §8 M5d`](../../../docs/engineering/PLAN.md) ·
+`SPEC` FR-10 (SLA/overdue, KEV 24h, read-time vuln-age D21), FR-7 (bulk via `_bulk`, one audit entry/bulk),
 FR-8 (approval list) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`findings` `severity_rank`/`first_seen_at`/`kev`,
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`findings` `severity_rank`/`first_seen_at`/`kev`,
 `system-config` SLA policy, `system-audit-log` `target_ids`/`result_hash`/`result_count`) ·
 decisions D21 (vuln-age earliest `first_seen_at`), D38/H8 (frozen `target_ids`), SND-8 (`retry_on_conflict`).
 

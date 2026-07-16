@@ -9,9 +9,9 @@ and the **reusable `fields`-config filter module** — a single config that driv
 generated, typed TS API client** (`@hey-api/openapi-ts` off FastAPI's OpenAPI) so the FE↔BE contract
 cannot drift silently.
 
-**Canonical refs:** [`PLAN_v4 §8 M9a`](../../../docs/engineering/V4/PLAN_v4.md) (line 675) ·
-`SPEC_v4` FR-12 (faceted-by-scanner filters), FR-23 (global time picker / whole-app rewind), FR-18
-(RBAC-gated client) · [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (read-only; no index
+**Canonical refs:** [`PLAN §8 M9a`](../../../docs/engineering/PLAN.md) (line 675) ·
+`SPEC` FR-12 (faceted-by-scanner filters), FR-23 (global time picker / whole-app rewind), FR-18
+(RBAC-gated client) · [`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (read-only; no index
 owned) · decisions D27 (DataTable lazy default), D28 (global rewind picker), D33 (capability-based RBAC).
 AUDIT items folded in: **I4** (owns `@hey-api/openapi-ts` client generation), **I7** (CI contract gate).
 
@@ -55,7 +55,7 @@ Files this bolt creates — **in the layered tree, not here** (paths proposed):
   (raw hex → token; hand-rolled severity color string → the badge/token helpers; `dark:`-style
   overrides where a token already handles theming), an **agent quick reference** of the ~15
   most-used tokens, and copy-pasteable component patterns. The substance already lives in
-  `ui-foundations.md` + `DESIGN_SYSTEM.md` + `SCREENS-v5.md` — this is the operational condensation
+  `ui-foundations.md` + `DESIGN_SYSTEM.md` + `SCREENS.md` — this is the operational condensation
   a cold session reads before touching any screen, kept in lockstep with `tokens.css`.
 - `frontend/tests/style-ratchet.test.ts` — the **style ratchet** (sibling to the stylelint gate):
   fails CI when a component **adds** a hand-rolled severity/status color that bypasses the token
@@ -133,8 +133,8 @@ as pure units** (Vitest).
   Further M9-wide backend↔UI drift rulings land right before kickoff via #224
   (`docs/audits/major_audit/05-backend-ui-drift-m9.md` §E).
 
-- **2026-07-07 — v5 design rulings (#237) + handoff/v5 landed (#235):** the design contract for
-  this bolt is now `handoff/v5/docs/SCREENS-v5.md` (Global chrome, Login) — v4 stays the visual
+- **2026-07-07 — v5 design rulings (#237) + handoff/docs landed (#235):** the design contract for
+  this bolt is now `handoff/docs/SCREENS.md` (Global chrome, Login) — v4 stays the visual
   base (DESIGN_SYSTEM/BRAND/ui-foundations unchanged). Rulings touching M9a: **A-1** severity
   vocabulary in the reusable filter module is lowercase + a **`negligible`** bucket (muted, never
   red); **A-4** all gating from `/auth/me` capabilities (settled). The topbar cluster switcher

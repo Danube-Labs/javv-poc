@@ -9,10 +9,10 @@ optimistic concurrency + a fencing `attempt_id` so replicas/retries and reclaime
 double-run or double-publish, with orphan objects TTL-swept. Retires the reporting-vs-ingest contention
 risk. (FR-13, D24.)
 
-**Canonical refs:** [`PLAN_v4 §8 M7`](../../../docs/engineering/V4/PLAN_v4.md) (step 8 — "Gate: large export runs off-peak without starving ingest") ·
-`SPEC_v4` FR-13 (scheduled/throttled reporting), SEC-10 (per-tenant prefix + signed short-lived URL) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`system-reports` **[OWNS the queue mechanics]**, `system-notifications`) ·
-[`AUDIT-RESPONSE_v4`](../../../docs/engineering/V4/AUDIT-RESPONSE_v4.md) (M17 OCC claim/lease, M7-r2 fencing `attempt_id`, I-r3 orphan-object TTL sweep) ·
+**Canonical refs:** [`PLAN §8 M7`](../../../docs/engineering/PLAN.md) (step 8 — "Gate: large export runs off-peak without starving ingest") ·
+`SPEC` FR-13 (scheduled/throttled reporting), SEC-10 (per-tenant prefix + signed short-lived URL) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`system-reports` **[OWNS the queue mechanics]**, `system-notifications`) ·
+[`AUDIT-RESPONSE`](../../../docs/engineering/AUDIT-RESPONSE.md) (M17 OCC claim/lease, M7-r2 fencing `attempt_id`, I-r3 orphan-object TTL sweep) ·
 decisions `D24`, `D38`, `D39`, `D40`.
 
 ## Depends on
@@ -78,8 +78,8 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
   download is a backend endpoint (`GET /api/v1/reports/{id}/download`) gated by the tenant chokepoint +
   `expires_at` (410 once expired) + a short-lived signed download token — which satisfies SEC-10's
   per-tenant + time-limited intent without object-store creds. New index `system-report-chunks`
-  (INDEX-MAP updated). *(Propagated into SPEC_v4 FR-13 on 2026-07-07 via the major-audit PR —
-  the #212 pass amended AUDIT_v4/PLAN_v4/INDEX-MAP but missed SPEC_v4; see
+  (INDEX-MAP updated). *(Propagated into SPEC FR-13 on 2026-07-07 via the major-audit PR —
+  the #212 pass amended AUDIT/PLAN/INDEX-MAP but missed SPEC; see
   `docs/audits/major_audit/04-docs-and-tracker-freshness.md` §2.)*
 - **2026-07-07** — **retention:** a completed export is TTL-swept `JAVV_EXPORT_TTL_HOURS` (default 24h)
   after completion via a `delete_by_query expires_at < now` on the small bounded `system-reports`/

@@ -14,8 +14,8 @@ yet - that lands at M10.
 ## Start here (reading order)
 1. [`README.md`](README.md) - what JAVV is, stack, toolchain table, license.
 2. [`CLAUDE.md`](CLAUDE.md) - **hard constraints + working rules** (read before changing anything).
-3. [`docs/engineering/V4/PLAN_v4.md`](docs/engineering/V4/PLAN_v4.md) - decisions D1-D45, data model, milestones M0-M10.
-4. [`docs/engineering/V4/INDEX-MAP_v4.md`](docs/engineering/V4/INDEX-MAP_v4.md) - **source of truth** for every OpenSearch index + mapping.
+3. [`docs/engineering/PLAN.md`](docs/engineering/PLAN.md) - decisions D1-D45, data model, milestones M0-M10.
+4. [`docs/engineering/INDEX-MAP.md`](docs/engineering/INDEX-MAP.md) - **source of truth** for every OpenSearch index + mapping.
 5. [`docs/API.md`](docs/API.md) - the shipped HTTP surface (auth regimes + capabilities) · [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) - every knob.
 6. [`development/bolts/`](development/bolts/) - the milestone you're actually building.
 
@@ -34,7 +34,7 @@ yet - that lands at M10.
 | **`libs/javv-common`** | Shared structlog logging pipeline - **the only logging path** for app code | **Binding** |
 | `docs/` | Design, API/config trackers, audits, research | see below |
 | `development/` | How to build it: bolts, standards, setup, e2e | see below |
-| `handoff/` | UI/UX reference - **`v5/` current**, `v4/` frozen trail | **reference only**, not a contract |
+| `handoff/` | UI/UX reference - **`docs/` current**, `v4/` frozen trail | **reference only**, not a contract |
 | `design/` | Brand source of record (logos, tokens, brand guide) | binding for brand |
 | `.github/` | CI + release automation workflows | — |
 | `.claude/` | Repo-scoped Claude settings (team allowlist) + `sessions/` infra (snapshots are local-only) | — |
@@ -60,7 +60,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 
 | Path | Contents |
 |---|---|
-| **`docs/engineering/V4/`** | **CANONICAL design.** `PLAN_v4` (decisions D1-D45, data model, M0-M10) · `SPEC_v4` (FR/NFR) · `ARCHITECTURE_v4` (layers, Mermaid) · `INDEX-MAP_v4` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE_v4` (worked ingest/query/time-travel) · `AUDIT-RESPONSE_v4` (external-audit fixes, rounds 1-4) · `AUDIT_v4` (2nd audit + resolutions) · `DESIGN-BRIEF_v4` |
+| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D45, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `DESIGN-BRIEF` |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
 | **`docs/CONFIGURATION.md`** | Every configuration knob: default, tier, UI-controllability. **New knob → same PR** |
 | **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; `major_audit/` = the 2026-07-07 project-hygiene audit (6 guides incl. the §F UI-refresh prompt); archived point-in-time reports in `.deprecated/docs/audits/` |
@@ -103,7 +103,7 @@ Each bolt README is a self-contained brief (Goal · Canonical refs · Depends on
 | AUDIT-M5c-M5d-M6-remediation ✅ | The #185-#192 audit wave (shipped v0.3.0) |
 
 ## `handoff/` - UI reference (NOT a contract)
-**`handoff/v5/` (current):** `docs/SCREENS-v5.md` + `docs/DATA_MODEL-v5.md` - the design refreshed
+**`handoff/docs/` (current):** `SCREENS.md` + `DATA_MODEL.md` - the design refreshed
 against the shipped backend (every screen names its M9 bolt + concrete API.md calls; carries the
 DECIDE + BLOCKED registers). `handoff/v4/` (frozen trail): `prototype/` (React mockup), `docs/`,
 `brand/` (embedded copy of `design/brand/`), `spec/` (pointer), `standalone/`. The older v1 bundle

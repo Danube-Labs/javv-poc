@@ -106,7 +106,7 @@ Per the refresh-README-at-kickoff practice, apply as ONE `docs` PR:
 - **Mirror each bolt-README change to its issue** (#35–#40) per the standing rule; the D-1/D-2/D-3
   backend endpoints get checklist items on the owning bolts' issues (D-1 → its own small issue,
   label `bolt`-adjacent, referenced from #35).
-- SPEC_v4 needs **no** edit for any of this (the FRs are written at ruling level and the rulings
+- SPEC needs **no** edit for any of this (the FRs are written at ruling level and the rulings
   hold; only FR-13 drifted — fixed in this PR, see 04 §2).
 
 ## F. The Claude design prompt (UI refresh)
@@ -144,11 +144,11 @@ design tokens unless a ruling forces a change; (4) ui-foundations.md constrains 
 produce must name its bolt.
 
 Produce, as markdown (no code):
-- SCREENS-v5.md — screen-by-screen spec: for each screen its bolt, its data sources as concrete
+- SCREENS.md — screen-by-screen spec: for each screen its bolt, its data sources as concrete
   endpoint calls (method + path + key params from API.md), states (loading / empty / degraded /
   403-capability-hidden / 410-expired where relevant), and what changed vs SCREENS.md with the
   drift-table item id (A-2, C-4, …) as the reason.
-- DATA_MODEL-v5.md — the UI-facing shapes rewritten against the real fields (the drift table §B
+- DATA_MODEL.md — the UI-facing shapes rewritten against the real fields (the drift table §B
   lists the real findings fields); document per-scanner sacredness on every count.
 Hard constraints you must not violate: severities/filters lowercase with a `negligible` bucket;
 6 triage states + present-orthogonal; capability gating from /auth/me (never role names);
@@ -159,6 +159,6 @@ Do NOT invent endpoints — if a screen needs data no endpoint provides, mark it
 backend" with what it needs; §D of the drift table lists the only planned additions.
 ```
 
-Expected output: two markdown files to land in `handoff/v5/docs/` (new dir — keep v4 frozen as
+Expected output: two markdown files to land in `handoff/docs/` (new dir — keep v4 frozen as
 the evolution trail, same convention as the engineering docs). Review the [DECIDE] flags with the
 operator before M9a kickoff; fold the decisions back into §E's README amendments.

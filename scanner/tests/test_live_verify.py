@@ -1,4 +1,4 @@
-"""Live-cluster verification (PLAN_v4 §9 / M0 DoD) — the integration smoke the golden-fixture
+"""Live-cluster verification (PLAN §9 / M0 DoD) — the integration smoke the golden-fixture
 unit tests can't cover: real discovery against k3d, real digest-dedup, and the real trivy/grype
 binaries producing an envelope with actual CVEs.
 

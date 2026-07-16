@@ -10,9 +10,9 @@ M1/M3's ingest path; M4 takes ownership and asserts it**; add the missing lifecy
 aliases (audit n-2)** + the **lifecycle CronJob** (rollover + per-cluster `retention_days`
 drop-whole-index delete); and precompute the scanner-disagreement flags consumed downstream.
 
-**Canonical refs:** [`PLAN_v4 §8 M4`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` FR-5 (logs/trends), FR-11 (scanner disagreement), FR-19 (lifecycle/retention) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`javv-scan-events-<cluster_id>-*`
+**Canonical refs:** [`PLAN §8 M4`](../../../docs/engineering/PLAN.md) ·
+`SPEC` FR-5 (logs/trends), FR-11 (scanner disagreement), FR-19 (lifecycle/retention) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`javv-scan-events-<cluster_id>-*`
 **[OWNS mapping + lifecycle]**) · decisions D5a/D5b (disagreement), D18 (idempotent `_id`),
 D26 (configurable rollover/retention), D38 (`scanner` is a field, not the index name),
 D40 (`scan_order`, never `@timestamp`).

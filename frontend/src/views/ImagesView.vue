@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Running images — the committed-inventory surface (M9c slice 3; SCREENS-v5 §7, prototype
+ * Running images — the committed-inventory surface (M9c slice 3; SCREENS §7, prototype
  * screens-images.jsx). The M9a filter module drives the rail + bar (imported, never re-built;
  * an images-scoped store instance keeps shareable URLs); the grid is the M9b table grammar
  * with image columns. The inventory is ONE committed run, fully served — filtering, facet

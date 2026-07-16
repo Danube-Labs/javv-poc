@@ -9,9 +9,9 @@ model** (`open · acknowledged · not_affected · risk_accepted · resolved · s
 `not_affected` → `vex_justification` picker (CISA five) and the scoped risk-accept dialog. **Gate before
 the long tail.**
 
-**Canonical refs:** [`PLAN_v4 §8 M9b`](../../../docs/engineering/V4/PLAN_v4.md) (line 676) ·
-`SPEC_v4` FR-7 (triage / two-field VEX), FR-11 (scanner disagreement), FR-12 (lazy server-side grid +
-faceted-by-scanner), FR-18 (RBAC-gated actions) · [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md)
+**Canonical refs:** [`PLAN §8 M9b`](../../../docs/engineering/PLAN.md) (line 676) ·
+`SPEC` FR-7 (triage / two-field VEX), FR-11 (scanner disagreement), FR-12 (lazy server-side grid +
+faceted-by-scanner), FR-18 (RBAC-gated actions) · [`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md)
 (`findings` read shape; `disagree`/`trivy_count`/`grype_count`/`count_delta` fields — read-only) ·
 decisions D27 (PrimeVue DataTable lazy), D33 (capability gating). AUDIT item folded in: **N10**
 (scanner-disagreement flags surfaced here; per-scanner columns never merged).
@@ -123,7 +123,7 @@ as pure units** (Vitest).
   `count_delta` / D5a `disagree` flags carry this), and a zero-vs-nonzero pair deserves the same
   visual weight as a severity disagreement.
 
-- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §§3–5. **B-1 ruled: the
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS.md` §§3–5. **B-1 ruled: the
   package-type facet + column RETURN** (v4 design kept) — fed by the **M8d** envelope `ptype`;
   hide the facet until M8d lands + a sweep repopulates (`ptype: null` → "unknown" meanwhile).
   **A-1**: `negligible` is its own muted rail bucket. **C-6 ruled server-side**: the toolbar
@@ -171,7 +171,7 @@ as pure units** (Vitest).
   is a property of the image, not the pod, and no pod/workload field exists in any index. Don't
   hunt for it; workload-level mapping is a **v1.1 scanner-envelope candidate ([#308])**. What DOES
   exist is `namespaces[]` — slice 4 folds in the delivered-vs-spec gaps: **Namespace + Assignee
-  facet-rail sections** (SCREENS-v5 §3 — the Add-filter text path already worked, but hidden ≠
+  facet-rail sections** (SCREENS §3 — the Add-filter text path already worked, but hidden ≠
   delivered), the three missing specced **grid columns** (Component `app` · Images group-agg
   count B-4 · Assignee), and a **Namespaces line in the detail header** (from the sibling rows).
   Topbar search stays inert until **M9f** (global grouped search, per spec).

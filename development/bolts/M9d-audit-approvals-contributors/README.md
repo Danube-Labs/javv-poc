@@ -8,10 +8,10 @@ approvals queue for scoped risk-accepts/audit-final acceptance, the expanded Con
 leaderboard, and the scanner-status screen. All numbers come from OpenSearch aggregations;
 audit-final acceptance is gated on the `can_accept_audit_final` capability (D33/SEC-2).
 
-**Canonical refs:** [`PLAN_v4 §8 M9d`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` FR-8 (scoped risk-acceptance / decisions), FR-15 (Contributors/trends),
+**Canonical refs:** [`PLAN §8 M9d`](../../../docs/engineering/PLAN.md) ·
+`SPEC` FR-8 (scoped risk-acceptance / decisions), FR-15 (Contributors/trends),
 FR-7/FR-18 (audit append + capabilities), FR-23 (time-travel of triage) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`system-audit-log-*` **[reads]**,
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`system-audit-log-*` **[reads]**,
 `system-decisions` **[reads]**, `system-users` capabilities, `javv-scan-events-*` for scanner status) ·
 decisions D32 (structured audit log), D33 (`can_accept_audit_final`), D38/H8 + D40/H-r3 (`revision`/`target_ids` causal replay).
 
@@ -150,7 +150,7 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   (M6 slice 4) incl. `resolved_semantics: "scan_resolved"` (A-m9) — label resolution counts as
   scan-observed, not human-resolved.
 
-- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §§9–12. The Audit screen's
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS.md` §§9–12. The Audit screen's
   read is **scheduled: M8c `GET /api/v1/audit`** — ruled **plain session** (not capability-gated);
   cursor-paged, ordered `(@timestamp, event_id)`. The Contributors activity feed uses the same
   read. Scanner-status provenance cards (D41 read-only version/DB lines + last-N runs) read the

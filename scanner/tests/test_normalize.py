@@ -14,7 +14,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def test_severities_are_the_fixed_order_map_highest_first() -> None:
-    # AUDIT-RESPONSE_v4: crit > high > med > low > negligible > unknown
+    # AUDIT-RESPONSE: crit > high > med > low > negligible > unknown
     assert SEVERITIES == ("critical", "high", "medium", "low", "negligible", "unknown")
 
 

@@ -1,8 +1,11 @@
 # JAVV v4 - Response to external (ChatGPT) design audit
 
+> **Living doc** (formerly `AUDIT-RESPONSE_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
+> The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
+
 > **Status:** review doc - *no spec edits applied yet.* This maps every external finding to a
 > verdict, the concrete fix, and the target doc(s) to change. Once you sign off, the fixes land in
-> `INDEX-MAP_v4.md` / `PLAN_v4.md` / `SPEC_v4.md` / `ARCHITECTURE_v4.md` / `FLOW-EXAMPLE_v4.md`.
+> `INDEX-MAP.md` / `PLAN.md` / `SPEC.md` / `ARCHITECTURE.md` / `FLOW-EXAMPLE.md`.
 >
 > **Decisions already locked for this round:**
 > - **H9 tenant scope →** *all clusters visible to any authenticated user* for MVP. `cluster_id` is a
@@ -45,8 +48,8 @@ per digest" returns the previous dirty scan.
 **Fix:** apply **R-CATALOG**. `scan-events` is already the per-`(cluster_id, scanner, image_digest,
 scan_run_id)` receipt - promote it explicitly to *snapshot catalog*. Read path: resolve latest
 committed run from `scan-events ≤ T`, then read occurrences for that `scan_run_id`. Empty = clean.
-**Target:** `PLAN_v4.md` (read-path / §5.5), `SPEC_v4.md` (FR-5b), `FLOW-EXAMPLE_v4.md` (§4 + §9),
-`INDEX-MAP_v4.md` (scan-events = catalog note).
+**Target:** `PLAN.md` (read-path / §5.5), `SPEC.md` (FR-5b), `FLOW-EXAMPLE.md` (§4 + §9),
+`INDEX-MAP.md` (scan-events = catalog note).
 
 **C2 - `findings` "current-state" isn't actually current.**
 *Auditor loc: PLAN §5.2, INDEX-MAP findings.*
@@ -57,8 +60,8 @@ as open for up to N days in the "now" grid.
 `scan_run_id` ≠ the new run. **This is a cache-projection update, NOT a history close-event** -
 `occurrences` stays tombstone-free; this only repairs the disposable `findings` cache. (Consistent
 with your rejection of close-events in history.)
-**Target:** `PLAN_v4.md` (D17 / M3 ingest), `ARCHITECTURE_v4.md` (§3 step 4), `INDEX-MAP_v4.md`
-(findings: add `present`, `resolved_at`, `last_scan_run_id`), `FLOW-EXAMPLE_v4.md` (§6).
+**Target:** `PLAN.md` (D17 / M3 ingest), `ARCHITECTURE.md` (§3 step 4), `INDEX-MAP.md`
+(findings: add `present`, `resolved_at`, `last_scan_run_id`), `FLOW-EXAMPLE.md` (§6).
 
 ### High
 
@@ -67,29 +70,29 @@ with your rejection of close-events in history.)
 **Verdict: REAL - adopt.** Pin commit identity as the 4-tuple `commit_key =
 (cluster_id, scanner, image_digest, scan_run_id)` everywhere; queries must match all four. Bans the
 loose "scan_run_id has a doc" phrasing. Directly enables C1/R-CATALOG.
-**Target:** `INDEX-MAP_v4.md` (scan-events), `PLAN_v4.md` (F1/D-commit), `SPEC_v4.md` (FR-5b),
-`FLOW-EXAMPLE_v4.md`.
+**Target:** `INDEX-MAP.md` (scan-events), `PLAN.md` (F1/D-commit), `SPEC.md` (FR-5b),
+`FLOW-EXAMPLE.md`.
 
 **H4 - bulk partial success treated too confidently.**
 *Auditor loc: ARCHITECTURE §3, SPEC NFR-7.*
 **Verdict: MOSTLY COVERED (F1) - tighten wording.** F1 already says commit doc is written last only
 after the occurrences `_bulk` succeeds. Add explicit "inspect the bulk `errors` flag / per-item
 statuses; write snapshot first, commit marker last, only on all-item success."
-**Target:** `ARCHITECTURE_v4.md` (§3), `SPEC_v4.md` (NFR-7).
+**Target:** `ARCHITECTURE.md` (§3), `SPEC.md` (NFR-7).
 
 **H5 - image inventory has the same absence problem.**
 *Auditor loc: PLAN §5.3, INDEX-MAP javv-images.*
 **Verdict: REAL - adopt (R-CATALOG for inventory).** "Running now / at T" = latest **complete
 inventory run** for the cluster (each cycle writes a full inventory snapshot), not latest-doc-per-
 digest. Undeployed images correctly disappear at the next run, not at retention.
-**Target:** `PLAN_v4.md` (§5.3), `SPEC_v4.md` (FR-14), `INDEX-MAP_v4.md` (javv-images: add
-`inventory_run_id`), `FLOW-EXAMPLE_v4.md` (images section).
+**Target:** `PLAN.md` (§5.3), `SPEC.md` (FR-14), `INDEX-MAP.md` (javv-images: add
+`inventory_run_id`), `FLOW-EXAMPLE.md` (images section).
 
 **H6 - FR-14 conflates "running at T" with "as-scanned, not as-running."**
 *Auditor loc: SPEC FR-14, FLOW §5.*
 **Verdict: REAL - adopt.** Split the guarantees: `runtime_inventory_at_T` (from image manifests) vs
 `vulns_as_scanned_at_T` (from committed scan snapshots). Two terms, two read paths.
-**Target:** `SPEC_v4.md` (FR-14), `FLOW-EXAMPLE_v4.md` (§5), `DESIGN-BRIEF_v4.md` (§2.3 wording).
+**Target:** `SPEC.md` (FR-14), `FLOW-EXAMPLE.md` (§5), `DESIGN-BRIEF.md` (§2.3 wording).
 
 **H7 - `system-decisions`: "mutable" vs "create-only role" contradiction.**
 *Auditor loc: INDEX-MAP system-decisions, PLAN D34.*
@@ -97,7 +100,7 @@ digest. Undeployed images correctly disappear at the next run, not at retention.
 (`revoked_at`, `expiry`). Editing scope = **revoke + create-new** (preserves time-travel:
 active-at-T = `created_at ≤ T < revoked_at` and not expired). Every change also emits an audit-log
 event. Drop the "create-only" wording - it's "append + lifecycle stamp."
-**Target:** `INDEX-MAP_v4.md` (system-decisions), `PLAN_v4.md` (D33/D34), `SPEC_v4.md` (FR-18).
+**Target:** `INDEX-MAP.md` (system-decisions), `PLAN.md` (D33/D34), `SPEC.md` (FR-18).
 
 **H8 - audit replay under-modeled (matters: time-travel replays this log).**
 *Auditor loc: INDEX-MAP system-audit-log, SPEC FR-7.*
@@ -105,7 +108,7 @@ event. Drop the "create-only" wording - it's "append + lifecycle stamp."
 value fields (`old_value`/`new_value` kept as keyword for scalars; add structured fields for
 non-scalars), deterministic ordering (`@timestamp` + monotonic seq). **Bulk actions store frozen
 target IDs** (or query + result-hash + count), never just the selector - otherwise replay drifts.
-**Target:** `INDEX-MAP_v4.md` (system-audit-log), `SPEC_v4.md` (FR-7), `PLAN_v4.md` (D32).
+**Target:** `INDEX-MAP.md` (system-audit-log), `SPEC.md` (FR-7), `PLAN.md` (D32).
 
 **H9 - tenant isolation: no allowed-cluster list on users/roles.**
 *Auditor loc: SPEC FR-18, INDEX-MAP system-users.*
@@ -114,7 +117,7 @@ authenticated user**; `cluster_id` is a **data filter applied on every read** (i
 query and exports), not a per-user auth boundary. Add per-user/role cluster grants post-MVP.
 **Fix to land now:** add an explicit invariant "every read/aggregate/export carries a `cluster_id`
 filter" (defense against accidental cross-cluster bleed), and a post-MVP note for grants.
-**Target:** `SPEC_v4.md` (FR-18 + NFR security), `PLAN_v4.md` (note in RBAC section / backlog).
+**Target:** `SPEC.md` (FR-18 + NFR security), `PLAN.md` (note in RBAC section / backlog).
 
 ### Medium
 
@@ -122,7 +125,7 @@ filter" (defense against accidental cross-cluster bleed), and a post-MVP note fo
 *Auditor loc: PLAN D25/D35, SPEC FR-3, ARCHITECTURE §3.*
 **Verdict: REAL - adopt current-only.** Matches D35. Fix SPEC FR-3 + PLAN M1 to current-only;
 document a scanner/backend version matrix.
-**Target:** `SPEC_v4.md` (FR-3), `PLAN_v4.md` (M1, reconcile D25↔D35).
+**Target:** `SPEC.md` (FR-3), `PLAN.md` (M1, reconcile D25↔D35).
 
 **M11 - occurrences `severity_rank` inconsistent.**
 *Auditor loc: SPEC FR-5b, PLAN §5.5, INDEX-MAP occurrences, FLOW samples.*
@@ -130,21 +133,21 @@ document a scanner/backend version matrix.
 on occurrences. As-of-T severity sort uses a **fixed order map** (`crit > high > med > low >
 negligible > unknown`) at query/render time. Remove the stray `severity_rank` from SPEC FR-5b and
 FLOW sample docs.
-**Target:** `SPEC_v4.md` (FR-5b), `FLOW-EXAMPLE_v4.md` (sample docs), note in `INDEX-MAP_v4.md`.
+**Target:** `SPEC.md` (FR-5b), `FLOW-EXAMPLE.md` (sample docs), note in `INDEX-MAP.md`.
 
 **M12 - `findings` stale-cleanup deletes useful cache.**
 *Auditor loc: INDEX-MAP findings, PLAN §5.5b.*
 **Verdict: REAL - adopt.** Separate **"stale" (a flag)** from **"delete" (long retention)**. Don't
 `delete_by_query` on the freshness timer. The C2 reconcile sets `present=false`; deletion only after
 a separate long window (or once the image is gone from inventory for that window).
-**Target:** `INDEX-MAP_v4.md` (findings retention), `PLAN_v4.md` (§5.5b).
+**Target:** `INDEX-MAP.md` (findings retention), `PLAN.md` (§5.5b).
 
 **M13 - minute/hour time picker vs day-granularity `last_seen`.**
 *Auditor loc: PLAN D21/D28, SPEC FR-23.*
 **Verdict: REAL - adopt.** Store full `first_seen_at` / `last_seen_at` timestamps; derive day buckets
 for UI. `occurrences.@timestamp` is already full precision, so minute-level as-of-T works off the
 catalog + occurrences.
-**Target:** `INDEX-MAP_v4.md` (findings), `PLAN_v4.md` (D21).
+**Target:** `INDEX-MAP.md` (findings), `PLAN.md` (D21).
 
 **M14 - token hashing underspecified.**
 *Auditor loc: PLAN D34, INDEX-MAP system-tokens.*
@@ -153,7 +156,7 @@ SHA-256** (entropy makes Argon2id unnecessary for random secrets). Clarify "toke
 **authorization matching** (token's allowed scope must match payload's cluster_id/scanner), not
 cryptographic body signing. Body-HMAC + bounded replay nonce = **post-MVP** unless you want replay
 resistance now.
-**Target:** `INDEX-MAP_v4.md` (system-tokens), `PLAN_v4.md` (D34), `SPEC_v4.md` (FR-18/NFR).
+**Target:** `INDEX-MAP.md` (system-tokens), `PLAN.md` (D34), `SPEC.md` (FR-18/NFR).
 
 **M15 - per-cluster × per-scanner × rollover shard explosion.**
 *Auditor loc: SPEC NFR-2, INDEX-MAP summary.*
@@ -161,7 +164,7 @@ resistance now.
 shard, "hundreds → revisit." **Improvement: keep `scanner` as a FIELD, not in the index name**
 (drop the `trivy_..._CLUSTER` idea) - halves index count for free while keeping per-cluster
 partitioning. Restate the scale threshold honestly in NFR-2.
-**Target:** `INDEX-MAP_v4.md` (partition/naming), `SPEC_v4.md` (NFR-2).
+**Target:** `INDEX-MAP.md` (partition/naming), `SPEC.md` (NFR-2).
 
 **M16 - all-cluster rewind + aggs + replay is expensive; PIT contexts leak.**
 *Auditor loc: PLAN D28, SPEC FR-23.*
@@ -169,7 +172,7 @@ partitioning. Restate the scale threshold honestly in NFR-2.
 rollup (v1.1), not raw occurrences; per-cluster rewind is the fast path; **close PIT/search contexts**
 (don't rely on expiry); paginate aggs via composite `after_key`. Full history stays available
 (non-negotiable) - these are cost guardrails, not scope cuts.
-**Target:** `ARCHITECTURE_v4.md` (§3/§6), `PLAN_v4.md` (D28), `SPEC_v4.md` (FR-23/NFR-2).
+**Target:** `ARCHITECTURE.md` (§3/§6), `PLAN.md` (D28), `SPEC.md` (FR-23/NFR-2).
 
 **M17 - `system-reports` job queue needs lease/claim semantics.**
 *Auditor loc: PLAN D24, ARCHITECTURE §6.*
@@ -177,13 +180,13 @@ rollup (v1.1), not raw occurrences; per-cluster rewind is the fast path; **close
 retries. Add **optimistic-concurrency claim**: `pending → running` via `seq_no` / `primary_term` CAS,
 plus `heartbeat_at`, `lease_expires_at`, `retry_count`. This is the correct "OpenSearch as the
 coordinator" pattern - no broker introduced.
-**Target:** `INDEX-MAP_v4.md` (system-reports), `PLAN_v4.md` (D24), `ARCHITECTURE_v4.md` (§6).
+**Target:** `INDEX-MAP.md` (system-reports), `PLAN.md` (D24), `ARCHITECTURE.md` (§6).
 
 ### Low
 
 **L18 - index names alternate hyphen vs underscore.**
 *Auditor loc: all docs.*
-**Verdict: REAL trivial - adopt.** `INDEX-MAP_v4.md` is canonical; **hyphens everywhere**
+**Verdict: REAL trivial - adopt.** `INDEX-MAP.md` is canonical; **hyphens everywhere**
 (`system-decisions`, `system-audit-log`, …). Sweep all docs.
 **Target:** all V4 docs.
 
@@ -230,7 +233,7 @@ commit catalog instead of raw latest-per-key.
 
 The round-1 fixes were re-audited. Verdict: directionally right, but the *write/read ordering and
 completeness contracts* were underspecified - out-of-order scans and uncommitted cache writes could make
-the "now" grid lie. All round-2 findings adopted; folded into **D39** (`PLAN_v4`). Two locked design
+the "now" grid lie. All round-2 findings adopted; folded into **D39** (`PLAN`). Two locked design
 choices: **inventory completeness → a dedicated `javv-inventory-runs-*` index**; **presence model →
 `present`(bool)+`resolved_at`, orthogonal to `state`, reuse `state=stale` for scanner-down**.
 

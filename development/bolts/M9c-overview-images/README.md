@@ -9,9 +9,9 @@ finding table — fully **time-travelable** via the global picker (FR-14/FR-23),
 **point-in-time image view** (per-digest sub-timelines: which CVEs on which digest at T). All numbers come
 from server-side aggregations / M8b reconstruction; nothing is computed client-side.
 
-**Canonical refs:** [`PLAN_v4 §8 M9c`](../../../docs/engineering/V4/PLAN_v4.md) (line 677) ·
-`SPEC_v4` FR-12 (dashboards), FR-14 (per-image report, time-travelable), FR-23 (whole-app rewind +
-**all-clusters cost guardrail**) · [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md)
+**Canonical refs:** [`PLAN §8 M9c`](../../../docs/engineering/PLAN.md) (line 677) ·
+`SPEC` FR-12 (dashboards), FR-14 (per-image report, time-travelable), FR-23 (whole-app rewind +
+**all-clusters cost guardrail**) · [`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md)
 (`javv-scan-events` trends; `javv-finding-occurrences` for as-of-T; **`javv-metrics-*` is v1.1/deferred,
 no bolt**) · decisions D28 (rewind), D38/M16 + D39/M11-r2 (historical all-clusters limited in MVP).
 AUDIT item folded in: **I3** (`javv-metrics` deferred to v1.1; all-clusters/historical degrades gracefully).
@@ -170,7 +170,7 @@ as pure units** (Vitest).
   `1.21.6`). Image views must read/compose from those two fields (or this bolt adds a derived
   `image_ref` at read time); anything expecting a combined `image_ref` gets null today.
 
-- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §§1–2, 7–8. **B-1 ruled:
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS.md` §§1–2, 7–8. **B-1 ruled:
   the Overview package-type donut is KEPT** per the v4 design — backed by **M8d** (`ptype` facet);
   placeholder state until M8d + one sweep. The All-clusters list + `cluster_name` come from the
   **M8c cluster registry** (D-5 ruled: `system-config` doc). Running-images Replicas/first-last

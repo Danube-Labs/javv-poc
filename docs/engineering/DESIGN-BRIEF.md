@@ -1,10 +1,13 @@
 # JAVV - UI update brief for Claude Design (v4)
 
+> **Living doc** (formerly `DESIGN-BRIEF_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
+> The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
+
 > **Purpose.** Bring the existing UI prototype (`handoff/v4/`) up to the v4 design. This is a
 > **delta brief** - *extend the handoff, don't rebuild it.* The 12-screen prototype, the `fields`-config
 > filter pattern, the brand, and the design tokens all stay; this lists what's **new or changed** in v4 and
-> the rules that apply everywhere. Canonical engineering source: `PLAN_v4.md` / `SPEC_v4.md` /
-> `ARCHITECTURE_v4.md` / `INDEX-MAP_v4.md`. Build target: **Vue 3 (`<script setup>`) · PrimeVue · vue-echarts
+> the rules that apply everywhere. Canonical engineering source: `PLAN.md` / `SPEC.md` /
+> `ARCHITECTURE.md` / `INDEX-MAP.md`. Build target: **Vue 3 (`<script setup>`) · PrimeVue · vue-echarts
 > · Pinia · Vue Router**, all data server-side.
 
 ## 0. What JAVV is (one paragraph)

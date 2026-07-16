@@ -8,7 +8,7 @@ Bolt: **M1** (`development/bolts/M1-backend-skeleton/`, #23).
 ```
 src/backend/
   core/       settings · lifespan (single AsyncOpenSearch client) · errors (problem-details envelope)
-              · bootstrap (versioned dynamic:false indexes/templates — INDEX-MAP_v4 is the source of truth)
+              · bootstrap (versioned dynamic:false indexes/templates — INDEX-MAP is the source of truth)
   routers/    HTTP layer — health now; ingest + read APIs next
   main.py     app factory (create_app)
 ```

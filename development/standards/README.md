@@ -1,7 +1,7 @@
 # JAVV - engineering standards
 
 **How we build** (the cross-cutting rules). For **what** we build, see the canonical design in
-[`docs/engineering/V4/`](../../docs/engineering/V4/). For the **dev environment**, see
+[`docs/engineering/`](../../docs/engineering/). For the **dev environment**, see
 [`development/README.md`](../README.md).
 
 These files exist so the per-bolt READMEs under [`bolts/`](../bolts/) stay *thin* - a bolt names only its
@@ -25,4 +25,4 @@ These are the existing sources of truth; **link to them, don't re-host them** (r
 - **Stack best-practices** (async client, mappings, `_bulk`, Vue patterns) →
   [`../../docs/research/STACK-BEST-PRACTICES.md`](../../docs/research/STACK-BEST-PRACTICES.md)
 - **Tooling & MCP servers** → [`../../docs/research/TOOLING-AND-MCP.md`](../../docs/research/TOOLING-AND-MCP.md)
-- **Every index + mapping** → [`../../docs/engineering/V4/INDEX-MAP_v4.md`](../../docs/engineering/V4/INDEX-MAP_v4.md)
+- **Every index + mapping** → [`../../docs/engineering/INDEX-MAP.md`](../../docs/engineering/INDEX-MAP.md)

@@ -1,5 +1,5 @@
 """Versioned index bootstrap (M1). Unit tests assert the declarative definitions match
-INDEX-MAP_v4 (the source of truth for every mapping); integration tests run against a real
+INDEX-MAP (the source of truth for every mapping); integration tests run against a real
 OpenSearch (skipped when unreachable — locally the dev container is up, CI gets a service
 container in a later slice)."""
 

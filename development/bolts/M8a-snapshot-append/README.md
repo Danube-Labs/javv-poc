@@ -10,9 +10,9 @@ On every **successful** scan, append a full immutable snapshot to
 `javv-inventory-runs-<cluster_id>-*` commit manifest (one per inventory run, `inventory_order`,
 written last). **No close events** - an absent vuln is simply not in later snapshots.
 
-**Canonical refs:** [`PLAN_v4 §8 M8a`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` FR-5b (per-scan snapshots / point-in-time) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md)
+**Canonical refs:** [`PLAN §8 M8a`](../../../docs/engineering/PLAN.md) ·
+`SPEC` FR-5b (per-scan snapshots / point-in-time) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md)
 (`javv-finding-occurrences-<cluster_id>-*` **[OWNS mapping + lifecycle]**,
 `javv-inventory-runs-<cluster_id>-*` **[OWNS mapping + lifecycle]**,
 `javv-scan-events` [reads as catalog, owned by M4], `javv-scan-watermarks` **[CONSUMES, owned by M3]**) ·

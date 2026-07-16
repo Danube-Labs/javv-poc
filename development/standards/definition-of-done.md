@@ -15,7 +15,7 @@ of this - it does not repeat this list.
 - Meaningful coverage on the modules the bolt creates - not a number game, but no untested logic branches.
 
 ## 3. The bolt's PLAN gate passes
-Each bolt maps to a milestone in [`PLAN_v4.md` §8](../../docs/engineering/V4/PLAN_v4.md) that ends on a
+Each bolt maps to a milestone in [`PLAN.md` §8](../../docs/engineering/PLAN.md) that ends on a
 **verifiable check** (e.g. M1's golden-envelope round-trip, M3's out-of-order-scan guard). That check is
 demonstrated - by an automated test wherever possible.
 
@@ -24,7 +24,7 @@ demonstrated - by an automated test wherever possible.
 - **Every read/export query carries an explicit `cluster_id` filter** (query layer, not UI).
 - **Server-side everything** - no raw findings shipped to the client to compute counts.
 - **No external broker** - coordination via OpenSearch; jobs are k8s CronJobs.
-- Indices touched? **Read [INDEX-MAP_v4.md](../../docs/engineering/V4/INDEX-MAP_v4.md) first**; `dynamic:false`
+- Indices touched? **Read [INDEX-MAP.md](../../docs/engineering/INDEX-MAP.md) first**; `dynamic:false`
   + explicit mappings; never aggregate on `text`.
 - **Logging goes through the shared library only** (`libs/javv-common` structlog pipeline,
   [observability.md §1](observability.md)) - never `print()`, never `logging.getLogger()` in app code,
@@ -38,7 +38,7 @@ demonstrated - by an automated test wherever possible.
 
 ## 6. Design integrity (anti-drift)
 - The bolt implemented what the canonical docs say. **A new decision is not invented in code** - if reality
-  forces a change, update `PLAN_v4`/`SPEC_v4`/`INDEX-MAP_v4` (with a decision id) *first*, then build.
+  forces a change, update `PLAN`/`SPEC`/`INDEX-MAP` (with a decision id) *first*, then build.
 - The bolt README's **Deliverables** all exist; **Out of scope** items were genuinely deferred, not silently built.
 - **New config keys are tracked.** If the bolt introduces any configuration knob — a `JAVV_*` or
   OpenSearch env var, a `system-config` key, or a scanner scan flag — add it to

@@ -2,8 +2,8 @@
 
 > Project-scoped guidance for building JAVV (this folder). The repo of record is **`javv-poc`**
 > (`git@github.com:Danube-Labs/javv-poc.git`); this `javv/` folder is the working copy. Canonical design
-> lives in **`docs/engineering/V4/`** (PLAN_v4 · SPEC_v4 · ARCHITECTURE_v4); V3 and earlier are frozen for the
-> evolution trail. UI reference: `handoff/v5/` (current; `v4/` is the frozen trail - a *reference point, not a 1:1 contract*). Research
+> lives in **`docs/engineering/`** (PLAN · SPEC · ARCHITECTURE); V3 and earlier are frozen for the
+> evolution trail. UI reference: `handoff/docs/` (current; `v4/` is the frozen trail - a *reference point, not a 1:1 contract*). Research
 > backing the v4 revision: `docs/research/`. **Lost? Read `REPO-MAP.md` first** - it maps every folder.
 > **Resuming a session?** Read the newest file in `.claude/sessions/` (the last handoff) before acting;
 > save one with `/save-context` before ending or compacting.
@@ -14,10 +14,10 @@ before changing anything in that area; don't guess or work from memory.
 
 | When you are... | Read FIRST |
 |---|---|
-| Touching **any index / mapping / rollover / retention** | `docs/engineering/V4/INDEX-MAP_v4.md` |
+| Touching **any index / mapping / rollover / retention** | `docs/engineering/INDEX-MAP.md` |
 | Adding/changing **HTTP endpoints** or their contracts | `docs/API.md` (+ the router in `backend/src/backend/routers/`) |
 | Working a **bolt** (any milestone slice) | that bolt's `development/bolts/<bolt>/README.md` — the spec of record, incl. its `## Updates` |
-| Writing/modifying **frontend UI / styling** | `frontend/DESIGN.md` (binding: tokens, Hanken Grotesk, AA floor, §8 fidelity protocol — **a screen's grammar is the prototype's; substituting it needs a live operator ruling on a built specimen, §8.5** — §9 ruled exceptions) → `development/standards/ui-foundations.md` · `handoff/v5/docs/SCREENS-v5.md` |
+| Writing/modifying **frontend UI / styling** | `frontend/DESIGN.md` (binding: tokens, Hanken Grotesk, AA floor, §8 fidelity protocol — **a screen's grammar is the prototype's; substituting it needs a live operator ruling on a built specimen, §8.5** — §9 ruled exceptions) → `development/standards/ui-foundations.md` · `handoff/docs/SCREENS.md` |
 | Adding/changing **any config knob, env var, or threshold** | `docs/CONFIGURATION.md` — document the knob there the **same PR**; hardcoding a tunable is a review-fail. Constants only when they mirror an already-documented cap (say so in a comment). |
 | **Committing / branching / PRs** | `development/standards/git-workflow.md` (bolt tracking, housekeeping, the pre-commit trap) |
 | Running/extending the **e2e rigs** | `development/e2e/README.md` |
@@ -121,7 +121,7 @@ The independent audit was worked through in full; rulings are folded into V4:
   digest-dedup, no skip-unchanged (D30)**; **partial-doc merge replaces the preserve script (D31)**;
   **structured `system-audit-log` (D32)**; **capability-based RBAC + `can_accept_audit_final` (D33)**;
   security hardening bundle (D34); MVP simplifications (D35); verification pins (D36).
-- **External-audit fixes (D37/D38 - `docs/engineering/V4/AUDIT-RESPONSE_v4.md`):** **R-CATALOG** - read "latest state"
+- **External-audit fixes (D37/D38 - `docs/engineering/AUDIT-RESPONSE.md`):** **R-CATALOG** - read "latest state"
   through the commit catalog (latest committed run from `javv-scan-events`, *then* `occurrences` for that run;
   inventory = latest complete `inventory_run_id`), never "latest doc per key" (kills the clean-rescan
   resurrection bug); **`commit_key`** = `(cluster_id, scanner, image_digest, scan_run_id)` 4-tuple;
@@ -132,7 +132,7 @@ The independent audit was worked through in full; rulings are folded into V4:
   post-MVP); 256-bit peppered-SHA-256 tokens; `system-reports` job lease (optimistic concurrency);
   `severity_rank` stays off occurrences; **scanner = field, not index name** (`javv-scan-events-<cluster_id>-*`);
   historical dashboards use `javv-metrics`; index names hyphenated everywhere.
-- **Round-2 audit fixes (D39 - same `AUDIT-RESPONSE_v4.md`, §3):** ordering/completeness/immutability hardening
+- **Round-2 audit fixes (D39 - same `AUDIT-RESPONSE.md`, §3):** ordering/completeness/immutability hardening
   - symmetric PIT query goes **catalog-first** + `commit_key` on occurrence rows; **newer-scan-wins** reconcile
   (`findings.last_scan_at`, no-op when `committed_run_ts ≤ last_scan_at`); **commit-then-cache ordering**
   (append occurrences+images → commit after per-item `_bulk` success → merge findings last); new
@@ -141,7 +141,7 @@ The independent audit was worked through in full; rulings are folded into V4:
   `(@timestamp, event_id)`; report **fencing `attempt_id`**; presence (`present`) is **orthogonal** to `state`
   (every "now" query filters `cluster_id`+`scanner`+`present=true`); historical **all-clusters** dashboards
   **limited/unavailable until the v1.1 rollup**.
-- **Round-3 audit fixes (D40 - `AUDIT-RESPONSE_v4.md` §4):** concurrency/ordering keystone. New
+- **Round-3 audit fixes (D40 - `AUDIT-RESPONSE.md` §4):** concurrency/ordering keystone. New
   **`javv-scan-watermarks`** index (per-`(cluster,scanner,digest)` `max_committed_scan_order`, CAS at commit)
   guards **both create and update** of `findings` - fixes the "older out-of-order scan re-creates a retired
   finding" bug (per-doc state can't guard a create). Correctness ordering uses scanner-assigned **`scan_order`**
@@ -151,8 +151,8 @@ The independent audit was worked through in full; rulings are folded into V4:
   **`effective_at`+`operation_id`** (revoke+create atomic); audit records **`revision`** for same-field causal
   replay; report **orphan-object TTL sweep**. NFR-9/D23 reworded: history no race, **cache = guarded RMW**.
 
-**`docs/engineering/V4/INDEX-MAP_v4.md` is the source of truth for every index + mapping + rollover/retention** -
-read it before touching any index. Second audit + resolutions: `docs/engineering/V4/AUDIT_v4.md`.
+**`docs/engineering/INDEX-MAP.md` is the source of truth for every index + mapping + rollover/retention** -
+read it before touching any index. Second audit + resolutions: `docs/engineering/AUDIT.md`.
 
-Data-model decisions are settled (PLAN_v4 §10). Remaining open: project-specific skills + the GitHub/CI
+Data-model decisions are settled (PLAN §10). Remaining open: project-specific skills + the GitHub/CI
 workflow on the Ubuntu VM.

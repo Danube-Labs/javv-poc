@@ -9,9 +9,9 @@ revoke+create under one `effective_at`/`operation_id`), and project them onto fi
 with the **precedence ladder + expiry-refresh + the pinned `apply_both_scanners` rule (D22)** through
 a projection cache that can be rebuilt from source. **The gate verifies `apply_both`.**
 
-**Canonical refs:** [`PLAN_v4 §8 M5c`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` FR-8 (decisions / precedence / expiry-refresh / `apply_both`) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md)
+**Canonical refs:** [`PLAN §8 M5c`](../../../docs/engineering/PLAN.md) ·
+`SPEC` FR-8 (decisions / precedence / expiry-refresh / `apply_both`) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md)
 (`system-decisions` **[OWNS mapping]**, `findings` [projected human-field cache, owned by M3]) ·
 decisions D19 (projection-on-new-only at ingest), D22 (`apply_both_scanners` pinned),
 D39 (`expiry`/scope edit = revoke+create), D40 (one `effective_at`+`operation_id`, projection after

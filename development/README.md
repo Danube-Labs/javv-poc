@@ -1,7 +1,7 @@
 # JAVV - Development setup
 
 Getting a fresh machine ready to build JAVV. For *what* we're building, see the canonical design in
-[`docs/engineering/V4/`](../docs/engineering/V4/) (start with `PLAN_v4.md`). This file is purely the dev-environment
+[`docs/engineering/`](../docs/engineering/) (start with `PLAN.md`). This file is purely the dev-environment
 and local-loop guide.
 
 > Target host: **Ubuntu 24.04 (x86_64)**. Docker must already be installed and running. Everything else is
@@ -91,7 +91,7 @@ kubectl -n javv-smoke get pods                               # 5 pods, 3 distinc
 # teardown:  kubectl delete -f development/setup/seed-vuln-workloads.yaml
 ```
 
-This is the scan target for M0's live-cluster verification (`PLAN_v4 §9`). For a throwaway one-off instead:
+This is the scan target for M0's live-cluster verification (`PLAN §9`). For a throwaway one-off instead:
 `kubectl --context k3d-alpha create deployment vuln --image=python:3.4-slim` (EOL → many CVEs).
 
 ```bash
@@ -167,8 +167,8 @@ FastAPI's OpenAPI with `@hey-api/openapi-ts` so the Pydantic↔TS contract can't
 
 | Doc | What |
 |---|---|
-| [`docs/engineering/V4/PLAN_v4.md`](../docs/engineering/V4/PLAN_v4.md) | Decisions (D1-D42), data model, milestones (M0-M10) |
-| [`docs/engineering/V4/INDEX-MAP_v4.md`](../docs/engineering/V4/INDEX-MAP_v4.md) | **Source of truth** for every OpenSearch index + mapping - read before touching any index |
+| [`docs/engineering/PLAN.md`](../docs/engineering/PLAN.md) | Decisions (D1-D42), data model, milestones (M0-M10) |
+| [`docs/engineering/INDEX-MAP.md`](../docs/engineering/INDEX-MAP.md) | **Source of truth** for every OpenSearch index + mapping - read before touching any index |
 | [`docs/research/STACK-BEST-PRACTICES.md`](../docs/research/STACK-BEST-PRACTICES.md) | Day-one engineering rules (async client, mappings, `_bulk`, Vue patterns) |
 | [`docs/research/TOOLING-AND-MCP.md`](../docs/research/TOOLING-AND-MCP.md) | MCP servers + tooling, ranked, with install commands |
 | [`docs/research/K8S-DEV-CLUSTER.md`](../docs/research/K8S-DEV-CLUSTER.md) | Dev/test cluster options (local k3d + remote) |

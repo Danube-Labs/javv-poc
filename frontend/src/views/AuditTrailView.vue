@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Audit log screen (M9d slice 1; SCREENS-v5 §10): the D32 stream on the prototype's table
+ * Audit log screen (M9d slice 1; SCREENS §10): the D32 stream on the prototype's table
  * grammar (screens-audit.jsx, operator ruling 2026-07-12) behind the shared M9a filter module
  * — one AUDIT_FIELDS config drives FacetRail + FilterBar, selections URL-synced; counts come
  * live from GET /api/v1/audit/facets. The grid is the shared cursor-stack pager (GridPager)
