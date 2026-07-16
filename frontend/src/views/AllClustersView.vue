@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * All clusters — fleet landing page (M9c slice 2; SCREENS-v5 §1). Same joined stat grammar as
+ * All clusters — fleet landing page (M9c slice 2; SCREENS §1). Same joined stat grammar as
  * Overview. Every per-cluster number is a server aggregation (facets/freshness/inventory, one
  * set per row); the fleet strip adds those server buckets ACROSS CLUSTERS — the only roll-up
  * available before the v1.1 metrics rollup — never across scanners (the seg lens picks the

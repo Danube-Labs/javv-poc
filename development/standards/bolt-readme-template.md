@@ -12,8 +12,8 @@ Code does NOT live in this folder - it lands in backend/ / frontend/ / scanner/ 
 ## Goal
 1-2 sentences. What this bolt delivers and why it exists.
 
-**Canonical refs:** [`PLAN_v4 §8 M<n>`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4 FR-<…>` · [`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (indices touched) · decisions `D<…>`
+**Canonical refs:** [`PLAN §8 M<n>`](../../../docs/engineering/PLAN.md) ·
+`SPEC FR-<…>` · [`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (indices touched) · decisions `D<…>`
 
 ## Depends on
 - M<…> (why). "None" if it's a leaf with no prerequisites.

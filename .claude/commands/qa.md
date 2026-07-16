@@ -10,7 +10,7 @@ milestone gates, not per-change QA.)
 - `uv run pytest -k <scope>` for the touched area while iterating; the **full suite**
   (non-serial + serial, per `backend/pyproject.toml` markers) before opening a PR.
 - Touched an index/mapping/query? Verify the DSL against the real store first (OpenSearch MCP) —
-  read the mapping, don't guess it. `docs/engineering/V4/INDEX-MAP_v4.md` is the source of truth.
+  read the mapping, don't guess it. `docs/engineering/INDEX-MAP.md` is the source of truth.
 
 ## Frontend delta → type-check + tests + lint
 - `npm run type-check` (vue-tsc) — never skip; template type errors hide here.

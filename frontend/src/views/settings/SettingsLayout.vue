@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The settings shell (SCREENS-v5 §13; prototype screens-config.jsx `Settings` → `.set-*` CSS):
+ * The settings shell (SCREENS §13; prototype screens-config.jsx `Settings` → `.set-*` CSS):
  * left sub-nav + scope strip + routed panel. Sections are capability-hidden from the nav (A-4);
  * the router guard reroutes direct hits. Save bars belong to the editable panels, not the shell.
  */

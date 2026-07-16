@@ -7,8 +7,8 @@ Forward (digest X at T = R-CATALOG two-step) + the symmetric two-step (catalog �
 occurrences) query, and the whole-app as-of-T composition: occurrences ≤ T + images ≤ T +
 audit-log replay ≤ T + decisions active at T (D28). T=now short-circuits to materialized current-state.
 
-**Canonical refs:** [`PLAN_v4 §8 M8b`](../../../docs/engineering/V4/PLAN_v4.md) · `SPEC_v4` (FRs for M8b) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (javv-scan-events, javv-finding-occurrences,
+**Canonical refs:** [`PLAN §8 M8b`](../../../docs/engineering/PLAN.md) · `SPEC` (FRs for M8b) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (javv-scan-events, javv-finding-occurrences,
 javv-inventory-runs, system-audit-log, decisions) · D28, D37–D40.
 
 ## Depends on

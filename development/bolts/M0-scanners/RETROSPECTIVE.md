@@ -42,7 +42,7 @@ acknowledgement, which is the thing to fix culturally.
   (`scanner-images.yml:70-73`) — a red gate genuinely blocks publish, and there's a unit proof the checker
   bites on format drift (`tests/test_compat.py:37-43`).
 - **Severity buckets match the canonical INDEX-MAP exactly** (six buckets, Grype `Negligible`/`Unknown`
-  kept distinct, not folded — `INDEX-MAP_v4.md:62-63`, `PLAN_v4.md:470`).
+  kept distinct, not folded — `INDEX-MAP.md:62-63`, `PLAN.md:470`).
 
 ## Overengineering / simplicity concerns
 Very little — this is a lean codebase that mostly resists the urge to generalize. Honest nitpicks only:
@@ -67,7 +67,7 @@ No premature abstraction, no speculative config, no dead flexibility found. Good
   latent multi-node bug.** At minimum document the single-clock assumption; ideally derive order from a
   source that can't regress.
 - **Bolt README says normalize `negligible`/`unknown` → "other"** (`M0-scanners/README.md` Tests section),
-  **code keeps them as distinct buckets.** The code follows the *canonical* doc (`INDEX-MAP_v4.md:470` /
+  **code keeps them as distinct buckets.** The code follows the *canonical* doc (`INDEX-MAP.md:470` /
   D16: "kept, not folded; 'other' is a UI concern"). **Verdict: code is correct; the bolt README's wording
   is the outlier** — a doc nit, not a code defect.
 
@@ -75,7 +75,7 @@ No premature abstraction, no speculative config, no dead flexibility found. Good
 - **[Medium] namespace / replicas / image_ref are computed then dropped.** `discovery.py` carefully builds
   `locations` (namespace/pod/container) and `pod_count`, but `scan_all` forwards only `image_digest` to
   `build_envelope` (`run.py:33-41`) — `namespace` is never passed, so `Envelope.namespace`
-  (`envelope.py:72`) is permanently `None`, a vestigial field. `INDEX-MAP_v4.md:450` expects per-image
+  (`envelope.py:72`) is permanently `None`, a vestigial field. `INDEX-MAP.md:450` expects per-image
   `replicas` "observed at scan time" and a `namespace`; **the scanner is the only component that can
   observe replica counts**, so once it drops them they're unrecoverable downstream. Possibly intended for
   M1/M3 to consume later, but nothing in the envelope carries it, and a single optional `namespace` is the

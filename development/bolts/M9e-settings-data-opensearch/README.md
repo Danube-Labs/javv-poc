@@ -3,7 +3,7 @@
 **Status:** tracked in [#39](https://github.com/Danube-Labs/javv-poc/issues/39) — live status on the GitHub issue/board
 
 ## Goal
-The whole **Settings** area per `SCREENS-v5.md` §13: the Admin **Data & OpenSearch** panel
+The whole **Settings** area per `SCREENS.md` §13: the Admin **Data & OpenSearch** panel
 (per-`cluster_id` retention, rollover knobs, snapshot repo/schedule + manual snapshot/restore, the
 read-only *OpenSearch runtime* card), the **Scanning** settings (two-timer staleness editor +
 read-only per-scanner provenance/`effective_config` cards), **Scan scope**, **SLA policy**,
@@ -15,10 +15,10 @@ Retention is enforced by **dropping whole time-partitioned indices — never
 *(The pre-v5 "CVE-audit panel" was STRUCK 2026-07-15 — see Updates: no prototype, no §13 section,
 no FR; its content ships on finding detail + Approvals + Audit.)*
 
-**Canonical refs:** [`PLAN_v4 §8 M9e`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` FR-19 (Data & OpenSearch settings, D26), FR-6 (staleness timers D20),
+**Canonical refs:** [`PLAN §8 M9e`](../../../docs/engineering/PLAN.md) ·
+`SPEC` FR-19 (Data & OpenSearch settings, D26), FR-6 (staleness timers D20),
 NFR-6 (snapshot/restore + independent retention horizons) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`system-config` **[reads/writes knobs]**, time-partitioned
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`system-config` **[reads/writes knobs]**, time-partitioned
 append families `javv-finding-occurrences-*` / `javv-scan-events-*` / `javv-images-*` / `javv-inventory-runs-*`;
 `system-audit-log-*` **keep long**; lifecycle knobs) · decisions D20, D26, D37/M12 (stale=flag; delete only on long retention).
 
@@ -63,7 +63,7 @@ In the layered tree, not here (paths proposed):
 ## Settings surface — full candidate table (2026-07-15, RULED — the cherry-pick record)
 
 > Every config surface JAVV has (or the v4 prototype imagined), cross-checked against the code,
-> `CONFIGURATION.md`, `SCREENS-v5.md` §13 and the rulings (C-4/D41/D43/A-4). All rows RULED by the operator
+> `CONFIGURATION.md`, `SCREENS.md` §13 and the rulings (C-4/D41/D43/A-4). All rows RULED by the operator
 > 2026-07-15 (this session); §Deliverables above reflects the rulings. Kept as the decision record.
 
 **A. Ruled-in editable (§13) — backend built, mostly UI-only work**
@@ -202,12 +202,12 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
      **replaced** by an API read of the live staleness timers, not graduated.
   6. **Cross-doc drift to fix in the same spec-sync PR:** `CONFIGURATION.md` §6 tokens row says
      "M9a UI" and users row says "unowned (M9x)" — both are M9e per §13; §3/§4 "✅ Phase 2 (#91)"
-     arrows contradict §7/C-4 (tuning is read-only forever) — reconcile to C-4; `SPEC_v4` FR-19's
+     arrows contradict §7/C-4 (tuning is read-only forever) — reconcile to C-4; `SPEC` FR-19's
      "JAVV applies/updates the ISM policies" is superseded by the M4 mechanism (sweep drops whole
      indices, no ISM); `INDEX-MAP` line ~351's `system-config` comment predates D43/M8c (missing
      `scan_scope:<cluster_id>` + `cluster-registry`).
-  7. **Not a drift (verified):** this README's v4-prototype fidelity path is correct — `handoff/v5/`
-     has no prototype, only the SCREENS-v5/DATA_MODEL-v5 docs layered over the v4 jsx; port the v4
+  7. **Not a drift (verified):** this README's v4-prototype fidelity path is correct — `handoff/docs/`
+     has no prototype, only the SCREENS/DATA_MODEL docs layered over the v4 jsx; port the v4
      markup, then apply the §13 deltas. `docs/API.md` is accurate for everything shipped.
 - **2026-07-12 — v0.3.9 reusables (task 92 + chip language A, PRs #348/#350):** settings is
   form/status-heavy — the relevant solved surfaces:
@@ -245,7 +245,7 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   `PUT /settings/staleness`. Depends-on updated M4→M3. Mirrored on
   [#39](https://github.com/Danube-Labs/javv-poc/issues/39).
 
-- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §13. Settings→Scanning's
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS.md` §13. Settings→Scanning's
   read-only provenance/`effective_config` display shares the **M8c provenance read** with M9d's
   scanner-status screen (one endpoint, two consumers). §13.8 Cluster: **`cluster_name` is
   editable** — D-5 ruled the `system-config` registry in (**M8c** ships read + journaled rename;

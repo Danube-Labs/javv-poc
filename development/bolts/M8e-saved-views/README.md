@@ -8,11 +8,11 @@ New `system-views` index + CRUD endpoints; the M9f Saved-views screen consumes t
 definitions are tiny filter serializations — the **counts** shown on view cards remain server
 aggregations (`/findings/facets`), so no server-side-everything rule is touched.
 
-**Canonical refs:** [`PLAN_v4 §8 M8e`](../../../docs/engineering/V4/PLAN_v4.md) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (**new index — add it there first**,
+**Canonical refs:** [`PLAN §8 M8e`](../../../docs/engineering/PLAN.md) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (**new index — add it there first**,
 design-integrity rule) · D17 (journaled mutations) ·
-[`SCREENS-v5 §6`](../../../handoff/v5/docs/SCREENS-v5.md) ·
-[`DATA_MODEL-v5`](../../../handoff/v5/docs/DATA_MODEL-v5.md) (view shape)
+[`SCREENS §6`](../../../handoff/docs/SCREENS.md) ·
+[`DATA_MODEL`](../../../handoff/docs/DATA_MODEL.md) (view shape)
 
 ## Depends on
 - None (parallel to the other M8x). Must land **before M9f** wires the screen; M9b's "Save view"
@@ -35,7 +35,7 @@ design-integrity rule) · D17 (journaled mutations) ·
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**:
 - IDOR test: non-owner PATCH/DELETE → 403; admin override works; owner immutable after create.
 - Preset round-trip test: saved preset → Findings query params → identical results (the deep-link
-  contract SCREENS-v5 §6 requires).
+  contract SCREENS §6 requires).
 - Garbage preset (unknown severity/state/field) → 422, never stored.
 
 ## Tests to write
@@ -63,11 +63,11 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   (`critical`/`medium`) while the canonical vocabulary says `crit`/`med` — real ingested rows
   don't match a `crit` filter; M6-era, latent because route tests seed canonical words directly.
 - **2026-07-08 · slice 1 (store + create/list)** — **naming ruling:** the brief +
-  DATA_MODEL-v5 (C-6 docs) say `system-views`; INDEX-MAP carried a pre-ruling
+  DATA_MODEL (C-6 docs) say `system-views`; INDEX-MAP carried a pre-ruling
   `system-saved-views` per-user sketch — the ruled name **`system-views`** wins and the
   INDEX-MAP row was rewritten first (design-integrity rule), with the real shape (all-visible,
   owner-or-admin, `preset` `{enabled:false}` — fetched by `_id`/list, never queried by innards).
-  **`preset: {filters, q}`** (DATA_MODEL-v5 sketch): `q` deliberately dropped — no server text
+  **`preset: {filters, q}`** (DATA_MODEL sketch): `q` deliberately dropped — no server text
   query exists (the chokepoint refuses `q=`, SEC-4) and the §6 deep-link contract is
   query-params-only; preset = the **SearchFilters mirror** (mirror-tested, the ExportParams
   pattern — `ptype` from M8d joins automatically). Closed-vocabulary validation at the edge

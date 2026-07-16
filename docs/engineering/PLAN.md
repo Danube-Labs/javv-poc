@@ -1,11 +1,14 @@
 # JAVV - Just Another Vulnerability Viewer · MVP Plan (v4)
 
+> **Living doc** (formerly `PLAN_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
+> The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
+
 > **Status: revision 4 (2026-06-21).** Supersedes `.deprecated/docs/engineering/deprecated/V3/PLAN_v3.md` (kept frozen for the evolution
 > trail). Folds in the post-v3 audit dialogue: index rename (`system-exceptions`→`system-decisions`),
 > raw-fidelity via keyword normalizer (no duplicate fields), rebuildable triage state, idempotent appends,
 > projection-on-new-only, two-timer staleness, vuln-age-at-read, pinned `apply_both` semantics, an explicit
 > HA/multi-pod section, scheduled/throttled export, envelope-versioning policy, an Admin "Data & OpenSearch"
-> panel, and a **re-sequenced, more granular milestone set**. Companions: `SPEC_v4.md`, `ARCHITECTURE_v4.md`.
+> panel, and a **re-sequenced, more granular milestone set**. Companions: `SPEC.md`, `ARCHITECTURE.md`.
 > UI reference: `handoff/v4/`. Working root: `D:\Github\Claude\projects\javv`. Repo: `javv-poc`
 > (`git@github.com:Danube-Labs/javv-poc.git`). Vendor: **Danube Labs**. License: **BUSL 1.1** (→ Apache-2.0
 > on 2030-06-10). Process: **specs.md FIRE flow, autonomy level 1 (Confirm)**. *Milestone = bolt.*
@@ -17,7 +20,7 @@
 - **`handoff/v4/`** - UI/product reference (12 screens, tokens, React prototype). v4 targets it as
   closely as backend constraints allow; **divergences are expected and noted, not silently taken** - see the
   "UI extends beyond handoff" list in §8 (M9).
-- **`docs/engineering/V4/` (this set)** - canonical engineering plan/spec/architecture.
+- **`docs/engineering/` (this set)** - canonical engineering plan/spec/architecture.
 - **`.deprecated/docs/engineering/deprecated/V3/`, `.deprecated/docs/engineering/deprecated/` (v2), `.deprecated/docs/deprecated/` (v1)** - superseded; kept for history + the audits.
 - **`docs/research/`** - the audit + best-practices + tooling + k8s research backing this revision.
 
@@ -86,7 +89,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   is wanted). Projection writes `state`; triage writes human fields directly. An admin **rebuild-state** job
   (kept day-one - OE-2) re-projects all findings from the sources of truth (self-heal; recomputes `stale`
   from `last_seen_at` - SND-6/D36). **Requirement:** *every* triage action appends to `system-audit-log`, so
-  nothing human-authored lives only on the finding. (§5.2; §6; `INDEX-MAP_v4`.)
+  nothing human-authored lives only on the finding. (§5.2; §6; `INDEX-MAP`.)
 - **D18 - Idempotent appends (deterministic `_id`).** Append writes get deterministic ids so a retried push
   overwrites instead of duplicating: `javv-scan-events` `_id = hash(scan_run_id + image_digest + scanner)`;
   `javv-finding-occurrences` snapshot row `_id = hash(scan_run_id + finding_key)`. Pure append - a retry
@@ -121,7 +124,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   (the early close-diff hazard is designed out - there is no read-modify-write). The one remaining multi-pod
   caveat: the in-proc `slowapi` rate-limit is **per-pod**, so the global limit ≈ configured × replicas
   (exact at `replicas:1`); a hard global cap would need shared state (out of scope by D11). Neither blocks
-  the MVP (single-pod). (§HA in `ARCHITECTURE_v4`.)
+  the MVP (single-pod). (§HA in `ARCHITECTURE`.)
 - **D24 - Scheduled / throttled export.** Large CSV/report requests become rows in **`system-reports`**
   (`status, params, requested_by, run_mode ∈ {now, offpeak}, scheduled_for, result_location`); the existing
   background CronJob drains the queue, off-peak runs **throttled** (PIT+`search_after`, small pages, brief
@@ -130,21 +133,21 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   replicas/retries never double-run a job (D38/M17): `pending→running` via `seq_no`/`primary_term` CAS +
   `heartbeat_at` + `lease_expires_at` + `retry_count`, plus a **fencing `attempt_id`** (D39/M7-r2) - heartbeat
   and the `done` transition CAS on the current `attempt_id` and the result object path includes it, so a slow
-  worker whose lease expired and was reclaimed cannot double-publish. (§6; `SPEC_v4` FR-13.)
+  worker whose lease expired and was reclaimed cannot double-publish. (§6; `SPEC` FR-13.)
 - **D25 - Envelope versioning & schema-skew policy.** The ingest envelope is versioned; the backend
   **accepts the current envelope only** and **rejects older** with a clear 4xx telling the operator to upgrade
   the scanner (current-only per D35/D38 - the earlier "N, N-1 dual-parse" is dropped; the versioning *policy*
   stays). Document-shape/mapping changes are handled by a **`_reindex` runbook**
   (new index + transform script); `dynamic:false` means new fields must be added to the mapping first.
-  Migration tooling itself is post-MVP; the **policy** is decided now. (`SPEC_v4` FR-3, NFR-1.)
+  Migration tooling itself is post-MVP; the **policy** is decided now. (`SPEC` FR-3, NFR-1.)
 - **D26 - Admin "Data & OpenSearch" settings panel.** A first-class Admin surface to configure OpenSearch
   behaviour from JAVV: **rollover** thresholds (doc count / age / size), per-cluster **retention_days**,
   **snapshot** config (repository + schedule) + manual snapshot/restore, and the **staleness timers** (D20)
-  (here or a sibling "Scanning" section). (`SPEC_v4` FR-19; M9e.)
+  (here or a sibling "Scanning" section). (`SPEC` FR-19; M9e.)
 - **D27 - Dense-grid table engine.** PrimeVue `DataTable` in **lazy (server-side) mode** is the default for
   every grid - in-stack, themed, free; **escape-hatch to AG Grid Community** (also free/MIT) only if a
   specific screen needs spreadsheet-grade interactions it can't do. TanStack rejected (headless → rebuild all
-  table chrome for no cost saving). (`SPEC_v4` FR-12; M9b.)
+  table chrome for no cost saving). (`SPEC` FR-12; M9b.)
 - **D28 - Whole-app time-travel (global rewind).** The global time picker sets a time `T` (days/hours/minutes
   ago; default now); **every screen is a projection at T**. `T=now` reads the materialized current-state
   (`findings` cache) - fast. `T<now` **reconstructs from the timestamped append logs, catalog-first** (D39 -
@@ -156,7 +159,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   allows** (oldest `occurrences`/`images` window + long-kept audit-log). Cost: past-T reconstruction is heavier
   than the now-index read (bounded per cluster); **historical all-clusters dashboards are limited/unavailable
   until the `javv-metrics` rollup, v1.1** (D39/M11-r2). Replaces FR-14's image-only scope.
-  (`SPEC_v4` FR-23; M6/M8/M9; read path in `ARCHITECTURE_v4`.)
+  (`SPEC` FR-23; M6/M8/M9; read path in `ARCHITECTURE`.)
 - **D29 - `images` is a time-partitioned append** (`javv-images-<cluster_id>-*`), not a mutable upsert
   (§5.3). Each scan cycle writes a **complete inventory run** stamped `inventory_run_id`. **"Running images
   now / at T" = the latest complete inventory run for the cluster** (R-CATALOG, D37), *not*
@@ -165,7 +168,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
 - **D30 - Scanner scans everything every cycle (no skip-unchanged).** Stateless script: list images (minus
   excluded namespaces/labels) → **local digest-dedup** (each unique digest scanned once) → scan → push all,
   timestamped. No "was-this-scanned-before" state, no backend query. (Drops the v2/v3 skip-unchanged
-  decision; in-cluster scan CPU accepted.) (`SPEC_v4` FR-2.)
+  decision; in-cluster scan CPU accepted.) (`SPEC` FR-2.)
 - **D31 - Partial-doc merge replaces the preserve script.** Ingest updates `findings` with a **partial doc of
   scanner fields only**; OpenSearch merge leaves human fields untouched - no preserve script, nothing to
   clobber. (D17; §5.1/§5.2.)
@@ -175,12 +178,12 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   actions, **`revision`** (the finding's resulting version from the CAS write - D40/H-r3), `@timestamp`),
   **not** the old `(field, old, new)` shape and **no `seq` counter** - replay orders same-`(entity, field)`
   events by **`revision`**, then `(@timestamp, event_id)` for unrelated events (D39/H6-r2, D40/H-r3). It **is** the human-state timeline for time-travel (D28) and rebuild
-  (D17). Append-only via a create-only role (D34). Canonical mapping: `INDEX-MAP_v4`.
+  (D17). Append-only via a create-only role (D34). Canonical mapping: `INDEX-MAP`.
 - **D33 - Capability-based RBAC.** Roles are bundles of **capabilities**; endpoints check capabilities, not
   role strings. Risk-accept is gated by **`can_accept_audit_final`** (Admin always holds it) - single-step
   role-gate, **no two-person maker/checker** for MVP (the accepting user is `created_by`). Resolves the
   4-vs-5 role mismatch (SEC-9). Destructive caps (restore/drop-index/rebuild/retention) Admin-only +
-  journaled. (`SPEC_v4` FR-18; M5a.)
+  journaled. (`SPEC` FR-18; M5a.)
 - **D34 - Security hardening bundle.** Create-only OpenSearch role for `system-audit-log` + the append
   indices + WORM snapshot (SEC-1; "append-only by role," not "immutable"). **`system-decisions` is *not*
   create-only** - it is immutable **except `revoked_at`** (D39/H5-r2); a scope **or `expiry`** edit is
@@ -193,7 +196,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   SEC-7); **TLS** on all hops + OpenSearch security plugin on in prod (SEC-8); snapshot/export creds in OS
   keystore; export results stored in OpenSearch (chunked) + a tenant-chokepoint-gated backend download
   endpoint with a short-lived signed token + `expires_at` + download entitlement (SEC-10, revised by M7/#32);
-  **decompression-ratio kill-switch** (~100:1 abort + per-token abort rate-limit - SEC-11). (`SPEC_v4` NFR-7;
+  **decompression-ratio kill-switch** (~100:1 abort + per-token abort rate-limit - SEC-11). (`SPEC` NFR-7;
   M1/M5a/M10.)
 - **D35 - MVP simplifications.** `severity_rank` on `findings` only, not occurrences (OE-5); ingest accepts
   the **current envelope only**, rejects older with a clear 4xx (drop N/N-1 dual-parsing; keep the versioning
@@ -206,7 +209,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   text; bulk-action audit records the target set, not a count; DR snapshots small audit/decision indices more
   often than bulky append (RPO).
 - **D37 - Read through the commit catalog; reconcile the cache on commit (external-audit C1/C2/H3/H5/M12/
-  M13).** Folds in the ChatGPT audit (`AUDIT-RESPONSE_v4.md`). The point-in-time model was correct; the read
+  M13).** Folds in the ChatGPT audit (`AUDIT-RESPONSE.md`). The point-in-time model was correct; the read
   path had a lazy "latest doc per key" shortcut that breaks on a *clean rescan* (which writes no occurrence
   rows). Fix is read-discipline + one `update_by_query` - **no new infra, no close-events in history.**
   - **R-CATALOG (C1/H5).** "Latest state" is resolved through the **commit catalog**, never "latest doc per
@@ -226,7 +229,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   - **Stale ≠ delete (M12).** `stale`/`present` are flags; `findings` docs are deleted only after a separate
     **long** window (or once gone from inventory that long) - never on the freshness timer.
   - **Full timestamps (M13).** `findings.first_seen_at` / `last_seen_at` are full `date` (not day-grain) so
-    minute-level as-of-T is exact; `occurrences.@timestamp` already is. (`INDEX-MAP_v4`; §5.2; §5.5; §6.)
+    minute-level as-of-T is exact; `occurrences.@timestamp` already is. (`INDEX-MAP`; §5.2; §5.5; §6.)
 - **D38 - External-audit consistency + hardening fixes (M10/H7/H8/H9/M14/M17/M11/M15/M16/L18).**
   - **Envelope current-only (M10).** Reconciles D25↔D35: ingest accepts the **current envelope only**, rejects
     older with a 4xx (drop N/N-1 dual-parse; versioning *policy* retained). Supersedes the N/N-1 reading of D25.
@@ -253,9 +256,9 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
     stays a field) to halve index/shard count; supersedes the `javv-scan-events-<scanner>-<cluster_id>` name.
   - **Historical-dashboard guardrail (M16).** Multi-cluster *historical* dashboards read the `javv-metrics`
     rollup (v1.1), not raw occurrences; PIT/search contexts are **explicitly closed** (not left to expiry).
-  - **Index naming (L18).** Hyphens everywhere (`system-decisions`, `system-audit-log`, …); `INDEX-MAP_v4.md`
+  - **Index naming (L18).** Hyphens everywhere (`system-decisions`, `system-audit-log`, …); `INDEX-MAP.md`
     is canonical.
-- **D39 - Round-2 audit fixes: ordering, completeness, immutability (`AUDIT-RESPONSE_v4.md` round-2).** The
+- **D39 - Round-2 audit fixes: ordering, completeness, immutability (`AUDIT-RESPONSE.md` round-2).** The
   round-1 fixes were directionally right but left correctness gaps in *write/read ordering and completeness
   contracts* - out-of-order scans and uncommitted cache writes could make the "now" grid lie. D39 closes them.
   - **Symmetric query via the catalog + `commit_key` on occurrences (C1-r2).** "Which images had CVE-Y at T"
@@ -296,7 +299,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   - **Sweeps.** Read-path prose rewritten **catalog-first** (no "latest occurrences/images snapshot ≤ T"
     shorthand); **D32 updated to the enriched audit schema**; "now" query examples carry
     `cluster_id`/`scanner`/`present=true`; residual `first_seen`/`last_seen` → `*_at`.
-- **D40 - Round-3 audit fixes: a committed-scan watermark + trustworthy ordering (`AUDIT-RESPONSE_v4.md`
+- **D40 - Round-3 audit fixes: a committed-scan watermark + trustworthy ordering (`AUDIT-RESPONSE.md`
   round-3).** D39's newer-scan-wins guarded *per-doc* state, which **can't guard a create** - an out-of-order
   older run could re-create a finding a newer *clean* scan already retired. D40 adds the missing serialization
   primitive and trustworthy ordering; **still broker-free** (one tiny new mutable index).
@@ -366,7 +369,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   - **Provenance (M0):** the envelope stamps **`scanner_version` + `scanner_db_version` + `scanner_db_built`**,
     self-reported by the binary (Trivy `Trivy.Version`; Grype `descriptor.version` + `descriptor.db.status`;
     Trivy's standalone JSON has no DB info → DB fields null). Stored on `scan-events` for the read-only version
-    view + audit version matrix (`AUDIT-RESPONSE_v4.md` "scanner/backend version matrix"). A deliberate
+    view + audit version matrix (`AUDIT-RESPONSE.md` "scanner/backend version matrix"). A deliberate
     *downgrade* must still mint a **greater `scan_order`** (D40) so newer-wins reconcile doesn't mis-rank it.
 - **D42 - Single source of truth for externally-owned versions (`versions.yaml`).** The versions of tools/
   services JAVV doesn't own (scanners, OpenSearch; toolchain in a phase 2) are pinned in one root file
@@ -445,7 +448,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   only).
 
 ## 4. Architecture
-See `ARCHITECTURE_v4.md`. Summary unchanged in shape from v3 (scanner → hardened ingest → OpenSearch single
+See `ARCHITECTURE.md`. Summary unchanged in shape from v3 (scanner → hardened ingest → OpenSearch single
 store with current-state + append-logs + system layer → Vue frontend); v4 adds the `system-decisions`
 rename, `system-reports`, the rebuild-state + scheduled-export jobs, and an HA/multi-pod section.
 
@@ -470,7 +473,7 @@ scope→`system-decisions`. The `images` doc holds **rollup counts, not the vuln
 from querying `findings` by `image_digest` (findings **denormalize** image/namespace/tag so you filter/agg by
 image without touching `images`). A CVE on N images = **N findings rows** (`finding_key` includes
 `image_digest`, per-scanner, never merged); a single **CVE-anchored** `system-decisions` record with a
-**scope** projects `state` onto the in-scope rows (D4/§5.7). Worked example: `FLOW-EXAMPLE_v4.md` §7–§8.
+**scope** projects `state` onto the in-scope rows (D4/§5.7). Worked example: `FLOW-EXAMPLE.md` §7–§8.
 
 ### 5.2 `findings` - mutable current-state (UPSERT) · the triage entity
 `_id = finding_key = hash(cluster_id + image_digest + scanner + cve_id + package_name + installed_version)`
@@ -510,7 +513,7 @@ committed run and disappears **at that run**, not at retention - **no zombie swe
 `negligible`/`unknown`); `replicas` observed at scan time; `scanners[]`; **count-disagreement pair**
 `{trivy_count, grype_count, count_delta}` (D5b); `fixable`. Rolls over (size/age/docs) + per-cluster
 drop-whole-index retention. A scanner outage shows the **staleness banner** (latest snapshot is old). Full
-mapping: `INDEX-MAP_v4.md`.
+mapping: `INDEX-MAP.md`.
 
 ### 5.4 `javv-scan-events-*` - append-only severity summaries (trends) · PINNED
 One **immutable** doc per **(image, scanner, scan)**. Logs/events, not metrics.
@@ -780,7 +783,7 @@ Each ends on a verifiable check + Confirm gate.
    - **M8e - Server-side saved views** *(C-6 ruling: selling point, durable + shareable)*: new
      `system-views` index (INDEX-MAP first) + `/api/v1/views` CRUD, owner-or-admin mutations,
      journaled (D17); view **counts** stay server aggregations via `/findings/facets`.
-10. **M9 - Frontend (reusable-first; per `handoff/v5` current / `handoff/v4` visual base, reference not 1:1):**
+10. **M9 - Frontend (reusable-first; per `handoff/docs` current / `handoff/v4` visual base, reference not 1:1):**
     - **M9a - Shell + tokens + reusable filter module** (the `fields`-config driving FacetRail + FilterBar).
     - **M9b - Findings grid + detail/triage (core loop). Gate** before the long tail.
     - **M9c - Overview / all-clusters / images** (incl. **point-in-time image view** via the time picker).

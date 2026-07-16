@@ -11,7 +11,7 @@ gated by a **CI compatibility test** that runs the candidate scanner binary thro
 asserts the golden contracts still hold. This is where "multiple scanner versions" actually lives — a CI
 gate, **not** a runtime switch (D41). The operator later swaps the published tag in their own deploy (M10).
 
-**Canonical refs:** `PLAN_v4` **D41** · `SPEC_v4` FR-2/FR-3 (scan/ingest), NFR-11 (DB cache) ·
+**Canonical refs:** `PLAN` **D41** · `SPEC` FR-2/FR-3 (scan/ingest), NFR-11 (DB cache) ·
 M0 (#22, the adapters + golden fixtures + Dockerfiles this gates).
 
 ## Depends on

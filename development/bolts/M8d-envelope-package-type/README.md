@@ -9,11 +9,11 @@ findings facets/columns, restoring the v4 Overview donut + Findings package-type
 scanner envelope — and is a lockstep change: both adapters + `schema_version` bump + backend
 acceptance in one coordinated release.
 
-**Canonical refs:** [`PLAN_v4 §8 M8d`](../../../docs/engineering/V4/PLAN_v4.md) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (findings + occurrences mappings) ·
+**Canonical refs:** [`PLAN §8 M8d`](../../../docs/engineering/PLAN.md) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (findings + occurrences mappings) ·
 D16 (raw-fidelity normalizer — `ptype` follows the same verbatim-plus-normalized pattern as
-severity) · [`SCREENS-v5`](../../../handoff/v5/docs/SCREENS-v5.md) §§2–3 ·
-[`DATA_MODEL-v5`](../../../handoff/v5/docs/DATA_MODEL-v5.md) (ptype vocabulary note)
+severity) · [`SCREENS`](../../../handoff/docs/SCREENS.md) §§2–3 ·
+[`DATA_MODEL`](../../../handoff/docs/DATA_MODEL.md) (ptype vocabulary note)
 
 ## Depends on
 - None (parallel to M8a/M8b/M8c). Must land **before M9b/M9c** wire the facet/donut.
@@ -31,7 +31,7 @@ severity) · [`SCREENS-v5`](../../../handoff/v5/docs/SCREENS-v5.md) §§2–3 ·
   support; `docs/API.md` same PR.
 - **Reingest caveat documented:** pre-M8d findings have `ptype: null` and aggregate as "unknown"
   until the next scan cycle re-observes them (scanner scans everything every cycle, D30 — so one
-  sweep heals it). UI placeholder state until then (SCREENS-v5 §2).
+  sweep heals it). UI placeholder state until then (SCREENS §2).
 
 ## Definition of Done
 Everything in [`standards/definition-of-done.md`](../../standards/definition-of-done.md), **plus**:

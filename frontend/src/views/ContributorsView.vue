@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Contributors screen (M9d slice 3; SCREENS-v5 §11, prototype screens-heroes.jsx trimmed to
+ * Contributors screen (M9d slice 3; SCREENS §11, prototype screens-heroes.jsx trimmed to
  * the wire's truth): the shared data-screen band (head-card + the handled-findings lens — the
  * same strip grammar every data screen carries) over team KPIs → podium → leaderboard, with
  * the recent-activity feed alongside. ALL numbers are `GET /contributors`' (leaderboard +

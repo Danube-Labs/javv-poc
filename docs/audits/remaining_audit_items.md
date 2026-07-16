@@ -3,7 +3,7 @@
 > Consolidated 2026-07-06 from every audit document in the repo. The source reports now live in
 > [`deprecated/`](deprecated/) — **this file is the only live audit backlog**; tick or strike items
 > here, don't resurrect the old files. Canonical *design* audits are untouched and stay where they
-> are: `docs/engineering/V4/AUDIT_v4.md` + `AUDIT-RESPONSE_v4.md` (rulings folded into V4) and
+> are: `docs/engineering/AUDIT.md` + `AUDIT-RESPONSE.md` (rulings folded into V4) and
 > `docs/research/INDEPENDENT-AUDIT-v3.md` (v3→v4 evolution trail).
 >
 > Sources merged: `development/AUDIT.md` (2026-06-24 dev-process review) · `audit-2026-07-03-m3.md`

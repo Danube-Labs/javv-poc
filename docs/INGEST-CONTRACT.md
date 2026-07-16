@@ -152,6 +152,6 @@ one of the two identities and pin your mapping — or wait for the vocabulary.
 ## Related
 
 - [`API.md`](API.md) — full endpoint reference (auth, error tables, metrics).
-- `docs/engineering/V4/INDEX-MAP_v4.md` — where the data lands.
+- `docs/engineering/INDEX-MAP.md` — where the data lands.
 - D16 (raw-fidelity normalizer) · D30 (stateless full sweeps) · D45 (`scan_order`) ·
   SEC-3 (token scope-binding) · M8d/#241 (next envelope bump — schema doc and bump travel together).

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Login + forced password change (SCREENS-v5 §0). Error copy is GENERIC — never a
+ * Login + forced password change (SCREENS §0). Error copy is GENERIC — never a
  * user-existence hint; 429 lockout copy gives no countdown oracle. A must_change session is
  * locked here (mode 'change') until the password is rotated (SEC-6).
  */

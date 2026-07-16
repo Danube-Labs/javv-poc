@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Per-(cluster, scanner) status panel (M9d slice 2; SCREENS-v5 §12, C-3 redesign) — ports the
+ * Per-(cluster, scanner) status panel (M9d slice 2; SCREENS §12, C-3 redesign) — ports the
  * prototype's `ScannerStatusCard` + `.scan-*` CSS onto tokens; type follows the app grammar,
  * not the prototype's (stats = the head-stat mono, labels = the table-header ink/700 —
  * operator rulings 2026-07-11/12: soft small caps read faint). The prototype's ingest/failed

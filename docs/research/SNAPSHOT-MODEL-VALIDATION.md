@@ -2,7 +2,7 @@
 
 > Independent skeptical validation of the decision to replace write-on-change + close-events with
 > **full-snapshot-per-scan** for `javv-finding-occurrences-*`. Captured 2026-06-21. Verdict: **SOUND - with
-> fixes.** Drives the v4 occurrences rewrite. See [[PLAN_v4]] §5.5 / SPEC_v4 FR-5b/FR-14.
+> fixes.** Drives the v4 occurrences rewrite. See [[PLAN]] §5.5 / SPEC FR-5b/FR-14.
 
 ## Verdict
 The snapshot model is correct in the forward direction at every tested case, **removes the multi-pod close

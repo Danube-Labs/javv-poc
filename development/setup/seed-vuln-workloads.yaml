@@ -2,7 +2,7 @@
 # scanner something real to discover and scan in the local k3d cluster (`alpha`).
 #
 # NOT part of the app and NOT deployed anywhere real — this exists only to verify
-# M0's scanner against a live cluster (PLAN_v4 §9 "Scanner: <local cluster> + a
+# M0's scanner against a live cluster (PLAN §9 "Scanner: <local cluster> + a
 # known-vulnerable image; confirm digest dedup …").
 #
 #   Apply:   kubectl apply -f development/setup/seed-vuln-workloads.yaml

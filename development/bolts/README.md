@@ -1,6 +1,6 @@
 # Bolts - the build, milestone by milestone
 
-One folder per **FIRE bolt** from [`PLAN_v4.md` §8](../../docs/engineering/V4/PLAN_v4.md). Each holds a
+One folder per **FIRE bolt** from [`PLAN.md` §8](../../docs/engineering/PLAN.md). Each holds a
 **README only** - the execution brief (goal, deliverables, definition of done, tests). The shared rules live
 in [`../standards/`](../standards/).
 

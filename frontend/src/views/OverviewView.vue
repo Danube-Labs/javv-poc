@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Overview — single-cluster dashboard (M9c slice 1; SCREENS-v5 §2, prototype screens-overview.jsx
+ * Overview — single-cluster dashboard (M9c slice 1; SCREENS §2, prototype screens-overview.jsx
  * ported structure-only onto tokens). KPI strip is the joined hairline-divided stat band (Nuxt UI
  * stat grammar — operator ruling from the finding-detail risk band) with click-through cells.
  * Every number is a server aggregation; the scanner seg only re-reads the by_scanner splits the

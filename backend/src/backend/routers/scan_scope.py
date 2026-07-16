@@ -3,7 +3,7 @@
 `GET /api/v1/scan-scope` — the scanner reads *its own cluster's* scope at cycle start, then
 filters discovery before pull/scan. Token-authenticated; the scope returned is always for the
 token's `cluster_id` (SEC-4 — a token reads only its own cluster). This bearer read stays
-scanner-only, NEVER widened to sessions (SCREENS-v5 §13.1).
+scanner-only, NEVER widened to sessions (SCREENS §13.1).
 
 M9e adds the UI pair: `GET /api/v1/settings/scan-scope` — the SESSION read (D-2; any
 authenticated principal — scope is non-secret policy, mirroring the SLA read) — and

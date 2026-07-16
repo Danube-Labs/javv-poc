@@ -5,20 +5,20 @@
 - **`docs/CONFIGURATION.md`** ✅ — programmatically diffed against `Settings.model_fields`
   (22 fields): every backend knob documented; the `JAVV_TRIVY_*`/`JAVV_GRYPE_*`/scanner-runtime
   knobs in the doc are scanner-side by design. Last touched in #213 (same-PR-as-knob rule held).
-- **`docs/engineering/V4/INDEX-MAP_v4.md`, `AUDIT_v4.md`, `PLAN_v4.md`** ✅ — carry the M7
+- **`docs/engineering/INDEX-MAP.md`, `AUDIT.md`, `PLAN.md`** ✅ — carry the M7
   OpenSearch-storage decision (#212) and the M7 indices.
-- **`ARCHITECTURE_v4.md`'s S3/MinIO mentions** ✅ deliberate — they are the *snapshot-repository*
+- **`ARCHITECTURE.md`'s S3/MinIO mentions** ✅ deliberate — they are the *snapshot-repository*
   clause (NFR-6), which the SEC-10 amendment explicitly kept. **Do not "fix" these.**
 
-## 2. SPEC_v4 FR-13 — the missed #212 amendment (❌ → fixed in THIS PR)
+## 2. SPEC FR-13 — the missed #212 amendment (❌ → fixed in THIS PR)
 
-The #212 instruction was "amend SPEC_v4 SEC-10 too"; the amendment landed in AUDIT_v4 + PLAN_v4 +
-INDEX-MAP but **SPEC_v4 was missed** (its last commit predates #212). FR-13 still said the export
+The #212 instruction was "amend SPEC SEC-10 too"; the amendment landed in AUDIT + PLAN +
+INDEX-MAP but **SPEC was missed** (its last commit predates #212). FR-13 still said the export
 "result lands in object storage", "result path + object metadata", "orphan **objects** are
 TTL-swept" — contradicting the decided model (chunked result blobs in `system-report-chunks`,
 download via backend endpoint + `expires_at`, orphan **chunks** swept).
 
-This PR amends FR-13 in place (see the diff). Nothing else in SPEC_v4 references the old model
+This PR amends FR-13 in place (see the diff). Nothing else in SPEC references the old model
 (verified: no `presigned`/`MinIO`/`object storage` remnants outside NFR-6's snapshot clause).
 
 ## 3. `docs/API.md` — ❌ severely stale; rewrite guide

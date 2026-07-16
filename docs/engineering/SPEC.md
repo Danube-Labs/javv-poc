@@ -1,7 +1,10 @@
 # JAVV - Spec (v4)
 
+> **Living doc** (formerly `SPEC_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
+> The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
+
 > **Revision 4 (2026-06-21).** Supersedes `.deprecated/docs/engineering/deprecated/V3/SPEC_v3.md` (frozen). Reflects the post-v3 audit
-> dialogue. Companions: `PLAN_v4.md` (decisions/data-model/milestones), `ARCHITECTURE_v4.md` (flows),
+> dialogue. Companions: `PLAN.md` (decisions/data-model/milestones), `ARCHITECTURE.md` (flows),
 > `handoff/v4/` (UI reference - *reference point, not a 1:1 contract*). Diagrams: Mermaid.
 > Key v4 changes: `system-exceptions`→`system-decisions`; raw-fidelity via keyword normalizer; rebuildable
 > triage state; idempotent appends; projection-on-new-only; two-timer staleness; VEX **import → v1.1**
@@ -51,7 +54,7 @@ from an env/secret and must change the password on first login - FR-18.)
   (D37/C2), **retrying scoped until zero version-conflicts** (E-r3). Per-scanner rows, **never merged**.
   A CVE on **N images = N findings rows** (`finding_key` includes `image_digest`); the `images` doc holds
   rollup **counts, not the vuln list** (the list is a query of `findings` by `image_digest`). Indexes relate
-  by **shared-key joins**, never embedded sub-tables (worked example: `FLOW-EXAMPLE_v4.md` §7–§8).
+  by **shared-key joins**, never embedded sub-tables (worked example: `FLOW-EXAMPLE.md` §7–§8).
 - **FR-5 Logs / trends.** On every ingest, append an **immutable** doc to `javv-scan-events-*` - one per
   **(image, scanner, scan)**: severity *counts* + dimensions + `@timestamp` + **`scan_order`** (the catalog
   ordering key - D40) + `commit_key` + **`scanner_version` / `scanner_db_version` / `scanner_db_built`**

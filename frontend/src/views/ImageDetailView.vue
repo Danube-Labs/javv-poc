@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Image detail — per-digest drill-down (M9c slice 3; SCREENS-v5 §8). Identity is the content
+ * Image detail — per-digest drill-down (M9c slice 3; SCREENS §8). Identity is the content
  * digest; `repo:tag` ride along as query context. The scanner lens is a READ lens: it swaps
  * which scanner's committed findings + facets are shown — never merges (per-scanner sacred).
  * Severity cards and rows come from the same server reads the Findings screen uses

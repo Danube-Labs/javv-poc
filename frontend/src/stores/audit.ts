@@ -1,4 +1,4 @@
-/** Grid state for the audit table (M9d slice 1; SCREENS-v5 §10) — the same cursor-stack pager
+/** Grid state for the audit table (M9d slice 1; SCREENS §10) — the same cursor-stack pager
  * contract as the findings grid: `cursors[i]` fetches page i (page 0 = null), no offset, no
  * random jumps; rows/total are the server's verbatim. Rows are the D32 stream, decorated at
  * read with the touched entity's identity (`finding`/`decision` sub-objects — null when the

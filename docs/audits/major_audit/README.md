@@ -21,7 +21,7 @@ same PR as the code they describe.**
 | [03](03-e2e-smoke.md) | Full e2e | ✅ **Still runnable today** (all prereqs verified live) — but the smoke predates M5c→M7; extension guide |
 | [04](04-docs-and-tracker-freshness.md) | CONFIGURATION.md | ✅ Current (all 22 `Settings` fields verified present) |
 | [04](04-docs-and-tracker-freshness.md) | API.md | ❌ **Severely stale** — 6 of 34 routes documented, claims auth "not yet". Rewrite guide + process fix |
-| [04](04-docs-and-tracker-freshness.md) | engineering/V4 | ⚠️ Current **except SPEC_v4 FR-13** — the #212 storage amendment missed it (**fixed in this PR**) |
+| [04](04-docs-and-tracker-freshness.md) | engineering | ⚠️ Current **except SPEC FR-13** — the #212 storage amendment missed it (**fixed in this PR**) |
 | [04](04-docs-and-tracker-freshness.md) | Issues ↔ bolts ↔ code | ⚠️ Small, enumerable drift: #134 stale paths/checkboxes, M9a expects a nonexistent freshness endpoint |
 | [05](05-backend-ui-drift-m9.md) | Backend ↔ UI (M9 prep) | ⚠️ **23 concrete drift items**, incl. one D41 violation in the prototype. Full amendment table + Claude design prompt |
 | [06](06-load-and-chaos-tests.md) | Load / chaos / borked config | ⚠️ DoS *bounds* are good (post-#189); **no load rig for the read path, zero `Settings` validation**. Two-PR guide |

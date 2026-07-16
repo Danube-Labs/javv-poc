@@ -9,10 +9,10 @@ CronJob), rollback strategy, operational runbooks (OpenSearch sizing, `_reindex`
 HA/multi-pod D23), and finalized VEX export + attribution. **CI is out of scope** — the pipeline
 is scaffolded separately (`.github/workflows/ci.yml`, AUDIT C1) and must not block on M10.
 
-**Canonical refs:** [`PLAN_v4 §8 M10`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` NFR-2 (Helm/k8s, shard budget), NFR-3 (least-priv scanner RBAC), NFR-6 (snapshot/restore),
+**Canonical refs:** [`PLAN §8 M10`](../../../docs/engineering/PLAN.md) ·
+`SPEC` NFR-2 (Helm/k8s, shard budget), NFR-3 (least-priv scanner RBAC), NFR-6 (snapshot/restore),
 NFR-9 (CronJobs `Forbid`, no broker), **NFR-11 (vuln-DB mirror/cache + scheduled refresh + PVC)**, FR-22 (VEX export MVP) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (deploy touches no new index — ISM/snapshot repo refs) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (deploy touches no new index — ISM/snapshot repo refs) ·
 decisions D23 (HA/multi-pod), D24 (off-peak export), D25 (`_reindex` runbook).
 
 ## Depends on

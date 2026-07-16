@@ -2,7 +2,7 @@
 
 Read this before writing or modifying any frontend code. It condenses the binding sources —
 `src/styles/tokens.css` (values) · `development/standards/ui-foundations.md` (rules) ·
-`handoff/v5/docs/SCREENS-v5.md` (screens) — into the one file a session needs. On any
+`handoff/docs/SCREENS.md` (screens) — into the one file a session needs. On any
 disagreement, tokens.css + ui-foundations win.
 
 Enforced, not advisory: **stylelint** fails raw hex/`rgb()`/non-token fonts/ad-hoc font-sizes in
@@ -278,7 +278,7 @@ copy. Structural fidelity is a process rule:
    PR next to the prototype's rendering of the same section. (Needs the Playwright MCP wired —
    until then the operator eyeballs the dev server against the prototype tab.)
 4. **Deviations are rulings, not taste.** Departing from the prototype requires a recorded reason
-   (a SCREENS-v5 ruling, a shipped-backend constraint) noted in the PR — same discipline as the
+   (a SCREENS ruling, a shipped-backend constraint) noted in the PR — same discipline as the
    DECIDE register.
 5. **Grammar substitutions need a LIVE ruling (operator 2026-07-12, M9d).** Swapping a screen's
    presentation grammar wholesale (the prototype's table → a timeline/cards/feed) is never covered

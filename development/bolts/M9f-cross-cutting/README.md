@@ -9,10 +9,10 @@ RBAC gating of the client, and the empty/cold-start states. All grids are **serv
 no client-side counting (server-side-everything hard constraint). **Also owns the FE E2E smoke
 suite** (Playwright) that M9a/M9b defer to.
 
-**Canonical refs:** [`PLAN_v4 §8 M9f`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` FR-16 (notifications, per-user, polling no-broker), FR-17 (saved views), FR-18 (capability-based RBAC client gating),
+**Canonical refs:** [`PLAN §8 M9f`](../../../docs/engineering/PLAN.md) ·
+`SPEC` FR-16 (notifications, per-user, polling no-broker), FR-17 (saved views), FR-18 (capability-based RBAC client gating),
 FR-23 (global time picker is cross-cutting), FR-2 (server-side aggregations / lazy grids) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`system-notifications`, `system-saved-views`, `system-users` capabilities) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`system-notifications`, `system-saved-views`, `system-users` capabilities) ·
 decisions D33 (capabilities not roles), NFR-9 (no broker → polling).
 
 ## Depends on
@@ -110,7 +110,7 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   `JAVV_EXPORT_TTL_HOURS`), not an object-store URL — results are stored in OpenSearch (chunked). The
   bell UI just needs to render the link + handle the 410-expired case gracefully.
 
-- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS-v5.md` §§6, 14–15. **C-6 ruled
+- **2026-07-07 — v5 design rulings (#237):** contract = `SCREENS.md` §§6, 14–15. **C-6 ruled
   SERVER-SIDE saved views** (selling point): this bolt's Saved-views screen consumes the **M8e**
   `/api/v1/views` CRUD (owner column returns; edit/delete affordances hidden unless owner-or-admin;
   the localStorage variant is dead). **A-6 ruled**: export stays session-only — a `can_export`

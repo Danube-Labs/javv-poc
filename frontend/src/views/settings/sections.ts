@@ -1,5 +1,5 @@
 /**
- * The settings sub-nav registry (SCREENS-v5 §13): one row per section — sub-route, icon,
+ * The settings sub-nav registry (SCREENS §13): one row per section — sub-route, icon,
  * capability gate (the section is HIDDEN from the sub-nav without it, A-4; the router guard
  * reroutes direct hits) and the scope marker saying what blast radius an edit has.
  */

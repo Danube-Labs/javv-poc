@@ -10,9 +10,9 @@ auditing, and a **standing parametrized RBAC/IDOR negative-test suite** every fu
 mutating endpoint registers into. *Security-critical: this is the prerequisite for M5b–M5d
 and every later mutation.*
 
-**Canonical refs:** [`PLAN_v4 §8 M5a`](../../../docs/engineering/V4/PLAN_v4.md) (M5 split, SEC-4/SEC-6) ·
-`SPEC_v4` FR-18 (auth/RBAC, D33), MVP tenant model D38/H9 ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`system-users` **[OWNS]**, `system-roles` **[OWNS]**,
+**Canonical refs:** [`PLAN §8 M5a`](../../../docs/engineering/PLAN.md) (M5 split, SEC-4/SEC-6) ·
+`SPEC` FR-18 (auth/RBAC, D33), MVP tenant model D38/H9 ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`system-users` **[OWNS]**, `system-roles` **[OWNS]**,
 `system-sessions` **[OWNS]**, `system-tokens` **[OWNS]**, `system-audit-log` *append-only, schema owned by M5b*) ·
 decisions D33 (capability RBAC + `can_accept_audit_final`), D38/M14 (peppered SHA-256 tokens), D17 (journaling).
 

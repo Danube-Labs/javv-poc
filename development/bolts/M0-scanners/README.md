@@ -7,7 +7,7 @@ The drop-in, in-cluster scanner package: discover running images, scan each with
 (per-scanner, never merged), normalize output, and push a hardened envelope to the backend. This is the data
 source for everything downstream - no backend exists yet, so M0 is testable in isolation against fixtures.
 
-**Canonical refs:** [`PLAN_v4 §8 M0`](../../../docs/engineering/V4/PLAN_v4.md) · `SPEC_v4` FR-1/FR-2 ·
+**Canonical refs:** [`PLAN §8 M0`](../../../docs/engineering/PLAN.md) · `SPEC` FR-1/FR-2 ·
 decisions **D16** (severity normalizer), **D30** (scan-all, local digest-dedup, no skip-unchanged),
 **D37** (full-precision `last_seen_at`), **D40** (`scan_order`).
 
@@ -39,7 +39,7 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
 - Two scans of the same image with **no change** still emit a full envelope (no skip-unchanged - D30), with a
   new `scan_run_id` and a strictly greater `scan_order`.
 - A push that fails permanently lands in the dead-letter sink; a transient failure is retried with backoff.
-- **Live-cluster verification (PLAN_v4 §9, inherits v3 §9 "Scanner").** With the dev smoke target applied
+- **Live-cluster verification (PLAN §9, inherits v3 §9 "Scanner").** With the dev smoke target applied
   (`kubectl apply -f development/setup/seed-vuln-workloads.yaml` → the `javv-smoke` namespace), the scanner
   run against the real `alpha` k3d cluster confirms: discovery enumerates all three deployments; **digest-dedup
   collapses `vuln-nginx`'s 3 replicas to a single scan** (N pods → M<N scans - D30); and the trivy/grype
@@ -60,7 +60,7 @@ See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
 
 ## Updates
 - **2026-06-30** — Spelled out the **live-cluster scanner verification** in the DoD. It was always required
-  (PLAN_v4 §9 opens "As v3 §9 plus…", and v3 §9 mandates "Scanner: <local cluster> + a known-vulnerable
+  (PLAN §9 opens "As v3 §9 plus…", and v3 §9 mandates "Scanner: <local cluster> + a known-vulnerable
   image; confirm digest dedup") but was only implied by inheritance, not stated here. Added a dev smoke target
   manifest — `development/setup/seed-vuln-workloads.yaml` (3 deployments incl. a 3-replica nginx for the
   dedup check) — to apply into the `alpha` k3d cluster for that step. The skip-unchanged sub-clause from v3 §9
@@ -79,7 +79,7 @@ See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
   there is **no live in-app "version select"** (it doesn't survive multi-cluster). "Multiple versions" lives in
   CI as a **compatibility gate** (see the new bolt), not a runtime switch. The envelope now stamps
   **`scanner_version` + vuln-DB version/built** (self-reported by the binary) for read-only version display +
-  audit. Full decision: PLAN_v4 **D41**. Deploy mechanics (Helm tag value, per-schema DB cache) → M10.
+  audit. Full decision: PLAN **D41**. Deploy mechanics (Helm tag value, per-schema DB cache) → M10.
 
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the

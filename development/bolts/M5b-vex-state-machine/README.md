@@ -16,9 +16,9 @@ decisions are immutable + lifecycle-stamped (edit = revoke+new).
 > **in the same PR** — default · how it's set · UI-controllable or not. Contract constants
 > (schema versions, capability names, index names) are exempt but must be justified in-code.
 
-**Canonical refs:** [`PLAN_v4 §8 M5b`](../../../docs/engineering/V4/PLAN_v4.md) ·
-`SPEC_v4` FR-7 (VEX two-field model, 6 states), FR-8 (decisions immutable + lifecycle) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`system-audit-log` **[OWNS — creates the structured schema]**,
+**Canonical refs:** [`PLAN §8 M5b`](../../../docs/engineering/PLAN.md) ·
+`SPEC` FR-7 (VEX two-field model, 6 states), FR-8 (decisions immutable + lifecycle) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`system-audit-log` **[OWNS — creates the structured schema]**,
 `findings` `state`/`vex_justification`/`assignee`/`notes` fields, `system-decisions` lifecycle fields) ·
 decisions D32 (structured audit-log), D17 (every action journaled), D40/H-r3 (`revision` causal ordering),
 D39/H5-r2 (decisions immutable except `revoked_at`), D40/G-r3 (revoke+create `effective_at`/`operation_id`).

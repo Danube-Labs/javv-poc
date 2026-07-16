@@ -10,8 +10,8 @@ and two-timer staleness. (The **rebuild-state** self-heal job is **deferred out 
 sources don't exist here; built later split across **M5c** (human/decision arm) + **M8a**
 (scanner-presence arm). See Updates.)
 
-**Canonical refs:** [`PLAN_v4 §8 M3`](../../../docs/engineering/V4/PLAN_v4.md) · `SPEC_v4` (FRs for M3) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (javv-scan-watermarks **[OWNS]**, javv-findings,
+**Canonical refs:** [`PLAN §8 M3`](../../../docs/engineering/PLAN.md) · `SPEC` (FRs for M3) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (javv-scan-watermarks **[OWNS]**, javv-findings,
 javv-finding-occurrences, javv-scan-events) · decisions D16, D19, D20, D31, D37–D40.
 
 ## Depends on

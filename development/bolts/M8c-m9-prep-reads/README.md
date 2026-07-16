@@ -5,15 +5,15 @@
 ## Goal
 Four thin, session-gated, read-only endpoints over data the backend already writes, so every M9
 screen has a shipped data source. Falls out of the v5 design rulings (#237,
-`handoff/v5/docs/SCREENS-v5.md` BLOCKED register). Pure reads — no new index (the D-5 registry is
+`handoff/docs/SCREENS.md` BLOCKED register). Pure reads — no new index (the D-5 registry is
 one *document* in the existing `system-config`).
 
-**Canonical refs:** [`PLAN_v4 §8 M8c`](../../../docs/engineering/V4/PLAN_v4.md) ·
-[`INDEX-MAP`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (`system-audit-log`, `javv-scan-events`,
+**Canonical refs:** [`PLAN §8 M8c`](../../../docs/engineering/PLAN.md) ·
+[`INDEX-MAP`](../../../docs/engineering/INDEX-MAP.md) (`system-audit-log`, `javv-scan-events`,
 `javv-images`/`javv-inventory-runs`, `system-config` — read-only) · decisions D32 (audit shape),
 D37/R-CATALOG (latest = via commit catalog), D39/D40 (`inventory_order`, committed-only), D41/D44
 (provenance + `effective_config` stamps), D-5 ruling (cluster registry) ·
-[`SCREENS-v5`](../../../handoff/v5/docs/SCREENS-v5.md) §§1, 7, 10–12, 13.2/13.8
+[`SCREENS`](../../../handoff/docs/SCREENS.md) §§1, 7, 10–12, 13.2/13.8
 
 ## Depends on
 - Nothing unshipped. Must **check overlap with M8b** before building the inventory read — it is

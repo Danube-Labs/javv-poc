@@ -7,8 +7,8 @@ Stand up the FastAPI backend, bootstrap the current-state + `system-*` indices w
 accept the M0 envelope through a **hardened** ingest endpoint - proving the end-to-end path with a
 golden-envelope round-trip. This is the foundation every later backend bolt builds on.
 
-**Canonical refs:** [`PLAN_v4 §8 M1`](../../../docs/engineering/V4/PLAN_v4.md) · `SPEC_v4` FR-3, NFR-2/5/7 ·
-[`INDEX-MAP_v4.md`](../../../docs/engineering/V4/INDEX-MAP_v4.md) (**read before writing any mapping**) ·
+**Canonical refs:** [`PLAN §8 M1`](../../../docs/engineering/PLAN.md) · `SPEC` FR-3, NFR-2/5/7 ·
+[`INDEX-MAP.md`](../../../docs/engineering/INDEX-MAP.md) (**read before writing any mapping**) ·
 decisions **D9** (observability), **D16** (normalizer), **D25/D35** (current-envelope-only), **D38** (peppered tokens).
 
 ## Depends on
@@ -32,7 +32,7 @@ The layered backend (`backend/`, per [STACK-BEST-PRACTICES §1](../../../docs/re
 - `backend/core/bootstrap.py` - **versioned index bootstrap**: `dynamic:false` mappings for current-state
   (`findings`, `images`) + `system-*`, with keyword ids, the **severity normalizer**, reshaped CVSS, EPSS/KEV,
   and the **schema-v2 observed topology** — `namespaces` as **`keyword[]`** (never singular; array-contains
-  filter, per-ns counts overlap), `replicas` `integer`, `image_ref` `keyword`. Read `INDEX-MAP_v4.md` (now
+  filter, per-ns counts overlap), `replicas` `integer`, `image_ref` `keyword`. Read `INDEX-MAP.md` (now
   reconciled, audit finding #1) before writing any mapping — never aggregate on `text`.
 - `backend/models/` - Pydantic v2 schemas; **request models `extra="forbid"`**; `cluster_id` shape validated.
   **Coupling (D41):** because the ingest envelope model is `extra="forbid"`, it **must** include M0's provenance

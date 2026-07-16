@@ -1,10 +1,13 @@
 # JAVV - Architecture (v4)
 
+> **Living doc** (formerly `ARCHITECTURE_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
+> The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
+
 > **Revision 4 (2026-06-21).** Supersedes `.deprecated/docs/engineering/deprecated/V3/ARCHITECTURE_v3.md` (frozen). End-to-end design with
 > the hybrid data model + the v4 refinements: `system-exceptions`→`system-decisions`, raw-fidelity keyword
 > normalizer, rebuildable triage state (partial-merge + rebuild job), idempotent appends, full-snapshot
 > point-in-time (no close events), scheduled/throttled export, and an explicit HA/multi-pod section. Source of
-> decisions: `PLAN_v4.md` / `SPEC_v4.md`. UI reference: `handoff/v4/`. Diagrams: Mermaid.
+> decisions: `PLAN.md` / `SPEC.md`. UI reference: `handoff/v4/`. Diagrams: Mermaid.
 
 ## 1. System diagram
 
@@ -324,4 +327,4 @@ OpenSearch nodes / a coordinating node. Never a second datastore (D11).
 - The frontend recreates `handoff/v4/` in Vue 3 - keep the `fields`-config pattern verbatim; treat
   the JSX prototype as executable spec. Expected UI extensions beyond the handoff: `not_affected`+
   justification pickers, the scoped risk-accept dialog, the inventory staleness banner, the export
-  now/off-peak dialog (see `PLAN_v4` M9).
+  now/off-peak dialog (see `PLAN` M9).
