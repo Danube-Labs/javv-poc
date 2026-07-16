@@ -145,6 +145,23 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-07-16 (slice 5, bolt wrap) — the findings-cleanup sweep landed; M9e complete.**
+  `run_findings_cleanup` in `jobs/findings_cleanup.py` (the knob shipped in slice 4): the ONE
+  sanctioned `delete_by_query` on `findings` reaps rows `present=false` whose **`resolved_at`**
+  (the reconcile "gone since" stamp — set by `services/reconcile.py`, cleared by the merge on
+  re-appearance, rebuilt by rebuild-state) predates `now - cleanup_days`; unstamped absent rows
+  are never deleted (fail-closed). Watermarks prune alongside (INDEX-MAP): only when
+  `max_committed_scan_at` predates the same cutoff AND zero findings rows remain for the digest —
+  a live clean image's watermark stays fresh via the per-cycle CAS bump; the delete is
+  seq-no-guarded so a racing commit wins. Each run appends one `system-audit-log` row
+  (`findings_cleanup_run`, counts in `new_value_json`). Entrypoint
+  `python -m backend.jobs.findings_cleanup` (k8s CronJob `Forbid` = M10's manifest). Tests
+  (`test_findings_cleanup.py`, real-store prefix-isolated): reap selectivity (present/stale/
+  recent/unstamped all survive), live-knob pickup, idempotence, watermark prune matrix,
+  history-untouched keystone, source tripwire (exactly one `delete_by_query`, never
+  `indices.delete`), journal row. **DoD sweep re-checked:** every bullet has its automated test
+  (lifecycle keystone + tripwire · stale⟂delete · RBAC 403s + journal · scan-scope round-trip ·
+  restore drill · knob→sweep end-to-end). CONFIGURATION.md row flipped to shipped.
 - **2026-07-15 (post-slice-3) — slice-5 re-review (operator-requested) + re-slice ruling:**
   both slice-5 halves verified still needed against code + design docs (`findings_cleanup.py`
   unbuilt, no other `delete_by_query` touches `findings`; D37/M12 + INDEX-MAP + this README's DoD
