@@ -369,3 +369,128 @@ spec:
           resources:
             requests: { cpu: 5m, memory: 8Mi }
             limits:   { cpu: 50m, memory: 32Mi }
+---
+# 2026-07-16 expansion (operator-requested, pre-M9f corpus breadth): two more namespaces —
+#   payments: tomcat:9.0.50 (java/jar ptype — a package type the donut has never had) ·
+#             wordpress:5.8.1 (php + dense deb CVEs; sleep — needs a DB it doesn't have)
+#   edge:     haproxy:2.4.0 (deb; sleep — config-required) · ruby:2.7-slim (gem ptype) ·
+#             memcached:1.6.9 (runs standalone, deb)
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: payments
+  labels: { javv.dev/purpose: scan-smoke-target }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-tomcat
+  namespace: payments
+  labels: { javv.dev/purpose: scan-smoke-target }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: payments-tomcat }
+  template:
+    metadata:
+      labels: { app: payments-tomcat }
+    spec:
+      containers:
+        - name: tomcat
+          image: tomcat:9.0.50-jdk11
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits:   { cpu: 200m, memory: 256Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-wordpress
+  namespace: payments
+  labels: { javv.dev/purpose: scan-smoke-target }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: payments-wordpress }
+  template:
+    metadata:
+      labels: { app: payments-wordpress }
+    spec:
+      containers:
+        - name: wordpress
+          image: wordpress:5.8.1-php7.4-apache
+          command: ["sleep", "infinity"]
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits:   { cpu: 100m, memory: 128Mi }
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: edge
+  labels: { javv.dev/purpose: scan-smoke-target }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-haproxy
+  namespace: edge
+  labels: { javv.dev/purpose: scan-smoke-target }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: edge-haproxy }
+  template:
+    metadata:
+      labels: { app: edge-haproxy }
+    spec:
+      containers:
+        - name: haproxy
+          image: haproxy:2.4.0
+          command: ["sleep", "infinity"]
+          resources:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits:   { cpu: 50m, memory: 64Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-ruby
+  namespace: edge
+  labels: { javv.dev/purpose: scan-smoke-target }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: edge-ruby }
+  template:
+    metadata:
+      labels: { app: edge-ruby }
+    spec:
+      containers:
+        - name: ruby
+          image: ruby:2.7-slim
+          command: ["sleep", "infinity"]
+          resources:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits:   { cpu: 50m, memory: 64Mi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edge-memcached
+  namespace: edge
+  labels: { javv.dev/purpose: scan-smoke-target }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: edge-memcached }
+  template:
+    metadata:
+      labels: { app: edge-memcached }
+    spec:
+      containers:
+        - name: memcached
+          image: memcached:1.6.9
+          resources:
+            requests: { cpu: 5m, memory: 16Mi }
+            limits:   { cpu: 50m, memory: 64Mi }
