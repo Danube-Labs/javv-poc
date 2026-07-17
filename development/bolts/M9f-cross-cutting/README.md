@@ -68,6 +68,13 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > ([CONFIGURATION.md §2b](../../../docs/CONFIGURATION.md)); never log tokens/cookies/bodies (NFR-5).
 
 ## Updates
+- **2026-07-17 — slice 5 shipped (the E2E suite):** `@playwright/test` lands —
+  `playwright.config.ts` + `tests/e2e/` (app/login · triage round-trip · degraded banner ·
+  server-side paging), wired as a step in the `frontend-smoke` CI job after the route walk
+  (same backend/seed/preview). One worker, zero retries; selectors/login imported from
+  `walk.mjs` (one owner). The degraded-banner spec intercepts `/readyz` BEFORE navigation so
+  the mount-time check fails instantly — never waits the 30s poll. Vitest excludes
+  `tests/e2e/**` (it swept the specs up and failed on the foreign `test()` runner).
 - **2026-07-17 — slice 4 shipped decisions (negation #349 §2 + saved views v2):**
   - **URL-rewrite ownership split (operator-ordered fix):** filter-sync now rewrites ONLY the
     screen's own field keys (`foreignQuery`/`ownQuery` replace `keepGlobals`/`stripGlobals` in

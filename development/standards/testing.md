@@ -46,6 +46,15 @@ Run Playwright against a **built frontend + a seeded backend** (real OpenSearch 
 drives the same browser interactively during dev (authoring/debugging these specs) - see
 [`TOOLING-AND-MCP.md`](../../docs/research/TOOLING-AND-MCP.md); the committed specs are what gate CI.
 
+**As built — the spec suite (M9f slice 5, same CI job):** `frontend/playwright.config.ts` +
+`frontend/tests/e2e/*.spec.ts` (`npm run test:e2e`), run right after the route walk against the
+same built FE + seeded backend. Five specs, one worker, zero retries: login round-trip incl.
+the bad-password path (`app.spec.ts`) · the core triage persist-and-revert loop
+(`triage-loop.spec.ts`) · the degraded banner via a `/readyz` route intercept — the mount-time
+health check makes it deterministic, no 30s poll wait (`degraded-banner.spec.ts`) · grid
+paging/filtering asserted on the NETWORK — cursor + filter params must ride backend requests
+(`paging.spec.ts`). Selectors and login come from `scripts/walk.mjs` (still the one owner).
+
 **As built (audit F-14/#383, CI job `frontend-smoke`):**
 - **One walk, two consumers.** `frontend/scripts/walk.mjs` owns the route matrix (per-route
   *data-ready* selector, not the shell), the layout laws (no horizontal scroll · no off-viewport
