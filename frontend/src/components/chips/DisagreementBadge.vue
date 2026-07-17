@@ -6,12 +6,14 @@
  */
 import AppIcon from '@/components/ui/AppIcon.vue'
 
-defineProps<{ title?: string }>()
+/** `label` spells the flag out in words — surfaces with room (the detail head) say it,
+ * dense grid rows keep the bare chip. */
+defineProps<{ title?: string; label?: string }>()
 </script>
 
 <template>
   <span class="disagree-tag" :title="title ?? 'Scanners disagree on this finding'">
-    <AppIcon name="alert" :size="11" />±
+    <AppIcon name="alert" :size="11" />±<span v-if="label" class="dt-label">{{ label }}</span>
   </span>
 </template>
 
@@ -29,5 +31,10 @@ defineProps<{ title?: string }>()
   padding: 2.5px 6px;
   border-radius: 5px;
   cursor: help;
+}
+.dt-label {
+  margin-left: 3px;
+  font-family: var(--font-ui);
+  font-weight: 600;
 }
 </style>
