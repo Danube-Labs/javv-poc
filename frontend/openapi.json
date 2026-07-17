@@ -247,6 +247,10 @@
             "default": {
               "present": true
             }
+          },
+          "workbench": {
+            "$ref": "#/components/schemas/ViewWorkbench",
+            "default": {}
           }
         },
         "required": [
@@ -1306,6 +1310,16 @@
                 "type": "null"
               }
             ]
+          },
+          "workbench": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ViewWorkbench"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "title": "UpdateView",
@@ -1644,6 +1658,86 @@
           }
         },
         "title": "ViewPreset",
+        "type": "object"
+      },
+      "ViewWorkbench": {
+        "additionalProperties": false,
+        "description": "The findings-workbench capture (schema v2): everything beyond the lens needed to\nreproduce the operator's table. Cluster-agnostic BY SHAPE \u2014 no cluster_id, no absolute\n`t` (a deep link carries `?cluster=` separately); the time range is the relative window.",
+        "properties": {
+          "columns": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 32,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Columns"
+          },
+          "dense": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dense"
+          },
+          "order": {
+            "anyOf": [
+              {
+                "enum": [
+                  "asc",
+                  "desc"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order"
+          },
+          "sort": {
+            "anyOf": [
+              {
+                "enum": [
+                  "severity_rank",
+                  "first_seen_at",
+                  "last_scan_at",
+                  "cvss",
+                  "epss"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort"
+          },
+          "window_days": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 365.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Window Days"
+          }
+        },
+        "title": "ViewWorkbench",
         "type": "object"
       }
     }

@@ -135,6 +135,7 @@ export type CreateView = {
      */
     name: string;
     preset?: ViewPreset;
+    workbench?: ViewWorkbench;
 };
 
 /**
@@ -635,6 +636,7 @@ export type UpdateView = {
      */
     name?: string | null;
     preset?: ViewPreset | null;
+    workbench?: ViewWorkbench | null;
 };
 
 /**
@@ -764,6 +766,36 @@ export type ViewPreset = {
      * State
      */
     state?: Array<string> | null;
+};
+
+/**
+ * ViewWorkbench
+ *
+ * The findings-workbench capture (schema v2): everything beyond the lens needed to
+ * reproduce the operator's table. Cluster-agnostic BY SHAPE — no cluster_id, no absolute
+ * `t` (a deep link carries `?cluster=` separately); the time range is the relative window.
+ */
+export type ViewWorkbench = {
+    /**
+     * Columns
+     */
+    columns?: Array<string> | null;
+    /**
+     * Dense
+     */
+    dense?: boolean | null;
+    /**
+     * Order
+     */
+    order?: 'asc' | 'desc' | null;
+    /**
+     * Sort
+     */
+    sort?: 'severity_rank' | 'first_seen_at' | 'last_scan_at' | 'cvss' | 'epss' | null;
+    /**
+     * Window Days
+     */
+    window_days?: number | null;
 };
 
 export type GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetData = {

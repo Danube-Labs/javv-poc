@@ -301,3 +301,54 @@ def test_golden_preset_serialization_is_pinned() -> None:
         state=["open"],
     )
     assert negated.model_dump() == golden["negated"]
+
+
+async def test_v2_workbench_capture_round_trips_and_stamps_schema(env) -> None:
+    """Schema v2 (M9f slice 4): the findings-workbench capture rides the view — columns in
+    order, density, sort, the RELATIVE window. Cluster-agnostic by shape: no cluster_id and
+    no absolute t are representable (extra=forbid)."""
+    http, _client, _username = env
+    r = await http.post(
+        "/api/v1/views",
+        json={
+            "name": f"wb {uuid.uuid4().hex[:8]}",
+            "preset": {"exclude_severity": ["low"]},
+            "workbench": {
+                "columns": ["vulnerability", "severity", "image"],
+                "dense": True,
+                "sort": "first_seen_at",
+                "order": "desc",
+                "window_days": 7,
+            },
+        },
+    )
+    assert r.status_code == 201
+    view = r.json()
+    assert view["schema_version"] == 2
+    assert view["workbench"]["columns"] == ["vulnerability", "severity", "image"]
+    assert view["workbench"]["window_days"] == 7
+
+    # v1-style create still works — workbench defaults to the all-None blob
+    r2 = await http.post("/api/v1/views", json={"name": f"v1 {uuid.uuid4().hex[:8]}"})
+    assert r2.status_code == 201
+    assert r2.json()["workbench"] == {
+        "columns": None,
+        "dense": None,
+        "sort": None,
+        "order": None,
+        "window_days": None,
+    }
+
+    # the capture is cluster-agnostic BY SHAPE — a cluster_id is unrepresentable
+    bad = await http.post(
+        "/api/v1/views",
+        json={"name": "x", "workbench": {"cluster_id": "c-1"}},
+    )
+    assert bad.status_code == 422
+
+    # PATCH replaces the whole blob (same rule as preset)
+    vid = view["view_id"]
+    r3 = await http.patch(f"/api/v1/views/{vid}", json={"workbench": {"dense": False}})
+    assert r3.status_code == 200
+    assert r3.json()["workbench"]["dense"] is False
+    assert r3.json()["workbench"]["columns"] is None  # whole-blob replace, not a merge

@@ -353,7 +353,12 @@ revoked           boolean       revoke-on-role-change / logout-all
 ```
 # system-config        : SLA policy, rollover/retention/staleness knobs, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c)
 # system-tags          : { tag, kind: team|app|org, ... }
-# system-views         : { view_id, name, description, preset, owner, created_at, updated_at }
+# system-views         : { view_id, name, description, preset, workbench, owner, created_at,
+#                          updated_at, schema_version }
+#                          (schema v2, M9f slice 4: `workbench` = the findings-table capture —
+#                          {columns, dense, sort, order, window_days} — cluster-agnostic by shape:
+#                          no cluster_id / absolute t is representable; opaque in _source like
+#                          `preset`, never queried by innards. v1 docs simply lack the key.)
 #                          (M8e/C-6 ruling, 2026-07-07: renamed from the pre-ruling `system-saved-views`
 #                          per-user sketch — views are visible to ALL authenticated users; mutations are
 #                          owner-or-admin. `preset` = the SearchFilters mirror, {enabled:false} in _source
