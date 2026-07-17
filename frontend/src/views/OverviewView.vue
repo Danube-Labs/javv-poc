@@ -25,6 +25,7 @@ import OverviewNamespacesCard from '@/components/overview/OverviewNamespacesCard
 import OverviewStatBands from '@/components/overview/OverviewStatBands.vue'
 import RiskiestImagesCard from '@/components/overview/RiskiestImagesCard.vue'
 import TopComponentsCard from '@/components/overview/TopComponentsCard.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -150,13 +151,12 @@ function onDonutClick(e: { name?: string }) {
       Overview unavailable. Check the backend connection.
     </p>
 
-    <div v-else-if="overview.empty" class="first-run">
-      <h2>No sweep has landed yet</h2>
-      <p>
-        KPIs and trends appear after the first scanner cycle commits. Scanner status shows
-        per-scanner progress.
-      </p>
-    </div>
+    <EmptyState
+      v-else-if="overview.empty"
+      icon="pulse"
+      title="No sweep has landed yet"
+      hint="KPIs and trends appear after the first scanner cycle commits. Scanner status shows per-scanner progress."
+    />
 
     <template v-else>
       <OverviewStatBands :scanner="scanner" />
@@ -351,16 +351,6 @@ function onDonutClick(e: { name?: string }) {
   color: var(--health-down-fg);
   font-size: var(--text-body);
 }
-.first-run {
-  padding: 48px 0;
-  text-align: center;
-  color: var(--soft);
-}
-.first-run h2 {
-  color: var(--ink);
-  margin: 0 0 6px;
-}
-
 /* skeletons (product register: skeletons over spinners) */
 .skel {
   border-radius: var(--r);

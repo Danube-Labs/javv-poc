@@ -7,11 +7,13 @@
  * health-polling lifecycle.
  */
 import { computed, onMounted, onUnmounted, watch } from 'vue'
-import { RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import ClusterSwitcher from '@/components/chrome/ClusterSwitcher.vue'
 import SideNav from '@/components/chrome/SideNav.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import EmptyState from '@/components/ui/EmptyState.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import BackendHealthBanner from '@/components/system/BackendHealthBanner.vue'
 import ScannerFreshnessBanner from '@/components/system/ScannerFreshnessBanner.vue'
 import GlobalTimePicker from '@/components/time-travel/GlobalTimePicker.vue'
@@ -72,6 +74,17 @@ watch(
 
 const initials = computed(() => (auth.user?.username ?? '?').slice(0, 2).toUpperCase())
 
+/** Zero-clusters cold start (M9f): the registry answered fine but is EMPTY — no scanner has
+ * ever enrolled, so every data screen would fetch nothing forever. Data sections show the
+ * onboarding state instead; `configure` stays live because Settings → Tokens IS the way out. */
+const coldStart = computed(
+  () =>
+    clusterStore.loaded &&
+    !clusterStore.failed &&
+    clusterStore.clusters.length === 0 &&
+    route.meta.section !== 'configure',
+)
+
 /** Section identity echo (§8.5 specimen): the route's sidebar-group accent, exposed as a CSS
  * var the head-card's top bar reads — wayfinding chroma only. */
 const sectAccent = computed(() => {
@@ -129,7 +142,17 @@ onUnmounted(() => health.stopPolling())
       </Transition>
 
       <main class="content" :class="{ 'content-wide': $route.meta.wide }" :style="sectAccent">
-        <RouterView />
+        <EmptyState
+          v-if="coldStart"
+          icon="layers"
+          title="No clusters registered yet"
+          hint="JAVV fills in once the first scanner envelope lands. Create a scanner token, deploy the scanner CronJobs to a cluster, and the first committed cycle appears here."
+        >
+          <RouterLink v-if="auth.hasCapability('can_manage_tokens')" to="/settings/tokens" class="es-link">
+            <UiButton variant="primary">Create a scanner token</UiButton>
+          </RouterLink>
+        </EmptyState>
+        <RouterView v-else />
       </main>
     </div>
 
@@ -230,6 +253,10 @@ onUnmounted(() => health.stopPolling())
 }
 .logout:hover {
   color: var(--coral-text);
+}
+/* router-link wrapper inside the cold-start action row — the button carries the affordance */
+.es-link {
+  text-decoration: none;
 }
 
 /* ---- banners + content ---- */
