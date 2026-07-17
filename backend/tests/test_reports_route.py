@@ -96,6 +96,13 @@ async def test_enqueue_writes_a_pending_doc_and_status_reads_it_back(env) -> Non
         "present": True,
         "new_within_days": None,  # the new-in-range event lens
         "overdue": None,  # issue 363 — the SLA-breached lens
+        "exclude_severity": None,  # issue 349 — the negation mirror family
+        "exclude_state": None,
+        "exclude_scanner": None,
+        "exclude_assignee": None,
+        "exclude_image_repo": None,
+        "exclude_namespace": None,
+        "exclude_ptype": None,
     }
 
     # the status view returns the public shape, never the params blob or claim internals

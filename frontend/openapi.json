@@ -587,6 +587,96 @@
             ],
             "title": "Disagree"
           },
+          "exclude_assignee": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Assignee"
+          },
+          "exclude_image_repo": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Image Repo"
+          },
+          "exclude_namespace": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Namespace"
+          },
+          "exclude_ptype": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Ptype"
+          },
+          "exclude_scanner": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Scanner"
+          },
+          "exclude_severity": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 16,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Severity"
+          },
+          "exclude_state": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 16,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude State"
+          },
           "fixable": {
             "anyOf": [
               {
@@ -1299,6 +1389,100 @@
               }
             ],
             "title": "Disagree"
+          },
+          "exclude_assignee": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Assignee"
+          },
+          "exclude_image_repo": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Image Repo"
+          },
+          "exclude_namespace": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Namespace"
+          },
+          "exclude_ptype": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "pattern": "^[a-z0-9][a-z0-9+._-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Ptype"
+          },
+          "exclude_scanner": {
+            "anyOf": [
+              {
+                "enum": [
+                  "trivy",
+                  "grype"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Scanner"
+          },
+          "exclude_severity": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 16,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Severity"
+          },
+          "exclude_state": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 16,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude State"
           },
           "fixable": {
             "anyOf": [
@@ -3364,6 +3548,129 @@
           },
           {
             "in": "query",
+            "name": "exclude_severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_assignee",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Assignee"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_image_repo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Image Repo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_namespace",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Namespace"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_ptype",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {
@@ -3733,6 +4040,129 @@
           },
           {
             "in": "query",
+            "name": "exclude_severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_assignee",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Assignee"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_image_repo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Image Repo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_namespace",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Namespace"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_ptype",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {
@@ -4067,6 +4497,129 @@
                 }
               ],
               "title": "Overdue"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_assignee",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Assignee"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_image_repo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Image Repo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_namespace",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Namespace"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_ptype",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Ptype"
             }
           },
           {
@@ -4414,6 +4967,129 @@
                 }
               ],
               "title": "Overdue"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_assignee",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Assignee"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_image_repo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Image Repo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_namespace",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Namespace"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_ptype",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Ptype"
             }
           },
           {
@@ -4785,6 +5461,129 @@
           },
           {
             "in": "query",
+            "name": "exclude_severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_assignee",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Assignee"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_image_repo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Image Repo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_namespace",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Namespace"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_ptype",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {
@@ -5110,6 +5909,129 @@
                 }
               ],
               "title": "Overdue"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_severity",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Severity"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_state",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude State"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 32,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_assignee",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Assignee"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_image_repo",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Image Repo"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_namespace",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 256,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Namespace"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_ptype",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Ptype"
             }
           },
           {

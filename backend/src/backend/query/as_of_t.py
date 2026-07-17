@@ -314,6 +314,8 @@ class AsOfTQuery:
             raise _unrecorded("disagree")
         if f.image_repo is not None:
             raise _unrecorded("image_repo")
+        if f.exclude_image_repo is not None:
+            raise _unrecorded("exclude_image_repo")
         if f.q is not None:
             # contains-search spans image_repo, which occurrences don't record — a partial match
             # at a past T would silently LIE (rows missing for the wrong reason). Reject loudly.
@@ -336,6 +338,12 @@ class AsOfTQuery:
                 continue
             if f.state and r["state"] not in f.state:
                 continue
+            # excludes mirror the live PURE-must_not semantics (issue 349): a row MISSING the
+            # field survives the exclusion, so `got == want` drops and None/absent passes
+            if f.exclude_severity and r["severity_canonical"] in f.exclude_severity:
+                continue
+            if f.exclude_state and r["state"] in f.exclude_state:
+                continue
             checks = (
                 (f.scanner, r["scanner"]),
                 (f.assignee, r["assignee"]),
@@ -349,6 +357,15 @@ class AsOfTQuery:
             if any(want is not None and want != got for want, got in checks):
                 continue
             if f.namespace is not None and f.namespace not in (r["namespaces"] or []):
+                continue
+            ex_checks = (
+                (f.exclude_scanner, r["scanner"]),
+                (f.exclude_assignee, r["assignee"]),
+                (f.exclude_ptype, r["ptype"]),
+            )
+            if any(want is not None and want == got for want, got in ex_checks):
+                continue
+            if f.exclude_namespace is not None and f.exclude_namespace in (r["namespaces"] or []):
                 continue
             out.append(r)
         return out

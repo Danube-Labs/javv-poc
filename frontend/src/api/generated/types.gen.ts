@@ -292,6 +292,34 @@ export type ExportParams = {
      */
     disagree?: boolean | null;
     /**
+     * Exclude Assignee
+     */
+    exclude_assignee?: string | null;
+    /**
+     * Exclude Image Repo
+     */
+    exclude_image_repo?: string | null;
+    /**
+     * Exclude Namespace
+     */
+    exclude_namespace?: string | null;
+    /**
+     * Exclude Ptype
+     */
+    exclude_ptype?: string | null;
+    /**
+     * Exclude Scanner
+     */
+    exclude_scanner?: string | null;
+    /**
+     * Exclude Severity
+     */
+    exclude_severity?: Array<string> | null;
+    /**
+     * Exclude State
+     */
+    exclude_state?: Array<string> | null;
+    /**
      * Fixable
      */
     fixable?: boolean | null;
@@ -656,6 +684,34 @@ export type ViewPreset = {
      * Disagree
      */
     disagree?: boolean | null;
+    /**
+     * Exclude Assignee
+     */
+    exclude_assignee?: string | null;
+    /**
+     * Exclude Image Repo
+     */
+    exclude_image_repo?: string | null;
+    /**
+     * Exclude Namespace
+     */
+    exclude_namespace?: string | null;
+    /**
+     * Exclude Ptype
+     */
+    exclude_ptype?: string | null;
+    /**
+     * Exclude Scanner
+     */
+    exclude_scanner?: 'trivy' | 'grype' | null;
+    /**
+     * Exclude Severity
+     */
+    exclude_severity?: Array<string> | null;
+    /**
+     * Exclude State
+     */
+    exclude_state?: Array<string> | null;
     /**
      * Fixable
      */
@@ -1694,6 +1750,34 @@ export type SearchFindingsApiV1FindingsGetData = {
          */
         overdue?: boolean | null;
         /**
+         * Exclude Severity
+         */
+        exclude_severity?: Array<string> | null;
+        /**
+         * Exclude State
+         */
+        exclude_state?: Array<string> | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
+        /**
+         * Exclude Assignee
+         */
+        exclude_assignee?: string | null;
+        /**
+         * Exclude Image Repo
+         */
+        exclude_image_repo?: string | null;
+        /**
+         * Exclude Namespace
+         */
+        exclude_namespace?: string | null;
+        /**
+         * Exclude Ptype
+         */
+        exclude_ptype?: string | null;
+        /**
          * As Of
          */
         as_of?: string | null;
@@ -1821,6 +1905,34 @@ export type ExportCsvApiV1FindingsExportCsvGetData = {
          */
         overdue?: boolean | null;
         /**
+         * Exclude Severity
+         */
+        exclude_severity?: Array<string> | null;
+        /**
+         * Exclude State
+         */
+        exclude_state?: Array<string> | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
+        /**
+         * Exclude Assignee
+         */
+        exclude_assignee?: string | null;
+        /**
+         * Exclude Image Repo
+         */
+        exclude_image_repo?: string | null;
+        /**
+         * Exclude Namespace
+         */
+        exclude_namespace?: string | null;
+        /**
+         * Exclude Ptype
+         */
+        exclude_ptype?: string | null;
+        /**
          * As Of
          */
         as_of?: string | null;
@@ -1920,6 +2032,34 @@ export type ExportVexApiV1FindingsExportVexGetData = {
          * Overdue
          */
         overdue?: boolean | null;
+        /**
+         * Exclude Severity
+         */
+        exclude_severity?: Array<string> | null;
+        /**
+         * Exclude State
+         */
+        exclude_state?: Array<string> | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
+        /**
+         * Exclude Assignee
+         */
+        exclude_assignee?: string | null;
+        /**
+         * Exclude Image Repo
+         */
+        exclude_image_repo?: string | null;
+        /**
+         * Exclude Namespace
+         */
+        exclude_namespace?: string | null;
+        /**
+         * Exclude Ptype
+         */
+        exclude_ptype?: string | null;
         /**
          * As Of
          */
@@ -2026,6 +2166,34 @@ export type FacetFindingsApiV1FindingsFacetsGetData = {
          * Overdue
          */
         overdue?: boolean | null;
+        /**
+         * Exclude Severity
+         */
+        exclude_severity?: Array<string> | null;
+        /**
+         * Exclude State
+         */
+        exclude_state?: Array<string> | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
+        /**
+         * Exclude Assignee
+         */
+        exclude_assignee?: string | null;
+        /**
+         * Exclude Image Repo
+         */
+        exclude_image_repo?: string | null;
+        /**
+         * Exclude Namespace
+         */
+        exclude_namespace?: string | null;
+        /**
+         * Exclude Ptype
+         */
+        exclude_ptype?: string | null;
         /**
          * As Of
          */
@@ -2141,6 +2309,34 @@ export type GroupFindingsApiV1FindingsGroupsGetData = {
          */
         overdue?: boolean | null;
         /**
+         * Exclude Severity
+         */
+        exclude_severity?: Array<string> | null;
+        /**
+         * Exclude State
+         */
+        exclude_state?: Array<string> | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
+        /**
+         * Exclude Assignee
+         */
+        exclude_assignee?: string | null;
+        /**
+         * Exclude Image Repo
+         */
+        exclude_image_repo?: string | null;
+        /**
+         * Exclude Namespace
+         */
+        exclude_namespace?: string | null;
+        /**
+         * Exclude Ptype
+         */
+        exclude_ptype?: string | null;
+        /**
          * As Of
          */
         as_of?: string | null;
@@ -2242,6 +2438,34 @@ export type TopComponentsFindingsApiV1FindingsTopComponentsGetData = {
          * Overdue
          */
         overdue?: boolean | null;
+        /**
+         * Exclude Severity
+         */
+        exclude_severity?: Array<string> | null;
+        /**
+         * Exclude State
+         */
+        exclude_state?: Array<string> | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
+        /**
+         * Exclude Assignee
+         */
+        exclude_assignee?: string | null;
+        /**
+         * Exclude Image Repo
+         */
+        exclude_image_repo?: string | null;
+        /**
+         * Exclude Namespace
+         */
+        exclude_namespace?: string | null;
+        /**
+         * Exclude Ptype
+         */
+        exclude_ptype?: string | null;
         /**
          * As Of
          */

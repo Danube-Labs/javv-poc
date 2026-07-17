@@ -457,6 +457,14 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "present": False,
         "new_within_days": 30,
         "overdue": True,  # issue 363 — filters the reconstruction's own at-T verdict
+        # issue 349 excludes: each probe MATCHES the row below so a handled exclude drops it
+        "exclude_severity": ["high"],
+        "exclude_state": ["resolved"],
+        "exclude_scanner": "grype",
+        "exclude_assignee": "someone",  # row has assignee=None — pure-must_not KEEPS it; see below
+        "exclude_image_repo": "nginx",
+        "exclude_namespace": "default",
+        "exclude_ptype": "os",  # row has ptype=None — same missing-field carve-out
     }
     missing = set(probe_values) ^ {f.name for f in dc_fields(SearchFilters)}
     assert not missing, f"probe map drifted from SearchFilters: {missing}"
@@ -475,10 +483,16 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "namespaces": ["default"],
         "overdue": False,  # the row's at-T verdict (stamped by _decorate_overdue at now=t)
     }
+    # the issue-349 semantic pin: pure must_not — a row MISSING the excluded field survives
+    # the exclusion, so these probes legitimately keep the row instead of dropping it
+    missing_field_excludes = {"exclude_assignee", "exclude_ptype"}
     for name, value in probe_values.items():
         f = SearchFilters(**{name: value})
         try:
             out = AsOfTQuery._apply_filters([dict(row)], f)
         except ValueError:
             continue  # explicit unrecorded rejection — honest
+        if name in missing_field_excludes:
+            assert len(out) == 1, f"exclude semantics drifted: {name} must keep a field-less row"
+            continue
         assert out == [], f"SearchFilters.{name} was silently ignored by the as_of reader"

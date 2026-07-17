@@ -50,6 +50,13 @@ class ExportParams(BaseModel):
     present: bool = True
     new_within_days: int | None = Field(default=None, ge=1, le=365)
     overdue: bool | None = None
+    exclude_severity: list[str] | None = Field(default=None, max_length=16)
+    exclude_state: list[str] | None = Field(default=None, max_length=16)
+    exclude_scanner: str | None = Field(default=None, max_length=32)
+    exclude_assignee: str | None = Field(default=None, max_length=128)
+    exclude_image_repo: str | None = Field(default=None, max_length=512)
+    exclude_namespace: str | None = Field(default=None, max_length=256)
+    exclude_ptype: str | None = Field(default=None, max_length=64)
 
     @model_validator(mode="after")
     def _vex_needs_scanner(self) -> "ExportParams":

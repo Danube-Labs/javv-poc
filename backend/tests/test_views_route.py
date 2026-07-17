@@ -295,3 +295,9 @@ def test_golden_preset_serialization_is_pinned() -> None:
         namespace="team-a",
     )
     assert populated.model_dump() == golden["populated"]
+    negated = ViewPreset(
+        exclude_severity=["low", "negligible"],
+        exclude_namespace="kube-system",
+        state=["open"],
+    )
+    assert negated.model_dump() == golden["negated"]

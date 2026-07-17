@@ -365,3 +365,60 @@ def test_q_contains_search_is_structured_and_escaped() -> None:
     assert spec["value"] == "*a\\*b\\?c*"  # user wildcards neutralized
 
     assert "must" not in build_search_body(SearchFilters(), size=10)["query"]["bool"]
+
+
+def test_exclude_facets_land_as_pure_must_not() -> None:
+    """Issue 349: every excludable facet mirrors its include twin into `must_not`. Semantic
+    pin: PURE must_not, no exists-guard — a row MISSING the field survives the exclusion
+    ("assignee is not bob" keeps unassigned rows; "namespace is not kube-system" keeps rows
+    with no namespace data)."""
+    body = build_search_body(
+        SearchFilters(
+            exclude_severity=["low", "negligible"],
+            exclude_state=["resolved"],
+            exclude_scanner="trivy",
+            exclude_assignee="bob",
+            exclude_image_repo="docker.io/library/memcached",
+            exclude_namespace="kube-system",
+            exclude_ptype="deb",
+        ),
+        size=10,
+    )
+    mn = body["query"]["bool"]["must_not"]
+    assert {"terms": {"severity_canonical": ["low", "negligible"]}} in mn
+    assert {"terms": {"state": ["resolved"]}} in mn
+    for field, term in (
+        ("scanner", "trivy"),
+        ("assignee", "bob"),
+        ("image_repo", "docker.io/library/memcached"),
+        ("namespaces", "kube-system"),
+        ("ptype", "deb"),
+    ):
+        assert {"term": {field: term}} in mn
+    assert not any("exists" in json.dumps(c) for c in mn)
+    # the include side stays untouched — excludes never leak into the filter context
+    assert body["query"]["bool"]["filter"] == [{"term": {"present": True}}]
+
+
+def test_include_and_exclude_on_one_field_is_rejected() -> None:
+    """No mixing: a field is an include-list OR an exclude-list ("is one of" vs "is none of");
+    both at once is ambiguous and refuses to build (the router 422s it first)."""
+    with pytest.raises(ValueError, match="severity"):
+        build_search_body(SearchFilters(severity=["high"], exclude_severity=["low"]), size=10)
+    with pytest.raises(ValueError, match="namespace"):
+        build_search_body(SearchFilters(namespace="prod", exclude_namespace="kube-system"), size=10)
+
+
+def test_exclude_composes_with_overdue_false() -> None:
+    """Both write must_not — they must accumulate, never clobber each other."""
+    body = build_search_body(
+        SearchFilters(exclude_scanner="grype", overdue=False), size=10, sla_cutoffs=_CUTOFFS
+    )
+    mn = body["query"]["bool"]["must_not"]
+    assert {"term": {"scanner": "grype"}} in mn
+    assert any("should" in c.get("bool", {}) for c in mn)  # the negated overdue clause
+    assert len(mn) == 2
+
+
+def test_no_excludes_means_no_must_not_key() -> None:
+    assert "must_not" not in build_search_body(SearchFilters(), size=10)["query"]["bool"]

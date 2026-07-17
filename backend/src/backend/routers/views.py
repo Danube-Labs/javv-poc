@@ -26,7 +26,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from opensearchpy.exceptions import ConflictError, NotFoundError
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.audit.writer import append_field_change
 from backend.auth.principal import Principal, get_current_principal
@@ -64,8 +64,17 @@ class ViewPreset(BaseModel):
     present: bool = True
     new_within_days: int | None = Field(default=None, ge=1, le=365)
     overdue: bool | None = None
+    exclude_severity: list[str] | None = Field(default=None, max_length=16)
+    exclude_state: list[str] | None = Field(default=None, max_length=16)
+    exclude_scanner: Literal["trivy", "grype"] | None = None
+    exclude_assignee: str | None = Field(default=None, max_length=128)
+    exclude_image_repo: str | None = Field(default=None, max_length=512)
+    exclude_namespace: str | None = Field(default=None, max_length=256)
+    exclude_ptype: str | None = Field(
+        default=None, max_length=64, pattern=r"^[a-z0-9][a-z0-9+._-]*$"
+    )
 
-    @field_validator("severity")
+    @field_validator("severity", "exclude_severity")
     @classmethod
     def _severities_canonical(cls, v: list[str] | None) -> list[str] | None:
         # LOWERCASE canonical buckets incl. negligible (A-1) — presets outlive UI versions,
@@ -74,12 +83,21 @@ class ViewPreset(BaseModel):
             raise ValueError(f"severity must be canonical {sorted(SEVERITY_RANK)}: {bad}")
         return v
 
-    @field_validator("state")
+    @field_validator("state", "exclude_state")
     @classmethod
     def _states_closed(cls, v: list[str] | None) -> list[str] | None:
         if v is not None and (bad := [s for s in v if s not in STATES]):
             raise ValueError(f"state must be one of {sorted(STATES)}: {bad}")
         return v
+
+    @model_validator(mode="after")
+    def _no_mixing(self) -> "ViewPreset":
+        # a stored preset must satisfy the same rule the live route enforces (issue 349)
+        names = ("severity", "state", "scanner", "assignee", "image_repo", "namespace", "ptype")
+        for name in names:
+            if getattr(self, name) is not None and getattr(self, f"exclude_{name}") is not None:
+                raise ValueError(f"{name} and exclude_{name} are mutually exclusive")
+        return self
 
 
 class CreateView(BaseModel):
