@@ -27,9 +27,8 @@ const router = createRouter({
         {
           path: 'views',
           name: 'views',
-          component: () => import('@/views/PlaceholderView.vue'),
-          meta: { section: 'monitor' },
-          props: { title: 'Saved views', bolt: 'M9f' },
+          component: () => import('@/views/SavedViewsView.vue'),
+          meta: { section: 'monitor', wide: true },
         },
         {
           path: 'scanner-status',

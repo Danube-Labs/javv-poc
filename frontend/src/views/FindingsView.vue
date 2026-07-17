@@ -19,6 +19,7 @@ import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
 import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
 import ExportDialog from '@/components/findings/ExportDialog.vue'
+import SaveViewDialog from '@/components/findings/SaveViewDialog.vue'
 import BulkTriageBar from '@/components/triage/BulkTriageBar.vue'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
@@ -30,6 +31,7 @@ import type { FacetsResponse } from '@/filters/facets'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { buildFindingsQuery } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS } from '@/findings/columns'
+import { captureLens } from '@/findings/savedViews'
 import { reorderFromDrag, restoreOrder } from '@/system/columnOrder'
 import { FAILURE_COPY, failureKind } from '@/findings/failureCopy'
 import { logger } from '@/lib/logger'
@@ -225,6 +227,19 @@ const orderedCols = computed(() =>
   colOrder.value.map((key) => FINDINGS_COLUMNS.find(([k]) => k === key)!),
 )
 
+/* ---- saved-view capture (M9f slice 4): the CURRENT workbench, ready to name ---- */
+const capturedPreset = computed(() =>
+  captureLens(FINDINGS_FIELDS, filters.selections, filters.modes, timeTravel.windowDays),
+)
+const capturedWorkbench = computed(() => ({
+  columns: colOrder.value.filter((k) => !hiddenCols.value.has(k)),
+  dense: dense.value,
+  sort: grid.sort,
+  order: grid.order,
+  // relative window only — never the absolute t (cluster-agnostic capture, schema v2)
+  window_days: timeTravel.windowDays,
+}))
+
 function setColOrder(next: string[]) {
   colOrder.value = next
   localStorage.setItem(ORDER_KEY, JSON.stringify(next))
@@ -287,6 +302,7 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
           />
+          <SaveViewDialog :preset="capturedPreset" :workbench="capturedWorkbench" />
           <ExportDialog
             :fields="FINDINGS_FIELDS"
             :selections="filters.selections"
