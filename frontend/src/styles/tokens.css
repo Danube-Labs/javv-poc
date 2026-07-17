@@ -28,6 +28,7 @@
   --muted: #9aa3aa; /* decorative/disabled ONLY (dashes, gauge fills) — never text (fails AA) */
   --coral: #ec7e54;
   --coral-d: #d96a41;
+  --coral-dd: #c05631; /* flat-primary hover/pressed — coral-d alone was too small a step */
   --coral-drop: rgb(217 106 65 / 30%); /* primary-button depth (chip language A) */
   --coral-text: #a8481f; /* coral as TEXT — AA on card/panel/washes; coral/coral-d are fills only */
   --amber: #f4a368;

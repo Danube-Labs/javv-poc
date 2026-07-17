@@ -156,7 +156,7 @@ button {
   padding: 9px;
   border: none;
   border-radius: var(--r-sm);
-  background: var(--coral);
+  background: var(--coral); /* the full-page CTA keeps the ruled solid fill (§9) */
   color: var(--card);
   font-family: var(--font-ui);
   font-size: var(--text-body);
