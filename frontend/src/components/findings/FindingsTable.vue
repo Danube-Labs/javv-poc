@@ -10,7 +10,7 @@
  *
  * Column order (task 92): the toggleable columns render from `colOrder`; Vulnerability +
  * Severity alone stay pinned left (row identity — operator unpinned State 2026-07-11). With
- * `reorderable`, headers drag (Kibana grammar) — the table emits raw PrimeVue indexes and
+ * `reorderable`, headers drag (discover-grid grammar) — the table emits raw PrimeVue indexes and
  * the OWNER maps + persists them (`system/columnOrder.ts`), same parent-owns-state
  * discipline as `hidden`.
  */

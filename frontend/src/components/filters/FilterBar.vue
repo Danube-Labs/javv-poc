@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Kibana-style filter bar (prototype filters.jsx `FilterBar` + `.fpill`/`.add-filter`/`.dd-menu`
+ * Discover-style filter bar (prototype filters.jsx `FilterBar` + `.fpill`/`.add-filter`/`.dd-menu`
  * CSS): active-filter pills, a two-level add-filter dropdown (field list → value picker, with a
  * value search above 8 entries; text fields get an input), clear-all. Keyboard: Esc closes,
  * arrows walk the menu. Lists values through the same `facetItems()` the FacetRail uses — one
@@ -117,7 +117,7 @@ function onKeydown(e: KeyboardEvent) {
     </button>
 
     <!-- TEMPORARY specimen pair (?spec=negation): A = outline (framework7 fill/outline duality —
-         hollow body reads "excluded"), B = Kibana red-tint (alarm fill). Static demo pills for
+         hollow body reads "excluded"), B = red-tint (alarm fill). Static demo pills for
          the issue-349 ruling; the winner ships with real semantics + its own tokens. -->
     <template v-if="specNegation">
       <button class="fpill spec-not-a" type="button">
@@ -282,11 +282,13 @@ function onKeydown(e: KeyboardEvent) {
   border: 1.5px solid var(--fpill-line);
   box-shadow: none;
 }
+/* ruled (operator 2026-07-17): hollow body + ONLY the op words in red — the pop lives in
+   "is not", the pill stays quiet */
 .spec-not-a .fpill-op {
-  color: var(--ink);
+  color: var(--sev-critical-fg);
   font-weight: 600;
 }
-/* B: Kibana register — negation speaks in the alarm tint (borrowing the critical ramp for the
+/* B: alarm register — negation speaks in the alarm tint (borrowing the critical ramp for the
    specimen only; the winner mints its own tokens). */
 .spec-not-b {
   background: var(--sev-critical-bg);

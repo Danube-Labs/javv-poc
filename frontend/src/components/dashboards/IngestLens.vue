@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * The ingest lens — a Kibana-Discover-style strip in the screen head: committed scan runs
+ * The ingest lens — a discover-style strip in the screen head: committed scan runs
  * per day over the global time range, per scanner (never merged), plus WHEN data last
  * arrived. It exists to answer "why does the table still show findings when the scanners
  * are idle?" — the table shows state at the END of the range (D28); this strip shows the

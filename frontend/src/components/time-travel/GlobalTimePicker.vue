@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * POC (operator option D, 2026-07-09): ONE Kibana-style time-RANGE control replacing the
+ * POC (operator option D, 2026-07-09): ONE time-RANGE control replacing the
  * two-section time-travel/trend-window menu. A range maps exactly onto the shipped backend:
  * the END of the range is the whole-app `as_of` T (D28 — `null` when the range ends now), the
  * SPAN is `days` for the M9c trend charts (int 1–365). One mental model, honest copy:
