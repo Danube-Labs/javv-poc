@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0](https://github.com/Danube-Labs/javv-poc/compare/v0.3.11...v0.4.0) (2026-07-17)
+
+
+### Features
+
+* **fe:** m9f slice 1 — emptystate kit, zero-clusters cold start, testable nav gate ([#441](https://github.com/Danube-Labs/javv-poc/issues/441)) ([ea00e61](https://github.com/Danube-Labs/javv-poc/commit/ea00e61c3c30635ce6984912e7d10f2eaf6e12ce)), closes [#40](https://github.com/Danube-Labs/javv-poc/issues/40)
+* **fe:** m9f slice 2 — ⌘K command palette (global search + jump-to-screen) ([#443](https://github.com/Danube-Labs/javv-poc/issues/443)) ([2535009](https://github.com/Danube-Labs/javv-poc/commit/2535009eaf249c8dd9ad215674933b57f7b778a5))
+* m9f slice 3 — notification bell (poll, floating glass drawer, dismiss) + flat primary button ([#444](https://github.com/Danube-Labs/javv-poc/issues/444)) ([e60712c](https://github.com/Danube-Labs/javv-poc/commit/e60712cc402499a79074cfbc15ee4afdba00cc73))
+* m9f slice 4 — saved views v2, is/is-not filter negation, url-rewrite ownership fix ([#445](https://github.com/Danube-Labs/javv-poc/issues/445)) ([05287b9](https://github.com/Danube-Labs/javv-poc/commit/05287b99255e9f12b9683561b216863739616fe1))
+
+
+### Bug Fixes
+
+* **fe:** e2e paging spec polls the first grid query — skeleton rows race the cluster fetch ([#448](https://github.com/Danube-Labs/javv-poc/issues/448)) ([d9214f3](https://github.com/Danube-Labs/javv-poc/commit/d9214f3a097b6c28f088cb30db0ebca73ee7d392))
+
+
+### Miscellaneous Chores
+
+* cut the 0.4.0 minor release (m9f bolt) ([#449](https://github.com/Danube-Labs/javv-poc/issues/449)) ([f2f7cc7](https://github.com/Danube-Labs/javv-poc/commit/f2f7cc7a86769225027b4abaa5a351f490186a7d))
+
 ## [0.3.11](https://github.com/Danube-Labs/javv-poc/compare/v0.3.10...v0.3.11) (2026-07-17)
 
 
