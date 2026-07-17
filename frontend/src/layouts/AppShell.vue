@@ -11,6 +11,7 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import ClusterSwitcher from '@/components/chrome/ClusterSwitcher.vue'
 import CommandPalette from '@/components/chrome/CommandPalette.vue'
+import NotificationBell from '@/components/chrome/NotificationBell.vue'
 import SideNav from '@/components/chrome/SideNav.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -135,9 +136,7 @@ onUnmounted(() => {
             <span class="gs-hint">Search CVE, image, namespace…</span>
             <kbd>{{ metaKeyLabel }}K</kbd>
           </button>
-          <button class="icon-btn" title="Notifications land in M9f" disabled>
-            <AppIcon name="bell" :size="17" />
-          </button>
+          <NotificationBell />
           <span class="avatar" :title="auth.user?.username">{{ initials }}</span>
           <UiButton variant="control" @click="logout">Sign out</UiButton>
         </div>
