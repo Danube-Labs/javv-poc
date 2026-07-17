@@ -6,6 +6,7 @@
  */
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { resolveGate } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
 
 const router = createRouter({
@@ -144,15 +145,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore()
   if (!auth.checked) await auth.fetchMe()
-
-  if (to.name === 'login') {
-    return auth.isAuthed && !auth.mustChange ? { name: 'overview' } : true
-  }
-  if (!auth.isAuthed || auth.mustChange) return { name: 'login' }
-
-  const cap = to.meta.capability as string | undefined
-  if (cap && !auth.hasCapability(cap)) return { name: 'overview' }
-  return true
+  return resolveGate(auth, to)
 })
 
 export default router
