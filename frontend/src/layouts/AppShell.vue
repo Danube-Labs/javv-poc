@@ -6,10 +6,11 @@
  * banners and the routed content column. Owns the global range ⇄ URL sync and the
  * health-polling lifecycle.
  */
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import ClusterSwitcher from '@/components/chrome/ClusterSwitcher.vue'
+import CommandPalette from '@/components/chrome/CommandPalette.vue'
 import SideNav from '@/components/chrome/SideNav.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -97,11 +98,25 @@ async function logout() {
   await router.push({ name: 'login' })
 }
 
+/* ---- ⌘K command palette (M9f slice 2) ---- */
+const paletteOpen = ref(false)
+const metaKeyLabel = /mac/i.test(navigator.platform) ? '⌘' : 'ctrl+'
+function onGlobalKey(e: KeyboardEvent) {
+  if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault()
+    paletteOpen.value = !paletteOpen.value
+  }
+}
+
 onMounted(() => {
   health.startPolling()
   void clusterStore.fetchClusters(urlCluster)
+  document.addEventListener('keydown', onGlobalKey)
 })
-onUnmounted(() => health.stopPolling())
+onUnmounted(() => {
+  health.stopPolling()
+  document.removeEventListener('keydown', onGlobalKey)
+})
 </script>
 
 <template>
@@ -115,10 +130,11 @@ onUnmounted(() => health.stopPolling())
           <GlobalTimePicker />
         </div>
         <div class="topbar-right">
-          <div class="global-search" title="Global search lands in M9f">
+          <button type="button" class="global-search" aria-label="Global search" @click="paletteOpen = true">
             <AppIcon name="search" :size="14" />
-            <input placeholder="Search CVE, image, package…" disabled aria-label="Global search (M9f)" />
-          </div>
+            <span class="gs-hint">Search CVE, image, namespace…</span>
+            <kbd>{{ metaKeyLabel }}K</kbd>
+          </button>
           <button class="icon-btn" title="Notifications land in M9f" disabled>
             <AppIcon name="bell" :size="17" />
           </button>
@@ -157,6 +173,7 @@ onUnmounted(() => health.stopPolling())
     </div>
 
     <ToastStack />
+    <CommandPalette v-if="paletteOpen" @close="paletteOpen = false" />
   </div>
 </template>
 
@@ -207,15 +224,31 @@ onUnmounted(() => health.stopPolling())
   padding: 6px 10px;
   color: var(--soft);
   width: 230px;
-}
-.global-search input {
-  border: none;
-  background: none;
-  outline: none;
-  width: 100%;
-  color: var(--ink);
   font-family: var(--font-ui);
-  font-size: var(--text-body);
+  cursor: default;
+}
+.global-search:hover {
+  background: var(--row-hover);
+  border-color: var(--line2);
+  color: var(--ink);
+}
+.global-search:active {
+  background: var(--line2);
+}
+.gs-hint {
+  flex: 1;
+  text-align: left;
+  font-size: var(--text-control);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.global-search kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-facet-label);
+  border: 1px solid var(--line2);
+  border-radius: var(--r-chip);
+  padding: 1px 5px;
 }
 .icon-btn {
   display: grid;
