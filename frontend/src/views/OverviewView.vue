@@ -119,28 +119,28 @@ function onDonutClick(e: { name?: string }) {
 
 <template>
   <div class="screen">
-    <!-- the shared head-band grammar (operator 2026-07-17): head-card | IngestLens, same as
-         findings/images/audit — the lens rode below the head here and read as a different page -->
-    <div class="screen-head screen-head-band">
-      <div class="head-card ov-head">
+    <div class="screen-head">
+      <div class="head-card head-card-fluid">
         <h1>Overview</h1>
         <p class="head-note">
           Current state across <b class="mono-cell">{{ clusterStore.selected?.cluster_name ?? '—' }}</b>
           <template v-if="lastSweep"> · last sweep <span class="mono-cell">{{ lastSweep }}</span></template>
         </p>
-        <div class="head-actions">
-          <UiSegControl v-model="scanner" :options="SCANNER_OPTS" />
-          <UiButton variant="primary" @click="goFindings({ severity: 'critical' })">
-            Triage critical <AppIcon name="chevron" :size="13" />
-          </UiButton>
-        </div>
       </div>
-      <IngestLens
-        v-if="clusterStore.selectedId"
-        :cluster-id="clusterStore.selectedId"
-        subject="this screen"
-      />
+      <div class="head-actions">
+        <UiSegControl v-model="scanner" :options="SCANNER_OPTS" />
+        <UiButton variant="primary" @click="goFindings({ severity: 'critical' })">
+          Triage critical <AppIcon name="chevron" :size="13" />
+        </UiButton>
+      </div>
     </div>
+
+    <IngestLens
+      v-if="clusterStore.selectedId"
+      class="ov-lens"
+      :cluster-id="clusterStore.selectedId"
+      subject="this screen"
+    />
 
     <div v-if="overview.loading" aria-busy="true" aria-label="Loading overview">
       <div class="skel skel-band" />
@@ -231,6 +231,9 @@ function onDonutClick(e: { name?: string }) {
 </template>
 
 <style scoped>
+.ov-lens {
+  margin-bottom: 16px;
+}
 .screen-head {
   display: flex;
   align-items: flex-start;
@@ -242,13 +245,6 @@ function onDonutClick(e: { name?: string }) {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 10px; /* inside the head-card now — give the title block air */
-}
-/* the shared head-card is rail-width (218px) — too narrow once it also carries the
-   scanner seg + triage action; size to content, the lens still fills the rest */
-.ov-head {
-  width: auto;
-  flex: none;
 }
 
 .grid {
