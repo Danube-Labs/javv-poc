@@ -10,7 +10,8 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 import iconSvg from '@/assets/brand/icon.svg'
-import AppIcon, { type IconName } from '@/components/ui/AppIcon.vue'
+import { visibleNav } from '@/components/chrome/navModel'
+import AppIcon from '@/components/ui/AppIcon.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useHealthStore } from '@/stores/health'
@@ -21,53 +22,8 @@ const auth = useAuthStore()
 const clusterStore = useClusterStore()
 const health = useHealthStore()
 
-interface NavItem {
-  label: string
-  to: string
-  icon: IconName
-  capability?: string
-}
-/* Prototype nav structure (main.jsx Sidebar) — every screen present, owned by its bolt. */
-const NAV: { group: string; accent: string; items: NavItem[] }[] = [
-  {
-    group: 'Monitor',
-    accent: 'var(--sect-monitor)',
-    items: [
-      { label: 'All clusters', to: '/clusters', icon: 'layers' },
-      { label: 'Overview', to: '/overview', icon: 'grid' },
-      { label: 'Findings', to: '/findings', icon: 'list' },
-      { label: 'Saved views', to: '/views', icon: 'bookmark' },
-      { label: 'Scanner status', to: '/scanner-status', icon: 'pulse' },
-    ],
-  },
-  { group: 'Inventory', accent: 'var(--sect-inventory)', items: [{ label: 'Running images', to: '/images', icon: 'cube' }] },
-  {
-    group: 'Audit',
-    accent: 'var(--sect-audit)',
-    items: [
-      {
-        label: 'Approval list',
-        to: '/approvals',
-        icon: 'shield',
-        capability: 'can_accept_audit_final',
-      },
-      { label: 'Audit log', to: '/audit', icon: 'clock' },
-    ],
-  },
-  { group: 'Insights', accent: 'var(--sect-insights)', items: [{ label: 'Contributors', to: '/contributors', icon: 'award' }] },
-  {
-    group: 'Configure',
-    accent: 'var(--sect-configure)',
-    items: [{ label: 'Settings', to: '/settings', icon: 'gear', capability: 'can_manage_settings' }],
-  },
-]
-
-const nav = computed(() =>
-  NAV.map((g) => ({
-    ...g,
-    items: g.items.filter((i) => !i.capability || auth.hasCapability(i.capability)),
-  })).filter((g) => g.items.length > 0),
-)
+/* Nav structure lives in navModel.ts (M9f) — shared with the command palette. */
+const nav = computed(() => visibleNav(auth.hasCapability))
 
 const SIDEBAR_KEY = 'javv.sidebar.collapsed'
 const collapsed = ref(localStorage.getItem(SIDEBAR_KEY) === '1')

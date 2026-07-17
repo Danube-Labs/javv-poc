@@ -6,10 +6,11 @@
  * banners and the routed content column. Owns the global range ⇄ URL sync and the
  * health-polling lifecycle.
  */
-import { computed, onMounted, onUnmounted, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 
 import ClusterSwitcher from '@/components/chrome/ClusterSwitcher.vue'
+import CommandPalette from '@/components/chrome/CommandPalette.vue'
 import SideNav from '@/components/chrome/SideNav.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
@@ -97,11 +98,25 @@ async function logout() {
   await router.push({ name: 'login' })
 }
 
+/* ---- ⌘K command palette (M9f slice 2) ---- */
+const paletteOpen = ref(false)
+const metaKeyLabel = /mac/i.test(navigator.platform) ? '⌘' : 'ctrl+'
+function onGlobalKey(e: KeyboardEvent) {
+  if (e.key.toLowerCase() === 'k' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault()
+    paletteOpen.value = !paletteOpen.value
+  }
+}
+
 onMounted(() => {
   health.startPolling()
   void clusterStore.fetchClusters(urlCluster)
+  document.addEventListener('keydown', onGlobalKey)
 })
-onUnmounted(() => health.stopPolling())
+onUnmounted(() => {
+  health.stopPolling()
+  document.removeEventListener('keydown', onGlobalKey)
+})
 </script>
 
 <template>
@@ -115,15 +130,16 @@ onUnmounted(() => health.stopPolling())
           <GlobalTimePicker />
         </div>
         <div class="topbar-right">
-          <div class="global-search" title="Global search lands in M9f">
+          <button type="button" class="global-search" aria-label="Global search" @click="paletteOpen = true">
             <AppIcon name="search" :size="14" />
-            <input placeholder="Search CVE, image, package…" disabled aria-label="Global search (M9f)" />
-          </div>
+            <span class="gs-hint">Search CVE, image, namespace…</span>
+            <kbd>{{ metaKeyLabel }}K</kbd>
+          </button>
           <button class="icon-btn" title="Notifications land in M9f" disabled>
             <AppIcon name="bell" :size="17" />
           </button>
           <span class="avatar" :title="auth.user?.username">{{ initials }}</span>
-          <button class="logout" @click="logout">Sign out</button>
+          <UiButton variant="control" @click="logout">Sign out</UiButton>
         </div>
       </header>
 
@@ -157,6 +173,7 @@ onUnmounted(() => health.stopPolling())
     </div>
 
     <ToastStack />
+    <CommandPalette v-if="paletteOpen" @close="paletteOpen = false" />
   </div>
 </template>
 
@@ -197,27 +214,48 @@ onUnmounted(() => health.stopPolling())
   align-items: center;
   gap: 14px;
 }
+/* topbar control register (operator, 2026-07-17): one 40px height across cluster switcher /
+   time picker / search; --panel on the white topbar read as "old" and its row-hover wash was
+   invisible — the search sits on the warm canvas (--bg) with the REAL control wash on hover */
 .global-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--line);
-  background: var(--panel);
+  height: 40px;
+  /* 2px border — the operator's ruling with keep-beige: the 1px hairline read as washy */
+  border: 2px solid var(--line);
+  background: var(--bg);
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 0 12px;
   color: var(--soft);
-  width: 230px;
-}
-.global-search input {
-  border: none;
-  background: none;
-  outline: none;
-  width: 100%;
-  color: var(--ink);
+  width: 240px;
   font-family: var(--font-ui);
-  font-size: var(--text-body);
+  cursor: default;
 }
-.icon-btn {
+.global-search:hover {
+  background: var(--control-hover-bg);
+  border-color: var(--control-hover-line);
+}
+.global-search:active {
+  background: var(--line2);
+}
+.gs-hint {
+  flex: 1;
+  text-align: left;
+  color: var(--ink);
+  font-size: var(--text-control);
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.global-search kbd {
+  font-family: var(--font-mono);
+  font-size: var(--text-facet-label);
+  background: var(--card);
+  border: 1px solid var(--line2);
+  border-radius: var(--r-chip);
+  padding: 1px 5px;
+}.icon-btn {
   display: grid;
   place-items: center;
   width: 32px;
@@ -243,16 +281,6 @@ onUnmounted(() => health.stopPolling())
   color: var(--side-brand-fg);
   font-size: var(--text-sm);
   font-weight: 600;
-}
-.logout {
-  border: none;
-  background: none;
-  color: var(--soft);
-  font-size: var(--text-sm);
-  cursor: default;
-}
-.logout:hover {
-  color: var(--coral-text);
 }
 /* router-link wrapper inside the cold-start action row — the button carries the affordance */
 .es-link {

@@ -50,13 +50,19 @@ const glyph = (name: string) => (name[0] ?? '?').toUpperCase()
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid var(--line);
+  /* topbar control register (operator, 2026-07-17): the 40px height the other controls match */
+  height: 40px;
+  border: 2px solid var(--line); /* topbar register: 2px per the keep-beige ruling */
   background: var(--panel);
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 0 10px;
   color: var(--ink);
   cursor: default;
   max-width: 320px;
+}
+.cluster-btn:hover {
+  background: var(--control-hover-bg);
+  border-color: var(--control-hover-line);
 }
 .glyph {
   width: 26px;
