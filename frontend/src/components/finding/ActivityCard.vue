@@ -1,9 +1,13 @@
 <script setup lang="ts">
 /**
- * Per-finding activity list (split from FindingDetailView, audit F-15): the audit-trail rows
- * for THIS finding_key — capped at a glance, the full trail lives on the Audit screen.
+ * Per-finding activity list (issue 434 refresh): the audit-trail rows for THIS finding_key —
+ * capped at a glance, the full trail lives on the Audit screen. DetailCard chrome; the body
+ * stays a list, not a table (two columns of prose is not tabular data).
  */
 import StateTag from '@/components/chips/StateTag.vue'
+import DetailCard from '@/components/finding/DetailCard.vue'
+import GridPager from '@/components/findings/GridPager.vue'
+import { usePagedSlice } from '@/composables/usePagedSlice'
 import { fmtAt } from '@/findings/format'
 
 export interface ActivityRow {
@@ -16,75 +20,56 @@ export interface ActivityRow {
   '@timestamp': string
 }
 
-defineProps<{ activity: ActivityRow[] }>()
+const props = defineProps<{ activity: ActivityRow[] }>()
+
+/* display slices through the shared GridPager — the FULL trail still lives on Audit */
+const { page, size, shown, hasNext, setSize } = usePagedSlice(() => props.activity)
 </script>
 
 <template>
-  <section class="card activity-card">
-    <div class="card-head">
-      <div>
-        <h3>Activity on this finding</h3>
-        <p class="card-sub">the audit trail — every triage action, who &amp; when</p>
-      </div>
+  <DetailCard title="Activity on this finding" sub="the audit trail — every triage action, who &amp; when" flush dark-head>
+    <div class="act-body">
+    <p v-if="activity.length === 0" class="empty-row">No triage actions yet.</p>
+    <ul v-else class="act-list">
+      <li v-for="a in shown" :key="a.event_id" class="act-row">
+        <span class="act-when mono-cell">{{ fmtAt(a['@timestamp']) }}</span>
+        <span class="act-what">
+          <b>{{ a.actor }}</b> · {{ a.action }}
+          <template v-if="a.field === 'state' && a.new_value">
+            — <StateTag :state="a.new_value" />
+          </template>
+          <template v-else-if="a.new_value">
+            — {{ a.field }}: <span class="mono-cell sm">{{ a.new_value }}</span>
+          </template>
+        </span>
+      </li>
+    </ul>
+    <p v-if="activity.length >= 50" class="cap-note">Latest 50 actions. The full trail lives on the Audit screen.</p>
     </div>
-    <div class="card-body">
-      <p v-if="activity.length === 0" class="empty-row">No triage actions yet.</p>
-      <ul v-else class="act-list">
-        <li v-for="a in activity" :key="a.event_id" class="act-row">
-          <span class="act-when mono-cell">{{ fmtAt(a['@timestamp']) }}</span>
-          <span class="act-what">
-            <b>{{ a.actor }}</b> · {{ a.action }}
-            <template v-if="a.field === 'state' && a.new_value">
-              — <StateTag :state="a.new_value" />
-            </template>
-            <template v-else-if="a.new_value">
-              — {{ a.field }}: <span class="mono-cell sm">{{ a.new_value }}</span>
-            </template>
-          </span>
-        </li>
-      </ul>
-      <p v-if="activity.length >= 8" class="cap-note">Latest 8 actions. The full trail lives on the Audit screen (M9d).</p>
-    </div>
-  </section>
+    <GridPager
+      :total="activity.length"
+      :page="page"
+      :size="size"
+      :shown="shown.length"
+      :has-prev="page > 0"
+      :has-next="hasNext"
+      class="act-pager"
+      @prev="page -= 1"
+      @next="page += 1"
+      @update:size="setSize"
+    />
+  </DetailCard>
 </template>
 
 <style scoped>
-/* the detail-card chrome (scoped per component — the DecisionsCard idiom) */
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-.card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line2);
-}
-.card-head h3 {
-  margin: 0;
-}
-.card-sub {
-  margin: 2px 0 0;
-  font-size: var(--text-sm);
-  color: var(--soft);
-}
-.card-body {
-  padding: 14px 16px;
-  overflow-x: auto;
-}
 .mono-cell {
   font-family: var(--font-mono);
 }
 .sm {
   font-size: var(--text-sm);
 }
-.activity-card {
-  margin-top: var(--space-4); /* belongs to the decisions band — tighter than a new band */
+.act-body {
+  padding: 14px 16px;
 }
 .cap-note {
   margin: 10px 0 0;

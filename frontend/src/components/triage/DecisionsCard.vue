@@ -1,13 +1,17 @@
 <script setup lang="ts">
 /**
- * "Decisions on this CVE" (prototype card on tokens) — scoped risk-accepts & not-affected
- * calls. Decisions are immutable (D40): revoked rows stay, struck through; expiry never edits.
- * Revoke is gated by can_accept_audit_final (the server is the authority; the button follows).
+ * "Decisions on this CVE" (issue 434 refresh) — scoped risk-accepts & not-affected calls.
+ * Decisions are immutable (D40): revoked rows stay, struck through; expiry never edits.
+ * Revoke is gated by can_accept_audit_final (the server is the authority; the button
+ * follows). Kit skin + DetailCard chrome.
  */
 import { computed } from 'vue'
 
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import StateTag from '@/components/chips/StateTag.vue'
+import DetailCard from '@/components/finding/DetailCard.vue'
+import GridPager from '@/components/findings/GridPager.vue'
+import { usePagedSlice } from '@/composables/usePagedSlice'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 
@@ -35,6 +39,10 @@ const rows = computed(() =>
   [...props.decisions].sort((a, b) => (a.revoked_at ? 1 : 0) - (b.revoked_at ? 1 : 0)),
 )
 
+/* display slices through the shared GridPager — decisions accrete forever (immutable +
+ * revoked kept), so the card pages instead of walling */
+const { page, size, shown, hasNext, setSize } = usePagedSlice(() => rows.value)
+
 function scopeLabel(d: DecisionRow): string {
   const ns = d.scope?.namespaces ?? []
   const im = d.scope?.images ?? []
@@ -44,19 +52,18 @@ function scopeLabel(d: DecisionRow): string {
 </script>
 
 <template>
-  <section class="card">
-    <div class="card-head">
-      <div>
-        <h3>Decisions on this CVE</h3>
-        <p class="card-sub">scoped risk-accept / not-affected RULES (immutable; edits revoke + re-create) — plain state changes are triage actions, listed under Activity</p>
-      </div>
+  <DetailCard
+    title="Decisions on this CVE"
+    sub="scoped risk-accept / not-affected RULES (immutable; edits revoke + re-create) — plain state changes are triage actions, listed under Activity"
+    flush
+  >
+    <template #action>
       <UiButton v-if="canAcceptFinal" @click="emit('create')">
         <AppIcon name="plus" :size="13" />New decision
       </UiButton>
-    </div>
-    <div class="card-body">
-      <div class="dec-scroll">
-      <table class="dtbl dtbl-bordered">
+    </template>
+    <div class="tbl-wrap">
+      <table class="tbl tbl-dense">
         <thead>
           <tr><th>Type</th><th>Scope</th><th>Scanners</th><th>By</th><th>Expiry</th><th>Status</th><th></th></tr>
         </thead>
@@ -64,7 +71,7 @@ function scopeLabel(d: DecisionRow): string {
           <tr v-if="rows.length === 0">
             <td colspan="7" class="empty-row">No decisions on this CVE yet.</td>
           </tr>
-          <tr v-for="d in rows" :key="d.decision_id" :class="{ 'dec-inactive': d.revoked_at }">
+          <tr v-for="d in shown" :key="d.decision_id" :class="{ 'dec-inactive': d.revoked_at }">
             <td><StateTag :state="d.type === 'risk_accepted' ? 'risk_accepted' : 'not_affected'" /></td>
             <td class="sm">{{ scopeLabel(d) }}</td>
             <td class="sm">
@@ -90,93 +97,34 @@ function scopeLabel(d: DecisionRow): string {
           </tr>
         </tbody>
       </table>
-      </div>
-      <p v-if="decisions.length >= 50" class="cap-note">Showing the first 50 decisions. Older ones via the Audit screen (M9d).</p>
     </div>
-  </section>
+    <GridPager
+      :total="rows.length"
+      :page="page"
+      :size="size"
+      :shown="shown.length"
+      :has-prev="page > 0"
+      :has-next="hasNext"
+      @prev="page -= 1"
+      @next="page += 1"
+      @update:size="setSize"
+    />
+    <div v-if="decisions.length >= 50" class="card-notes">
+      <p class="cap-note">Showing the first 50 decisions. Older ones via the Audit screen (M9d).</p>
+    </div>
+  </DetailCard>
 </template>
 
 <style scoped>
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-  margin-top: var(--space-6); /* its own page band, not part of the evidence cluster */
-}
-.card-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line2);
-}
-.card-head h3 {
-  margin: 0;
-}
-.card-sub {
-  margin: 2px 0 0;
-  font-size: var(--text-sm);
-  color: var(--soft);
-}
-.card-body {
-  padding: 14px 16px;
-  overflow-x: auto;
-}
-/* decisions must never become a page-length wall (same rule as images-affected) */
-.dec-scroll {
-  max-height: 340px;
-  overflow-y: auto;
-}
-.dec-scroll thead th {
-  position: sticky;
-  top: 0;
-  background: var(--card);
-  z-index: 1;
-}
 .cap-note {
-  margin: 10px 0 0;
+  margin: 0;
   font-size: var(--text-sm);
   color: var(--soft);
 }
-.dtbl {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-mono-cell);
-}
-.dtbl th {
-  text-align: left;
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--soft);
-  font-weight: 400;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line);
-}
-.dtbl td {
-  padding: 9px 10px;
-  border-bottom: 1px solid var(--line2);
-  vertical-align: middle;
-}
-.dtbl tr:last-child td {
-  border-bottom: 0;
-}
-.dtbl-bordered td,
-.dtbl-bordered th {
-  border-right: 1px solid var(--line2);
-}
-.dtbl-bordered td:last-child,
-.dtbl-bordered th:last-child {
-  border-right: 0;
-}
-.dtbl .sm {
+.sm {
   font-size: var(--text-sm);
 }
-.dtbl .c {
+.c {
   text-align: center;
 }
 .mono-cell {
@@ -208,11 +156,10 @@ function scopeLabel(d: DecisionRow): string {
 }
 .both-tag {
   font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  background: var(--panel);
-  border: 1px solid var(--line2);
+  font-size: var(--text-sm);
+  border: 1px solid var(--line);
   border-radius: var(--r-chip);
-  padding: 2px 7px;
-  color: var(--ink);
+  padding: 1px 7px;
+  color: var(--soft);
 }
 </style>

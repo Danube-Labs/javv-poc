@@ -46,7 +46,7 @@ const slaTier = computed(() => {
       <div class="detail-cve">
         <h1>{{ cveId }}</h1>
         <SevChip v-if="primary" :level="primary.severity_canonical" />
-        <DisagreementBadge v-if="disagrees" title="Scanners disagree on severity" />
+        <DisagreementBadge v-if="disagrees" label="scanners disagree" title="Scanners disagree on severity" />
         <span v-if="kev" class="kev-lg">KEV · known-exploited</span>
       </div>
       <div class="detail-meta">

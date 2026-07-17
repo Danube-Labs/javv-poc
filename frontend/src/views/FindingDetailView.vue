@@ -221,7 +221,7 @@ async function fetchActivity() {
     query: {
       cluster_id: clusterStore.selectedId,
       finding_key: p.finding_key,
-      size: 8,
+      size: 50,
     } as never,
   })
   if (response.response?.ok && response.data) {
@@ -271,40 +271,47 @@ watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { im
         :epss="epss"
       />
 
+      <!-- issue-434 ruling: evidence reads left, everything actionable/journal lives in the
+           rail — no full-width cards dangling below the fold -->
       <div class="detail-grid">
-        <div class="detail-stack">
-          <EvidenceCard
-            :evidence="evidence"
-            :missing-scanners="missingScanners"
-            :disagrees="disagrees"
-            :other-packages="otherPackages"
+        <EvidenceCard
+          class="detail-main"
+          :evidence="evidence"
+          :missing-scanners="missingScanners"
+          :disagrees="disagrees"
+          :other-packages="otherPackages"
+        />
+
+        <div class="detail-rail">
+          <TriagePanel
+            v-if="primary"
+            :finding="primary"
+            :can-triage="auth.hasCapability('can_triage')"
+            :can-accept-final="auth.hasCapability('can_accept_audit_final')"
+            :historical="historical"
+            :saving="saving"
+            :error="triageError"
+            :current-user="auth.user?.username ?? null"
+            @save="saveTriage"
+            @risk-accept="raOpen = true"
           />
-          <AffectedCard :affected="affected" :truncated="affectedTruncated" />
         </div>
 
-        <TriagePanel
-          v-if="primary"
-          :finding="primary"
-          :can-triage="auth.hasCapability('can_triage')"
+        <!-- row 2, same tracks, stretched — decisions and activity sit side by side at
+             equal height (operator, 2026-07-17); the pagers bound their growth -->
+        <DecisionsCard
+          class="detail-main"
+          :decisions="decisions"
           :can-accept-final="auth.hasCapability('can_accept_audit_final')"
-          :historical="historical"
-          :saving="saving"
-          :error="triageError"
-          :current-user="auth.user?.username ?? null"
-          @save="saveTriage"
-          @risk-accept="raOpen = true"
+          :busy="decisionsBusy"
+          @create="raOpen = true"
+          @revoke="revokeDecision"
         />
+        <ActivityCard :activity="activity" />
       </div>
 
-      <DecisionsCard
-        :decisions="decisions"
-        :can-accept-final="auth.hasCapability('can_accept_audit_final')"
-        :busy="decisionsBusy"
-        @create="raOpen = true"
-        @revoke="revokeDecision"
-      />
-
-      <ActivityCard :activity="activity" />
+      <!-- the widest table gets the full width, below the grid, same edges -->
+      <AffectedCard class="detail-band" :affected="affected" :truncated="affectedTruncated" />
 
       <RiskAcceptDialog
         v-if="raOpen && primary"
@@ -338,15 +345,24 @@ watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { im
   display: grid;
   grid-template-columns: 1.55fr 1fr;
   gap: var(--space-4);
-  align-items: start;
+  /* both tracks stretch to the row: evidence and triage are the same height by
+     construction — no dead space under either (operator, 2026-07-17) */
+  align-items: stretch;
   margin-top: var(--space-6); /* the header is its own band — give it air below */
+}
+.detail-main {
+  min-width: 0;
 }
 @media (max-width: 1180px) {
   .detail-grid {
     grid-template-columns: 1fr;
   }
 }
-.detail-stack {
+/* full-width sections below the grid — same edges as the grid, same rhythm */
+.detail-band {
+  margin-top: var(--space-4);
+}
+.detail-rail {
   display: flex;
   flex-direction: column;
   gap: 16px;

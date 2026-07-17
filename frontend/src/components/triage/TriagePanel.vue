@@ -83,7 +83,9 @@ function save() {
 
       <UiField label="Assigned to" first>
         <div class="assignee-row">
-          <span class="assignee-val">{{ assignee ?? finding.assignee ?? 'unassigned' }}</span>
+          <!-- nobody owning an open finding is a state worth noticing, not quiet prose -->
+          <span v-if="assignee ?? finding.assignee" class="assignee-val">{{ assignee ?? finding.assignee }}</span>
+          <span v-else class="assignee-none">unassigned</span>
           <UiButton
             v-if="currentUser"
             :disabled="locked || (assignee ?? finding.assignee) === currentUser"
@@ -123,17 +125,17 @@ function save() {
         </div>
       </div>
 
-      <div class="presence-note">
-        <span class="pn-row"><i class="pn-dot pn-fixed" /><b>Fixed</b>&nbsp;· absent from the latest scan → drops off the "now" grid immediately.</span>
-        <span class="pn-row"><i class="pn-dot pn-stale" /><b>Stale</b>&nbsp;· scanner silent → still shown, flagged; presence unknown.</span>
-      </div>
+      <p class="presence-note">
+        <i class="pn-dot pn-fixed" /><b>Fixed</b>&nbsp;· gone from the latest scan, drops off "now"
+        &nbsp;&nbsp;<i class="pn-dot pn-stale" /><b>Stale</b>&nbsp;· scanner silent, flagged
+      </p>
 
       <UiField label="Note" hint="escaped, never rendered as HTML" for="triage-notes">
         <textarea
           id="triage-notes"
           v-model="notes"
           class="fld"
-          rows="3"
+          rows="2"
           placeholder="Add context for the audit trail…"
           :disabled="locked"
         />
@@ -174,19 +176,18 @@ function save() {
   border: 1px solid var(--line);
   border-radius: var(--r);
   box-shadow: var(--shadow);
-  position: sticky;
-  top: 12px;
   overflow: hidden;
 }
+/* the B2 slate band — same register as every table head (operator ruling 2026-07-17) */
 .triage-head {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line2);
+  padding: 12px 16px;
   font-weight: 600;
   font-size: var(--text-card-title);
-  background: var(--panel);
+  background: var(--table-head-bg);
+  color: var(--table-head-fg);
 }
 .triage-head svg {
   color: var(--coral);
@@ -223,6 +224,16 @@ function save() {
 .assignee-val {
   font-size: var(--text-body);
   color: var(--ink);
+}
+/* nobody owns this finding — the medium-severity chip language, loud enough to notice */
+.assignee-none {
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--sev-medium-fg);
+  background: var(--sev-medium-bg);
+  border: 1px solid var(--sev-medium-line);
+  border-radius: var(--r-chip);
+  padding: 2px 8px;
 }
 .vex-block {
   margin-top: 2px;
@@ -266,20 +277,16 @@ function save() {
 }
 .presence-note {
   display: flex;
-  flex-direction: column;
-  gap: 5px;
-  margin: 12px 0 4px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 10px 0 4px;
   font-size: var(--text-sm);
   color: var(--ink);
   background: var(--panel);
   border-radius: var(--r-sm);
-  padding: 9px 11px;
+  padding: 7px 11px;
   line-height: 1.4;
-}
-.pn-row {
-  display: flex;
-  align-items: center;
-  gap: 7px;
 }
 .pn-dot {
   width: 8px;

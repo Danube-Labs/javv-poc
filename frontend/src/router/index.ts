@@ -65,7 +65,7 @@ const router = createRouter({
           path: 'findings/:cveId',
           name: 'finding',
           component: () => import('@/views/FindingDetailView.vue'),
-          meta: { section: 'monitor' },
+          meta: { section: 'monitor', wide: true },
         },
         {
           path: 'images',
