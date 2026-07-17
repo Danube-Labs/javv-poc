@@ -222,7 +222,8 @@ onUnmounted(() => {
   align-items: center;
   gap: 8px;
   height: 40px;
-  border: 1px solid var(--line);
+  /* 2px border — the operator's ruling with keep-beige: the 1px hairline read as washy */
+  border: 2px solid var(--line);
   background: var(--bg);
   border-radius: 10px;
   padding: 0 12px;
@@ -254,8 +255,7 @@ onUnmounted(() => {
   border: 1px solid var(--line2);
   border-radius: var(--r-chip);
   padding: 1px 5px;
-}
-.icon-btn {
+}.icon-btn {
   display: grid;
   place-items: center;
   width: 32px;

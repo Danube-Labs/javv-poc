@@ -207,7 +207,7 @@ function backToNow() {
   gap: 7px;
   /* topbar control register (operator, 2026-07-17): same 40px height as the cluster switcher */
   height: 40px;
-  border: 1px solid var(--line);
+  border: 2px solid var(--line); /* topbar register: 2px per the keep-beige ruling */
   border-radius: 10px;
   padding: 0 12px;
   color: var(--ink); /* primary control text — never washy soft-on-panel */
