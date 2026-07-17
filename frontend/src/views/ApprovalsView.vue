@@ -33,7 +33,7 @@ import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 import { refNowMs } from '@/system/clock'
 import { lastDataAt } from '@/system/freshness'
-import { keepGlobals, stripGlobals } from '@/system/globalUrl'
+import { foreignQuery, ownQuery } from '@/system/globalUrl'
 
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
@@ -108,17 +108,19 @@ watch(
 )
 
 /* selections ⇄ URL (the audit-screen contract: a pasted link reproduces the lens) */
+const OWN_KEYS = APPROVAL_FIELDS.map((f) => f.key)
 watch(
   () => filters.toQuery(),
   (q) => {
-    if (JSON.stringify(q) !== JSON.stringify(stripGlobals(route.query)))
-      void router.replace({ query: { ...keepGlobals(route.query), ...q } })
+    if (JSON.stringify(q) !== JSON.stringify(ownQuery(route.query, OWN_KEYS)))
+      void router.replace({ query: { ...foreignQuery(route.query, OWN_KEYS), ...q } })
   },
 )
 watch(
   () => route.query,
   (q) => {
-    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripGlobals(q))) filters.fromQuery(q)
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(ownQuery(q, OWN_KEYS)))
+      filters.fromQuery(q)
   },
 )
 

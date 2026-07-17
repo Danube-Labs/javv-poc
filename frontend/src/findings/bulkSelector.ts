@@ -30,6 +30,7 @@ const EXPRESSIBLE: Record<string, keyof BulkSelector> = {
 export function lensToSelector(
   fields: readonly FilterField[],
   selections: Record<string, string[]>,
+  modes: Record<string, 'is' | 'not'> = {},
 ): LensResult {
   const selector: BulkSelector = {}
   const inexpressible: string[] = []
@@ -39,7 +40,11 @@ export function lensToSelector(
     const values = selections[field.key] ?? []
     if (values.length === 0) continue
     const target = EXPRESSIBLE[field.key]
-    if (!target) {
+    if ((modes[field.key] ?? 'is') === 'not') {
+      // the selector contract has no exclude side (issue 349) — an excluded field must
+      // block, or bulk would triage the rows the operator deliberately filtered OUT
+      inexpressible.push(`${field.label} (excluded)`)
+    } else if (!target) {
       inexpressible.push(field.label)
     } else if (values.length > 1) {
       multi = field.label

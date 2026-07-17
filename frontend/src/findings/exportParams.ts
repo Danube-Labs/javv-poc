@@ -7,7 +7,8 @@
 export const EXPORT_PARAM_KEYS = [
   'severity', 'state', 'scanner', 'assignee', 'kev', 'fixable', 'disagree', 'cve_id',
   'image_digest', 'image_repo', 'namespace', 'ptype', 'q', 'present', 'new_within_days',
-  'overdue',
+  'overdue', 'exclude_severity', 'exclude_state', 'exclude_scanner', 'exclude_assignee',
+  'exclude_image_repo', 'exclude_namespace', 'exclude_ptype',
 ] as const
 
 const GLOBAL_KEYS = new Set(['cluster_id', 'as_of', 'window_days'])

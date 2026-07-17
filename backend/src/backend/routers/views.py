@@ -26,7 +26,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 from opensearchpy.exceptions import ConflictError, NotFoundError
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from backend.audit.writer import append_field_change
 from backend.auth.principal import Principal, get_current_principal
@@ -38,7 +38,7 @@ router = APIRouter(prefix="/api/v1/views", tags=["views"])
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
 VIEWS_INDEX = "system-views"
-VIEW_SCHEMA_VERSION = 1
+VIEW_SCHEMA_VERSION = 2  # v2 (M9f slice 4): + `workbench` (columns/density/sort/window capture)
 _MAX_VIEWS = 1_000  # list ceiling; a fleet has dozens of views, not thousands
 
 
@@ -64,8 +64,17 @@ class ViewPreset(BaseModel):
     present: bool = True
     new_within_days: int | None = Field(default=None, ge=1, le=365)
     overdue: bool | None = None
+    exclude_severity: list[str] | None = Field(default=None, max_length=16)
+    exclude_state: list[str] | None = Field(default=None, max_length=16)
+    exclude_scanner: Literal["trivy", "grype"] | None = None
+    exclude_assignee: str | None = Field(default=None, max_length=128)
+    exclude_image_repo: str | None = Field(default=None, max_length=512)
+    exclude_namespace: str | None = Field(default=None, max_length=256)
+    exclude_ptype: str | None = Field(
+        default=None, max_length=64, pattern=r"^[a-z0-9][a-z0-9+._-]*$"
+    )
 
-    @field_validator("severity")
+    @field_validator("severity", "exclude_severity")
     @classmethod
     def _severities_canonical(cls, v: list[str] | None) -> list[str] | None:
         # LOWERCASE canonical buckets incl. negligible (A-1) — presets outlive UI versions,
@@ -74,12 +83,35 @@ class ViewPreset(BaseModel):
             raise ValueError(f"severity must be canonical {sorted(SEVERITY_RANK)}: {bad}")
         return v
 
-    @field_validator("state")
+    @field_validator("state", "exclude_state")
     @classmethod
     def _states_closed(cls, v: list[str] | None) -> list[str] | None:
         if v is not None and (bad := [s for s in v if s not in STATES]):
             raise ValueError(f"state must be one of {sorted(STATES)}: {bad}")
         return v
+
+    @model_validator(mode="after")
+    def _no_mixing(self) -> "ViewPreset":
+        # a stored preset must satisfy the same rule the live route enforces (issue 349)
+        names = ("severity", "state", "scanner", "assignee", "image_repo", "namespace", "ptype")
+        for name in names:
+            if getattr(self, name) is not None and getattr(self, f"exclude_{name}") is not None:
+                raise ValueError(f"{name} and exclude_{name} are mutually exclusive")
+        return self
+
+
+class ViewWorkbench(BaseModel):
+    """The findings-workbench capture (schema v2): everything beyond the lens needed to
+    reproduce the operator's table. Cluster-agnostic BY SHAPE — no cluster_id, no absolute
+    `t` (a deep link carries `?cluster=` separately); the time range is the relative window."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    columns: list[str] | None = Field(default=None, max_length=32)  # visible keys, in order
+    dense: bool | None = None
+    sort: Literal["severity_rank", "first_seen_at", "last_scan_at", "cvss", "epss"] | None = None
+    order: Literal["asc", "desc"] | None = None
+    window_days: float | None = Field(default=None, gt=0, le=365)
 
 
 class CreateView(BaseModel):
@@ -88,6 +120,7 @@ class CreateView(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     description: str = Field(default="", max_length=1024)
     preset: ViewPreset = ViewPreset()
+    workbench: ViewWorkbench = ViewWorkbench()
 
 
 class UpdateView(BaseModel):
@@ -99,6 +132,7 @@ class UpdateView(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=128)
     description: str | None = Field(default=None, max_length=1024)
     preset: ViewPreset | None = None
+    workbench: ViewWorkbench | None = None
 
 
 def _may_mutate(principal: Principal, doc: dict[str, Any]) -> bool:
@@ -147,6 +181,7 @@ async def create_view(
         "name": body.name,
         "description": body.description,
         "preset": body.preset.model_dump(),
+        "workbench": body.workbench.model_dump(),
         "owner": principal.user_id,  # immutable after create (slice 2 enforces on PATCH)
         "created_at": now,
         "updated_at": now,
@@ -197,6 +232,8 @@ async def update_view(
     }
     if body.preset is not None:
         updated["preset"] = body.preset.model_dump()  # whole-preset replace, re-validated shape
+    if body.workbench is not None:
+        updated["workbench"] = body.workbench.model_dump()  # same rule — whole-blob replace
     # journal-first (D17/A-M5), with the frozen before/after for causal replay
     await append_field_change(
         client,

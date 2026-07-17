@@ -68,6 +68,30 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > ([CONFIGURATION.md §2b](../../../docs/CONFIGURATION.md)); never log tokens/cookies/bodies (NFR-5).
 
 ## Updates
+- **2026-07-17 — slice 4 shipped decisions (negation #349 §2 + saved views v2):**
+  - **URL-rewrite ownership split (operator-ordered fix):** filter-sync now rewrites ONLY the
+    screen's own field keys (`foreignQuery`/`ownQuery` replace `keepGlobals`/`stripGlobals` in
+    all four filtered views) — globals AND any foreign param (`?spec=`, future keys) survive.
+    Spec'd in `audit-343.spec.ts` with the `?ctl=` regression case.
+  - **Negation grammar (#349 §2, terms fields only):** per-field include/exclude MODE (never
+    mixed — 422), URL spells exclude as `!`-prefixed values (`?severity=!low,!negligible`),
+    API mirror is the `exclude_*` param family → pure `must_not` (a row MISSING the field
+    survives — "not bob" keeps unassigned; pinned in tests both live and past-T). Mirrored on
+    ExportParams/ViewPreset/report_drain/past-T reader; `exclude_image_repo` is 422 at past T
+    like its include twin. Bulk triage BLOCKS on a negated field (selector has no exclude
+    side). Cell ± affordance stays in #349/#133 — not this bolt.
+  - **NOT-pill ruled (§8.5 A/B on built specimens):** outline wins over red-tint fill; only
+    the op words go red (`--fpill-not-op`); the op word IS the include⇄exclude toggle; the
+    value picker grows an is/is-not seg control.
+  - **Saved views = schema v2:** `workbench` blob (`columns`/`dense`/`sort`/`order`/
+    `window_days`) rides the view doc — cluster-agnostic BY SHAPE (no cluster_id/absolute t
+    representable). Screen ships capture ("Save view" on Findings) + card grid with live
+    facet counts + kit GridPager (operator ask) + apply-as-deep-link; golden round-trip spec
+    (`saved-views.spec.ts`): selections → preset → URL → query body.
+  - **Card counts via `/findings/facets` ONLY** — the `/findings` path opens a PIT per card
+    (leaked cursors + per-principal 429, bit live). SCREENS §6 was right as written.
+  - **Dev-store sweep grew two reapers** (`clean-dev-store.sh`): u-*-owned saved views +
+    u-* notification docs (pytest residue, second bite).
 - **2026-07-12 — v0.3.9 reusables + designed-here items (task 92 + chip language A; #349/#351):**
   - **Saved views bundle the whole workbench (#351 §2):** column ORDER now exists
     (`javv.{findings,images}.col_order` via `system/columnOrder.ts`) alongside hidden/density —

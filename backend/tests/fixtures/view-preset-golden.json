@@ -1,34 +1,30 @@
 {
   "default": {
-    "assignee": null,
-    "cve_id": null,
-    "disagree": null,
-    "fixable": null,
-    "image_digest": null,
-    "image_repo": null,
-    "kev": null,
-    "namespace": null,
-    "present": true,
-    "ptype": null,
-    "scanner": null,
     "severity": null,
     "state": null,
-    "q": null,
-    "new_within_days": null,
-    "overdue": null
-  },
-  "populated": {
+    "scanner": null,
     "assignee": null,
-    "cve_id": null,
-    "disagree": null,
+    "kev": null,
     "fixable": null,
+    "disagree": null,
+    "cve_id": null,
     "image_digest": null,
     "image_repo": null,
-    "kev": true,
-    "namespace": "team-a",
+    "namespace": null,
+    "ptype": null,
+    "q": null,
     "present": true,
-    "ptype": "os",
-    "scanner": "trivy",
+    "new_within_days": null,
+    "overdue": null,
+    "exclude_severity": null,
+    "exclude_state": null,
+    "exclude_scanner": null,
+    "exclude_assignee": null,
+    "exclude_image_repo": null,
+    "exclude_namespace": null,
+    "exclude_ptype": null
+  },
+  "populated": {
     "severity": [
       "critical",
       "high"
@@ -36,8 +32,56 @@
     "state": [
       "open"
     ],
+    "scanner": "trivy",
+    "assignee": null,
+    "kev": true,
+    "fixable": null,
+    "disagree": null,
+    "cve_id": null,
+    "image_digest": null,
+    "image_repo": null,
+    "namespace": "team-a",
+    "ptype": "os",
     "q": null,
+    "present": true,
     "new_within_days": null,
-    "overdue": null
+    "overdue": null,
+    "exclude_severity": null,
+    "exclude_state": null,
+    "exclude_scanner": null,
+    "exclude_assignee": null,
+    "exclude_image_repo": null,
+    "exclude_namespace": null,
+    "exclude_ptype": null
+  },
+  "negated": {
+    "severity": null,
+    "state": [
+      "open"
+    ],
+    "scanner": null,
+    "assignee": null,
+    "kev": null,
+    "fixable": null,
+    "disagree": null,
+    "cve_id": null,
+    "image_digest": null,
+    "image_repo": null,
+    "namespace": null,
+    "ptype": null,
+    "q": null,
+    "present": true,
+    "new_within_days": null,
+    "overdue": null,
+    "exclude_severity": [
+      "low",
+      "negligible"
+    ],
+    "exclude_state": null,
+    "exclude_scanner": null,
+    "exclude_assignee": null,
+    "exclude_image_repo": null,
+    "exclude_namespace": "kube-system",
+    "exclude_ptype": null
   }
 }

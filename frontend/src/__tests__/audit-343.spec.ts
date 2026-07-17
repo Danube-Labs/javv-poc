@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { FAILURE_COPY, failureKind } from '@/findings/failureCopy'
-import { clusterFromQuery, keepGlobals, stripGlobals, ttFromQuery, ttToQuery } from '@/system/globalUrl'
+import { clusterFromQuery, foreignQuery, ownQuery, ttFromQuery, ttToQuery } from '@/system/globalUrl'
 
 describe('honest-error mapping (audit 343 rule 1)', () => {
   it('names the actual cause per status, rewound or not', () => {
@@ -48,10 +48,30 @@ describe('the global range ⇄ URL (audit 343 rule 4)', () => {
     expect(ttFromQuery({ win: '9999' })).toEqual({ t: null, win: 365 })
   })
 
-  it('keepGlobals/stripGlobals split a screen query from the global keys — cluster included', () => {
+  it('foreignQuery/ownQuery split a screen query by OWNERSHIP, not a global allowlist', () => {
     const q = { severity: 'critical', t: '2026-07-08T00:00:00Z', win: '7', cluster: 'c-beta-1' }
-    expect(keepGlobals(q)).toEqual({ t: '2026-07-08T00:00:00Z', win: '7', cluster: 'c-beta-1' })
-    expect(stripGlobals(q)).toEqual({ severity: 'critical' })
+    expect(foreignQuery(q, ['severity', 'q'])).toEqual({
+      t: '2026-07-08T00:00:00Z',
+      win: '7',
+      cluster: 'c-beta-1',
+    })
+    expect(ownQuery(q, ['severity', 'q'])).toEqual({ severity: 'critical' })
+  })
+
+  it('a filter-sync rewrite never erases a key the screen does not own (operator order 2026-07-17)', () => {
+    // the ?ctl= regression: a specimen switch (or any future foreign param) rode /findings and
+    // the rewrite dropped it — the rewrite base must carry every non-owned key through
+    const q = { severity: 'critical', spec: 'negation-b', t: '2026-07-08T00:00:00Z' }
+    const rewrite = { ...foreignQuery(q, ['severity', 'q']), severity: 'high' }
+    expect(rewrite).toEqual({ spec: 'negation-b', t: '2026-07-08T00:00:00Z', severity: 'high' })
+  })
+
+  it('ownQuery emits in ownKeys order and skips blanks — stable against toQuery() output', () => {
+    expect(ownQuery({ q: 'log4j', severity: 'critical', junk: 'x' }, ['severity', 'q'])).toEqual({
+      severity: 'critical',
+      q: 'log4j',
+    })
+    expect(ownQuery({ severity: '' }, ['severity'])).toEqual({})
   })
 
   it('clusterFromQuery shape-checks only — existence is the cluster store’s call (issue 433)', () => {

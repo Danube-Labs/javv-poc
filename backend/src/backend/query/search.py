@@ -67,6 +67,16 @@ class SearchFilters:
     # SLA breached (issue 363): ranges on the materialized D21 group clock `sla_clock_at`
     # against LIVE-policy cutoffs — the body needs `sla_cutoffs` (see overdue_cutoffs)
     overdue: bool | None = None
+    # negation (issue 349): each excludable facet mirrors its include twin into `must_not`.
+    # A field is include OR exclude, never both (ValueError). Semantics are PURE must_not —
+    # a row missing the field survives the exclusion ("is not bob" keeps unassigned rows).
+    exclude_severity: list[str] | None = None
+    exclude_state: list[str] | None = None
+    exclude_scanner: str | None = None
+    exclude_assignee: str | None = None
+    exclude_image_repo: str | None = None
+    exclude_namespace: str | None = None
+    exclude_ptype: str | None = None
 
 
 _SLA_SEVERITIES = ("critical", "high", "medium", "low")  # the FR-10 buckets that carry an SLA
@@ -153,6 +163,26 @@ def build_search_body(
     if filters.new_within_days is not None:
         gte, _upper = window_bounds(filters.new_within_days)
         fl.append({"range": {"first_seen_at": {"gte": gte}}})
+    mn: list[dict[str, Any]] = []
+    for name, field, include, exclude in (
+        ("severity", "severity_canonical", filters.severity, filters.exclude_severity),
+        ("state", "state", filters.state, filters.exclude_state),
+    ):
+        if exclude:
+            if include:
+                raise ValueError(f"{name} and exclude_{name} are mutually exclusive")
+            mn.append({"terms": {field: exclude}})
+    for name, field, inc_term, exc_term in (
+        ("scanner", "scanner", filters.scanner, filters.exclude_scanner),
+        ("assignee", "assignee", filters.assignee, filters.exclude_assignee),
+        ("image_repo", "image_repo", filters.image_repo, filters.exclude_image_repo),
+        ("namespace", "namespaces", filters.namespace, filters.exclude_namespace),
+        ("ptype", "ptype", filters.ptype, filters.exclude_ptype),
+    ):
+        if exc_term is not None:
+            if inc_term is not None:
+                raise ValueError(f"{name} and exclude_{name} are mutually exclusive")
+            mn.append({"term": {field: exc_term}})
     bool_q: dict[str, Any] = {"filter": fl}
     if filters.overdue is not None:
         if sla_cutoffs is None:
@@ -161,7 +191,9 @@ def build_search_body(
         if filters.overdue:
             fl.append(clause)
         else:
-            bool_q["must_not"] = [clause]
+            mn.append(clause)
+    if mn:
+        bool_q["must_not"] = mn
     if filters.q is not None:
         # contains-match across the identifier fields (M9b slice 4, operator ask). Structured
         # wildcard clauses — NEVER query_string (DSL injection surface). `*`/`?` in user input

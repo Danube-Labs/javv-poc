@@ -4,7 +4,7 @@
  * CSS). Generic over a `cols` list so future grid screens (images, audit) reuse it — the
  * parent owns the hidden-set, density and order state (and any persistence).
  *
- * With `reorderable` (task 92), rows drag to reorder — the Kibana field-list grammar: a grip
+ * With `reorderable` (task 92), rows drag to reorder — the field-list grammar: a grip
  * handle, the dragged row dims, a coral insertion line marks the drop slot. Emits the full
  * new key order; hidden columns reorder too (their slot is kept for when they're re-shown).
  */

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Kibana-style filter bar (prototype filters.jsx `FilterBar` + `.fpill`/`.add-filter`/`.dd-menu`
+ * Discover-style filter bar (prototype filters.jsx `FilterBar` + `.fpill`/`.add-filter`/`.dd-menu`
  * CSS): active-filter pills, a two-level add-filter dropdown (field list → value picker, with a
  * value search above 8 entries; text fields get an input), clear-all. Keyboard: Esc closes,
  * arrows walk the menu. Lists values through the same `facetItems()` the FacetRail uses — one
@@ -10,21 +10,42 @@ import { computed, ref, useTemplateRef } from 'vue'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiDropdown from '@/components/ui/UiDropdown.vue'
+import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { facetItems, type FacetsResponse } from '@/filters/facets'
 import type { FilterField, Selections } from '@/filters/fields.config'
+import type { FilterMode, Modes } from '@/stores/filters'
 
 const props = defineProps<{
   fields: readonly FilterField[]
   selections: Selections
+  modes?: Modes
   facets: FacetsResponse
 }>()
 
 const emit = defineEmits<{
   toggle: [fieldKey: string, value: string]
   setText: [fieldKey: string, value: string]
+  setMode: [fieldKey: string, mode: FilterMode]
+  toggleMode: [fieldKey: string]
   clearField: [fieldKey: string]
   clearAll: []
 }>()
+
+const MODE_OPTIONS = [
+  { value: 'is', label: 'is' },
+  { value: 'not', label: 'is not' },
+] as const
+
+function modeOf(fieldKey: string): FilterMode {
+  return props.modes?.[fieldKey] ?? 'is'
+}
+function negatable(field: FilterField): boolean {
+  return field.type === 'terms' && field.negatable === true
+}
+function opText(field: FilterField): string {
+  const many = (props.selections[field.key] ?? []).length > 1
+  return modeOf(field.key) === 'not' ? (many ? 'is none of' : 'is not') : many ? 'is one of' : 'is'
+}
 
 const open = ref(false)
 const editKey = ref<string | null>(null)
@@ -99,9 +120,26 @@ function onKeydown(e: KeyboardEvent) {
 
 <template>
   <div ref="wrap" class="filter-bar" @keydown="onKeydown">
-    <button v-for="f in active" :key="f.key" class="fpill" @click="openField(f.key)">
+    <button
+      v-for="f in active"
+      :key="f.key"
+      class="fpill"
+      :class="{ 'fpill-not': modeOf(f.key) === 'not' }"
+      @click="openField(f.key)"
+    >
       <span class="fpill-field">{{ f.label }}</span>
-      <span class="fpill-op">{{ (selections[f.key] ?? []).length > 1 ? 'is one of' : 'is' }}</span>
+      <!-- ruled NOT-pill (issue 349, operator 2026-07-17): hollow body, ONLY the op words in
+           red; on a negatable field the op word is the include⇄exclude toggle -->
+      <span
+        v-if="negatable(f)"
+        class="fpill-op fpill-op-btn"
+        role="button"
+        :aria-label="`Switch to ${modeOf(f.key) === 'not' ? 'include' : 'exclude'}`"
+        :title="modeOf(f.key) === 'not' ? 'Click to include' : 'Click to exclude'"
+        @click.stop="emit('toggleMode', f.key)"
+        >{{ opText(f) }}</span
+      >
+      <span v-else class="fpill-op">{{ opText(f) }}</span>
       <span class="fpill-vals">{{ pillText(f) }}</span>
       <span
         class="fpill-x"
@@ -139,6 +177,14 @@ function onKeydown(e: KeyboardEvent) {
           <button class="filter-back" @click="editKey = null">
             <AppIcon name="arrowback" :size="13" />{{ editField.label }}
           </button>
+
+          <div v-if="negatable(editField)" class="filter-mode">
+            <UiSegControl
+              :options="MODE_OPTIONS"
+              :model-value="modeOf(editField.key)"
+              @update:model-value="(m) => emit('setMode', editField!.key, m)"
+            />
+          </div>
 
           <template v-if="editItems">
             <div v-if="editItems.length > 8 || valueQuery" class="filter-vsearch">
@@ -251,6 +297,30 @@ function onKeydown(e: KeyboardEvent) {
 .fpill-x:hover {
   background: var(--fpill-x-hover-bg);
   color: var(--coral-text);
+}
+/* the NOT-pill (issue 349, ruled 2026-07-17 on built specimens): the include pill is FILLED
+   (card on beige), the exclude pill is HOLLOW — fill/outline duality — and ONLY the op words
+   carry the red; the rest of the pill stays in the quiet register */
+.fpill-not {
+  background: transparent;
+  border: 1.5px solid var(--fpill-line);
+  box-shadow: none;
+}
+.fpill-not .fpill-op {
+  color: var(--fpill-not-op);
+  font-weight: 600;
+}
+/* the op word doubles as the include⇄exclude toggle on negatable fields */
+.fpill-op-btn {
+  border-radius: 4px;
+  padding: 1px 3px;
+  margin: -1px -3px;
+}
+.fpill-op-btn:hover {
+  background: var(--fpill-x-hover-bg);
+}
+.filter-mode {
+  padding: 8px 10px 2px;
 }
 .add-filter {
   display: inline-flex;

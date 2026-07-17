@@ -59,6 +59,32 @@ describe('filters store', () => {
     expect(s.selections).toEqual(snapshot)
   })
 
+  it('negation (issue 349): mode round-trips the URL as ! prefixes, one mode per field', () => {
+    const s = useStore()
+    s.toggle('severity', 'low')
+    s.toggle('severity', 'negligible')
+    s.setMode('severity', 'not')
+    expect(s.toQuery().severity).toBe('!low,!negligible')
+    s.clearAll()
+    s.fromQuery({ severity: '!low,!negligible', namespace: 'payments' })
+    expect(s.selections.severity).toEqual(['low', 'negligible'])
+    expect(s.modeOf('severity')).toBe('not')
+    expect(s.modeOf('namespace')).toBe('is') // untouched fields stay include
+  })
+
+  it('negation guards: non-negatable fields refuse the mode; clearing resets it', () => {
+    const s = useStore()
+    s.setMode('attr', 'not') // flags are never negatable
+    expect(s.modeOf('attr')).toBe('is')
+    s.toggle('namespace', 'kube-system')
+    s.setMode('namespace', 'not')
+    expect(s.toQuery().namespace).toBe('!kube-system')
+    s.clearField('namespace')
+    expect(s.modeOf('namespace')).toBe('is')
+    s.toggle('namespace', 'kube-system')
+    expect(s.toQuery().namespace).toBe('kube-system') // mode did not survive the clear
+  })
+
   it('drops unknown vocabulary values and unknown keys from the URL', () => {
     const s = useStore()
     s.fromQuery({ severity: 'critical,BOGUS', attr: 'kev,nope', evil: 'x' })

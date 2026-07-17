@@ -88,6 +88,13 @@ policy edit moves the filter instantly, chip ≡ filter by construction (shared 
 KEV fast-lane included); works on grid/facets/groups/exports, and at a past `as_of` it filters the
 reconstruction's own read-time verdict (judged at `now=T`, never the cache field). Multi-page grid
 walks freeze the cutoffs in the cursor (the PIT freezes docs, the query freezes with them).
+**Negation (issue #349):** every terms facet has an exclude mirror — `exclude_severity`,
+`exclude_state`, `exclude_scanner`, `exclude_assignee`, `exclude_image_repo`,
+`exclude_namespace`, `exclude_ptype` — compiled to `must_not` clauses. Semantics are **pure
+must_not**: a row *missing* the field survives the exclusion (`exclude_assignee=bob` keeps
+unassigned rows). A field is include OR exclude, never both (422). Mirrored on `ExportParams`
+and `ViewPreset`; at a past `as_of`, excludes on recorded fields apply and
+`exclude_image_repo` is a 422 like its include twin.
 **T<now dispatches to the M8b reader (live since #34)** — results are
 reconstructed from the append logs as-scanned: fields history deliberately does not record
 (`kev`, `epss`, `disagree`, `image_repo`, `tag`, `app`) come back `null`; a filter/sort/group on
@@ -148,8 +155,8 @@ routes stay current-state-only).
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
 | GET | `/api/v1/views` | session | List saved views — visible to **all** authenticated users (C-6; per-view ACLs post-MVP). Card counts come from `/findings/facets` at render time, never stored |
-| POST | `/api/v1/views` | session | Save a view (`owner` = principal, immutable). `preset` mirrors the findings filter family 1:1 and is validated against the **closed vocabularies** (lowercase canonical severities incl. `negligible`, the 6 states, scanner, ptype shape) — garbage → 422, never stored. Journaled (D17, journal-first) |
-| PATCH | `/api/v1/views/{view_id}` | session, **owner-or-admin** | Edit name/description/preset (partial; preset replaces whole). Non-owner without `can_manage_settings` → 403 (the IDOR case); `owner` is unrepresentable in the body. seq_no-CAS write → **409** on a concurrent edit. Journaled |
+| POST | `/api/v1/views` | session | Save a view (`owner` = principal, immutable). `preset` mirrors the findings filter family 1:1 (incl. the issue-349 `exclude_*` family, same no-mixing rule) and is validated against the **closed vocabularies** (lowercase canonical severities incl. `negligible`, the 6 states, scanner, ptype shape) — garbage → 422, never stored. Schema v2 (M9f slice 4) adds `workbench` `{columns, dense, sort, order, window_days}` — the findings-table capture, cluster-agnostic by shape (no `cluster_id`/absolute `t` representable). Journaled (D17, journal-first) |
+| PATCH | `/api/v1/views/{view_id}` | session, **owner-or-admin** | Edit name/description/preset/workbench (partial; preset and workbench each replace whole). Non-owner without `can_manage_settings` → 403 (the IDOR case); `owner` is unrepresentable in the body. seq_no-CAS write → **409** on a concurrent edit. Journaled |
 | DELETE | `/api/v1/views/{view_id}` | session, **owner-or-admin** | Delete (204). Journal row carries the frozen doc, so deleted views stay auditable |
 
 ### Exports (M6) & scheduled reports (M7)

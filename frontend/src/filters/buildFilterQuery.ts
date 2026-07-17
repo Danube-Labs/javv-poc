@@ -8,6 +8,7 @@
  *     upstream and throws here rather than silently mangling the query.
  */
 import type { FilterField, Selections } from './fields.config'
+import type { Modes } from '@/stores/filters'
 
 export interface FilterGlobals {
   cluster_id: string
@@ -22,6 +23,7 @@ export function buildFilterQuery(
   fields: readonly FilterField[],
   selections: Selections,
   globals: FilterGlobals,
+  modes: Modes = {},
 ): FilterQuery {
   if (!globals.cluster_id) throw new Error('buildFilterQuery: cluster_id is required on every query')
 
@@ -34,12 +36,17 @@ export function buildFilterQuery(
 
     if (field.type === 'terms') {
       const values = selected.map((v) => v.toLowerCase())
+      // exclude mode (issue 349): the API mirror param, only on fields that declare one
+      const param =
+        field.negatable && (modes[field.key] ?? 'is') === 'not'
+          ? `exclude_${field.param}`
+          : field.param
       if (field.multi) {
-        query[field.param] = values
+        query[param] = values
       } else {
         if (values.length > 1)
           throw new Error(`buildFilterQuery: '${field.key}' accepts a single value, got ${values.length}`)
-        query[field.param] = values[0] as string
+        query[param] = values[0] as string
       }
     } else if (field.type === 'flags') {
       for (const flag of field.values) {

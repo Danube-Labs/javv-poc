@@ -57,6 +57,8 @@ reap() { # index, query-json, label
   fi
 }
 reap "system-views"        '{"query":{"prefix":{"view_id":"rt-"}}}'                "rt-* saved views"
+reap "system-views"        '{"query":{"prefix":{"owner":"u-"}}}'                   "u-*-owned saved views"
+reap "system-notifications" '{"query":{"prefix":{"user_id":"u-"}}}'                "u-* notification docs"
 reap "system-config"       '{"query":{"wildcard":{"key":{"value":"*:c-*"}}}}'      "c-* cluster config docs"
 reap "findings"            '{"query":{"prefix":{"cluster_id":"c-"}}}'              "c-* findings rows"
 reap "javv-scan-watermarks" '{"query":{"prefix":{"cluster_id":"c-"}}}'             "c-* watermark rows"

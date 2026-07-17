@@ -100,7 +100,27 @@ def _filters(
     present: bool = True,
     new_within_days: Annotated[int | None, Query(ge=1, le=365)] = None,
     overdue: bool | None = None,
+    exclude_severity: Annotated[list[str] | None, Query()] = None,
+    exclude_state: Annotated[list[str] | None, Query()] = None,
+    exclude_scanner: Annotated[str | None, Query(max_length=32)] = None,
+    exclude_assignee: Annotated[str | None, Query(max_length=128)] = None,
+    exclude_image_repo: Annotated[str | None, Query(max_length=512)] = None,
+    exclude_namespace: Annotated[str | None, Query(max_length=256)] = None,
+    exclude_ptype: Annotated[str | None, Query(max_length=64)] = None,
 ) -> SearchFilters:
+    # include+exclude on one field is ambiguous — 422 here so the builder's ValueError
+    # (kept as defense for direct constructors like report_drain) never costs a 500
+    for name, inc, exc in (
+        ("severity", severity, exclude_severity),
+        ("state", state, exclude_state),
+        ("scanner", scanner, exclude_scanner),
+        ("assignee", assignee, exclude_assignee),
+        ("image_repo", image_repo, exclude_image_repo),
+        ("namespace", namespace, exclude_namespace),
+        ("ptype", ptype, exclude_ptype),
+    ):
+        if inc is not None and exc is not None:
+            raise HTTPException(422, f"{name} and exclude_{name} are mutually exclusive")
     return SearchFilters(
         severity=severity,
         state=state,
@@ -118,6 +138,13 @@ def _filters(
         present=present,
         new_within_days=new_within_days,
         overdue=overdue,
+        exclude_severity=exclude_severity,
+        exclude_state=exclude_state,
+        exclude_scanner=exclude_scanner,
+        exclude_assignee=exclude_assignee,
+        exclude_image_repo=exclude_image_repo,
+        exclude_namespace=exclude_namespace,
+        exclude_ptype=exclude_ptype,
     )
 
 

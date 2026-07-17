@@ -2,7 +2,7 @@
 /**
  * The audit lens — the ingest lens's strip grammar pointed at the journal (operator ask,
  * M9d): journaled events per bucket over the global time range, UNDER the screen's current
- * filters, so the histogram always describes the table below it (Kibana Discover's contract).
+ * filters, so the histogram always describes the table below it (the discover-strip contract).
  * Every number is the server's (`GET /audit/facets` `activity` date_histogram); clicking a
  * bucket rewinds the whole app to that bucket's end (D28), same as the ingest lens.
  */

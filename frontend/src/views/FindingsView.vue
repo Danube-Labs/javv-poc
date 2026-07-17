@@ -19,6 +19,7 @@ import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
 import ColumnsMenu from '@/components/findings/ColumnsMenu.vue'
 import ExportDialog from '@/components/findings/ExportDialog.vue'
+import SaveViewDialog from '@/components/findings/SaveViewDialog.vue'
 import BulkTriageBar from '@/components/triage/BulkTriageBar.vue'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
@@ -30,6 +31,7 @@ import type { FacetsResponse } from '@/filters/facets'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { buildFindingsQuery } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS } from '@/findings/columns'
+import { captureLens } from '@/findings/savedViews'
 import { reorderFromDrag, restoreOrder } from '@/system/columnOrder'
 import { FAILURE_COPY, failureKind } from '@/findings/failureCopy'
 import { logger } from '@/lib/logger'
@@ -39,7 +41,7 @@ import { useFindingsStore, type FindingRow } from '@/stores/findings'
 import { makeFiltersStore } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
-import { keepGlobals, stripGlobals } from '@/system/globalUrl'
+import { foreignQuery, ownQuery } from '@/system/globalUrl'
 
 const useFindingsFilters = makeFiltersStore('findings-filters', FINDINGS_FIELDS)
 const filters = useFindingsFilters()
@@ -62,7 +64,9 @@ filters.fromQuery(route.query)
 // reads while that flag is on (the computed tracks the store)
 const filterGlobals = () => ({ ...withGlobals(), window_days: timeTravel.windowDays })
 const facetsQuery = computed(() =>
-  clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, filterGlobals()) : null,
+  clusterStore.selectedId
+    ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, filterGlobals(), filters.modes)
+    : null,
 )
 
 async function loadFacets(q: typeof facetsQuery.value) {
@@ -95,12 +99,13 @@ watch(
 
 const rowsQuery = computed(() =>
   clusterStore.selectedId
-    ? buildFindingsQuery(FINDINGS_FIELDS, filters.selections, filterGlobals(), {
-        sort: grid.sort,
-        order: grid.order,
-        size: grid.size,
-        cursor: grid.activeCursor,
-      })
+    ? buildFindingsQuery(
+        FINDINGS_FIELDS,
+        filters.selections,
+        filterGlobals(),
+        { sort: grid.sort, order: grid.order, size: grid.size, cursor: grid.activeCursor },
+        filters.modes,
+      )
     : null,
 )
 
@@ -159,17 +164,20 @@ function refreshAfterBulk(count: number) {
   void loadFacets(facetsQuery.value)
 }
 
-/* ---- URL sync (M9a); the global t/win keys are the shell's — preserve, never wipe (audit 343) ---- */
+/* ---- URL sync (M9a); the rewrite touches only this screen's own keys — globals and any
+   foreign param survive (ownership split, operator order 2026-07-17) ---- */
+const OWN_KEYS = FINDINGS_FIELDS.map((f) => f.key)
 watch(
   () => filters.toQuery(),
   (q) => {
-    void router.replace({ query: { ...keepGlobals(route.query), ...q } })
+    void router.replace({ query: { ...foreignQuery(route.query, OWN_KEYS), ...q } })
   },
 )
 watch(
   () => route.query,
   (q) => {
-    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripGlobals(q))) filters.fromQuery(q)
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(ownQuery(q, OWN_KEYS)))
+      filters.fromQuery(q)
   },
 )
 
@@ -218,6 +226,19 @@ const colOrder = ref<string[]>(restoreOrder(localStorage.getItem(ORDER_KEY), COL
 const orderedCols = computed(() =>
   colOrder.value.map((key) => FINDINGS_COLUMNS.find(([k]) => k === key)!),
 )
+
+/* ---- saved-view capture (M9f slice 4): the CURRENT workbench, ready to name ---- */
+const capturedPreset = computed(() =>
+  captureLens(FINDINGS_FIELDS, filters.selections, filters.modes, timeTravel.windowDays),
+)
+const capturedWorkbench = computed(() => ({
+  columns: colOrder.value.filter((k) => !hiddenCols.value.has(k)),
+  dense: dense.value,
+  sort: grid.sort,
+  order: grid.order,
+  // relative window only — never the absolute t (cluster-agnostic capture, schema v2)
+  window_days: timeTravel.windowDays,
+}))
 
 function setColOrder(next: string[]) {
   colOrder.value = next
@@ -272,20 +293,26 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
           <FilterBar
             :fields="FINDINGS_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :facets="facets"
             @toggle="filters.toggle"
             @set-text="filters.setText"
+            @set-mode="filters.setMode"
+            @toggle-mode="filters.toggleMode"
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
           />
+          <SaveViewDialog :preset="capturedPreset" :workbench="capturedWorkbench" />
           <ExportDialog
             :fields="FINDINGS_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :historical="timeTravel.t !== null"
           />
           <BulkTriageBar
             :fields="FINDINGS_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :total="grid.total"
             :can-triage="auth.hasCapability('can_triage')"
             :can-accept-final="auth.hasCapability('can_accept_audit_final')"

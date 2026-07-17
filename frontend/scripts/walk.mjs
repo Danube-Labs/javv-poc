@@ -20,8 +20,8 @@ export const VIEWPORTS = {
 export const ROUTES = [
   { name: 'overview', path: '/overview', ready: '.sev-band, .screen' },
   { name: 'clusters', path: '/clusters', ready: '.screen' },
-  // views is an M9f placeholder (no .screen) — tighten to '.screen' when the real screen lands
-  { name: 'views', path: '/views', ready: '.hint' },
+  // ready = the card grid, the empty state, or the load-error line — never just the shell
+  { name: 'views', path: '/views', ready: '.view-card, .empty-state, .load-error' },
   { name: 'scanner-status', path: '/scanner-status', ready: '.screen' },
   { name: 'audit', path: '/audit', ready: '.screen' },
   { name: 'contributors', path: '/contributors', ready: '.screen' },

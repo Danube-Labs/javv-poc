@@ -21,6 +21,9 @@ export interface TermsField extends BaseField {
   facetKey?: string
   /** Static vocabulary; omit to take values from the facet buckets. */
   values?: readonly string[]
+  /** The backend has an `exclude_<param>` mirror (issue 349) — the bar offers is/is not and
+   * the URL carries `!`-prefixed values. Only findings fields today. */
+  negatable?: boolean
 }
 
 /** A group of independent boolean params rendered as one facet group. A `window` flag emits
@@ -57,8 +60,8 @@ export const emptySelections = (fields: readonly FilterField[]): Selections =>
 export const FINDINGS_FIELDS: readonly FilterField[] = [
   // the rail search box writes this — CONTAINS across cve/image/namespace/assignee/package
   { key: 'q', label: 'Search', type: 'text', param: 'q', minLength: 2 },
-  { key: 'severity', label: 'Severity', type: 'terms', param: 'severity', multi: true, facetKey: 'severity', values: SEVERITIES },
-  { key: 'scanner', label: 'Scanner', type: 'terms', param: 'scanner', facetKey: 'scanner', values: ['trivy', 'grype'] },
+  { key: 'severity', label: 'Severity', type: 'terms', param: 'severity', multi: true, facetKey: 'severity', values: SEVERITIES, negatable: true },
+  { key: 'scanner', label: 'Scanner', type: 'terms', param: 'scanner', facetKey: 'scanner', values: ['trivy', 'grype'], negatable: true },
   {
     key: 'attr',
     label: 'Attribute',
@@ -90,11 +93,11 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
       },
     ],
   },
-  { key: 'state', label: 'State', type: 'terms', param: 'state', multi: true, facetKey: 'state', values: ['open', 'acknowledged', 'not_affected', 'risk_accepted', 'resolved', 'stale'] },
-  { key: 'ptype', label: 'Package type', type: 'terms', param: 'ptype', facetKey: 'ptype' },
+  { key: 'state', label: 'State', type: 'terms', param: 'state', multi: true, facetKey: 'state', values: ['open', 'acknowledged', 'not_affected', 'risk_accepted', 'resolved', 'stale'], negatable: true },
+  { key: 'ptype', label: 'Package type', type: 'terms', param: 'ptype', facetKey: 'ptype', negatable: true },
   // rail dims are top-N by count (server caps at 32); the value-search in Add-filter still
   // reaches anything the rail's cap hides
-  { key: 'namespace', label: 'Namespace', type: 'terms', param: 'namespace', facetKey: 'namespaces' },
+  { key: 'namespace', label: 'Namespace', type: 'terms', param: 'namespace', facetKey: 'namespaces', negatable: true },
   { key: 'image', label: 'Image', type: 'text', param: 'image_repo' },
-  { key: 'assignee', label: 'Assignee', type: 'terms', param: 'assignee', facetKey: 'assignee' },
+  { key: 'assignee', label: 'Assignee', type: 'terms', param: 'assignee', facetKey: 'assignee', negatable: true },
 ]

@@ -86,6 +86,9 @@
   --facet-check-line: #cfc8ba;
   --fpill-line: #e0d2c5;
   --fpill-x-hover-bg: #f3e2d9;
+  /* NOT-pill op words (issue 349, ruled 2026-07-17): the one red accent on the hollow
+     exclude pill — same hue as the critical ramp, semantic role of its own */
+  --fpill-not-op: #b5231a;
   --add-filter-line: #b0a48c; /* darkened 2026-07-16: the dashed ghost was invisible on the canvas */
   --add-filter-hover-bg: #fdf4ef;
   --dd-on-bg: rgba(236, 126, 84, 0.1);

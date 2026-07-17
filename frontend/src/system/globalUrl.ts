@@ -9,7 +9,6 @@
  */
 import type { LocationQuery } from 'vue-router'
 
-const GLOBAL_KEYS = ['t', 'win', 'cluster'] as const
 const DEFAULT_WIN = 30
 
 export function ttToQuery(t: string | null, windowDays: number): Record<string, string> {
@@ -39,17 +38,23 @@ export function clusterFromQuery(query: LocationQuery): string | null {
   return raw !== '' ? raw : null
 }
 
-/** The global-key subset of a query — screens that own their query (filter sync) spread this in
- * so their `router.replace` never wipes the range or the selected cluster. */
-export function keepGlobals(query: LocationQuery): Record<string, string> {
-  const out: Record<string, string> = {}
-  for (const k of GLOBAL_KEYS) if (typeof query[k] === 'string') out[k] = query[k]
+/** The filter-sync rewrite base: everything the screen does NOT own. A screen's `router.replace`
+ * may only overwrite its own vocabulary — the globals AND any foreign key (a specimen switch,
+ * a future param) ride through untouched. The old global-key allowlist silently erased unknown
+ * keys on every filter change. */
+export function foreignQuery(query: LocationQuery, ownKeys: readonly string[]): LocationQuery {
+  const out = { ...query }
+  for (const k of ownKeys) delete out[k]
   return out
 }
 
-/** A query minus the global keys — for comparing a screen's own params against the route. */
-export function stripGlobals(query: LocationQuery): LocationQuery {
-  const out = { ...query }
-  for (const k of GLOBAL_KEYS) delete out[k]
+/** The screen's own subset in ownKeys order, blanks skipped — directly comparable against the
+ * filter store's `toQuery()` output (which iterates the same fields config). */
+export function ownQuery(query: LocationQuery, ownKeys: readonly string[]): Record<string, string> {
+  const out: Record<string, string> = {}
+  for (const k of ownKeys) {
+    const v = query[k]
+    if (typeof v === 'string' && v !== '') out[k] = v
+  }
   return out
 }
