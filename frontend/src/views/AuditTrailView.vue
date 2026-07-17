@@ -33,7 +33,7 @@ import { useClusterStore } from '@/stores/cluster'
 import { makeFiltersStore } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
-import { keepGlobals, stripGlobals } from '@/system/globalUrl'
+import { foreignQuery, ownQuery } from '@/system/globalUrl'
 
 const useAuditFilters = makeFiltersStore('audit-filters', AUDIT_FIELDS)
 const filters = useAuditFilters()
@@ -120,17 +120,19 @@ watch(
   { immediate: true },
 )
 
-/* ---- URL sync (M9a); global t/win keys are the shell's — preserve, never wipe ---- */
+/* ---- URL sync (M9a); rewrite only this screen's own keys — foreign params survive ---- */
+const OWN_KEYS = AUDIT_FIELDS.map((f) => f.key)
 watch(
   () => filters.toQuery(),
   (q) => {
-    void router.replace({ query: { ...keepGlobals(route.query), ...q } })
+    void router.replace({ query: { ...foreignQuery(route.query, OWN_KEYS), ...q } })
   },
 )
 watch(
   () => route.query,
   (q) => {
-    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripGlobals(q))) filters.fromQuery(q)
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(ownQuery(q, OWN_KEYS)))
+      filters.fromQuery(q)
   },
 )
 

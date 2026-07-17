@@ -39,7 +39,7 @@ import { useFindingsStore, type FindingRow } from '@/stores/findings'
 import { makeFiltersStore } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
-import { keepGlobals, stripGlobals } from '@/system/globalUrl'
+import { foreignQuery, ownQuery } from '@/system/globalUrl'
 
 const useFindingsFilters = makeFiltersStore('findings-filters', FINDINGS_FIELDS)
 const filters = useFindingsFilters()
@@ -159,17 +159,20 @@ function refreshAfterBulk(count: number) {
   void loadFacets(facetsQuery.value)
 }
 
-/* ---- URL sync (M9a); the global t/win keys are the shell's — preserve, never wipe (audit 343) ---- */
+/* ---- URL sync (M9a); the rewrite touches only this screen's own keys — globals and any
+   foreign param survive (ownership split, operator order 2026-07-17) ---- */
+const OWN_KEYS = FINDINGS_FIELDS.map((f) => f.key)
 watch(
   () => filters.toQuery(),
   (q) => {
-    void router.replace({ query: { ...keepGlobals(route.query), ...q } })
+    void router.replace({ query: { ...foreignQuery(route.query, OWN_KEYS), ...q } })
   },
 )
 watch(
   () => route.query,
   (q) => {
-    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(stripGlobals(q))) filters.fromQuery(q)
+    if (JSON.stringify(filters.toQuery()) !== JSON.stringify(ownQuery(q, OWN_KEYS)))
+      filters.fromQuery(q)
   },
 )
 

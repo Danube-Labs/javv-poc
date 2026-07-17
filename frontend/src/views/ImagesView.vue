@@ -33,7 +33,7 @@ import { useImagesStore, type ImageRow } from '@/stores/images'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 import { lastDataAt } from '@/system/freshness'
-import { keepGlobals } from '@/system/globalUrl'
+import { foreignQuery } from '@/system/globalUrl'
 
 const route = useRoute()
 const router = useRouter()
@@ -45,10 +45,11 @@ const filters = makeFiltersStore('imageFilters', IMAGES_FIELDS)()
 const { withGlobals } = useApi()
 
 filters.fromQuery(route.query)
+const OWN_KEYS = IMAGES_FIELDS.map((f) => f.key)
 watch(
   () => filters.toQuery(),
-  // the global t/win keys are the shell's — preserve, never wipe (audit 343)
-  (q) => void router.replace({ query: { ...keepGlobals(route.query), ...q } }),
+  // rewrite only this screen's own keys — globals and foreign params survive (audit 343)
+  (q) => void router.replace({ query: { ...foreignQuery(route.query, OWN_KEYS), ...q } }),
 )
 
 watch(
