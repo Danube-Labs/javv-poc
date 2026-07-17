@@ -163,6 +163,7 @@ routes stay current-state-only).
 | GET | `/api/v1/reports/{report_id}/download` | session (owner) + `token` | Streams the result chunks in order (CSV or VEX JSON). **410** past `expires_at` (re-run the export) · 404 no result yet · 403 bad/stale token |
 | GET | `/api/v1/notifications` | session | The bell (FR-16, polled — no broker): own notifications only, newest 50, + server-computed `unread` count |
 | PATCH | `/api/v1/notifications/{notification_id}/read` | session | Mark one of **your own** read — anyone else's id is 404 (IDOR-indistinguishable from missing) |
+| DELETE | `/api/v1/notifications/{notification_id}` | session | Dismiss (hard-delete) one of **your own** feed docs — same own-or-404 gate; 204 on success (M9f slice 3) |
 
 Exports + search cursors share a **per-principal concurrent-PIT cap**
 (`JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL`, 10) → **429 + `Retry-After`** past it. Scheduled-report

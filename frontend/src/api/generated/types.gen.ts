@@ -2455,6 +2455,36 @@ export type ListNotificationsApiV1NotificationsGetResponses = {
 
 export type ListNotificationsApiV1NotificationsGetResponse = ListNotificationsApiV1NotificationsGetResponses[keyof ListNotificationsApiV1NotificationsGetResponses];
 
+export type DeleteNotificationApiV1NotificationsNotificationIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Notification Id
+         */
+        notification_id: string;
+    };
+    query?: never;
+    url: '/api/v1/notifications/{notification_id}';
+};
+
+export type DeleteNotificationApiV1NotificationsNotificationIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteNotificationApiV1NotificationsNotificationIdDeleteError = DeleteNotificationApiV1NotificationsNotificationIdDeleteErrors[keyof DeleteNotificationApiV1NotificationsNotificationIdDeleteErrors];
+
+export type DeleteNotificationApiV1NotificationsNotificationIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteNotificationApiV1NotificationsNotificationIdDeleteResponse = DeleteNotificationApiV1NotificationsNotificationIdDeleteResponses[keyof DeleteNotificationApiV1NotificationsNotificationIdDeleteResponses];
+
 export type MarkReadApiV1NotificationsNotificationIdReadPatchData = {
     body?: never;
     path: {

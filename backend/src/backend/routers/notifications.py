@@ -44,11 +44,7 @@ async def list_notifications(request: Request, principal: Authenticated) -> dict
     return {"unread": int(unread["count"]), "items": items}
 
 
-@router.patch("/{notification_id}/read")
-async def mark_read(
-    request: Request, notification_id: str, principal: Authenticated
-) -> dict[str, Any]:
-    client = cast(Any, request.app.state.opensearch)
+async def _own_or_404(client: Any, notification_id: str, principal: Principal) -> None:
     try:
         got = await client.get(index=NOTIFICATIONS_INDEX, id=notification_id)
     except NotFoundError:
@@ -56,6 +52,14 @@ async def mark_read(
     if got["_source"].get("user_id") != principal.user_id:
         # someone else's — indistinguishable from missing (IDOR rule)
         raise HTTPException(404, "notification not found")
+
+
+@router.patch("/{notification_id}/read")
+async def mark_read(
+    request: Request, notification_id: str, principal: Authenticated
+) -> dict[str, Any]:
+    client = cast(Any, request.app.state.opensearch)
+    await _own_or_404(client, notification_id, principal)
     await client.update(
         index=NOTIFICATIONS_INDEX,
         id=notification_id,
@@ -63,3 +67,14 @@ async def mark_read(
         params={"refresh": "true"},
     )
     return {"notification_id": notification_id, "read": True}
+
+
+@router.delete("/{notification_id}", status_code=204)
+async def delete_notification(
+    request: Request, notification_id: str, principal: Authenticated
+) -> None:
+    """Dismiss = hard delete of the OWN feed doc (the bell is a feed, not an archive — the
+    audit trail is elsewhere by design). Same own-or-404 gate as mark-read."""
+    client = cast(Any, request.app.state.opensearch)
+    await _own_or_404(client, notification_id, principal)
+    await client.delete(index=NOTIFICATIONS_INDEX, id=notification_id, params={"refresh": "true"})

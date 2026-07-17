@@ -73,20 +73,21 @@ withDefaults(
   font-size: var(--text-control);
   font-weight: 600;
 }
+/* FLAT solid primary (operator 2026-07-17, Nuxt solid grammar): coral fill + inverted text,
+   NO gloss — the inset highlight + drop shadow were the "plasticky" read, not the hue.
+   (A soft-wash variant was tried and ruled too muted.) */
 .ui-btn--primary {
-  border-color: var(--coral-d);
+  border-color: var(--coral);
   background: var(--coral);
   color: var(--kev-fg);
-  /* chip-language-A depth: inner highlight + soft brand drop; pressed goes flat */
-  box-shadow: inset 0 1px 0 var(--chip-hi), 0 1px 2px var(--coral-drop);
 }
 .ui-btn--primary:hover:not(:disabled) {
-  background: var(--coral-d);
-  border-color: var(--coral-d);
+  background: var(--coral-dd);
+  border-color: var(--coral-dd);
 }
 .ui-btn--primary:active:not(:disabled) {
-  background: var(--coral-d);
-  box-shadow: none;
+  background: var(--coral-dd);
+  border-color: var(--coral-dd);
 }
 .ui-btn--block {
   width: 100%;

@@ -48,10 +48,22 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   z-index: 80;
   display: flex;
   justify-content: flex-end;
+  /* floating register (operator 2026-07-17, the framework7 float): the panel detaches from
+     the screen edges instead of running flush; the scrim itself blurs slightly so the beige
+     page reads soft through the margins */
+  padding: 12px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 .so-panel {
-  background: var(--card);
-  border-left: 1px solid var(--line);
+  /* glass register (operator 2026-07-17): semi-opaque over a backdrop blur; neutral edge —
+     the beige hairline bled against the dark scrim */
+  background: var(--glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--r);
+  overflow: hidden;
   box-shadow: var(--shadow);
   height: 100%;
   display: flex;
@@ -67,6 +79,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   background: var(--table-head-bg);
   color: var(--table-head-fg);
   flex: none;
+  /* nested radius (outer − border): overflow-clipping the square head corner leaves a light
+     anti-aliased seam under the panel edge — the "beige scratch" (operator, playwright zoom) */
+  border-top-left-radius: calc(var(--r) - 1px);
+  border-top-right-radius: calc(var(--r) - 1px);
 }
 .so-head h3 {
   margin: 0;

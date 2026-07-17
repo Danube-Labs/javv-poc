@@ -5429,6 +5429,42 @@
         ]
       }
     },
+    "/api/v1/notifications/{notification_id}": {
+      "delete": {
+        "description": "Dismiss = hard delete of the OWN feed doc (the bell is a feed, not an archive \u2014 the\naudit trail is elsewhere by design). Same own-or-404 gate as mark-read.",
+        "operationId": "delete_notification_api_v1_notifications__notification_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "notification_id",
+            "required": true,
+            "schema": {
+              "title": "Notification Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Notification",
+        "tags": [
+          "notifications"
+        ]
+      }
+    },
     "/api/v1/notifications/{notification_id}/read": {
       "patch": {
         "operationId": "mark_read_api_v1_notifications__notification_id__read_patch",

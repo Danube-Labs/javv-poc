@@ -240,8 +240,10 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         # bulk_triage body (slice 5); the gate is per-kind inside the handler.
         ("POST", "/api/v1/reports"),
         # M7 slice 3 — mark-read is strictly OWN-notification (user_id filter server-side; someone
-        # else's id 404s, IDOR-tested in test_notifications_route). No capability: your own bell.
+        # else's id 404s, IDOR-tested in test_report_download). No capability: your own bell.
         ("PATCH", "/api/v1/notifications/{notification_id}/read"),
+        # M9f slice 3 — dismiss shares the same own-or-404 gate (IDOR matrix alongside mark-read)
+        ("DELETE", "/api/v1/notifications/{notification_id}"),
         # M8e (#242) — any authenticated user may save a view (owner = principal, C-6 ruling);
         # session-required asserted in test_views_route. PATCH/DELETE are the OWNER-OR-ADMIN
         # regime, not a capability gate: non-owner 403, admin override, owner immutable —

@@ -28,6 +28,7 @@
   --muted: #9aa3aa; /* decorative/disabled ONLY (dashes, gauge fills) — never text (fails AA) */
   --coral: #ec7e54;
   --coral-d: #d96a41;
+  --coral-dd: #c05631; /* flat-primary hover/pressed — coral-d alone was too small a step */
   --coral-drop: rgb(217 106 65 / 30%); /* primary-button depth (chip language A) */
   --coral-text: #a8481f; /* coral as TEXT — AA on card/panel/washes; coral/coral-d are fills only */
   --amber: #f4a368;
@@ -42,6 +43,10 @@
     0 1px 2px rgba(22, 35, 47, 0.06),
     0 10px 28px -14px rgba(22, 35, 47, 0.38);
   --scrim: rgba(22, 35, 47, 0.46); /* modal backdrop (prototype .modal-scrim) */
+  /* glass drawer (operator 2026-07-17): semi-opaque panel over a backdrop blur; the edge is
+     NEUTRAL slate-alpha — the beige --line hairline glowed against the dark scrim */
+  --glass: rgba(255, 255, 255, 0.78);
+  --glass-edge: rgba(22, 35, 47, 0.1);
 
   /* -- spacing scale (8px base, 4px sub-grid — Atlassian/Carbon convention) ------------
      rhythm rule: tight WITHIN a functional group (1-2), generous BETWEEN page bands (6-8);
