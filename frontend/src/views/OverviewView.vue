@@ -122,7 +122,7 @@ function onDonutClick(e: { name?: string }) {
     <!-- the shared head-band grammar (operator 2026-07-17): head-card | IngestLens, same as
          findings/images/audit — the lens rode below the head here and read as a different page -->
     <div class="screen-head screen-head-band">
-      <div class="head-card">
+      <div class="head-card ov-head">
         <h1>Overview</h1>
         <p class="head-note">
           Current state across <b class="mono-cell">{{ clusterStore.selected?.cluster_name ?? '—' }}</b>
@@ -243,6 +243,12 @@ function onDonutClick(e: { name?: string }) {
   align-items: center;
   gap: 10px;
   margin-top: 10px; /* inside the head-card now — give the title block air */
+}
+/* the shared head-card is rail-width (218px) — too narrow once it also carries the
+   scanner seg + triage action; size to content, the lens still fills the rest */
+.ov-head {
+  width: auto;
+  flex: none;
 }
 
 .grid {
