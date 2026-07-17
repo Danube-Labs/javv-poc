@@ -205,18 +205,21 @@ function summary(v: ViewDoc): string {
       </article>
     </div>
 
-    <GridPager
-      v-if="views.length > 0 && !failed"
-      :total="views.length"
-      :page="pager.page.value"
-      :size="pager.size.value"
-      :shown="pager.shown.value.length"
-      :has-prev="pager.page.value > 0"
-      :has-next="pager.hasNext.value"
-      @prev="pager.page.value -= 1"
-      @next="pager.page.value += 1"
-      @update:size="pager.setSize"
-    />
+    <!-- the pager lives in a card like every other GridPager (the 2026-07-13 in-card rule) —
+         here the "card" is a slim footer bar under the grid, since cards ARE the rows -->
+    <div v-if="loaded && !failed && views.length > 0" class="views-pager">
+      <GridPager
+        :total="views.length"
+        :page="pager.page.value"
+        :size="pager.size.value"
+        :shown="pager.shown.value.length"
+        :has-prev="pager.page.value > 0"
+        :has-next="pager.hasNext.value"
+        @prev="pager.page.value -= 1"
+        @next="pager.page.value += 1"
+        @update:size="pager.setSize"
+      />
+    </div>
   </div>
 </template>
 
@@ -226,6 +229,18 @@ function summary(v: ViewDoc): string {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 14px;
   margin-top: 16px;
+}
+.views-pager {
+  margin-top: 14px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+/* the card IS the container — the pager's own in-table top rule would double the border */
+.views-pager :deep(.pager) {
+  border-top: 0;
 }
 .view-card {
   background: var(--card);
