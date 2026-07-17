@@ -262,3 +262,19 @@ async def test_mark_read_flips_own_and_404s_on_someone_elses(env) -> None:
     # IDOR: someone else's id is indistinguishable from missing
     assert (await http_a.patch(f"/api/v1/notifications/{theirs}/read")).status_code == 404
     assert (await http_a.patch(f"/api/v1/notifications/{uuid.uuid4().hex}/read")).status_code == 404
+
+
+async def test_dismiss_deletes_own_and_404s_on_someone_elses(env) -> None:
+    login, client = env
+    http_a, user_a = await login()
+    _, user_b = await login()
+    own = await _seed_note(client, user_a)
+    theirs = await _seed_note(client, user_b)
+
+    assert (await http_a.delete(f"/api/v1/notifications/{own}")).status_code == 204
+    assert not await client.exists(index=NOTIFICATIONS_INDEX, id=own)
+
+    # IDOR: someone else's id is indistinguishable from missing — and their doc survives
+    assert (await http_a.delete(f"/api/v1/notifications/{theirs}")).status_code == 404
+    assert await client.exists(index=NOTIFICATIONS_INDEX, id=theirs)
+    assert (await http_a.delete(f"/api/v1/notifications/{uuid.uuid4().hex}")).status_code == 404
