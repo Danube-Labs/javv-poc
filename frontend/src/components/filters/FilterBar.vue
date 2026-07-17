@@ -7,6 +7,7 @@
  * config drives both.
  */
 import { computed, ref, useTemplateRef } from 'vue'
+import { useRoute } from 'vue-router'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiDropdown from '@/components/ui/UiDropdown.vue'
@@ -25,6 +26,9 @@ const emit = defineEmits<{
   clearField: [fieldKey: string]
   clearAll: []
 }>()
+
+// TEMPORARY §8.5 specimen switch (?spec=negation) — the issue-349 NOT-pill ruling; delete after
+const specNegation = useRoute().query.spec === 'negation'
 
 const open = ref(false)
 const editKey = ref<string | null>(null)
@@ -111,6 +115,24 @@ function onKeydown(e: KeyboardEvent) {
         >×</span
       >
     </button>
+
+    <!-- TEMPORARY specimen pair (?spec=negation): A = outline (framework7 fill/outline duality —
+         hollow body reads "excluded"), B = Kibana red-tint (alarm fill). Static demo pills for
+         the issue-349 ruling; the winner ships with real semantics + its own tokens. -->
+    <template v-if="specNegation">
+      <button class="fpill spec-not-a" type="button">
+        <span class="fpill-field">namespace</span>
+        <span class="fpill-op">is not</span>
+        <span class="fpill-vals">kube-system</span>
+        <span class="fpill-x" role="button" aria-label="Clear specimen">×</span>
+      </button>
+      <button class="fpill spec-not-b" type="button">
+        <span class="fpill-field">namespace</span>
+        <span class="fpill-op">is not</span>
+        <span class="fpill-vals">kube-system</span>
+        <span class="fpill-x" role="button" aria-label="Clear specimen">×</span>
+      </button>
+    </template>
 
     <UiDropdown v-model:open="open" @closed="onClosed">
       <template #trigger>
@@ -251,6 +273,31 @@ function onKeydown(e: KeyboardEvent) {
 .fpill-x:hover {
   background: var(--fpill-x-hover-bg);
   color: var(--coral-text);
+}
+/* TEMPORARY specimen styles (?spec=negation) — delete with the ruling.
+   A: outline — the include pill is FILLED (card on beige), the exclude pill is HOLLOW; the
+   operator word carries the weight instead of the tint. */
+.spec-not-a {
+  background: transparent;
+  border: 1.5px solid var(--fpill-line);
+  box-shadow: none;
+}
+.spec-not-a .fpill-op {
+  color: var(--ink);
+  font-weight: 600;
+}
+/* B: Kibana register — negation speaks in the alarm tint (borrowing the critical ramp for the
+   specimen only; the winner mints its own tokens). */
+.spec-not-b {
+  background: var(--sev-critical-bg);
+  border: 1px solid var(--sev-critical-line);
+}
+.spec-not-b .fpill-op {
+  color: var(--sev-critical-fg);
+  font-weight: 600;
+}
+.spec-not-b .fpill-vals {
+  color: var(--sev-critical-fg);
 }
 .add-filter {
   display: inline-flex;
