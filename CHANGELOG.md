@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.3.11](https://github.com/Danube-Labs/javv-poc/compare/v0.3.10...v0.3.11) (2026-07-17)
+
+
+### Features
+
+* **backend:** per-cluster findings-cleanup window — override doc + per-tenant sweep ([#437](https://github.com/Danube-Labs/javv-poc/issues/437)) ([c82a57e](https://github.com/Danube-Labs/javv-poc/commit/c82a57ee6495e111109252a8baf2a2e054f3a1fc)), closes [#431](https://github.com/Danube-Labs/javv-poc/issues/431)
+* **fe:** cluster rides the url — global ?cluster= deep links (issue 433) ([#438](https://github.com/Danube-Labs/javv-poc/issues/438)) ([239b827](https://github.com/Danube-Labs/javv-poc/commit/239b82769a1a5ca3e3747ab4989e1f183100b12b)), closes [#433](https://github.com/Danube-Labs/javv-poc/issues/433)
+* **ui:** cve detail refresh — wide layout, transposed evidence, kit cards ([#434](https://github.com/Danube-Labs/javv-poc/issues/434)) ([#439](https://github.com/Danube-Labs/javv-poc/issues/439)) ([ed584f9](https://github.com/Danube-Labs/javv-poc/commit/ed584f97b80db8b410bb50a47a9d08a5ad0ad3a2))
+* **ui:** overview drops the duplicate scan-activity card for top-components + riskiest-images ([#426](https://github.com/Danube-Labs/javv-poc/issues/426)) ([f258a6d](https://github.com/Danube-Labs/javv-poc/commit/f258a6df1441dcf27067e2ba59c926a317b8a237))
+* **ui:** section identity accents, scanner identity dots, slate table-head band ([#428](https://github.com/Danube-Labs/javv-poc/issues/428)) ([3aa68de](https://github.com/Danube-Labs/javv-poc/commit/3aa68decf41f680ba9fe3d415fc0127d5d68756f))
+
+
+### Bug Fixes
+
+* **fe:** clear grid rows on cluster/T switch — stale-tenant rows lingered under slow networks ([#436](https://github.com/Danube-Labs/javv-poc/issues/436)) ([a39863f](https://github.com/Danube-Labs/javv-poc/commit/a39863ffd6115fbb84a58e582f049ce3d7db37c5)), closes [#431](https://github.com/Danube-Labs/javv-poc/issues/431)
+
 ## [0.3.10](https://github.com/Danube-Labs/javv-poc/compare/v0.3.9...v0.3.10) (2026-07-16)
 
 
