@@ -62,7 +62,9 @@ filters.fromQuery(route.query)
 // reads while that flag is on (the computed tracks the store)
 const filterGlobals = () => ({ ...withGlobals(), window_days: timeTravel.windowDays })
 const facetsQuery = computed(() =>
-  clusterStore.selectedId ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, filterGlobals()) : null,
+  clusterStore.selectedId
+    ? buildFilterQuery(FINDINGS_FIELDS, filters.selections, filterGlobals(), filters.modes)
+    : null,
 )
 
 async function loadFacets(q: typeof facetsQuery.value) {
@@ -95,12 +97,13 @@ watch(
 
 const rowsQuery = computed(() =>
   clusterStore.selectedId
-    ? buildFindingsQuery(FINDINGS_FIELDS, filters.selections, filterGlobals(), {
-        sort: grid.sort,
-        order: grid.order,
-        size: grid.size,
-        cursor: grid.activeCursor,
-      })
+    ? buildFindingsQuery(
+        FINDINGS_FIELDS,
+        filters.selections,
+        filterGlobals(),
+        { sort: grid.sort, order: grid.order, size: grid.size, cursor: grid.activeCursor },
+        filters.modes,
+      )
     : null,
 )
 
@@ -275,20 +278,25 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
           <FilterBar
             :fields="FINDINGS_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :facets="facets"
             @toggle="filters.toggle"
             @set-text="filters.setText"
+            @set-mode="filters.setMode"
+            @toggle-mode="filters.toggleMode"
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
           />
           <ExportDialog
             :fields="FINDINGS_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :historical="timeTravel.t !== null"
           />
           <BulkTriageBar
             :fields="FINDINGS_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :total="grid.total"
             :can-triage="auth.hasCapability('can_triage')"
             :can-accept-final="auth.hasCapability('can_accept_audit_final')"

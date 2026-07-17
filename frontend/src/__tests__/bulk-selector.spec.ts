@@ -12,6 +12,12 @@ function sel(over: Record<string, string[]> = {}) {
 }
 
 describe('lensToSelector (bulk never widens the lens)', () => {
+  it('blocks on an excluded field (issue 349) — the selector has no exclude side', () => {
+    const r = lensToSelector(FINDINGS_FIELDS, sel({ severity: ['low'] }), { severity: 'not' })
+    expect(r.selector).toBeNull()
+    expect(r.blocked).toMatch(/Severity \(excluded\)/)
+  })
+
   it('maps single-value severity/state/assignee to the selector', () => {
     const r = lensToSelector(FINDINGS_FIELDS, sel({ severity: ['critical'], state: ['open'], assignee: ['admin'] }))
     expect(r.blocked).toBeNull()

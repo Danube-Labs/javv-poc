@@ -23,6 +23,7 @@ import { useClusterStore } from '@/stores/cluster'
 const props = defineProps<{
   fields: readonly FilterField[]
   selections: Record<string, string[]>
+  modes?: Record<string, 'is' | 'not'>
   total: number
   canTriage: boolean
   canAcceptFinal: boolean
@@ -40,7 +41,7 @@ const submitting = ref(false)
 const error = ref<string | null>(null)
 const done = ref<number | null>(null)
 
-const lens = computed(() => lensToSelector(props.fields, props.selections))
+const lens = computed(() => lensToSelector(props.fields, props.selections, props.modes ?? {}))
 const selectorChips = computed(() =>
   lens.value.selector ? Object.entries(lens.value.selector) : [],
 )

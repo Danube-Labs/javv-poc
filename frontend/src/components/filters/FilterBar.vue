@@ -7,28 +7,45 @@
  * config drives both.
  */
 import { computed, ref, useTemplateRef } from 'vue'
-import { useRoute } from 'vue-router'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiDropdown from '@/components/ui/UiDropdown.vue'
+import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { facetItems, type FacetsResponse } from '@/filters/facets'
 import type { FilterField, Selections } from '@/filters/fields.config'
+import type { FilterMode, Modes } from '@/stores/filters'
 
 const props = defineProps<{
   fields: readonly FilterField[]
   selections: Selections
+  modes?: Modes
   facets: FacetsResponse
 }>()
 
 const emit = defineEmits<{
   toggle: [fieldKey: string, value: string]
   setText: [fieldKey: string, value: string]
+  setMode: [fieldKey: string, mode: FilterMode]
+  toggleMode: [fieldKey: string]
   clearField: [fieldKey: string]
   clearAll: []
 }>()
 
-// TEMPORARY §8.5 specimen switch (?spec=negation) — the issue-349 NOT-pill ruling; delete after
-const specNegation = useRoute().query.spec === 'negation'
+const MODE_OPTIONS = [
+  { value: 'is', label: 'is' },
+  { value: 'not', label: 'is not' },
+] as const
+
+function modeOf(fieldKey: string): FilterMode {
+  return props.modes?.[fieldKey] ?? 'is'
+}
+function negatable(field: FilterField): boolean {
+  return field.type === 'terms' && field.negatable === true
+}
+function opText(field: FilterField): string {
+  const many = (props.selections[field.key] ?? []).length > 1
+  return modeOf(field.key) === 'not' ? (many ? 'is none of' : 'is not') : many ? 'is one of' : 'is'
+}
 
 const open = ref(false)
 const editKey = ref<string | null>(null)
@@ -103,9 +120,26 @@ function onKeydown(e: KeyboardEvent) {
 
 <template>
   <div ref="wrap" class="filter-bar" @keydown="onKeydown">
-    <button v-for="f in active" :key="f.key" class="fpill" @click="openField(f.key)">
+    <button
+      v-for="f in active"
+      :key="f.key"
+      class="fpill"
+      :class="{ 'fpill-not': modeOf(f.key) === 'not' }"
+      @click="openField(f.key)"
+    >
       <span class="fpill-field">{{ f.label }}</span>
-      <span class="fpill-op">{{ (selections[f.key] ?? []).length > 1 ? 'is one of' : 'is' }}</span>
+      <!-- ruled NOT-pill (issue 349, operator 2026-07-17): hollow body, ONLY the op words in
+           red; on a negatable field the op word is the include⇄exclude toggle -->
+      <span
+        v-if="negatable(f)"
+        class="fpill-op fpill-op-btn"
+        role="button"
+        :aria-label="`Switch to ${modeOf(f.key) === 'not' ? 'include' : 'exclude'}`"
+        :title="modeOf(f.key) === 'not' ? 'Click to include' : 'Click to exclude'"
+        @click.stop="emit('toggleMode', f.key)"
+        >{{ opText(f) }}</span
+      >
+      <span v-else class="fpill-op">{{ opText(f) }}</span>
       <span class="fpill-vals">{{ pillText(f) }}</span>
       <span
         class="fpill-x"
@@ -115,24 +149,6 @@ function onKeydown(e: KeyboardEvent) {
         >×</span
       >
     </button>
-
-    <!-- TEMPORARY specimen pair (?spec=negation): A = outline (framework7 fill/outline duality —
-         hollow body reads "excluded"), B = red-tint (alarm fill). Static demo pills for
-         the issue-349 ruling; the winner ships with real semantics + its own tokens. -->
-    <template v-if="specNegation">
-      <button class="fpill spec-not-a" type="button">
-        <span class="fpill-field">namespace</span>
-        <span class="fpill-op">is not</span>
-        <span class="fpill-vals">kube-system</span>
-        <span class="fpill-x" role="button" aria-label="Clear specimen">×</span>
-      </button>
-      <button class="fpill spec-not-b" type="button">
-        <span class="fpill-field">namespace</span>
-        <span class="fpill-op">is not</span>
-        <span class="fpill-vals">kube-system</span>
-        <span class="fpill-x" role="button" aria-label="Clear specimen">×</span>
-      </button>
-    </template>
 
     <UiDropdown v-model:open="open" @closed="onClosed">
       <template #trigger>
@@ -161,6 +177,14 @@ function onKeydown(e: KeyboardEvent) {
           <button class="filter-back" @click="editKey = null">
             <AppIcon name="arrowback" :size="13" />{{ editField.label }}
           </button>
+
+          <div v-if="negatable(editField)" class="filter-mode">
+            <UiSegControl
+              :options="MODE_OPTIONS"
+              :model-value="modeOf(editField.key)"
+              @update:model-value="(m) => emit('setMode', editField!.key, m)"
+            />
+          </div>
 
           <template v-if="editItems">
             <div v-if="editItems.length > 8 || valueQuery" class="filter-vsearch">
@@ -274,32 +298,29 @@ function onKeydown(e: KeyboardEvent) {
   background: var(--fpill-x-hover-bg);
   color: var(--coral-text);
 }
-/* TEMPORARY specimen styles (?spec=negation) — delete with the ruling.
-   A: outline — the include pill is FILLED (card on beige), the exclude pill is HOLLOW; the
-   operator word carries the weight instead of the tint. */
-.spec-not-a {
+/* the NOT-pill (issue 349, ruled 2026-07-17 on built specimens): the include pill is FILLED
+   (card on beige), the exclude pill is HOLLOW — fill/outline duality — and ONLY the op words
+   carry the red; the rest of the pill stays in the quiet register */
+.fpill-not {
   background: transparent;
   border: 1.5px solid var(--fpill-line);
   box-shadow: none;
 }
-/* ruled (operator 2026-07-17): hollow body + ONLY the op words in red — the pop lives in
-   "is not", the pill stays quiet */
-.spec-not-a .fpill-op {
-  color: var(--sev-critical-fg);
+.fpill-not .fpill-op {
+  color: var(--fpill-not-op);
   font-weight: 600;
 }
-/* B: alarm register — negation speaks in the alarm tint (borrowing the critical ramp for the
-   specimen only; the winner mints its own tokens). */
-.spec-not-b {
-  background: var(--sev-critical-bg);
-  border: 1px solid var(--sev-critical-line);
+/* the op word doubles as the include⇄exclude toggle on negatable fields */
+.fpill-op-btn {
+  border-radius: 4px;
+  padding: 1px 3px;
+  margin: -1px -3px;
 }
-.spec-not-b .fpill-op {
-  color: var(--sev-critical-fg);
-  font-weight: 600;
+.fpill-op-btn:hover {
+  background: var(--fpill-x-hover-bg);
 }
-.spec-not-b .fpill-vals {
-  color: var(--sev-critical-fg);
+.filter-mode {
+  padding: 8px 10px 2px;
 }
 .add-filter {
   display: inline-flex;

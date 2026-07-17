@@ -10,6 +10,7 @@
  */
 import { buildFilterQuery, type FilterGlobals, type FilterQuery } from '@/filters/buildFilterQuery'
 import type { FilterField, Selections } from '@/filters/fields.config'
+import type { Modes } from '@/stores/filters'
 
 export const SORT_FIELDS = ['severity_rank', 'first_seen_at', 'last_scan_at', 'cvss', 'epss'] as const
 export type SortField = (typeof SORT_FIELDS)[number]
@@ -27,11 +28,12 @@ export function buildFindingsQuery(
   selections: Selections,
   globals: FilterGlobals,
   grid: GridState,
+  modes: Modes = {},
 ): FilterQuery {
   if (!SORT_FIELDS.includes(grid.sort)) {
     throw new Error(`buildFindingsQuery: sort must be one of ${SORT_FIELDS.join(', ')}`)
   }
-  const query = buildFilterQuery(fields, selections, globals)
+  const query = buildFilterQuery(fields, selections, globals, modes)
   query.present = true
   query.sort = grid.sort
   query.order = grid.order

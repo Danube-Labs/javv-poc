@@ -29,6 +29,7 @@ import { useToastStore } from '@/stores/toast'
 const props = defineProps<{
   fields: readonly FilterField[]
   selections: Record<string, string[]>
+  modes?: Record<string, 'is' | 'not'>
   historical: boolean
 }>()
 const clusterStore = useClusterStore()
@@ -58,10 +59,12 @@ let poll: ReturnType<typeof setInterval> | null = null
 
 const timeTravel = useTimeTravelStore()
 const lensQuery = computed(() =>
-  buildFilterQuery(props.fields, props.selections, {
-    ...withGlobals(),
-    window_days: timeTravel.windowDays,
-  }),
+  buildFilterQuery(
+    props.fields,
+    props.selections,
+    { ...withGlobals(), window_days: timeTravel.windowDays },
+    props.modes ?? {},
+  ),
 )
 /** A lens key the schedule contract can't represent BLOCKS scheduling — never silently
  * widens the export past what's on screen (audit F-07). */

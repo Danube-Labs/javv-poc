@@ -79,6 +79,20 @@ describe('buildFilterQuery', () => {
     ).toThrow(/window_days/)
   })
 
+  it('negation (issue 349): a not-mode terms field emits its exclude_* mirror param', () => {
+    const q = buildFilterQuery(
+      FINDINGS_FIELDS,
+      sel({ severity: ['LOW', 'negligible'], namespace: ['kube-system'], state: ['open'] }),
+      { cluster_id: CID },
+      { severity: 'not', namespace: 'not' },
+    )
+    expect(q.exclude_severity).toEqual(['low', 'negligible']) // lowercased like the include side
+    expect(q.exclude_namespace).toBe('kube-system')
+    expect(q.state).toEqual(['open']) // is-mode fields keep their include param
+    expect(q).not.toHaveProperty('severity')
+    expect(q).not.toHaveProperty('namespace')
+  })
+
   it('drives entirely off the config: a new field needs no builder change', () => {
     const fields: FilterField[] = [
       ...FINDINGS_FIELDS,
