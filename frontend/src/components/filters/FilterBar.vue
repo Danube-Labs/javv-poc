@@ -198,10 +198,13 @@ function onKeydown(e: KeyboardEvent) {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  /* control register (operator, 2026-07-17): the band's controls share one height — the
+     28px pills read as undersized next to every neighboring control */
+  height: 38px;
   background: var(--card);
   border: 1px solid var(--fpill-line);
   border-radius: var(--r-sm);
-  padding: 5px 6px 5px 10px;
+  padding: 0 6px 0 10px;
   font-size: var(--text-control);
   color: var(--ink);
   box-shadow: var(--shadow);
@@ -253,11 +256,12 @@ function onKeydown(e: KeyboardEvent) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: 38px; /* same register as .fpill — see above */
   border: 1px dashed var(--add-filter-line);
   background: var(--card);
   color: var(--ink);
   border-radius: var(--r-sm);
-  padding: 6px 11px;
+  padding: 0 12px;
   font-size: var(--text-control);
   font-weight: 500;
   cursor: default;

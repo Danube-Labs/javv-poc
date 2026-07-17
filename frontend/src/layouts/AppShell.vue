@@ -139,7 +139,7 @@ onUnmounted(() => {
             <AppIcon name="bell" :size="17" />
           </button>
           <span class="avatar" :title="auth.user?.username">{{ initials }}</span>
-          <button class="logout" @click="logout">Sign out</button>
+          <UiButton variant="control" @click="logout">Sign out</UiButton>
         </div>
       </header>
 
@@ -214,23 +214,26 @@ onUnmounted(() => {
   align-items: center;
   gap: 14px;
 }
+/* topbar control register (operator, 2026-07-17): one 40px height across cluster switcher /
+   time picker / search; --panel on the white topbar read as "old" and its row-hover wash was
+   invisible — the search sits on the warm canvas (--bg) with the REAL control wash on hover */
 .global-search {
   display: flex;
   align-items: center;
   gap: 8px;
+  height: 40px;
   border: 1px solid var(--line);
-  background: var(--panel);
+  background: var(--bg);
   border-radius: 10px;
-  padding: 6px 10px;
+  padding: 0 12px;
   color: var(--soft);
-  width: 230px;
+  width: 240px;
   font-family: var(--font-ui);
   cursor: default;
 }
 .global-search:hover {
-  background: var(--row-hover);
-  border-color: var(--line2);
-  color: var(--ink);
+  background: var(--control-hover-bg);
+  border-color: var(--control-hover-line);
 }
 .global-search:active {
   background: var(--line2);
@@ -238,6 +241,7 @@ onUnmounted(() => {
 .gs-hint {
   flex: 1;
   text-align: left;
+  color: var(--ink);
   font-size: var(--text-control);
   overflow: hidden;
   white-space: nowrap;
@@ -246,6 +250,7 @@ onUnmounted(() => {
 .global-search kbd {
   font-family: var(--font-mono);
   font-size: var(--text-facet-label);
+  background: var(--card);
   border: 1px solid var(--line2);
   border-radius: var(--r-chip);
   padding: 1px 5px;
@@ -276,16 +281,6 @@ onUnmounted(() => {
   color: var(--side-brand-fg);
   font-size: var(--text-sm);
   font-weight: 600;
-}
-.logout {
-  border: none;
-  background: none;
-  color: var(--soft);
-  font-size: var(--text-sm);
-  cursor: default;
-}
-.logout:hover {
-  color: var(--coral-text);
 }
 /* router-link wrapper inside the cold-start action row — the button carries the affordance */
 .es-link {

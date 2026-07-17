@@ -205,9 +205,11 @@ function backToNow() {
   display: flex;
   align-items: center;
   gap: 7px;
+  /* topbar control register (operator, 2026-07-17): same 40px height as the cluster switcher */
+  height: 40px;
   border: 1px solid var(--line);
-  border-radius: 9px;
-  padding: 7px 11px;
+  border-radius: 10px;
+  padding: 0 12px;
   color: var(--ink); /* primary control text — never washy soft-on-panel */
   font-size: var(--text-dd-item);
   background: var(--panel);
@@ -215,6 +217,7 @@ function backToNow() {
   cursor: default;
 }
 .time-range:hover {
+  background: var(--control-hover-bg); /* wash + border — border-only hover is invisible */
   border-color: var(--control-hover-line);
 }
 .time-range:focus-visible {
