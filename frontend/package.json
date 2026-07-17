@@ -17,6 +17,7 @@
     "test": "run-s type-check \"test:unit -- --run\"",
     "test:ci": "run-s type-check \"test:unit -- --run --coverage\"",
     "smoke": "node scripts/ci-smoke.mjs",
+    "test:e2e": "playwright test",
     "gen:api": "openapi-ts"
   },
   "dependencies": {
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "^0.99.0",
+    "@playwright/test": "^1.61.1",
     "@tsconfig/node24": "^24.0.4",
     "@types/jsdom": "^28.0.3",
     "@types/node": "^24.13.2",

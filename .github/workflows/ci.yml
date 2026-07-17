@@ -411,6 +411,15 @@ jobs:
           JAVV_PASS: ci-smoke-rotated-pw
         run: node scripts/ci-smoke.mjs --core-loop
 
+      - name: E2E smoke suite (login, triage round-trip, degraded banner, server-side paging)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: frontend
+        env:
+          JAVV_BASE: http://localhost:4173
+          JAVV_USER: admin
+          JAVV_PASS: ci-smoke-rotated-pw
+        run: npx playwright test
+
       - name: Backend log on failure
         if: failure() && steps.detect.outputs.present == 'true'
         run: tail -100 /tmp/backend.log
