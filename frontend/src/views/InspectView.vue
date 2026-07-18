@@ -11,6 +11,7 @@ import { computed, onMounted, ref } from 'vue'
 import { client } from '@/api/client'
 import { inspectStoreApiV1AdminOpensearchInspectPost } from '@/api/generated'
 import InspectRail from '@/components/system/InspectRail.vue'
+import RepairActionsCard from '@/components/system/RepairActionsCard.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
@@ -230,11 +231,13 @@ const budgetPct = computed(() =>
         </div>
 
         <p class="journal-note">
-          <b>journaled</b> Every executed query appends a system-audit-log entry — actor, path,
-          query hash. This console reads every tenant's rows; the trail is non-negotiable.
+          <b>recorded</b> Every query you run here lands in the audit log — who ran it, against
+          what, and when. Nothing on this page is anonymous.
         </p>
       </section>
     </div>
+
+    <RepairActionsCard />
   </div>
 </template>
 
@@ -500,7 +503,7 @@ const budgetPct = computed(() =>
   padding: 10px 16px;
   border-top: 1px solid var(--line2);
   color: var(--soft);
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
 }
 .journal-note b {
   font-family: var(--font-mono);
