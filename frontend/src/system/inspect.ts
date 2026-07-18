@@ -80,6 +80,23 @@ export function fmtBytes(n: number): string {
   return `${n} B`
 }
 
+/** a finished job's count summary → one meta line: nested rebuild sections flatten to
+ * "decisions.projected 4 · presence.rebuilt 66 · …", flat sweeps to "staled 0 · reverted 2" */
+export function fmtJobResult(result: Record<string, unknown> | null | undefined): string {
+  if (!result) return ''
+  const parts: string[] = []
+  for (const [key, value] of Object.entries(result)) {
+    if (value !== null && typeof value === 'object') {
+      for (const [inner, n] of Object.entries(value as Record<string, unknown>)) {
+        parts.push(`${key}.${inner} ${n}`)
+      }
+    } else {
+      parts.push(`${key} ${value}`)
+    }
+  }
+  return parts.join(' · ')
+}
+
 /** total store bytes from `_cat/indices` rows (pri.store.size strings like "1.2gb") */
 export function totalStoreBytes(rows: CatIndexRow[]): number {
   const UNIT: Record<string, number> = { b: 1, kb: 1024, mb: 1024 ** 2, gb: 1024 ** 3, tb: 1024 ** 4 }

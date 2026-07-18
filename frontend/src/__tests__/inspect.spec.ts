@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { fmtBytes, fmtDocs, groupIndices, totalStoreBytes } from '@/system/inspect'
+import { fmtBytes, fmtDocs, fmtJobResult, groupIndices, totalStoreBytes } from '@/system/inspect'
 
 const rows = [
   // real corpus names (INDEX-MAP): rollover-suffixed per-cluster append indices
@@ -59,6 +59,14 @@ describe('formatting', () => {
     expect(fmtBytes(612 * 1024)).toBe('612 KB')
     expect(fmtBytes(2 * 1024 * 1024)).toBe('2 MB')
     expect(fmtBytes(2.26 * 1024 ** 3)).toBe('2.3 GB')
+  })
+
+  it('fmtJobResult renders flat and nested count summaries', () => {
+    expect(fmtJobResult({ staled: 0, reverted: 2 })).toBe('staled 0 · reverted 2')
+    expect(fmtJobResult({ presence: { rebuilt: 66 }, rolled: 1 })).toBe(
+      'presence.rebuilt 66 · rolled 1',
+    )
+    expect(fmtJobResult(null)).toBe('')
   })
 
   it('totalStoreBytes sums _cat size strings', () => {

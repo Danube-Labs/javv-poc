@@ -11,6 +11,7 @@ import { computed, onMounted, ref } from 'vue'
 import { client } from '@/api/client'
 import { inspectStoreApiV1AdminOpensearchInspectPost } from '@/api/generated'
 import InspectRail from '@/components/system/InspectRail.vue'
+import RepairActionsCard from '@/components/system/RepairActionsCard.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
@@ -235,6 +236,8 @@ const budgetPct = computed(() =>
         </p>
       </section>
     </div>
+
+    <RepairActionsCard />
   </div>
 </template>
 
