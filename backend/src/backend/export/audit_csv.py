@@ -14,8 +14,12 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.core.settings import get_settings
 from backend.export.csv_stream import csv_line
-from backend.query.audit import AuditFilters, build_audit_body, decorate_rows
-from backend.tenancy.chokepoint import tenant_query
+from backend.query.audit import (
+    AuditFilters,
+    audit_tenant_query,
+    build_audit_body,
+    decorate_rows,
+)
 
 _PATTERN = "system-audit-log-*"
 _PAGE_SIZE = 500
@@ -73,7 +77,7 @@ async def count_audit_lens(
     body = build_audit_body(filters, size=0)
     del body["track_total_hits"]
     del body["sort"]
-    body = tenant_query(cluster_id, body)
+    body = audit_tenant_query(cluster_id, body)
     resp = await client.count(index=f"{prefix}{_PATTERN}", body={"query": body["query"]})
     return int(resp["count"])
 
@@ -95,7 +99,7 @@ async def stream_audit_csv(
         search_after: list[Any] | None = None
         while True:
             body = build_audit_body(filters, size=_PAGE_SIZE, search_after=search_after)
-            body = tenant_query(cluster_id, body)
+            body = audit_tenant_query(cluster_id, body)
             body["pit"] = {"id": pit_id, "keep_alive": keep_alive}
             resp = await client.search(body=body)
             hits = resp["hits"]["hits"]

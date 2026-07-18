@@ -14,7 +14,7 @@ import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.audit.writer import append_field_change
+from backend.audit.writer import append_auth_event, append_field_change
 from backend.auth.passwords import hash_password
 from backend.core.settings import get_settings
 from backend.main import create_app
@@ -100,16 +100,19 @@ async def test_requires_a_session(env) -> None:
 
 
 async def test_rows_come_back_ordered_filtered_and_tenant_scoped(env) -> None:
+    # NB (fleet seam, issue 406): the shared log now also serves cluster-LESS fleet rows to
+    # every tenant read, so assertions scope through per-test actors, never bare totals.
     http, client = env
     cid, other = (f"c-audit-{uuid.uuid4().hex[:8]}" for _ in range(2))
-    await _journal(client, cid, n=3, action="assign")
-    await _journal(client, cid, n=2, actor="u-audit-other", action="note")
-    await _journal(client, other, n=4)  # the other tenant's rows must never appear
+    mine, second, theirs = (f"u-audit-{uuid.uuid4().hex[:8]}" for _ in range(3))
+    await _journal(client, cid, n=3, action="assign", actor=mine)
+    await _journal(client, cid, n=2, actor=second, action="note")
+    await _journal(client, other, n=4, actor=theirs)  # the other tenant's rows must never appear
 
-    r = await http.get("/api/v1/audit", params={"cluster_id": cid})
+    r = await http.get("/api/v1/audit", params={"cluster_id": cid, "actor": mine})
     assert r.status_code == 200
     body = r.json()
-    assert body["total"]["value"] == 5  # tenant-scoped: the other cluster's 4 rows are invisible
+    assert body["total"]["value"] == 3
     assert all(row["cluster_id"] == cid for row in body["data"])
     # DoD: ordered by the (@timestamp, event_id) pair — desc default, verified as sort keys.
     # OpenSearch compares dates at MILLISECOND precision (the store truncates); _source keeps
@@ -117,23 +120,29 @@ async def test_rows_come_back_ordered_filtered_and_tenant_scoped(env) -> None:
     keys = [(row["@timestamp"][:23], row["event_id"]) for row in body["data"]]
     assert keys == sorted(keys, reverse=True)
 
-    r = await http.get("/api/v1/audit", params={"cluster_id": cid, "action": "note"})
+    r = await http.get(
+        "/api/v1/audit", params={"cluster_id": cid, "action": "note", "actor": second}
+    )
     assert [row["action"] for row in r.json()["data"]] == ["note", "note"]
-    r = await http.get("/api/v1/audit", params={"cluster_id": cid, "actor": "u-audit-other"})
-    assert r.json()["total"]["value"] == 2
-    r = await http.get("/api/v1/audit", params={"cluster_id": cid, "entity_type": "decision"})
+    # tenant scope: the other cluster's rows are invisible under cid even by their own actor
+    r = await http.get("/api/v1/audit", params={"cluster_id": cid, "actor": theirs})
+    assert r.json()["total"]["value"] == 0
+    r = await http.get(
+        "/api/v1/audit", params={"cluster_id": cid, "entity_type": "decision", "actor": mine}
+    )
     assert r.json()["data"] == [] and r.json()["total"]["value"] == 0
 
 
 async def test_cursor_walk_covers_the_log_without_gaps_or_duplicates(env) -> None:
     http, client = env
     cid = f"c-audit-{uuid.uuid4().hex[:8]}"
-    await _journal(client, cid, n=5)
+    walk_actor = f"u-walk-{uuid.uuid4().hex[:8]}"  # fleet seam: scope the walk to this test's rows
+    await _journal(client, cid, n=5, actor=walk_actor)
 
     seen: list[str] = []
     cursor: str | None = None
     for _ in range(10):  # 5 rows at size 2 → 3 pages; bound the loop against a paging bug
-        params: dict[str, Any] = {"cluster_id": cid, "size": 2, "order": "asc"}
+        params: dict[str, Any] = {"cluster_id": cid, "size": 2, "order": "asc", "actor": walk_actor}
         if cursor is not None:
             params["cursor"] = cursor
         r = await http.get("/api/v1/audit", params=params)
@@ -153,8 +162,10 @@ async def test_a_m1_cursor_and_order_semantics(env) -> None:
     assert r.status_code == 422  # tampered/undecodable cursor — never a 500
     r = await http.get("/api/v1/audit", params={"cluster_id": cid, "order": "up"})
     assert r.status_code == 422
-    # an empty tenant is a real answer, not an error
-    r = await http.get("/api/v1/audit", params={"cluster_id": cid})
+    # an empty lens is a real answer, not an error (actor-scoped — fleet rows share the log)
+    r = await http.get(
+        "/api/v1/audit", params={"cluster_id": cid, "actor": f"u-nobody-{uuid.uuid4().hex[:8]}"}
+    )
     assert r.status_code == 200 and r.json()["data"] == []
 
 
@@ -187,21 +198,54 @@ async def test_facets_count_the_rail_dims_tenant_scoped(env) -> None:
     # M9d rework: the rail needs honest server counts (entity_type/action/actor terms aggs)
     http, client = env
     cid, other = (f"c-audit-{uuid.uuid4().hex[:8]}" for _ in range(2))
-    await _journal(client, cid, n=3, action="assign", actor="u-facet-a")
-    await _journal(client, cid, n=2, action="note", actor="u-facet-b")
-    await _journal(client, other, n=7, action="assign")  # invisible to cid
+    facet_a, facet_b, theirs = (f"u-facet-{uuid.uuid4().hex[:8]}" for _ in range(3))
+    await _journal(client, cid, n=3, action="assign", actor=facet_a)
+    await _journal(client, cid, n=2, action="note", actor=facet_b)
+    await _journal(client, other, n=7, action="assign", actor=theirs)  # invisible to cid
 
-    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid})
+    # fleet seam (issue 406): the shared log serves cluster-less rows to every read and the
+    # rail aggs are top-N capped — so counts are asserted through the per-test actor lens
+    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid, "actor": facet_a})
     assert r.status_code == 200
-    facets = r.json()["facets"]
-    as_map = {f: {b["key"]: b["count"] for b in buckets} for f, buckets in facets.items()}
-    assert as_map["action"] == {"assign": 3, "note": 2}
-    assert as_map["actor"] == {"u-facet-a": 3, "u-facet-b": 2}
-    assert as_map["entity_type"] == {"finding": 5}
-
+    as_map = {b["key"]: b["count"] for b in r.json()["facets"]["action"]}
+    assert as_map == {"assign": 3}
     # facets honor the active filters (counts describe the OTHER dims of the current lens)
-    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid, "action": "note"})
-    assert {b["key"]: b["count"] for b in r.json()["facets"]["actor"]} == {"u-facet-b": 2}
+    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid, "actor": facet_b})
+    assert {b["key"]: b["count"] for b in r.json()["facets"]["action"]} == {"note": 2}
+    # tenant guard: the other cluster's actor is invisible under cid
+    r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid, "actor": theirs})
+    assert r.json()["facets"]["action"] == []
+
+
+async def test_fleet_events_are_visible_under_any_cluster(env) -> None:
+    # the operator catch (issue 406, 2026-07-18): auth/admin/inspect/job rows carry NO
+    # cluster_id — the plain tenant term filter hid them from the screen entirely. The
+    # widened audit guard keeps them visible under every cluster context; other tenants'
+    # CLUSTER rows stay invisible (asserted in the tenant-scope test above).
+    http, client = env
+    actor = f"u-fleet-{uuid.uuid4().hex[:8]}"
+    await append_auth_event(
+        client,
+        actor=actor,
+        action="job_trigger",
+        entity_type="job",
+        entity_id="staleness_sweep attempt:test",
+        strict=True,
+    )
+    await client.indices.refresh(index="system-audit-log-*")
+
+    for cid in (f"c-audit-{uuid.uuid4().hex[:8]}", f"c-audit-{uuid.uuid4().hex[:8]}"):
+        r = await http.get("/api/v1/audit", params={"cluster_id": cid, "actor": actor})
+        assert r.status_code == 200
+        rows = r.json()["data"]
+        assert [row["action"] for row in rows] == ["job_trigger"]
+        assert rows[0].get("cluster_id") is None  # honestly fleet-scoped, no tenant claims it
+    # and the rail facet sees the fleet row too
+    r = await http.get(
+        "/api/v1/audit/facets",
+        params={"cluster_id": f"c-anywhere-{uuid.uuid4().hex[:8]}", "actor": actor},
+    )
+    assert {b["key"]: b["count"] for b in r.json()["facets"]["action"]} == {"job_trigger": 1}
 
 
 async def test_finding_rows_are_decorated_with_their_identity(env) -> None:
@@ -225,9 +269,12 @@ async def test_finding_rows_are_decorated_with_their_identity(env) -> None:
         },
         params={"refresh": "true"},
     )
-    await _journal(client, cid, n=2)  # row 0 → the doc above; row 1 → no finding doc exists
+    deco_actor = f"u-deco-{uuid.uuid4().hex[:8]}"
+    await _journal(client, cid, n=2, actor=deco_actor)  # row 0 → the doc; row 1 → no finding doc
 
-    r = await http.get("/api/v1/audit", params={"cluster_id": cid, "order": "asc"})
+    r = await http.get(
+        "/api/v1/audit", params={"cluster_id": cid, "order": "asc", "actor": deco_actor}
+    )
     rows = {row["entity_id"]: row for row in r.json()["data"]}
     deco = rows[fk]["finding"]
     assert deco["cve_id"] == "CVE-2024-0001"
@@ -256,11 +303,12 @@ async def test_facets_activity_histogram_buckets_the_window(env) -> None:
     # M9d lens: audit events over time under the current lens — server-side date_histogram
     http, client = env
     cid = f"c-audit-{uuid.uuid4().hex[:8]}"
-    await _journal(client, cid, n=3)
+    hist_actor = f"u-hist-{uuid.uuid4().hex[:8]}"
+    await _journal(client, cid, n=3, actor=hist_actor)
 
     r = await http.get(
         "/api/v1/audit/facets",
-        params={"cluster_id": cid, "interval": "day", "window_days": 7},
+        params={"cluster_id": cid, "interval": "day", "window_days": 7, "actor": hist_actor},
     )
     assert r.status_code == 200
     body = r.json()

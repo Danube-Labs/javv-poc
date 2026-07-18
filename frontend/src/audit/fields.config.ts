@@ -9,7 +9,7 @@
 import type { FilterField } from '@/filters/fields.config'
 
 /** entity_type vocabulary (D32): what kind of record the event touched. */
-export const AUDIT_ENTITY_TYPES = ['finding', 'decision', 'view', 'config', 'token', 'user'] as const
+export const AUDIT_ENTITY_TYPES = ['finding', 'decision', 'view', 'config', 'token', 'user', 'store', 'job'] as const
 
 /** action vocabulary (FR-7 verbs + auth/admin/config events), grouped triage-first. */
 export const AUDIT_ACTIONS = [
@@ -43,6 +43,9 @@ export const AUDIT_ACTIONS = [
   'user_disable',
   'token_mint',
   'token_revoke',
+  // data inspector + repair actions (issue 406, entity_type=store/job)
+  'store_inspect',
+  'job_trigger',
 ] as const
 
 export const AUDIT_FIELDS: readonly FilterField[] = [

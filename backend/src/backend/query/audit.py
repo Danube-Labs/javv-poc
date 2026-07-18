@@ -40,6 +40,24 @@ class AuditFilters:
     until: datetime | None = None  # D28: a rewound picker must not see post-T events (M9d)
 
 
+def audit_tenant_query(cluster_id: str, body: dict[str, Any]) -> dict[str, Any]:
+    """SEC-4 for the JOURNAL specifically (operator catch, 2026-07-18): the log holds two row
+    classes — cluster-scoped (triage, decisions) and FLEET-scoped (auth, user admin, store
+    inspect, job triggers — no cluster to belong to). The plain term guard silently hid the
+    whole fleet class from the audit screen. Still a structural, server-built guard: a row is
+    visible iff it is the selected tenant's OR carries no cluster_id at all (MVP tenancy is
+    all-clusters-visible, D38 — nothing here a session holder can't already see)."""
+    guarded = tenant_query(cluster_id, body)
+    term = guarded["query"]["bool"]["filter"][0]
+    guarded["query"]["bool"]["filter"][0] = {
+        "bool": {
+            "should": [term, {"bool": {"must_not": [{"exists": {"field": "cluster_id"}}]}}],
+            "minimum_should_match": 1,
+        }
+    }
+    return guarded
+
+
 def build_audit_body(
     filters: AuditFilters,
     *,
@@ -107,7 +125,7 @@ async def run_audit_search(
 
     opened_here = cursor is None
     body = build_audit_body(filters, size=size, order=order, search_after=search_after)
-    body = tenant_query(cluster_id, body)  # SEC-4 — the only guard on the index-less PIT path
+    body = audit_tenant_query(cluster_id, body)  # SEC-4 + the fleet-row seam (see the builder)
     body["pit"] = {"id": pit_id, "keep_alive": keep_alive}
     try:
         resp = await client.search(body=body)
