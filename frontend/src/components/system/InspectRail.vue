@@ -22,7 +22,7 @@ function entries(groups: RailGroups, key: keyof RailGroups): RailEntry[] {
 
 <template>
   <aside class="card rail" aria-label="Indices">
-    <h3>Indices</h3>
+    <h3 class="panel-band">Indices</h3>
     <p v-if="failed" class="load-error" role="alert">
       Index list unavailable — the console still works with a typed path.
     </p>
@@ -58,16 +58,25 @@ function entries(groups: RailGroups, key: keyof RailGroups): RailEntry[] {
   box-shadow: var(--shadow);
 }
 .rail {
-  padding: 14px 0 8px;
+  padding: 0 0 8px;
+  overflow: hidden;
 }
-.rail h3 {
-  font-size: var(--text-card-title);
-  font-weight: 600;
+/* the B2 slate table-head band (base.css .tbl thead ruling) as the card's title register */
+.panel-band {
   margin: 0;
-  padding: 0 16px 10px;
+  padding: 10px 16px;
+  background: var(--table-head-bg);
+  color: var(--table-head-fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-table-header);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 .rail-group:not(:empty) {
   padding: 8px 8px 4px;
+}
+.rail-group:not(:empty) ~ .rail-group:not(:empty) {
   border-top: 1px solid var(--line2);
 }
 .rail-group > span {

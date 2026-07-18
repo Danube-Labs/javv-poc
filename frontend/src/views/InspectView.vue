@@ -175,8 +175,8 @@ const budgetPct = computed(() =>
       />
 
       <section class="card console">
+        <h3 class="panel-band">Query</h3>
         <div class="console-head">
-          <h3>Query</h3>
           <UiSegControl v-model="method" :options="METHODS" aria-label="HTTP method" />
           <input
             v-model="path"
@@ -302,10 +302,17 @@ const budgetPct = computed(() =>
 }
 
 /* ---- console ---- */
-.console h3 {
-  font-size: var(--text-card-title);
-  font-weight: 600;
+/* the B2 slate table-head band as both cards' title register (operator, 2026-07-18) */
+.panel-band {
   margin: 0;
+  padding: 10px 16px;
+  background: var(--table-head-bg);
+  color: var(--table-head-fg);
+  font-family: var(--font-mono);
+  font-size: var(--text-table-header);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 .console {
   overflow: hidden;
@@ -314,10 +321,7 @@ const budgetPct = computed(() =>
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px 16px 12px;
-}
-.console-head h3 {
-  padding: 0;
+  padding: 12px 16px;
 }
 .pathbox {
   flex: 1;
