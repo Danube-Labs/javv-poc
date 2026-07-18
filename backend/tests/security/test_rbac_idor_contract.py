@@ -205,6 +205,15 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"cluster_name": "RBAC probe"},
     ),
+    MutatingEndpoint(  # issue 406 repair actions — per-KIND capability inside the handler
+        # (rebuild_state→can_rebuild_state, lifecycle_sweep→can_drop_index); the registry probes
+        # the staleness kind, the other kinds' gates are asserted in test_admin_jobs
+        method="POST",
+        path="/api/v1/admin/jobs/staleness_sweep/run",
+        route_path="/api/v1/admin/jobs/{kind}/run",
+        capability="can_manage_settings",
+        body={},
+    ),
     MutatingEndpoint(  # #406 — the data-inspector proxy: POST by transport but READ by contract;
         # the allowlist inside the handler is the write-prevention, the capability is the gate
         method="POST",

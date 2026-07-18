@@ -32,6 +32,7 @@
 | `system-notifications` | mutable | none | **no** | bounded delete (old/read) |
 | `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h) |
 | `system-report-chunks` | mutable | none | **no** | TTL sweep with its parent report |
+| `system-jobs` | mutable (repair-actions lease/status, issue 406) | none | **no** | none — bounded at one doc per job kind |
 
 **Time-travel horizon = per-cluster, "as far back as the data in OpenSearch allows"** - i.e. the oldest
 retained `javv-finding-occurrences-<cluster_id>-*` / `javv-images-<cluster_id>-*` window, paired with
@@ -349,7 +350,7 @@ expires_at        date          TTL
 revoked           boolean       revoke-on-role-change / logout-all
 ```
 
-### `system-config` · `system-tags` · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks`
+### `system-config` · `system-tags` · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks` · `system-jobs`
 ```
 # system-config        : SLA policy, rollover/retention/staleness knobs, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c)
 # system-tags          : { tag, kind: team|app|org, ... }
@@ -376,6 +377,13 @@ revoked           boolean       revoke-on-role-change / logout-all
 #                          slices) so a large export never exceeds http.max_content_length / bloats heap;
 #                          `data` is an {enabled:false} un-indexed _source field (never analysed). Written
 #                          under the drain's attempt_id; only the `done` attempt_id's chunks are canonical.
+# system-jobs           : { kind: rebuild_state|staleness_sweep|lifecycle_sweep, status:
+#                          idle|running|done|failed, requested_by, attempt_id, started_at,
+#                          finished_at, heartbeat_at, result {enabled:false}, error }   the repair-
+#                          actions surface (issue 406): _id = kind, so the index is bounded at #kinds
+#                          docs by construction. Claim = seq_no CAS to running (a racing trigger 409s);
+#                          attempt_id fences heartbeat/finalize like reports; a running doc whose
+#                          heartbeat outlives JAVV_REPORT_LEASE_TTL_SECONDS reads as stale/reclaimable.
 # -- M7 STORAGE DECISION (2026-07-07, #32): result blobs live IN OpenSearch (chunked), NOT an object
 #    store. Fits the single-store / broker-free hard constraint; download via a backend endpoint
 #    (`GET /api/v1/reports/{id}/download`) gated by the tenant chokepoint + `expires_at` (410 once

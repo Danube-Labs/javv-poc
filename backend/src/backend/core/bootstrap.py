@@ -54,7 +54,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             full-word canonical query key; verbatim severity stays display-only)
 #          v16 + sla_clock_at on findings (issue 363 — the materialized D21 group clock; the
 #             overdue FILTER ranges on it, the verdict stays read-time against the live policy)
-MAPPING_VERSION = 16
+#          v17 + system-jobs (issue 406 repair actions — one lease/status doc per maintenance
+#             job kind; bounded at #kinds docs, OCC claim + fencing attempt_id like reports)
+MAPPING_VERSION = 17
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -250,6 +252,21 @@ _REPORTS_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# system-jobs = the repair-actions surface (issue 406): ONE doc per job kind (_id = kind), so the
+# index is bounded by construction. Claim/heartbeat/finalize reuse the reports OCC grammar.
+_JOBS_PROPERTIES: dict[str, Any] = {
+    "kind": _KW,  # rebuild_state|staleness_sweep|lifecycle_sweep
+    "status": _KW,  # idle|running|done|failed
+    "requested_by": _KW,
+    "attempt_id": _KW,  # fencing token — heartbeat + finalize CAS on it (D39/D40)
+    "started_at": _DATE,
+    "finished_at": _DATE,
+    "heartbeat_at": _DATE,
+    "result": {"type": "object", "enabled": False},  # the job's own count summary — not indexed
+    "error": {"type": "text"},
+    "schema_version": {"type": "short"},
+}
+
 # system-report-chunks = the result BLOB, chunked (~5 MiB text slices). `data` is un-indexed text
 # (index:false → no inverted index, no keyword 32 KB term cap) so a chunk holds MiBs; in _source
 # and streamed back on download in `seq` order. Written under the attempt_id; only the `done`
@@ -340,6 +357,10 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
     "system-views": {  # M8e/C-6 (#242) — server-side saved filter views
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_VIEWS_PROPERTIES),
+    },
+    "system-jobs": {  # issue 406 repair actions — one lease/status doc per maintenance job kind
+        "settings": {"index": _BASE_SETTINGS},
+        "mappings": _mappings(_JOBS_PROPERTIES),
     },
 }
 
