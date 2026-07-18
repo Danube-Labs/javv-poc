@@ -798,6 +798,60 @@ export type ViewWorkbench = {
     window_days?: number | null;
 };
 
+export type ListJobsApiV1AdminJobsGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/jobs';
+};
+
+export type ListJobsApiV1AdminJobsGetResponses = {
+    /**
+     * Response List Jobs Api V1 Admin Jobs Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ListJobsApiV1AdminJobsGetResponse = ListJobsApiV1AdminJobsGetResponses[keyof ListJobsApiV1AdminJobsGetResponses];
+
+export type TriggerJobApiV1AdminJobsKindRunPostData = {
+    body?: never;
+    path: {
+        /**
+         * Kind
+         */
+        kind: string;
+    };
+    query?: never;
+    url: '/api/v1/admin/jobs/{kind}/run';
+};
+
+export type TriggerJobApiV1AdminJobsKindRunPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type TriggerJobApiV1AdminJobsKindRunPostError = TriggerJobApiV1AdminJobsKindRunPostErrors[keyof TriggerJobApiV1AdminJobsKindRunPostErrors];
+
+export type TriggerJobApiV1AdminJobsKindRunPostResponses = {
+    /**
+     * Response Trigger Job Api V1 Admin Jobs  Kind  Run Post
+     *
+     * Successful Response
+     */
+    202: {
+        [key: string]: unknown;
+    };
+};
+
+export type TriggerJobApiV1AdminJobsKindRunPostResponse = TriggerJobApiV1AdminJobsKindRunPostResponses[keyof TriggerJobApiV1AdminJobsKindRunPostResponses];
+
 export type GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetData = {
     body?: never;
     path?: never;

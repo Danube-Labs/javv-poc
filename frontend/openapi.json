@@ -1748,6 +1748,74 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/jobs": {
+      "get": {
+        "description": "Status of every job kind \u2014 running/idle/done/failed + last result. A running doc whose\nheartbeat went silent past the lease TTL reports `stale: true` (reclaimable, not lying).",
+        "operationId": "list_jobs_api_v1_admin_jobs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response List Jobs Api V1 Admin Jobs Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Jobs",
+        "tags": [
+          "admin-jobs"
+        ]
+      }
+    },
+    "/api/v1/admin/jobs/{kind}/run": {
+      "post": {
+        "operationId": "trigger_job_api_v1_admin_jobs__kind__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "title": "Kind",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Trigger Job Api V1 Admin Jobs  Kind  Run Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Job",
+        "tags": [
+          "admin-jobs"
+        ]
+      }
+    },
     "/api/v1/admin/opensearch-runtime": {
       "get": {
         "description": "Allowlist-shaped runtime facts for the read-only card \u2014 never a raw API passthrough.",

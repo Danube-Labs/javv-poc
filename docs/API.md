@@ -71,6 +71,8 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 | POST | `/api/v1/admin/snapshots` | `can_manage_retention` | Manual snapshot of the durability set (202 fire-and-forget; 409 without a repo). Journaled (D17) |
 | POST | `/api/v1/admin/snapshots/{snapshot_name}/restore` | `can_restore_snapshot` | Restore into `restored-*` copies — **never onto live indices**; promoting a copy is a manual step. Journaled (D17) |
 | GET | `/api/v1/admin/opensearch-runtime` | `can_manage_settings` | Allowlist-shaped runtime facts (version, health, nodes/roles/heap, `discovery.type`, `path.repo`, security state) — the §D read-only card; never a raw passthrough |
+| GET | `/api/v1/admin/jobs` | session | Repair-actions status (issue 406): one lease/status doc per job kind — `status`, last `result` counts, `stale: true` when a running doc's heartbeat outlived the lease TTL |
+| POST | `/api/v1/admin/jobs/{kind}/run` | per kind | Trigger a sanctioned maintenance job → **202** `{attempt_id}`; a fresh running lease → **409**. Kinds/capabilities: `rebuild_state` → `can_rebuild_state`, `staleness_sweep` → `can_manage_settings`, `lifecycle_sweep` → `can_drop_index` (D33 destructive tier). Exactly-once via seq_no-CAS claim + fencing `attempt_id`; journaled (D17) |
 
 ### Findings — read (M6)
 

@@ -205,6 +205,15 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"cluster_name": "RBAC probe"},
     ),
+    MutatingEndpoint(  # issue 406 repair actions — per-KIND capability inside the handler
+        # (rebuild_state→can_rebuild_state, lifecycle_sweep→can_drop_index); the registry probes
+        # the staleness kind, the other kinds' gates are asserted in test_admin_jobs
+        method="POST",
+        path="/api/v1/admin/jobs/staleness_sweep/run",
+        route_path="/api/v1/admin/jobs/{kind}/run",
+        capability="can_manage_settings",
+        body={},
+    ),
     MutatingEndpoint(  # M7 slice 5 — the bulk_triage report kind (A-Mc): a scheduled bulk is a
         # WRITE, gated like the inline bulk. The export kind on the same route stays session-only
         # (still exempt-listed below) — the gate is per-kind, checked before any store work.
