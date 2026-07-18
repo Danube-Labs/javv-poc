@@ -26,10 +26,10 @@ from backend.query.as_of import parse_as_of
 from backend.query.audit import (
     AuditFilters,
     CursorExpired,
+    audit_tenant_query,
     build_audit_facets_body,
     run_audit_search,
 )
-from backend.tenancy.chokepoint import tenant_search
 
 router = APIRouter(prefix="/api/v1/audit", tags=["audit"])
 log = structlog.get_logger()
@@ -122,11 +122,8 @@ async def audit_facets(
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     try:
-        resp = await tenant_search(
-            client,
-            index="system-audit-log-*",
-            cluster_id=cluster_id,
-            body=body,
+        resp = await client.search(
+            index="system-audit-log-*", body=audit_tenant_query(cluster_id, body)
         )
     except (OSConnectionError, ConnectionTimeout) as exc:
         kind = "timeout" if isinstance(exc, ConnectionTimeout) else "conn"
