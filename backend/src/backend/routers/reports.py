@@ -18,6 +18,7 @@ from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from opensearchpy import NotFoundError
@@ -38,6 +39,8 @@ from backend.reports.storage import stream_chunks
 from backend.triage.bulk import SelectorTooBroad, freeze_targets, validate_bulk_patch
 from backend.triage.bulk_routes import BulkSelector
 from backend.triage.state_machine import TransitionError
+
+log = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
@@ -82,6 +85,7 @@ async def enqueue_report(
                 max_targets=get_settings().bulk_max_targets,
             )
         except SelectorTooBroad as exc:
+            log.warning("bulk selector capped at enqueue", cluster_id=body.cluster_id)
             LIMIT_REJECTIONS.labels("bulk_targets").inc()
             raise HTTPException(413, str(exc)) from exc
         doc["params"] = {
