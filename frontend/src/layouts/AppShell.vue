@@ -13,6 +13,7 @@ import ClusterSwitcher from '@/components/chrome/ClusterSwitcher.vue'
 import CommandPalette from '@/components/chrome/CommandPalette.vue'
 import NotificationBell from '@/components/chrome/NotificationBell.vue'
 import SideNav from '@/components/chrome/SideNav.vue'
+import UserMenu from '@/components/chrome/UserMenu.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -74,8 +75,6 @@ watch(
   },
 )
 
-const initials = computed(() => (auth.user?.username ?? '?').slice(0, 2).toUpperCase())
-
 /** Zero-clusters cold start (M9f): the registry answered fine but is EMPTY — no scanner has
  * ever enrolled, so every data screen would fetch nothing forever. Data sections show the
  * onboarding state instead; `configure` stays live because Settings → Tokens IS the way out. */
@@ -93,11 +92,6 @@ const sectAccent = computed(() => {
   const sect = route.meta.section as string | undefined
   return sect ? { '--sect-accent': `var(--sect-${sect})` } : {}
 })
-
-async function logout() {
-  await auth.logout()
-  await router.push({ name: 'login' })
-}
 
 /* ---- ⌘K command palette (M9f slice 2) ---- */
 const paletteOpen = ref(false)
@@ -137,8 +131,7 @@ onUnmounted(() => {
             <kbd>{{ metaKeyLabel }}K</kbd>
           </button>
           <NotificationBell />
-          <span class="avatar" :title="auth.user?.username">{{ initials }}</span>
-          <UiButton variant="control" @click="logout">Sign out</UiButton>
+          <UserMenu />
         </div>
       </header>
 
@@ -268,18 +261,6 @@ onUnmounted(() => {
 .icon-btn:disabled {
   cursor: default;
   opacity: 0.6;
-}
-.avatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--slate2);
-  color: var(--side-brand-fg);
-  font-size: var(--text-sm);
-  font-weight: 600;
 }
 /* router-link wrapper inside the cold-start action row — the button carries the affordance */
 .es-link {
