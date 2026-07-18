@@ -162,13 +162,21 @@ async def _created_at(client: AsyncOpenSearch, index: str) -> datetime:
 
 
 async def run_lifecycle_sweep(
-    client: AsyncOpenSearch, *, now: datetime | None = None, prefix: str = ""
+    client: AsyncOpenSearch,
+    *,
+    now: datetime | None = None,
+    prefix: str = "",
+    dry_run: bool = False,
 ) -> dict[str, int]:
     """Roll + retire every managed series once. Returns counts {rolled, dropped, errors}.
 
     Retention evaluates the pre-rollover backing set, so an index that just rolled is first
     considered on the NEXT run — conservative by a day, never destructive. One broken cluster
-    is skipped + counted, never fatal to the rest (task F m-5). `now` is injectable for tests."""
+    is skipped + counted, never fatal to the rest (task F m-5). `now` is injectable for tests.
+
+    `dry_run=True` (issue 459) writes NOTHING: rollover conditions are evaluated server-side
+    via the API's own dry-run mode, retention only counts — the same counts mean would-roll /
+    would-drop instead of did."""
     now = now or datetime.now(UTC)
     rolled = dropped = errors = 0
     knobs_by_cluster: dict[str, LifecycleKnobs] = {}  # read once per cluster per run (D26 live)
@@ -185,16 +193,19 @@ async def run_lifecycle_sweep(
 
             # 1) rollover — OpenSearch evaluates the conditions; no-op unless one is met
             resp = await client.indices.rollover(
-                alias=alias, body={"conditions": knobs.rollover_conditions()}
+                alias=alias,
+                body={"conditions": knobs.rollover_conditions()},
+                params={"dry_run": "true"} if dry_run else None,
             )
-            if resp.get("rolled_over"):
+            if resp.get("rolled_over") or (dry_run and any(resp.get("conditions", {}).values())):
                 rolled += 1
-                log.info(
-                    "index rolled",
-                    alias=alias,
-                    old=resp.get("old_index"),
-                    new=resp.get("new_index"),
-                )
+                if not dry_run:
+                    log.info(
+                        "index rolled",
+                        alias=alias,
+                        old=resp.get("old_index"),
+                        new=resp.get("new_index"),
+                    )
 
             # 2) retention — drop whole expired NON-write indices (never the write index, D8)
             cutoff = now - timedelta(days=knobs.retention_days)
@@ -205,16 +216,17 @@ async def run_lifecycle_sweep(
                     client, index_name
                 )
                 if aged_at < cutoff:
-                    await client.indices.delete(index=index_name)
+                    if not dry_run:
+                        await client.indices.delete(index=index_name)
+                        # a destructive op must leave a trace saying WHY (#156): newest data
+                        # age vs the retention window that condemned it
+                        log.info(
+                            "index dropped",
+                            index=index_name,
+                            newest_data_at=aged_at.isoformat(),
+                            retention_days=knobs.retention_days,
+                        )
                     dropped += 1
-                    # a destructive op must leave a trace saying WHY (#156): newest data age
-                    # vs the retention window that condemned it
-                    log.info(
-                        "index dropped",
-                        index=index_name,
-                        newest_data_at=aged_at.isoformat(),
-                        retention_days=knobs.retention_days,
-                    )
         except Exception:  # noqa: BLE001 — m-5: isolate the broken cluster, sweep the rest
             log.exception("lifecycle sweep failed for alias", alias=alias, cluster=cluster_id)
             errors += 1
@@ -227,16 +239,19 @@ async def run_lifecycle_sweep(
         try:
             fleet = await read_lifecycle_knobs(client, prefix=prefix)
             resp = await client.indices.rollover(
-                alias=alias, body={"conditions": fleet.rollover_conditions()}
+                alias=alias,
+                body={"conditions": fleet.rollover_conditions()},
+                params={"dry_run": "true"} if dry_run else None,
             )
-            if resp.get("rolled_over"):
+            if resp.get("rolled_over") or (dry_run and any(resp.get("conditions", {}).values())):
                 rolled += 1
-                log.info(
-                    "index rolled",
-                    alias=alias,
-                    old=resp.get("old_index"),
-                    new=resp.get("new_index"),
-                )
+                if not dry_run:
+                    log.info(
+                        "index rolled",
+                        alias=alias,
+                        old=resp.get("old_index"),
+                        new=resp.get("new_index"),
+                    )
         except Exception:  # noqa: BLE001 — same isolation rule
             log.exception("lifecycle rollover failed for alias", alias=alias)
             errors += 1
@@ -249,6 +264,7 @@ if __name__ == "__main__":  # daily CronJob entrypoint + interim knob-config CLI
     import asyncio
 
     from backend.core.settings import get_settings
+    from backend.jobs.lease import run_under_lease
 
     ap = argparse.ArgumentParser(description="Run the lifecycle sweep, or set the D26 knobs")
     ap.add_argument("--set-max-age-days", type=float, help="rollover: max index age (default 30)")
@@ -281,7 +297,11 @@ if __name__ == "__main__":  # daily CronJob entrypoint + interim knob-config CLI
                 scope = f"cluster {args.cluster}" if args.cluster else "fleet-wide"
                 print(f"lifecycle knobs set ({scope}): {knobs.model_dump()}")
             else:
-                print(f"lifecycle sweep: {await run_lifecycle_sweep(client)}")
+                result = await run_under_lease(client, "lifecycle_sweep", run_lifecycle_sweep)
+                print(
+                    f"lifecycle sweep: "
+                    f"{result if result is not None else 'skipped — already running'}"
+                )
         finally:
             await client.close()
 

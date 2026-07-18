@@ -1,7 +1,8 @@
 """Repair-actions routes (issue 406 follow-up): per-kind capability gates, the OCC claim
 (409 while a fresh lease runs, reclaim past a stale one), the journaled trigger, and a real
-staleness run to a `done` doc with counts. Real OpenSearch; only the light, convergent
-staleness sweep ever actually executes here."""
+staleness run to a `done` doc with counts, and the lifecycle dry run (issue 459 — inline 200,
+no lease, journaled). Real OpenSearch; only the light, convergent staleness sweep and the
+write-nothing dry run ever actually execute here."""
 
 import asyncio
 import contextlib
@@ -150,6 +151,52 @@ async def test_unknown_kind_404s(env):
     await _login(http, client, ["can_manage_settings"])
     r = await http.post("/api/v1/admin/jobs/definitely_not_a_job/run")
     assert r.status_code == 404
+
+
+async def test_lifecycle_dry_run_is_inline_and_leaves_no_status_doc(env):
+    http, client = env
+    actor = await _login(http, client, ["can_drop_index"])
+    r = await http.post("/api/v1/admin/jobs/lifecycle_sweep/run?dry_run=true")
+    assert r.status_code == 200  # inline answer, not a 202 background run
+    body = r.json()
+    assert body["dry_run"] is True
+    assert set(body["result"]) == {"rolled", "dropped", "errors"}
+
+    # a read has nothing to lease: no status doc was created or claimed
+    s = await http.get("/api/v1/admin/jobs")
+    doc = next(j for j in s.json()["jobs"] if j["kind"] == "lifecycle_sweep")
+    assert doc["status"] == "idle"
+
+    # but it IS journaled, like every store-touching admin action (D17)
+    await client.indices.refresh(index="system-audit-log")
+    hits = await client.search(
+        index="system-audit-log",
+        body={
+            "size": 1,
+            "query": {
+                "bool": {
+                    "filter": [{"term": {"action": "job_trigger"}}, {"term": {"actor": actor}}]
+                }
+            },
+        },
+    )
+    assert hits["hits"]["total"]["value"] == 1
+    assert hits["hits"]["hits"][0]["_source"]["entity_id"] == "lifecycle_sweep dry_run"
+
+
+async def test_dry_run_is_lifecycle_only(env):
+    http, client = env
+    await _login(http, client, ["can_manage_settings"])
+    r = await http.post("/api/v1/admin/jobs/staleness_sweep/run?dry_run=true")
+    assert r.status_code == 422
+    assert "lifecycle_sweep" in r.json()["title"]
+
+
+async def test_dry_run_still_needs_the_lifecycle_capability(env):
+    http, client = env
+    await _login(http, client, ["can_manage_settings"])  # not can_drop_index
+    r = await http.post("/api/v1/admin/jobs/lifecycle_sweep/run?dry_run=true")
+    assert r.status_code == 403
 
 
 async def test_status_lists_every_kind_with_capability(env):

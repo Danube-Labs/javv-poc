@@ -414,16 +414,26 @@ async def rebuild_sla_clocks(client: AsyncOpenSearch, *, prefix: str = "") -> di
     return {"digests": digests, "updated": updated}
 
 
+async def run_rebuild_state(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, Any]:
+    """All three arms in the canonical order — the single runner both doors (the repair-actions
+    card and the CLI below) execute under the shared `system-jobs` lease."""
+    return {
+        "decisions": await rebuild_decision_projection(client, prefix=prefix),
+        "presence": await rebuild_scanner_presence(client, prefix=prefix),
+        "sla_clocks": await rebuild_sla_clocks(client, prefix=prefix),
+    }
+
+
 if __name__ == "__main__":  # manual/self-heal entrypoint (CronJob-shaped, like the sweeps)
     from backend.core.settings import get_settings
+    from backend.jobs.lease import run_under_lease
 
     async def _main() -> None:
         settings = get_settings()
         client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
         try:
-            print(f"rebuild-state (decisions): {await rebuild_decision_projection(client)}")
-            print(f"rebuild-state (presence): {await rebuild_scanner_presence(client)}")
-            print(f"rebuild-state (sla-clock): {await rebuild_sla_clocks(client)}")
+            result = await run_under_lease(client, "rebuild_state", run_rebuild_state)
+            print(f"rebuild-state: {result if result is not None else 'skipped — already running'}")
         finally:
             await client.close()
 
