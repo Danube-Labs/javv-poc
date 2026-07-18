@@ -2,7 +2,9 @@
 /**
  * The audit table (prototype screens-audit.jsx `AuditLog` table, ported per DESIGN.md §8 —
  * operator ruling 2026-07-12 superseding the timeline note: prototype grammar, shared skin):
- * When · User · Action · Target · Detail on `tbl tbl-dense tbl-hover`. Rows come in the
+ * When · User · Action · Detail · Target on `tbl tbl-dense tbl-hover` (Detail is a `fit`
+ * column so the layout slack pools in Target — the identity column was getting squeezed to
+ * a sliver while Detail hogged the row; operator ruling 2026-07-18). Rows come in the
  * server's `(@timestamp, event_id)` walk and are re-read causally per page (`causalOrder`,
  * D38/H8): same-field edits display by `revision` (the `rev` badge). The Target column reads
  * the row's read-time decoration — CVE + severity + image for findings (the operator's "what
@@ -32,8 +34,9 @@ const ordered = computed(() => causalOrder(props.rows))
 
 const clickable = (e: AuditEvent) => e.entity_type === 'finding' && !!e.finding_key && !!e.finding
 
-/** short mono identity fallback when a row has no decoration */
-const shortId = (id: string) => (id.length > 16 ? `${id.slice(0, 12)}…` : id)
+/** mono identity fallback when a row has no decoration — Target owns the layout slack, so
+ * only truly long ids (raw finding keys) get clipped; store/job ids show whole */
+const shortId = (id: string) => (id.length > 72 ? `${id.slice(0, 68)}…` : id)
 
 const shortImage = (e: AuditEvent) => (e.finding?.image_repo ?? '').split('/').pop() ?? ''
 
@@ -91,6 +94,19 @@ function onRowClick(row: AuditEvent) {
           <ActionTag :action="data.action" />
         </template>
       </Column>
+      <Column header="Detail" class="fit">
+        <template #body="{ data }">
+          <span class="detail-cell">
+            <span class="wrap-cell soft" :title="detail(data)">{{ detail(data) || '-' }}</span>
+            <span
+              v-if="data.revision != null && data.field != null"
+              class="rev-badge"
+              title="Causal revision (D38): same-field edits replay by this, not arrival order"
+              >rev {{ data.revision }}</span
+            >
+          </span>
+        </template>
+      </Column>
       <Column header="Target">
         <template #body="{ data }">
           <span v-if="data.finding" class="audit-target">
@@ -107,19 +123,6 @@ function onRowClick(row: AuditEvent) {
           <span v-else class="audit-target">
             <span class="mono-cell sm" :title="data.entity_id">{{ shortId(data.entity_id) }}</span>
             <span class="target-kind">{{ data.entity_type }}</span>
-          </span>
-        </template>
-      </Column>
-      <Column header="Detail">
-        <template #body="{ data }">
-          <span class="detail-cell">
-            <span class="wrap-cell soft" :title="detail(data)">{{ detail(data) || '-' }}</span>
-            <span
-              v-if="data.revision != null && data.field != null"
-              class="rev-badge"
-              title="Causal revision (D38): same-field edits replay by this, not arrival order"
-              >rev {{ data.revision }}</span
-            >
           </span>
         </template>
       </Column>
