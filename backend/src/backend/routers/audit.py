@@ -64,6 +64,7 @@ async def read_audit_log(
         try:
             pit_guard.acquire(principal.user_id)  # A-m12/#189: bound concurrent PITs per principal
         except pit_guard.PitCapExceeded as exc:
+            log.warning("PIT cap reached for principal", format="audit_page")
             raise HTTPException(429, str(exc), headers={"Retry-After": "5"}) from exc
     try:
         out = await run_audit_search(
