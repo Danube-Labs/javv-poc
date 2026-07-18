@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.1](https://github.com/Danube-Labs/javv-poc/compare/v0.4.0...v0.4.1) (2026-07-18)
+
+
+### Features
+
+* **backend:** repair-actions job surface — 202 triggers + lease/status ([#406](https://github.com/Danube-Labs/javv-poc/issues/406) follow-up) ([af2e7fb](https://github.com/Danube-Labs/javv-poc/commit/af2e7fb7f785e0932f8b6a8a2dbf27660aa236bb))
+* **backend:** repair-actions surface — trigger the sanctioned jobs over http (issue 406) ([142827d](https://github.com/Danube-Labs/javv-poc/commit/142827dabd7de174d4ab18fd3789a04a8f972c96)), closes [#406](https://github.com/Danube-Labs/javv-poc/issues/406)
+* data inspector — read-only store console ([#406](https://github.com/Danube-Labs/javv-poc/issues/406)) ([#455](https://github.com/Danube-Labs/javv-poc/issues/455)) ([3e2a787](https://github.com/Danube-Labs/javv-poc/commit/3e2a7873513991822638714bddf8cb0ef5785503))
+* **ui:** repair actions card on /inspect ([#406](https://github.com/Danube-Labs/javv-poc/issues/406) follow-up) ([#457](https://github.com/Danube-Labs/javv-poc/issues/457)) ([3c71b44](https://github.com/Danube-Labs/javv-poc/commit/3c71b44986af931ec58179065937120d32c1d747))
+* **ui:** topbar user menu + m9 cap-logging parity ([#450](https://github.com/Danube-Labs/javv-poc/issues/450)) ([#451](https://github.com/Danube-Labs/javv-poc/issues/451)) ([94d2ae3](https://github.com/Danube-Labs/javv-poc/commit/94d2ae3cbca6981752d4a205d9aed6991e1e2dc4))
+
+
+### Bug Fixes
+
+* fleet-scoped events (auth, jobs, inspect) appear in the audit screen ([#458](https://github.com/Danube-Labs/javv-poc/issues/458)) ([e791625](https://github.com/Danube-Labs/javv-poc/commit/e791625e91057725ec0e6bfe70f03134c5475a18))
+
 ## [0.4.0](https://github.com/Danube-Labs/javv-poc/compare/v0.3.11...v0.4.0) (2026-07-17)
 
 
