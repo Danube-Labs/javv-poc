@@ -4,7 +4,10 @@
  * "something looks broken" never means raw writes — the three sanctioned, journaled jobs are
  * the fix. Rows: icon tile · name + capability sub · description · status (state chip, the
  * in-flight bar, last-result counts, stale-lease honesty) · the run button. Lifecycle DROPS
- * whole indices, so its button confirms through ModalShell first. Polls while anything runs.
+ * whole indices, so its button confirms through ModalShell first — and carries the mockup's
+ * Dry run (issue 459): an inline would-roll/would-drop answer that changes nothing, so the
+ * operator can see what the sweep WOULD delete before confirming the real one. Polls while
+ * anything runs.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
@@ -110,6 +113,35 @@ async function run(job: JobDoc) {
   }
 }
 
+const dryRunning = ref(false)
+
+async function dryRun(job: JobDoc) {
+  dryRunning.value = true
+  try {
+    const r = await triggerJobApiV1AdminJobsKindRunPost({
+      client,
+      path: { kind: job.kind },
+      query: { dry_run: true },
+    })
+    if (r.response?.status === 200 && r.data) {
+      const { rolled, dropped, errors } = (r.data as { result: Record<string, number> }).result
+      const trouble = errors ? ` ${errors} series could not be checked.` : ''
+      toast.info(
+        rolled || dropped
+          ? `Dry run — the sweep would roll over ${rolled} and delete ${dropped} indices.${trouble} Nothing was changed.`
+          : `Dry run — nothing is due to roll over or be deleted.${trouble}`,
+      )
+      logger.info('repair_job_dry_run', { kind: job.kind, rolled, dropped, errors })
+    } else {
+      const problem = (r.error ?? null) as { title?: string } | null
+      toast.info(problem?.title ?? 'The dry run could not start.')
+      logger.warn('repair_job_dry_run_rejected', { kind: job.kind, status: r.response?.status })
+    }
+  } finally {
+    dryRunning.value = false
+  }
+}
+
 function statusMeta(job: JobDoc): string {
   if (job.status === 'running' && job.stale)
     return `no heartbeat since ${fmtAt(job.started_at)} — reclaimable, run again`
@@ -149,14 +181,25 @@ function canRun(job: JobDoc): boolean {
             {{ statusMeta(job) }}
           </p>
         </div>
-        <UiButton
-          :variant="job.status === 'running' && !job.stale ? 'control' : 'primary'"
-          :disabled="!canRun(job) || (job.status === 'running' && !job.stale)"
-          :title="canRun(job) ? undefined : `Requires ${job.capability}`"
-          @click="requestRun(job)"
-        >
-          {{ job.status === 'running' && !job.stale ? 'Running…' : 'Run' }}
-        </UiButton>
+        <div class="repair-buttons">
+          <UiButton
+            v-if="job.kind === 'lifecycle_sweep'"
+            variant="control"
+            :disabled="!canRun(job) || dryRunning"
+            :title="canRun(job) ? 'See what the sweep would delete — changes nothing' : `Requires ${job.capability}`"
+            @click="dryRun(job)"
+          >
+            {{ dryRunning ? 'Checking…' : 'Dry run' }}
+          </UiButton>
+          <UiButton
+            :variant="job.status === 'running' && !job.stale ? 'control' : 'primary'"
+            :disabled="!canRun(job) || (job.status === 'running' && !job.stale)"
+            :title="canRun(job) ? undefined : `Requires ${job.capability}`"
+            @click="requestRun(job)"
+          >
+            {{ job.status === 'running' && !job.stale ? 'Running…' : 'Run' }}
+          </UiButton>
+        </div>
       </div>
     </template>
 
@@ -164,7 +207,9 @@ function canRun(job: JobDoc): boolean {
       <p class="confirm-body">
         This applies retention by <b>deleting whole aged indices</b> — findings history past each
         cluster's retention window is gone for good, and time-travel can no longer reach it.
-        The sweep is journaled and follows the same rules as the scheduled run.
+        The sweep is journaled and follows the same rules as the scheduled run. Not sure?
+        Cancel and press <b>Dry run</b> first — it shows what would be deleted without
+        changing anything.
       </p>
       <template #actions>
         <UiButton variant="control" @click="confirming = null">Cancel</UiButton>
@@ -207,11 +252,16 @@ function canRun(job: JobDoc): boolean {
 }
 .repair-row {
   display: grid;
-  grid-template-columns: 34px 200px 1fr 300px 110px;
+  grid-template-columns: 34px 200px 1fr 300px max-content;
   gap: 16px;
   align-items: center;
   padding: 12px 16px;
   border-top: 1px solid var(--line2);
+}
+.repair-buttons {
+  display: flex;
+  gap: 8px;
+  justify-self: end;
 }
 .repair-row:hover {
   background: var(--panel);
@@ -284,9 +334,6 @@ function canRun(job: JobDoc): boolean {
 }
 .job-failed {
   color: var(--health-down-fg);
-}
-.repair-row .ui-btn {
-  justify-self: end;
 }
 .confirm-body {
   margin: 0;
