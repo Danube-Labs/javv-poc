@@ -1,0 +1,123 @@
+<script setup lang="ts">
+/**
+ * The inspector's index rail (issue 406 — extracted panel, F-15 size rule): INDEX-MAP-grouped
+ * indices from `_cat/indices`; a click hands the pattern to the console. Credential indices
+ * never reach this list (filtered in system/inspect.ts to mirror the backend denial).
+ */
+import { fmtDocs, type RailEntry, type RailGroups } from '@/system/inspect'
+
+defineProps<{ groups: RailGroups; activePattern: string; failed: boolean }>()
+const emit = defineEmits<{ pick: [pattern: string] }>()
+
+const SECTIONS: { key: keyof RailGroups; label: string }[] = [
+  { key: 'history', label: 'append history' },
+  { key: 'state', label: 'materialized state' },
+  { key: 'system', label: 'system' },
+]
+
+function entries(groups: RailGroups, key: keyof RailGroups): RailEntry[] {
+  return groups[key]
+}
+</script>
+
+<template>
+  <aside class="card rail" aria-label="Indices">
+    <h3>Indices</h3>
+    <p v-if="failed" class="load-error" role="alert">
+      Index list unavailable — the console still works with a typed path.
+    </p>
+    <template v-else>
+      <div v-for="s in SECTIONS" :key="s.key" class="rail-group">
+        <template v-if="entries(groups, s.key).length">
+          <span>{{ s.label }}</span>
+          <button
+            v-for="e in entries(groups, s.key)"
+            :key="e.pattern"
+            type="button"
+            class="idx"
+            :class="{ on: activePattern === e.pattern }"
+            @click="emit('pick', e.pattern)"
+          >
+            {{ e.pattern }} <i>{{ fmtDocs(e.docs) }}</i>
+          </button>
+        </template>
+      </div>
+      <p class="rail-foot">
+        Counts from <code>_cat/indices</code>; credential indices are not inspectable.
+        Click inserts the pattern.
+      </p>
+    </template>
+  </aside>
+</template>
+
+<style scoped>
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+}
+.rail {
+  padding: 14px 0 8px;
+}
+.rail h3 {
+  font-size: var(--text-card-title);
+  font-weight: 600;
+  margin: 0;
+  padding: 0 16px 10px;
+}
+.rail-group:not(:empty) {
+  padding: 8px 8px 4px;
+  border-top: 1px solid var(--line2);
+}
+.rail-group > span {
+  display: block;
+  padding: 2px 8px 6px;
+  font-family: var(--font-mono);
+  font-size: var(--text-dd-head);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--soft);
+}
+.idx {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: var(--text-mono-cell);
+  color: var(--ink);
+  text-align: left;
+  cursor: default;
+}
+.idx:hover {
+  background: var(--control-hover-bg);
+  border-color: var(--control-hover-line);
+}
+.idx:active {
+  background: var(--control-active-bg);
+}
+.idx.on {
+  background: var(--dd-on-bg);
+  border-color: var(--coral);
+}
+.idx i {
+  font-style: normal;
+  font-size: var(--text-facet-count);
+  color: var(--soft);
+}
+.rail-foot {
+  padding: 10px 16px 6px;
+  border-top: 1px solid var(--line2);
+  color: var(--soft);
+  font-size: var(--text-sm);
+}
+.rail .load-error {
+  margin: 4px 16px 10px;
+}
+</style>

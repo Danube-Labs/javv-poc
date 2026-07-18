@@ -86,6 +86,12 @@ const router = createRouter({
           meta: { section: 'audit', wide: true },
         },
         {
+          path: 'inspect',
+          name: 'inspect',
+          component: () => import('@/views/InspectView.vue'),
+          meta: { section: 'configure', capability: 'can_inspect_store', wide: true },
+        },
+        {
           // the §13 settings shell — each child carries ITS OWN capability (the merged child
           // meta overrides the parent's, so e.g. tokens gates on can_manage_tokens alone)
           path: 'settings',

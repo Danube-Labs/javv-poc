@@ -888,6 +888,40 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "InspectRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "method": {
+            "pattern": "^(GET|POST)$",
+            "title": "Method",
+            "type": "string"
+          },
+          "path": {
+            "maxLength": 400,
+            "minLength": 1,
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "method",
+          "path"
+        ],
+        "title": "InspectRequest",
+        "type": "object"
+      },
       "LoginCredentials": {
         "additionalProperties": false,
         "properties": {
@@ -1769,6 +1803,49 @@
         "summary": "Get Opensearch Runtime",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/api/v1/admin/opensearch/inspect": {
+      "post": {
+        "operationId": "inspect_store_api_v1_admin_opensearch_inspect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InspectRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Inspect Store Api V1 Admin Opensearch Inspect Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Inspect Store",
+        "tags": [
+          "inspect"
         ]
       }
     },
