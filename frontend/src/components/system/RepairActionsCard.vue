@@ -128,8 +128,9 @@ function canRun(job: JobDoc): boolean {
   <section class="card repair">
     <h3 class="panel-band">Repair actions</h3>
     <p class="repair-sub">
-      "Something looks broken" never means raw writes — the store is append-only and journaled,
-      so repair runs through the sanctioned jobs. Every trigger lands in the audit log.
+      If the data on screen looks wrong, these are the safe, built-in fixes — they recompute
+      from the stored scan history instead of editing anything by hand. Every run is recorded
+      in the audit log.
     </p>
     <p v-if="failed" class="load-error" role="alert">
       Job status unavailable — the triggers are disabled until it loads.
@@ -237,7 +238,7 @@ function canRun(job: JobDoc): boolean {
 .repair-desc {
   margin: 0;
   color: var(--soft);
-  font-size: var(--text-sm);
+  font-size: var(--text-body);
 }
 /* the in-flight indicator — the same infinite-bar grammar as the console's runbar; result
    counts land the moment the run finishes (no per-row percentage: the jobs report counts,
@@ -277,7 +278,7 @@ function canRun(job: JobDoc): boolean {
 .job-meta {
   margin: 0;
   font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
+  font-size: var(--text-control);
   color: var(--soft);
   overflow-wrap: anywhere;
 }
