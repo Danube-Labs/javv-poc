@@ -22,6 +22,7 @@ from backend.routers import (
     health,
     images,
     ingest,
+    inspect,
     inventory_runs,
     metrics,
     notifications,
@@ -72,6 +73,7 @@ def create_app() -> FastAPI:
     app.include_router(sla_routes.router)
     app.include_router(staleness_settings.router)
     app.include_router(data_settings.router)
+    app.include_router(inspect.router)
     app.include_router(bulk_routes.router)
     return app
 

@@ -214,6 +214,14 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={},
     ),
+    MutatingEndpoint(  # #406 — the data-inspector proxy: POST by transport but READ by contract;
+        # the allowlist inside the handler is the write-prevention, the capability is the gate
+        method="POST",
+        path="/api/v1/admin/opensearch/inspect",
+        route_path="/api/v1/admin/opensearch/inspect",
+        capability="can_inspect_store",
+        body={"method": "GET", "path": "_cluster/health"},
+    ),
     MutatingEndpoint(  # M7 slice 5 — the bulk_triage report kind (A-Mc): a scheduled bulk is a
         # WRITE, gated like the inline bulk. The export kind on the same route stays session-only
         # (still exempt-listed below) — the gate is per-kind, checked before any store work.

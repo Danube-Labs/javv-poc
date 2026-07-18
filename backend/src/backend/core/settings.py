@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     export_max_bytes: int = Field(default=500 * 1024 * 1024, ge=1)  # per-export ceiling → failed
     report_drain_sleep_ms: int = Field(default=200, ge=0)  # 0 = no throttle (legit in dev)
     report_lease_ttl_seconds: int = Field(default=300, ge=1)  # no heartbeat past it → reclaimable
+    # data inspector (#406): the read-only store console. Hit ceiling per search, serialized
+    # response byte cap (past it → 413, narrow the query), and a per-request timeout tighter
+    # than the client default — an inspector query must never hog the store.
+    inspect_max_hits: int = Field(default=500, ge=1)
+    inspect_max_response_bytes: int = Field(default=2 * 1024 * 1024, ge=1)
+    inspect_timeout_seconds: float = Field(default=10.0, gt=0)
 
     @model_validator(mode="after")
     def _cap_pairs_are_ordered(self) -> "Settings":
