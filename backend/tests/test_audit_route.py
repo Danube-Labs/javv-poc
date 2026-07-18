@@ -294,8 +294,9 @@ async def test_decoration_never_crosses_the_tenant_boundary(env) -> None:
         body={"finding_key": fk, "cluster_id": other, "cve_id": "CVE-LEAK", "scanner": "trivy"},
         params={"refresh": "true"},
     )
-    await _journal(client, cid, n=1)
-    r = await http.get("/api/v1/audit", params={"cluster_id": cid})
+    leak_actor = f"u-leak-{uuid.uuid4().hex[:8]}"
+    await _journal(client, cid, n=1, actor=leak_actor)
+    r = await http.get("/api/v1/audit", params={"cluster_id": cid, "actor": leak_actor})
     assert r.json()["data"][0]["finding"] is None  # same key, other tenant's doc — no leak
 
 
@@ -356,7 +357,9 @@ async def test_export_csv_streams_decorated_sanitized_rows(env, monkeypatch) -> 
     )
     await client.indices.refresh(index="system-audit-log-*")
 
-    r = await http.get("/api/v1/audit/export.csv", params={"cluster_id": cid})
+    r = await http.get(
+        "/api/v1/audit/export.csv", params={"cluster_id": cid, "actor": "u-csv-actor"}
+    )
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/csv")
     lines = r.text.strip().splitlines()
@@ -365,8 +368,10 @@ async def test_export_csv_streams_decorated_sanitized_rows(env, monkeypatch) -> 
     assert "CVE-2024-0002" in row and "bench/app" in row  # decoration rides the export
     assert "'=HYPERLINK" in row  # CSV-injection neutralized
 
-    await _journal(client, cid, n=2)  # lens now holds 3 rows
+    await _journal(client, cid, n=2, actor="u-csv-actor")  # lens now holds 3 rows
     monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "1")
     get_settings.cache_clear()
-    r = await http.get("/api/v1/audit/export.csv", params={"cluster_id": cid})
+    r = await http.get(
+        "/api/v1/audit/export.csv", params={"cluster_id": cid, "actor": "u-csv-actor"}
+    )
     assert r.status_code == 413  # over the cap → clean reject before any stream
