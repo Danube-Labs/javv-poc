@@ -71,6 +71,7 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 | POST | `/api/v1/admin/snapshots` | `can_manage_retention` | Manual snapshot of the durability set (202 fire-and-forget; 409 without a repo). Journaled (D17) |
 | POST | `/api/v1/admin/snapshots/{snapshot_name}/restore` | `can_restore_snapshot` | Restore into `restored-*` copies — **never onto live indices**; promoting a copy is a manual step. Journaled (D17) |
 | GET | `/api/v1/admin/opensearch-runtime` | `can_manage_settings` | Allowlist-shaped runtime facts (version, health, nodes/roles/heap, `discovery.type`, `path.repo`, security state) — the §D read-only card; never a raw passthrough |
+| POST | `/api/v1/admin/opensearch/inspect` | `can_inspect_store` | Data inspector (issue 406): `{method, path, body}` validated against a **hard allowlist** — GET/POST on `<index>/_search`·`_count`, GET `_mapping`, and the global reads (`_cat/indices`, `_cat/shards`, `_cluster/health`, `_nodes/stats`). Credential indices (`system-users`/`-sessions`/`-tokens`) and script/PIT/scroll body keys are **422** with the reason verbatim; `size` over `JAVV_INSPECT_MAX_HITS` → 422; response over `JAVV_INSPECT_MAX_RESPONSE_BYTES` → **413**. Envelope `{took_ms, bytes, cap_bytes, body}`. Journal-first (D17): every query appends `store_inspect` (actor · method+path · query hash) |
 
 ### Findings — read (M6)
 

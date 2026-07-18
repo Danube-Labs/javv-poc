@@ -403,6 +403,26 @@ export type HttpValidationError = {
 };
 
 /**
+ * InspectRequest
+ */
+export type InspectRequest = {
+    /**
+     * Body
+     */
+    body?: {
+        [key: string]: unknown;
+    } | null;
+    /**
+     * Method
+     */
+    method: string;
+    /**
+     * Path
+     */
+    path: string;
+};
+
+/**
  * LoginCredentials
  */
 export type LoginCredentials = {
@@ -817,6 +837,35 @@ export type GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses = {
 };
 
 export type GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponse = GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses[keyof GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetResponses];
+
+export type InspectStoreApiV1AdminOpensearchInspectPostData = {
+    body: InspectRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/admin/opensearch/inspect';
+};
+
+export type InspectStoreApiV1AdminOpensearchInspectPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type InspectStoreApiV1AdminOpensearchInspectPostError = InspectStoreApiV1AdminOpensearchInspectPostErrors[keyof InspectStoreApiV1AdminOpensearchInspectPostErrors];
+
+export type InspectStoreApiV1AdminOpensearchInspectPostResponses = {
+    /**
+     * Response Inspect Store Api V1 Admin Opensearch Inspect Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type InspectStoreApiV1AdminOpensearchInspectPostResponse = InspectStoreApiV1AdminOpensearchInspectPostResponses[keyof InspectStoreApiV1AdminOpensearchInspectPostResponses];
 
 export type ListRolesApiV1AdminRolesGetData = {
     body?: never;

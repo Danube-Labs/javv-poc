@@ -27,6 +27,8 @@ export const ROUTES = [
   { name: 'contributors', path: '/contributors', ready: '.screen' },
   { name: 'approvals', path: '/approvals', ready: '.screen' },
   // /settings redirects to scan-scope (§13 order); a .set-row exists only once its data loaded
+  // ready = the rail's grouped index buttons or its declared failure line — data, not shell
+  { name: 'inspect', path: '/inspect', ready: '.idx, .load-error' },
   { name: 'settings', path: '/settings', ready: '.set-row' },
   // per-panel walks: tokens/users prove DATA (the smoke seed mints a token; admin always exists)
   { name: 'settings-scanning', path: '/settings/scanning', ready: '.set-row' },

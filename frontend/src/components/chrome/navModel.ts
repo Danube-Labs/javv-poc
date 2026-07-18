@@ -49,7 +49,10 @@ export const NAV: NavGroup[] = [
   {
     group: 'Configure',
     accent: 'var(--sect-configure)',
-    items: [{ label: 'Settings', to: '/settings', icon: 'gear', capability: 'can_manage_settings' }],
+    items: [
+      { label: 'Settings', to: '/settings', icon: 'gear', capability: 'can_manage_settings' },
+      { label: 'Data inspector', to: '/inspect', icon: 'search', capability: 'can_inspect_store' },
+    ],
   },
 ]
 
