@@ -7,7 +7,11 @@
 # docs for test clusters, and `c-*`-tenant rows in the mutable caches.
 #
 # Default is a DRY RUN (prints what it would delete). Pass --apply to actually delete.
-# Never touches: the {admin, rig} users, real-cluster (uuid) data, system-audit-log history.
+# Never touches: the {admin, rig} users, real-cluster (uuid) data, real-actor audit history.
+# Audit rows journaled BY test actors (u-*/nu-*/ext-*/0-list-* logins, job triggers, store
+# inspects) ARE purged — once fleet-scoped rows became visible in the audit screen, that
+# residue flooded the actor facet on the dev store. Append-forever applies to real history,
+# not test debris.
 #
 set -euo pipefail
 
@@ -63,6 +67,7 @@ reap "system-config"       '{"query":{"wildcard":{"key":{"value":"*:c-*"}}}}'   
 reap "findings"            '{"query":{"prefix":{"cluster_id":"c-"}}}'              "c-* findings rows"
 reap "javv-scan-watermarks" '{"query":{"prefix":{"cluster_id":"c-"}}}'             "c-* watermark rows"
 reap "javv-scan-orders"    '{"query":{"prefix":{"cluster_id":"c-"}}}'              "c-* scan-order counters"
+reap "system-audit-log-*"  '{"query":{"bool":{"should":[{"prefix":{"actor":"u-"}},{"prefix":{"actor":"nu-"}},{"prefix":{"actor":"ext-"}},{"prefix":{"actor":"0-list-"}}],"minimum_should_match":1}}}' "test-actor audit rows"
 
 if [ "$APPLY" = 1 ]; then
   say "sweep applied. users kept: $(curl -s "$OS_URL/system-users/_search?size=10&_source=false" | jq -cr '[.hits.hits[]._id]')"
