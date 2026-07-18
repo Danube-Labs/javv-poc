@@ -262,6 +262,7 @@ if __name__ == "__main__":  # daily CronJob entrypoint + interim timer-config CL
     import asyncio
 
     from backend.core.settings import get_settings
+    from backend.jobs.lease import run_under_lease
 
     ap = argparse.ArgumentParser(description="Run the staleness sweep, or set the D20 timers")
     ap.add_argument("--set-freshness-days", type=float, help="N: per-finding freshness (default 3)")
@@ -291,7 +292,11 @@ if __name__ == "__main__":  # daily CronJob entrypoint + interim timer-config CL
                 scope = f"cluster {args.cluster}" if args.cluster else "fleet-wide"
                 print(f"staleness timers set ({scope}): {timers.model_dump()}")
             else:
-                print(f"staleness sweep: {await run_staleness_sweep(client)}")
+                result = await run_under_lease(client, "staleness_sweep", run_staleness_sweep)
+                print(
+                    f"staleness sweep: "
+                    f"{result if result is not None else 'skipped — already running'}"
+                )
         finally:
             await client.close()
 

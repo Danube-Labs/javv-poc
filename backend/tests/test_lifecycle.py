@@ -203,6 +203,38 @@ async def test_empty_rolled_index_falls_back_to_creation_date(real_os) -> None:
     assert await client.indices.exists(index=f"{alias}-000001")
 
 
+# --- dry run (issue 459) ----------------------------------------------------------
+
+
+@requires_opensearch
+async def test_dry_run_counts_would_roll_and_would_drop_but_writes_nothing(real_os) -> None:
+    client, prefix = real_os
+    alias = f"{prefix}javv-scan-events-{CLUSTER}"
+    await ensure_write_alias(client, alias)
+    await _seed_event(client, alias, at=NOW - timedelta(days=200))  # -000001: expired data
+    await client.indices.rollover(alias=alias)
+    await _seed_event(client, alias, at=NOW)  # -000002: one doc, over the max_docs=1 knob
+    await write_lifecycle_knobs(client, LifecycleKnobs(max_docs=1), updated_by="t", prefix=prefix)
+
+    result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix, dry_run=True)
+
+    assert result == {"rolled": 1, "dropped": 1, "errors": 0}  # would-roll / would-drop
+    assert await client.indices.exists(index=f"{alias}-000001")  # nothing actually dropped
+    assert await _write_index(client, alias) == f"{alias}-000002"  # nothing actually rolled
+
+
+@requires_opensearch
+async def test_dry_run_reports_zeros_on_a_quiet_series(real_os) -> None:
+    client, prefix = real_os
+    alias = f"{prefix}javv-scan-events-{CLUSTER}"
+    await ensure_write_alias(client, alias)
+    await _seed_event(client, alias, at=NOW)  # fresh data, default knobs — nothing to do
+
+    result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix, dry_run=True)
+
+    assert result == {"rolled": 0, "dropped": 0, "errors": 0}
+
+
 # --- idempotence ------------------------------------------------------------------
 
 

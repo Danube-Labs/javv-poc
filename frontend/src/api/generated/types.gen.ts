@@ -846,7 +846,12 @@ export type TriggerJobApiV1AdminJobsKindRunPostData = {
          */
         kind: string;
     };
-    query?: never;
+    query?: {
+        /**
+         * Dry Run
+         */
+        dry_run?: boolean;
+    };
     url: '/api/v1/admin/jobs/{kind}/run';
 };
 
@@ -865,12 +870,8 @@ export type TriggerJobApiV1AdminJobsKindRunPostResponses = {
      *
      * Successful Response
      */
-    202: {
-        [key: string]: unknown;
-    };
+    202: unknown;
 };
-
-export type TriggerJobApiV1AdminJobsKindRunPostResponse = TriggerJobApiV1AdminJobsKindRunPostResponses[keyof TriggerJobApiV1AdminJobsKindRunPostResponses];
 
 export type GetOpensearchRuntimeApiV1AdminOpensearchRuntimeGetData = {
     body?: never;

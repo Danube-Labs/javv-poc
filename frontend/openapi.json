@@ -1818,6 +1818,16 @@
               "title": "Kind",
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Dry Run",
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -1825,9 +1835,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Trigger Job Api V1 Admin Jobs  Kind  Run Post",
-                  "type": "object"
+                  "title": "Response Trigger Job Api V1 Admin Jobs  Kind  Run Post"
                 }
               }
             },

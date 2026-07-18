@@ -1,50 +1,37 @@
 """Repair actions (issue 406 follow-up) — HTTP triggers for the three sanctioned maintenance
 jobs, never raw store writes.
 
-One `system-jobs` doc per kind (_id = kind) is the whole surface: OCC claim (seq_no CAS) makes
-the trigger exactly-once across pods; a fencing `attempt_id` guards heartbeat/finalize exactly
-like the reports lease (D39/D40); a run whose heartbeat goes silent past the lease TTL is
-honestly `stale` and reclaimable. The job itself executes in-process after the 202 — every one
-of them is idempotent/convergent by design (rebuild re-derives, sweeps converge), so a pod
-death mid-run loses nothing but the status doc's happy ending.
+One `system-jobs` doc per kind (_id = kind) is the whole surface, and the lease grammar lives
+in `jobs/lease.py` shared with the scheduled CronJob door (issue 459): OCC claim (seq_no CAS)
+makes the trigger exactly-once across pods AND across doors; a fencing `attempt_id` guards
+heartbeat/finalize exactly like the reports lease (D39/D40); a run whose heartbeat goes silent
+past the lease TTL is honestly `stale` and reclaimable. The job itself executes in-process
+after the 202 — every one of them is idempotent/convergent by design (rebuild re-derives,
+sweeps converge), so a pod death mid-run loses nothing but the status doc's happy ending.
+
+`?dry_run=true` (lifecycle only) evaluates would-roll/would-drop and writes nothing — it runs
+inline (200, not 202) without the lease or the status doc: a read has nothing to fence.
 """
 
 import asyncio
-import uuid
 from collections.abc import Awaitable, Callable
-from datetime import UTC, datetime
 from typing import Annotated, Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import JSONResponse
 from opensearchpy import AsyncOpenSearch, NotFoundError
-from opensearchpy.exceptions import ConflictError
 
 from backend.audit.writer import append_auth_event
 from backend.auth.principal import Principal, get_current_principal
-from backend.core.settings import get_settings
+from backend.jobs.lease import JOBS_INDEX, claim_job, finalize_job, heartbeat_loop, lease_fresh
 from backend.jobs.lifecycle import run_lifecycle_sweep
-from backend.jobs.rebuild_state import (
-    rebuild_decision_projection,
-    rebuild_scanner_presence,
-    rebuild_sla_clocks,
-)
+from backend.jobs.rebuild_state import run_rebuild_state
 from backend.jobs.staleness import run_staleness_sweep
 
 log = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/admin/jobs", tags=["admin-jobs"])
-
-JOBS_INDEX = "system-jobs"
-_HEARTBEAT_EVERY_S = 15.0
-
-
-async def _run_rebuild_state(client: AsyncOpenSearch) -> dict[str, Any]:
-    return {
-        "decisions": await rebuild_decision_projection(client),
-        "presence": await rebuild_scanner_presence(client),
-        "sla_clocks": await rebuild_sla_clocks(client),
-    }
 
 
 async def _run_staleness(client: AsyncOpenSearch) -> dict[str, Any]:
@@ -58,74 +45,23 @@ async def _run_lifecycle(client: AsyncOpenSearch) -> dict[str, Any]:
 # kind → (its D33 capability, the runner). Lifecycle DROPS whole indices → can_drop_index;
 # rebuild has its own destructive-tier capability; the staleness pass is a settings-tier rerun.
 JOB_KINDS: dict[str, tuple[str, Callable[[AsyncOpenSearch], Awaitable[dict[str, Any]]]]] = {
-    "rebuild_state": ("can_rebuild_state", _run_rebuild_state),
+    "rebuild_state": ("can_rebuild_state", run_rebuild_state),
     "staleness_sweep": ("can_manage_settings", _run_staleness),
     "lifecycle_sweep": ("can_drop_index", _run_lifecycle),
 }
 
 
-def _now() -> str:
-    return datetime.now(UTC).isoformat()
-
-
-def _lease_fresh(doc: dict[str, Any]) -> bool:
-    beat = doc.get("heartbeat_at")
-    if not beat:
-        return False
-    age = datetime.now(UTC) - datetime.fromisoformat(beat)
-    return age.total_seconds() < get_settings().report_lease_ttl_seconds
-
-
-async def _heartbeat_loop(client: AsyncOpenSearch, kind: str, attempt_id: str) -> None:
-    while True:
-        await asyncio.sleep(_HEARTBEAT_EVERY_S)
-        try:
-            got = await client.get(index=JOBS_INDEX, id=kind)
-            if got["_source"].get("attempt_id") != attempt_id:
-                return  # reclaimed by a newer trigger — this run's updates are fenced out
-            await client.index(
-                index=JOBS_INDEX,
-                id=kind,
-                body={**got["_source"], "heartbeat_at": _now()},
-                params={"if_seq_no": got["_seq_no"], "if_primary_term": got["_primary_term"]},
-            )
-        except (ConflictError, NotFoundError):
-            return
-        except Exception:  # noqa: BLE001 — a heartbeat hiccup must never kill the job itself
-            log.warning("job heartbeat failed", kind=kind)
-
-
-async def _finalize(
-    client: AsyncOpenSearch, kind: str, attempt_id: str, updates: dict[str, Any]
-) -> None:
-    """Fenced finalize: only the attempt that still owns the doc may write its ending."""
-    got = await client.get(index=JOBS_INDEX, id=kind)
-    if got["_source"].get("attempt_id") != attempt_id:
-        log.warning("job finalize fenced out", kind=kind, attempt_id=attempt_id)
-        return
-    await client.index(
-        index=JOBS_INDEX,
-        id=kind,
-        body={**got["_source"], **updates, "finished_at": _now()},
-        params={
-            "if_seq_no": got["_seq_no"],
-            "if_primary_term": got["_primary_term"],
-            "refresh": "true",
-        },
-    )
-
-
 async def _execute(client: AsyncOpenSearch, kind: str, attempt_id: str) -> None:
-    beat = asyncio.create_task(_heartbeat_loop(client, kind, attempt_id))
+    beat = asyncio.create_task(heartbeat_loop(client, kind, attempt_id))
     try:
         result = await JOB_KINDS[kind][1](client)
     except Exception as exc:  # noqa: BLE001 — the failure lands in the status doc, honestly
         log.error("repair job failed", kind=kind, attempt_id=attempt_id)
         beat.cancel()
-        await _finalize(client, kind, attempt_id, {"status": "failed", "error": str(exc)})
+        await finalize_job(client, kind, attempt_id, {"status": "failed", "error": str(exc)})
         return
     beat.cancel()
-    await _finalize(client, kind, attempt_id, {"status": "done", "result": result})
+    await finalize_job(client, kind, attempt_id, {"status": "done", "result": result})
     log.info("repair job done", kind=kind, attempt_id=attempt_id, **result_flat(result))
 
 
@@ -156,7 +92,7 @@ async def list_jobs(
             doc = (await client.get(index=JOBS_INDEX, id=kind))["_source"]
         except NotFoundError:
             doc = {"kind": kind, "status": "idle"}
-        doc["stale"] = bool(doc.get("status") == "running" and not _lease_fresh(doc))
+        doc["stale"] = bool(doc.get("status") == "running" and not lease_fresh(doc))
         doc["capability"] = capability
         jobs.append(doc)
     return {"jobs": jobs}
@@ -167,7 +103,8 @@ async def trigger_job(
     request: Request,
     kind: str,
     principal: Annotated[Principal, Depends(get_current_principal)],
-) -> dict[str, Any]:
+    dry_run: bool = False,
+) -> Any:
     if kind not in JOB_KINDS:
         raise HTTPException(404, "unknown job kind")
     capability = JOB_KINDS[kind][0]
@@ -177,46 +114,26 @@ async def trigger_job(
         raise HTTPException(403, "password change required")
     client = request.app.state.opensearch
 
-    attempt_id = uuid.uuid4().hex[:12]
-    claim = {
-        "kind": kind,
-        "status": "running",
-        "requested_by": principal.user_id,
-        "attempt_id": attempt_id,
-        "started_at": _now(),
-        "heartbeat_at": _now(),
-        "finished_at": None,
-        "result": None,
-        "error": None,
-        "schema_version": 1,
-    }
-    try:
-        got = await client.get(index=JOBS_INDEX, id=kind)
-        if got["_source"].get("status") == "running" and _lease_fresh(got["_source"]):
-            raise HTTPException(409, f"{kind} is already running — one at a time")
-        # CAS on the seq we read: a racing trigger loses with 409 instead of double-running
-        await client.index(
-            index=JOBS_INDEX,
-            id=kind,
-            body=claim,
-            params={
-                "if_seq_no": got["_seq_no"],
-                "if_primary_term": got["_primary_term"],
-                "refresh": "true",
-            },
+    if dry_run:
+        if kind != "lifecycle_sweep":
+            raise HTTPException(422, "dry_run is only supported for lifecycle_sweep")
+        await append_auth_event(
+            client,
+            actor=principal.user_id,
+            action="job_trigger",
+            entity_type="job",
+            entity_id=f"{kind} dry_run",
+            strict=True,
         )
-    except NotFoundError:
-        try:
-            await client.index(
-                index=JOBS_INDEX,
-                id=kind,
-                body=claim,
-                params={"op_type": "create", "refresh": "true"},
-            )
-        except ConflictError:
-            raise HTTPException(409, f"{kind} is already running — one at a time") from None
-    except ConflictError:
-        raise HTTPException(409, f"{kind} is already running — one at a time") from None
+        result = dict(await run_lifecycle_sweep(client, dry_run=True))
+        log.info("lifecycle dry run", actor=principal.user_id, **result)
+        return JSONResponse(
+            status_code=200, content={"kind": kind, "dry_run": True, "result": result}
+        )
+
+    attempt_id = await claim_job(client, kind, requested_by=principal.user_id)
+    if attempt_id is None:
+        raise HTTPException(409, f"{kind} is already running — one at a time")
 
     # journal AFTER the claim is won, strict — a lost race journals nothing (D17)
     await append_auth_event(
