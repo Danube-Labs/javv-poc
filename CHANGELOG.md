@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.2](https://github.com/Danube-Labs/javv-poc/compare/v0.4.1...v0.4.2) (2026-07-19)
+
+
+### Features
+
+* **backend:** system-jobs lease guards both doors + lifecycle dry-run ([#464](https://github.com/Danube-Labs/javv-poc/issues/464)) ([9494d6a](https://github.com/Danube-Labs/javv-poc/commit/9494d6a3abc2d3b9f74500790ed5ca3e11ec12de))
+* **ui:** dry run button on the lifecycle repair row ([#465](https://github.com/Danube-Labs/javv-poc/issues/465)) ([1b99e82](https://github.com/Danube-Labs/javv-poc/commit/1b99e82031ec05859841431b8244ac6c82fc4a06))
+
+
+### Bug Fixes
+
+* **ui:** audit table — detail shrinks to content, target owns the slack ([#462](https://github.com/Danube-Labs/javv-poc/issues/462)) ([d733424](https://github.com/Danube-Labs/javv-poc/commit/d7334246a2379fa7085106cf63eecb33b826d018))
+
 ## [0.4.1](https://github.com/Danube-Labs/javv-poc/compare/v0.4.0...v0.4.1) (2026-07-18)
 
 
