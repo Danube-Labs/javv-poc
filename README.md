@@ -13,8 +13,9 @@
 <p align="center">
   <b>Kubernetes-runtime-native container-vulnerability triage.</b><br>
   Discovers what's <i>actually running</i> in your clusters, scans it with <b>Trivy and Grype</b>
-  side by side, and gives you a real <b>triage lifecycle</b> — with rich dashboards, an append-only
-  audit trail, whole-app time-travel, and one-click CSV. Without the weight of a full ASPM platform.
+  side by side, and gives <b>every vulnerability its own fully-audited triage lifecycle</b> — an
+  immutable record of who changed what, and when. Plus rich dashboards, whole-app time-travel, and
+  one-click CSV. Without the weight of a full ASPM platform.
 </p>
 
 <p align="center">
@@ -48,9 +49,10 @@ Three things it does differently:
 - **Two scanners, never merged.** Trivy and Grype run per-image and are kept side by side. JAVV
   never dedupes a CVE across scanners — instead it **flags where they disagree**, so you see the
   blind spots a single-scanner tool hides.
-- **Every finding has a history.** A six-state triage lifecycle (+ VEX and risk-accept), an
-  append-only audit journal, and **whole-app time-travel** that rewinds every screen to any point
-  in the past.
+- **Every vulnerability is auditable.** Each finding carries its own immutable history — a six-state
+  triage lifecycle (+ VEX and risk-accept), every decision journaled with who, what, and when — plus
+  **whole-app time-travel** that rewinds every screen to any point in the past. Most tools have no
+  concept of auditing a single finding; here it's the core.
 
 ## Screenshots
 
@@ -63,9 +65,10 @@ Three things it does differently:
 
 - **Runtime discovery** — scan the images live in your clusters, per namespace/workload.
 - **Per-scanner, side by side** — Trivy + Grype kept separate; disagreement is surfaced, never merged away.
-- **Triage lifecycle** — six states, VEX import, risk-accept, decisions that apply across scanners — every action journaled (D17).
+- **Per-finding audit trail** — every vulnerability keeps its own immutable history: each triage action, decision, and note journaled with who/what/when (D17), replayed in causal-revision order.
+- **Triage lifecycle** — six states, VEX import, risk-accept, decisions that apply across scanners.
 - **Whole-app time-travel** — a global picker rewinds *every* screen to any point ≤ now, reconstructed from the append logs.
-- **Append-only audit log** — immutable, per-user, with causal-revision replay and CSV export.
+- **Append-only audit log** — immutable, per-finding and per-user, exportable to CSV.
 - **Multi-tenant + RBAC** — isolated by immutable `cluster_id`; capability-based roles, local auth + bootstrap admin.
 - **Server-side everything** — every count and page comes from an OpenSearch aggregation, never computed on the client.
 - **Dashboards & exports** — overview, running-images inventory, scanner status, contributors, approvals, SLA tracking, one-click CSV.
