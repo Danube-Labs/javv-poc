@@ -25,6 +25,12 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=1024]
+        # The README walkthrough GIF is a deliberate ~3MB binary (issue 469): GitHub will not
+        # play a repo-relative video, so an animated GIF is the only inline option. Named
+        # explicitly rather than raising maxkb, so every OTHER large file still gets stopped.
+        # Regenerate with development/scripts/make-demo-gif.sh; re-commit sparingly, since
+        # each revision stays in .git forever.
+        exclude: '^docs/assets/demo\.gif$'
 
   - repo: local
     hooks:

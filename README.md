@@ -26,6 +26,17 @@
   <a href="docs/engineering/ARCHITECTURE.md">Architecture</a>
 </p>
 
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="JAVV walkthrough: the cluster fleet, a cluster's findings, one CVE with its per-scanner evidence and audit trail, the approval queue, and the audit log" width="880">
+</p>
+
+<p align="center">
+  <sub>
+    The fleet · one cluster's findings · a single CVE, its per-scanner evidence and its own audit
+    trail · the risk-accept queue · the journal. Real data from a two-cluster dev environment.
+  </sub>
+</p>
+
 > **Status:** actively developed, pre-1.0. The full stack is built and runnable from source: Python
 > scanners → FastAPI backend → **Vue 3 frontend** (overview, triage, images, audit, scanner status,
 > contributors, approvals, settings, data inspector). The **scanner images are published**
@@ -55,13 +66,6 @@ Three things it does differently:
   triage lifecycle (+ VEX and risk-accept), every decision journaled with who, what, and when, plus
   **whole-app time-travel** that rewinds every screen to any point in the past. Most tools have no
   concept of auditing a single finding; here it's the core.
-
-## Screenshots
-
-|  |  |
-|:--:|:--:|
-| ![Overview](docs/assets/overview.png)<br>**Overview**: severity, KEV, scanner-disagreement, trends | ![Findings](docs/assets/findings.png)<br>**Findings**: faceted, server-side triage grid |
-| ![Data inspector](docs/assets/data-inspector.png)<br>**Data inspector**: read-only, journaled OpenSearch console | ![Audit log](docs/assets/audit-log.png)<br>**Audit log**: every action, with causal revisions |
 
 ## Features
 
