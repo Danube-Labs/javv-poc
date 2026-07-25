@@ -90,12 +90,12 @@ if [ -n "$ALPHA_CID" ]; then
 fi
 
 # ---- 5. one cycle per scanner against beta ------------------------------------
-# The scanner follows the kubeconfig's CURRENT context (no context env) — hand it a
-# beta-only kubeconfig instead of flipping the global one (§B6).
-BETA_KUBECONFIG="$(k3d kubeconfig write beta)"
+# Name the context (issue 470): this rig drives both clusters, and a cycle that reached alpha
+# while claiming to be beta would retire alpha's inventory via reconcile-on-commit. The
+# scanner now refuses that instead, but say which cluster we mean rather than relying on it.
 run_scanner() { # $1=scanner $2=token
   echo "########## $1 beta cycle @ $(date -u +%FT%TZ) ##########" >> "$CLOG"
-  ( cd "$ROOT/scanner" && KUBECONFIG="$BETA_KUBECONFIG" JAVV_SCANNER="$1" \
+  ( cd "$ROOT/scanner" && JAVV_KUBE_CONTEXT="$BETA_CTX" JAVV_SCANNER="$1" \
       JAVV_BACKEND_URL="$BACKEND" JAVV_CLUSTER_ID="$BETA_CID" JAVV_TOKEN="$2" \
       uv run python -m scanner ) >> "$CLOG" 2>&1
   tail -1 "$CLOG"

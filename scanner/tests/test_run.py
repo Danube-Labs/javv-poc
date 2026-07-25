@@ -224,6 +224,27 @@ def test_main_rejects_malformed_cluster_id(
     assert "JAVV_CLUSTER_ID" in capsys.readouterr().out
 
 
+# --- cluster identity is asserted, not assumed (issue 470) -------------------
+
+
+def test_cluster_id_defaults_to_the_cluster_the_kube_client_reached() -> None:
+    assert run.resolve_cluster_id("live-uid-0001", None) == "live-uid-0001"
+
+
+def test_cluster_id_matching_the_reached_cluster_is_accepted() -> None:
+    assert run.resolve_cluster_id("live-uid-0001", "live-uid-0001") == "live-uid-0001"
+
+
+def test_cluster_id_naming_another_cluster_refuses_the_cycle(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    # the whole point: scanning beta and pushing it as alpha succeeds at every other layer, and
+    # reconcile-on-commit then retires alpha's real inventory. Refuse before a single push.
+    assert run.resolve_cluster_id("beta-uid-0002", "alpha-uid-0001") is None
+    out = capsys.readouterr().out
+    assert "alpha-uid-0001" in out and "beta-uid-0002" in out
+
+
 # --- trivy vuln-DB provenance (#96) ------------------------------------------
 
 

@@ -93,6 +93,25 @@ def scan_all(
     return results
 
 
+def resolve_cluster_id(live_uid: str, env_cluster_id: str | None) -> str | None:
+    """`JAVV_CLUSTER_ID` asserts which cluster this cycle is for; it does not relabel one.
+
+    Pushing a cluster's images under another tenant's id succeeds at every layer (the token's
+    scope matches, ingest returns 202) and then reconcile-on-commit retires that tenant's real
+    inventory, because the run omitted all of it. Only the live `kube-system` UID knows which
+    cluster the kube client actually reached, so a disagreement is refused. `None` = refuse.
+    """
+    if env_cluster_id and env_cluster_id != live_uid:
+        log.error(
+            "JAVV_CLUSTER_ID is not the cluster the kube client reached — refusing the cycle",
+            configured=env_cluster_id,
+            reached=live_uid,
+            want="point JAVV_KUBE_CONTEXT at the right context, or unset JAVV_CLUSTER_ID",
+        )
+        return None
+    return env_cluster_id or live_uid
+
+
 def main() -> int:
     import httpx
     from javv_common.logging import configure_logging
@@ -124,18 +143,37 @@ def main() -> int:
     token = os.environ.get("JAVV_TOKEN")
     dead_letter = Path(os.environ.get("JAVV_DEAD_LETTER", f"{scanner}.dead-letter.jsonl"))
 
+    # `or None` — an empty value (a blank Helm value, an exported-but-unset var) means "current
+    # context", not a context literally named "", which kube_config raises on.
+    kube_context = os.environ.get("JAVV_KUBE_CONTEXT") or None
     try:
         config.load_incluster_config()
     except config.ConfigException:
-        config.load_kube_config()
+        # Out of cluster, the kubeconfig's current context silently decides which cluster gets
+        # scanned. Name it, so a dev host holding several clusters does not pick by ambience.
+        config.load_kube_config(context=kube_context)
+        if kube_context is None:
+            # name the one that was picked by ambience — list_kube_config_contexts reports the
+            # kubeconfig's current-context, so it is only the truth when we did not override it
+            _, active = config.list_kube_config_contexts()
+            kube_context = cast(Any, active)["name"]
     api = client.CoreV1Api()
 
     # Tenant identity = the immutable kube-system namespace UID (never cluster_name).
     # kubernetes-client return types are untyped unions; cast for the attribute access.
     kube_system = cast(Any, api.read_namespace("kube-system"))
-    cluster_id = env_cluster_id or str(kube_system.metadata.uid)
+    resolved = resolve_cluster_id(str(kube_system.metadata.uid), env_cluster_id)
+    if resolved is None:
+        return 2
+    cluster_id = resolved
     # every line of this cycle carries who/where (merged by the shared pipeline)
     structlog.contextvars.bind_contextvars(scanner=scanner, cluster_id=cluster_id)
+    # which cluster this cycle actually reached — the counts below mean nothing without it
+    log.info(
+        "kube target",
+        kube_context=kube_context or "in-cluster",
+        api_server=cast(Any, api.api_client.configuration).host,
+    )
 
     # scan-behaviour config from JAVV_TRIVY_*/JAVV_GRYPE_* env (#91); defaults = the pinned command.
     scan_fn: ScanFn

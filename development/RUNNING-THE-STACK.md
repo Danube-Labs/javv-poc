@@ -214,8 +214,14 @@ The scanner needs: which scanner, the backend URL, a token, and (optionally) an 
 namespace UID — but then the token's `cluster_id` must match that. Easiest is to **set both
 explicitly** and mint a token for it:
 
+> **Which cluster gets scanned:** out of cluster the scanner follows the kubeconfig's **current
+> context** unless you set **`JAVV_KUBE_CONTEXT`**. With more than one k3d cluster on the host,
+> always set it. `JAVV_CLUSTER_ID` is an assertion, not a label: if it isn't the `kube-system` UID
+> of the cluster actually reached, the cycle refuses with exit 2 rather than writing one cluster's
+> images into another tenant (issue 470).
+
 ```bash
-# derive the cluster's real id (what the scanner would use), or pick your own 8–64 char slug
+# the cluster's real id — the scanner asserts this against the cluster it reaches
 export SCAN_CID=$(kubectl --context k3d-alpha get namespace kube-system -o jsonpath='{.metadata.uid}')
 echo "cluster_id: $SCAN_CID"
 
@@ -230,6 +236,7 @@ export SCAN_TOKEN=$(curl -s -b cookies.txt -X POST localhost:8000/api/v1/admin/t
 ```bash
 cd scanner
 KUBECONFIG=$HOME/.kube/config \
+JAVV_KUBE_CONTEXT=k3d-alpha \
 JAVV_SCANNER=trivy \
 JAVV_BACKEND_URL=http://localhost:8000 \
 JAVV_CLUSTER_ID=$SCAN_CID \
@@ -249,7 +256,7 @@ export SCAN_TOKEN_GRYPE=$(curl -s -b cookies.txt -X POST localhost:8000/api/v1/a
   -d "{\"cluster_id\":\"$SCAN_CID\",\"scanner\":\"grype\"}" | jq -r .token)
 
 cd scanner
-KUBECONFIG=$HOME/.kube/config \
+KUBECONFIG=$HOME/.kube/config JAVV_KUBE_CONTEXT=k3d-alpha \
 JAVV_SCANNER=grype JAVV_BACKEND_URL=http://localhost:8000 \
 JAVV_CLUSTER_ID=$SCAN_CID JAVV_TOKEN=$SCAN_TOKEN_GRYPE \
   uv run python -m scanner
@@ -334,14 +341,13 @@ export BETA_TOKEN_TRIVY=$(curl -s -b cookies.txt -X POST localhost:8000/api/v1/a
 export BETA_TOKEN_GRYPE=$(curl -s -b cookies.txt -X POST localhost:8000/api/v1/admin/tokens \
   -H 'content-type: application/json' -d "{\"cluster_id\":\"$BETA_CID\",\"scanner\":\"grype\"}" | jq -r .token)
 
-# 4. one cycle per scanner. The scanner follows the kubeconfig's CURRENT context (no
-#    context env) — give it a beta-only kubeconfig instead of flipping the global one:
-export BETA_KUBECONFIG=$(k3d kubeconfig write beta)
+# 4. one cycle per scanner, targeting beta by name — no need to flip the global context.
+#    Get this wrong and the cycle refuses (exit 2) instead of writing beta's images as alpha.
 cd scanner
-KUBECONFIG=$BETA_KUBECONFIG \
+JAVV_KUBE_CONTEXT=k3d-beta \
 JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://localhost:8000 \
 JAVV_CLUSTER_ID=$BETA_CID JAVV_TOKEN=$BETA_TOKEN_TRIVY uv run python -m scanner
-KUBECONFIG=$BETA_KUBECONFIG \
+JAVV_KUBE_CONTEXT=k3d-beta \
 JAVV_SCANNER=grype JAVV_BACKEND_URL=http://localhost:8000 \
 JAVV_CLUSTER_ID=$BETA_CID JAVV_TOKEN=$BETA_TOKEN_GRYPE uv run python -m scanner
 cd ..
