@@ -28,9 +28,11 @@
 
 > **Status:** actively developed, pre-1.0. The full stack is built and runnable from source — Python
 > scanners → FastAPI backend → **Vue 3 frontend** (overview, triage, images, audit, scanner status,
-> contributors, approvals, settings, data inspector). A **packaged deploy (container images + Helm
-> chart) is not available yet** — that's the remaining milestone, **M10**
-> ([#452](https://github.com/Danube-Labs/javv-poc/issues/452)). See
+> contributors, approvals, settings, data inspector). The **scanner images are published**
+> (see [Supported versions](#supported-versions)), but the **app images + Helm chart are not
+> built yet** — that's the remaining milestone, **M10**
+> ([#41](https://github.com/Danube-Labs/javv-poc/issues/41), starting with
+> [#452](https://github.com/Danube-Labs/javv-poc/issues/452)). See
 > [Releases](https://github.com/Danube-Labs/javv-poc/releases) for the current cut; canonical design
 > lives in [`docs/engineering/`](docs/engineering/).
 
@@ -65,8 +67,8 @@ Three things it does differently:
 
 - **Runtime discovery** — scan the images live in your clusters, per namespace/workload.
 - **Per-scanner, side by side** — Trivy + Grype kept separate; disagreement is surfaced, never merged away.
-- **Per-finding audit trail** — every vulnerability keeps its own immutable history: each triage action, decision, and note journaled with who/what/when (D17), replayed in causal-revision order.
-- **Triage lifecycle** — six states, VEX import, risk-accept, decisions that apply across scanners.
+- **Per-finding audit trail** — every vulnerability keeps its own immutable history: each triage action, decision, and note journaled with who, what, and when, replayed in causal-revision order.
+- **Triage lifecycle** — a six-state machine (five operator-settable; `stale` is set by the staleness sweep), VEX import, risk-accept, decisions that apply across scanners.
 - **Whole-app time-travel** — a global picker rewinds *every* screen to any point ≤ now, reconstructed from the append logs.
 - **Append-only audit log** — immutable, per-finding and per-user, exportable to CSV.
 - **Multi-tenant + RBAC** — isolated by immutable `cluster_id`; capability-based roles, local auth + bootstrap admin.
@@ -79,7 +81,8 @@ Three things it does differently:
 
 ```
 Python scanner module (Trivy + Grype adapters, one JAVV-built image per scanner, run as CronJobs)
-        │  push signed envelopes
+        │  push scan envelopes over token-authenticated ingest
+        │  (per-cluster bearer token, scope-bound: a token cannot push another cluster's data)
         ▼
 FastAPI async backend  ──►  OpenSearch  (single store — findings, append logs, audit, config)
         │  server-side aggregations
@@ -93,9 +96,11 @@ in [`docs/engineering/ARCHITECTURE.md`](docs/engineering/ARCHITECTURE.md) and
 
 ## Running it
 
-> **A packaged deploy is not available yet.** Container images and a Helm chart land in **M10**
-> ([#452](https://github.com/Danube-Labs/javv-poc/issues/452)). For now JAVV runs **from source**,
-> for local development and evaluation.
+> **A packaged deploy is not available yet.** The scanners ship as published images, but the
+> backend/frontend images and the Helm chart land in **M10**
+> ([#41](https://github.com/Danube-Labs/javv-poc/issues/41) —
+> [#452](https://github.com/Danube-Labs/javv-poc/issues/452) is the first slice). For now JAVV runs
+> **from source**, for local development and evaluation.
 
 Bring the stack up by hand — backend + UI against a local OpenSearch, or the full end-to-end path
 with real Trivy/Grype scanning a live k3d cluster — by following
