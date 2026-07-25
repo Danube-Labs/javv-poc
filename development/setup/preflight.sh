@@ -47,6 +47,16 @@ if command -v node >/dev/null 2>&1; then
   else fail "node $(node -v) is below required v$NODE_MAJOR_MIN"; fi
 fi
 
+hdr "Playwright browser (e2e + visual rigs)"
+# Not installed by setup-dev.sh: the browser is a per-checkout npm artifact, not host toolchain,
+# so it lands with the frontend deps. Soft — you only need it to run the e2e suites.
+PW_CACHE="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-playwright}"
+if compgen -G "$PW_CACHE/chromium-*" >/dev/null 2>&1; then
+  ok "chromium present ($PW_CACHE)"
+else
+  warn "no Playwright chromium — run: cd frontend && npx playwright install chromium --with-deps"
+fi
+
 hdr "Docker daemon"
 if docker info >/dev/null 2>&1; then
   ok "docker daemon reachable"
