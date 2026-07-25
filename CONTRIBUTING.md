@@ -18,12 +18,16 @@ without guessing at house conventions.
 
 ## Getting set up
 
-On a fresh Ubuntu host:
+On a fresh Ubuntu host, install first, then verify:
 
 ```bash
-bash development/setup/preflight.sh    # check the host
-bash development/setup/setup-dev.sh    # install the pinned toolchain (idempotent)
+bash development/setup/setup-dev.sh    # installs the pinned toolchain (idempotent)
+bash development/setup/preflight.sh    # checks the tools are present and the runtime is up
 ```
+
+`setup-dev.sh` reads every pinned version from [`versions.yaml`](versions.yaml), so it installs
+exactly what CI uses. `preflight.sh` hard-fails on a missing tool and warns (without failing) when
+Docker, a k3d cluster, or OpenSearch is not running yet, which is expected before you start them.
 
 Then bring the stack up by following
 [`development/RUNNING-THE-STACK.md`](development/RUNNING-THE-STACK.md), which covers the
@@ -94,6 +98,14 @@ uv run pytest
 # frontend (from frontend/)
 npm run lint
 npm run test:ci
+```
+
+The end-to-end suite is a separate job and is not part of `test:ci`. To run it locally you need the
+browser, which `setup-dev.sh` does not install yet:
+
+```bash
+cd frontend && npx playwright install chromium --with-deps
+npm run test:e2e
 ```
 
 If you change a route or its parameters, regenerate the API contract in the same PR:
