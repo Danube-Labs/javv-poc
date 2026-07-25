@@ -18,7 +18,8 @@ JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://backend python -m scanner
 |---|---|
 | `JAVV_SCANNER` | `trivy` \| `grype` — which scanner this Job runs (default `trivy`) |
 | `JAVV_BACKEND_URL` | ingest endpoint base (default `http://localhost:8000`) |
-| `JAVV_CLUSTER_ID` | tenant id; defaults to the live `kube-system` namespace UID |
+| `JAVV_CLUSTER_ID` | tenant id; defaults to the live `kube-system` namespace UID. Set = **asserted**: a mismatch with the cluster actually reached refuses the cycle (exit 2) |
+| `JAVV_KUBE_CONTEXT` | out-of-cluster only — which kubeconfig context to scan (default: the current one) |
 | `JAVV_DEAD_LETTER` | dead-letter sink path (default `<scanner>.dead-letter.jsonl`) |
 
 ## Trivy and Grype are two separate CronJobs
