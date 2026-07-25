@@ -99,8 +99,12 @@ flowchart TB
         API --> UI
     end
 
-    SCAN -->|"scan envelopes over token-authenticated ingest<br/>per-cluster bearer token, scope-bound:<br/>a token cannot push another cluster's data"| API
+    SCAN -->|"scan envelopes<br/>token-authenticated ingest"| API
 ```
+
+Ingest is authenticated with a per-cluster bearer token that is **scope-bound**: a token cannot push
+another cluster's data. JAVV only ever receives pushes, so it needs no credentials for, and no
+network path into, the clusters it reports on.
 
 Deploy target is **Helm → k3s** (in progress, M10). Full detail on layers, data flow, and the index
 model lives in [`docs/engineering/ARCHITECTURE.md`](docs/engineering/ARCHITECTURE.md) and
