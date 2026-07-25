@@ -85,7 +85,8 @@ fallback or a per-image error loop. Unset always means the documented default.
 | `JAVV_LOG_LEVEL` | `info` | Same shared pipeline as the backend (#156). INFO = per-image progress (`scanning image` → `scan done`, findings + duration) + cycle summary; WARNING = skipped image / dead-letter. `scanner`/`cluster_id`/`scan_run_id` are bound on every line. | n/a (deploy) |
 | `JAVV_BACKEND_URL` | `http://localhost:8000` | Backend ingest endpoint | n/a (deploy) |
 | `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). **Effectively required** — since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed). | 🔒 secret |
-| `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity; defaults to the immutable `kube-system` namespace UID (never `cluster_name`). | n/a (deploy) |
+| `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity = the immutable `kube-system` namespace UID (never `cluster_name`). Setting it **asserts** which cluster the cycle is for rather than relabelling one: if it does not equal the UID of the cluster the kube client actually reached, the cycle is refused with exit 2 (issue 470). | n/a (deploy) |
+| `JAVV_KUBE_CONTEXT` | *(current context)* | Out-of-cluster only — names the kubeconfig context to scan. In-cluster this is ignored (`load_incluster_config()` wins). Unset, the scanner follows whatever the current context happens to be, which is why the `JAVV_CLUSTER_ID` assertion above exists. | n/a (dev) |
 | `JAVV_DEAD_LETTER` | `<scanner>.dead-letter.jsonl` | Path for per-image scan failures (isolate + continue) | n/a (deploy) |
 
 ---

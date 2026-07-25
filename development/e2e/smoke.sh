@@ -86,6 +86,7 @@ TOK_TRIVY="$(mint trivy)"; TOK_GRYPE="$(mint grype)"
 run_scanner() { # $1=scanner $2=token $3=logfile $4=label [$5="EXTRA=env EXTRA2=env"]
   echo "########## $1 $4 @ $(date -u +%FT%TZ) ##########" >> "$3"
   ( cd "$ROOT/scanner" && env ${5:-} KUBECONFIG="$HOME/.kube/config" JAVV_SCANNER="$1" \
+      JAVV_KUBE_CONTEXT="$CTX" \
       JAVV_BACKEND_URL="$BACKEND" JAVV_CLUSTER_ID="$SCAN_CID" JAVV_TOKEN="$2" \
       uv run python -m scanner ) >> "$3" 2>&1
   tail -1 "$3"
