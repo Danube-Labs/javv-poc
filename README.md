@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="design/brand/github/png/readme-hero-1280x360.png" alt="javv — Just Another Vulnerability Viewer" width="840">
+  <img src="design/brand/github/png/readme-hero-1280x360.png" alt="javv: Just Another Vulnerability Viewer" width="840">
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 <p align="center">
   <b>Kubernetes-runtime-native container-vulnerability triage.</b><br>
   Discovers what's <i>actually running</i> in your clusters, scans it with <b>Trivy and Grype</b>
-  side by side, and gives <b>every vulnerability its own fully-audited triage lifecycle</b> — an
+  side by side, and gives <b>every vulnerability its own fully-audited triage lifecycle</b>: an
   immutable record of who changed what, and when. Plus rich dashboards, whole-app time-travel, and
   one-click CSV. Without the weight of a full ASPM platform.
 </p>
@@ -26,11 +26,11 @@
   <a href="docs/engineering/ARCHITECTURE.md">Architecture</a>
 </p>
 
-> **Status:** actively developed, pre-1.0. The full stack is built and runnable from source — Python
+> **Status:** actively developed, pre-1.0. The full stack is built and runnable from source: Python
 > scanners → FastAPI backend → **Vue 3 frontend** (overview, triage, images, audit, scanner status,
 > contributors, approvals, settings, data inspector). The **scanner images are published**
 > (see [Supported versions](#supported-versions)), but the **app images + Helm chart are not
-> built yet** — that's the remaining milestone, **M10**
+> built yet**. That's the remaining milestone, **M10**
 > ([#41](https://github.com/Danube-Labs/javv-poc/issues/41), starting with
 > [#452](https://github.com/Danube-Labs/javv-poc/issues/452)). See
 > [Releases](https://github.com/Danube-Labs/javv-poc/releases) for the current cut; canonical design
@@ -42,17 +42,17 @@
 
 Vulnerability tooling splits into two worlds: **triage tools** (DefectDojo, Dependency-Track) with
 rigid reporting, and **log-analytics dashboards** with no concept of auditing a finding. JAVV fills
-the seam — a real triage lifecycle *and* exploratory dashboards, over what's live in your clusters.
+the seam: a real triage lifecycle *and* exploratory dashboards, over what's live in your clusters.
 
 Three things it does differently:
 
 - **Scans what's running, not a registry.** JAVV discovers the images actually deployed in your
-  clusters and scans those — the vulnerabilities you're exposed to right now, not a catalogue.
+  clusters and scans those: the vulnerabilities you're exposed to right now, not a catalogue.
 - **Two scanners, never merged.** Trivy and Grype run per-image and are kept side by side. JAVV
-  never dedupes a CVE across scanners — instead it **flags where they disagree**, so you see the
+  never dedupes a CVE across scanners. Instead it **flags where they disagree**, so you see the
   blind spots a single-scanner tool hides.
-- **Every vulnerability is auditable.** Each finding carries its own immutable history — a six-state
-  triage lifecycle (+ VEX and risk-accept), every decision journaled with who, what, and when — plus
+- **Every vulnerability is auditable.** Each finding carries its own immutable history: a six-state
+  triage lifecycle (+ VEX and risk-accept), every decision journaled with who, what, and when, plus
   **whole-app time-travel** that rewinds every screen to any point in the past. Most tools have no
   concept of auditing a single finding; here it's the core.
 
@@ -60,22 +60,22 @@ Three things it does differently:
 
 |  |  |
 |:--:|:--:|
-| ![Overview](docs/assets/overview.png)<br>**Overview** — severity, KEV, scanner-disagreement, trends | ![Findings](docs/assets/findings.png)<br>**Findings** — faceted, server-side triage grid |
-| ![Data inspector](docs/assets/data-inspector.png)<br>**Data inspector** — read-only, journaled OpenSearch console | ![Audit log](docs/assets/audit-log.png)<br>**Audit log** — every action, with causal revisions |
+| ![Overview](docs/assets/overview.png)<br>**Overview**: severity, KEV, scanner-disagreement, trends | ![Findings](docs/assets/findings.png)<br>**Findings**: faceted, server-side triage grid |
+| ![Data inspector](docs/assets/data-inspector.png)<br>**Data inspector**: read-only, journaled OpenSearch console | ![Audit log](docs/assets/audit-log.png)<br>**Audit log**: every action, with causal revisions |
 
 ## Features
 
-- **Runtime discovery** — scan the images live in your clusters, per namespace/workload.
-- **Per-scanner, side by side** — Trivy + Grype kept separate; disagreement is surfaced, never merged away.
-- **Per-finding audit trail** — every vulnerability keeps its own immutable history: each triage action, decision, and note journaled with who, what, and when, replayed in causal-revision order.
-- **Triage lifecycle** — a six-state machine (five operator-settable; `stale` is set by the staleness sweep), VEX import, risk-accept, decisions that apply across scanners.
-- **Whole-app time-travel** — a global picker rewinds *every* screen to any point ≤ now, reconstructed from the append logs.
-- **Append-only audit log** — immutable, per-finding and per-user, exportable to CSV.
-- **Multi-tenant + RBAC** — isolated by immutable `cluster_id`; capability-based roles, local auth + bootstrap admin.
-- **Server-side everything** — every count and page comes from an OpenSearch aggregation, never computed on the client.
-- **Dashboards & exports** — overview, running-images inventory, scanner status, contributors, approvals, SLA tracking, one-click CSV.
-- **Data inspector + repair actions** — a read-only OpenSearch console and a small set of sanctioned, journaled maintenance jobs.
-- **No external broker** — coordination is OpenSearch; jobs are Kubernetes CronJobs. No Redis/Kafka/RabbitMQ.
+- **Runtime discovery**: scan the images live in your clusters, per namespace/workload.
+- **Per-scanner, side by side**: Trivy + Grype kept separate; disagreement is surfaced, never merged away.
+- **Per-finding audit trail**: every vulnerability keeps its own immutable history, with each triage action, decision, and note journaled by who, what, and when, replayed in causal-revision order.
+- **Triage lifecycle**: a six-state machine (five operator-settable; `stale` is set by the staleness sweep), VEX import, risk-accept, decisions that apply across scanners.
+- **Whole-app time-travel**: a global picker rewinds *every* screen to any point ≤ now, reconstructed from the append logs.
+- **Append-only audit log**: immutable, per-finding and per-user, exportable to CSV.
+- **Multi-tenant + RBAC**: isolated by immutable `cluster_id`; capability-based roles, local auth + bootstrap admin.
+- **Server-side everything**: every count and page comes from an OpenSearch aggregation, never computed on the client.
+- **Dashboards & exports**: overview, running-images inventory, scanner status, contributors, approvals, SLA tracking, one-click CSV.
+- **Data inspector + repair actions**: a read-only OpenSearch console and a small set of sanctioned, journaled maintenance jobs.
+- **No external broker**: coordination is OpenSearch; jobs are Kubernetes CronJobs. No Redis/Kafka/RabbitMQ.
 
 ## Architecture
 
@@ -84,33 +84,33 @@ Python scanner module (Trivy + Grype adapters, one JAVV-built image per scanner,
         │  push scan envelopes over token-authenticated ingest
         │  (per-cluster bearer token, scope-bound: a token cannot push another cluster's data)
         ▼
-FastAPI async backend  ──►  OpenSearch  (single store — findings, append logs, audit, config)
+FastAPI async backend  ──►  OpenSearch  (single store: findings, append logs, audit, config)
         │  server-side aggregations
         ▼
 Vue 3 frontend (PrimeVue · Pinia · ECharts)
 ```
 
-Deploy target is **Helm → k3s** (in progress, M10). Full detail — layers, data flow, index model —
-in [`docs/engineering/ARCHITECTURE.md`](docs/engineering/ARCHITECTURE.md) and
+Deploy target is **Helm → k3s** (in progress, M10). Full detail on layers, data flow, and the index
+model lives in [`docs/engineering/ARCHITECTURE.md`](docs/engineering/ARCHITECTURE.md) and
 [`docs/engineering/INDEX-MAP.md`](docs/engineering/INDEX-MAP.md).
 
 ## Running it
 
 > **A packaged deploy is not available yet.** The scanners ship as published images, but the
 > backend/frontend images and the Helm chart land in **M10**
-> ([#41](https://github.com/Danube-Labs/javv-poc/issues/41) —
+> ([#41](https://github.com/Danube-Labs/javv-poc/issues/41);
 > [#452](https://github.com/Danube-Labs/javv-poc/issues/452) is the first slice). For now JAVV runs
 > **from source**, for local development and evaluation.
 
-Bring the stack up by hand — backend + UI against a local OpenSearch, or the full end-to-end path
-with real Trivy/Grype scanning a live k3d cluster — by following
+Bring the stack up by hand (backend + UI against a local OpenSearch, or the full end-to-end path
+with real Trivy/Grype scanning a live k3d cluster) by following
 **[`development/RUNNING-THE-STACK.md`](development/RUNNING-THE-STACK.md)** (paths A / B / F). On a
 fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequisite first
 (idempotent; verify readiness with `preflight.sh`).
 
 ## Documentation
 
-**Canonical engineering set — [`docs/engineering/`](docs/engineering/):**
+**Canonical engineering set ([`docs/engineering/`](docs/engineering/)):**
 
 | Doc | What |
 |---|---|
@@ -125,7 +125,7 @@ fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequi
 
 | Path | What |
 |---|---|
-| [REPO-MAP.md](REPO-MAP.md) | **Repository map** — what every folder is + reading order |
+| [REPO-MAP.md](REPO-MAP.md) | **Repository map**: what every folder is + reading order |
 | [docs/API.md](docs/API.md) | The shipped HTTP surface at a glance (auth regimes, capabilities) |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration knob: default, tier, UI-controllability |
 | [development/RUNNING-THE-STACK.md](development/RUNNING-THE-STACK.md) | Bring the stack up by hand (backend / full-stack / frontend) |
@@ -138,7 +138,7 @@ Python 3.12 · FastAPI (async) · AsyncOpenSearch · Pydantic v2 · Vue 3 (`<scr
 Pinia · vue-echarts. OpenSearch is the single store. Apache-2.0 components throughout.
 
 Gate-tool versions (the ones that decide lint/type/test results, so local matches CI) are pinned in
-**[`versions.yaml`](versions.yaml)** (D42) — bump them there; `development/setup/setup-dev.sh` reads
+**[`versions.yaml`](versions.yaml)** (D42). Bump them there; `development/setup/setup-dev.sh` reads
 it directly and `development/scripts/check-versions.sh` drift-checks every consumer.
 
 | Tool | Role | Version |
@@ -164,7 +164,7 @@ the Dockerfiles + dev compose in step. To change support, edit `versions.yaml`.
 |---|---|---|
 | Trivy | 0.71.2 | 0.70.0 |
 | Grype | 0.115.0 | 0.114.0 |
-| OpenSearch | 3.7.0 | — |
+| OpenSearch | 3.7.0 | n/a |
 
 Scanner images are published per supported version as
 `ghcr.io/danube-labs/javv-scanner-{trivy,grype}:<ver>`; an operator pins/swaps a tag in their own
@@ -174,7 +174,7 @@ deploy (JAVV never changes versions in a running cluster).
 
 JAVV is **source-available** under the [Business Source License 1.1](LICENSE):
 
-- **Free to use, modify, and self-host** — including in production, for any team or company.
+- **Free to use, modify, and self-host**, including in production, for any team or company.
 - **What you may not do:** offer JAVV itself to third parties as a hosted/managed service (i.e. sell JAVV-as-a-service).
 - **Time-delayed open source:** on the Change Date (**2030-06-10**) this version automatically converts to the **Apache License 2.0**.
 
