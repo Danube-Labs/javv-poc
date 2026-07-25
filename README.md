@@ -126,6 +126,8 @@ fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequi
 | Path | What |
 |---|---|
 | [REPO-MAP.md](REPO-MAP.md) | **Repository map**: what every folder is + reading order |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, house conventions, the gates a PR must pass |
+| [SECURITY.md](SECURITY.md) | How to report a vulnerability in JAVV (privately), and what's in scope |
 | [docs/API.md](docs/API.md) | The shipped HTTP surface at a glance (auth regimes, capabilities) |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration knob: default, tier, UI-controllability |
 | [development/RUNNING-THE-STACK.md](development/RUNNING-THE-STACK.md) | Bring the stack up by hand (backend / full-stack / frontend) |
