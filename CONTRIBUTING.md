@@ -78,6 +78,13 @@ good the code is:
 > aborts the commit with HEAD unmoved. A commit is not committed until `git log --oneline -1` shows
 > it. Running `uv run ruff format <file>` before staging avoids this entirely.
 
+> **If you use Claude Code, two commands are blocked** by `.claude/hooks/guard_bash.py`, wired as a
+> PreToolUse hook in the tracked `.claude/settings.json`. `git add -A|.` has swept gitignored files
+> into commits here, and `pkill|pgrep -f` matches the agent's own wrapper process, killing its shell
+> or hanging a wait loop. Stage explicit paths; find the PID with `ss -ltnp`. The guard tokenizes the
+> command, so these strings stay fine inside a commit message or heredoc. Cases:
+> `python3 .claude/hooks/test_guard_bash.py` (also run by pre-commit when the guard changes).
+
 ## Code comments
 
 Default to none. Add one only when the *why* is non-obvious: a hidden constraint, a subtle
