@@ -41,7 +41,8 @@ Do not work from memory on these. Each area has a source of truth, and reviews c
 |---|---|
 | Any index, mapping, rollover, or retention | [`docs/engineering/INDEX-MAP.md`](docs/engineering/INDEX-MAP.md) |
 | HTTP endpoints or their contracts | [`docs/API.md`](docs/API.md) |
-| Frontend UI or styling | [`frontend/DESIGN.md`](frontend/DESIGN.md) |
+| Frontend UI or styling | [`frontend/DESIGN.md`](frontend/DESIGN.md) (binding); see *Building UI* below |
+| Adding a log line, either stack | *Logging* below: shared library only, never `console.*` or `print` |
 | Any config knob, env var, or threshold | [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) |
 | Commits, branches, PRs | [`development/standards/git-workflow.md`](development/standards/git-workflow.md) |
 | What "done" means | [`development/standards/definition-of-done.md`](development/standards/definition-of-done.md) |
@@ -62,7 +63,52 @@ good the code is:
 - **No hardcoded tunables.** A new knob is documented in
   [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) in the same PR. Hardcoding one fails review.
 - **Use the shared loggers.** Backend uses `structlog.get_logger()`; frontend uses `@/lib/logger`
-  (`console.*` is lint-banned).
+  (`console.*` is lint-banned). See *Logging* below for the shape.
+
+## Building UI
+
+[`frontend/DESIGN.md`](frontend/DESIGN.md) is the contract; this is the orientation.
+
+**Reuse before you build.** Most surfaces are already solved: `frontend/src/components/ui/`
+(UiButton, UiField, UiDropdown, UiSegControl, UiDateTime, ModalShell, SlideoverShell, ToastStack,
+EmptyState, AppIcon), plus `components/chips/`, the filter module, the shared table skin with
+GridPager, and StatBand. **Grep first.** A parallel implementation of a solved control fails review
+however well written.
+
+**Where the visual grammar comes from**, in order: the prototype in `handoff/` (composition
+reference for a screen, per DESIGN.md §8); then [ui.nuxt.com](https://ui.nuxt.com) and
+[framework7.io](https://framework7.io): borrow *composition grammar* and *transition style*, then
+re-express them in JAVV tokens, never the libraries themselves; then `npx impeccable detect` on the
+changed screens (DESIGN.md §9 lists the ruled exceptions, which are settled).
+
+**Tokens, not literals.** Colors come from the right bucket and the wrong bucket is a bug: brand
+(`--coral`, `--amber`, `--teal`) is chrome and must never encode severity; `--sev-*` is data only;
+`--state-*`/`--health-*`/`--kev-*` carry workflow and status. From script use `SEV_COLOR`/`CHART_SEV`
+from `@/styles/tokens`. Two families only: Hanken Grotesk for UI, Space Mono for code-like data
+(CVE ids, digests, timestamps, counts). No raw hex, no ad-hoc sizes, AA contrast is the floor.
+
+**Every interactive element ships hover (wash *and* border, never border-only), pressed, and focus
+states**, and rows get the hover wash too. Every screen needs its loading, empty and error states.
+Counts and pages are server-side aggregations, never computed in the client.
+
+## Logging
+
+Structured and event-first on both stacks. The event name is a stable identifier; the variables are
+fields, not prose baked into a sentence:
+
+```python
+log.info("scan done", image_ref=ref, findings=n, duration_s=1.2)   # queryable
+log.info(f"scanned {ref} and found {n}")                           # not
+```
+
+- **Backend:** `structlog.get_logger()`, configured once by `javv_common.logging.configure_logging()`.
+  Bind who/where once per unit of work with `structlog.contextvars.bind_contextvars(...)` and every
+  later line carries it. A processor redacts bearer tokens and sensitive keys on the way out, so do
+  not pre-format a secret into a string and defeat it. Level via `JAVV_LOG_LEVEL`.
+- **Frontend:** `@/lib/logger` (`logger.debug|info|warn|error(event, fields?)`). `no-console` is an
+  ESLint **error**, so CI fails on a stray `console.log`.
+- **Capped or streamed endpoints** log a warning and bump their metric when a cap trips (413/429),
+  and count rows and bytes in the stream's `finally` so a client disconnect still records what left.
 
 ## Branches and commits
 
