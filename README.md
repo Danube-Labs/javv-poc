@@ -83,16 +83,28 @@ Three things it does differently:
 
 ## Architecture
 
+```mermaid
+flowchart TB
+    subgraph CLUSTER["Your cluster · one per cluster_id"]
+        direction TB
+        SCAN["Python scanner module<br/>Trivy + Grype adapters, one JAVV-built image each<br/>run as CronJobs, kept per-scanner and never merged"]
+    end
+
+    subgraph JAVV["JAVV · central, never writes to a monitored cluster"]
+        direction TB
+        API["FastAPI async backend<br/>server-side aggregations"]
+        STORE[("OpenSearch · single store<br/>findings · append logs · audit · config")]
+        UI["Vue 3 frontend<br/>PrimeVue · Pinia · ECharts"]
+        API <--> STORE
+        API --> UI
+    end
+
+    SCAN -->|"scan envelopes<br/>token-authenticated ingest"| API
 ```
-Python scanner module (Trivy + Grype adapters, one JAVV-built image per scanner, run as CronJobs)
-        │  push scan envelopes over token-authenticated ingest
-        │  (per-cluster bearer token, scope-bound: a token cannot push another cluster's data)
-        ▼
-FastAPI async backend  ──►  OpenSearch  (single store: findings, append logs, audit, config)
-        │  server-side aggregations
-        ▼
-Vue 3 frontend (PrimeVue · Pinia · ECharts)
-```
+
+Ingest is authenticated with a per-cluster bearer token that is **scope-bound**: a token cannot push
+another cluster's data. JAVV only ever receives pushes, so it needs no credentials for, and no
+network path into, the clusters it reports on.
 
 Deploy target is **Helm → k3s** (in progress, M10). Full detail on layers, data flow, and the index
 model lives in [`docs/engineering/ARCHITECTURE.md`](docs/engineering/ARCHITECTURE.md) and
