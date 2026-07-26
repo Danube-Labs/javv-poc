@@ -60,13 +60,18 @@ badge must never be confusable.
 GitHub strips webfonts from SVGs rendered as images, so **text-bearing art ships
 as PNG** (fonts baked in at exact size):
 
-- Org avatar → `github/png/avatar-512.png` (shows correctly in circle crop)
+- Repo/product avatar → `github/png/avatar-512.png` (the JAVV mark; shows correctly in circle crop)
 - README hero → `github/png/readme-hero-1280x360.png`
 - Repo social preview → `github/png/social-card-1280x640.png` (GitHub requires raster here anyway)
 - Docs favicon → `favicon.svg` (SVG is fine for browsers) + `github/png/favicon-32.png` fallback
 
 Shape-only SVGs (`icon`, `favicon`, `avatar`) contain no text and are safe to
 embed anywhere, including READMEs.
+
+**The Danube-Labs org avatar is the company mark, not the JAVV mark**, and is deliberately
+not one of the assets above: an org wearing one product's icon stops making sense the moment
+there is a second product. It has no source file in this folder; it lives only as the
+uploaded org image on GitHub. Add it here if it ever needs to be reproduced.
 
 To hand-edit text-bearing SVGs in a vector tool without the webfont installed,
 install Space Grotesk / Space Mono locally first (or outline the text to paths
