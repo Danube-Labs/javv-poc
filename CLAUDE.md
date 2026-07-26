@@ -131,7 +131,7 @@ new routes 404), and after any contract change regenerate the client *and* resta
 
 **Reuse before writing — code and design (grep first, build second)**
 - Before any new control/panel/helper: the kit probably has it — `components/ui/`, `components/chips/`,
-  the M9a filter module, the shared table skin + GridPager, StatBand, `query/paging.py`, the bulk
+  the M9a filter module, the shared table skin + GridPager, the stat-band skin, `query/paging.py`, the bulk
   helpers. A raw parallel implementation of a solved surface fails review.
 - UI grammar comes from the prototype and research, never memory — see § *UI work* below.
 - **VISUAL FEEDBACK IS A MUST**: every interactive element ships hover (wash + border, never

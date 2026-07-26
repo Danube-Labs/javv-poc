@@ -72,7 +72,7 @@ good the code is:
 **Reuse before you build.** Most surfaces are already solved: `frontend/src/components/ui/`
 (UiButton, UiField, UiDropdown, UiSegControl, UiDateTime, ModalShell, SlideoverShell, ToastStack,
 EmptyState, AppIcon), plus `components/chips/`, the filter module, the shared table skin with
-GridPager, and StatBand. **Grep first.** A parallel implementation of a solved control fails review
+GridPager, and the stat-band skin. **Grep first.** A parallel implementation of a solved control fails review
 however well written.
 
 **Where the visual grammar comes from**, in order: the prototype in `handoff/` (composition
