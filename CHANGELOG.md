@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.3](https://github.com/Danube-Labs/javv-poc/compare/v0.4.2...v0.4.3) (2026-07-26)
+
+
+### Bug Fixes
+
+* **scanner:** assert the cluster reached matches JAVV_CLUSTER_ID ([#472](https://github.com/Danube-Labs/javv-poc/issues/472)) ([b51d7bb](https://github.com/Danube-Labs/javv-poc/commit/b51d7bb33db79c4d846b4f1cc2b1df021b4e9eb5)), closes [#470](https://github.com/Danube-Labs/javv-poc/issues/470)
+
 ## [0.4.2](https://github.com/Danube-Labs/javv-poc/compare/v0.4.1...v0.4.2) (2026-07-19)
 
 
