@@ -9,6 +9,11 @@ paths:
 
 # Logging (shared library on both stacks — never `console.*`, never `print`)
 
+> **One carve-out, already in the code:** argparse CLI entry points
+> (`jobs/lifecycle.py`, `jobs/staleness.py`, `jobs/rebuild_state.py`, `admin/scan_scope.py`)
+> `print()` their result for the operator. That is stdout-as-output, not logging. Everything
+> inside a request path, job body, or library uses the logger.
+
 Loaded when you touch source on either stack.
 
 One pipeline per stack, structured, event-first. Ad-hoc logging is lint-banned, not merely discouraged.

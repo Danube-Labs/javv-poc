@@ -71,3 +71,9 @@ passing — #440 does that deliberately.
 - **Server-side everything**: a count or a page is an OpenSearch aggregation, never client math.
 - After any design pass on a view, **`wc -l` it**. Passes accrete markup; crossing ~500 lines means
   extracting self-contained panels in the **same PR** (DataOpenSearchView hit 721 before anyone looked).
+
+**Rendering + charts (was mis-scoped into the backend rule; it belongs here)**
+- Lazy **server-side** `DataTable` — never client-side paging over a full result set.
+- `shallowRef` + `markRaw` for ECharts options/instances; **manual** ECharts module imports
+  (no full-bundle import).
+- Test the option-builder and the emitted query params as **pure units**, not through the DOM.
