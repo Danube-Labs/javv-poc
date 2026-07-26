@@ -34,6 +34,15 @@ repos:
 
   - repo: local
     hooks:
+      - id: guard-bash-cases
+        name: bash guard cases
+        # The guard's value is that it never blocks a legitimate command, which only a suite
+        # proves. Run it whenever the guard changes, so it can't rot into false positives.
+        entry: python3 .claude/hooks/test_guard_bash.py
+        language: system
+        pass_filenames: false
+        files: '^\.claude/hooks/'
+
       - id: conventional-commit
         name: conventional commit message
         # Same 6 types as commitlint in CI + development/standards/git-workflow.md.

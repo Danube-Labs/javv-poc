@@ -37,7 +37,7 @@ yet - that lands at M10.
 | `handoff/` | UI/UX reference - **`docs/` current**, `v4/` frozen trail | **reference only**, not a contract |
 | `design/` | Brand source of record (logos, tokens, brand guide) | binding for brand |
 | `.github/` | CI + release automation workflows | — |
-| `.claude/` | Repo-scoped Claude settings (team allowlist) + `sessions/` infra (snapshots are local-only) | — |
+| `.claude/` | Repo-scoped Claude config: `settings.json` (team allowlist + hook wiring), `hooks/` (the PreToolUse Bash guard + its cases), `commands/`, `skills/`, and `sessions/` infra (snapshots are local-only) | — |
 | `.deprecated/` | Frozen archive - superseded V1/V2/V3 docs, the v1 UI handoff, archived v1 UI guidelines | history only |
 | root configs | `commitlint.config.mjs`, `renovate.json`, `release-please-config.json`, `.release-please-manifest.json`, `.pre-commit-config.yaml` | — |
 
