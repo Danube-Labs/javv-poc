@@ -197,6 +197,13 @@ SlideoverShell · ToastStack · EmptyState · AppIcon), plus `components/chips/`
 the shared table skin + GridPager, StatBand, and on the backend `query/paging.py` + the bulk helpers.
 **Grep first.** A raw parallel implementation of a solved surface fails review.
 
+**Building a NEW agg-backed panel (chart, board, histogram, leaderboard)** — it is a *lens*, and
+lenses are built self-contained: `(cluster_id, T, params)` in, owns its own aggregation fetch, its
+own loading/empty/error states, no reliance on host state. The composable-dashboard bolt (#440)
+has to move every host-fed panel onto that contract, so every new host-fed one grows the bill.
+Full ruling incl. when host-fed is still right: **DESIGN.md §10**. Don't convert existing lenses in
+passing — #440 does that deliberately.
+
 **Non-negotiable behaviours**
 - **Visual feedback is a MUST**: every interactive element ships hover (**wash + border**, never
   border-only), pressed, and focus states. Rows get the hover wash too.

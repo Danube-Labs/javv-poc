@@ -318,7 +318,45 @@ are deliberate contract choices, not reflex defaults (operator ruling 2026-07-09
 Everything else it flags (real contrast failures, hierarchy problems) gets fixed or gets its
 own row here — never silently ignored.
 
-## 10. Keeping this file honest
+## 10. Panels are catalog lenses — build the new ones self-contained (#440)
+
+§6 already says a surface used twice is built ONCE. That rule fires on the *second* screen. This one
+fires on the *first*, because the composable-dashboard bolt (#440) needs panels to be portable, and
+a panel is only portable if it can render somewhere its author never saw.
+
+**What counts as a lens.** An agg-backed visual surface that could plausibly sit on a user-composed
+dashboard: charts, stat boards, activity histograms, leaderboards, the trend strips
+(`IngestLens`, `AuditLens`, `ContributorsLens`, StatBand, the top-components and riskiest-images
+boards). **Not** lenses, and out of scope here: kit controls, modals, form rows, table cells, the
+filter module — those are §5's territory and stay props-driven.
+
+**The contract for a NEW lens**
+
+- Takes `(cluster_id, T, params)` and **owns its own aggregation fetch**. `params` comes from the
+  shared filter vocabulary, never a bespoke per-lens query shape.
+- Renders standalone. No reliance on host state, host-fetched data, or the host having already
+  resolved a range, a scope, or a scanner set.
+- Server-side everything still holds: the lens issues an aggregation, it does not receive rows and
+  count them.
+- Carries its own loading, empty and error states, because on a composed page nobody else will.
+
+**The honest trade.** Host-fed panels are not a mistake, and the existing ones are correct as built.
+Feeding several panels from one response is why per-scanner numbers on a screen cannot disagree with
+each other: one response, no second fetch (`ContributorsLens` says exactly this in its header). A
+self-contained lens gives that up — two lenses on one page can be a few hundred milliseconds apart.
+That is the price of composability and #440 accepts it deliberately: the guarantee that matters is
+per-scanner *never merged*, not per-panel simultaneity. Where a screen genuinely needs two panels to
+agree to the row, keep them host-fed and say why in a comment.
+
+**Do not refactor the existing lenses opportunistically.** #440 moves the ~6–8 current lenses onto
+this contract as its first slice, deliberately and with its own tests. Converting one in passing,
+inside an unrelated PR, is a review failure for the same reason any drive-by refactor is. This
+section governs what you *add*.
+
+Until #440 lands there is no registry to register with — a new lens just conforms to the contract
+and lives where it is used. That is the whole ask: stop growing the pile that bolt has to move.
+
+## 11. Keeping this file honest
 
 This file mirrors `tokens.css` — when a token is added/renamed, update both in the same PR (the
 tokens unit test pins `CHART_SEV` to the CSS; the M9a DoD spot-check is "every token family in the
