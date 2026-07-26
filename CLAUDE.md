@@ -59,6 +59,11 @@ single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scann
 
 ## Hard-won reflexes (each line has bitten ≥ 2 sessions — check them, don't rediscover them)
 
+> Two of these are now **mechanical**, not advisory: `.claude/hooks/guard_bash.py` (a PreToolUse hook,
+> wired in `.claude/settings.json`) refuses `git add -A|.` and `pkill|pgrep -f` before they run. It
+> tokenizes properly, so those strings are still fine inside a commit message or a heredoc. Cases:
+> `python3 .claude/hooks/test_guard_bash.py`.
+
 **Verify, don't trust the happy path**
 - A commit isn't committed until `git log --oneline -1` shows it — pre-commit hooks reformat-and-abort
   silently ("Everything up-to-date" on push = it never landed). A merge isn't merged until
@@ -151,56 +156,26 @@ Invoke the matching skill before starting that kind of work:
   (`console.*` is lint-banned). Bounded endpoints log a `warning` + bump a metric on 413/429 caps, and count
   export rows/bytes in the stream's `finally` — ops parity is not optional on capped/streamed paths.
 
-## Audit outcomes - now decided in V4 (see `docs/research/INDEPENDENT-AUDIT-v3.md`)
-The independent audit was worked through in full; rulings are folded into V4:
-- Per-finding history **kept** in MVP, **moved after read** (M8), and simplified to **full per-scan
-  snapshots** (no close events - validated, `docs/research/SNAPSHOT-MODEL-VALIDATION.md`); point-in-time =
-  latest committed snapshot ≤ T (scan-events doc is the commit marker); the multi-pod close race is designed out.
-- Local **human auth + bootstrap admin** pulled into M5a (FR-18); every triage action is journaled (D17).
-- VEX **import → v1.1** (export stays); ingest is **scanner-JSON only**.
-- Idempotent **appends** (deterministic `_id`, D18); **projection-on-new-only** (D19); **two-timer
-  staleness** (D20); `apply_both` **pinned** (D22); **raw-fidelity via normalizer** (D16, no `severity_raw`).
-- `system_exceptions` **renamed `system_decisions`**.
+## Data-model invariants (the rules, not the history)
+Every audit round is settled and written up in **`docs/engineering/AUDIT-RESPONSE.md`** (D37-D40) and
+**PLAN.md** §10. Read those for the reasoning. What must be in your head while writing code:
 
-- **Whole-app time-travel (D28/FR-23):** the global picker rewinds *every* screen - `T=now` reads
-  materialized current-state, `T<now` reconstructs from the timestamped append logs (occurrences ≤ T +
-  `javv-images` ≤ T + `system-audit-log` replay ≤ T + decisions active at T); reach = per-cluster retention.
-- **`images` is a time-partitioned append (D29)**; **scanner scans everything every cycle, stateless, local
-  digest-dedup, no skip-unchanged (D30)**; **partial-doc merge replaces the preserve script (D31)**;
-  **structured `system-audit-log` (D32)**; **capability-based RBAC + `can_accept_audit_final` (D33)**;
-  security hardening bundle (D34); MVP simplifications (D35); verification pins (D36).
-- **External-audit fixes (D37/D38 - `docs/engineering/AUDIT-RESPONSE.md`):** **R-CATALOG** - read "latest state"
-  through the commit catalog (latest committed run from `javv-scan-events`, *then* `occurrences` for that run;
-  inventory = latest complete `inventory_run_id`), never "latest doc per key" (kills the clean-rescan
-  resurrection bug); **`commit_key`** = `(cluster_id, scanner, image_digest, scan_run_id)` 4-tuple;
-  **reconcile-on-commit** flips `present=false` on findings the new run omits (cache only - history stays
-  tombstone-free); `stale`≠delete; full-precision `*_at` timestamps; envelope **current-only**; decisions
-  **immutable + lifecycle stamp** (edit = revoke+new); enriched audit-log (`event_id`/`entity_*`/frozen
-  `target_ids`); **MVP tenant = all-clusters-visible**, `cluster_id` always-applied filter (per-user grants
-  post-MVP); 256-bit peppered-SHA-256 tokens; `system-reports` job lease (optimistic concurrency);
-  `severity_rank` stays off occurrences; **scanner = field, not index name** (`javv-scan-events-<cluster_id>-*`);
-  historical dashboards use `javv-metrics`; index names hyphenated everywhere.
-- **Round-2 audit fixes (D39 - same `AUDIT-RESPONSE.md`, §3):** ordering/completeness/immutability hardening
-  - symmetric PIT query goes **catalog-first** + `commit_key` on occurrence rows; **newer-scan-wins** reconcile
-  (`findings.last_scan_at`, no-op when `committed_run_ts ≤ last_scan_at`); **commit-then-cache ordering**
-  (append occurrences+images → commit after per-item `_bulk` success → merge findings last); new
-  **`javv-inventory-runs-<cluster_id>-*`** inventory commit manifest (running-at-T reads only
-  `status=committed`); **`expiry` immutable** (change = revoke+new); drop audit `seq`, order by
-  `(@timestamp, event_id)`; report **fencing `attempt_id`**; presence (`present`) is **orthogonal** to `state`
-  (every "now" query filters `cluster_id`+`scanner`+`present=true`); historical **all-clusters** dashboards
-  **limited/unavailable until the v1.1 rollup**.
-- **Round-3 audit fixes (D40 - `AUDIT-RESPONSE.md` §4):** concurrency/ordering keystone. New
-  **`javv-scan-watermarks`** index (per-`(cluster,scanner,digest)` `max_committed_scan_order`, CAS at commit)
-  guards **both create and update** of `findings` - fixes the "older out-of-order scan re-creates a retired
-  finding" bug (per-doc state can't guard a create). Correctness ordering uses scanner-assigned **`scan_order`**
-  (monotonic via CronJob `Forbid`), **never `@timestamp`**, stamped on scan-events + occurrences; catalog +
-  "running at T" sort by `scan_order`/`inventory_order`. Reconcile **retries to zero conflicts**;
-  `rebuild-state` also rebuilds the **scanner-presence cache** (crash self-heal); decision edits use one
-  **`effective_at`+`operation_id`** (revoke+create atomic); audit records **`revision`** for same-field causal
-  replay; report **orphan-object TTL sweep**. NFR-9/D23 reworded: history no race, **cache = guarded RMW**.
+- **Read latest state through the commit catalog** (R-CATALOG): latest committed run from
+  `javv-scan-events`, *then* `occurrences` for that run. Never "latest doc per key" - that resurrects
+  findings a clean rescan dropped. `commit_key` = `(cluster_id, scanner, image_digest, scan_run_id)`.
+- **Order by `scan_order`, never `@timestamp`.** Wall-clock ties and skews; the scanner-assigned counter
+  is the only correctness ordering (monotonic via CronJob `Forbid`).
+- **`javv-scan-watermarks` CAS guards both create and update** of `findings`. Per-doc state cannot guard
+  a create, which is how an out-of-order older scan used to resurrect a retired finding.
+- **Commit-then-cache ordering:** append occurrences + images -> commit after per-item `_bulk` success
+  -> merge `findings` last. Reconcile-on-commit flips `present=false` on what the run omitted; that is
+  **cache only**, history stays tombstone-free, and `stale` is not a delete.
+- **`present` is orthogonal to `state`.** Every "now" query filters `cluster_id` + `scanner` +
+  `present=true`.
+- **Decisions are immutable.** An edit is revoke+create under one `effective_at`+`operation_id`.
+- **Time-travel (D28/FR-23):** `T=now` reads materialized current state; `T<now` reconstructs from the
+  append logs (occurrences + `javv-images` + audit-log replay + decisions active at T). Reach =
+  per-cluster retention.
 
 **`docs/engineering/INDEX-MAP.md` is the source of truth for every index + mapping + rollover/retention** -
-read it before touching any index. Second audit + resolutions: `docs/engineering/AUDIT.md`.
-
-Data-model decisions are settled (PLAN §10). Remaining open: project-specific skills + the GitHub/CI
-workflow on the Ubuntu VM.
+read it before touching any index.
