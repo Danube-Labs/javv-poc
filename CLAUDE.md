@@ -20,6 +20,8 @@ before changing anything in that area; don't guess or work from memory.
 | Writing/modifying **frontend UI / styling** | `frontend/DESIGN.md` (binding: tokens, Hanken Grotesk, AA floor, §8 fidelity protocol — **a screen's grammar is the prototype's; substituting it needs a live operator ruling on a built specimen, §8.5** — §9 ruled exceptions) → `development/standards/ui-foundations.md` · `handoff/docs/SCREENS.md` |
 | Adding/changing **any config knob, env var, or threshold** | `docs/CONFIGURATION.md` — document the knob there the **same PR**; hardcoding a tunable is a review-fail. Constants only when they mirror an already-documented cap (say so in a comment). |
 | **Committing / branching / PRs** | `development/standards/git-workflow.md` (bolt tracking, housekeeping, the pre-commit trap) |
+| **Starting/stopping/operating** the dev stack | § *Running the stack* below → `development/RUNNING-THE-STACK.md` (paths A/B/F) |
+| Adding **any log line** (either stack) | § *Logging* below — shared library only; `console.*`/`print` are banned |
 | Running/extending the **e2e rigs** | `development/e2e/README.md` |
 | Verifying a change | `/qa` (delta-scoped) · UI deltas: `/visual-test` |
 | Lost in the tree | `REPO-MAP.md` |
@@ -34,6 +36,50 @@ and rots in code. Applies to every tool and human alike.
 Backend: **Python 3.12 · FastAPI (async) · AsyncOpenSearch (opensearch-py) · Pydantic v2**. Frontend:
 **Vue 3 (`<script setup lang="ts">`) · PrimeVue · vue-echarts · Pinia · Vue Router**. Store: **OpenSearch,
 single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scanner, **never merged**).
+
+## Running the stack (dev)
+Full walkthrough incl. ingest, triage and the two-cluster loop: **`development/RUNNING-THE-STACK.md`**
+(paths A / B / F, teardown §T, troubleshooting). The operating essentials:
+
+```bash
+# 1. store — wait for green, don't race it
+docker compose -f development/setup/opensearch-dev.yml up -d
+until [ "$(curl -s localhost:9200/_cluster/health | jq -r .status)" = green ]; do sleep 3; done
+
+# 2. backend (foreground; re-runs bootstrap, seeds admin + default roles, then serves)
+cd backend
+export JAVV_OPENSEARCH_URL=http://localhost:9200
+export JAVV_TOKEN_PEPPER='local-dev-pepper-change-me'          # peppers ingest tokens + session ids
+export JAVV_BOOTSTRAP_ADMIN_USERNAME='admin'
+export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'  # >= 12 chars (password policy)
+export JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50   # default 10 starves UI navigation/rigs with 429s
+uv run python -m backend.core.bootstrap            # idempotent, versioned (MAPPING_VERSION)
+uv run uvicorn backend.main:app --port 8000        # /docs = live API reference
+
+# 3. frontend, second terminal
+cd frontend && npm run dev                          # :5173, proxies /api + /auth to :8000
+
+# health
+curl -s localhost:8000/healthz            # liveness, no OpenSearch needed
+curl -s localhost:8000/readyz | jq        # 200 = OpenSearch reachable
+```
+
+**Log in** (the bootstrap admin is born `must_change=true`; the session can do nothing else until
+rotated): `POST /auth/login` -> `POST /auth/password` -> `GET /auth/me` shows `must_change:false`.
+Same dance in the UI. Cookies land in `backend/cookies.txt` for curl work.
+
+**Background jobs** are k8s CronJobs in production; run them by hand from `backend/`:
+`staleness` · `lifecycle` · `findings_cleanup` · `report_drain` · `report_sweep` · `rebuild_state`
+(`uv run python -m backend.jobs.<name>`). They take the `system-jobs` lease, same as the UI buttons.
+
+**Stopping:** Ctrl-C the backend and vite, or kill by PID (`ss -ltnp`), **never `pkill -f`** (blocked
+by the hook — it matches the tool's own wrapper). `docker compose … down` keeps data, `down -v` wipes it.
+`k3d cluster delete alpha beta` for Path B. After a backend pytest run against this store, sweep the
+residue: `development/scripts/clean-dev-store.sh` (keeps `{admin, rig}`).
+
+**The two that always bite:** the dev backend has **no `--reload`** (restart it after backend edits or
+new routes 404), and after any contract change regenerate the client *and* restart vite
+(`export_openapi` -> `npm run gen:api`; a stale module graph 500s with "does not provide an export").
 
 ## Hard constraints (do not violate)
 - **No Redis/Kafka/RabbitMQ/external broker.** Coordination via OpenSearch; jobs are k8s CronJobs.
@@ -81,9 +127,7 @@ single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scann
 - Before any new control/panel/helper: the kit probably has it — `components/ui/`, `components/chips/`,
   the M9a filter module, the shared table skin + GridPager, StatBand, `query/paging.py`, the bulk
   helpers. A raw parallel implementation of a solved surface fails review.
-- UI grammar comes from the prototype and research, never memory: build with the `handoff/v4/` jsx open
-  (DESIGN.md §8), borrow composition grammar from ui.nuxt.com onto JAVV tokens, run
-  `npx impeccable detect` on changed screens (§9 ruled exceptions stand — don't relitigate).
+- UI grammar comes from the prototype and research, never memory — see **UI: the settled choices** below.
 - **VISUAL FEEDBACK IS A MUST**: every interactive element ships hover (wash + border, never
   border-only), pressed and focus states; rows get the hover wash too.
 - After ANY design pass on a view, `wc -l` it — passes accrete markup; crossing ~500 lines means
@@ -109,6 +153,57 @@ single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scann
 - Commit subjects: lowercase first word even for identifiers (`m5c`, `opensearch` — CI commitlint is
   stricter than the local hook), header ≤ 100 chars, types `feat|fix|chore|docs|test|refactor` only.
 - `#NNN` in a code comment reads as a hex color to the style ratchet — write "issue NNN".
+
+## UI: the settled choices (binding — `frontend/DESIGN.md` is the contract)
+Every line here was ruled on once and cost a rebuild to learn. Re-deciding any of them needs a live
+operator ruling on a **built specimen** (DESIGN.md §8.5), not an argument in a PR.
+
+**Where the grammar comes from — three sources, in this order**
+1. **The prototype** (`handoff/v4/` jsx + `handoff/docs/SCREENS.md`) is the reference point for a
+   screen's composition. Build with it open; a screen's grammar is the prototype's (§8). It is a
+   *reference point, not a 1:1 contract* — deviate deliberately, not by forgetting to look.
+2. **[ui.nuxt.com](https://ui.nuxt.com)** and **[framework7.io](https://framework7.io)** — the two
+   design references, used the same way: borrow **composition grammar** (how a panel, a form row, a
+   command palette is assembled) *and* **transition/animation style**, then re-express both in JAVV
+   tokens. **Never the library itself**, never its colors or type. Framework7 is the stronger source
+   for motion — press feedback, sheet/slideover entrances, the feel of a transition — which is
+   exactly where a screen most often feels unfinished. Land what you borrow on the **existing** motion
+   layer rather than a new curve: `t-pop` = floating panels (dropdowns/popovers), fade + 4px rise,
+   quick both ways; `t-fade` = banners and in-flow appearances, crossfade only, **never animate
+   height**; plus the skeleton pulse (`frontend/src/styles/base.css`).
+3. **`npx impeccable detect`** on a rendered-HTML dump of every changed screen, plus the
+   `.claude/skills/impeccable` skill for critique/typography/layout. §9 of DESIGN.md lists the **ruled
+   exceptions** — those are settled; don't relitigate them each pass.
+
+**Color — pick from the right bucket; the wrong bucket is a bug (DESIGN.md §2)**
+- **Brand** (`--coral --amber --teal --slate*`) = chrome, buttons, active nav, focus, links.
+  Coral and amber must **never** encode severity. Teal is info only.
+- **Severity** (`--sev-<level>-{fg,bg,line,solid}`) = **data only**, six D46 canonicals
+  (`critical high medium low negligible unknown`). `negligible` is muted, **never red**. From script
+  use `SEV_COLOR` / `CHART_SEV` from `@/styles/tokens`, never a literal.
+  `-bg`/`-line` are **derived** from that level's `-solid` (10%/30% flattened) — never hand-picked pastels.
+- **Status** (`--state-* --health-* --kev-* --scanner-{trivy,grype}-* --scope-*`) = workflow state,
+  health ramp, KEV, scanner tags. State pills read **quieter** than severity by design.
+- No raw hex in components. AA contrast is the floor, not a target.
+
+**Type — two families, fixed scale (§3)**
+**Hanken Grotesk** (`--font-ui`) for all UI text; **Space Mono** (`--font-mono`) for code-like data:
+CVE ids, versions, namespaces, image refs, counts, timestamps, table headers, ids. No third family,
+no ad-hoc sizes — use the scale tokens (`--text-page-title`, `--text-card-title`, `--text-body`, …).
+
+**Reuse before building — the kit already solves most of it**
+`components/ui/` (UiButton · UiField · UiDropdown · UiSegControl · UiDateTime · ModalShell ·
+SlideoverShell · ToastStack · EmptyState · AppIcon), plus `components/chips/`, the M9a filter module,
+the shared table skin + GridPager, StatBand, and on the backend `query/paging.py` + the bulk helpers.
+**Grep first.** A raw parallel implementation of a solved surface fails review.
+
+**Non-negotiable behaviours**
+- **Visual feedback is a MUST**: every interactive element ships hover (**wash + border**, never
+  border-only), pressed, and focus states. Rows get the hover wash too.
+- Every screen needs its **loading, empty and error** states — `EmptyState` exists for this.
+- **Server-side everything**: a count or a page is an OpenSearch aggregation, never client math.
+- After any design pass on a view, **`wc -l` it**. Passes accrete markup; crossing ~500 lines means
+  extracting self-contained panels in the **same PR** (DataOpenSearchView hit 721 before anyone looked).
 
 ## Use these skills (when the work matches)
 Invoke the matching skill before starting that kind of work:
@@ -152,9 +247,30 @@ Invoke the matching skill before starting that kind of work:
 - PIT + `search_after` (delete the PIT in `finally`) for deep paging/sweeps; `from/size` only under 10k.
 - FE: lazy server-side `DataTable`; `shallowRef`+`markRaw` for ECharts options/instances; manual ECharts
   module imports; test the option-builder + emitted query params as pure units.
-- **Logging = shared library, both stacks:** backend `structlog.get_logger()` only; FE `@/lib/logger` only
-  (`console.*` is lint-banned). Bounded endpoints log a `warning` + bump a metric on 413/429 caps, and count
-  export rows/bytes in the stream's `finally` — ops parity is not optional on capped/streamed paths.
+- **Logging** has its own section below — it is a shared library on both stacks, never `console.*`/`print`.
+
+## Logging (shared library on both stacks — never `console.*`, never `print`)
+One pipeline per stack, structured, event-first. Ad-hoc logging is lint-banned, not merely discouraged.
+
+**Backend** — `structlog.get_logger()` only, configured once by
+`javv_common.logging.configure_logging()` (`libs/javv-common/`). The scanner uses the *same* call, so
+both emit identical JSON.
+- **Event name first, context as kwargs** — never an f-string sentence:
+  `log.info("scan done", image_ref=ref, findings=n, duration_s=1.2)`, not `log.info(f"scanned {ref}")`.
+  Structured fields are queryable; prose is not.
+- **Bind who/where once per unit of work** with `structlog.contextvars.bind_contextvars(...)`
+  (`cluster_id`, `scanner`, `scan_run_id`) and every later line carries it automatically.
+- **Secrets are redacted by a processor**, not by remembering: bearer tokens and sensitive-looking
+  keys become `[REDACTED]` on the way out. Don't defeat it by pre-formatting a token into a string.
+- Level via `JAVV_LOG_LEVEL`. INFO = progress a human wants; WARNING = degraded-but-continuing
+  (skipped image, dead-letter, a cap hit); ERROR = the unit of work failed.
+
+**Frontend** — `@/lib/logger` only (`logger.debug|info|warn|error(event, fields?)`). **`console.*` is
+lint-banned** and CI fails on it. Same shape as the backend: an event name plus a fields object.
+
+**Ops parity is not optional on bounded or streamed paths.** An endpoint that caps (413/429) logs a
+`warning` *and* bumps its metric; a streaming export counts rows and bytes in the stream's `finally`,
+so a client disconnect still records what left the building.
 
 ## Data-model invariants (the rules, not the history)
 Every audit round is settled and written up in **`docs/engineering/AUDIT-RESPONSE.md`** (D37-D40) and
