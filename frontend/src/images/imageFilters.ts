@@ -60,6 +60,11 @@ export function imagesFacets(rows: ImageRow[]): Record<string, Bucket[]> {
  * with ZERO critical findings, not an image with its criticals subtracted. A finding IS one
  * severity, but an image spans all of them, which is why this reading has to be stated:
  * the findings grid never has to answer it.
+ *
+ * Excluding a severity therefore returns very few rows, often none, and that is the correct
+ * answer rather than a bug to fix: a typical cluster has criticals in nearly every image, so
+ * the set with none of them is tiny. Ruled deliberately with the counts in hand. The header
+ * always reads "N of M images", so a small N stays legible as a filtered result.
  */
 const keep = (selected: readonly string[], mode: FilterMode, hit: boolean) =>
   selected.length === 0 || (mode === 'not' ? !hit : hit)
