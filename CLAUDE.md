@@ -12,16 +12,22 @@
 Not everything is in this file — these are the sources of truth per area. Read the matching file
 before changing anything in that area; don't guess or work from memory.
 
+**Some of it loads itself.** `.claude/rules/*.md` carry `paths:` frontmatter and enter context
+automatically when you touch matching files, at the same authority as this file — they are not
+optional reading you can skip, they are this file's other half:
+`ui-design.md` (frontend source) · `logging.md` (source, either stack) ·
+`data-model.md` + `backend-engineering.md` (backend/scanner source).
+
 | When you are... | Read FIRST |
 |---|---|
 | Touching **any index / mapping / rollover / retention** | `docs/engineering/INDEX-MAP.md` |
 | Adding/changing **HTTP endpoints** or their contracts | `docs/API.md` (+ the router in `backend/src/backend/routers/`) |
 | Working a **bolt** (any milestone slice) | that bolt's `development/bolts/<bolt>/README.md` — the spec of record, incl. its `## Updates` |
-| Writing/modifying **frontend UI / styling** | `frontend/DESIGN.md` (binding: tokens, Hanken Grotesk, AA floor, §8 fidelity protocol — **a screen's grammar is the prototype's; substituting it needs a live operator ruling on a built specimen, §8.5** — §9 ruled exceptions) → `development/standards/ui-foundations.md` · `handoff/docs/SCREENS.md` |
+| Writing/modifying **frontend UI / styling** | `.claude/rules/ui-design.md` (auto-loads on frontend source) → `frontend/DESIGN.md` (binding: tokens, Hanken Grotesk, AA floor, §8 fidelity protocol — **a screen's grammar is the prototype's; substituting it needs a live operator ruling on a built specimen, §8.5** — §9 ruled exceptions) → `development/standards/ui-foundations.md` · `handoff/docs/SCREENS.md` |
 | Adding/changing **any config knob, env var, or threshold** | `docs/CONFIGURATION.md` — document the knob there the **same PR**; hardcoding a tunable is a review-fail. Constants only when they mirror an already-documented cap (say so in a comment). |
 | **Committing / branching / PRs** | `development/standards/git-workflow.md` (bolt tracking, housekeeping, the pre-commit trap) |
 | **Starting/stopping/operating** the dev stack | § *Running the stack* below → `development/RUNNING-THE-STACK.md` (paths A/B/F) |
-| Adding **any log line** (either stack) | § *Logging* below — shared library only; `console.*`/`print` are banned |
+| Adding **any log line** (either stack) | `.claude/rules/logging.md` (auto-loads on source) — shared library only; `console.*`/`print` are banned |
 | Running/extending the **e2e rigs** | `development/e2e/README.md` |
 | Verifying a change | `/qa` (delta-scoped) · UI deltas: `/visual-test` |
 | Lost in the tree | `REPO-MAP.md` |
@@ -125,9 +131,9 @@ new routes 404), and after any contract change regenerate the client *and* resta
 
 **Reuse before writing — code and design (grep first, build second)**
 - Before any new control/panel/helper: the kit probably has it — `components/ui/`, `components/chips/`,
-  the M9a filter module, the shared table skin + GridPager, StatBand, `query/paging.py`, the bulk
+  the M9a filter module, the shared table skin + GridPager, the stat-band skin, `query/paging.py`, the bulk
   helpers. A raw parallel implementation of a solved surface fails review.
-- UI grammar comes from the prototype and research, never memory — see **UI: the settled choices** below.
+- UI grammar comes from the prototype and research, never memory — see § *UI work* below.
 - **VISUAL FEEDBACK IS A MUST**: every interactive element ships hover (wash + border, never
   border-only), pressed and focus states; rows get the hover wash too.
 - After ANY design pass on a view, `wc -l` it — passes accrete markup; crossing ~500 lines means
@@ -154,63 +160,12 @@ new routes 404), and after any contract change regenerate the client *and* resta
   stricter than the local hook), header ≤ 100 chars, types `feat|fix|chore|docs|test|refactor` only.
 - `#NNN` in a code comment reads as a hex color to the style ratchet — write "issue NNN".
 
-## UI: the settled choices (binding — `frontend/DESIGN.md` is the contract)
-Every line here was ruled on once and cost a rebuild to learn. Re-deciding any of them needs a live
-operator ruling on a **built specimen** (DESIGN.md §8.5), not an argument in a PR.
-
-**Where the grammar comes from — three sources, in this order**
-1. **The prototype** (`handoff/v4/` jsx + `handoff/docs/SCREENS.md`) is the reference point for a
-   screen's composition. Build with it open; a screen's grammar is the prototype's (§8). It is a
-   *reference point, not a 1:1 contract* — deviate deliberately, not by forgetting to look.
-2. **[ui.nuxt.com](https://ui.nuxt.com)** and **[framework7.io](https://framework7.io)** — the two
-   design references, used the same way: borrow **composition grammar** (how a panel, a form row, a
-   command palette is assembled) *and* **transition/animation style**, then re-express both in JAVV
-   tokens. **Never the library itself**, never its colors or type. Framework7 is the stronger source
-   for motion — press feedback, sheet/slideover entrances, the feel of a transition — which is
-   exactly where a screen most often feels unfinished. Land what you borrow on the **existing** motion
-   layer rather than a new curve: `t-pop` = floating panels (dropdowns/popovers), fade + 4px rise,
-   quick both ways; `t-fade` = banners and in-flow appearances, crossfade only, **never animate
-   height**; plus the skeleton pulse (`frontend/src/styles/base.css`).
-3. **`npx impeccable detect`** on a rendered-HTML dump of every changed screen, plus the
-   `.claude/skills/impeccable` skill for critique/typography/layout. §9 of DESIGN.md lists the **ruled
-   exceptions** — those are settled; don't relitigate them each pass.
-
-**Color — pick from the right bucket; the wrong bucket is a bug (DESIGN.md §2)**
-- **Brand** (`--coral --amber --teal --slate*`) = chrome, buttons, active nav, focus, links.
-  Coral and amber must **never** encode severity. Teal is info only.
-- **Severity** (`--sev-<level>-{fg,bg,line,solid}`) = **data only**, six D46 canonicals
-  (`critical high medium low negligible unknown`). `negligible` is muted, **never red**. From script
-  use `SEV_COLOR` / `CHART_SEV` from `@/styles/tokens`, never a literal.
-  `-bg`/`-line` are **derived** from that level's `-solid` (10%/30% flattened) — never hand-picked pastels.
-- **Status** (`--state-* --health-* --kev-* --scanner-{trivy,grype}-* --scope-*`) = workflow state,
-  health ramp, KEV, scanner tags. State pills read **quieter** than severity by design.
-- No raw hex in components. AA contrast is the floor, not a target.
-
-**Type — two families, fixed scale (§3)**
-**Hanken Grotesk** (`--font-ui`) for all UI text; **Space Mono** (`--font-mono`) for code-like data:
-CVE ids, versions, namespaces, image refs, counts, timestamps, table headers, ids. No third family,
-no ad-hoc sizes — use the scale tokens (`--text-page-title`, `--text-card-title`, `--text-body`, …).
-
-**Reuse before building — the kit already solves most of it**
-`components/ui/` (UiButton · UiField · UiDropdown · UiSegControl · UiDateTime · ModalShell ·
-SlideoverShell · ToastStack · EmptyState · AppIcon), plus `components/chips/`, the M9a filter module,
-the shared table skin + GridPager, StatBand, and on the backend `query/paging.py` + the bulk helpers.
-**Grep first.** A raw parallel implementation of a solved surface fails review.
-
-**Building a NEW agg-backed panel (chart, board, histogram, leaderboard)** — it is a *lens*, and
-lenses are built self-contained: `(cluster_id, T, params)` in, owns its own aggregation fetch, its
-own loading/empty/error states, no reliance on host state. The composable-dashboard bolt (#440)
-has to move every host-fed panel onto that contract, so every new host-fed one grows the bill.
-Full ruling incl. when host-fed is still right: **DESIGN.md §10**. Don't convert existing lenses in
-passing — #440 does that deliberately.
-
-**Non-negotiable behaviours**
-- **Visual feedback is a MUST**: every interactive element ships hover (**wash + border**, never
-  border-only), pressed, and focus states. Rows get the hover wash too.
-- Every screen needs its **loading, empty and error** states — `EmptyState` exists for this.
-- **Server-side everything**: a count or a page is an OpenSearch aggregation, never client math.
-- After any design pass on a view, **`wc -l` it**. Passes accrete markup; crossing ~500 lines means
-  extracting self-contained panels in the **same PR** (DataOpenSearchView hit 721 before anyone looked).
+## UI work
+The settled UI rulings (grammar sources incl. ui.nuxt.com + framework7.io, the color buckets,
+the two type families, the kit inventory, the lens contract) live in
+**`.claude/rules/ui-design.md`**, which loads automatically when you touch frontend source.
+Contract of record: **`frontend/DESIGN.md`** (§8 fidelity · §8.5 built-specimen rulings ·
+§9 ruled exceptions · **§10 new panels are self-contained lenses**).
 
 ## Use these skills (when the work matches)
 Invoke the matching skill before starting that kind of work:
@@ -241,64 +196,3 @@ Invoke the matching skill before starting that kind of work:
 - **Static floor:** ruff + pyright (Python); vue-tsc (Volar) + ESLint/oxlint + stylelint + the style-ratchet test (Vue — all via `npm run lint` / `npm run test`). Run them; fix what they flag.
 - **@hey-api/openapi-ts** - regenerate the Vue TS client from FastAPI's OpenAPI so types can't drift.
 - **Kubernetes MCP / Playwright MCP** - once there's a deploy loop / UI to drive.
-
-## Day-one engineering rules (from `docs/research/STACK-BEST-PRACTICES.md`)
-- `AsyncOpenSearch` only in request paths (no sync client / blocking calls in `async def`); one client in
-  `lifespan`, injected via `Depends`, `await`-closed on shutdown.
-- `extra="forbid"` on all **request** models; validate `cluster_id` shape at the edge.
-- `dynamic:false` + explicit `keyword`/`text` mappings on every index template. Never aggregate on `text`.
-- Always inspect `_bulk` `response["errors"]` + per-item status; backoff on 429/503 (the only flow control
-  without a broker - make it a shared, well-tested helper).
-- Time-series indices: partition by `cluster_id`, monthly rollover, 1 primary shard, **drop whole indices**
-  for retention (never `delete_by_query`).
-- PIT + `search_after` (delete the PIT in `finally`) for deep paging/sweeps; `from/size` only under 10k.
-- FE: lazy server-side `DataTable`; `shallowRef`+`markRaw` for ECharts options/instances; manual ECharts
-  module imports; test the option-builder + emitted query params as pure units.
-- **Logging** has its own section below — it is a shared library on both stacks, never `console.*`/`print`.
-
-## Logging (shared library on both stacks — never `console.*`, never `print`)
-One pipeline per stack, structured, event-first. Ad-hoc logging is lint-banned, not merely discouraged.
-
-**Backend** — `structlog.get_logger()` only, configured once by
-`javv_common.logging.configure_logging()` (`libs/javv-common/`). The scanner uses the *same* call, so
-both emit identical JSON.
-- **Event name first, context as kwargs** — never an f-string sentence:
-  `log.info("scan done", image_ref=ref, findings=n, duration_s=1.2)`, not `log.info(f"scanned {ref}")`.
-  Structured fields are queryable; prose is not.
-- **Bind who/where once per unit of work** with `structlog.contextvars.bind_contextvars(...)`
-  (`cluster_id`, `scanner`, `scan_run_id`) and every later line carries it automatically.
-- **Secrets are redacted by a processor**, not by remembering: bearer tokens and sensitive-looking
-  keys become `[REDACTED]` on the way out. Don't defeat it by pre-formatting a token into a string.
-- Level via `JAVV_LOG_LEVEL`. INFO = progress a human wants; WARNING = degraded-but-continuing
-  (skipped image, dead-letter, a cap hit); ERROR = the unit of work failed.
-
-**Frontend** — `@/lib/logger` only (`logger.debug|info|warn|error(event, fields?)`). **`console.*` is
-lint-banned** and CI fails on it. Same shape as the backend: an event name plus a fields object.
-
-**Ops parity is not optional on bounded or streamed paths.** An endpoint that caps (413/429) logs a
-`warning` *and* bumps its metric; a streaming export counts rows and bytes in the stream's `finally`,
-so a client disconnect still records what left the building.
-
-## Data-model invariants (the rules, not the history)
-Every audit round is settled and written up in **`docs/engineering/AUDIT-RESPONSE.md`** (D37-D40) and
-**PLAN.md** §10. Read those for the reasoning. What must be in your head while writing code:
-
-- **Read latest state through the commit catalog** (R-CATALOG): latest committed run from
-  `javv-scan-events`, *then* `occurrences` for that run. Never "latest doc per key" - that resurrects
-  findings a clean rescan dropped. `commit_key` = `(cluster_id, scanner, image_digest, scan_run_id)`.
-- **Order by `scan_order`, never `@timestamp`.** Wall-clock ties and skews; the scanner-assigned counter
-  is the only correctness ordering (monotonic via CronJob `Forbid`).
-- **`javv-scan-watermarks` CAS guards both create and update** of `findings`. Per-doc state cannot guard
-  a create, which is how an out-of-order older scan used to resurrect a retired finding.
-- **Commit-then-cache ordering:** append occurrences + images -> commit after per-item `_bulk` success
-  -> merge `findings` last. Reconcile-on-commit flips `present=false` on what the run omitted; that is
-  **cache only**, history stays tombstone-free, and `stale` is not a delete.
-- **`present` is orthogonal to `state`.** Every "now" query filters `cluster_id` + `scanner` +
-  `present=true`.
-- **Decisions are immutable.** An edit is revoke+create under one `effective_at`+`operation_id`.
-- **Time-travel (D28/FR-23):** `T=now` reads materialized current state; `T<now` reconstructs from the
-  append logs (occurrences + `javv-images` + audit-log replay + decisions active at T). Reach =
-  per-cluster retention.
-
-**`docs/engineering/INDEX-MAP.md` is the source of truth for every index + mapping + rollover/retention** -
-read it before touching any index.
