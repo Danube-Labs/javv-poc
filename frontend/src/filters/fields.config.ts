@@ -81,6 +81,14 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
           'SLA column shows overdue. Handled findings (risk-accepted, not-affected, resolved) ' +
           'are never counted.',
       },
+      {
+        key: 'unassigned',
+        param: 'unassigned',
+        label: 'Unassigned',
+        hint:
+          'Findings nobody owns yet — the untriaged backlog. This is absence, not exclusion: ' +
+          '"assignee is not <someone>" keeps unowned rows too, so it can never ask this.',
+      },
       // first_seen_at within the global range — the event view of the state table
       {
         key: 'new',

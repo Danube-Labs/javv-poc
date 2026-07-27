@@ -376,6 +376,10 @@ export type ExportParams = {
      * State
      */
     state?: Array<string> | null;
+    /**
+     * Unassigned
+     */
+    unassigned?: boolean | null;
 };
 
 /**
@@ -786,6 +790,10 @@ export type ViewPreset = {
      * State
      */
     state?: Array<string> | null;
+    /**
+     * Unassigned
+     */
+    unassigned?: boolean | null;
 };
 
 /**
@@ -1934,6 +1942,10 @@ export type SearchFindingsApiV1FindingsGetData = {
          */
         overdue?: boolean | null;
         /**
+         * Unassigned
+         */
+        unassigned?: boolean | null;
+        /**
          * Exclude Severity
          */
         exclude_severity?: Array<string> | null;
@@ -2089,6 +2101,10 @@ export type ExportCsvApiV1FindingsExportCsvGetData = {
          */
         overdue?: boolean | null;
         /**
+         * Unassigned
+         */
+        unassigned?: boolean | null;
+        /**
          * Exclude Severity
          */
         exclude_severity?: Array<string> | null;
@@ -2216,6 +2232,10 @@ export type ExportVexApiV1FindingsExportVexGetData = {
          * Overdue
          */
         overdue?: boolean | null;
+        /**
+         * Unassigned
+         */
+        unassigned?: boolean | null;
         /**
          * Exclude Severity
          */
@@ -2350,6 +2370,10 @@ export type FacetFindingsApiV1FindingsFacetsGetData = {
          * Overdue
          */
         overdue?: boolean | null;
+        /**
+         * Unassigned
+         */
+        unassigned?: boolean | null;
         /**
          * Exclude Severity
          */
@@ -2493,6 +2517,10 @@ export type GroupFindingsApiV1FindingsGroupsGetData = {
          */
         overdue?: boolean | null;
         /**
+         * Unassigned
+         */
+        unassigned?: boolean | null;
+        /**
          * Exclude Severity
          */
         exclude_severity?: Array<string> | null;
@@ -2622,6 +2650,10 @@ export type TopComponentsFindingsApiV1FindingsTopComponentsGetData = {
          * Overdue
          */
         overdue?: boolean | null;
+        /**
+         * Unassigned
+         */
+        unassigned?: boolean | null;
         /**
          * Exclude Severity
          */

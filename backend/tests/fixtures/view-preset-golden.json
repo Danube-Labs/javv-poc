@@ -15,6 +15,7 @@
     "q": null,
     "present": true,
     "new_within_days": null,
+    "unassigned": null,
     "overdue": null,
     "exclude_severity": null,
     "exclude_state": null,
@@ -45,6 +46,7 @@
     "q": null,
     "present": true,
     "new_within_days": null,
+    "unassigned": null,
     "overdue": null,
     "exclude_severity": null,
     "exclude_state": null,
@@ -72,6 +74,7 @@
     "q": null,
     "present": true,
     "new_within_days": null,
+    "unassigned": null,
     "overdue": null,
     "exclude_severity": [
       "low",

@@ -52,6 +52,7 @@ _FACET_FIELDS = (
     "present",
     "ptype",
     "overdue",  # issue 363: counts the reconstruction's own at-T verdict (rows carry the bool)
+    "unassigned",  # issue 349 §1: an expression over the row's assignee, mirrored below
 )
 _EMPTY_FACETS = ("kev", "disagree")  # whitelisted, but history has no values → empty buckets
 _GROUP_FIELDS = ("image_digest", "namespaces", "cve_id", "assignee", "ptype")  # no image_repo/app
@@ -333,6 +334,11 @@ class AsOfTQuery:
             # history has no cache, and the materialized clock describes now, not T
             if f.overdue is not None and r["overdue"] != f.overdue:
                 continue
+            # unassigned at T (issue 349 §1): answerable from the reconstruction, since
+            # occurrences carry the assignee. Mirrors the live clause — an owner is a NON-EMPTY
+            # assignee, so a cleared one ("") counts as unowned here too
+            if f.unassigned is not None and bool(r.get("assignee")) == f.unassigned:
+                continue
             # D46/#274: compare the CANONICAL bucket, mirroring the live filter's target field
             if sev and r["severity_canonical"] not in sev:
                 continue
@@ -473,9 +479,15 @@ class AsOfTQuery:
                 continue
             counts: dict[Any, dict[str, Any]] = {}
             for r in rows:
-                # D46/#274: the severity facet counts the canonical bucket (mirrors the live
-                # facet's field alias — bucket keys are critical/medium/…, never verbatim)
-                key = r["severity_canonical" if field == "severity" else field]
+                if field == "unassigned":
+                    # issue 349 §1: an expression, not a stored key — an owner is a NON-EMPTY
+                    # assignee (a cleared one is ""), the same reading as the live filter agg
+                    # and this reader's own filter above
+                    key: Any = not bool(r.get("assignee"))
+                else:
+                    # D46/#274: the severity facet counts the canonical bucket (mirrors the
+                    # live facet's field alias — keys are critical/medium/…, never verbatim)
+                    key = r["severity_canonical" if field == "severity" else field]
                 if key is None:
                     if field != "ptype":
                         continue

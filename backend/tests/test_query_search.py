@@ -21,7 +21,9 @@ from backend.query.search import (
     build_search_body,
     decode_cursor,
     encode_cursor,
+    has_owner_clause,
     run_search,
+    unassigned_clause,
 )
 
 
@@ -422,3 +424,55 @@ def test_exclude_composes_with_overdue_false() -> None:
 
 def test_no_excludes_means_no_must_not_key() -> None:
     assert "must_not" not in build_search_body(SearchFilters(), size=10)["query"]["bool"]
+
+
+def test_unassigned_is_absence_not_negation() -> None:
+    """Issue 349 §1. The distinction is load-bearing: the test above pins that
+    `exclude_assignee=bob` KEEPS unassigned rows, so no combination of excludes can ever ask
+    "nobody owns this". `unassigned` is its own clause."""
+    body = build_search_body(SearchFilters(unassigned=True), size=10)
+    mn = body["query"]["bool"]["must_not"]
+    assert mn == [
+        {
+            "bool": {
+                "filter": [{"exists": {"field": "assignee"}}],
+                "must_not": [{"term": {"assignee": ""}}],
+            }
+        }
+    ]
+
+
+def test_unassigned_false_asks_for_an_owner() -> None:
+    body = build_search_body(SearchFilters(unassigned=False), size=10)
+    fl = body["query"]["bool"]["filter"]
+    assert has_owner_clause() in fl
+    assert "must_not" not in body["query"]["bool"]
+
+
+def test_an_owner_means_a_NON_EMPTY_assignee() -> None:
+    """`TriagePatch` reads `None` as "not provided", so clearing an owner writes "" — and
+    OpenSearch counts an empty string as existing. Without the extra term those rows would
+    read as owned while the grid shows them blank."""
+    clause = has_owner_clause()
+    assert {"term": {"assignee": ""}} in clause["bool"]["must_not"]
+    assert {"exists": {"field": "assignee"}} in clause["bool"]["filter"]
+    # the facet counts the exact complement, so rail count ≡ filtered rows
+    assert unassigned_clause() == {"bool": {"must_not": [clause]}}
+
+
+def test_unassigned_and_a_named_assignee_are_mutually_exclusive() -> None:
+    with pytest.raises(ValueError, match="unassigned"):
+        build_search_body(SearchFilters(assignee="bob", unassigned=True), size=10)
+
+
+def test_unassigned_composes_with_the_other_must_not_writers() -> None:
+    """unassigned, excludes and overdue=False all write must_not — they must accumulate."""
+    body = build_search_body(
+        SearchFilters(unassigned=True, exclude_scanner="grype", overdue=False),
+        size=10,
+        sla_cutoffs=_CUTOFFS,
+    )
+    mn = body["query"]["bool"]["must_not"]
+    assert {"term": {"scanner": "grype"}} in mn
+    assert has_owner_clause() in mn
+    assert len(mn) == 3

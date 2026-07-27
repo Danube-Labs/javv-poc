@@ -67,6 +67,11 @@ class SearchFilters:
     # SLA breached (issue 363): ranges on the materialized D21 group clock `sla_clock_at`
     # against LIVE-policy cutoffs — the body needs `sla_cutoffs` (see overdue_cutoffs)
     overdue: bool | None = None
+    # "unassigned" (issue 349 §1): ABSENCE, not negation, and the two cannot substitute for
+    # each other — `exclude_assignee=bob` keeps rows with no assignee at all (see the note
+    # below), so no combination of excludes can ask "nobody owns this". True = the untriaged
+    # backlog; False = has an owner.
+    unassigned: bool | None = None
     # negation (issue 349): each excludable facet mirrors its include twin into `must_not`.
     # A field is include OR exclude, never both (ValueError). Semantics are PURE must_not —
     # a row missing the field survives the exclusion ("is not bob" keeps unassigned rows).
@@ -77,6 +82,24 @@ class SearchFilters:
     exclude_image_repo: str | None = None
     exclude_namespace: str | None = None
     exclude_ptype: str | None = None
+
+
+def has_owner_clause() -> dict[str, Any]:
+    """Rows that HAVE an owner. An owner is a NON-EMPTY assignee: `TriagePatch` reads `None` as
+    "not provided", so the only way to clear one is to write "", and OpenSearch counts an empty
+    string as existing — `exists` alone would call those rows owned while the grid shows them
+    blank. Shared with the facet so the rail count and the filtered grid cannot disagree."""
+    return {
+        "bool": {
+            "filter": [{"exists": {"field": "assignee"}}],
+            "must_not": [{"term": {"assignee": ""}}],
+        }
+    }
+
+
+def unassigned_clause() -> dict[str, Any]:
+    """The complement — the untriaged backlog (issue 349 §1)."""
+    return {"bool": {"must_not": [has_owner_clause()]}}
 
 
 _SLA_SEVERITIES = ("critical", "high", "medium", "low")  # the FR-10 buckets that carry an SLA
@@ -192,6 +215,13 @@ def build_search_body(
             fl.append(clause)
         else:
             mn.append(clause)
+    if filters.unassigned is not None:
+        if filters.assignee is not None:
+            raise ValueError("assignee and unassigned are mutually exclusive")
+        if filters.unassigned:
+            mn.append(has_owner_clause())
+        else:
+            fl.append(has_owner_clause())
     if mn:
         bool_q["must_not"] = mn
     if filters.q is not None:

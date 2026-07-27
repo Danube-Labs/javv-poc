@@ -91,6 +91,8 @@ policy edit moves the filter instantly, chip ≡ filter by construction (shared 
 KEV fast-lane included); works on grid/facets/groups/exports, and at a past `as_of` it filters the
 reconstruction's own read-time verdict (judged at `now=T`, never the cache field). Multi-page grid
 walks freeze the cutoffs in the cursor (the PIT freezes docs, the query freezes with them).
+**Unassigned (issue #349 §1):** `unassigned=true|false` is ABSENCE, not negation — an owner is a NON-EMPTY `assignee` (a cleared one is written as `""`, which `exists` alone would count as owned). It is a distinct filter because the excludes below are pure `must_not`, so `exclude_assignee=bob` keeps unowned rows and can never ask "nobody owns this". It is also a facet (a `filter` agg over the grid's own clause, so the rail count equals the filtered rows) and is answerable at a past `as_of` from the reconstruction.
+
 **Negation (issue #349):** every terms facet has an exclude mirror — `exclude_severity`,
 `exclude_state`, `exclude_scanner`, `exclude_assignee`, `exclude_image_repo`,
 `exclude_namespace`, `exclude_ptype` — compiled to `must_not` clauses. Semantics are **pure
