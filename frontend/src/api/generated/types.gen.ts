@@ -1736,6 +1736,18 @@ export type ApprovalListApiV1DecisionsApprovalsGetData = {
          */
         scanner?: string | null;
         /**
+         * Exclude Status
+         */
+        exclude_status?: string | null;
+        /**
+         * Exclude Created By
+         */
+        exclude_created_by?: string | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
+        /**
          * Warn Days
          */
         warn_days?: number;

@@ -12,8 +12,8 @@ export const APPROVAL_STATUSES = ['expired', 'expiring', 'active', 'open-ended']
 export const APPROVAL_FIELDS: readonly FilterField[] = [
   // CVE contains-search (escaped wildcard server-side, the findings-q discipline)
   { key: 'q', label: 'Search', type: 'text', param: 'q', minLength: 2 },
-  { key: 'status', label: 'Status', type: 'terms', param: 'status', facetKey: 'status', values: APPROVAL_STATUSES },
-  { key: 'scanner', label: 'Scanner', type: 'terms', param: 'scanner', facetKey: 'scanner', values: ['both', 'trivy', 'grype'] },
+  { key: 'status', label: 'Status', type: 'terms', param: 'status', facetKey: 'status', values: APPROVAL_STATUSES, negatable: true },
+  { key: 'scanner', label: 'Scanner', type: 'terms', param: 'scanner', facetKey: 'scanner', values: ['both', 'trivy', 'grype'], negatable: true },
   // data-driven from the facet buckets (exact keyword term)
-  { key: 'approver', label: 'Approver', type: 'terms', param: 'created_by', facetKey: 'created_by' },
+  { key: 'approver', label: 'Approver', type: 'terms', param: 'created_by', facetKey: 'created_by', negatable: true },
 ]

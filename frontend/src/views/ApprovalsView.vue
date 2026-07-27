@@ -62,7 +62,12 @@ const nowMs = computed(() => refNowMs(timeTravel.t))
 // no as_of in the globals: the queue is now-only (the T<now notice owns the rewound state)
 const filterQuery = computed(() =>
   clusterStore.selectedId
-    ? buildFilterQuery(APPROVAL_FIELDS, filters.selections, { cluster_id: clusterStore.selectedId })
+    ? buildFilterQuery(
+        APPROVAL_FIELDS,
+        filters.selections,
+        { cluster_id: clusterStore.selectedId },
+        filters.modes,
+      )
     : null,
 )
 
@@ -230,9 +235,12 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <FilterBar
             :fields="APPROVAL_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :facets="facets"
             @toggle="filters.toggle"
             @set-text="filters.setText"
+            @set-mode="filters.setMode"
+            @toggle-mode="filters.toggleMode"
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
           />
