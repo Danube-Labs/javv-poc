@@ -12,6 +12,7 @@ import { auditFacetsApiV1AuditFacetsGet } from '@/api/generated'
 import { buildAuditLensOption, type ActivityPoint } from '@/charts/buildAuditLensOption'
 import { bucketEndT, ingestInterval } from '@/charts/buildIngestLensOption'
 import EChart from '@/components/charts/EChart.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { lastDataAt } from '@/system/freshness'
@@ -94,7 +95,9 @@ function onPointClick(params: { dataIndex: number }) {
         current filters · the table lists <b>all</b> events up to the range end</span
       >
     </div>
-    <div v-if="!settled" class="il-skel" aria-busy="true" aria-label="Loading audit activity" />
+    <!-- pre-data: a shimmer where the chart will be — never the amber claim (a quiet range is an
+         ANSWER; before the response lands there is none) -->
+    <UiSkeleton v-if="!settled" :height="84" radius="sm" label="Loading audit activity" class="skel-gap" />
     <p v-else-if="failed" class="il-empty">Audit activity unavailable.</p>
     <p v-else-if="totalEvents === 0" class="il-empty">
       No journaled activity in this range — older events are still in the table below.
@@ -154,27 +157,7 @@ function onPointClick(params: { dataIndex: number }) {
   font-weight: 500;
   color: var(--ink);
 }
-/* pre-data: a shimmer where the chart will be — never the amber claim (a quiet range is an
-   ANSWER; before the response lands there is none) */
-.il-skel {
-  height: 84px;
+.skel-gap {
   margin-bottom: 6px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: il-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes il-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .il-skel {
-    animation: none;
-  }
 }
 </style>

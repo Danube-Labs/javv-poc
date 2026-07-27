@@ -26,6 +26,7 @@ import DecisionsCard, { type DecisionRow } from '@/components/triage/DecisionsCa
 import RiskAcceptDialog from '@/components/triage/RiskAcceptDialog.vue'
 import TriagePanel from '@/components/triage/TriagePanel.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { useApi } from '@/composables/useApi'
 import {
   affectedComponentRows,
@@ -238,10 +239,10 @@ watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { im
     <button class="back-link" @click="goBack"><AppIcon name="arrowback" :size="15" />Findings</button>
 
     <!-- loading: skeletons, not spinners -->
-    <div v-if="loading" aria-busy="true" aria-label="Loading finding">
-      <div class="skel skel-head" />
-      <div class="skel skel-card" />
-      <div class="skel skel-card" />
+    <div v-if="loading" class="skel-stack" aria-busy="true" aria-label="Loading finding">
+      <UiSkeleton :height="112" />
+      <UiSkeleton :height="180" />
+      <UiSkeleton :height="180" />
     </div>
 
     <p v-else-if="failed" class="load-error" role="alert">
@@ -381,31 +382,7 @@ watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { im
   font-size: var(--text-body);
 }
 
-/* skeletons (impeccable product register: skeletons over spinners) */
-.skel {
-  border-radius: var(--r);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-.skel-head {
-  height: 112px;
-}
-.skel-card {
-  height: 180px;
+.skel-stack > * + * {
   margin-top: 16px;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel {
-    animation: none;
-  }
 }
 </style>

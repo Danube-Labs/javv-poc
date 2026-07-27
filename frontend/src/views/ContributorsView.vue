@@ -18,6 +18,7 @@ import type { ContributorsApiV1ContributorsGetData } from '@/api/generated'
 import type { ActivityPoint } from '@/charts/buildAuditLensOption'
 import ActivityFeed from '@/components/contributors/ActivityFeed.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import ContributorsLens from '@/components/contributors/ContributorsLens.vue'
 import LeaderboardTable from '@/components/contributors/LeaderboardTable.vue'
 import PodiumCard from '@/components/contributors/PodiumCard.vue'
@@ -123,8 +124,8 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
     </div>
 
     <div v-if="!settled" class="contrib-skel" aria-busy="true" aria-label="Loading contributors">
-      <div class="skel skel-band" />
-      <div class="skel skel-card" />
+      <UiSkeleton :height="92" />
+      <UiSkeleton :height="320" />
     </div>
 
     <p v-else-if="failed" class="load-error" role="alert">
@@ -308,30 +309,5 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
   display: flex;
   flex-direction: column;
   gap: 14px;
-}
-.skel {
-  border-radius: var(--r);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: contrib-shimmer 1.4s ease-in-out infinite;
-}
-.skel-band {
-  height: 92px;
-}
-.skel-card {
-  height: 320px;
-}
-@keyframes contrib-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel {
-    animation: none;
-  }
 }
 </style>

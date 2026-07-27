@@ -564,3 +564,27 @@ button.stat-cell:hover .cell-go,
   opacity: 0;
   transform: translateY(4px);
 }
+
+/* ---- skeleton layer: the ONE loading pulse (impeccable product register — skeletons over
+   spinners). `UiSkeleton` composes it; a bespoke arrangement may use the class directly.
+   Only the pulse lives here — a skeleton's height mirrors the panel it stands in for, so
+   shape stays at the placement. */
+.skel {
+  border-radius: var(--r);
+  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
+  background-size: 200% 100%;
+  animation: skel-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skel-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel {
+    animation: none;
+  }
+}

@@ -20,6 +20,7 @@ import SaveBar from '@/components/settings/SaveBar.vue'
 import SettingsCard from '@/components/settings/SettingsCard.vue'
 import SettingsRow from '@/components/settings/SettingsRow.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useToastStore } from '@/stores/toast'
@@ -108,7 +109,13 @@ function discard() {
 <template>
   <div>
     <SettingsCard title="Scan scope" subtitle="what the scanner module discovers and scans">
-      <div v-if="loading" class="skel-block" aria-busy="true" aria-label="Loading scan scope" />
+      <UiSkeleton
+        v-if="loading"
+        :height="280"
+        radius="sm"
+        label="Loading scan scope"
+        class="skel-gap"
+      />
       <p v-else-if="failed" class="load-error" role="alert">
         Scan scope unavailable. Check the backend connection.
       </p>
@@ -214,25 +221,7 @@ function discard() {
 .load-error {
   margin: 14px 0 8px;
 }
-.skel-block {
-  height: 280px;
+.skel-gap {
   margin: 14px 0 8px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-block {
-    animation: none;
-  }
 }
 </style>

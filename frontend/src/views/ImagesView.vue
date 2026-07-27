@@ -22,6 +22,7 @@ import GridPager from '@/components/findings/GridPager.vue'
 import ImagesTable, { type ImagesSortField } from '@/components/images/ImagesTable.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { useApi } from '@/composables/useApi'
 import { IMAGES_COLUMNS, IMAGES_FIELDS } from '@/images/fields.config'
 import { reorderFromDrag, restoreOrder } from '@/system/columnOrder'
@@ -171,7 +172,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     </div>
 
     <div v-if="images.loading" aria-busy="true" aria-label="Loading images">
-      <div class="skel skel-card" />
+      <UiSkeleton :height="320" />
     </div>
 
     <p v-else-if="images.failed" class="load-error" role="alert">
@@ -282,26 +283,4 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   margin: 0 0 6px;
 }
 
-.skel {
-  border-radius: var(--r);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-.skel-card {
-  height: 320px;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel {
-    animation: none;
-  }
-}
 </style>

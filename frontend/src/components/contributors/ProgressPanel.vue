@@ -13,6 +13,7 @@ import { useRouter } from 'vue-router'
 import { facetFindingsApiV1FindingsFacetsGet } from '@/api/generated'
 import type { FacetFindingsApiV1FindingsFacetsGetData } from '@/api/generated'
 import SevChip from '@/components/chips/SevChip.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import {
   progressRows,
   TRIAGED_STATES,
@@ -89,7 +90,7 @@ function openLeft(severity: string) {
 
 <template>
   <div v-if="!settled" class="prog-skel" aria-busy="true" aria-label="Loading triage progress">
-    <div v-for="i in 3" :key="i" class="skel-line" />
+    <UiSkeleton v-for="i in 3" :key="i" :height="22" radius="sm" />
   </div>
   <p v-else-if="failed" class="load-error" role="alert">
     Triage progress unavailable. Check the backend connection.
@@ -209,25 +210,5 @@ function openLeft(severity: string) {
   flex-direction: column;
   gap: 10px;
   padding: 6px 0;
-}
-.skel-line {
-  height: 22px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: prog-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes prog-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-line {
-    animation: none;
-  }
 }
 </style>

@@ -17,6 +17,7 @@ import { useAllClustersStore } from '@/stores/allClusters'
 import { useStalenessStore } from '@/stores/staleness'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
 import { freshnessStatus } from '@/system/freshness'
 import { facetCount, fmt, type ScannerLens } from '@/lib/scannerLens'
@@ -79,9 +80,9 @@ const needAttention = computed(
 
     <LimitedHistoricalNotice v-if="fleet.limited" />
 
-    <div v-else-if="fleet.loading" aria-busy="true" aria-label="Loading clusters">
-      <div class="skel skel-band" />
-      <div class="skel skel-card" />
+    <div v-else-if="fleet.loading" class="skel-stack" aria-busy="true" aria-label="Loading clusters">
+      <UiSkeleton :height="96" />
+      <UiSkeleton :height="300" />
     </div>
 
     <p v-else-if="fleet.failed" class="load-error" role="alert">
@@ -155,30 +156,7 @@ const needAttention = computed(
   margin: 0 0 6px;
 }
 
-.skel {
-  border-radius: var(--r);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-.skel-band {
-  height: 96px;
-}
-.skel-card {
-  height: 300px;
+.skel-stack > * + * {
   margin-top: 16px;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel {
-    animation: none;
-  }
 }
 </style>

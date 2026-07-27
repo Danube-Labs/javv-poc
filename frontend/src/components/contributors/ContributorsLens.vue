@@ -12,6 +12,7 @@ import { computed } from 'vue'
 import { buildAuditLensOption, type ActivityPoint } from '@/charts/buildAuditLensOption'
 import { bucketEndT } from '@/charts/buildIngestLensOption'
 import EChart from '@/components/charts/EChart.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { lastDataAt } from '@/system/freshness'
 
@@ -48,7 +49,8 @@ function onPointClick(params: { dataIndex: number }) {
         not affected · risk accepted · acknowledged</span
       >
     </div>
-    <div v-if="!settled" class="il-skel" aria-busy="true" aria-label="Loading handled findings" />
+    <!-- pre-data: a shimmer where the chart will be — never the amber claim (issue 355) -->
+    <UiSkeleton v-if="!settled" :height="84" radius="sm" label="Loading handled findings" class="skel-gap" />
     <p v-else-if="failed" class="il-empty">Handled-findings activity unavailable.</p>
     <p v-else-if="totalHandled === 0" class="il-empty">
       No findings were handled in this window — the board below is empty too.
@@ -104,26 +106,7 @@ function onPointClick(params: { dataIndex: number }) {
   font-weight: 500;
   color: var(--ink);
 }
-/* pre-data: a shimmer where the chart will be — never the amber claim (issue 355) */
-.il-skel {
-  height: 84px;
+.skel-gap {
   margin-bottom: 6px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: il-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes il-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .il-skel {
-    animation: none;
-  }
 }
 </style>

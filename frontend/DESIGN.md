@@ -192,6 +192,7 @@ the raw markup/CSS they encapsulate is a review failure — extend the component
 | `UiField` | mono uppercase micro-label + parenthesized `hint`, 14px band / 6px label gap (`first` zeroes the top) | any labeled control |
 | `UiDropdown` | open state + outside-mousedown + document Escape + relative anchor; `trigger`/default slots (menu markup stays yours) | any popover menu |
 | `ModalShell` | scrim + card + head/✕/actions, Escape + outside-click dismiss | every dialog |
+| `UiSkeleton` | the one loading pulse (`.skel` + `skel-shimmer` in base.css) and its reduced-motion off-switch; `height` is a prop because a skeleton mirrors the panel it stands in for, `label` only when it is its own loading region | every loading placeholder. A style-ratchet test fails any view that grows its own shimmer |
 | `AppIcon` | the stroke icon set | every icon |
 | `ToastStack` + `useToastStore` | the confirmation channel: `success/error/info` from ANY component/store, auto-dismiss, capped stack, t-toast motion, ink text + hue on the icon | every action outcome the user would otherwise hunt for; inline contextual errors stay inline |
 

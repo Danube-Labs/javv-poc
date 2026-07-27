@@ -13,6 +13,7 @@ import { getSlaApiV1SettingsSlaGet, putSlaApiV1SettingsSlaPut } from '@/api/gene
 import type { SlaPolicy } from '@/api/generated'
 import { client } from '@/api/client'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import SaveBar from '@/components/settings/SaveBar.vue'
 import SettingsCard from '@/components/settings/SettingsCard.vue'
 import SettingsInput from '@/components/settings/SettingsInput.vue'
@@ -92,7 +93,13 @@ function discard() {
       title="SLA policy"
       subtitle="remediation deadlines per severity — drives the SLA column and overdue flags"
     >
-      <div v-if="loading" class="skel skel-form" aria-busy="true" aria-label="Loading SLA policy" />
+      <UiSkeleton
+        v-if="loading"
+        :height="280"
+        radius="sm"
+        label="Loading SLA policy"
+        class="skel-gap"
+      />
 
       <p v-else-if="failed" class="load-error" role="alert">
         SLA policy unavailable. Check the backend connection.
@@ -172,25 +179,7 @@ function discard() {
 .load-error {
   margin: 14px 0 8px;
 }
-.skel-form {
-  height: 280px;
+.skel-gap {
   margin: 14px 0 8px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-form {
-    animation: none;
-  }
 }
 </style>

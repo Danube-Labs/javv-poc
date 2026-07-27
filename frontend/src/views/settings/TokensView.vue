@@ -30,6 +30,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiDateTime from '@/components/ui/UiDateTime.vue'
 import UiField from '@/components/ui/UiField.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useToastStore } from '@/stores/toast'
@@ -180,7 +181,13 @@ const fmt = (iso: string | null) =>
         <UiButton :disabled="busy" @click="openMint"><AppIcon name="plus" :size="13" />Mint token</UiButton>
       </template>
 
-      <div v-if="loading" class="skel-block" aria-busy="true" aria-label="Loading tokens" />
+      <UiSkeleton
+        v-if="loading"
+        :height="120"
+        radius="sm"
+        label="Loading tokens"
+        class="skel-gap"
+      />
       <p v-else-if="failed" class="load-error" role="alert">
         Token list unavailable. Check the backend connection.
       </p>
@@ -389,25 +396,7 @@ const fmt = (iso: string | null) =>
 .load-error {
   margin: 14px 0 8px;
 }
-.skel-block {
-  height: 120px;
+.skel-gap {
   margin: 14px 0 8px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-block {
-    animation: none;
-  }
 }
 </style>

@@ -42,11 +42,13 @@ If Docker needs `sudo`, either prefix the docker commands below or run
 ```bash
 docker compose -f development/setup/opensearch-dev.yml up -d
 
-# wait until it reports green (the compose file now disables the plugins that used to hang it)
-until [ "$(curl -s localhost:9200/_cluster/health | jq -r .status)" = green ]; do
+# wait until it answers green OR yellow. A single-node dev store settles at YELLOW and stays
+# there: `.opendistro-ism-config` ships with a replica that can never assign with one node, so
+# waiting for green never returns. `preflight.sh` treats both as up for the same reason.
+until curl -s localhost:9200/_cluster/health | jq -e '.status=="green" or .status=="yellow"' >/dev/null; do
   echo "waiting for opensearch…"; sleep 3;
 done
-echo "opensearch is green"
+echo "opensearch is up"
 ```
 
 ### A2. Configure + start the backend
