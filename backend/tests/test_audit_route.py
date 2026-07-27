@@ -155,6 +155,24 @@ async def test_cursor_walk_covers_the_log_without_gaps_or_duplicates(env) -> Non
     assert len(seen) == 5 and len(set(seen)) == 5  # every row exactly once
 
 
+async def test_include_and_exclude_of_the_same_field_422_at_every_door(env) -> None:
+    """issue 349 review: findings 422s the include+exclude conflict — the audit surfaces must
+    answer the same malformed request identically, never silently AND a term with its own
+    must_not into zero rows. One guard, all three doors (list, facets, export)."""
+    http, _ = env
+    cid = f"c-audit-{uuid.uuid4().hex[:8]}"
+    conflict = {"cluster_id": cid, "actor": "alice", "exclude_actor": "alice"}
+    for path in ("/api/v1/audit", "/api/v1/audit/facets", "/api/v1/audit/export.csv"):
+        r = await http.get(path, params=conflict)
+        assert r.status_code == 422, path
+        assert "mutually exclusive" in r.json()["title"]  # RFC 9457: detail → title
+    # a different field on each side is a legitimate lens, not a conflict
+    r = await http.get(
+        "/api/v1/audit", params={"cluster_id": cid, "action": "login", "exclude_actor": "alice"}
+    )
+    assert r.status_code == 200
+
+
 async def test_a_m1_cursor_and_order_semantics(env) -> None:
     http, _ = env
     cid = f"c-audit-{uuid.uuid4().hex[:8]}"

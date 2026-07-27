@@ -156,6 +156,25 @@ async def test_invalid_decision_inputs_return_422_not_500(env) -> None:
     assert r.status_code == 422  # A-n: bounded query string
 
 
+async def test_approvals_include_and_exclude_of_the_same_field_422(env) -> None:
+    """issue 349 review: same contract as the findings edge — a field is included OR excluded,
+    never both; the conflict is a 422, not a silent zero-row queue."""
+    login_with, _ = env
+    lead = await login_with(["can_triage", "can_accept_audit_final"])
+    r = await lead.get(
+        "/api/v1/decisions/approvals",
+        params={"cluster_id": CID, "status": "expiring", "exclude_status": "expiring"},
+    )
+    assert r.status_code == 422
+    assert "mutually exclusive" in r.json()["title"]  # RFC 9457: detail → title
+    # opposite fields compose — one included, another excluded, is a legitimate lens
+    r = await lead.get(
+        "/api/v1/decisions/approvals",
+        params={"cluster_id": CID, "status": "active", "exclude_scanner": "trivy"},
+    )
+    assert r.status_code == 200
+
+
 async def test_approval_list_is_accept_final_only_and_sorted_by_expiry(env) -> None:
     """M5d ruling (#30): the approval list = review queue over ACTIVE risk-accepts (creation is
     already SEC-2-gated — there is no pending state), soonest-expiring first."""

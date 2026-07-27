@@ -140,6 +140,15 @@ async def approval_list(
     ):
         if value is not None and value not in vocabulary:
             raise HTTPException(422, f"{name} must be one of {vocabulary}")
+    # a field is included OR excluded, never both (issue 349) — same 422 as the findings edge,
+    # instead of silently ANDing a clause with its own must_not into zero rows
+    for name, inc, exc in (
+        ("status", status, exclude_status),
+        ("created_by", created_by, exclude_created_by),
+        ("scanner", scanner, exclude_scanner),
+    ):
+        if inc is not None and exc is not None:
+            raise HTTPException(422, f"{name} and exclude_{name} are mutually exclusive")
     client = cast(Any, request.app.state.opensearch)
     # no read-side refresh (audit A-m2/#191): decision writes use refresh=true, so read-your-writes
     # holds without forcing a Lucene refresh on every read

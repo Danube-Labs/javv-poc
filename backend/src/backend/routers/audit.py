@@ -37,6 +37,19 @@ log = structlog.get_logger()
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
 
+def _reject_conflicting_modes(filters: AuditFilters) -> None:
+    """A field is included OR excluded, never both (issue 349) — the same 422 the findings
+    edge raises, so the negation surfaces answer a malformed request identically instead of
+    silently ANDing a term with its own must_not into zero rows."""
+    for name, inc, exc in (
+        ("entity_type", filters.entity_type, filters.exclude_entity_type),
+        ("action", filters.action, filters.exclude_action),
+        ("actor", filters.actor, filters.exclude_actor),
+    ):
+        if inc is not None and exc is not None:
+            raise HTTPException(422, f"{name} and exclude_{name} are mutually exclusive")
+
+
 @router.get("")
 async def read_audit_log(
     request: Request,
@@ -69,6 +82,7 @@ async def read_audit_log(
         exclude_action=exclude_action,
         exclude_actor=exclude_actor,
     )
+    _reject_conflicting_modes(filters)
     opened = cursor is None  # a cursor-less page opens a fresh PIT; a continuation reuses one
     if opened:
         try:
@@ -139,6 +153,7 @@ async def audit_facets(
             exclude_action=exclude_action,
             exclude_actor=exclude_actor,
         )
+        _reject_conflicting_modes(filters)
         body = build_audit_facets_body(filters, interval=interval, window_days=window_days)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -199,6 +214,7 @@ async def export_audit_csv(
         exclude_action=exclude_action,
         exclude_actor=exclude_actor,
     )
+    _reject_conflicting_modes(filters)
     max_rows = get_settings().export_max_rows
     n = await count_audit_lens(client, cluster_id=cluster_id, filters=filters)
     if n > max_rows:
