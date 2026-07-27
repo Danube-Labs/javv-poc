@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.4](https://github.com/Danube-Labs/javv-poc/compare/v0.4.3...v0.4.4) (2026-07-27)
+
+
+### Features
+
+* filter findings nobody owns — the unassigned flag ([#349](https://github.com/Danube-Labs/javv-poc/issues/349) §1) ([#488](https://github.com/Danube-Labs/javv-poc/issues/488)) ([674cd33](https://github.com/Danube-Labs/javv-poc/commit/674cd33e09655508049e8d13521bb85a30bd297a))
+* filter negation swept to running images, the audit trail and approvals ([#487](https://github.com/Danube-Labs/javv-poc/issues/487)) ([e89ee6e](https://github.com/Danube-Labs/javv-poc/commit/e89ee6ed86fa2b771186cc027853ee6a801832bc))
+
+
+### Bug Fixes
+
+* **ui:** five read-legibility defects — width, severity mix, dead column, bare counts, false empty states ([#486](https://github.com/Danube-Labs/javv-poc/issues/486)) ([e5aeaad](https://github.com/Danube-Labs/javv-poc/commit/e5aeaadd3cda29efca192c4e40e2f4bea3d4b1ab))
+
 ## [0.4.3](https://github.com/Danube-Labs/javv-poc/compare/v0.4.2...v0.4.3) (2026-07-26)
 
 
