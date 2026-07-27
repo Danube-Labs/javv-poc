@@ -100,6 +100,7 @@ def _filters(
     present: bool = True,
     new_within_days: Annotated[int | None, Query(ge=1, le=365)] = None,
     overdue: bool | None = None,
+    unassigned: bool | None = None,
     exclude_severity: Annotated[list[str] | None, Query()] = None,
     exclude_state: Annotated[list[str] | None, Query()] = None,
     exclude_scanner: Annotated[str | None, Query(max_length=32)] = None,
@@ -121,6 +122,10 @@ def _filters(
     ):
         if inc is not None and exc is not None:
             raise HTTPException(422, f"{name} and exclude_{name} are mutually exclusive")
+    # absence and a named owner cannot both hold — 422 here so the builder's ValueError
+    # (defense for direct constructors) never costs a 500
+    if unassigned is not None and assignee is not None:
+        raise HTTPException(422, "assignee and unassigned are mutually exclusive")
     return SearchFilters(
         severity=severity,
         state=state,
@@ -138,6 +143,7 @@ def _filters(
         present=present,
         new_within_days=new_within_days,
         overdue=overdue,
+        unassigned=unassigned,
         exclude_severity=exclude_severity,
         exclude_state=exclude_state,
         exclude_scanner=exclude_scanner,

@@ -333,6 +333,11 @@ class AsOfTQuery:
             # history has no cache, and the materialized clock describes now, not T
             if f.overdue is not None and r["overdue"] != f.overdue:
                 continue
+            # unassigned at T (issue 349 §1): answerable from the reconstruction, since
+            # occurrences carry the assignee. Mirrors the live clause — an owner is a NON-EMPTY
+            # assignee, so a cleared one ("") counts as unowned here too
+            if f.unassigned is not None and bool(r.get("assignee")) == f.unassigned:
+                continue
             # D46/#274: compare the CANONICAL bucket, mirroring the live filter's target field
             if sev and r["severity_canonical"] not in sev:
                 continue

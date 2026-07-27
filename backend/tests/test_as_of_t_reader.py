@@ -457,6 +457,8 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "present": False,
         "new_within_days": 30,
         "overdue": True,  # issue 363 — filters the reconstruction's own at-T verdict
+        # issue 349 §1 — the row is unowned, so asking for an OWNER must drop it
+        "unassigned": False,
         # issue 349 excludes: each probe MATCHES the row below so a handled exclude drops it
         "exclude_severity": ["high"],
         "exclude_state": ["resolved"],
