@@ -5,6 +5,7 @@
  * (whose scan) rides the tooltip or the optional inline label. Zero total = muted dash. */
 import { computed } from 'vue'
 
+import ScannerTag from '@/components/chips/ScannerTag.vue'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
 
 const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']
@@ -40,7 +41,7 @@ const title = computed(() => {
 <template>
   <div class="mix" :class="{ 'mix-labeled': label }">
     <div class="mix-row">
-      <span v-if="label" class="mix-scanner" :data-scanner="label.toLowerCase()">{{ label }}</span>
+      <span v-if="label" class="mix-scanner"><ScannerTag :name="label" /></span>
       <span v-if="segments || numbers" class="mix-bar" :title="title">
         <i v-for="seg in segments ?? []" :key="seg.sev" :style="{ width: `${seg.pct}%`, background: seg.color }" />
       </span>
@@ -55,8 +56,8 @@ const title = computed(() => {
 <style scoped>
 .mix {
   /* the label gutter, shared by the bar row and the count row so the counts sit under the bar
-     they describe rather than under the scanner name */
-  --mix-label-w: 38px;
+     they describe rather than under the scanner tag. Wide enough for a ScannerTag chip. */
+  --mix-label-w: 54px;
   --mix-label-gap: 8px;
 }
 .mix-row {
@@ -64,20 +65,10 @@ const title = computed(() => {
   align-items: center;
   gap: var(--mix-label-gap);
 }
+/* fixed gutter so the bars line up whatever the tag inside is called */
 .mix-scanner {
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  color: var(--soft);
   width: var(--mix-label-w);
   flex: none;
-}
-/* scanner identity (§8.5 specimen): the label wears its scanner's hue — same identity language
-   as ScannerTag, no escalation */
-.mix-scanner[data-scanner='trivy'] {
-  color: var(--scanner-trivy-fg);
-}
-.mix-scanner[data-scanner='grype'] {
-  color: var(--scanner-grype-fg);
 }
 .mix-bar {
   display: flex;
