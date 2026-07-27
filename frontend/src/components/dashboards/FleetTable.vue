@@ -121,6 +121,7 @@ function open(row: ClusterRow) {
                   :key="sc"
                   :counts="mixFor(row, sc)"
                   :label="sc"
+                  numbers
                   class="mix-stack"
                 />
               </template>
@@ -291,8 +292,9 @@ function open(row: ClusterRow) {
 .mix-cell {
   min-width: 180px;
 }
+/* wider than MixBar's own bar→counts gap, so each scanner's bar and counts read as one unit */
 .mix-stack + .mix-stack {
-  margin-top: 4px;
+  margin-top: 12px;
 }
 .muted-dash {
   color: var(--dash-muted);

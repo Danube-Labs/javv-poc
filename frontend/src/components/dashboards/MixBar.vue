@@ -38,7 +38,7 @@ const title = computed(() => {
 </script>
 
 <template>
-  <div class="mix">
+  <div class="mix" :class="{ 'mix-labeled': label }">
     <div class="mix-row">
       <span v-if="label" class="mix-scanner" :data-scanner="label.toLowerCase()">{{ label }}</span>
       <span v-if="segments || numbers" class="mix-bar" :title="title">
@@ -53,16 +53,22 @@ const title = computed(() => {
 </template>
 
 <style scoped>
+.mix {
+  /* the label gutter, shared by the bar row and the count row so the counts sit under the bar
+     they describe rather than under the scanner name */
+  --mix-label-w: 38px;
+  --mix-label-gap: 8px;
+}
 .mix-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--mix-label-gap);
 }
 .mix-scanner {
   font-family: var(--font-mono);
   font-size: var(--text-table-header);
   color: var(--soft);
-  width: 38px;
+  width: var(--mix-label-w);
   flex: none;
 }
 /* scanner identity (§8.5 specimen): the label wears its scanner's hue — same identity language
@@ -92,6 +98,9 @@ const title = computed(() => {
   font-family: var(--font-mono);
   font-size: var(--text-chip-sm);
   line-height: 1;
+}
+.mix-labeled .mix-nums {
+  margin-left: calc(var(--mix-label-w) + var(--mix-label-gap));
 }
 .mix-nums b {
   font-weight: 700;
