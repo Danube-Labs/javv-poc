@@ -87,6 +87,13 @@ residue: `development/scripts/clean-dev-store.sh` (keeps `{admin, rig}`).
 new routes 404), and after any contract change regenerate the client *and* restart vite
 (`export_openapi` -> `npm run gen:api`; a stale module graph 500s with "does not provide an export").
 
+**A merge is a code change too.** Restart both after merging or switching branches, not just after
+editing — the running processes keep whatever code they started with. This is worse than a 404: a
+param the running backend doesn't know is **silently dropped** by FastAPI, so a negation filter comes
+back unfiltered and reads as a product bug in a feature that is actually fine. Ask the age of the
+process before debugging behaviour (`ps -o lstart -p <pid>`), and confirm what it actually serves:
+`curl -s localhost:8000/openapi.json | jq '.paths["<route>"].get.parameters[].name'`.
+
 ## Hard constraints (do not violate)
 - **No Redis/Kafka/RabbitMQ/external broker.** Coordination via OpenSearch; jobs are k8s CronJobs.
 - **Server-side everything** - never ship raw findings to the client to compute counts; every number/page
@@ -152,7 +159,8 @@ new routes 404), and after any contract change regenerate the client *and* resta
 
 **Environment quirks (they will not fix themselves)**
 - Kill dev processes by PID/port (`ss -ltnp`), NEVER `pkill -f` (it matches its own wrapper). The dev
-  backend has no reload — restart it after backend edits or new routes 404; restart vite after
+  backend has no reload — restart it after backend edits **or a merge/branch switch**, or new routes
+  404 and unknown params are silently dropped (see § *Running the stack*); restart vite after
   `gen:api` (stale module graph "does not provide an export").
 - Backend pytest against the shared dev store leaves residue (`nu-*`/`ext-*`/`0-list-*` users,
   `t-*` indices) — sweep AFTER the last run, keep `{admin, rig}`.
