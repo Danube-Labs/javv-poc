@@ -26,8 +26,8 @@ operator ruling on a **built specimen** (DESIGN.md §8.5), not an argument in a 
    exactly where a screen most often feels unfinished. Land what you borrow on the **existing** motion
    layer rather than a new curve: `t-pop` = floating panels (dropdowns/popovers), fade + 4px rise,
    quick both ways; `t-fade` = banners and in-flow appearances, crossfade only, **never animate
-   height**. Skeletons are **not** yet shared: each view defines its own `.skel` (15 of them today,
-   no keyframe in base.css) — reuse a neighbour's markup, and see issue 481 before adding a 16th.
+   height**. Skeletons are shared: the pulse is `.skel` + `@keyframes skel-shimmer` in base.css,
+   composed by `UiSkeleton` — a view that grows its own shimmer fails the style ratchet.
 3. **`npx impeccable detect`** on a rendered-HTML dump of every changed screen, plus the
    `.claude/skills/impeccable` skill for critique/typography/layout. §9 of DESIGN.md lists the **ruled
    exceptions** — those are settled; don't relitigate them each pass.
@@ -50,7 +50,7 @@ no ad-hoc sizes — use the scale tokens (`--text-page-title`, `--text-card-titl
 
 **Reuse before building — the kit already solves most of it**
 `components/ui/` (UiButton · UiField · UiDropdown · UiSegControl · UiDateTime · ModalShell ·
-SlideoverShell · ToastStack · EmptyState · AppIcon), plus `components/chips/`, the M9a filter module,
+SlideoverShell · ToastStack · EmptyState · UiSkeleton · AppIcon), plus `components/chips/`, the M9a filter module,
 the shared table skin + GridPager, and the stat-band skin (`.stat-band`/`.stat-cell` in base.css,
 composed by `components/overview/OverviewStatBands.vue` — it is a skin, not a kit component).
 Backend: `query/paging.py` + the bulk helpers.

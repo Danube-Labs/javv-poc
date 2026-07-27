@@ -14,6 +14,7 @@ import type { ReadAuditLogApiV1AuditGetData } from '@/api/generated'
 import ActionTag from '@/components/chips/ActionTag.vue'
 import SevChip from '@/components/chips/SevChip.vue'
 import ContributorIdentity from '@/components/contributors/ContributorIdentity.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import type { AuditEvent } from '@/stores/audit'
 import { lastDataAt } from '@/system/freshness'
@@ -79,7 +80,7 @@ function detail(row: AuditEvent): string {
 
 <template>
   <div v-if="!settled" class="feed-skel" aria-busy="true" aria-label="Loading recent activity">
-    <div v-for="i in 4" :key="i" class="skel-line" />
+    <UiSkeleton v-for="i in 4" :key="i" :height="34" radius="sm" />
   </div>
   <p v-else-if="failed" class="load-error" role="alert">
     Recent activity unavailable. Check the backend connection.
@@ -215,25 +216,5 @@ function detail(row: AuditEvent): string {
   flex-direction: column;
   gap: 12px;
   padding: 8px 0;
-}
-.skel-line {
-  height: 34px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: feed-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes feed-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-line {
-    animation: none;
-  }
 }
 </style>

@@ -69,6 +69,24 @@ describe('style ratchet — no pointer cursor', () => {
 })
 
 /**
+ * One skeleton pulse (issue 481): `.skel` + `@keyframes skel-shimmer` live in base.css and
+ * `UiSkeleton` composes them. The pulse had been re-declared in 18 files under 8 keyframe names
+ * before anyone counted, so a view that grows its own shimmer fails here instead of drifting.
+ */
+describe('style ratchet — one shared skeleton pulse', () => {
+  it('no shimmer keyframes outside base.css', () => {
+    const hits = walk(SRC)
+      .map((p) => relative(SRC, p).split('\\').join('/'))
+      .filter((rel) => rel !== 'styles/base.css')
+      .filter((rel) => /@keyframes\s+[\w-]*shimmer\b/.test(readFileSync(join(SRC, rel), 'utf8')))
+    expect(
+      hits,
+      `skeleton pulse(s) outside base.css — compose UiSkeleton instead: ${hits.join(', ')}`,
+    ).toEqual([])
+  })
+})
+
+/**
  * "Never same-hue text on its own tint" (DESIGN.md §2, operator ruling 2026-07-09; bitten twice
  * by 2026-07-10): a rule block that pairs `color: var(--X-fg)` with `background: var(--X-bg)`
  * of the SAME hue family ships low-contrast prose. Chips/tags are the ruled exception (short
