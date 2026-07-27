@@ -114,6 +114,10 @@ function mixFor(r: ImageRow, sc: 'trivy' | 'grype'): Partial<Record<Severity, nu
   }
   return null
 }
+/** Who has a committed scan of this digest: the server decoration when present, else the doc's
+ * own scanner — the same precedence `mixFor` uses. */
+const scannersFor = (r: ImageRow) =>
+  r.severity_by_scanner ? Object.keys(r.severity_by_scanner) : r.scanners
 const nsLabel = (r: ImageRow) =>
   r.namespaces.length <= 1 ? (r.namespaces[0] ?? '-') : `${r.namespaces[0]} +${r.namespaces.length - 1}`
 const fmt = (n: number) => n.toLocaleString('en-US')
@@ -164,7 +168,13 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <span v-if="key === 'tag'" class="mono-cell sm">{{ data.tag }}</span>
           <span v-else-if="key === 'namespace'" class="mono-cell sm" :title="data.namespaces.join(', ')">{{ nsLabel(data) }}</span>
           <span v-else-if="key === 'replicas'" class="mono-cell">{{ fmt(data.replicas ?? 0) }}</span>
-          <CountDisagree v-else-if="key === 'vulns'" :trivy="data.trivy_count" :grype="data.grype_count" :total="data.total" />
+          <CountDisagree
+            v-else-if="key === 'vulns'"
+            :trivy="data.trivy_count"
+            :grype="data.grype_count"
+            :total="data.total"
+            :scanners="scannersFor(data)"
+          />
           <template v-else-if="key === 'mixTrivy'">
             <MixBar v-if="mixFor(data, 'trivy')" :counts="mixFor(data, 'trivy')!" numbers attribution="trivy" class="mix-sized" />
             <span v-else class="muted-dash" title="No committed trivy scan of this digest">-</span>

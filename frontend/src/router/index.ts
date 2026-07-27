@@ -22,7 +22,7 @@ const router = createRouter({
           path: 'clusters',
           name: 'clusters',
           component: () => import('@/views/AllClustersView.vue'),
-          meta: { section: 'monitor' },
+          meta: { section: 'monitor', wide: true },
         },
         {
           path: 'views',

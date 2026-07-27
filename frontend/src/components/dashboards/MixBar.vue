@@ -1,14 +1,20 @@
 <script setup lang="ts">
 /** Severity mix (prototype MiniBar + MixBar): proportional segments of ONE scanner's severity
  * buckets — never a cross-scanner merge — with the per-severity counts readable on hover
- * (title) and, with `numbers`, as a colored count row under the bar (tables). Attribution
- * (whose scan) rides the tooltip or the optional inline label. Zero total = muted dash. */
+ * (title) and, with `numbers`, as a legend under the bar (tables). Attribution (whose scan)
+ * rides the tooltip or the optional inline label. Zero total = muted dash.
+ *
+ * The legend carries its colour in a swatch and leaves the count in plain ink. Colouring the
+ * digits instead cannot work: band fills come from CHART_SEV while text needs the darkened
+ * `--sev-*-fg` to clear AA, so the same severity is two different colours and the eye has
+ * nothing to match on. One entry per band, in band order — never a fixed four, or a grey
+ * negligible band ends up with no number beside it. */
 import { computed } from 'vue'
 
+import ScannerTag from '@/components/chips/ScannerTag.vue'
 import { CHART_SEV, type Severity } from '@/styles/tokens'
 
 const SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']
-const NUMBER_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low']
 
 const props = defineProps<{
   counts: Partial<Record<Severity, number>>
@@ -38,40 +44,38 @@ const title = computed(() => {
 </script>
 
 <template>
-  <div class="mix">
+  <div class="mix" :class="{ 'mix-labeled': label }">
     <div class="mix-row">
-      <span v-if="label" class="mix-scanner" :data-scanner="label.toLowerCase()">{{ label }}</span>
+      <span v-if="label" class="mix-scanner"><ScannerTag :name="label" /></span>
       <span v-if="segments || numbers" class="mix-bar" :title="title">
         <i v-for="seg in segments ?? []" :key="seg.sev" :style="{ width: `${seg.pct}%`, background: seg.color }" />
       </span>
       <span v-else class="muted-dash" :title="title">-</span>
     </div>
-    <span v-if="numbers" class="mix-nums" :title="title">
-      <b v-for="sev in NUMBER_SEVERITIES" :key="sev" :class="`mn-${sev}`">{{ fmt(counts[sev] ?? 0) }}</b>
+    <span v-if="numbers && segments" class="mix-nums" :title="title">
+      <span v-for="seg in segments" :key="seg.sev" class="mix-key">
+        <i :style="{ background: seg.color }" />{{ fmt(counts[seg.sev] ?? 0) }}
+      </span>
     </span>
   </div>
 </template>
 
 <style scoped>
+.mix {
+  /* the label gutter, shared by the bar row and the count row so the counts sit under the bar
+     they describe rather than under the scanner tag. Wide enough for a ScannerTag chip. */
+  --mix-label-w: 54px;
+  --mix-label-gap: 8px;
+}
 .mix-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--mix-label-gap);
 }
+/* fixed gutter so the bars line up whatever the tag inside is called */
 .mix-scanner {
-  font-family: var(--font-mono);
-  font-size: var(--text-table-header);
-  color: var(--soft);
-  width: 38px;
+  width: var(--mix-label-w);
   flex: none;
-}
-/* scanner identity (§8.5 specimen): the label wears its scanner's hue — same identity language
-   as ScannerTag, no escalation */
-.mix-scanner[data-scanner='trivy'] {
-  color: var(--scanner-trivy-fg);
-}
-.mix-scanner[data-scanner='grype'] {
-  color: var(--scanner-grype-fg);
 }
 .mix-bar {
   display: flex;
@@ -87,26 +91,29 @@ const title = computed(() => {
 }
 .mix-nums {
   display: flex;
-  gap: 10px;
-  margin-top: 4px;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
   font-family: var(--font-mono);
   font-size: var(--text-chip-sm);
   line-height: 1;
 }
-.mix-nums b {
+.mix-labeled .mix-nums {
+  margin-left: calc(var(--mix-label-w) + var(--mix-label-gap));
+}
+.mix-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-weight: 700;
+  color: var(--ink);
 }
-.mn-critical {
-  color: var(--sev-critical-fg);
-}
-.mn-high {
-  color: var(--sev-high-fg);
-}
-.mn-medium {
-  color: var(--sev-medium-fg);
-}
-.mn-low {
-  color: var(--sev-low-fg);
+/* the tie to the band: same fill, same order — the swatch is what carries the severity */
+.mix-key i {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  flex: none;
 }
 .muted-dash {
   color: var(--dash-muted);

@@ -79,4 +79,18 @@ describe('images store (M9c slice 3)', () => {
     expect(s.failed).toBe(true)
     expect(s.unknown).toBe(false)
   })
+
+  /** `inventory: null` is both the initial value and the "nothing committed at T" answer;
+   * without settled the screen reports the answer before any read has happened. */
+  it('unknown stays quiet until a read comes back', async () => {
+    const s = useImagesStore()
+    expect(s.settled).toBe(false)
+    expect(s.inventory).toBeNull()
+    expect(s.unknown).toBe(false) // pre-read: no answer to report
+
+    listMock.mockResolvedValue(ok({ inventory: null, images: [] }) as never)
+    await s.load({ cluster_id: 'c-1' })
+    expect(s.settled).toBe(true)
+    expect(s.unknown).toBe(true) // now it IS the answer
+  })
 })

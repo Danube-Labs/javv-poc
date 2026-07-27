@@ -218,13 +218,13 @@ function onDonutClick(e: { name?: string }) {
       </div>
 
       <div class="grid grid-1-1">
-        <!-- A/B specimens (§8.5 ruling pending): A = Top components, B = Riskiest images.
-             The winner keeps this row next to the namespaces card; the loser is deleted. -->
+        <!-- both board cards ship (§8.5 specimens): components answer "what to upgrade",
+             images answer "what to rebuild" — the pair is the point, not a duplication -->
         <TopComponentsCard :scanner="scanner" />
         <RiskiestImagesCard :scanner="scanner" />
       </div>
 
-      <div class="grid grid-1-1">
+      <div class="grid">
         <OverviewNamespacesCard :scanner="scanner" />
       </div>
     </template>
