@@ -48,9 +48,9 @@ Full walkthrough incl. ingest, triage and the two-cluster loop: **`development/R
 (paths A / B / F, teardown §T, troubleshooting). The operating essentials:
 
 ```bash
-# 1. store — wait for green, don't race it
+# 1. store — wait for green OR yellow, don't race it (single-node dev settles at yellow, never green)
 docker compose -f development/setup/opensearch-dev.yml up -d
-until [ "$(curl -s localhost:9200/_cluster/health | jq -r .status)" = green ]; do sleep 3; done
+until curl -s localhost:9200/_cluster/health | jq -e '.status=="green" or .status=="yellow"' >/dev/null; do sleep 3; done
 
 # 2. backend (foreground; re-runs bootstrap, seeds admin + default roles, then serves)
 cd backend
