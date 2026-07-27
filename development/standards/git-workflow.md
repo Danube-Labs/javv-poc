@@ -6,7 +6,8 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 - Cut from `main`. Naming: `feat/M<n>-<slug>`, `fix/<slug>`, `chore/<slug>`, `docs/<slug>`.
   - e.g. `feat/M0-scanners`, `feat/M3-watermark-guard`, `fix/mermaid-seq-parse`.
 - One **bolt** → one branch, landed as a PR. If a bolt is large (M3, M5*), split into thin vertical slices
-  (`incremental-implementation` skill) - stacked PRs are fine.
+  (`incremental-implementation` skill). **No stacked PRs, ever** — every slice bases on `main`; hold
+  finished work rather than stacking (a merged stacked base has closed its child PR before).
 
 ## Commits
 - **Conventional commits:** `type: subject` - `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
@@ -32,6 +33,31 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
   card to Done on the board (live status = the GitHub issue/board; see [bolts/README.md](../bolts/README.md)).
 - CI must be green (ruff + pyright + pytest, ESLint + Vitest) before merge.
 - `code-review-and-quality` pass on the diff.
+
+## Handing a PR to review (implementer → reviewer)
+
+Standing division of labour (operator ruling 2026-07-27): **Opus 5 implements, Fable 5 reviews.**
+Scoped issues carry an implementation-prompt comment ending in a **Review gate** — that list is the
+review contract for the PR. A PR is ready for review only when its description carries:
+
+1. **Gates run, exit codes shown.** The exact CI commands for the touched stacks (`npm run lint` /
+   `npm run test:ci` from `frontend/`; tree-wide `ruff` + `pyright` + full `pytest` from `backend/`),
+   quoted with their exit codes — not grepped output, and not "CI will catch it".
+2. **The issue's Review gate, ticked with evidence.** One line per item: what was done and where to
+   look (a file:line, a test name, a screenshot). An unticked item needs a stated reason, not silence.
+3. **UI deltas: proof by pixels.** Before/after screenshots per changed screen, a `/visual-test` run
+   where routes changed, and a one-line stranger's-walk note (walked the screens as a user, with data
+   verified against the corpus — not hand-crafted docs).
+4. **Contract artifacts in the same diff.** Route/param change → API.md + regenerated
+   `frontend/openapi.json` + client; new knob → CONFIGURATION.md; mapping → INDEX-MAP +
+   `MAPPING_VERSION`; new mutating route → the RBAC/IDOR registry. Listing them beats the reviewer
+   discovering them missing.
+5. **Known gaps stated.** What was deliberately not done, and why. A gap the implementer names costs
+   a sentence; the same gap found in review costs a round-trip.
+
+Review findings land as PR comments; fixes go on the same branch (no fixup PRs). The reviewer
+re-greps factual claims in docs/comments against the code — prose written *about* the system instead
+of checked against it is this repo's most repeated defect (see PR #480's history).
 
 ## Tracking a bolt (GitHub issues)
 Each bolt has a GitHub issue (label `bolt`) on the
