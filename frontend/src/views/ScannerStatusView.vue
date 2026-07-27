@@ -21,6 +21,7 @@ import ScannerRunsTable from '@/components/scanners/ScannerRunsTable.vue'
 import ScannerStatusCard, {
   type ProvenanceRow,
 } from '@/components/scanners/ScannerStatusCard.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useTimeTravelStore } from '@/stores/timeTravel'
@@ -104,8 +105,8 @@ const scanners = computed(() => {
 
     <template v-else>
       <div v-if="loading" class="scan-cards" aria-busy="true" aria-label="Loading scanner status">
-        <div class="skel skel-card" />
-        <div class="skel skel-card" />
+        <UiSkeleton :height="300" />
+        <UiSkeleton :height="300" />
       </div>
 
       <p v-else-if="failed" class="load-error" role="alert">
@@ -161,27 +162,5 @@ const scanners = computed(() => {
   padding: var(--space-8) 0;
   text-align: center;
   color: var(--soft);
-}
-.skel {
-  border-radius: var(--r);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-.skel-card {
-  height: 300px;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel {
-    animation: none;
-  }
 }
 </style>

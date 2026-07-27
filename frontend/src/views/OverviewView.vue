@@ -29,6 +29,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { useApi } from '@/composables/useApi'
 import { CHART_PTYPE_RAMP } from '@/styles/tokens'
 import { useClusterStore } from '@/stores/cluster'
@@ -142,9 +143,9 @@ function onDonutClick(e: { name?: string }) {
       subject="this screen"
     />
 
-    <div v-if="overview.loading" aria-busy="true" aria-label="Loading overview">
-      <div class="skel skel-band" />
-      <div class="skel skel-card" />
+    <div v-if="overview.loading" class="skel-stack" aria-busy="true" aria-label="Loading overview">
+      <UiSkeleton :height="96" />
+      <UiSkeleton :height="300" />
     </div>
 
     <p v-else-if="overview.failed" class="load-error" role="alert">
@@ -351,31 +352,7 @@ function onDonutClick(e: { name?: string }) {
   color: var(--health-down-fg);
   font-size: var(--text-body);
 }
-/* skeletons (product register: skeletons over spinners) */
-.skel {
-  border-radius: var(--r);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-.skel-band {
-  height: 96px;
-}
-.skel-card {
-  height: 300px;
+.skel-stack > * + * {
   margin-top: 16px;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel {
-    animation: none;
-  }
 }
 </style>

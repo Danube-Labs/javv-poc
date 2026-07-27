@@ -24,6 +24,7 @@ import FilterBar from '@/components/filters/FilterBar.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import type { FacetsResponse } from '@/filters/facets'
 import { logger } from '@/lib/logger'
@@ -237,7 +238,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           />
         </div>
 
-      <div v-if="!settled" class="skel skel-table" aria-busy="true" aria-label="Loading approvals" />
+      <UiSkeleton v-if="!settled" :height="220" label="Loading approvals" class="skel-gap" />
       <p v-else-if="failed" class="load-error" role="alert">
         Could not load the queue — check the backend connection.
       </p>
@@ -385,22 +386,8 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   border-color: var(--sev-critical-solid);
   color: var(--ink);
 }
-.skel-table {
-  height: 220px;
+.skel-gap {
   margin-top: 16px;
-  border-radius: var(--r);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: appr-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes appr-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-table {
-    animation: none;
-  }
 }
 .load-error {
   margin-top: 16px;
