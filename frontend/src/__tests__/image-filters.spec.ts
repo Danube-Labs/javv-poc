@@ -116,3 +116,41 @@ describe('imagesCsv', () => {
     expect(line).not.toContain("'-15")
   })
 })
+
+/**
+ * Negation on the client matcher (issue 349 sweep). Findings gets this from the server's
+ * `exclude_*` params; the inventory is filtered in the browser, so the matcher owns it.
+ */
+describe('filterImages — exclude mode', () => {
+  const sel = () => emptySelections(IMAGES_FIELDS)
+  const digests = (rs: ImageRow[]) => rs.map((r) => r.image_digest)
+
+  it('excluding a severity keeps only images with ZERO of it, clean images included', () => {
+    const s = { ...sel(), severity: ['critical'] }
+    expect(digests(filterImages(rows, s, { severity: 'not' }))).toEqual(['sha256:b', 'sha256:c'])
+    // the strict complement of include — the two partition the set
+    expect(digests(filterImages(rows, s))).toEqual(['sha256:a'])
+  })
+
+  it('exclude is per field: OR within, still AND across', () => {
+    const s = { ...sel(), severity: ['critical'], scanner: ['grype'] }
+    // not-critical AND is-grype
+    expect(digests(filterImages(rows, s, { severity: 'not' }))).toEqual(['sha256:b'])
+    // not-critical AND not-grype
+    expect(digests(filterImages(rows, s, { severity: 'not', scanner: 'not' }))).toEqual(['sha256:c'])
+  })
+
+  it('excluding a namespace drops only its members', () => {
+    const s = { ...sel(), namespace: ['payments'] }
+    expect(digests(filterImages(rows, s, { namespace: 'not' }))).toEqual(['sha256:b', 'sha256:c'])
+  })
+
+  it('a mode on an empty field changes nothing', () => {
+    expect(filterImages(rows, sel(), { severity: 'not' })).toHaveLength(rows.length)
+  })
+
+  it('defaults to include when no modes are passed at all', () => {
+    const s = { ...sel(), severity: ['critical'] }
+    expect(digests(filterImages(rows, s))).toEqual(digests(filterImages(rows, s, {})))
+  })
+})

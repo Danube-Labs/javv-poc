@@ -31,6 +31,7 @@ export const IMAGES_FIELDS: readonly FilterField[] = [
     multi: true,
     facetKey: 'severity',
     values: SEVERITIES,
+    negatable: true,
   },
   {
     key: 'scanner',
@@ -39,6 +40,7 @@ export const IMAGES_FIELDS: readonly FilterField[] = [
     param: 'scanner',
     facetKey: 'scanner',
     values: ['trivy', 'grype'],
+    negatable: true,
   },
   {
     key: 'attr',
@@ -46,5 +48,5 @@ export const IMAGES_FIELDS: readonly FilterField[] = [
     type: 'flags',
     values: [{ key: 'fixable', param: 'fixable', label: 'Fix available' }],
   },
-  { key: 'namespace', label: 'Namespace', type: 'terms', param: 'namespace', facetKey: 'namespaces' },
+  { key: 'namespace', label: 'Namespace', type: 'terms', param: 'namespace', facetKey: 'namespaces', negatable: true },
 ]

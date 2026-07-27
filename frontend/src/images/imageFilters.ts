@@ -2,6 +2,7 @@
  * one run's rows, fully served — matching + bucket counts derive from those rows (IMAGE
  * counts). Severity buckets use the canonical vocabulary mapped from the doc's short keys. */
 import type { Selections } from '@/filters/fields.config'
+import type { FilterMode, Modes } from '@/stores/filters'
 import type { ImageRow } from '@/stores/images'
 import type { Severity } from '@/styles/tokens'
 
@@ -53,20 +54,33 @@ export function imagesFacets(rows: ImageRow[]): Record<string, Bucket[]> {
   return { severity, scanner: scanners, namespaces }
 }
 
+/**
+ * One field's verdict. Include keeps the rows that hit; exclude keeps the rows that don't —
+ * the strict complement of the same predicate, so "severity is not critical" means an image
+ * with ZERO critical findings, not an image with its criticals subtracted. A finding IS one
+ * severity, but an image spans all of them, which is why this reading has to be stated:
+ * the findings grid never has to answer it.
+ */
+const keep = (selected: readonly string[], mode: FilterMode, hit: boolean) =>
+  selected.length === 0 || (mode === 'not' ? !hit : hit)
+
 /** Selections → the matching inventory rows. Multi-value fields OR within, AND across. */
-export function filterImages(rows: ImageRow[], sel: Selections): ImageRow[] {
+export function filterImages(rows: ImageRow[], sel: Selections, modes: Modes = {}): ImageRow[] {
   const q = (sel.q?.[0] ?? '').toLowerCase()
   const sevs = (sel.severity ?? []) as Severity[]
   const scanners = sel.scanner ?? []
   const attrs = sel.attr ?? []
   const namespaces = sel.namespace ?? []
+  const modeOf = (key: string): FilterMode => modes[key] ?? 'is'
   return rows.filter((r) => {
     if (q && !`${r.image_repo} ${r.tag} ${r.namespaces.join(' ')}`.toLowerCase().includes(q))
       return false
-    if (sevs.length > 0 && !sevs.some((s) => sevCount(r, s) > 0)) return false
-    if (scanners.length > 0 && !scanners.some((s) => scannersOf(r).includes(s))) return false
+    if (!keep(sevs, modeOf('severity'), sevs.some((s) => sevCount(r, s) > 0))) return false
+    if (!keep(scanners, modeOf('scanner'), scanners.some((s) => scannersOf(r).includes(s))))
+      return false
     if (attrs.includes('fixable') && !(r.fixable > 0)) return false
-    if (namespaces.length > 0 && !namespaces.some((ns) => r.namespaces.includes(ns))) return false
+    if (!keep(namespaces, modeOf('namespace'), namespaces.some((ns) => r.namespaces.includes(ns))))
+      return false
     return true
   })
 }
