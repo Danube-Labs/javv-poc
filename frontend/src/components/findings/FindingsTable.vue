@@ -41,6 +41,8 @@ const props = withDefaults(
     sort: SortField
     order: SortOrder
     loading: boolean
+    /** a read has come back at least once; before that the grid has no answer to report */
+    settled?: boolean
     /** keys from FINDINGS_COLUMNS hidden via the Columns menu (cve/severity/state are fixed) */
     hidden?: ReadonlySet<string>
     /** FINDINGS_COLUMNS keys in display order (hidden keys keep their slot) */
@@ -215,9 +217,10 @@ const nsLabel = (r: FindingRow): string => {
         </template>
       </Column>
       <template #empty>
-        <!-- while a fresh lens loads (rows just cleared), say loading — "no findings" would lie -->
+        <!-- "no findings" is an ANSWER; before a read comes back there is none. `loading` misses
+             the window before the cluster resolves, when no request has started yet. -->
         <div class="empty-row">
-          {{ props.loading ? 'Loading findings…'
+          {{ props.loading || props.settled === false ? 'Loading findings…'
             : filtered ? 'No findings match these filters.'
             : 'No findings yet — the first committed scan populates this grid.' }}
         </div>

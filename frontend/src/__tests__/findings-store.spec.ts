@@ -77,4 +77,25 @@ describe('findings store (cursor-stack paging)', () => {
     expect(s.cursors).toEqual([null])
     expect(s.nextCursor).toBeNull()
   })
+
+  /** Before the cluster resolves no request has started, so `loading` is false with zero rows —
+   * the grid must not read that as "this cluster is clean". */
+  it('settled separates "no answer yet" from "the answer is zero"', () => {
+    const s = useFindingsStore()
+    expect(s.settled).toBe(false)
+    expect(s.loading).toBe(false)
+    expect(s.total).toBe(0)
+
+    s.setResult([], 0, null)
+    expect(s.settled).toBe(true)
+
+    s.clearResults()
+    expect(s.settled).toBe(false)
+  })
+
+  it('a failed read is answered, not pending', () => {
+    const s = useFindingsStore()
+    s.markSettled()
+    expect(s.settled).toBe(true)
+  })
 })

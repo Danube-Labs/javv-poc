@@ -132,6 +132,7 @@ async function loadRows(q: typeof rowsQuery.value) {
   } else {
     grid.failed = true
     grid.failedStatus = response.response?.status ?? null
+    grid.markSettled()
     logger.warn('findings_search_failed', { status: response.response?.status })
   }
 }
@@ -257,7 +258,9 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
       <div class="head-card">
         <h1>Findings</h1>
         <p class="head-stat">
-          {{ grid.total.toLocaleString('en-US') }}<span class="head-unit"> findings</span>
+          <!-- a count before the first read is not zero, it is unknown -->
+          {{ grid.settled ? grid.total.toLocaleString('en-US') : '—'
+          }}<span class="head-unit"> findings</span>
         </p>
         <p class="head-note">kept per-scanner, no cross-merge</p>
       </div>
@@ -338,6 +341,7 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
           :sort="grid.sort"
           :order="grid.order"
           :loading="grid.loading"
+          :settled="grid.settled"
           :hidden="hiddenCols"
           :col-order="colOrder"
           reorderable

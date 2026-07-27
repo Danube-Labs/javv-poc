@@ -50,10 +50,14 @@ export const useImagesStore = defineStore('images', {
     inventory: null as InventoryManifest | null,
     loading: false,
     failed: false,
+    /** A read has come back at least once. `inventory: null` is the initial value AND the
+     * "nothing committed at T" answer, so without this the screen reports the answer during the
+     * window before the cluster resolves, when no request has started. */
+    settled: false,
   }),
   getters: {
     /** No committed inventory at T — unknown ≠ an empty (zero-image) committed run. */
-    unknown: (s) => !s.loading && !s.failed && s.inventory === null,
+    unknown: (s) => s.settled && !s.loading && !s.failed && s.inventory === null,
   },
   actions: {
     async load(params: { cluster_id: string; as_of?: string }) {
@@ -64,6 +68,7 @@ export const useImagesStore = defineStore('images', {
         query: params as never,
       })
       this.loading = false
+      this.settled = true
       if (!response?.ok || !data) {
         this.failed = true
         logger.warn('images_load_failed', { status: response?.status })

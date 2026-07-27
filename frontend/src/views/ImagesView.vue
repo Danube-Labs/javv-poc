@@ -171,7 +171,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <IngestLens v-if="clusterStore.selectedId" :cluster-id="clusterStore.selectedId" />
     </div>
 
-    <div v-if="images.loading" aria-busy="true" aria-label="Loading images">
+    <div v-if="images.loading || !images.settled" aria-busy="true" aria-label="Loading images">
       <UiSkeleton :height="320" />
     </div>
 

@@ -48,6 +48,10 @@ export const useFindingsStore = defineStore('findings', {
     cursors: [null] as (string | null)[],
     nextCursor: null as string | null,
     loading: false,
+    /** A read for the current (cluster, T, filters) has come back at least once. `loading` alone
+     * cannot carry this: before the cluster resolves no request has started, so a grid gated on
+     * `loading` spends that window claiming the cluster is empty. Unknown is not zero. */
+    settled: false,
     failed: false,
     failedStatus: null as number | null,
   }),
@@ -62,7 +66,12 @@ export const useFindingsStore = defineStore('findings', {
       this.rows = rows
       this.total = total
       this.nextCursor = nextCursor
+      this.settled = true
       if (nextCursor !== null) this.cursors[this.page + 1] = nextCursor
+    },
+    /** A read finished without rows to show (a failure) — the grid is answered, not pending. */
+    markSettled() {
+      this.settled = true
     },
     goNext() {
       if (this.nextCursor !== null) this.page += 1
@@ -91,6 +100,7 @@ export const useFindingsStore = defineStore('findings', {
     clearResults() {
       this.rows = []
       this.total = 0
+      this.settled = false
       this.resetPaging()
     },
   },
