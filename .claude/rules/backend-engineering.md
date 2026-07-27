@@ -4,6 +4,7 @@ paths:
   - "scanner/src/**"
   - "libs/**"
   - "backend/tests/**"
+  - "scanner/tests/**"
 ---
 
 # Day-one engineering rules (from `docs/research/STACK-BEST-PRACTICES.md`)

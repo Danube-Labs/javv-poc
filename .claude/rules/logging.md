@@ -9,10 +9,11 @@ paths:
 
 # Logging (shared library on both stacks — never `console.*`, never `print`)
 
-> **One carve-out, already in the code:** argparse CLI entry points
-> (`jobs/lifecycle.py`, `jobs/staleness.py`, `jobs/rebuild_state.py`, `admin/scan_scope.py`)
-> `print()` their result for the operator. That is stdout-as-output, not logging. Everything
-> inside a request path, job body, or library uses the logger.
+> **One carve-out, and it is structural, not a file list:** `print()` is allowed only inside
+> `if __name__ == "__main__":` blocks — stdout-as-output for CLI entry points (the job CLIs,
+> `core/tokens.py`, `core/bootstrap.py`, `tools/export_openapi.py`, scanner `compat.py`), enforced
+> by `backend/tests/test_logging_discipline.py`. Everything inside a request path, job body, or
+> library uses the logger.
 
 Loaded when you touch source on either stack.
 

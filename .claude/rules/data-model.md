@@ -4,6 +4,7 @@ paths:
   - "scanner/src/**"
   - "libs/**"
   - "backend/tests/**"
+  - "scanner/tests/**"
 ---
 
 # Data-model invariants (the rules, not the history)

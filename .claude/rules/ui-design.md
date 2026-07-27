@@ -27,8 +27,7 @@ operator ruling on a **built specimen** (DESIGN.md §8.5), not an argument in a 
    layer rather than a new curve: `t-pop` = floating panels (dropdowns/popovers), fade + 4px rise,
    quick both ways; `t-fade` = banners and in-flow appearances, crossfade only, **never animate
    height**. Skeletons are **not** yet shared: each view defines its own `.skel` (15 of them today,
-no keyframe in base.css) — reuse a neighbour's markup, and see the extraction issue before adding
-a 16th.
+   no keyframe in base.css) — reuse a neighbour's markup, and see issue 481 before adding a 16th.
 3. **`npx impeccable detect`** on a rendered-HTML dump of every changed screen, plus the
    `.claude/skills/impeccable` skill for critique/typography/layout. §9 of DESIGN.md lists the **ruled
    exceptions** — those are settled; don't relitigate them each pass.
