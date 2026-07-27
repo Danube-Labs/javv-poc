@@ -49,8 +49,8 @@ export const AUDIT_ACTIONS = [
 ] as const
 
 export const AUDIT_FIELDS: readonly FilterField[] = [
-  { key: 'entity', label: 'Entity', type: 'terms', param: 'entity_type', facetKey: 'entity_type', values: AUDIT_ENTITY_TYPES },
-  { key: 'action', label: 'Action', type: 'terms', param: 'action', facetKey: 'action', values: AUDIT_ACTIONS },
+  { key: 'entity', label: 'Entity', type: 'terms', param: 'entity_type', facetKey: 'entity_type', values: AUDIT_ENTITY_TYPES, negatable: true },
+  { key: 'action', label: 'Action', type: 'terms', param: 'action', facetKey: 'action', values: AUDIT_ACTIONS, negatable: true },
   // data-driven from the facet buckets (exact keyword term on the backend)
-  { key: 'actor', label: 'User', type: 'terms', param: 'actor', facetKey: 'actor' },
+  { key: 'actor', label: 'User', type: 'terms', param: 'actor', facetKey: 'actor', negatable: true },
 ]

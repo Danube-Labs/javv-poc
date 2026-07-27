@@ -62,7 +62,7 @@ watch(
 )
 
 /* ---- pure client pipeline over the served run: filter → facets → sort → slice ---- */
-const filtered = computed(() => filterImages(images.images, filters.selections))
+const filtered = computed(() => filterImages(images.images, filters.selections, filters.modes))
 const facets = computed(() => imagesFacets(images.images))
 
 const sort = ref<ImagesSortField | null>(null)
@@ -216,9 +216,12 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <FilterBar
             :fields="IMAGES_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :facets="facets"
             @toggle="filters.toggle"
             @set-text="filters.setText"
+            @set-mode="filters.setMode"
+            @toggle-mode="filters.toggleMode"
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
           />

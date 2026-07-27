@@ -155,6 +155,24 @@ async def test_cursor_walk_covers_the_log_without_gaps_or_duplicates(env) -> Non
     assert len(seen) == 5 and len(set(seen)) == 5  # every row exactly once
 
 
+async def test_include_and_exclude_of_the_same_field_422_at_every_door(env) -> None:
+    """issue 349 review: findings 422s the include+exclude conflict — the audit surfaces must
+    answer the same malformed request identically, never silently AND a term with its own
+    must_not into zero rows. One guard, all three doors (list, facets, export)."""
+    http, _ = env
+    cid = f"c-audit-{uuid.uuid4().hex[:8]}"
+    conflict = {"cluster_id": cid, "actor": "alice", "exclude_actor": "alice"}
+    for path in ("/api/v1/audit", "/api/v1/audit/facets", "/api/v1/audit/export.csv"):
+        r = await http.get(path, params=conflict)
+        assert r.status_code == 422, path
+        assert "mutually exclusive" in r.json()["title"]  # RFC 9457: detail → title
+    # a different field on each side is a legitimate lens, not a conflict
+    r = await http.get(
+        "/api/v1/audit", params={"cluster_id": cid, "action": "login", "exclude_actor": "alice"}
+    )
+    assert r.status_code == 200
+
+
 async def test_a_m1_cursor_and_order_semantics(env) -> None:
     http, _ = env
     cid = f"c-audit-{uuid.uuid4().hex[:8]}"
@@ -184,6 +202,30 @@ def test_finding_key_filter_scopes_to_one_finding() -> None:
     # M9b slice 4: the detail screen's per-finding activity list
     body = build_audit_body(AuditFilters(finding_key="fk-abc"), size=5)
     assert {"term": {"finding_key": "fk-abc"}} in body["query"]["bool"]["filter"]
+
+
+def test_exclude_filters_become_must_not_clauses() -> None:
+    # issue 349: the negation side of the rail dims — one mode per field, never both
+    body = build_audit_body(
+        AuditFilters(exclude_entity_type="finding", exclude_actor="alice"), size=10
+    )
+    assert {"term": {"entity_type": "finding"}} in body["query"]["bool"]["must_not"]
+    assert {"term": {"actor": "alice"}} in body["query"]["bool"]["must_not"]
+    assert "filter" not in body["query"]["bool"]  # nothing included = no filter clause
+
+
+def test_include_and_exclude_coexist_on_different_fields() -> None:
+    body = build_audit_body(AuditFilters(action="login", exclude_actor="alice"), size=10)
+    assert body["query"]["bool"]["filter"] == [{"term": {"action": "login"}}]
+    assert body["query"]["bool"]["must_not"] == [{"term": {"actor": "alice"}}]
+
+
+def test_facets_and_count_inherit_exclusion_from_the_shared_builder() -> None:
+    # the rail counts and the export pre-count must describe the SAME lens as the walk
+    from backend.query.audit import build_audit_facets_body
+
+    facets = build_audit_facets_body(AuditFilters(exclude_action="login"))
+    assert facets["query"]["bool"]["must_not"] == [{"term": {"action": "login"}}]
 
 
 def test_until_bounds_the_walk_at_t() -> None:

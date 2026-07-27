@@ -1349,6 +1349,18 @@ export type ReadAuditLogApiV1AuditGetData = {
          */
         finding_key?: string | null;
         /**
+         * Exclude Entity Type
+         */
+        exclude_entity_type?: string | null;
+        /**
+         * Exclude Action
+         */
+        exclude_action?: string | null;
+        /**
+         * Exclude Actor
+         */
+        exclude_actor?: string | null;
+        /**
          * Order
          */
         order?: string;
@@ -1411,6 +1423,18 @@ export type ExportAuditCsvApiV1AuditExportCsvGetData = {
          */
         actor?: string | null;
         /**
+         * Exclude Entity Type
+         */
+        exclude_entity_type?: string | null;
+        /**
+         * Exclude Action
+         */
+        exclude_action?: string | null;
+        /**
+         * Exclude Actor
+         */
+        exclude_actor?: string | null;
+        /**
          * As Of
          */
         as_of?: string | null;
@@ -1454,6 +1478,18 @@ export type AuditFacetsApiV1AuditFacetsGetData = {
          * Actor
          */
         actor?: string | null;
+        /**
+         * Exclude Entity Type
+         */
+        exclude_entity_type?: string | null;
+        /**
+         * Exclude Action
+         */
+        exclude_action?: string | null;
+        /**
+         * Exclude Actor
+         */
+        exclude_actor?: string | null;
         /**
          * As Of
          */
@@ -1699,6 +1735,18 @@ export type ApprovalListApiV1DecisionsApprovalsGetData = {
          * Scanner
          */
         scanner?: string | null;
+        /**
+         * Exclude Status
+         */
+        exclude_status?: string | null;
+        /**
+         * Exclude Created By
+         */
+        exclude_created_by?: string | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
         /**
          * Warn Days
          */

@@ -120,6 +120,9 @@ async def approval_list(
     status: Annotated[str | None, Query(max_length=16)] = None,
     created_by: Annotated[str | None, Query(max_length=128)] = None,
     scanner: Annotated[str | None, Query(max_length=8)] = None,
+    exclude_status: Annotated[str | None, Query(max_length=16)] = None,
+    exclude_created_by: Annotated[str | None, Query(max_length=128)] = None,
+    exclude_scanner: Annotated[str | None, Query(max_length=8)] = None,
     warn_days: Annotated[int, Query(ge=1, le=365)] = 7,
 ) -> dict[str, Any]:
     """M5d/FR-8: the risk-accept review surface for accept_final holders — ACTIVE risk-accept
@@ -129,15 +132,36 @@ async def approval_list(
     `q` (CVE contains) / `status` (derived from `expiry` at query time against `warn_days`,
     mirroring the FE chip's window) / `created_by` / `scanner` (the column value, both|trivy|
     grype) — plus facet counts under the same lens, one round trip."""
-    if status is not None and status not in STATUS_VALUES:
-        raise HTTPException(422, f"status must be one of {STATUS_VALUES}")
-    if scanner is not None and scanner not in SCANNER_VALUES:
-        raise HTTPException(422, f"scanner must be one of {SCANNER_VALUES}")
+    for name, value, vocabulary in (
+        ("status", status, STATUS_VALUES),
+        ("exclude_status", exclude_status, STATUS_VALUES),
+        ("scanner", scanner, SCANNER_VALUES),
+        ("exclude_scanner", exclude_scanner, SCANNER_VALUES),
+    ):
+        if value is not None and value not in vocabulary:
+            raise HTTPException(422, f"{name} must be one of {vocabulary}")
+    # a field is included OR excluded, never both (issue 349) — same 422 as the findings edge,
+    # instead of silently ANDing a clause with its own must_not into zero rows
+    for name, inc, exc in (
+        ("status", status, exclude_status),
+        ("created_by", created_by, exclude_created_by),
+        ("scanner", scanner, exclude_scanner),
+    ):
+        if inc is not None and exc is not None:
+            raise HTTPException(422, f"{name} and exclude_{name} are mutually exclusive")
     client = cast(Any, request.app.state.opensearch)
     # no read-side refresh (audit A-m2/#191): decision writes use refresh=true, so read-your-writes
     # holds without forcing a Lucene refresh on every read
     body = build_approvals_body(
-        ApprovalFilters(q=q, status=status, created_by=created_by, scanner=scanner),
+        ApprovalFilters(
+            q=q,
+            status=status,
+            created_by=created_by,
+            scanner=scanner,
+            exclude_status=exclude_status,
+            exclude_created_by=exclude_created_by,
+            exclude_scanner=exclude_scanner,
+        ),
         cluster_id=cluster_id,
         size=size,
         offset=offset,

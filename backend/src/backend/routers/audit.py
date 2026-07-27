@@ -37,6 +37,19 @@ log = structlog.get_logger()
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
 
+def _reject_conflicting_modes(filters: AuditFilters) -> None:
+    """A field is included OR excluded, never both (issue 349) — the same 422 the findings
+    edge raises, so the negation surfaces answer a malformed request identically instead of
+    silently ANDing a term with its own must_not into zero rows."""
+    for name, inc, exc in (
+        ("entity_type", filters.entity_type, filters.exclude_entity_type),
+        ("action", filters.action, filters.exclude_action),
+        ("actor", filters.actor, filters.exclude_actor),
+    ):
+        if inc is not None and exc is not None:
+            raise HTTPException(422, f"{name} and exclude_{name} are mutually exclusive")
+
+
 @router.get("")
 async def read_audit_log(
     request: Request,
@@ -46,6 +59,9 @@ async def read_audit_log(
     action: Annotated[str | None, Query(max_length=64)] = None,
     actor: Annotated[str | None, Query(max_length=128)] = None,
     finding_key: Annotated[str | None, Query(max_length=256)] = None,
+    exclude_entity_type: Annotated[str | None, Query(max_length=64)] = None,
+    exclude_action: Annotated[str | None, Query(max_length=64)] = None,
+    exclude_actor: Annotated[str | None, Query(max_length=128)] = None,
     order: Annotated[str, Query(max_length=4)] = "desc",
     size: Annotated[int, Query(ge=1, le=500)] = 50,
     cursor: Annotated[str | None, Query(max_length=4096)] = None,
@@ -57,8 +73,16 @@ async def read_audit_log(
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     filters = AuditFilters(
-        entity_type=entity_type, action=action, actor=actor, finding_key=finding_key, until=until
+        entity_type=entity_type,
+        action=action,
+        actor=actor,
+        finding_key=finding_key,
+        until=until,
+        exclude_entity_type=exclude_entity_type,
+        exclude_action=exclude_action,
+        exclude_actor=exclude_actor,
     )
+    _reject_conflicting_modes(filters)
     opened = cursor is None  # a cursor-less page opens a fresh PIT; a continuation reuses one
     if opened:
         try:
@@ -106,6 +130,9 @@ async def audit_facets(
     entity_type: Annotated[str | None, Query(max_length=64)] = None,
     action: Annotated[str | None, Query(max_length=64)] = None,
     actor: Annotated[str | None, Query(max_length=128)] = None,
+    exclude_entity_type: Annotated[str | None, Query(max_length=64)] = None,
+    exclude_action: Annotated[str | None, Query(max_length=64)] = None,
+    exclude_actor: Annotated[str | None, Query(max_length=128)] = None,
     as_of: Annotated[str | None, Query(max_length=64)] = None,
     interval: Annotated[str | None, Query(max_length=8)] = None,
     window_days: Annotated[int, Query(ge=1, le=365)] = 30,
@@ -117,7 +144,16 @@ async def audit_facets(
     client = cast(Any, request.app.state.opensearch)
     try:
         until = parse_as_of(as_of)
-        filters = AuditFilters(entity_type=entity_type, action=action, actor=actor, until=until)
+        filters = AuditFilters(
+            entity_type=entity_type,
+            action=action,
+            actor=actor,
+            until=until,
+            exclude_entity_type=exclude_entity_type,
+            exclude_action=exclude_action,
+            exclude_actor=exclude_actor,
+        )
+        _reject_conflicting_modes(filters)
         body = build_audit_facets_body(filters, interval=interval, window_days=window_days)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -155,6 +191,9 @@ async def export_audit_csv(
     entity_type: Annotated[str | None, Query(max_length=64)] = None,
     action: Annotated[str | None, Query(max_length=64)] = None,
     actor: Annotated[str | None, Query(max_length=128)] = None,
+    exclude_entity_type: Annotated[str | None, Query(max_length=64)] = None,
+    exclude_action: Annotated[str | None, Query(max_length=64)] = None,
+    exclude_actor: Annotated[str | None, Query(max_length=128)] = None,
     as_of: Annotated[str | None, Query(max_length=64)] = None,
 ) -> StreamingResponse:
     """The prototype's Export CSV (M9d): streams the current audit lens — decorated,
@@ -166,7 +205,16 @@ async def export_audit_csv(
         until = parse_as_of(as_of)
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
-    filters = AuditFilters(entity_type=entity_type, action=action, actor=actor, until=until)
+    filters = AuditFilters(
+        entity_type=entity_type,
+        action=action,
+        actor=actor,
+        until=until,
+        exclude_entity_type=exclude_entity_type,
+        exclude_action=exclude_action,
+        exclude_actor=exclude_actor,
+    )
+    _reject_conflicting_modes(filters)
     max_rows = get_settings().export_max_rows
     n = await count_audit_lens(client, cluster_id=cluster_id, filters=filters)
     if n > max_rows:

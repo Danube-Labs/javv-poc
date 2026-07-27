@@ -106,3 +106,53 @@ def test_facets_ride_the_same_lens_and_shape_to_the_rail_wire() -> None:
     assert {"key": "expired", "count": 0} in shaped["status"]  # quiet values still list
     assert shaped["created_by"] == [{"key": "lead", "count": 6}]
     assert {"key": "both", "count": 4} in shaped["scanner"]
+
+
+def _must_not(body: dict) -> list[dict]:
+    return body["query"]["bool"]["must_not"]
+
+
+def test_exclusions_append_to_the_revoked_guard_never_replace_it() -> None:
+    """issue 349: the revoked guard defines the queue. An exclusion that overwrote it would
+    put revoked acceptances back in front of the reviewer."""
+    body = build_approvals_body(ApprovalFilters(exclude_created_by="lead"), **KW)
+    assert {"exists": {"field": "revoked_at"}} in _must_not(body)
+    assert {"term": {"created_by": "lead"}} in _must_not(body)
+
+
+def test_excluding_a_status_is_the_complement_of_its_own_clause() -> None:
+    # the four buckets partition the queue, so "not expiring" is the other three — and a doc
+    # with no expiry never matches the range, so open-ended survives the exclusion
+    body = build_approvals_body(ApprovalFilters(exclude_status="expiring"), **KW)
+    included = build_approvals_body(ApprovalFilters(status="expiring"), **KW)
+    clause = _filters(included)[-1]
+    assert clause in _must_not(body)
+    assert clause not in _filters(body)
+
+
+def test_excluding_open_ended_keeps_only_the_dated_ones() -> None:
+    body = build_approvals_body(ApprovalFilters(exclude_status="open-ended"), **KW)
+    assert {"bool": {"must_not": [{"exists": {"field": "expiry"}}]}} in _must_not(body)
+
+
+def test_exclude_scanner_negates_the_composite_column_clause() -> None:
+    # `trivy` is (apply_both=false AND scanner=trivy), so excluding it keeps `both` rows too
+    body = build_approvals_body(ApprovalFilters(exclude_scanner="trivy"), **KW)
+    assert {
+        "bool": {
+            "filter": [{"term": {"apply_both_scanners": False}}, {"term": {"scanner": "trivy"}}]
+        }
+    } in _must_not(body)
+
+
+def test_include_and_exclude_ride_the_same_query_so_facets_follow_the_lens() -> None:
+    body = build_approvals_body(ApprovalFilters(status="active", exclude_created_by="lead"), **KW)
+    assert _status_clause_present(body, "active")
+    assert {"term": {"created_by": "lead"}} in _must_not(body)
+    # the aggs are scoped by this query, so a rail count can never contradict the page
+    assert set(body["aggs"]) == {"status", "created_by", "scanner"}
+
+
+def _status_clause_present(body: dict, status: str) -> bool:
+    expected = build_approvals_body(ApprovalFilters(status=status), **KW)
+    return _filters(expected)[-1] in _filters(body)

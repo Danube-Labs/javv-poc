@@ -2590,6 +2590,57 @@
           },
           {
             "in": "query",
+            "name": "exclude_entity_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Entity Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Actor"
+            }
+          },
+          {
+            "in": "query",
             "name": "order",
             "required": false,
             "schema": {
@@ -2743,6 +2794,57 @@
           },
           {
             "in": "query",
+            "name": "exclude_entity_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Entity Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Actor"
+            }
+          },
+          {
+            "in": "query",
             "name": "as_of",
             "required": false,
             "schema": {
@@ -2848,6 +2950,57 @@
                 }
               ],
               "title": "Actor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_entity_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Entity Type"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Action"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Actor"
             }
           },
           {
@@ -3319,6 +3472,57 @@
                 }
               ],
               "title": "Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_created_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Created By"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Scanner"
             }
           },
           {

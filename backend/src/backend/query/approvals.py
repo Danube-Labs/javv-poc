@@ -20,12 +20,23 @@ _APPROVER_TERMS_SIZE = 32  # top-N rail dim, the audit-actor precedent
 
 @dataclass(frozen=True)
 class ApprovalFilters:
-    """The 4b lens. `None` = unset; vocabulary is validated at the route edge."""
+    """The 4b lens. `None` = unset; vocabulary is validated at the route edge.
+
+    The `exclude_*` twins are the negation side (issue 349): a field is included OR excluded,
+    never both. `status` and `scanner` are derived rather than stored, so their exclusions are
+    the complement of a computed clause — well defined because each vocabulary partitions the
+    queue exactly: an approval has one status (open-ended | expired | expiring | active) and
+    one scanner value (both | trivy | grype). Excluding `expiring` therefore yields the other
+    three, open-ended included, because a doc with no `expiry` never matches the range.
+    """
 
     q: str | None = None  # CVE contains-search
     status: str | None = None
     created_by: str | None = None
     scanner: str | None = None  # both | trivy | grype — the column's value
+    exclude_status: str | None = None
+    exclude_created_by: str | None = None
+    exclude_scanner: str | None = None
 
 
 def _status_clause(status: str, *, now: datetime, warn_days: int) -> dict[str, Any]:
@@ -78,11 +89,21 @@ def build_approvals_body(
     if filters.scanner is not None:
         fl.append(_scanner_clause(filters.scanner))
 
+    # the revoked guard is the queue's definition, not a user filter — exclusions APPEND to it,
+    # because replacing it would put revoked acceptances back in the review queue
+    must_not: list[dict[str, Any]] = [{"exists": {"field": "revoked_at"}}]
+    if filters.exclude_status is not None:
+        must_not.append(_status_clause(filters.exclude_status, now=now, warn_days=warn_days))
+    if filters.exclude_created_by is not None:
+        must_not.append({"term": {"created_by": filters.exclude_created_by}})
+    if filters.exclude_scanner is not None:
+        must_not.append(_scanner_clause(filters.exclude_scanner))
+
     return {
         "size": size,
         "from": offset,
         "track_total_hits": True,
-        "query": {"bool": {"filter": fl, "must_not": [{"exists": {"field": "revoked_at"}}]}},
+        "query": {"bool": {"filter": fl, "must_not": must_not}},
         "sort": [{"expiry": {"order": "asc", "missing": "_last"}}],
         "aggs": {
             "status": {
