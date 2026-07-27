@@ -277,6 +277,12 @@ async def test_facets_and_groups_reconstruct_with_scanner_split(
     rows_true = sum(1 for r in page["data"] if r["overdue"])
     assert sum(overdue.values()) == 29
     assert overdue.get("true", 0) == rows_true and rows_true > 0  # dated corpus: some breached
+    # issue 349 §1: same contract as overdue — the unassigned facet counts the reader's own
+    # expression (non-empty assignee), pinned against the page surface's rows, never a constant
+    unassigned = {b["key"]: b["count"] for b in facets["facets"]["unassigned"]}
+    rows_unowned = sum(1 for r in page["data"] if not r.get("assignee"))
+    assert sum(unassigned.values()) == 29
+    assert unassigned.get("true", 0) == rows_unowned
 
     groups = await READER.findings_groups(
         client,
