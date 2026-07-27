@@ -23,6 +23,7 @@ import SettingsCard from '@/components/settings/SettingsCard.vue'
 import SettingsInput from '@/components/settings/SettingsInput.vue'
 import SettingsRow from '@/components/settings/SettingsRow.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useStalenessStore } from '@/stores/staleness'
@@ -153,7 +154,13 @@ function discard() {
       title="Staleness timers"
       subtitle="the two-timer model — drives the stale state and the inventory banners"
     >
-      <div v-if="loading" class="skel-block" aria-busy="true" aria-label="Loading timers" />
+      <UiSkeleton
+        v-if="loading"
+        :height="180"
+        radius="sm"
+        label="Loading timers"
+        class="skel-gap"
+      />
       <p v-else-if="failed" class="load-error" role="alert">
         Staleness timers unavailable. Check the backend connection.
       </p>
@@ -272,25 +279,7 @@ function discard() {
 .load-error {
   margin: 14px 0 8px;
 }
-.skel-block {
-  height: 180px;
+.skel-gap {
   margin: 14px 0 8px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-block {
-    animation: none;
-  }
 }
 </style>

@@ -26,6 +26,7 @@ import SettingsInput from '@/components/settings/SettingsInput.vue'
 import SettingsRow from '@/components/settings/SettingsRow.vue'
 import SnapshotsCard from '@/components/settings/SnapshotsCard.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useToastStore } from '@/stores/toast'
@@ -184,7 +185,7 @@ function discard() {
       The daily lifecycle sweep reads these settings live, so an edit applies at its next run.
     </div>
 
-    <div v-if="loading" class="skel-block" aria-busy="true" aria-label="Loading data settings" />
+    <UiSkeleton v-if="loading" :height="180" radius="sm" label="Loading data settings" />
     <p v-else-if="failed" class="load-error" role="alert">
       Data settings unavailable. Check the backend connection.
     </p>
@@ -407,25 +408,5 @@ function discard() {
 }
 .load-error {
   margin: 14px 0 8px;
-}
-.skel-block {
-  height: 180px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-block {
-    animation: none;
-  }
 }
 </style>

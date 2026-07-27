@@ -27,6 +27,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiField from '@/components/ui/UiField.vue'
+import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
@@ -222,7 +223,13 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
         <UiButton :disabled="busy" @click="openInvite"><AppIcon name="plus" :size="13" />Invite user</UiButton>
       </template>
 
-      <div v-if="loading" class="skel-block" aria-busy="true" aria-label="Loading users" />
+      <UiSkeleton
+        v-if="loading"
+        :height="160"
+        radius="sm"
+        label="Loading users"
+        class="skel-gap"
+      />
       <p v-else-if="failed" class="load-error" role="alert">
         User list unavailable. Check the backend connection.
       </p>
@@ -446,25 +453,7 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
 .load-error {
   margin: 14px 0 8px;
 }
-.skel-block {
-  height: 160px;
+.skel-gap {
   margin: 14px 0 8px;
-  border-radius: var(--r-sm);
-  background: linear-gradient(90deg, var(--line2) 25%, var(--panel) 50%, var(--line2) 75%);
-  background-size: 200% 100%;
-  animation: skel-shimmer 1.4s ease-in-out infinite;
-}
-@keyframes skel-shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .skel-block {
-    animation: none;
-  }
 }
 </style>
