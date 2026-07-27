@@ -186,6 +186,30 @@ def test_finding_key_filter_scopes_to_one_finding() -> None:
     assert {"term": {"finding_key": "fk-abc"}} in body["query"]["bool"]["filter"]
 
 
+def test_exclude_filters_become_must_not_clauses() -> None:
+    # issue 349: the negation side of the rail dims — one mode per field, never both
+    body = build_audit_body(
+        AuditFilters(exclude_entity_type="finding", exclude_actor="alice"), size=10
+    )
+    assert {"term": {"entity_type": "finding"}} in body["query"]["bool"]["must_not"]
+    assert {"term": {"actor": "alice"}} in body["query"]["bool"]["must_not"]
+    assert "filter" not in body["query"]["bool"]  # nothing included = no filter clause
+
+
+def test_include_and_exclude_coexist_on_different_fields() -> None:
+    body = build_audit_body(AuditFilters(action="login", exclude_actor="alice"), size=10)
+    assert body["query"]["bool"]["filter"] == [{"term": {"action": "login"}}]
+    assert body["query"]["bool"]["must_not"] == [{"term": {"actor": "alice"}}]
+
+
+def test_facets_and_count_inherit_exclusion_from_the_shared_builder() -> None:
+    # the rail counts and the export pre-count must describe the SAME lens as the walk
+    from backend.query.audit import build_audit_facets_body
+
+    facets = build_audit_facets_body(AuditFilters(exclude_action="login"))
+    assert facets["query"]["bool"]["must_not"] == [{"term": {"action": "login"}}]
+
+
 def test_until_bounds_the_walk_at_t() -> None:
     # M9d slice 1 (D28): a rewound picker must not see post-T events — full-precision lte
     t = datetime(2026, 7, 10, 12, 30, 45, 123456, tzinfo=UTC)

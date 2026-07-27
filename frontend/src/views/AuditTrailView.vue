@@ -51,7 +51,9 @@ const facets = ref<FacetsResponse>({})
 const facetsFailed = ref(false)
 
 const facetsQuery = computed(() =>
-  clusterStore.selectedId ? buildFilterQuery(AUDIT_FIELDS, filters.selections, withGlobals()) : null,
+  clusterStore.selectedId
+    ? buildFilterQuery(AUDIT_FIELDS, filters.selections, withGlobals(), filters.modes)
+    : null,
 )
 
 async function loadFacets(q: typeof facetsQuery.value) {
@@ -83,7 +85,7 @@ watch(
 
 const rowsQuery = computed(() => {
   if (!clusterStore.selectedId) return null
-  const q = buildFilterQuery(AUDIT_FIELDS, filters.selections, withGlobals())
+  const q = buildFilterQuery(AUDIT_FIELDS, filters.selections, withGlobals(), filters.modes)
   return { ...q, size: grid.size, ...(grid.activeCursor ? { cursor: grid.activeCursor } : {}) }
 })
 
@@ -219,9 +221,12 @@ async function exportCsv() {
           <FilterBar
             :fields="AUDIT_FIELDS"
             :selections="filters.selections"
+            :modes="filters.modes"
             :facets="facets"
             @toggle="filters.toggle"
             @set-text="filters.setText"
+            @set-mode="filters.setMode"
+            @toggle-mode="filters.toggleMode"
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
           />

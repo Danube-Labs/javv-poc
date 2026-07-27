@@ -31,13 +31,23 @@ _SORT_KEY = "@timestamp"  # fixed — the cursor's `s` field must round-trip exa
 
 @dataclass(frozen=True)
 class AuditFilters:
-    """The M8c filter set (bolt #240): all keyword `term`s; `None` = unset."""
+    """The M8c filter set (bolt #240): all keyword `term`s; `None` = unset.
+
+    The `exclude_*` twins are the negation side (issue 349): a field is included OR excluded,
+    never both, so the pair is set by the caller from one UI mode. A row missing the field
+    entirely survives its exclusion — `must_not term` only drops rows that actually match, so
+    "actor is not alice" keeps system rows that have no actor. That is the reading the client
+    matcher uses for images too, and it is what the pill claims.
+    """
 
     entity_type: str | None = None
     action: str | None = None
     actor: str | None = None
     finding_key: str | None = None  # per-finding activity (M9b slice 4 — the detail screen)
     until: datetime | None = None  # D28: a rewound picker must not see post-T events (M9d)
+    exclude_entity_type: str | None = None
+    exclude_action: str | None = None
+    exclude_actor: str | None = None
 
 
 def audit_tenant_query(cluster_id: str, body: dict[str, Any]) -> dict[str, Any]:
@@ -82,13 +92,27 @@ def build_audit_body(
     ]
     if filters.until is not None:
         fl.append({"range": {_SORT_KEY: {"lte": filters.until.isoformat()}}})
+    must_not: list[dict[str, Any]] = [
+        {"term": {field: value}}
+        for field, value in (
+            ("entity_type", filters.exclude_entity_type),
+            ("action", filters.exclude_action),
+            ("actor", filters.exclude_actor),
+        )
+        if value is not None
+    ]
     body: dict[str, Any] = {
         "size": size,
         "track_total_hits": True,
         "sort": [{_SORT_KEY: {"order": order}}, {"event_id": {"order": order}}],
     }
-    if fl:
-        body["query"] = {"bool": {"filter": fl}}
+    if fl or must_not:
+        clauses: dict[str, Any] = {}
+        if fl:
+            clauses["filter"] = fl
+        if must_not:
+            clauses["must_not"] = must_not
+        body["query"] = {"bool": clauses}
     if search_after is not None:
         body["search_after"] = search_after
     return body
