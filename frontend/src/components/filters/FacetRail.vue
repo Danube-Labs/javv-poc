@@ -134,8 +134,12 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   font-size: var(--text-control);
   cursor: default;
 }
+/* the same wash every other control uses. `--panel` was a ~2% step off the card: invisible on
+   a good monitor and gone entirely on a TN panel (operator, 2026-07-28). It has to live here
+   rather than in base.css's shared hover list — that rule and this component's
+   `background: transparent` have equal specificity, so the scoped one, injected later, wins. */
 .facet-row:hover {
-  background: var(--panel);
+  background: var(--control-hover-bg);
 }
 .facet-row:focus-visible {
   outline: var(--focus-ring);
