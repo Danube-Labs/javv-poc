@@ -28,8 +28,11 @@ import SevChip from '@/components/chips/SevChip.vue'
 import SlaCell from '@/components/chips/SlaCell.vue'
 import StateTag from '@/components/chips/StateTag.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
+import ValueActions from '@/components/filters/ValueActions.vue'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS, type FindingsColumnKey } from '@/findings/columns'
+import type { Selections } from '@/filters/fields.config'
+import type { FilterMode, Modes } from '@/stores/filters'
 import type { FindingRow } from '@/stores/findings'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { refNowMs } from '@/system/clock'
@@ -52,6 +55,9 @@ const props = withDefaults(
     dense?: boolean
     /** any filter active? drives filtered-empty vs first-run empty copy */
     filtered?: boolean
+    /** active selections + modes, so a cell action can show which side it already sits on */
+    selections?: Selections
+    modes?: Modes
   }>(),
   {
     hidden: () => new Set<string>(),
@@ -117,6 +123,8 @@ const emit = defineEmits<{
   rowClick: [row: FindingRow]
   /** raw PrimeVue rendered-column indexes — map with reorderFromDrag(pinnedLeft=2) */
   reorder: [dragIndex: number, dropIndex: number]
+  /** a cell's value action (issue 349 §2): filter TO / OUT of this exact value */
+  pickValue: [fieldKey: string, value: string, mode: FilterMode]
 }>()
 
 function onSort(e: DataTableSortEvent) {
@@ -146,6 +154,43 @@ const nsLabel = (r: FindingRow): string => {
   if (ns.length === 0) return '-'
   return ns.length === 1 ? ns[0]! : `${ns[0]} +${ns.length - 1}`
 }
+
+/**
+ * Cell value actions (issue 349 §2). A column earns the affordance only where the value it
+ * shows is EXACTLY the value a negatable filter field takes — anything looser would build a
+ * filter that doesn't mean what the cell says.
+ *
+ * Deliberately absent: `image` (the cell shortens the repo for display, and the filter wants
+ * the full `image_repo`), `package` (no filter twin — `ptype` is a different field), and the
+ * pure-data columns. `namespace` only qualifies on a single-namespace row, because a finding
+ * spanning three namespaces has no one value to filter on.
+ */
+const CELL_FILTER_FIELD: Partial<Record<FindingsColumnKey | 'severity', string>> = {
+  severity: 'severity',
+  state: 'state',
+  scanner: 'scanner',
+  namespace: 'namespace',
+  assignee: 'assignee',
+}
+
+function cellValue(key: string, r: FindingRow): string | null {
+  if (key === 'severity') return r.severity_canonical ?? null
+  if (key === 'state') return r.state ?? null
+  if (key === 'scanner') return r.scanner ?? null
+  if (key === 'assignee') return r.assignee || null
+  if (key === 'namespace') {
+    const ns = Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []
+    return ns.length === 1 ? ns[0]! : null // ambiguous across several — no honest single value
+  }
+  return null
+}
+
+/** The mode this exact value is already filtered under, so the active side reads as pressed. */
+function cellActive(key: string, value: string): FilterMode | null {
+  const fieldKey = CELL_FILTER_FIELD[key as FindingsColumnKey]
+  if (!fieldKey || !(props.selections?.[fieldKey] ?? []).includes(value)) return null
+  return props.modes?.[fieldKey] ?? 'is'
+}
 </script>
 
 <template>
@@ -171,7 +216,17 @@ const nsLabel = (r: FindingRow): string => {
       </Column>
       <Column column-key="severity" field="severity_rank" header="Severity" sortable :reorderable-column="false" class="fit">
         <template #body="{ data }">
-          <SevChip :level="data.severity_canonical" />
+          <span class="cell-actionable">
+            <SevChip :level="data.severity_canonical" />
+            <ValueActions
+              v-if="cellValue('severity', data)"
+              class="val-act-reveal"
+              field="Severity"
+              :value="cellValue('severity', data)!"
+              :active="cellActive('severity', cellValue('severity', data)!)"
+              @pick="(m) => emit('pickValue', 'severity', cellValue('severity', data)!, m)"
+            />
+          </span>
         </template>
       </Column>
       <Column
@@ -214,6 +269,14 @@ const nsLabel = (r: FindingRow): string => {
           <SlaCell v-else-if="key === 'sla'" :due-at="data.due_at" :overdue="data.overdue === true" :now-ms="slaNowMs" />
           <StateTag v-else-if="key === 'state'" :state="data.state" />
           <span v-else-if="key === 'assignee'" class="sm">{{ data.assignee ?? '-' }}</span>
+          <ValueActions
+            v-if="CELL_FILTER_FIELD[key] && cellValue(key, data)"
+            class="val-act-reveal"
+            :field="COL_HEADER[key]"
+            :value="cellValue(key, data)!"
+            :active="cellActive(key, cellValue(key, data)!)"
+            @pick="(m) => emit('pickValue', CELL_FILTER_FIELD[key]!, cellValue(key, data)!, m)"
+          />
         </template>
       </Column>
       <template #empty>

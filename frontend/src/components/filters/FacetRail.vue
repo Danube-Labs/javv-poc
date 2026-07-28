@@ -7,16 +7,31 @@
  */
 import { computed } from 'vue'
 
+import ValueActions from '@/components/filters/ValueActions.vue'
 import { facetItems, scannerSplit, type FacetsResponse } from '@/filters/facets'
 import type { FilterField, Selections } from '@/filters/fields.config'
+import type { FilterMode, Modes } from '@/stores/filters'
 
 const props = defineProps<{
   fields: readonly FilterField[]
   selections: Selections
   facets: FacetsResponse
+  modes?: Modes
 }>()
 
-const emit = defineEmits<{ toggle: [fieldKey: string, value: string] }>()
+const emit = defineEmits<{
+  toggle: [fieldKey: string, value: string]
+  pick: [fieldKey: string, value: string, mode: FilterMode]
+}>()
+
+/** Exclude is offered only where the backend has an `exclude_*` twin to receive it. */
+const negatable = (field: FilterField) => field.type === 'terms' && field.negatable === true
+
+/** The mode this value is selected under, or null when it is not selected at all. */
+function activeMode(field: FilterField, value: string): FilterMode | null {
+  if (!(props.selections[field.key] ?? []).includes(value)) return null
+  return props.modes?.[field.key] ?? 'is'
+}
 
 const groups = computed(() =>
   props.fields
@@ -39,7 +54,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         v-for="it in g.items"
         :key="it.value"
         class="facet-row"
-        :class="{ 'facet-on': (selections[g.field.key] ?? []).includes(it.value) }"
+        :class="{
+          'facet-on': activeMode(g.field, it.value) === 'is',
+          'facet-out': activeMode(g.field, it.value) === 'not',
+        }"
         :title="it.hint ?? scannerSplit(it.byScanner)"
         @click="emit('toggle', g.field.key, it.value)"
       >
@@ -48,6 +66,16 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <slot name="value" :field="g.field" :value="it.value" :label="it.label">{{ it.label }}</slot>
         </span>
         <span v-if="it.count !== null" class="facet-count">{{ fmt(it.count) }}</span>
+        <!-- the row click already means include, so the action offers the other side only -->
+        <ValueActions
+          v-if="negatable(g.field)"
+          class="val-act-reveal"
+          exclude-only
+          :field="g.field.label"
+          :value="it.value"
+          :active="activeMode(g.field, it.value)"
+          @pick="(m) => emit('pick', g.field.key, it.value, m)"
+        />
       </button>
       <p v-if="g.items.length >= 32" class="facet-cap">top 32 by count; search reaches the rest</p>
     </div>
@@ -126,6 +154,19 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .facet-on {
   color: var(--ink);
   font-weight: 500;
+}
+/* an excluded value stays listed and readable (operator ruling 2026-07-27) — struck, not
+   hidden, so the operator can see what they ruled out and click it off again. The red is
+   `--fpill-not-op`, the same exclusion language the NOT-pill carries. */
+.facet-out .facet-label {
+  text-decoration: line-through;
+  text-decoration-color: var(--fpill-not-op);
+  text-decoration-thickness: 1.5px;
+  color: var(--soft);
+}
+.facet-out .facet-check {
+  border-color: var(--fpill-not-op);
+  background: transparent;
 }
 .facet-label {
   flex: 1;

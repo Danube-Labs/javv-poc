@@ -85,6 +85,53 @@ describe('filters store', () => {
     expect(s.toQuery().namespace).toBe('kube-system') // mode did not survive the clear
   })
 
+  /** The rail/grid value actions (issue 349 §2) — pick a value straight into a mode. */
+  describe('pickValue', () => {
+    it('excludes in one action, where before it took a toggle plus a pill flip', () => {
+      const s = useStore()
+      s.pickValue('namespace', 'kube-system', 'not')
+      expect(s.selections.namespace).toEqual(['kube-system'])
+      expect(s.modeOf('namespace')).toBe('not')
+      expect(s.toQuery().namespace).toBe('!kube-system')
+    })
+
+    it('clicking the side a value already sits on clears it, mode included', () => {
+      const s = useStore()
+      s.pickValue('namespace', 'kube-system', 'not')
+      s.pickValue('namespace', 'kube-system', 'not')
+      expect(s.selections.namespace).toEqual([])
+      expect(s.modeOf('namespace')).toBe('is') // no orphan mode on an empty field
+      expect(s.toQuery()).not.toHaveProperty('namespace')
+    })
+
+    it('accumulates within a mode on multi-value fields', () => {
+      const s = useStore()
+      s.pickValue('severity', 'low', 'not')
+      s.pickValue('severity', 'negligible', 'not')
+      expect(s.toQuery().severity).toBe('!low,!negligible')
+    })
+
+    /** A field carries ONE mode, so the values cannot come along — their meaning would invert. */
+    it('switching a field to the other mode starts a fresh selection', () => {
+      const s = useStore()
+      s.pickValue('severity', 'critical', 'is')
+      s.pickValue('severity', 'high', 'is')
+      expect(s.selections.severity).toEqual(['critical', 'high'])
+      s.pickValue('severity', 'low', 'not')
+      expect(s.selections.severity).toEqual(['low'])
+      expect(s.modeOf('severity')).toBe('not')
+    })
+
+    it('refuses exclude where the backend has no exclude_* twin', () => {
+      const s = useStore()
+      s.pickValue('attr', 'kev', 'not') // flags are never negatable
+      expect(s.selections.attr).toEqual([])
+      expect(s.modeOf('attr')).toBe('is')
+      s.pickValue('image', 'nginx', 'not') // text field, not a terms field
+      expect(s.selections.image).toEqual([])
+    })
+  })
+
   it('drops unknown vocabulary values and unknown keys from the URL', () => {
     const s = useStore()
     s.fromQuery({ severity: 'critical,BOGUS', attr: 'kev,nope', evil: 'x' })

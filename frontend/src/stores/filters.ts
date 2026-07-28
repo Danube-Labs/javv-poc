@@ -51,6 +51,30 @@ export function makeFiltersStore(storeId: string, fields: readonly FilterField[]
         this.selections = emptySelections(fields)
         this.modes = {}
       },
+      /**
+       * Pick a value straight INTO a mode — the rail/grid value actions (issue 349 §2), where
+       * the operator names the side instead of toggling a checkbox and then flipping the pill.
+       *
+       * Clicking the side a value already sits on clears it, so the same control undoes itself.
+       *
+       * The one case worth stating: a field carries ONE mode by design (see the header), so
+       * moving a field to the OTHER mode cannot keep its existing values — their meaning would
+       * silently invert. Entering the other mode therefore starts a fresh selection with just
+       * the clicked value, and the pill shows that result immediately rather than hiding it.
+       */
+      pickValue(fieldKey: string, value: string, mode: FilterMode) {
+        const field = fields.find((f) => f.key === fieldKey)
+        if (!field || field.type !== 'terms') return
+        if (mode === 'not' && !field.negatable) return
+        const current = this.modes[fieldKey] ?? 'is'
+        if (current !== mode) {
+          this.selections[fieldKey] = [value]
+          this.setMode(fieldKey, mode)
+          return
+        }
+        this.toggle(fieldKey, value)
+        if ((this.selections[fieldKey] ?? []).length === 0) delete this.modes[fieldKey]
+      },
       setMode(fieldKey: string, mode: FilterMode) {
         const field = fields.find((f) => f.key === fieldKey)
         if (!field || field.type !== 'terms' || !field.negatable) return

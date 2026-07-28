@@ -202,7 +202,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           :fields="IMAGES_FIELDS"
           :selections="filters.selections"
           :facets="facets"
+          :modes="filters.modes"
           @toggle="filters.toggle"
+          @pick="filters.pickValue"
         >
           <template #value="{ field, value, label }">
             <SevChip v-if="field.key === 'severity'" :level="value" :dot="true" />
@@ -251,8 +253,11 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           :filtered="filters.hasFilters"
           :hidden="hiddenCols"
           :col-order="colOrder"
+          :selections="filters.selections"
+          :modes="filters.modes"
           reorderable
           :dense="dense"
+          @pick-value="filters.pickValue"
           @sort="onSort"
           @row-click="openImage"
           @reorder="onHeaderReorder"

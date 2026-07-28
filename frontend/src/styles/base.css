@@ -487,6 +487,81 @@ button.stat-cell:hover .cell-go,
   }
 }
 
+/* value actions (issue 349 §2, `components/filters/ValueActions.vue`): include/exclude beside a
+   value. Here rather than scoped, for `.cell-go`'s reason — the reveal keys off the HOST row's
+   :hover, which a scoped child cannot reach. Exclusion wears `--fpill-not-op`, the same red the
+   ruled NOT-pill uses, so one exclusion language spans pill, rail and grid. */
+.val-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+/* a cell that pairs its content with value actions — keeps both on one baseline */
+.cell-actionable {
+  display: inline-flex;
+  align-items: center;
+}
+.val-act-btn {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  color: var(--soft);
+  font-size: var(--text-control);
+  font-weight: 700;
+  line-height: 1;
+  transition:
+    color var(--dur-quick),
+    background-color var(--dur-quick),
+    border-color var(--dur-quick);
+}
+/* wash + border together — a border shift alone is invisible (DESIGN.md §2) */
+.val-act-btn:hover {
+  background: var(--control-hover-bg);
+  border-color: var(--control-hover-line);
+  color: var(--coral-text);
+}
+.val-act-btn:active {
+  background: var(--control-active-bg);
+}
+.val-act-btn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+.val-act-not:hover,
+.val-act-not.val-act-on {
+  color: var(--fpill-not-op);
+}
+.val-act-on {
+  background: var(--dd-on-bg);
+  border-color: var(--coral);
+  color: var(--coral-text);
+}
+
+/* Revealed by the row's own hover (operator ruling 2026-07-28 on built A/B specimens, §8.5).
+   The at-rest variant lost: at 198 glyphs on a 25-row page it wrapped the narrow namespace
+   column onto a second line and inflated row heights, against §4's compact-density contract.
+   It is a knowing exception to §5's "hover-only affordance is not discoverable", bounded by
+   the rule below — an action already ACTIVE always shows, so a filter the operator turned on
+   can never be invisible, and keyboard focus reveals it for non-pointer users. */
+.val-act-reveal .val-act-btn:not(.val-act-on) {
+  opacity: 0;
+}
+.tbl-hover tbody tr:hover .val-act-reveal .val-act-btn,
+.facet-row:hover .val-act-reveal .val-act-btn,
+.val-act-reveal .val-act-btn:focus-visible {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .val-act-btn {
+    transition: none;
+  }
+}
+
 /* ---- motion layer: the shared <Transition> classes, on the motion tokens.
    t-pop  = floating panels (dropdown menus/popovers): fade + 4px rise, quick both ways.
    t-fade = banners and other in-flow appearances: crossfade only — never animate height.

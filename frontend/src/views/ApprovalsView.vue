@@ -226,7 +226,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           :fields="APPROVAL_FIELDS"
           :selections="filters.selections"
           :facets="facets"
+          :modes="filters.modes"
           @toggle="filters.toggle"
+          @pick="filters.pickValue"
         />
       </div>
 
