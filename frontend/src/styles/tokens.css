@@ -108,7 +108,7 @@
      Alpha also means one value survives every ground it lands on: plain row, hovered row,
      time-travel tint. */
   --cell-act-wash: rgba(44, 66, 87, 0.07);
-  --cell-act-line: rgba(44, 66, 87, 0.16);
+  --cell-act-line: rgba(44, 66, 87, 0.38);
   /* the exclusion mark ON the dark chip — `--fpill-not-op` is the same red for LIGHT surfaces
      and computes 1.6:1 against `--slate3`, so the dark chip needs its own tint of it. Chrome,
      not severity: never let a `--sev-*` token leak in here to solve a legibility problem. */

@@ -173,6 +173,29 @@ describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
       .toBeGreaterThanOrEqual(2)
   })
 
+  /**
+   * The FIRST row's bar overhangs onto the slate table-head band, where the normal `--slate3`
+   * fill computes 1.17:1 and the control all but disappears — so that row inverts to a light
+   * bar with dark marks (ruled 2026-07-28). Both readings are pinned: the inverted bar has to
+   * separate from the band it sits on, and its marks have to survive on the light fill.
+   */
+  it('value actions on the header band (issue 349 §2): the inverted first-row bar', () => {
+    // the band is `--table-head-bg`, an ALIAS of `--slate2`; this gate parses literal values,
+    // so aliases never enter the token map — assert against what the alias resolves to
+    const BAND = 'slate2'
+    // the bar against the band it overhangs — a MARK-level floor, it carries no glyph
+    expect
+      .soft(ratio('table-head-fg', BAND), 'inverted bar on the head band')
+      .toBeGreaterThanOrEqual(NON_TEXT)
+    // the marks on that inverted fill
+    expect
+      .soft(ratio('slate', 'table-head-fg'), 'dark marks on the inverted bar')
+      .toBeGreaterThanOrEqual(NON_TEXT)
+    // and the DEFAULT fill really is illegible there — the reason the inversion exists at all,
+    // asserted so nobody "simplifies" the rule away and quietly restores a 1.17:1 control
+    expect(ratio('slate3', BAND)).toBeLessThan(NON_TEXT)
+  })
+
   it('dark chrome: the sidebar text ramp on the slate', () => {
     for (const t of ['side-fg', 'side-label', 'side-credit', 'side-foot-fg', 'side-foot-dim', 'side-version', 'side-brand-fg', 'side-fg-hover', 'side-foot-strong']) {
       expect.soft(ratio(t, 'slate'), `${t} on slate`).toBeGreaterThanOrEqual(AA)

@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import ValueActions from '@/components/filters/ValueActions.vue'
 
@@ -48,6 +48,62 @@ describe('ValueActions', () => {
     await btns(w)[1]!.trigger('keydown.enter')
     await btns(w)[1]!.trigger('keydown.space')
     expect(w.emitted('pick')).toEqual([['not'], ['not']])
+  })
+
+  /**
+   * The pixel-grid snap (issue 349 §2). The grid puts this bar on a fractional origin, which
+   * smeared its 2px marks across three device pixels — differently per axis, so the plus's two
+   * strokes read as different weights. jsdom has no layout, so the ARITHMETIC is pinned here
+   * and the real geometry in `tests/e2e/value-actions.spec.ts`.
+   */
+  describe('pixel-grid snap', () => {
+    const mountIn = (rect: { left: number; top: number }) => {
+      const host = document.createElement('td')
+      document.body.appendChild(host)
+      const w = mount(ValueActions, { props: base, attachTo: host })
+      const el = w.element as HTMLElement
+      // jsdom always reports zeroes, so the fractional origin is supplied
+      vi.spyOn(el, 'getBoundingClientRect').mockImplementation(
+        () =>
+          ({
+            left: rect.left - (parseFloat(el.style.getPropertyValue('--snap-x')) || 0) * -1,
+            top: rect.top - (parseFloat(el.style.getPropertyValue('--snap-y')) || 0) * -1,
+          }) as DOMRect,
+      )
+      host.dispatchEvent(new MouseEvent('mouseenter'))
+      return el
+    }
+
+    it('offsets by the negative fraction, so the bar lands on a whole pixel', () => {
+      const el = mountIn({ left: 695.36, top: 410.25 })
+      expect(el.style.getPropertyValue('--snap-x')).toBe('-0.36px')
+      expect(el.style.getPropertyValue('--snap-y')).toBe('-0.25px')
+    })
+
+    it('is a no-op when the origin is already whole — no phantom transform', () => {
+      const el = mountIn({ left: 700, top: 400 })
+      expect(parseFloat(el.style.getPropertyValue('--snap-x'))).toBe(0)
+      expect(parseFloat(el.style.getPropertyValue('--snap-y'))).toBe(0)
+    })
+
+    /** The rect it measures ALREADY includes the previous translate; without subtracting that
+     *  back out, each pass would snap relative to the last and walk the bar off position. */
+    it('re-measuring does not drift — the second pass agrees with the first', () => {
+      const host = document.createElement('td')
+      document.body.appendChild(host)
+      const w = mount(ValueActions, { props: base, attachTo: host })
+      const el = w.element as HTMLElement
+      vi.spyOn(el, 'getBoundingClientRect').mockImplementation(() => {
+        const applied = parseFloat(el.style.getPropertyValue('--snap-x')) || 0
+        const appliedY = parseFloat(el.style.getPropertyValue('--snap-y')) || 0
+        return { left: 695.36 + applied, top: 410.25 + appliedY } as DOMRect
+      })
+      host.dispatchEvent(new MouseEvent('mouseenter'))
+      const first = el.style.getPropertyValue('--snap-x')
+      host.dispatchEvent(new MouseEvent('mouseenter'))
+      host.dispatchEvent(new MouseEvent('mouseenter'))
+      expect(el.style.getPropertyValue('--snap-x')).toBe(first)
+    })
   })
 
   /** It nests inside the rail row's <button>; an un-stopped click would also toggle the row. */

@@ -512,7 +512,8 @@ button.stat-cell:hover .cell-go,
 
    Ported onto OUR chrome, per §8.1 (structure yes, palette never): the bar is `--slate3` with
    `--table-head-fg` marks — the same dark-band-plus-parchment pairing the table head already
-   uses — not Kibana's grey. Radius stays on our scale (`--r-chip`), not their 3px. */
+   uses — not Kibana's grey. Their radius is not ported either; ours is square, for the
+   pixel-grid reason recorded on `border-radius` below. */
 /* The TD is the target, not the text inside it (operator ruling 2026-07-28). The wash was
    first hung on the inline wrapper, so it shrink-wrapped whatever the cell happened to hold —
    fine on a bare string, broken on Audit's Action column where it wrapped an `ActionTag` chip
@@ -541,41 +542,89 @@ button.stat-cell:hover .cell-go,
 .cell-actionable .val-act {
   position: absolute;
   bottom: 100%; /* sits ON the cell's top edge, overhanging the row above */
-  /* the cell's own horizontal padding (`.tbl td`), so the bar stops on the column's content
-     edge instead of straddling the divider */
-  right: 12px;
+  /* FLUSH with the cell's corner, not inset from it (operator, 2026-07-28): Kibana measures
+     `left: 0`, so the bar's edge and the cell's edge are the same line and it reads as a tab
+     grown from the corner. Any inset leaves it floating near the edge instead of on it. */
+  left: 0;
   z-index: 5;
   margin: 0 0 -1px;
-  gap: 0;
+  /* 5px so the divider below lands EXACTLY between the marks on whole pixels: the gap spans
+     5px, the rule takes the middle one, and 2px of clear space falls either side. An even gap
+     would force the 1px line half a pixel off centre. */
+  gap: 5px;
   padding: 2px;
   background: var(--slate3);
-  border-radius: var(--r-chip) var(--r-chip) 0 var(--r-chip);
+  /* a hairline edge on EVERY bar, so it separates from whatever it overhangs even if the
+     row-1 inversion below ever stops matching reality */
+  box-shadow: 0 0 0 1px var(--chip-hi);
+  /* SQUARE, deliberately (operator ruling 2026-07-28 on an 8x device-pixel specimen). This
+     grid cannot put the bar on the pixel grid: at devicePixelRatio 1 it lands on a fractional
+     origin from three independent directions — the card starts at x.5, rows are 37.5px
+     (--text-mono-cell 12.5px x 1.5 line-height = 18.75), and column edges are percentages.
+     A rounded corner centred on a quarter pixel must blend across several device pixels and
+     visibly stair-steps; a straight edge blends ONE line and reads clean. Whole-pixel rows
+     would not rescue it (the card's own .5 origin survives), and layer promotion composites
+     the same fraction more softly, not sharper. Less curve is the only cheap real fix. */
+  border-radius: 0;
 }
-/* the FIRST row has nothing above it to overhang into, and both `.tbl-card` (overflow:hidden)
-   and `.tbl-wrap` (overflow-x:auto, which makes the block axis auto too) would clip it — so
-   that row alone drops its pill below, mirrored. */
+/* EVERY row overhangs upward, the first one included — Kibana does exactly this and lets the
+   bar sit over its own header (measured on demo.elastic.co: `top: -21px`, no flip on row 0).
+   The flip this replaces was built on a false premise: the old comment claimed `.tbl-card`
+   would clip a bar above row 1, but the real clipping ancestor is
+   `p-datatable-table-container`, whose top edge is the HEADER's top — so a bar rising out of
+   row 1 lands on the header band and is not clipped at all.
+   That wrong assumption is what made the first row unusable. With a flip, the seam between
+   rows 1 and 2 was claimed by TWO bars — row 1's hanging down into row 2's cell and row 2's
+   hanging up into row 1's — so reaching for either moved the pointer into the other row and
+   swapped which one was lit. Overhanging in ONE direction leaves exactly one bar per seam,
+   and it belongs to the cell it hangs off, so hovering it keeps that cell lit. */
+/* The first row's bar rides the dark header band, where the slate fill computes 1.17:1 and
+   vanishes — so that row alone inverts to a light surface with dark marks.
+
+   `tr:first-child` is a PROXY for "the bar that lands on the header", and it is exact only
+   because the head travels with the rows: `thead` carries `position: sticky` but no `top`, and
+   the table container does not scroll, so the header's bottom edge and row 1's top edge are
+   the same line at every scroll offset (measured 2026-07-28). Give that thead a real `top`, or
+   make the container scroll, and a DIFFERENT row would sit under the header while this one
+   kept the light fill — so `tests/e2e/value-actions.spec.ts` asserts that adjacency instead of
+   trusting it. Colour only, never geometry, so this cannot recreate the flip's collision. */
 .tbl tbody tr:first-child .cell-actionable .val-act {
-  bottom: auto;
-  top: 100%;
-  margin: -1px 0 0;
-  border-radius: var(--r-chip) 0 var(--r-chip) var(--r-chip);
+  background: var(--table-head-fg);
 }
-/* A table with ONE row is first and last at once: there is no row above to overhang and none
-   below to flip into, so both directions hit the card's clip and the bar shows as a severed
-   stub under the value (a filtered `repo` on Running images does exactly this). That row alone
-   keeps the bar INSIDE the cell — the only case where covering the value's tail beats showing
-   half a control. A whole-pixel offset, never `translateY(-50%)`: a fractional one would
-   re-blur the marks the same way it did before. */
-.tbl tbody tr:first-child:last-child .cell-actionable .val-act {
+.tbl tbody tr:first-child .cell-actionable .val-act-btn {
+  color: var(--slate);
+}
+/* The divider, drawn from the EXCLUDE button back into the gap (operator ruling 2026-07-28,
+   re-run after the corners went square — the rule fringed on the rounded build and lost, then
+   won on this one). It rides `.val-act-not::after`, which the mark rules leave unused on that
+   button (only `.val-act-is` draws a second bar, for the plus's upright).
+
+   Offsets are whole pixels, never a percentage or a half-pixel translate — `left: 50%` would
+   land on x.5 and fringe, which is the whole reason the first divider lost. They are measured
+   from the **padding box**, which is where an absolutely-positioned child starts: the button is
+   16px border-box with a 1px border, so that origin sits 1px inside it and the box is 14px.
+   Miss that and the rule drifts a pixel on both axes (it did):
+     x: gap spans -5..0 from the border edge, so its middle pixel is -3..-2 there, which is
+        `left: -4` from the padding origin → 2px of clear space either side.
+     y: 10px centred in the 14px padding box → `top: 2`, leaving 2px above and below. */
+.cell-actionable .val-act-not::after {
+  left: -4px;
   top: 2px;
-  bottom: auto;
-  margin: 0;
-  border-radius: var(--r-chip);
+  width: 1px;
+  height: 10px;
+  background: var(--chip-hi);
 }
-/* on the bar the buttons are bare marks — the bar itself is the surface */
+/* on the inverted first-row bar the light rule would vanish — it takes the dark ink instead */
+.tbl tbody tr:first-child .cell-actionable .val-act-not::after {
+  background: var(--cell-act-line);
+}
+/* on the bar the buttons are bare marks — the bar itself is the surface. Square like the bar
+   that holds them: their own radius only shows when one is hovered/active and gains a fill,
+   and a 4px-rounded rect inside a square bar read as two different geometries. */
 .cell-actionable .val-act-btn {
   background: transparent;
   border-color: transparent;
+  border-radius: 0;
   color: var(--table-head-fg);
 }
 /* ONE control colour on both surfaces (operator ruling 2026-07-28): dark slate with light
@@ -657,8 +706,20 @@ button.stat-cell:hover .cell-go,
 
    In a GRID the trigger is the CELL, matching Kibana: one bar appears over the cell under the
    pointer, not a row of them. In the RAIL a row IS one value, so the row is the cell. */
+/* It LIFTS out of the cell rather than popping into existence (operator, 2026-07-28) — until
+   now this had no transition at all, not even a fade, which is why it appeared so abruptly.
+   The vocabulary is the ruled `t-pop` one (§5: fade + 4px travel on --dur-quick/--ease-out),
+   not a new curve. Direction is mirrored: t-pop's menus DESCEND from their trigger, so they
+   enter from -4px; this bar rises out of the cell edge it belongs to, so it enters from +4px
+   and settles flush on the corner. Transform + opacity only — nothing here touches layout. */
 .val-act-reveal {
   opacity: 0;
+  /* the lift's 4px is composed WITH the pixel-grid snap `ValueActions.vue` measures, so the
+     two never fight over `transform`; both default to 0 when no snap has been taken */
+  transform: translate(var(--snap-x, 0px), calc(var(--snap-y, 0px) + 4px));
+  transition:
+    opacity var(--dur-quick) var(--ease-out),
+    transform var(--dur-quick) var(--ease-out);
 }
 .tbl tbody td:has(.val-act):hover .val-act-reveal,
 .facet-row:hover .val-act-reveal,
@@ -670,10 +731,18 @@ button.stat-cell:hover .cell-go,
    rail, so the cell need not restate them (bounds the §5 exception the same way). */
 .facet-row .val-act-reveal:has(.val-act-on) {
   opacity: 1;
+  transform: translate(var(--snap-x, 0px), var(--snap-y, 0px));
 }
 @media (prefers-reduced-motion: reduce) {
-  .val-act-btn {
+  .val-act-btn,
+  .val-act-reveal {
     transition: none;
+  }
+  /* no LIFT, but the snap survives — `transform: none` here would hand back the fractional
+     offset the whole measurement exists to remove, and blur the marks for exactly the users
+     who asked for less motion */
+  .val-act-reveal {
+    transform: translate(var(--snap-x, 0px), var(--snap-y, 0px));
   }
 }
 
