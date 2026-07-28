@@ -38,7 +38,18 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 
 Standing division of labour (operator ruling 2026-07-27): **Opus 5 implements, Fable 5 reviews.**
 Scoped issues carry an implementation-prompt comment ending in a **Review gate** — that list is the
-review contract for the PR. A PR is ready for review only when its description carries:
+review contract for the PR.
+
+**The implementation prompt names artifacts per slice, not principles per PR** (ruling 2026-07-28,
+out of PR #491's review — all three findings were one shape: new logic or scope without its mirror
+artifact). Each slice in the prompt states:
+- **the spec file its tests land in** — "tests in the same slice" is the principle that got skipped;
+  "pin the matcher in `image-filters.spec.ts`" is the checkbox that didn't. A slice that adds a pure
+  function, matcher, or branch and names no spec file is mis-scoped, not test-exempt.
+- work sliced so that **review can land per slice** when the PR will cross ~10 files — a finding
+  after slice 1 costs minutes; the same finding on a 26-file PR costs a round-trip.
+
+A PR is ready for review only when its description carries:
 
 1. **Gates run, exit codes shown.** The exact CI commands for the touched stacks (`npm run lint` /
    `npm run test:ci` from `frontend/`; tree-wide `ruff` + `pyright` + full `pytest` from `backend/`),
@@ -54,6 +65,11 @@ review contract for the PR. A PR is ready for review only when its description c
    discovering them missing.
 5. **Known gaps stated.** What was deliberately not done, and why. A gap the implementer names costs
    a sentence; the same gap found in review costs a round-trip.
+6. **Scope deltas named.** Anything user-visible the issue did not ask for — a new panel, a new rail
+   dim, a changed default — gets its own line, even when it fell out of the implementation as a
+   side effect (PR #491: two facet groups appeared because the cell action needed the fields — real
+   reason, still a delta the reviewer had to discover). Silence on a delta is treated as hiding it,
+   not as it being minor; "none" is a valid entry and is written out.
 
 Review findings land as PR comments; fixes go on the same branch (no fixup PRs). The reviewer
 re-greps factual claims in docs/comments against the code — prose written *about* the system instead
