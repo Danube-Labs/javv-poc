@@ -85,6 +85,67 @@ describe('filters store', () => {
     expect(s.toQuery().namespace).toBe('kube-system') // mode did not survive the clear
   })
 
+  /** The rail/grid value actions (issue 349 §2) — pick a value straight into a mode. */
+  describe('pickValue', () => {
+    it('excludes in one action, where before it took a toggle plus a pill flip', () => {
+      const s = useStore()
+      s.pickValue('namespace', 'kube-system', 'not')
+      expect(s.selections.namespace).toEqual(['kube-system'])
+      expect(s.modeOf('namespace')).toBe('not')
+      expect(s.toQuery().namespace).toBe('!kube-system')
+    })
+
+    it('clicking the side a value already sits on clears it, mode included', () => {
+      const s = useStore()
+      s.pickValue('namespace', 'kube-system', 'not')
+      s.pickValue('namespace', 'kube-system', 'not')
+      expect(s.selections.namespace).toEqual([])
+      expect(s.modeOf('namespace')).toBe('is') // no orphan mode on an empty field
+      expect(s.toQuery()).not.toHaveProperty('namespace')
+    })
+
+    it('accumulates within a mode on multi-value fields', () => {
+      const s = useStore()
+      s.pickValue('severity', 'low', 'not')
+      s.pickValue('severity', 'negligible', 'not')
+      expect(s.toQuery().severity).toBe('!low,!negligible')
+    })
+
+    /** A field carries ONE mode, so the values cannot come along — their meaning would invert. */
+    it('switching a field to the other mode starts a fresh selection', () => {
+      const s = useStore()
+      s.pickValue('severity', 'critical', 'is')
+      s.pickValue('severity', 'high', 'is')
+      expect(s.selections.severity).toEqual(['critical', 'high'])
+      s.pickValue('severity', 'low', 'not')
+      expect(s.selections.severity).toEqual(['low'])
+      expect(s.modeOf('severity')).toBe('not')
+    })
+
+    it('refuses exclude where the backend has no exclude_* twin', () => {
+      const s = useStore()
+      s.pickValue('attr', 'kev', 'not') // flags are never negatable — absence ≠ negation
+      expect(s.selections.attr).toEqual([])
+      expect(s.modeOf('attr')).toBe('is')
+      s.pickValue('q', 'nginx', 'not') // the rail search box declares no exclude twin
+      expect(s.selections.q).toEqual([])
+    })
+
+    /** `image_repo` is an exact `term` server-side with an `exclude_image_repo` twin, so a
+     * TEXT field can negate — the free-text input is the entry affordance, not the match. */
+    it('negates a text field that declares an exclude twin', () => {
+      const s = useStore()
+      s.pickValue('image', 'docker.io/library/nginx', 'not')
+      expect(s.selections.image).toEqual(['docker.io/library/nginx'])
+      expect(s.modeOf('image')).toBe('not')
+      expect(s.toQuery().image).toBe('!docker.io/library/nginx')
+      // one value per text field — picking the same side again clears rather than accumulates
+      s.pickValue('image', 'docker.io/library/nginx', 'not')
+      expect(s.selections.image).toEqual([])
+      expect(s.modeOf('image')).toBe('is')
+    })
+  })
+
   it('drops unknown vocabulary values and unknown keys from the URL', () => {
     const s = useStore()
     s.fromQuery({ severity: 'critical,BOGUS', attr: 'kev,nope', evil: 'x' })

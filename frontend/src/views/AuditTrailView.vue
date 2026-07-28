@@ -212,7 +212,9 @@ async function exportCsv() {
           :fields="AUDIT_FIELDS"
           :selections="filters.selections"
           :facets="facets"
+          :modes="filters.modes"
           @toggle="filters.toggle"
+          @pick="filters.pickValue"
         />
       </div>
 
@@ -244,7 +246,10 @@ async function exportCsv() {
           :rows="grid.rows"
           :loading="grid.loading"
           :filtered="filters.hasFilters"
+          :selections="filters.selections"
+          :modes="filters.modes"
           @row-click="openFinding"
+          @pick-value="filters.pickValue"
         />
         <GridPager
           :total="grid.total"

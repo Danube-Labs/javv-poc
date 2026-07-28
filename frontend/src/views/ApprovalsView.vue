@@ -13,7 +13,14 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { approvalListApiV1DecisionsApprovalsGet, revokeApiV1DecisionsDecisionIdRevokePost } from '@/api/generated'
 import { APPROVAL_FIELDS } from '@/approvals/fields.config'
-import { EXPIRY_WARN_DAYS, scannerLabel, scopeLabel, type ApprovalRow } from '@/approvals/viewModel'
+import {
+  EXPIRY_WARN_DAYS,
+  expiryStatus,
+  scannerLabel,
+  scopeLabel,
+  type ApprovalRow,
+} from '@/approvals/viewModel'
+import ValueActions from '@/components/filters/ValueActions.vue'
 import EditDecisionDialog from '@/components/approvals/EditDecisionDialog.vue'
 import ExpiryChip from '@/components/chips/ExpiryChip.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
@@ -26,10 +33,11 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
+import { activeMode } from '@/filters/fields.config'
 import type { FacetsResponse } from '@/filters/facets'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
-import { makeFiltersStore } from '@/stores/filters'
+import { makeFiltersStore, type FilterMode } from '@/stores/filters'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { useToastStore } from '@/stores/toast'
 import { refNowMs } from '@/system/clock'
@@ -58,6 +66,15 @@ const facets = ref<FacetsResponse>({})
 
 /** countdowns measure from the display clock (D28) — wall time at now, T when rewound */
 const nowMs = computed(() => refNowMs(timeTravel.t))
+
+/** The scanner column's own value — the `both | trivy | grype` the filter field takes, not
+ * the tag's display text (issue 349 §2). */
+const scannerValue = (row: ApprovalRow) =>
+  row.apply_both_scanners || !row.scanner ? 'both' : row.scanner
+
+/** The mode this exact value is already filtered under, so the active side reads as pressed. */
+const cellActive = (fieldKey: string, value: string): FilterMode | null =>
+  activeMode(fieldKey, value, filters.selections, filters.modes)
 
 // no as_of in the globals: the queue is now-only (the T<now notice owns the rewound state)
 const filterQuery = computed(() =>
@@ -226,7 +243,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           :fields="APPROVAL_FIELDS"
           :selections="filters.selections"
           :facets="facets"
+          :modes="filters.modes"
           @toggle="filters.toggle"
+          @pick="filters.pickValue"
         />
       </div>
 
@@ -274,17 +293,51 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                 </span>
               </td>
               <td>
-                <ScannerTag v-if="!row.apply_both_scanners && row.scanner" :name="row.scanner" />
-                <span v-else class="both-tag">{{ scannerLabel(row) }}</span>
+                <span class="cell-actionable">
+                  <ScannerTag v-if="!row.apply_both_scanners && row.scanner" :name="row.scanner" />
+                  <span v-else class="both-tag">{{ scannerLabel(row) }}</span>
+                  <ValueActions
+                    class="val-act-reveal"
+                    field="Scanner"
+                    :value="scannerValue(row)"
+                    :active="cellActive('scanner', scannerValue(row))"
+                    @pick="(m) => filters.pickValue('scanner', scannerValue(row), m)"
+                  />
+                </span>
               </td>
               <td class="just-cell" :title="row.justification">{{ row.justification }}</td>
-              <td class="sm">{{ row.created_by }}</td>
+              <td class="sm">
+                <span class="cell-actionable">
+                  {{ row.created_by }}
+                  <ValueActions
+                    v-if="row.created_by"
+                    class="val-act-reveal"
+                    field="Approver"
+                    :value="row.created_by"
+                    :active="cellActive('approver', row.created_by)"
+                    @pick="(m) => filters.pickValue('approver', row.created_by, m)"
+                  />
+                </span>
+              </td>
               <td class="fit">
                 <span class="mono-cell sm nowrap" :title="row.expiry ?? 'no expiry set'">
                   {{ row.expiry ? lastDataAt(row.expiry) : '—' }}
                 </span>
               </td>
-              <td class="fit"><ExpiryChip :expiry="row.expiry" :now-ms="nowMs" /></td>
+              <td class="fit">
+                <span class="cell-actionable">
+                  <ExpiryChip :expiry="row.expiry" :now-ms="nowMs" />
+                  <!-- status is DERIVED, so the action reuses the chip's own helper rather
+                       than re-deriving it — the cell and the filter cannot disagree -->
+                  <ValueActions
+                    class="val-act-reveal"
+                    field="Status"
+                    :value="expiryStatus(row.expiry, nowMs)"
+                    :active="cellActive('status', expiryStatus(row.expiry, nowMs))"
+                    @pick="(m) => filters.pickValue('status', expiryStatus(row.expiry, nowMs), m)"
+                  />
+                </span>
+              </td>
               <td class="fit">
                 <span class="mono-cell sm nowrap" :title="row.created_at">{{ lastDataAt(row.created_at) }}</span>
               </td>

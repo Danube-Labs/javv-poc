@@ -37,6 +37,11 @@ interface Bucket {
   by_scanner: Record<string, number>
 }
 
+/** Mirrors the server facet cap (the rail's "top 32 by count" note): a fleet-sized run has
+ * one repo/tag per image, and an uncapped list would grow the rail without bound. `q` still
+ * contains-matches repo and tag, so the tail stays reachable — the note holds here too. */
+const FACET_CAP = 32
+
 /** FacetsResponse-shaped buckets for the rail/bar — counts are images, not findings. */
 export function imagesFacets(rows: ImageRow[]): Record<string, Bucket[]> {
   const bucket = (key: string, count: number): Bucket => ({ key, count, by_scanner: {} })
@@ -51,7 +56,24 @@ export function imagesFacets(rows: ImageRow[]): Record<string, Bucket[]> {
   const namespaces = [...nsCounts.entries()]
     .sort((a, b) => b[1] - a[1])
     .map(([ns, n]) => bucket(ns, n))
-  return { severity, scanner: scanners, namespaces }
+  const byCount = (pick: (r: ImageRow) => string | null | undefined): Bucket[] => {
+    const counts = new Map<string, number>()
+    for (const r of rows) {
+      const key = pick(r)
+      if (key) counts.set(key, (counts.get(key) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, FACET_CAP)
+      .map(([k, n]) => bucket(k, n))
+  }
+  return {
+    severity,
+    scanner: scanners,
+    namespaces,
+    repos: byCount((r) => r.image_repo),
+    tags: byCount((r) => r.tag),
+  }
 }
 
 /**
@@ -76,6 +98,8 @@ export function filterImages(rows: ImageRow[], sel: Selections, modes: Modes = {
   const scanners = sel.scanner ?? []
   const attrs = sel.attr ?? []
   const namespaces = sel.namespace ?? []
+  const repos = sel.repo ?? []
+  const tags = sel.tag ?? []
   const modeOf = (key: string): FilterMode => modes[key] ?? 'is'
   return rows.filter((r) => {
     if (q && !`${r.image_repo} ${r.tag} ${r.namespaces.join(' ')}`.toLowerCase().includes(q))
@@ -86,6 +110,9 @@ export function filterImages(rows: ImageRow[], sel: Selections, modes: Modes = {
     if (attrs.includes('fixable') && !(r.fixable > 0)) return false
     if (!keep(namespaces, modeOf('namespace'), namespaces.some((ns) => r.namespaces.includes(ns))))
       return false
+    // repo and tag are single-valued per row, so the hit is an exact match, not an overlap
+    if (!keep(repos, modeOf('repo'), repos.includes(r.image_repo))) return false
+    if (!keep(tags, modeOf('tag'), tags.includes(r.tag))) return false
     return true
   })
 }

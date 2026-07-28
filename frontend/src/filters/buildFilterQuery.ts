@@ -7,8 +7,14 @@
  *   - single-value params never join/merge multiple selections — a second selection is a bug
  *     upstream and throws here rather than silently mangling the query.
  */
-import type { FilterField, Selections } from './fields.config'
+import { isNegatable, type FilterField, type Selections } from './fields.config'
 import type { Modes } from '@/stores/filters'
+
+/** `severity` or `exclude_severity`, depending on the field's mode (issue 349). */
+const excludeParam = (field: FilterField & { param: string }, modes: Modes): string =>
+  isNegatable(field) && (modes[field.key] ?? 'is') === 'not'
+    ? `exclude_${field.param}`
+    : field.param
 
 export interface FilterGlobals {
   cluster_id: string
@@ -37,10 +43,7 @@ export function buildFilterQuery(
     if (field.type === 'terms') {
       const values = selected.map((v) => v.toLowerCase())
       // exclude mode (issue 349): the API mirror param, only on fields that declare one
-      const param =
-        field.negatable && (modes[field.key] ?? 'is') === 'not'
-          ? `exclude_${field.param}`
-          : field.param
+      const param = excludeParam(field, modes)
       if (field.multi) {
         query[param] = values
       } else {
@@ -64,7 +67,7 @@ export function buildFilterQuery(
       // under-minLength text is OMITTED, never sent — the API would 422 it; the input layer
       // owns the user feedback (contract-guard, audit 343)
       const text = (selected[0] ?? '').trim()
-      if (text && text.length >= (field.minLength ?? 1)) query[field.param] = text
+      if (text && text.length >= (field.minLength ?? 1)) query[excludeParam(field, modes)] = text
     }
   }
 

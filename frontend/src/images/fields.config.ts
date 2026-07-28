@@ -49,4 +49,8 @@ export const IMAGES_FIELDS: readonly FilterField[] = [
     values: [{ key: 'fixable', param: 'fixable', label: 'Fix available' }],
   },
   { key: 'namespace', label: 'Namespace', type: 'terms', param: 'namespace', facetKey: 'namespaces', negatable: true },
+  // repo + tag are DATA-DRIVEN dims (no fixed vocabulary) — this screen filters the served
+  // run in the browser, so both are matched client-side and neither needs a server param
+  { key: 'repo', label: 'Image', type: 'terms', param: 'image_repo', facetKey: 'repos', negatable: true },
+  { key: 'tag', label: 'Tag', type: 'terms', param: 'tag', facetKey: 'tags', negatable: true },
 ]

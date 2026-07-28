@@ -61,6 +61,9 @@ function ratio(fgToken: string, bgToken: string, blendOver = '#ffffff'): number 
 }
 
 const AA = 4.5
+/** WCAG 1.4.11 non-text contrast — the floor for a MARK or icon, which carries no glyph the
+ *  4.5:1 text rule was written for. Never reach for this to excuse low-contrast text. */
+const NON_TEXT = 3
 const LIGHT_SURFACES = ['card', 'panel', 'bg', 'line2'] as const
 
 describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
@@ -125,6 +128,24 @@ describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
       .toBeGreaterThanOrEqual(AA)
     expect.soft(ratio('ver-none-fg', 'card'), 'no-fix italic').toBeGreaterThanOrEqual(AA)
     expect.soft(ratio('sla-tight-fg', 'card'), 'sla tight').toBeGreaterThanOrEqual(AA)
+  })
+
+  it('value actions (issue 349 §2): text over the cell wash, marks on the chip', () => {
+    // The wash is a translucent STATE LAYER, so it is asserted the only way that means
+    // anything: the cell's own text still passes AA once the layer is composited on top of
+    // it. Do NOT add an assertion that the wash itself clears 3:1 against the card — a hover
+    // layer is meant to be subtle (Material 8%, eBay +4% per state) and would fail by design;
+    // 1.4.11 governs indicators that identify a component, not hover feedback.
+    expect
+      .soft(ratio('ink', 'cell-act-wash', tokens['card']), 'ink over the cell wash')
+      .toBeGreaterThanOrEqual(AA)
+    // a hovered ROW is the other ground the same layer lands on
+    expect
+      .soft(ratio('ink', 'cell-act-wash', tokens['row-hover']), 'ink over the cell wash on a hovered row')
+      .toBeGreaterThanOrEqual(AA)
+    // the +/- bars are GRAPHICS, not glyphs, so the floor is 1.4.11's 3:1 rather than AA
+    expect.soft(ratio('table-head-fg', 'slate3'), 'include mark on the chip').toBeGreaterThanOrEqual(NON_TEXT)
+    expect.soft(ratio('val-act-not-fg', 'slate3'), 'exclude mark on the chip').toBeGreaterThanOrEqual(NON_TEXT)
   })
 
   it('dark chrome: the sidebar text ramp on the slate', () => {

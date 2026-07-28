@@ -14,7 +14,12 @@
 import { defineStore } from 'pinia'
 import type { LocationQuery } from 'vue-router'
 
-import { emptySelections, type FilterField, type Selections } from '@/filters/fields.config'
+import {
+  emptySelections,
+  isNegatable,
+  type FilterField,
+  type Selections,
+} from '@/filters/fields.config'
 
 export type FilterMode = 'is' | 'not'
 export type Modes = Record<string, FilterMode>
@@ -51,9 +56,39 @@ export function makeFiltersStore(storeId: string, fields: readonly FilterField[]
         this.selections = emptySelections(fields)
         this.modes = {}
       },
+      /**
+       * Pick a value straight INTO a mode — the rail/grid value actions (issue 349 §2), where
+       * the operator names the side instead of toggling a checkbox and then flipping the pill.
+       *
+       * Clicking the side a value already sits on clears it, so the same control undoes itself.
+       *
+       * The one case worth stating: a field carries ONE mode by design (see the header), so
+       * moving a field to the OTHER mode cannot keep its existing values — their meaning would
+       * silently invert. Entering the other mode therefore starts a fresh selection with just
+       * the clicked value, and the pill shows that result immediately rather than hiding it.
+       */
+      pickValue(fieldKey: string, value: string, mode: FilterMode) {
+        const field = fields.find((f) => f.key === fieldKey)
+        if (!field || field.type === 'flags') return
+        if (mode === 'not' && !isNegatable(field)) return
+        const current = this.modes[fieldKey] ?? 'is'
+        if (current !== mode) {
+          this.selections[fieldKey] = [value]
+          this.setMode(fieldKey, mode)
+          return
+        }
+        // a text field holds one value, so picking it again clears rather than accumulates
+        if (field.type === 'text') {
+          const on = (this.selections[fieldKey] ?? [])[0] === value
+          this.selections[fieldKey] = on ? [] : [value]
+        } else {
+          this.toggle(fieldKey, value)
+        }
+        if ((this.selections[fieldKey] ?? []).length === 0) delete this.modes[fieldKey]
+      },
       setMode(fieldKey: string, mode: FilterMode) {
         const field = fields.find((f) => f.key === fieldKey)
-        if (!field || field.type !== 'terms' || !field.negatable) return
+        if (!field || !isNegatable(field)) return
         if (mode === 'is') delete this.modes[fieldKey]
         else this.modes[fieldKey] = mode
       },
@@ -68,7 +103,7 @@ export function makeFiltersStore(storeId: string, fields: readonly FilterField[]
           const raw = query[field.key]
           if (typeof raw !== 'string' || raw === '') continue
           let values = raw.split(',').filter(Boolean)
-          if (field.type === 'terms' && field.negatable && values.some((v) => v.startsWith('!'))) {
+          if (isNegatable(field) && values.some((v) => v.startsWith('!'))) {
             // any `!` flips the whole field to exclude (one mode per field, never mixed)
             nextModes[field.key] = 'not'
             values = values.map((v) => (v.startsWith('!') ? v.slice(1) : v)).filter(Boolean)

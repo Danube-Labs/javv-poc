@@ -46,9 +46,36 @@ export interface TextField extends BaseField {
   type: 'text'
   param: string
   minLength?: number
+  /** Same `exclude_<param>` mirror as a terms field. A text field can carry it because some
+   * of these params are EXACT terms server-side (`image_repo` is a `term` clause, not a
+   * wildcard) — the free-text input is just the entry affordance, not the match semantics. */
+  negatable?: boolean
 }
 
 export type FilterField = TermsField | FlagsField | TextField
+
+/** Does this field have an `exclude_<param>` twin to negate into? Flags never do — absence
+ * and negation are different questions (issue 349 §1). One helper so the six places that ask
+ * cannot drift apart. */
+export const isNegatable = (field: FilterField): boolean =>
+  field.type !== 'flags' && field.negatable === true
+
+/**
+ * Which mode a value is currently filtered under, or `null` when it is not selected at all —
+ * what a `ValueActions` pair needs to show the active side as pressed (issue 349 §2).
+ *
+ * Here rather than in each table: every grid asked the same question and four copies of the
+ * answer is three too many.
+ */
+export function activeMode(
+  fieldKey: string,
+  value: string,
+  selections: Selections | undefined,
+  modes: Record<string, 'is' | 'not'> | undefined,
+): 'is' | 'not' | null {
+  if (!(selections?.[fieldKey] ?? []).includes(value)) return null
+  return modes?.[fieldKey] ?? 'is'
+}
 
 /** Active selections, keyed by field key. Text fields hold a single-entry array. */
 export type Selections = Record<string, string[]>
@@ -106,6 +133,8 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
   // rail dims are top-N by count (server caps at 32); the value-search in Add-filter still
   // reaches anything the rail's cap hides
   { key: 'namespace', label: 'Namespace', type: 'terms', param: 'namespace', facetKey: 'namespaces', negatable: true },
-  { key: 'image', label: 'Image', type: 'text', param: 'image_repo' },
+  // `image_repo` is an exact `term` server-side, so the grid's image cell can filter on the
+  // row's FULL repo — and negate it, since `exclude_image_repo` exists (issue 349 §2)
+  { key: 'image', label: 'Image', type: 'text', param: 'image_repo', negatable: true },
   { key: 'assignee', label: 'Assignee', type: 'terms', param: 'assignee', facetKey: 'assignee', negatable: true },
 ]

@@ -20,15 +20,29 @@ import { causalOrder } from '@/audit/causalOrder'
 import ActionTag from '@/components/chips/ActionTag.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import SevChip from '@/components/chips/SevChip.vue'
+import ValueActions from '@/components/filters/ValueActions.vue'
+import { activeMode, type Selections } from '@/filters/fields.config'
 import { lastDataAt } from '@/system/freshness'
 import type { AuditEvent } from '@/stores/audit'
+import type { FilterMode, Modes } from '@/stores/filters'
 
 const props = defineProps<{
   rows: AuditEvent[]
   loading?: boolean
   filtered?: boolean
+  /** active selections + modes, so a cell action shows which side it already sits on */
+  selections?: Selections
+  modes?: Modes
 }>()
-const emit = defineEmits<{ rowClick: [row: AuditEvent] }>()
+const emit = defineEmits<{
+  rowClick: [row: AuditEvent]
+  /** a cell's value action (issue 349 §2): filter TO / OUT of this exact value */
+  pickValue: [fieldKey: string, value: string, mode: FilterMode]
+}>()
+
+/** `actor` and `action` are the AUDIT_FIELDS keys; both carry an `exclude_*` twin server-side. */
+const cellActive = (fieldKey: string, value: string): FilterMode | null =>
+  activeMode(fieldKey, value, props.selections, props.modes)
 
 const ordered = computed(() => causalOrder(props.rows))
 
@@ -86,12 +100,32 @@ function onRowClick(row: AuditEvent) {
       </Column>
       <Column header="User" class="fit">
         <template #body="{ data }">
-          <span class="actor-cell">{{ data.actor }}</span>
+          <span class="cell-actionable">
+            <span class="actor-cell">{{ data.actor }}</span>
+            <ValueActions
+              v-if="data.actor"
+              class="val-act-reveal"
+              field="User"
+              :value="data.actor"
+              :active="cellActive('actor', data.actor)"
+              @pick="(m) => emit('pickValue', 'actor', data.actor, m)"
+            />
+          </span>
         </template>
       </Column>
       <Column header="Action" class="fit">
         <template #body="{ data }">
-          <ActionTag :action="data.action" />
+          <span class="cell-actionable">
+            <ActionTag :action="data.action" />
+            <ValueActions
+              v-if="data.action"
+              class="val-act-reveal"
+              field="Action"
+              :value="data.action"
+              :active="cellActive('action', data.action)"
+              @pick="(m) => emit('pickValue', 'action', data.action, m)"
+            />
+          </span>
         </template>
       </Column>
       <Column header="Detail" class="fit">

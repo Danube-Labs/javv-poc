@@ -14,8 +14,11 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import CountDisagree from '@/components/chips/CountDisagree.vue'
 import MixBar from '@/components/dashboards/MixBar.vue'
+import ValueActions from '@/components/filters/ValueActions.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import { activeMode, type Selections } from '@/filters/fields.config'
 import { IMAGES_COLUMNS, type ImagesColumnKey } from '@/images/fields.config'
+import type { FilterMode, Modes } from '@/stores/filters'
 import type { ImageRow } from '@/stores/images'
 import type { Severity } from '@/styles/tokens'
 import { lastDataAt } from '@/system/freshness'
@@ -36,6 +39,9 @@ const props = withDefaults(
     /** header drag-reorder on; the parent owns + persists the order */
     reorderable?: boolean
     dense?: boolean
+    /** active selections + modes, so a cell action shows which side it already sits on */
+    selections?: Selections
+    modes?: Modes
   }>(),
   {
     hidden: () => new Set<string>(),
@@ -63,7 +69,13 @@ const emit = defineEmits<{
   rowClick: [row: ImageRow]
   /** raw PrimeVue rendered-column indexes — map with reorderFromDrag(pinnedLeft=1) */
   reorder: [dragIndex: number, dropIndex: number]
+  /** a cell's value action (issue 349 §2): filter TO / OUT of this exact value */
+  pickValue: [fieldKey: string, value: string, mode: FilterMode]
 }>()
+
+/** The mode this exact value is already filtered under, so the active side reads as pressed. */
+const cellActive = (fieldKey: string, value: string): FilterMode | null =>
+  activeMode(fieldKey, value, props.selections, props.modes)
 
 function onSort(e: DataTableSortEvent) {
   if (typeof e.sortField === 'string') emit('sort', e.sortField as ImagesSortField)
@@ -141,9 +153,24 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     >
       <Column column-key="image" header="Image" :reorderable-column="false">
         <template #body="{ data }">
-          <div class="img-id">
-            <span class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-            <span v-if="registryOf(data)" class="mono-cell sm img-reg">{{ registryOf(data) }}</span>
+          <!-- `.img-id` stacks name over registry, so the actions sit BESIDE it, never inside
+               it — a third child of that column pushed them onto their own line and grew the
+               row (issue 349 §2) -->
+          <div class="cell-actionable">
+            <div class="img-id">
+              <span class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+              <span v-if="registryOf(data)" class="mono-cell sm img-reg">{{ registryOf(data) }}</span>
+            </div>
+            <!-- the cell shortens the repo for display, so the action filters on the FULL
+                 `image_repo` the row carries — never the shortened text -->
+            <ValueActions
+              v-if="data.image_repo"
+              class="val-act-reveal"
+              field="Image"
+              :value="data.image_repo"
+              :active="cellActive('repo', data.image_repo)"
+              @pick="(m) => emit('pickValue', 'repo', data.image_repo, m)"
+            />
           </div>
         </template>
       </Column>
@@ -165,8 +192,30 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <span v-else-if="key === 'seen'">Last seen</span>
         </template>
         <template #body="{ data }">
-          <span v-if="key === 'tag'" class="mono-cell sm">{{ data.tag }}</span>
-          <span v-else-if="key === 'namespace'" class="mono-cell sm" :title="data.namespaces.join(', ')">{{ nsLabel(data) }}</span>
+          <span v-if="key === 'tag'" class="cell-actionable">
+            <span class="mono-cell sm">{{ data.tag }}</span>
+            <ValueActions
+              v-if="data.tag"
+              class="val-act-reveal"
+              field="Tag"
+              :value="data.tag"
+              :active="cellActive('tag', data.tag)"
+              @pick="(m) => emit('pickValue', 'tag', data.tag, m)"
+            />
+          </span>
+          <span v-else-if="key === 'namespace'" class="cell-actionable">
+            <span class="mono-cell sm" :title="data.namespaces.join(', ')">{{ nsLabel(data) }}</span>
+            <!-- only a single-namespace row has one honest value to filter on; the mix and
+                 scanner columns have none at all, so they carry no action (issue 349 §2) -->
+            <ValueActions
+              v-if="data.namespaces.length === 1"
+              class="val-act-reveal"
+              field="Namespace"
+              :value="data.namespaces[0]!"
+              :active="cellActive('namespace', data.namespaces[0]!)"
+              @pick="(m) => emit('pickValue', 'namespace', data.namespaces[0]!, m)"
+            />
+          </span>
           <span v-else-if="key === 'replicas'" class="mono-cell">{{ fmt(data.replicas ?? 0) }}</span>
           <CountDisagree
             v-else-if="key === 'vulns'"

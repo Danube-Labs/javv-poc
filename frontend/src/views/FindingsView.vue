@@ -282,7 +282,9 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
         :fields="FINDINGS_FIELDS"
         :selections="filters.selections"
         :facets="facets"
+        :modes="filters.modes"
         @toggle="filters.toggle"
+        @pick="filters.pickValue"
       >
         <template #value="{ field, value, label }">
           <SevChip v-if="field.key === 'severity'" :level="value" :dot="true" />
@@ -344,7 +346,10 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
           :settled="grid.settled"
           :hidden="hiddenCols"
           :col-order="colOrder"
+          :selections="filters.selections"
+          :modes="filters.modes"
           reorderable
+          @pick-value="filters.pickValue"
           :dense="dense"
           :filtered="Object.values(filters.selections).some((v) => v.length > 0)"
           @sort="grid.setSort"

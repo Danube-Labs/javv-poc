@@ -12,7 +12,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import UiDropdown from '@/components/ui/UiDropdown.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { facetItems, type FacetsResponse } from '@/filters/facets'
-import type { FilterField, Selections } from '@/filters/fields.config'
+import { isNegatable, type FilterField, type Selections } from '@/filters/fields.config'
 import type { FilterMode, Modes } from '@/stores/filters'
 
 const props = defineProps<{
@@ -39,9 +39,7 @@ const MODE_OPTIONS = [
 function modeOf(fieldKey: string): FilterMode {
   return props.modes?.[fieldKey] ?? 'is'
 }
-function negatable(field: FilterField): boolean {
-  return field.type === 'terms' && field.negatable === true
-}
+const negatable = isNegatable
 function opText(field: FilterField): string {
   const many = (props.selections[field.key] ?? []).length > 1
   return modeOf(field.key) === 'not' ? (many ? 'is none of' : 'is not') : many ? 'is one of' : 'is'

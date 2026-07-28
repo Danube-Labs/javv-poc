@@ -91,6 +91,21 @@
   --fpill-not-op: #b5231a;
   --add-filter-line: #b0a48c; /* darkened 2026-07-16: the dashed ghost was invisible on the canvas */
   --add-filter-hover-bg: #fdf4ef;
+  /* the hover STATE LAYER on a filterable cell (issue 349 §2, ruled 2026-07-28). A translucent
+     layer of our own on-surface slate — NOT a solid tint and NOT a complementary hue, which is
+     what every major system does: eBay's playbook adds a semi-transparent state layer at +4%
+     per state (black on light, white on dark) and explicitly uses no complementary colour for
+     hover; Material and Spectrum likewise use transparency (Carbon and Primer pay for solid
+     shades with many more variables). A solid cool blue was built first and rejected — an
+     opaque patch on warm paper is a colour CHANGE, so it shouted where a hover should recede.
+     Alpha also means one value survives every ground it lands on: plain row, hovered row,
+     time-travel tint. */
+  --cell-act-wash: rgba(44, 66, 87, 0.07);
+  --cell-act-line: rgba(44, 66, 87, 0.16);
+  /* the exclusion mark ON the dark chip — `--fpill-not-op` is the same red for LIGHT surfaces
+     and computes 1.6:1 against `--slate3`, so the dark chip needs its own tint of it. Chrome,
+     not severity: never let a `--sev-*` token leak in here to solve a legibility problem. */
+  --val-act-not-fg: #ef9d92;
   --dd-on-bg: rgba(236, 126, 84, 0.1);
   --dd-shadow: 0 14px 40px -16px rgba(22, 35, 47, 0.4);
   --control-hover-line: #d8cfc0;

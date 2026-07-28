@@ -6,7 +6,12 @@
  * touches cluster_id or an absolute `t` — a deep link carries `?cluster=` separately.
  */
 import type { ViewPreset, ViewWorkbench } from '@/api/generated'
-import type { FilterField, Selections, TermsField } from '@/filters/fields.config'
+import {
+  isNegatable,
+  type FilterField,
+  type Selections,
+  type TermsField,
+} from '@/filters/fields.config'
 import type { Modes } from '@/stores/filters'
 
 /** localStorage keys shared with FindingsView (the Columns-menu persistence — applying a view
@@ -42,7 +47,10 @@ export function captureLens(
       }
     } else {
       const text = (selected[0] ?? '').trim()
-      if (text && text.length >= (field.minLength ?? 1)) preset[field.param] = text
+      if (text && text.length >= (field.minLength ?? 1)) {
+        const not = isNegatable(field) && (modes[field.key] ?? 'is') === 'not'
+        preset[not ? `exclude_${field.param}` : field.param] = text
+      }
     }
   }
   return preset as ViewPreset
@@ -74,8 +82,12 @@ export function presetToRouteQuery(
         if (flag.window ? typeof v === 'number' : v === true) attr.push(flag.key)
       }
       if (attr.length > 0) query[field.key] = attr.join(',')
-    } else if (typeof p[field.param] === 'string' && p[field.param] !== '') {
-      query[field.key] = p[field.param] as string
+    } else {
+      // a negated text field round-trips through the same `!` prefix as a terms field
+      const exc = p[`exclude_${field.param}`]
+      const inc = p[field.param]
+      if (typeof exc === 'string' && exc !== '') query[field.key] = `!${exc}`
+      else if (typeof inc === 'string' && inc !== '') query[field.key] = inc
     }
   }
   return query
@@ -102,8 +114,11 @@ export function presetSummary(fields: readonly FilterField[], preset: ViewPreset
         const v = p[flag.param]
         if (flag.window ? typeof v === 'number' : v === true) parts.push(flag.label)
       }
-    } else if (typeof p[field.param] === 'string' && p[field.param] !== '') {
-      parts.push(`${field.label} "${p[field.param] as string}"`)
+    } else {
+      const exc = p[`exclude_${field.param}`]
+      const inc = p[field.param]
+      if (typeof exc === 'string' && exc !== '') parts.push(`${field.label} is not "${exc}"`)
+      else if (typeof inc === 'string' && inc !== '') parts.push(`${field.label} "${inc}"`)
     }
   }
   return parts.join(' · ') || 'No filters — everything'
