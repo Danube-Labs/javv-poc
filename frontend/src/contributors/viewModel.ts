@@ -95,6 +95,13 @@ export interface ProgressRow {
   total: number
 }
 
+/** The done-meter fill as a COMPOSITOR transform rather than a width (issue 484). The fill is
+ * full-width with its own radius and slides left, so the visible right end keeps a true corner —
+ * `scaleX` would squash it — while the track's `overflow: hidden` clips the left exactly as a
+ * width would. Animating width relayouts every frame; §9 rules the sidebar rail the only
+ * deliberate layout animation. `pct` is already 0..100: `progressRows` clamps done to total. */
+export const fillTransform = (pct: number): string => `translateX(${pct - 100}%)`
+
 /** Per-severity done/total from TWO server facet reads (totals; same read filtered to
  * TRIAGED_STATES) — severity order is the canonical ramp, zero-total severities drop out.
  * Counts are the server's per-scanner finding rows (the Overview KPI unit); done is clamped

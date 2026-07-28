@@ -15,6 +15,7 @@ import type { FacetFindingsApiV1FindingsFacetsGetData } from '@/api/generated'
 import SevChip from '@/components/chips/SevChip.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import {
+  fillTransform,
   progressRows,
   TRIAGED_STATES,
   UNTRIAGED_STATES,
@@ -108,7 +109,7 @@ function openLeft(severity: string) {
     >
       <span class="prog-sev"><SevChip :level="r.severity" /></span>
       <span class="prog-track" aria-hidden="true">
-        <i class="prog-fill" :style="{ width: `${pct(r)}%` }" />
+        <i class="prog-fill" :style="{ transform: fillTransform(pct(r)) }" />
       </span>
       <span class="prog-nums mono-cell sm"
         ><b>{{ fmt(r.done) }}</b> / {{ fmt(r.total) }}</span
@@ -164,12 +165,20 @@ function openLeft(severity: string) {
   background: var(--line2);
   overflow: hidden;
 }
+/* full width, slid left by `fillTransform` — a transform composites, a width relayouts the row
+   on every frame of the transition (issue 484) */
 .prog-fill {
   display: block;
+  width: 100%;
   height: 100%;
   background: var(--state-resolved-solid);
   border-radius: 4px;
-  transition: width var(--dur-quick);
+  transition: transform var(--dur-quick);
+}
+@media (prefers-reduced-motion: reduce) {
+  .prog-fill {
+    transition: none;
+  }
 }
 .prog-nums {
   color: var(--soft);
