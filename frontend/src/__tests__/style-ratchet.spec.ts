@@ -69,6 +69,36 @@ describe('style ratchet — no pointer cursor', () => {
 })
 
 /**
+ * "Nothing else animates layout" (DESIGN.md §9, issue 484). Animating width/height/padding/
+ * margin relayouts the page on every frame; §9 rules exactly ONE deliberate exception — the
+ * sidebar collapse rail — and states plainly that nothing else does it. That sentence was true
+ * only by luck: the triage meter had been transitioning `width` since M9d and surfaced through
+ * the anti-pattern detector, not through CI. Enforced here so the claim stays true on its own.
+ */
+describe('style ratchet — nothing else animates layout', () => {
+  /** No /g: a stateful regex would skip files on alternate `.test()` calls. */
+  const LAYOUT_TRANSITION = /transition(?:-property)?:[^;}]*\b(?:width|height|padding|margin)\b/
+  /** The one §9-ruled layout animation: the 226↔64px sidebar collapse rail. */
+  const RULED = 'components/chrome/SideNav.vue'
+
+  const offenders = walk(SRC)
+    .map((p) => relative(SRC, p).split('\\').join('/'))
+    .filter((rel) => LAYOUT_TRANSITION.test(readFileSync(join(SRC, rel), 'utf8')))
+
+  it('no width/height/padding/margin transition outside the ruled sidebar rail', () => {
+    const added = offenders.filter((f) => f !== RULED)
+    expect(
+      added,
+      `animates layout — transition transform/opacity instead (DESIGN.md §9): ${added.join(', ')}`,
+    ).toEqual([])
+  })
+
+  it('the ruled exception is real, not a stale entry', () => {
+    expect(offenders, `${RULED} no longer animates layout — drop it from RULED`).toContain(RULED)
+  })
+})
+
+/**
  * One skeleton pulse (issue 481): `.skel` + `@keyframes skel-shimmer` live in base.css and
  * `UiSkeleton` composes them. The pulse had been re-declared in 18 files under 8 keyframe names
  * before anyone counted, so a view that grows its own shimmer fails here instead of drifting.
