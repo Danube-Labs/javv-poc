@@ -26,6 +26,12 @@
   --ink: #1b2935;
   --soft: #5d6a74; /* AA (≥4.5:1) on card/panel/bg/line2 — the floor for any text */
   --muted: #9aa3aa; /* decorative/disabled ONLY (dashes, gauge fills) — never text (fails AA) */
+  /* the UNFILLED part of a meter (triage progress, EPSS, mix bars). Deeper than `--line2`,
+     which computed 1.03:1 against the button hover wash and 1.11:1 against the row hover —
+     the track vanished the moment a row lit up, so the bar lost its scale (operator,
+     2026-07-28). Warm on purpose: the cool `--dash-muted` reads foreign on the paper. Deep
+     enough to survive both hover grounds, light enough to stay 2.4:1 under the fill. */
+  --meter-track: #d6cbb8;
   --coral: #ec7e54;
   --coral-d: #d96a41;
   --coral-dd: #c05631; /* flat-primary hover/pressed — coral-d alone was too small a step */

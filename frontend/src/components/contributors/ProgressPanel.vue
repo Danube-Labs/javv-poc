@@ -162,7 +162,7 @@ function openLeft(severity: string) {
   display: block;
   height: 7px;
   border-radius: 4px;
-  background: var(--line2);
+  background: var(--meter-track);
   overflow: hidden;
 }
 /* full width, slid left by `fillTransform` — a transform composites, a width relayouts the row
