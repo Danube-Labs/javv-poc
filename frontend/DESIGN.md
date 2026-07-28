@@ -108,7 +108,16 @@ Never an icon font / emoji / other icon library in app chrome.
 facet checkbox   var(--facet-check-line)      pill border   var(--fpill-line)
 pill × hover     var(--fpill-x-hover-bg)      add-filter    var(--add-filter-line) / var(--add-filter-hover-bg)
 dropdown         shadow var(--dd-shadow)      active item   var(--dd-on-bg)
+value actions    var(--val-act-bg) / var(--val-act-line) / var(--val-act-hover-bg), mark var(--slate3)
 ```
+**Value actions are COOL on purpose** (issue 349 §2, operator ruling 2026-07-28 on four built
+specimens): the `+`/`−` chips beside a facet value are the one filter-chrome control that sits
+*on* the data rather than beside it, so they step off the warm ramp to stay visible. A warm
+beige chip on warm paper was built first and read muddy; solid slate was too heavy at five per
+row, ghost slate too faint, and coral lost because `--dd-on-bg` + coral is the **selected**
+language — a resting chip looked switched on. The marks are CSS bars on whole-pixel offsets,
+never typed `+`/`−` (glyph metrics differ, so the box centres the line box and not the ink)
+and never an `AppIcon` addition (the set is ported verbatim and has no `minus`).
 The filter module itself (`FacetRail`/`FilterBar` + `filters/fields.config.ts` +
 `buildFilterQuery`) is M9a-owned — screens import it and pass their own `fields` config,
 never re-implement it.

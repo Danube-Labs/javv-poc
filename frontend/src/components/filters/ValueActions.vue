@@ -9,8 +9,11 @@
  * - It renders SPANS, not buttons. Both hosts nest it inside a `<button>` (the rail's
  *   `.facet-row`; the picker's value rows) and a button may not contain a button — the
  *   prototype's own escape hatch for `.fpill-x`. Unlike `.fpill-x` it IS keyboard-operable.
- * - The glyphs are text, like `.fpill-x`'s literal `×`, so the ported AppIcon set stays
- *   verbatim (it has no `minus`, and inventing one would break "ported from the prototype").
+ * - The +/− marks are drawn in CSS, not typed as characters and not added to AppIcon. Text
+ *   `+` and `−` carry different vertical metrics in Hanken Grotesk, so a 16px box centred
+ *   them by line box and they read visibly off-centre (operator, 2026-07-28); the ported
+ *   icon set has no `minus` to reach for either. Two absolutely-centred bars are exact and
+ *   cost nothing. The label lives in `aria-label`, so nothing is lost by having no text.
  *
  * Deviation on record (DESIGN.md §8.4): the prototype's filter grammar is include-only, so
  * this affordance has no prototype source. Operator ruling 2026-07-27 chose the ⊕/⊖ pair over
@@ -43,7 +46,7 @@ const label = (mode: FilterMode) =>
   <span class="val-act" @click.stop>
     <span
       v-if="!excludeOnly"
-      class="val-act-btn"
+      class="val-act-btn val-act-is"
       :class="{ 'val-act-on': active === 'is' }"
       role="button"
       tabindex="0"
@@ -53,8 +56,7 @@ const label = (mode: FilterMode) =>
       @click="emit('pick', 'is')"
       @keydown.enter.prevent="emit('pick', 'is')"
       @keydown.space.prevent="emit('pick', 'is')"
-      >+</span
-    >
+    />
     <span
       class="val-act-btn val-act-not"
       :class="{ 'val-act-on': active === 'not' }"
@@ -66,7 +68,6 @@ const label = (mode: FilterMode) =>
       @click="emit('pick', 'not')"
       @keydown.enter.prevent="emit('pick', 'not')"
       @keydown.space.prevent="emit('pick', 'not')"
-      >−</span
-    >
+    />
   </span>
 </template>

@@ -101,12 +101,15 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .facet:first-of-type {
   border-top: 0;
 }
+/* group headers carry `--ink`, not the `--soft` annotation grey: they title the section
+   rather than annotate it, and at 10px mono the soft grey receded into the values it labels
+   (operator, 2026-07-28) */
 .facet-title {
   font-family: var(--font-mono);
   font-size: var(--text-facet-label);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--soft);
+  color: var(--ink);
   padding: 2px 8px 8px;
   font-weight: 700;
 }

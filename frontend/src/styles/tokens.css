@@ -91,6 +91,14 @@
   --fpill-not-op: #b5231a;
   --add-filter-line: #b0a48c; /* darkened 2026-07-16: the dashed ghost was invisible on the canvas */
   --add-filter-hover-bg: #fdf4ef;
+  /* value-action chips (issue 349 §2, ruled 2026-07-28 on built A/B/C/D specimens): a COOL
+     grey-blue, deliberately off the warm ramp. Warm-on-warm was built first and rejected as
+     muddy — a beige chip on beige paper cannot pop. Slate-solid and slate-ghost also lost
+     (too heavy / too faint), and coral lost because it is already the SELECTED language, so
+     a resting chip read as switched on. The mark itself is `--slate3`. */
+  --val-act-bg: #e8edf1;
+  --val-act-line: #cfd9e0;
+  --val-act-hover-bg: #d8e2e9;
   --dd-on-bg: rgba(236, 126, 84, 0.1);
   --dd-shadow: 0 14px 40px -16px rgba(22, 35, 47, 0.4);
   --control-hover-line: #d8cfc0;

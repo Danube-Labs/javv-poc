@@ -503,17 +503,18 @@ button.stat-cell:hover .cell-go,
   display: inline-flex;
   align-items: center;
 }
+/* The chip is a COOL grey-blue against the warm paper (operator ruling 2026-07-28 on four
+   built specimens). Warm-on-warm was built first and rejected as muddy; slate-solid read too
+   heavy at five per row, slate-ghost too faint, and coral lost because `--dd-on-bg` + coral
+   is the SELECTED language, so a resting chip looked switched on. */
 .val-act-btn {
-  display: grid;
-  place-items: center;
+  position: relative;
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  border: 1px solid transparent;
-  color: var(--soft);
-  font-size: var(--text-control);
-  font-weight: 700;
-  line-height: 1;
+  background: var(--val-act-bg);
+  border: 1px solid var(--val-act-line);
+  color: var(--slate3);
   transition:
     color var(--dur-quick),
     background-color var(--dur-quick),
@@ -521,7 +522,37 @@ button.stat-cell:hover .cell-go,
 }
 /* wash + border together — a border shift alone is invisible (DESIGN.md §2) */
 .val-act-btn:hover {
-  background: var(--control-hover-bg);
+  background: var(--val-act-hover-bg);
+  border-color: var(--slate3);
+}
+/* The marks: two bars on WHOLE-PIXEL offsets, so + and − share one optical centre and both
+   stay crisp. Typed `+`/`−` were tried first and read off-centre (their glyph metrics differ
+   and the box centres the line box, not the ink). The first bar version then rendered soft:
+   a 1.5px bar centred with `translate(-50%, -50%)` lands on a half pixel, which the browser
+   can only anti-alias. Even sizes at integer offsets inside the 14px padding box (16px box,
+   1px border, border-box) have nothing to blur. Square ends for the same reason — a 1px
+   radius on a 2px bar is all fringe. */
+.val-act-btn::before,
+.val-act-btn::after {
+  content: '';
+  position: absolute;
+  background: currentcolor;
+}
+.val-act-btn::before {
+  left: 3px;
+  top: 6px;
+  width: 8px;
+  height: 2px;
+}
+.val-act-is::after {
+  left: 6px;
+  top: 3px;
+  width: 2px;
+  height: 8px;
+}
+/* wash + border together — a border shift alone is invisible (DESIGN.md §2) */
+.val-act-btn:hover {
+  background: var(--bg);
   border-color: var(--control-hover-line);
   color: var(--coral-text);
 }
