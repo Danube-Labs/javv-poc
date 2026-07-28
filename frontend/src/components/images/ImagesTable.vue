@@ -157,6 +157,16 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         <template #body="{ data }">
           <div class="img-id">
             <span class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+            <!-- the cell shortens the repo for display, so the action filters on the FULL
+                 `image_repo` the row carries — never the shortened text (issue 349 §2) -->
+            <ValueActions
+              v-if="data.image_repo"
+              class="val-act-reveal"
+              field="Image"
+              :value="data.image_repo"
+              :active="cellActive('repo', data.image_repo)"
+              @pick="(m) => emit('pickValue', 'repo', data.image_repo, m)"
+            />
             <span v-if="registryOf(data)" class="mono-cell sm img-reg">{{ registryOf(data) }}</span>
           </div>
         </template>
@@ -179,7 +189,17 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <span v-else-if="key === 'seen'">Last seen</span>
         </template>
         <template #body="{ data }">
-          <span v-if="key === 'tag'" class="mono-cell sm">{{ data.tag }}</span>
+          <span v-if="key === 'tag'" class="cell-actionable">
+            <span class="mono-cell sm">{{ data.tag }}</span>
+            <ValueActions
+              v-if="data.tag"
+              class="val-act-reveal"
+              field="Tag"
+              :value="data.tag"
+              :active="cellActive('tag', data.tag)"
+              @pick="(m) => emit('pickValue', 'tag', data.tag, m)"
+            />
+          </span>
           <span v-else-if="key === 'namespace'" class="cell-actionable">
             <span class="mono-cell sm" :title="data.namespaces.join(', ')">{{ nsLabel(data) }}</span>
             <!-- only a single-namespace row has one honest value to filter on; the mix and

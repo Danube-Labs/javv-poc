@@ -93,6 +93,25 @@ describe('buildFilterQuery', () => {
     expect(q).not.toHaveProperty('namespace')
   })
 
+  /** `image_repo` is an exact `term` server-side and has an `exclude_image_repo` twin, so a
+   * TEXT field negates like a terms one — the input is the entry affordance, not the match. */
+  it('negation reaches text fields that declare an exclude twin', () => {
+    const q = buildFilterQuery(
+      FINDINGS_FIELDS,
+      sel({ image: ['docker.io/library/nginx'] }),
+      { cluster_id: CID },
+      { image: 'not' },
+    )
+    expect(q.exclude_image_repo).toBe('docker.io/library/nginx')
+    expect(q).not.toHaveProperty('image_repo')
+  })
+
+  it('a text field with no exclude twin ignores the mode entirely', () => {
+    const q = buildFilterQuery(FINDINGS_FIELDS, sel({ q: ['nginx'] }), { cluster_id: CID }, { q: 'not' })
+    expect(q.q).toBe('nginx') // the rail search box is not negatable
+    expect(q).not.toHaveProperty('exclude_q')
+  })
+
   it('drives entirely off the config: a new field needs no builder change', () => {
     const fields: FilterField[] = [
       ...FINDINGS_FIELDS,

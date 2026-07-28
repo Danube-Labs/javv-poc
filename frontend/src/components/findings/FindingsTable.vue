@@ -160,10 +160,13 @@ const nsLabel = (r: FindingRow): string => {
  * shows is EXACTLY the value a negatable filter field takes — anything looser would build a
  * filter that doesn't mean what the cell says.
  *
- * Deliberately absent: `image` (the cell shortens the repo for display, and the filter wants
- * the full `image_repo`), `package` (no filter twin — `ptype` is a different field), and the
- * pure-data columns. `namespace` only qualifies on a single-namespace row, because a finding
- * spanning three namespaces has no one value to filter on.
+ * `image` filters on the row's FULL `image_repo` (an exact `term` server-side) even though the
+ * cell shortens it for display — and on repo only, since findings carry no tag filter, which
+ * the action's label says out loud.
+ *
+ * Deliberately absent: `package` (no filter twin — `ptype` is package TYPE, a different
+ * field) and the pure-data columns. `namespace` only qualifies on a single-namespace row,
+ * because a finding spanning three namespaces has no one value to filter on.
  */
 const CELL_FILTER_FIELD: Partial<Record<FindingsColumnKey | 'severity', string>> = {
   severity: 'severity',
@@ -171,6 +174,7 @@ const CELL_FILTER_FIELD: Partial<Record<FindingsColumnKey | 'severity', string>>
   scanner: 'scanner',
   namespace: 'namespace',
   assignee: 'assignee',
+  image: 'image',
 }
 
 function cellValue(key: string, r: FindingRow): string | null {
@@ -178,6 +182,7 @@ function cellValue(key: string, r: FindingRow): string | null {
   if (key === 'state') return r.state ?? null
   if (key === 'scanner') return r.scanner ?? null
   if (key === 'assignee') return r.assignee || null
+  if (key === 'image') return r.image_repo || null
   if (key === 'namespace') {
     const ns = Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []
     return ns.length === 1 ? ns[0]! : null // ambiguous across several — no honest single value
@@ -254,7 +259,20 @@ function cellActive(key: string, value: string): FilterMode | null {
             <span v-if="data.fixed_version" class="mono-cell sm ver-fix">{{ data.fixed_version }}</span>
             <span v-else class="ver-none">no fix</span>
           </template>
-          <span v-else-if="key === 'image'" class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
+          <span v-else-if="key === 'image'" class="cell-actionable">
+            <span class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
+            <!-- the cell reads `repo:tag` but the filter is repo-ONLY (there is no tag param
+                 on findings), so the action says so in its tooltip rather than pretending the
+                 tag is part of it — "+ nginx" also matches nginx:1.21.6 -->
+            <ValueActions
+              v-if="data.image_repo"
+              class="val-act-reveal"
+              field="Image (all tags)"
+              :value="data.image_repo"
+              :active="cellActive('image', data.image_repo)"
+              @pick="(m) => emit('pickValue', 'image', data.image_repo, m)"
+            />
+          </span>
           <span
             v-else-if="key === 'namespace'"
             class="mono-cell sm ns-cell"

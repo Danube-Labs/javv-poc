@@ -9,7 +9,7 @@ import { computed } from 'vue'
 
 import ValueActions from '@/components/filters/ValueActions.vue'
 import { facetItems, scannerSplit, type FacetsResponse } from '@/filters/facets'
-import type { FilterField, Selections } from '@/filters/fields.config'
+import { isNegatable, type FilterField, type Selections } from '@/filters/fields.config'
 import type { FilterMode, Modes } from '@/stores/filters'
 
 const props = defineProps<{
@@ -25,7 +25,7 @@ const emit = defineEmits<{
 }>()
 
 /** Exclude is offered only where the backend has an `exclude_*` twin to receive it. */
-const negatable = (field: FilterField) => field.type === 'terms' && field.negatable === true
+const negatable = isNegatable
 
 /** The mode this value is selected under, or null when it is not selected at all. */
 function activeMode(field: FilterField, value: string): FilterMode | null {

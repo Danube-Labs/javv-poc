@@ -14,7 +14,12 @@
 import { defineStore } from 'pinia'
 import type { LocationQuery } from 'vue-router'
 
-import { emptySelections, type FilterField, type Selections } from '@/filters/fields.config'
+import {
+  emptySelections,
+  isNegatable,
+  type FilterField,
+  type Selections,
+} from '@/filters/fields.config'
 
 export type FilterMode = 'is' | 'not'
 export type Modes = Record<string, FilterMode>
@@ -64,20 +69,26 @@ export function makeFiltersStore(storeId: string, fields: readonly FilterField[]
        */
       pickValue(fieldKey: string, value: string, mode: FilterMode) {
         const field = fields.find((f) => f.key === fieldKey)
-        if (!field || field.type !== 'terms') return
-        if (mode === 'not' && !field.negatable) return
+        if (!field || field.type === 'flags') return
+        if (mode === 'not' && !isNegatable(field)) return
         const current = this.modes[fieldKey] ?? 'is'
         if (current !== mode) {
           this.selections[fieldKey] = [value]
           this.setMode(fieldKey, mode)
           return
         }
-        this.toggle(fieldKey, value)
+        // a text field holds one value, so picking it again clears rather than accumulates
+        if (field.type === 'text') {
+          const on = (this.selections[fieldKey] ?? [])[0] === value
+          this.selections[fieldKey] = on ? [] : [value]
+        } else {
+          this.toggle(fieldKey, value)
+        }
         if ((this.selections[fieldKey] ?? []).length === 0) delete this.modes[fieldKey]
       },
       setMode(fieldKey: string, mode: FilterMode) {
         const field = fields.find((f) => f.key === fieldKey)
-        if (!field || field.type !== 'terms' || !field.negatable) return
+        if (!field || !isNegatable(field)) return
         if (mode === 'is') delete this.modes[fieldKey]
         else this.modes[fieldKey] = mode
       },
@@ -92,7 +103,7 @@ export function makeFiltersStore(storeId: string, fields: readonly FilterField[]
           const raw = query[field.key]
           if (typeof raw !== 'string' || raw === '') continue
           let values = raw.split(',').filter(Boolean)
-          if (field.type === 'terms' && field.negatable && values.some((v) => v.startsWith('!'))) {
+          if (isNegatable(field) && values.some((v) => v.startsWith('!'))) {
             // any `!` flips the whole field to exclude (one mode per field, never mixed)
             nextModes[field.key] = 'not'
             values = values.map((v) => (v.startsWith('!') ? v.slice(1) : v)).filter(Boolean)

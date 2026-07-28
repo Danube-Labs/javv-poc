@@ -124,11 +124,25 @@ describe('filters store', () => {
 
     it('refuses exclude where the backend has no exclude_* twin', () => {
       const s = useStore()
-      s.pickValue('attr', 'kev', 'not') // flags are never negatable
+      s.pickValue('attr', 'kev', 'not') // flags are never negatable — absence ≠ negation
       expect(s.selections.attr).toEqual([])
       expect(s.modeOf('attr')).toBe('is')
-      s.pickValue('image', 'nginx', 'not') // text field, not a terms field
+      s.pickValue('q', 'nginx', 'not') // the rail search box declares no exclude twin
+      expect(s.selections.q).toEqual([])
+    })
+
+    /** `image_repo` is an exact `term` server-side with an `exclude_image_repo` twin, so a
+     * TEXT field can negate — the free-text input is the entry affordance, not the match. */
+    it('negates a text field that declares an exclude twin', () => {
+      const s = useStore()
+      s.pickValue('image', 'docker.io/library/nginx', 'not')
+      expect(s.selections.image).toEqual(['docker.io/library/nginx'])
+      expect(s.modeOf('image')).toBe('not')
+      expect(s.toQuery().image).toBe('!docker.io/library/nginx')
+      // one value per text field — picking the same side again clears rather than accumulates
+      s.pickValue('image', 'docker.io/library/nginx', 'not')
       expect(s.selections.image).toEqual([])
+      expect(s.modeOf('image')).toBe('is')
     })
   })
 
