@@ -47,6 +47,30 @@ describe('imagesFacets (image counts, not finding counts)', () => {
     ])
     expect(f.namespaces![0]).toMatchObject({ key: 'javv-smoke', count: 2 })
   })
+
+  it('repo/tag buckets (issue 349 §2): count-sorted, one bucket per distinct value', () => {
+    const f = imagesFacets(rows)
+    expect(f.repos).toEqual([
+      { key: 'docker.io/library/nginx', count: 2, by_scanner: {} },
+      { key: 'docker.io/rancher/klipper-lb', count: 1, by_scanner: {} },
+    ])
+    expect(f.tags).toEqual([
+      { key: '1.21.6', count: 2, by_scanner: {} },
+      { key: 'v0.4.17', count: 1, by_scanner: {} },
+    ])
+  })
+
+  it('repo/tag buckets cap at the server facet limit, keeping the top by count', () => {
+    const many = Array.from({ length: 40 }, (_, i) =>
+      row({ image_digest: `sha256:${i}`, image_repo: `registry/repo-${i}`, tag: `t${i}` }),
+    )
+    // a duplicate makes one repo the clear top — the cap must keep it
+    many.push(row({ image_digest: 'sha256:dup', image_repo: 'registry/repo-0', tag: 't0' }))
+    const f = imagesFacets(many)
+    expect(f.repos).toHaveLength(32)
+    expect(f.tags).toHaveLength(32)
+    expect(f.repos![0]).toMatchObject({ key: 'registry/repo-0', count: 2 })
+  })
 })
 
 describe('filterImages (OR within a field, AND across)', () => {
@@ -152,5 +176,23 @@ describe('filterImages — exclude mode', () => {
   it('defaults to include when no modes are passed at all', () => {
     const s = { ...sel(), severity: ['critical'] }
     expect(digests(filterImages(rows, s))).toEqual(digests(filterImages(rows, s, {})))
+  })
+
+  /** repo/tag are single-valued per row (issue 349 §2) — exact match, strict complement. */
+  it('repo include and exclude partition the set', () => {
+    const s = { ...sel(), repo: ['docker.io/library/nginx'] }
+    expect(digests(filterImages(rows, s))).toEqual(['sha256:a', 'sha256:c'])
+    expect(digests(filterImages(rows, s, { repo: 'not' }))).toEqual(['sha256:b'])
+  })
+
+  it('tag include and exclude partition the set', () => {
+    const s = { ...sel(), tag: ['v0.4.17'] }
+    expect(digests(filterImages(rows, s))).toEqual(['sha256:b'])
+    expect(digests(filterImages(rows, s, { tag: 'not' }))).toEqual(['sha256:a', 'sha256:c'])
+  })
+
+  it('repo matches the FULL image_repo the row carries, never a shortened display form', () => {
+    expect(filterImages(rows, { ...sel(), repo: ['nginx'] })).toHaveLength(0)
+    expect(filterImages(rows, { ...sel(), repo: ['library/nginx'] })).toHaveLength(0)
   })
 })

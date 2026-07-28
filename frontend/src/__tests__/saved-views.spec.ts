@@ -96,3 +96,41 @@ describe('saved views — the golden capture ⇄ apply round-trip (SCREENS §6)'
     expect(captureLens(FINDINGS_FIELDS, emptySelections(FINDINGS_FIELDS), {}, 30)).toEqual({})
   })
 })
+
+/**
+ * A negated TEXT field (issue 349 §2): `image` is the one text field with an exclude twin
+ * (`image_repo` is an exact `term` server-side). Same golden discipline — a preset that
+ * captures `exclude_image_repo` but restores it as an include would misfilter under a pill
+ * that reads correctly.
+ */
+describe('saved views — negated text field round-trip', () => {
+  const REPO = 'docker.io/library/nginx'
+  const SEL = { ...emptySelections(FINDINGS_FIELDS), image: [REPO] }
+  const NOT_IMAGE = { image: 'not' } as const
+
+  it('capture: a negated text selection lands on the exclude param', () => {
+    expect(captureLens(FINDINGS_FIELDS, SEL, NOT_IMAGE, 30)).toEqual({ exclude_image_repo: REPO })
+    // and the include side still captures plain — the mode is what flips it
+    expect(captureLens(FINDINGS_FIELDS, SEL, {}, 30)).toEqual({ image_repo: REPO })
+  })
+
+  it('apply: exclude_image_repo restores through the same ! grammar as a terms field', () => {
+    expect(presetToRouteQuery(FINDINGS_FIELDS, { exclude_image_repo: REPO } as never)).toEqual({
+      image: `!${REPO}`,
+    })
+  })
+
+  it('round-trip: the applied URL re-emits exclude_image_repo EXACTLY', () => {
+    setActivePinia(createPinia())
+    const store = makeFiltersStore('golden-text-not', FINDINGS_FIELDS)()
+    store.fromQuery({ image: `!${REPO}` })
+    const body = buildFilterQuery(FINDINGS_FIELDS, store.selections, { cluster_id: CID }, store.modes)
+    expect(body).toEqual({ cluster_id: CID, exclude_image_repo: REPO })
+  })
+
+  it('summary speaks the negation, not just the value', () => {
+    expect(presetSummary(FINDINGS_FIELDS, { exclude_image_repo: REPO } as never)).toBe(
+      `Image is not "${REPO}"`,
+    )
+  })
+})

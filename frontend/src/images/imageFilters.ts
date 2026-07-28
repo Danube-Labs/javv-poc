@@ -37,6 +37,11 @@ interface Bucket {
   by_scanner: Record<string, number>
 }
 
+/** Mirrors the server facet cap (the rail's "top 32 by count" note): a fleet-sized run has
+ * one repo/tag per image, and an uncapped list would grow the rail without bound. `q` still
+ * contains-matches repo and tag, so the tail stays reachable — the note holds here too. */
+const FACET_CAP = 32
+
 /** FacetsResponse-shaped buckets for the rail/bar — counts are images, not findings. */
 export function imagesFacets(rows: ImageRow[]): Record<string, Bucket[]> {
   const bucket = (key: string, count: number): Bucket => ({ key, count, by_scanner: {} })
@@ -57,7 +62,10 @@ export function imagesFacets(rows: ImageRow[]): Record<string, Bucket[]> {
       const key = pick(r)
       if (key) counts.set(key, (counts.get(key) ?? 0) + 1)
     }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([k, n]) => bucket(k, n))
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, FACET_CAP)
+      .map(([k, n]) => bucket(k, n))
   }
   return {
     severity,
