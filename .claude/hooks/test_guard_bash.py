@@ -6,10 +6,11 @@ so the false-positive cases carry as much weight as the ones that must block.
 """
 
 import sys
+import tempfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from guard_bash import offending_reason  # noqa: E402
+from guard_bash import index_lock_blocker, offending_reason, takes_index_lock  # noqa: E402
 
 MUST_BLOCK = [
     "git add -A",
@@ -48,6 +49,57 @@ MUST_ALLOW = [
 ]
 
 
+# Commands that contend for `.git/index.lock` and so must be serialized behind a live lock.
+TAKES_LOCK = [
+    "git commit -m 'x'",
+    "git add README.md",
+    "git checkout -b feat/x",
+    "git rebase main",
+    "git -C /repo commit -m 'x'",  # global flag with a value, walked past
+    "git -c user.name=x commit -m 'y'",
+    "cd frontend && git add src/main.ts",
+    "git fetch --prune && git checkout main",  # the second segment contends
+    # the OUTER command decides: this is a real commit, whatever its message happens to say
+    "git commit -m 'about to git rebase main'",
+]
+
+# Read-only git and non-git commands must NOT pay the lock wait.
+NO_LOCK = [
+    "git status -sb",
+    "git log --oneline -1",
+    "git diff --stat",
+    "git branch -vv",
+    "git fetch --prune",
+    "gh pr list --state open",
+    "npm run test:ci",
+    # git named only as DATA — inside another tool's argument, never run
+    "echo 'git commit -m x' >> notes.md",
+    'gh issue comment 1 --body "then git rebase main"',
+    "rg 'git checkout' docs/",
+]
+
+
+def check_index_lock() -> list[str]:
+    """The lock guard end-to-end: a present lock reports, an absent one stays silent."""
+    out = []
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / ".git").mkdir()
+        if index_lock_blocker(str(repo), wait_seconds=0.1) is not None:
+            out.append("  clean repo should not block")
+        (repo / ".git" / "index.lock").touch()
+        reason = index_lock_blocker(str(repo), wait_seconds=0.3)
+        if reason is None:
+            out.append("  held lock should report after the wait")
+        elif "one at a time" not in reason:
+            out.append("  lock message should name the fix, not just the symptom")
+        # a directory with no .git at all is not our business
+        with tempfile.TemporaryDirectory() as bare:
+            if index_lock_blocker(bare, wait_seconds=0.1) is not None:
+                out.append("  non-repo directory should not block")
+    return out
+
+
 def main() -> int:
     failures = []
     for cmd in MUST_BLOCK:
@@ -57,12 +109,20 @@ def main() -> int:
         reason = offending_reason(cmd)
         if reason is not None:
             failures.append(f"  SHOULD ALLOW but blocked: {cmd!r}")
+    for cmd in TAKES_LOCK:
+        if not takes_index_lock(cmd):
+            failures.append(f"  SHOULD WAIT on the index lock: {cmd!r}")
+    for cmd in NO_LOCK:
+        if takes_index_lock(cmd):
+            failures.append(f"  SHOULD NOT wait on the index lock: {cmd!r}")
+    failures += check_index_lock()
     if failures:
         print(f"guard-bash: {len(failures)} failure(s)")
         print("\n".join(failures))
         return 1
     print(
-        f"guard-bash: {len(MUST_BLOCK)} blocked, {len(MUST_ALLOW)} allowed, all as expected"
+        f"guard-bash: {len(MUST_BLOCK)} blocked, {len(MUST_ALLOW)} allowed, "
+        f"{len(TAKES_LOCK)} serialized, {len(NO_LOCK)} unaffected — all as expected"
     )
     return 0
 
