@@ -183,8 +183,10 @@ Invoke the matching skill before starting that kind of work:
 - **api-and-interface-design** - designing FastAPI endpoints / Pydantic schemas / the backend↔Vue contract.
 - **frontend-ui-engineering** - any Vue/PrimeVue screen or the new panels (Data Retention, CVE audit).
 - **impeccable** (`.claude/skills/impeccable`) - design critique/typography/hardening/layout for any
-  UI surface; its `npx impeccable detect` scanner runs on rendered-HTML dumps of changed screens as
-  part of the authoring loop (ruled exceptions live in `frontend/DESIGN.md` §9 — don't relitigate).
+  UI surface; run its **vendored** scanner (`node .claude/skills/impeccable/scripts/detect.mjs
+  <paths>`) over changed frontend files as part of the authoring loop — **never `npx impeccable`**,
+  which is unpinned and has already served a stale version whose retired rule invented a finding
+  (DESIGN.md §9; ruled exceptions live there — don't relitigate).
 - **security-and-hardening** - the ingest surface (untrusted scanner input), RBAC/authz, OpenSearch DSL
   construction. Mandatory for M1 ingest and M3 auth.
 - **performance-optimization** - OpenSearch query/agg/shard tuning, large-table FE render. Measure first.

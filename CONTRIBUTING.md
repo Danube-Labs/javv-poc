@@ -78,8 +78,10 @@ however well written.
 **Where the visual grammar comes from**, in order: the prototype in `handoff/` (composition
 reference for a screen, per DESIGN.md §8); then [ui.nuxt.com](https://ui.nuxt.com) and
 [framework7.io](https://framework7.io): borrow *composition grammar* and *transition style*, then
-re-express them in JAVV tokens, never the libraries themselves; then `npx impeccable detect` on the
-changed screens (DESIGN.md §9 lists the ruled exceptions, which are settled).
+re-express them in JAVV tokens, never the libraries themselves; then the vendored anti-pattern
+detector on the changed files — `node .claude/skills/impeccable/scripts/detect.mjs <paths>`, never
+`npx impeccable` (unpinned; a stale version has already invented a finding). DESIGN.md §9 lists the
+ruled exceptions, which are settled.
 
 **Tokens, not literals.** Colors come from the right bucket and the wrong bucket is a bug: brand
 (`--coral`, `--amber`, `--teal`) is chrome and must never encode severity; `--sev-*` is data only;
