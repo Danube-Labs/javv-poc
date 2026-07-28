@@ -60,6 +60,23 @@ export type FilterField = TermsField | FlagsField | TextField
 export const isNegatable = (field: FilterField): boolean =>
   field.type !== 'flags' && field.negatable === true
 
+/**
+ * Which mode a value is currently filtered under, or `null` when it is not selected at all —
+ * what a `ValueActions` pair needs to show the active side as pressed (issue 349 §2).
+ *
+ * Here rather than in each table: every grid asked the same question and four copies of the
+ * answer is three too many.
+ */
+export function activeMode(
+  fieldKey: string,
+  value: string,
+  selections: Selections | undefined,
+  modes: Record<string, 'is' | 'not'> | undefined,
+): 'is' | 'not' | null {
+  if (!(selections?.[fieldKey] ?? []).includes(value)) return null
+  return modes?.[fieldKey] ?? 'is'
+}
+
 /** Active selections, keyed by field key. Text fields hold a single-entry array. */
 export type Selections = Record<string, string[]>
 

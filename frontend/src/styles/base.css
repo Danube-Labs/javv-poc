@@ -498,23 +498,99 @@ button.stat-cell:hover .cell-go,
   margin-left: 6px;
   vertical-align: middle;
 }
-/* a cell that pairs its content with value actions — keeps both on one baseline */
-.cell-actionable {
-  display: inline-flex;
-  align-items: center;
+/* GRID CELLS: the floating action pill, ported from Kibana Discover's
+   `euiDataGridRowCell__actionsWrapper` measured on the running product (operator ruling
+   2026-07-28 — "exactly that, per cell"). Their geometry: `position:absolute`, `top:-21px`,
+   `z-index:1000`, a solid slate bar with light icons, `border-radius: 3px 3px 3px 0` so the
+   flat corner joins the cell edge and it reads as a tab.
+
+   Absolute is the whole point, not a detail. An in-flow version was built first and rejected:
+   it reserved width, so a narrow column pushed the actions onto a second line and grew every
+   row ("the rows got very tall"), and the fix for THAT was forcing the content to truncate —
+   paying twice for an affordance that should cost nothing. Floating costs no layout at all:
+   every cell measures, wraps and truncates exactly as it did before this feature existed.
+
+   Ported onto OUR chrome, per §8.1 (structure yes, palette never): the bar is `--slate3` with
+   `--table-head-fg` marks — the same dark-band-plus-parchment pairing the table head already
+   uses — not Kibana's grey. Radius stays on our scale (`--r-chip`), not their 3px. */
+/* The TD is the target, not the text inside it (operator ruling 2026-07-28). The wash was
+   first hung on the inline wrapper, so it shrink-wrapped whatever the cell happened to hold —
+   fine on a bare string, broken on Audit's Action column where it wrapped an `ActionTag` chip
+   in a second box. Hanging it on the cell means one rule covers every cell shape, present and
+   future, with no per-column tailoring; it also widens the hit area to the whole column, which
+   is what a grid affordance should be.
+
+   The cell selects on `.val-act` — the CONTROL — not on the `.cell-actionable` wrapper, which
+   the findings grid puts around every column body whether or not that column can be filtered.
+   Keying off the wrapper lit up First seen, EPSS and KEV: a hover promising an action that was
+   never rendered there. `.cell-actionable` stays as the value carrier and as the hook that
+   tells the grid bar apart from the rail chip; it draws nothing itself. */
+.tbl tbody td:has(.val-act) {
+  position: relative;
+  transition:
+    background-color var(--dur-quick),
+    box-shadow var(--dur-quick);
 }
-/* The chip is a COOL grey-blue against the warm paper (operator ruling 2026-07-28 on four
-   built specimens). Warm-on-warm was built first and rejected as muddy; slate-solid read too
-   heavy at five per row, slate-ghost too faint, and coral lost because `--dd-on-bg` + coral
-   is the SELECTED language, so a resting chip looked switched on. */
+/* wash + hairline, never border-only (§2). The bar alone was not enough — with nothing lit
+   until it appeared there was no cue that a cell was actionable at all. Inset shadow rather
+   than a border: a real border would resize the cell and shift the column. */
+.tbl tbody td:has(.val-act):hover {
+  background: var(--cell-act-wash);
+  box-shadow: inset 0 0 0 1px var(--cell-act-line);
+}
+.cell-actionable .val-act {
+  position: absolute;
+  bottom: 100%; /* sits ON the cell's top edge, overhanging the row above */
+  /* the cell's own horizontal padding (`.tbl td`), so the bar stops on the column's content
+     edge instead of straddling the divider */
+  right: 12px;
+  z-index: 5;
+  margin: 0 0 -1px;
+  gap: 0;
+  padding: 2px;
+  background: var(--slate3);
+  border-radius: var(--r-chip) var(--r-chip) 0 var(--r-chip);
+}
+/* the FIRST row has nothing above it to overhang into, and both `.tbl-card` (overflow:hidden)
+   and `.tbl-wrap` (overflow-x:auto, which makes the block axis auto too) would clip it — so
+   that row alone drops its pill below, mirrored. */
+.tbl tbody tr:first-child .cell-actionable .val-act {
+  bottom: auto;
+  top: 100%;
+  margin: -1px 0 0;
+  border-radius: var(--r-chip) 0 var(--r-chip) var(--r-chip);
+}
+/* A table with ONE row is first and last at once: there is no row above to overhang and none
+   below to flip into, so both directions hit the card's clip and the bar shows as a severed
+   stub under the value (a filtered `repo` on Running images does exactly this). That row alone
+   keeps the bar INSIDE the cell — the only case where covering the value's tail beats showing
+   half a control. A whole-pixel offset, never `translateY(-50%)`: a fractional one would
+   re-blur the marks the same way it did before. */
+.tbl tbody tr:first-child:last-child .cell-actionable .val-act {
+  top: 2px;
+  bottom: auto;
+  margin: 0;
+  border-radius: var(--r-chip);
+}
+/* on the bar the buttons are bare marks — the bar itself is the surface */
+.cell-actionable .val-act-btn {
+  background: transparent;
+  border-color: transparent;
+  color: var(--table-head-fg);
+}
+/* ONE control colour on both surfaces (operator ruling 2026-07-28): dark slate with light
+   marks — in the rail the chip is its own surface, in a grid cell the floating bar is, and the
+   buttons on it go transparent (above). The earlier split, a cool light-blue chip in the rail
+   against the dark bar in the grid, read as two languages for one action; that light blue now
+   washes the actionable CELL instead, where it is the surface and not the control. */
 .val-act-btn {
   position: relative;
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  background: var(--val-act-bg);
-  border: 1px solid var(--val-act-line);
-  color: var(--slate3);
+  background: var(--slate3);
+  border: 1px solid var(--slate3);
+  color: var(--table-head-fg);
   transition:
     color var(--dur-quick),
     background-color var(--dur-quick),
@@ -522,8 +598,8 @@ button.stat-cell:hover .cell-go,
 }
 /* wash + border together — a border shift alone is invisible (DESIGN.md §2) */
 .val-act-btn:hover {
-  background: var(--val-act-hover-bg);
-  border-color: var(--slate3);
+  background: var(--table-head-line);
+  border-color: var(--table-head-line);
 }
 /* The marks: two bars on WHOLE-PIXEL offsets, so + and − share one optical centre and both
    stay crisp. Typed `+`/`−` were tried first and read off-centre (their glyph metrics differ
@@ -550,41 +626,49 @@ button.stat-cell:hover .cell-go,
   width: 2px;
   height: 8px;
 }
-/* wash + border together — a border shift alone is invisible (DESIGN.md §2) */
-.val-act-btn:hover {
-  background: var(--bg);
-  border-color: var(--control-hover-line);
-  color: var(--coral-text);
-}
 .val-act-btn:active {
-  background: var(--control-active-bg);
+  background: var(--slate);
+  border-color: var(--slate);
 }
 .val-act-btn:focus-visible {
   outline: var(--focus-ring);
   outline-offset: 1px;
 }
+/* `--fpill-not-op` is that same exclusion red for LIGHT grounds and computes 1.6:1 on the dark
+   chip — the dark surface needs the tint, not the ink. */
 .val-act-not:hover,
 .val-act-not.val-act-on {
-  color: var(--fpill-not-op);
+  color: var(--val-act-not-fg);
 }
+/* `--coral-text` is tuned for AA on light washes and goes near-invisible here, so the ON state
+   wears the coral FILL as its mark — still the one selected language, read on a dark ground. */
 .val-act-on {
   background: var(--dd-on-bg);
   border-color: var(--coral);
-  color: var(--coral-text);
+  color: var(--coral);
 }
 
-/* Revealed by the row's own hover (operator ruling 2026-07-28 on built A/B specimens, §8.5).
-   The at-rest variant lost: at 198 glyphs on a 25-row page it wrapped the narrow namespace
-   column onto a second line and inflated row heights, against §4's compact-density contract.
-   It is a knowing exception to §5's "hover-only affordance is not discoverable", bounded by
-   the rule below — an action already ACTIVE always shows, so a filter the operator turned on
-   can never be invisible, and keyboard focus reveals it for non-pointer users. */
-.val-act-reveal .val-act-btn:not(.val-act-on) {
+/* Revealed on hover (operator ruling 2026-07-28 on built A/B specimens, §8.5). The at-rest
+   variant lost: at 198 glyphs on a 25-row page it wrapped the narrow namespace column and
+   inflated row heights, against §4's compact-density contract. It is a knowing exception to
+   §5's "hover-only affordance is not discoverable", bounded below — an action already ACTIVE
+   always shows, so a filter the operator turned on can never be invisible, and keyboard focus
+   reveals it for non-pointer users.
+
+   In a GRID the trigger is the CELL, matching Kibana: one bar appears over the cell under the
+   pointer, not a row of them. In the RAIL a row IS one value, so the row is the cell. */
+.val-act-reveal {
   opacity: 0;
 }
-.tbl-hover tbody tr:hover .val-act-reveal .val-act-btn,
-.facet-row:hover .val-act-reveal .val-act-btn,
-.val-act-reveal .val-act-btn:focus-visible {
+.tbl tbody td:has(.val-act):hover .val-act-reveal,
+.facet-row:hover .val-act-reveal,
+.val-act-reveal:focus-within,
+/* The always-on-when-active clause is the RAIL's alone. In a grid it was the "stuck in weird
+   places" bug: a filtered value pinned its pill open on every matching row, floating over the
+   row above with no pointer near it — and on row 1, where the pill flips below, half-clipped by
+   the table's bottom edge. A grid's active filters are already legible in the pill bar and the
+   rail, so the cell need not restate them (bounds the §5 exception the same way). */
+.facet-row .val-act-reveal:has(.val-act-on) {
   opacity: 1;
 }
 @media (prefers-reduced-motion: reduce) {

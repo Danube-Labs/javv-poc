@@ -16,7 +16,7 @@ import CountDisagree from '@/components/chips/CountDisagree.vue'
 import MixBar from '@/components/dashboards/MixBar.vue'
 import ValueActions from '@/components/filters/ValueActions.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
-import type { Selections } from '@/filters/fields.config'
+import { activeMode, type Selections } from '@/filters/fields.config'
 import { IMAGES_COLUMNS, type ImagesColumnKey } from '@/images/fields.config'
 import type { FilterMode, Modes } from '@/stores/filters'
 import type { ImageRow } from '@/stores/images'
@@ -74,10 +74,8 @@ const emit = defineEmits<{
 }>()
 
 /** The mode this exact value is already filtered under, so the active side reads as pressed. */
-function cellActive(fieldKey: string, value: string): FilterMode | null {
-  if (!(props.selections?.[fieldKey] ?? []).includes(value)) return null
-  return props.modes?.[fieldKey] ?? 'is'
-}
+const cellActive = (fieldKey: string, value: string): FilterMode | null =>
+  activeMode(fieldKey, value, props.selections, props.modes)
 
 function onSort(e: DataTableSortEvent) {
   if (typeof e.sortField === 'string') emit('sort', e.sortField as ImagesSortField)
@@ -155,10 +153,16 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     >
       <Column column-key="image" header="Image" :reorderable-column="false">
         <template #body="{ data }">
-          <div class="img-id">
-            <span class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+          <!-- `.img-id` stacks name over registry, so the actions sit BESIDE it, never inside
+               it — a third child of that column pushed them onto their own line and grew the
+               row (issue 349 §2) -->
+          <div class="cell-actionable">
+            <div class="img-id">
+              <span class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+              <span v-if="registryOf(data)" class="mono-cell sm img-reg">{{ registryOf(data) }}</span>
+            </div>
             <!-- the cell shortens the repo for display, so the action filters on the FULL
-                 `image_repo` the row carries — never the shortened text (issue 349 §2) -->
+                 `image_repo` the row carries — never the shortened text -->
             <ValueActions
               v-if="data.image_repo"
               class="val-act-reveal"
@@ -167,7 +171,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
               :active="cellActive('repo', data.image_repo)"
               @pick="(m) => emit('pickValue', 'repo', data.image_repo, m)"
             />
-            <span v-if="registryOf(data)" class="mono-cell sm img-reg">{{ registryOf(data) }}</span>
           </div>
         </template>
       </Column>

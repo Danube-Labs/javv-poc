@@ -33,6 +33,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
+import { activeMode } from '@/filters/fields.config'
 import type { FacetsResponse } from '@/filters/facets'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
@@ -72,10 +73,8 @@ const scannerValue = (row: ApprovalRow) =>
   row.apply_both_scanners || !row.scanner ? 'both' : row.scanner
 
 /** The mode this exact value is already filtered under, so the active side reads as pressed. */
-function cellActive(fieldKey: string, value: string): FilterMode | null {
-  if (!(filters.selections[fieldKey] ?? []).includes(value)) return null
-  return filters.modes[fieldKey] ?? 'is'
-}
+const cellActive = (fieldKey: string, value: string): FilterMode | null =>
+  activeMode(fieldKey, value, filters.selections, filters.modes)
 
 // no as_of in the globals: the queue is now-only (the T<now notice owns the rewound state)
 const filterQuery = computed(() =>

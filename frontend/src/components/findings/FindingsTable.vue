@@ -31,7 +31,7 @@ import ScannerTag from '@/components/chips/ScannerTag.vue'
 import ValueActions from '@/components/filters/ValueActions.vue'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS, type FindingsColumnKey } from '@/findings/columns'
-import type { Selections } from '@/filters/fields.config'
+import { activeMode, type Selections } from '@/filters/fields.config'
 import type { FilterMode, Modes } from '@/stores/filters'
 import type { FindingRow } from '@/stores/findings'
 import { useTimeTravelStore } from '@/stores/timeTravel'
@@ -191,11 +191,8 @@ function cellValue(key: string, r: FindingRow): string | null {
 }
 
 /** The mode this exact value is already filtered under, so the active side reads as pressed. */
-function cellActive(key: string, value: string): FilterMode | null {
-  const fieldKey = CELL_FILTER_FIELD[key as FindingsColumnKey]
-  if (!fieldKey || !(props.selections?.[fieldKey] ?? []).includes(value)) return null
-  return props.modes?.[fieldKey] ?? 'is'
-}
+const cellActive = (key: string, value: string): FilterMode | null =>
+  activeMode(CELL_FILTER_FIELD[key as FindingsColumnKey] ?? '', value, props.selections, props.modes)
 </script>
 
 <template>
@@ -246,7 +243,10 @@ function cellActive(key: string, value: string): FilterMode | null {
           <span v-if="key === 'epss'">EPSS<span class="th-note">via Grype</span></span>
           <span v-else>{{ COL_HEADER[key] }}</span>
         </template>
+        <!-- one wrapper for the whole chain: the actions belong at the cell's RIGHT EDGE, so
+             they need a flex row spanning the cell rather than trailing the text -->
         <template #body="{ data }">
+          <span class="cell-actionable">
           <span v-if="key === 'first_seen'" class="mono-cell sm nowrap" :title="data.first_seen_at ?? ''">{{ lastDataAt(data.first_seen_at ?? null) }}</span>
           <span v-else-if="key === 'last_scan'" class="mono-cell sm nowrap" :title="data.last_scan_at ?? ''">{{ lastDataAt(data.last_scan_at ?? null) }}</span>
           <EpssBar v-else-if="key === 'epss'" :v="data.epss" />
@@ -259,20 +259,7 @@ function cellActive(key: string, value: string): FilterMode | null {
             <span v-if="data.fixed_version" class="mono-cell sm ver-fix">{{ data.fixed_version }}</span>
             <span v-else class="ver-none">no fix</span>
           </template>
-          <span v-else-if="key === 'image'" class="cell-actionable">
-            <span class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
-            <!-- the cell reads `repo:tag` but the filter is repo-ONLY (there is no tag param
-                 on findings), so the action says so in its tooltip rather than pretending the
-                 tag is part of it — "+ nginx" also matches nginx:1.21.6 -->
-            <ValueActions
-              v-if="data.image_repo"
-              class="val-act-reveal"
-              field="Image (all tags)"
-              :value="data.image_repo"
-              :active="cellActive('image', data.image_repo)"
-              @pick="(m) => emit('pickValue', 'image', data.image_repo, m)"
-            />
-          </span>
+          <span v-else-if="key === 'image'" class="mono-cell sm img-cell" :title="data.image_repo">{{ shortImage(data) }}</span>
           <span
             v-else-if="key === 'namespace'"
             class="mono-cell sm ns-cell"
@@ -287,14 +274,17 @@ function cellActive(key: string, value: string): FilterMode | null {
           <SlaCell v-else-if="key === 'sla'" :due-at="data.due_at" :overdue="data.overdue === true" :now-ms="slaNowMs" />
           <StateTag v-else-if="key === 'state'" :state="data.state" />
           <span v-else-if="key === 'assignee'" class="sm">{{ data.assignee ?? '-' }}</span>
+          <!-- `image` names itself "Image (all tags)": the cell reads `repo:tag` but the
+               filter is repo-only, so "+ nginx" also matches nginx:1.21.6 -->
           <ValueActions
             v-if="CELL_FILTER_FIELD[key] && cellValue(key, data)"
             class="val-act-reveal"
-            :field="COL_HEADER[key]"
+            :field="key === 'image' ? 'Image (all tags)' : COL_HEADER[key]"
             :value="cellValue(key, data)!"
             :active="cellActive(key, cellValue(key, data)!)"
             @pick="(m) => emit('pickValue', CELL_FILTER_FIELD[key]!, cellValue(key, data)!, m)"
           />
+          </span>
         </template>
       </Column>
       <template #empty>

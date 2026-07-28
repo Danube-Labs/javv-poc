@@ -108,16 +108,29 @@ Never an icon font / emoji / other icon library in app chrome.
 facet checkbox   var(--facet-check-line)      pill border   var(--fpill-line)
 pill × hover     var(--fpill-x-hover-bg)      add-filter    var(--add-filter-line) / var(--add-filter-hover-bg)
 dropdown         shadow var(--dd-shadow)      active item   var(--dd-on-bg)
-value actions    var(--val-act-bg) / var(--val-act-line) / var(--val-act-hover-bg), mark var(--slate3)
+value actions    chip var(--slate3), mark var(--table-head-fg), exclude var(--val-act-not-fg)
+actionable cell  var(--cell-act-wash) + inset var(--cell-act-line)
 ```
-**Value actions are COOL on purpose** (issue 349 §2, operator ruling 2026-07-28 on four built
-specimens): the `+`/`−` chips beside a facet value are the one filter-chrome control that sits
-*on* the data rather than beside it, so they step off the warm ramp to stay visible. A warm
-beige chip on warm paper was built first and read muddy; solid slate was too heavy at five per
-row, ghost slate too faint, and coral lost because `--dd-on-bg` + coral is the **selected**
-language — a resting chip looked switched on. The marks are CSS bars on whole-pixel offsets,
-never typed `+`/`−` (glyph metrics differ, so the box centres the line box and not the ink)
-and never an `AppIcon` addition (the set is ported verbatim and has no `minus`).
+**The chip is dark slate on BOTH surfaces** (issue 349 §2, operator ruling 2026-07-28): beside a
+facet value in the rail the chip is its own surface; in a grid cell it rides a floating bar and
+goes transparent so the bar is the surface. An earlier split — light cool-blue chip in the rail,
+dark bar in the grid — read as two languages for one action. Coral is not available here: with
+`--dd-on-bg` it is the **selected** language, so a resting chip looked switched on; it stays for
+the ON state alone, as the coral fill (`--coral-text` is tuned for light washes and vanishes on
+the chip). Exclusion keeps the ruled red, but as `--val-act-not-fg` — `--fpill-not-op` is the
+same red for LIGHT grounds and computes 1.6:1 on slate. Never reach for a `--sev-*` token to
+solve that; severity is data-only (§2). The marks are CSS bars on whole-pixel offsets, never
+typed `+`/`−` (glyph metrics differ, so the box centres the line box and not the ink) and never
+an `AppIcon` addition (the set is ported verbatim and has no `minus`).
+
+**The cell hover is a translucent STATE LAYER, not a tint** (operator ruling 2026-07-28, on
+built 4/7/11% specimens): a filterable cell washes at `--cell-act-wash` — our own on-surface
+slate at low alpha — so the affordance recedes and composites correctly over whatever it lands
+on (plain row, hovered row, history tint). This follows what the major systems specify: eBay
+adds a semi-transparent state layer at +4% per state and explicitly uses **no complementary
+colour** for hover; Material and Spectrum use transparency (Carbon and Primer buy solid shades
+with many more variables). A solid cool blue was built first and rejected — an opaque patch on
+warm paper is a colour *change*, and it shouted.
 The filter module itself (`FacetRail`/`FilterBar` + `filters/fields.config.ts` +
 `buildFilterQuery`) is M9a-owned — screens import it and pass their own `fields` config,
 never re-implement it.

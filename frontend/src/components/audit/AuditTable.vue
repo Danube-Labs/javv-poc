@@ -21,7 +21,7 @@ import ActionTag from '@/components/chips/ActionTag.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import SevChip from '@/components/chips/SevChip.vue'
 import ValueActions from '@/components/filters/ValueActions.vue'
-import type { Selections } from '@/filters/fields.config'
+import { activeMode, type Selections } from '@/filters/fields.config'
 import { lastDataAt } from '@/system/freshness'
 import type { AuditEvent } from '@/stores/audit'
 import type { FilterMode, Modes } from '@/stores/filters'
@@ -41,10 +41,8 @@ const emit = defineEmits<{
 }>()
 
 /** `actor` and `action` are the AUDIT_FIELDS keys; both carry an `exclude_*` twin server-side. */
-function cellActive(fieldKey: string, value: string): FilterMode | null {
-  if (!(props.selections?.[fieldKey] ?? []).includes(value)) return null
-  return props.modes?.[fieldKey] ?? 'is'
-}
+const cellActive = (fieldKey: string, value: string): FilterMode | null =>
+  activeMode(fieldKey, value, props.selections, props.modes)
 
 const ordered = computed(() => causalOrder(props.rows))
 
