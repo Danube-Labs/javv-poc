@@ -32,7 +32,8 @@ page bg        var(--bg)          cards        var(--card)
 inset/panel    var(--panel)       borders      var(--line)   subtle: var(--line2)
 primary text   var(--ink)         secondary    var(--soft)
 row hover      var(--row-hover)   dark chrome  var(--slate)
-meter track    var(--meter-track) — the UNFILLED part of any bar/gauge, never --line2
+meter track    var(--meter-track) — a meter's unfilled band (triage progress so far;
+               EpssBar + MixBar still sit on --line2 — issue 497 migrates them)
 save-bar dirty var(--save-dirty-bg) + var(--save-dirty-line)  (M9e unsaved-changes surface)
 table head     var(--table-head-bg) + var(--table-head-fg) + dividers var(--table-head-line)
 section accent var(--sect-monitor|inventory|audit|insights|configure)  (decorative only)
