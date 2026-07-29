@@ -77,6 +77,52 @@ describe('FacetRail per-scanner display (FR-12)', () => {
   })
 })
 
+/**
+ * Issue 499: the images screen's two top-32 data-driven groups made the rail ~2× the
+ * viewport. Long groups collapse to the top 8 behind a "show all N" expander; a selected
+ * value never collapses out of sight.
+ */
+describe('FacetRail long groups (issue 499)', () => {
+  const bucket = (i: number) => ({ key: `repo-${i}`, count: 100 - i, by_scanner: {} })
+  const fields: FilterField[] = [
+    { key: 'repo', label: 'Image', type: 'terms', param: 'image_repo', facetKey: 'repos' },
+  ]
+  const mountLong = (selected: string[] = []) =>
+    mount(FacetRail, {
+      props: {
+        fields,
+        selections: { repo: selected },
+        facets: { repos: Array.from({ length: 20 }, (_, i) => bucket(i)) },
+      },
+    })
+
+  it('collapses past 8 rows behind a "show all N" expander; short groups get none', () => {
+    const rail = mountLong()
+    expect(rail.findAll('.facet-row')).toHaveLength(8)
+    expect(rail.find('.facet-more').text()).toBe('show all 20')
+
+    const { rail: short } = mountBoth(FINDINGS_FIELDS)
+    expect(short.find('.facet-more').exists()).toBe(false)
+  })
+
+  it('expands to the full list and collapses back', async () => {
+    const rail = mountLong()
+    await rail.find('.facet-more').trigger('click')
+    expect(rail.findAll('.facet-row')).toHaveLength(20)
+    expect(rail.find('.facet-more').text()).toBe('show fewer')
+    expect(rail.find('.facet-more').attributes('aria-expanded')).toBe('true')
+    await rail.find('.facet-more').trigger('click')
+    expect(rail.findAll('.facet-row')).toHaveLength(8)
+  })
+
+  it('a selected value beyond the fold stays visible while collapsed', () => {
+    const rail = mountLong(['repo-15'])
+    const labels = rail.findAll('.facet-row').map((r) => r.text())
+    expect(labels.some((t) => t.includes('repo-15'))).toBe(true)
+    expect(rail.findAll('.facet-row')).toHaveLength(9) // top 8 + the selected one
+  })
+})
+
 describe('FilterBar interactions', () => {
   it('shows pills for active selections and emits clearField / clearAll', async () => {
     const selections = { ...emptySelections(FINDINGS_FIELDS), severity: ['critical', 'high'] }

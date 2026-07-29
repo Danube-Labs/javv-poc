@@ -5,7 +5,7 @@
  * Counts come from the server's facets response verbatim; the per-scanner split is shown as a
  * tooltip and never combined client-side (FR-12).
  */
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 import ValueActions from '@/components/filters/ValueActions.vue'
 import { facetItems, scannerSplit, type FacetsResponse } from '@/filters/facets'
@@ -42,6 +42,28 @@ const groups = computed(() =>
     .filter((g) => g.items.length > 0 || ('values' in g.field && g.field.values !== undefined)),
 )
 
+/**
+ * Issue 499: two top-32 data-driven groups (images + tags) made the rail ~2× the viewport,
+ * which also defeats its own `position: sticky`. Long groups collapse to the top VISIBLE rows
+ * behind a "show all N" expander; expanded, the group scrolls in a bounded viewport instead of
+ * growing the page. A SELECTED value never collapses out of sight — an applied filter that the
+ * rail hides reads as the rail lying about the query.
+ */
+const VISIBLE = 8
+const expanded = ref(new Set<string>())
+type Group = { field: FilterField; items: NonNullable<ReturnType<typeof facetItems>> }
+const isOpen = (g: Group) => expanded.value.has(g.field.key)
+const hasMore = (g: Group) => g.items.length > VISIBLE
+const shown = (g: Group) =>
+  !hasMore(g) || isOpen(g)
+    ? g.items
+    : g.items.filter((it, i) => i < VISIBLE || activeMode(g.field, it.value) !== null)
+function toggleOpen(g: Group) {
+  const next = new Set(expanded.value)
+  if (!next.delete(g.field.key)) next.add(g.field.key)
+  expanded.value = next
+}
+
 const fmt = (n: number) => n.toLocaleString('en-US')
 </script>
 
@@ -50,8 +72,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     <slot name="header" />
     <div v-for="g in groups" :key="g.field.key" class="facet">
       <div class="facet-title">{{ g.field.label }}</div>
+      <div class="facet-body" :class="{ 'facet-body-open': isOpen(g) }">
       <button
-        v-for="it in g.items"
+        v-for="it in shown(g)"
         :key="it.value"
         class="facet-row"
         :class="{
@@ -77,7 +100,16 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           @pick="(m) => emit('pick', g.field.key, it.value, m)"
         />
       </button>
-      <p v-if="g.items.length >= 32" class="facet-cap">top 32 by count; search reaches the rest</p>
+      </div>
+      <button
+        v-if="hasMore(g)"
+        class="facet-more"
+        :aria-expanded="isOpen(g)"
+        @click="toggleOpen(g)"
+      >
+        {{ isOpen(g) ? 'show fewer' : `show all ${fmt(g.items.length)}` }}
+      </button>
+      <p v-if="isOpen(g) && g.items.length >= 32" class="facet-cap">top 32 by count; search reaches the rest</p>
     </div>
   </aside>
 </template>
@@ -112,6 +144,33 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   color: var(--ink);
   padding: 2px 8px 8px;
   font-weight: 700;
+}
+/* expanded, the group scrolls instead of growing the page: ~10 rows, its own scrollbar,
+   and overscroll stays contained so the wheel doesn't fall through to the page mid-list */
+.facet-body-open {
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* the same quiet-action grammar as the FilterBar's clear-all: underlined --soft text,
+   coral on hover */
+.facet-more {
+  border: 0;
+  background: transparent;
+  color: var(--soft);
+  font-size: var(--text-quiet-action);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  padding: 4px 8px;
+  cursor: default;
+  text-align: left;
+}
+.facet-more:hover {
+  color: var(--coral-text);
+}
+.facet-more:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
 }
 .facet-cap {
   margin: 4px 8px 2px;
