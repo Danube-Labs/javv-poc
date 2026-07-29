@@ -78,8 +78,8 @@ the query layer (tenant chokepoint), not per-user grants (post-MVP).
 ### Findings — read (M6)
 
 All session-auth, no capability (reads). All take the filter family (`cluster_id` **required**,
-`scanner`, `severity`, `state`, `namespace`, `image`, `cve_id`, `kev`, `fixable`, `disagree`,
-`ptype`, …) and the global `as_of`. `severity` values are the **full-word canonical vocabulary**
+`scanner`, `severity`, `state`, `namespace`, `image`, `cve_id`, `package_name`, `kev`,
+`fixable`, `disagree`, `ptype`, …) and the global `as_of`. `severity` values are the **full-word canonical vocabulary**
 (D46/#274: `critical|high|medium|low|negligible|unknown`) served by the server-derived
 `severity_canonical` key — facet bucket keys are the same words; the verbatim scanner word stays
 display-only in rows. `ptype` (M8d/#241) is also a facet (pre-v4 rows bucket as
@@ -93,13 +93,23 @@ reconstruction's own read-time verdict (judged at `now=T`, never the cache field
 walks freeze the cutoffs in the cursor (the PIT freezes docs, the query freezes with them).
 **Unassigned (issue #349 §1):** `unassigned=true|false` is ABSENCE, not negation — an owner is a NON-EMPTY `assignee` (a cleared one is written as `""`, which `exists` alone would count as owned). It is a distinct filter because the excludes below are pure `must_not`, so `exclude_assignee=bob` keeps unowned rows and can never ask "nobody owns this". It is also a facet (a `filter` agg over the grid's own clause, so the rail count equals the filtered rows) and is answerable at a past `as_of` from the reconstruction.
 
-**Negation (issue #349):** every terms facet has an exclude mirror — `exclude_severity`,
-`exclude_state`, `exclude_scanner`, `exclude_assignee`, `exclude_image_repo`,
-`exclude_namespace`, `exclude_ptype` — compiled to `must_not` clauses. Semantics are **pure
+**Negation (issue #349, completed by #492):** every filterable term has an exclude mirror —
+`exclude_severity`, `exclude_state`, `exclude_scanner`, `exclude_assignee`,
+`exclude_image_repo`, `exclude_namespace`, `exclude_ptype`, `exclude_cve_id`,
+`exclude_package_name` — compiled to `must_not` clauses. Semantics are **pure
 must_not**: a row *missing* the field survives the exclusion (`exclude_assignee=bob` keeps
-unassigned rows). A field is include OR exclude, never both (422). Mirrored on `ExportParams`
+unassigned rows; `exclude_package_name=zlib` keeps OS-level rows that carry no package at
+all). A field is include OR exclude, never both (422). Mirrored on `ExportParams`
 and `ViewPreset`; at a past `as_of`, excludes on recorded fields apply and
 `exclude_image_repo` is a 422 like its include twin.
+`image_digest` deliberately has **no** exclude twin — it is a drill-down identity, not a
+browsing facet (issue #492 ruling).
+
+**`package_name` (issue #492):** an EXACT keyword term, both directions — the fuzzy reading of
+a package name is what `q` already does (it wildcards across `package_name` among other
+fields) and stays include-only. It is a filter, **not** a facet: `fields=package_name` on
+`/findings/facets` is a 422, because a rail dim over unbounded package cardinality is not a
+browsing surface. Recorded on occurrences, so it filters at a past `as_of` too.
 **T<now dispatches to the M8b reader (live since #34)** — results are
 reconstructed from the append logs as-scanned: fields history deliberately does not record
 (`kev`, `epss`, `disagree`, `image_repo`, `tag`, `app`) come back `null`; a filter/sort/group on

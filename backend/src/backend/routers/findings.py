@@ -96,6 +96,7 @@ def _filters(
     image_repo: Annotated[str | None, Query(max_length=512)] = None,
     namespace: Annotated[str | None, Query(max_length=256)] = None,
     ptype: Annotated[str | None, Query(max_length=64)] = None,
+    package_name: Annotated[str | None, Query(max_length=512)] = None,
     q: Annotated[str | None, Query(min_length=2, max_length=128)] = None,
     present: bool = True,
     new_within_days: Annotated[int | None, Query(ge=1, le=365)] = None,
@@ -108,6 +109,8 @@ def _filters(
     exclude_image_repo: Annotated[str | None, Query(max_length=512)] = None,
     exclude_namespace: Annotated[str | None, Query(max_length=256)] = None,
     exclude_ptype: Annotated[str | None, Query(max_length=64)] = None,
+    exclude_cve_id: Annotated[str | None, Query(max_length=128)] = None,
+    exclude_package_name: Annotated[str | None, Query(max_length=512)] = None,
 ) -> SearchFilters:
     # include+exclude on one field is ambiguous — 422 here so the builder's ValueError
     # (kept as defense for direct constructors like report_drain) never costs a 500
@@ -119,6 +122,8 @@ def _filters(
         ("image_repo", image_repo, exclude_image_repo),
         ("namespace", namespace, exclude_namespace),
         ("ptype", ptype, exclude_ptype),
+        ("cve_id", cve_id, exclude_cve_id),
+        ("package_name", package_name, exclude_package_name),
     ):
         if inc is not None and exc is not None:
             raise HTTPException(422, f"{name} and exclude_{name} are mutually exclusive")
@@ -139,6 +144,7 @@ def _filters(
         image_repo=image_repo,
         namespace=namespace,
         ptype=ptype,
+        package_name=package_name,
         q=q,
         present=present,
         new_within_days=new_within_days,
@@ -151,6 +157,8 @@ def _filters(
         exclude_image_repo=exclude_image_repo,
         exclude_namespace=exclude_namespace,
         exclude_ptype=exclude_ptype,
+        exclude_cve_id=exclude_cve_id,
+        exclude_package_name=exclude_package_name,
     )
 
 

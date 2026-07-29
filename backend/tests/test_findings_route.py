@@ -499,6 +499,68 @@ async def test_facets_count_per_scanner_and_stay_in_tenant(env) -> None:
     assert r.status_code == 422  # not facetable — whitelist enforced at the edge
 
 
+async def test_new_excludes_are_pure_must_not_with_a_missing_field(env) -> None:
+    """Issue 492: the `cve_id`/`package_name` exclude twins, proven against a real index
+    rather than by clause shape alone.
+
+    `package_name` is the field that makes the pure-must_not rule load-bearing: an OS-level
+    finding can carry no package at all, and an exists-guarded exclusion would silently drop
+    those rows — the operator would exclude one package and lose findings that never had one.
+    Seeded here as a row with the field ABSENT, and asserted to survive.
+    """
+    login, client = env
+    cid = f"c-x492-{uuid.uuid4().hex[:8]}"
+    await _seed(
+        client,
+        cid,
+        [
+            *_rows(2, cve="CVE-2024-1000", package_name="zlib"),
+            *_rows(3, cve="CVE-2024-2000", package_name="openssl"),
+            *_rows(1, cve="CVE-2024-3000"),  # no package_name key at all — the carve-out
+        ],
+    )
+    http = await login()
+
+    r = await http.get(
+        "/api/v1/findings",
+        params={"cluster_id": cid, "size": 50, "exclude_package_name": "zlib"},
+    )
+    assert r.status_code == 200
+    rows = r.json()["data"]
+    assert {d["cve_id"] for d in rows} == {"CVE-2024-2000", "CVE-2024-3000"}
+    assert len(rows) == 4  # 3 openssl + the package-less row, which the exclusion must KEEP
+
+    # the include side is an exact term, and its exclude twin is the exact complement
+    r = await http.get(
+        "/api/v1/findings", params={"cluster_id": cid, "size": 50, "package_name": "zlib"}
+    )
+    assert {d["cve_id"] for d in r.json()["data"]} == {"CVE-2024-1000"}
+
+    r = await http.get(
+        "/api/v1/findings",
+        params={"cluster_id": cid, "size": 50, "exclude_cve_id": "CVE-2024-1000"},
+    )
+    assert {d["cve_id"] for d in r.json()["data"]} == {"CVE-2024-2000", "CVE-2024-3000"}
+
+    # facets ride the SAME builder as the grid, so a count that disagrees with the rows is a
+    # bug the rail would show (the #488 shape) — pinned here under the new must_not
+    r = await http.get(
+        "/api/v1/findings/facets",
+        params={"cluster_id": cid, "fields": ["severity"], "exclude_package_name": "zlib"},
+    )
+    assert r.status_code == 200
+    facet_total = sum(b["count"] for b in r.json()["facets"]["severity"])
+    assert facet_total == 4
+
+    # a field is include OR exclude, never both — 422 before the builder's ValueError
+    for pair in (
+        {"package_name": "zlib", "exclude_package_name": "openssl"},
+        {"cve_id": "CVE-2024-1000", "exclude_cve_id": "CVE-2024-2000"},
+    ):
+        r = await http.get("/api/v1/findings", params={"cluster_id": cid, **pair})
+        assert r.status_code == 422
+
+
 async def test_groups_paginate_via_after_key_to_exhaustion(env) -> None:
     login, client = env
     cid = f"c-aggs-{uuid.uuid4().hex[:8]}"

@@ -459,6 +459,7 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "image_repo": "nginx",
         "namespace": "ns",
         "ptype": "os",
+        "package_name": "zlib",
         "q": "krb5",
         "present": False,
         "new_within_days": 30,
@@ -473,6 +474,8 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "exclude_image_repo": "nginx",
         "exclude_namespace": "default",
         "exclude_ptype": "os",  # row has ptype=None — same missing-field carve-out
+        "exclude_cve_id": "CVE-1",  # issue 492 — matches the row, so it drops
+        "exclude_package_name": "zlib",  # row has package_name=None — carve-out again
     }
     missing = set(probe_values) ^ {f.name for f in dc_fields(SearchFilters)}
     assert not missing, f"probe map drifted from SearchFilters: {missing}"
@@ -488,12 +491,13 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         "cve_id": "CVE-1",
         "image_digest": "sha256:y",
         "ptype": None,
+        "package_name": None,
         "namespaces": ["default"],
         "overdue": False,  # the row's at-T verdict (stamped by _decorate_overdue at now=t)
     }
     # the issue-349 semantic pin: pure must_not — a row MISSING the excluded field survives
     # the exclusion, so these probes legitimately keep the row instead of dropping it
-    missing_field_excludes = {"exclude_assignee", "exclude_ptype"}
+    missing_field_excludes = {"exclude_assignee", "exclude_ptype", "exclude_package_name"}
     for name, value in probe_values.items():
         f = SearchFilters(**{name: value})
         try:
