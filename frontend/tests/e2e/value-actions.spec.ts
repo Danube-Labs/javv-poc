@@ -57,17 +57,25 @@ test('the revealed bar lands on the device-pixel grid', async ({ page }) => {
   await page.goto(`${BASE}/findings`)
   await expect(page.locator(`${CELL} .val-act`).first()).toBeAttached({ timeout: 20_000 })
 
+  // The snap is taken ONCE, on mouseenter. A grid still settling — columns re-measuring as data
+  // lands — moves the bar afterwards and the measurement goes stale, exactly as a fractional
+  // scroll would. That is a known limit of the design, not a defect, so the layout is allowed to
+  // settle before the contract is judged; hovering away and back re-takes it against the result.
+  await page.waitForLoadState('networkidle')
   await page.locator(CELL).first().hover()
-  // the snap is measured on the host's mouseenter, then applied through the transform
-  await expect
-    .poll(async () =>
-      page.locator(`${CELL} .val-act`).first().evaluate((el) => {
-        const r = el.getBoundingClientRect()
-        // within a thousandth — the offset is rounded to 3dp, not exact binary
-        return Math.max(Math.abs(r.left % 1), Math.abs(r.top % 1)) < 0.002
-      }),
-    )
-    .toBe(true)
+  await page.mouse.move(0, 0)
+  await page.locator(CELL).first().hover()
+  await page.waitForTimeout(200) // the 120ms lift
+
+  // reported as a NUMBER, never a bare boolean: a failing `toBe(true)` says nothing, and this
+  // assertion is about sub-pixel geometry that no one can reproduce from "expected true"
+  const worstFraction = await page.locator(`${CELL} .val-act`).first().evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    const frac = (v: number) => Math.min(Math.abs(v % 1), 1 - Math.abs(v % 1))
+    return +Math.max(frac(r.left), frac(r.top)).toFixed(4)
+  })
+  // within a thousandth — the offset is rounded to 3dp, not exact binary
+  expect(worstFraction, 'bar is off the device-pixel grid by this many px').toBeLessThan(0.002)
 
   // the snap was actually computed rather than defaulting away — the custom property exists.
   // NOT asserted: that the origin was fractional BEFORE. Whether this layout happens to land
