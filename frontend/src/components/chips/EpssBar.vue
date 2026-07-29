@@ -31,7 +31,7 @@ const heat = computed(() => (props.v == null ? '' : props.v >= 0.7 ? 'hot' : pro
   width: 42px;
   height: 5px;
   border-radius: 3px;
-  background: var(--line2);
+  background: var(--meter-track);
   overflow: hidden;
 }
 .epss-bar i {

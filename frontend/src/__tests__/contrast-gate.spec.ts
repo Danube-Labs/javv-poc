@@ -167,6 +167,10 @@ describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
     expect
       .soft(ratio('meter-track', 'row-hover'), 'track on a hovered grid row')
       .toBeGreaterThanOrEqual(TRACK_MIN)
+    // issue 497 brought EpssBar onto this token, and EvidenceCard draws it on the panel inset
+    expect
+      .soft(ratio('meter-track', 'panel'), 'track on the panel inset')
+      .toBeGreaterThanOrEqual(TRACK_MIN)
     // and it must stay QUIETER than the fill it measures, or the track reads as the value
     expect
       .soft(ratio('state-resolved-solid', 'meter-track'), 'fill against its own track')

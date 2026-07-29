@@ -84,7 +84,7 @@ const title = computed(() => {
   height: 7px;
   border-radius: 4px;
   overflow: hidden;
-  background: var(--line2);
+  background: var(--meter-track);
 }
 .mix-bar i {
   height: 100%;
