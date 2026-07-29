@@ -47,6 +47,14 @@ describe('one config drives both components (PLAN gate)', () => {
       expect(rail.text()).toContain(label) // Namespace/Assignee are rail dims since slice 4
     }
     expect(rail.text()).not.toContain('Image') // text field: no buckets, bar-only
+    // issue 492: CVE and Package are bar-and-cell only. A rail dim over unbounded package
+    // cardinality is not a browsing surface, and the server 422s them as facets. Asserted on
+    // the rendered group titles, not on rail.text() — "Package" is a substring of the
+    // "Package type" group that legitimately IS in the rail
+    const railGroups = rail.findAll('.facet-title').map((t) => t.text())
+    expect(railGroups).not.toContain('CVE')
+    expect(railGroups).not.toContain('Package')
+    expect(railGroups).toContain('Package type')
 
     await bar.find('.add-filter').trigger('click')
     const fieldItems = bar.findAll('.filter-field').map((b) => b.text())

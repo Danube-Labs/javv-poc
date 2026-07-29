@@ -164,17 +164,20 @@ const nsLabel = (r: FindingRow): string => {
  * cell shortens it for display — and on repo only, since findings carry no tag filter, which
  * the action's label says out loud.
  *
- * Deliberately absent: `package` (no filter twin — `ptype` is package TYPE, a different
- * field) and the pure-data columns. `namespace` only qualifies on a single-namespace row,
- * because a finding spanning three namespaces has no one value to filter on.
+ * `cve` and `package` joined in issue 492, once their params existed — `package` filters
+ * `package_name`, which is the package itself and not `ptype` (that is the package's TYPE).
+ * Deliberately absent: the pure-data columns. `namespace` only qualifies on a single-namespace
+ * row, because a finding spanning three namespaces has no one value to filter on.
  */
-const CELL_FILTER_FIELD: Partial<Record<FindingsColumnKey | 'severity', string>> = {
+const CELL_FILTER_FIELD: Partial<Record<FindingsColumnKey | 'severity' | 'cve', string>> = {
   severity: 'severity',
   state: 'state',
   scanner: 'scanner',
   namespace: 'namespace',
   assignee: 'assignee',
   image: 'image',
+  cve: 'cve',
+  package: 'package',
 }
 
 function cellValue(key: string, r: FindingRow): string | null {
@@ -183,6 +186,9 @@ function cellValue(key: string, r: FindingRow): string | null {
   if (key === 'scanner') return r.scanner ?? null
   if (key === 'assignee') return r.assignee || null
   if (key === 'image') return r.image_repo || null
+  if (key === 'cve') return r.cve_id || null
+  // the cell shows package AND type; only the package name has a filter twin
+  if (key === 'package') return r.package_name || null
   if (key === 'namespace') {
     const ns = Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []
     return ns.length === 1 ? ns[0]! : null // ambiguous across several — no honest single value
@@ -213,7 +219,17 @@ const cellActive = (key: string, value: string): FilterMode | null =>
     >
       <Column column-key="cve" header="Vulnerability" :reorderable-column="false">
         <template #body="{ data }">
-          <span class="mono-cell strong nowrap cve-link">{{ data.cve_id }}</span>
+          <span class="cell-actionable">
+            <span class="mono-cell strong nowrap cve-link">{{ data.cve_id }}</span>
+            <ValueActions
+              v-if="cellValue('cve', data)"
+              class="val-act-reveal"
+              field="CVE"
+              :value="cellValue('cve', data)!"
+              :active="cellActive('cve', cellValue('cve', data)!)"
+              @pick="(m) => emit('pickValue', 'cve', cellValue('cve', data)!, m)"
+            />
+          </span>
         </template>
       </Column>
       <Column column-key="severity" field="severity_rank" header="Severity" sortable :reorderable-column="false" class="fit">

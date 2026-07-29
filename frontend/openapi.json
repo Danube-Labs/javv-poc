@@ -603,6 +603,18 @@
             ],
             "title": "Exclude Assignee"
           },
+          "exclude_cve_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Cve Id"
+          },
           "exclude_image_repo": {
             "anyOf": [
               {
@@ -626,6 +638,18 @@
               }
             ],
             "title": "Exclude Namespace"
+          },
+          "exclude_package_name": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Package Name"
           },
           "exclude_ptype": {
             "anyOf": [
@@ -772,6 +796,18 @@
               }
             ],
             "title": "Overdue"
+          },
+          "package_name": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Name"
           },
           "present": {
             "default": true,
@@ -1461,6 +1497,18 @@
             ],
             "title": "Exclude Assignee"
           },
+          "exclude_cve_id": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Cve Id"
+          },
           "exclude_image_repo": {
             "anyOf": [
               {
@@ -1484,6 +1532,18 @@
               }
             ],
             "title": "Exclude Namespace"
+          },
+          "exclude_package_name": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclude Package Name"
           },
           "exclude_ptype": {
             "anyOf": [
@@ -1624,6 +1684,18 @@
               }
             ],
             "title": "Overdue"
+          },
+          "package_name": {
+            "anyOf": [
+              {
+                "maxLength": 512,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Name"
           },
           "present": {
             "default": true,
@@ -3959,6 +4031,23 @@
           },
           {
             "in": "query",
+            "name": "package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Package Name"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -4156,6 +4245,40 @@
                 }
               ],
               "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_cve_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Cve Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Package Name"
             }
           },
           {
@@ -4467,6 +4590,23 @@
           },
           {
             "in": "query",
+            "name": "package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Package Name"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -4664,6 +4804,40 @@
                 }
               ],
               "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_cve_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Cve Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Package Name"
             }
           },
           {
@@ -4944,6 +5118,23 @@
           },
           {
             "in": "query",
+            "name": "package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Package Name"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -5141,6 +5332,40 @@
                 }
               ],
               "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_cve_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Cve Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Package Name"
             }
           },
           {
@@ -5430,6 +5655,23 @@
           },
           {
             "in": "query",
+            "name": "package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Package Name"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -5627,6 +5869,40 @@
                 }
               ],
               "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_cve_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Cve Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Package Name"
             }
           },
           {
@@ -5936,6 +6212,23 @@
           },
           {
             "in": "query",
+            "name": "package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Package Name"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -6133,6 +6426,40 @@
                 }
               ],
               "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_cve_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Cve Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Package Name"
             }
           },
           {
@@ -6404,6 +6731,23 @@
           },
           {
             "in": "query",
+            "name": "package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Package Name"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -6601,6 +6945,40 @@
                 }
               ],
               "title": "Exclude Ptype"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_cve_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Cve Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_package_name",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 512,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Package Name"
             }
           },
           {
