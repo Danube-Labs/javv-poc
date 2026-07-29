@@ -63,15 +63,20 @@ function snapToPixelGrid() {
   const el = root.value
   if (!el) return
   const { left, top } = el.getBoundingClientRect()
-  // the rect already includes the current translate, so subtract it back out before measuring
-  // the remainder — otherwise each pass would snap relative to the last one and drift
-  const prevX = parseFloat(el.style.getPropertyValue('--snap-x')) || 0
-  const prevY = parseFloat(el.style.getPropertyValue('--snap-y')) || 0
+  // the rect carries whatever transform is applied AT THIS INSTANT — mid-lift that is the snap
+  // plus the animation's leftover, not the value last written to `--snap-*`. Subtracting the
+  // written value here once baked that leftover into the snap on any re-hover inside the 120ms
+  // transition, so the live matrix is read instead (absent in jsdom, hence the guard).
+  const t = getComputedStyle(el).transform
+  const m =
+    t && t !== 'none' && typeof DOMMatrixReadOnly !== 'undefined'
+      ? new DOMMatrixReadOnly(t)
+      : null
   // rounded because `695.36 % 1` is 0.3600000000000136 in binary floating point, and an
   // unrounded remainder would write that whole tail into the DOM for no sub-pixel benefit
   const frac = (v: number) => -Math.round((((v % 1) + 1) % 1) * 1000) / 1000
-  el.style.setProperty('--snap-x', `${frac(left - prevX)}px`)
-  el.style.setProperty('--snap-y', `${frac(top - prevY)}px`)
+  el.style.setProperty('--snap-x', `${frac(left - (m?.m41 ?? 0))}px`)
+  el.style.setProperty('--snap-y', `${frac(top - (m?.m42 ?? 0))}px`)
 }
 
 onMounted(() => {
