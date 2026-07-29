@@ -28,7 +28,9 @@ operator ruling on a **built specimen** (DESIGN.md §8.5), not an argument in a 
    quick both ways; `t-fade` = banners and in-flow appearances, crossfade only, **never animate
    height**. Skeletons are shared: the pulse is `.skel` + `@keyframes skel-shimmer` in base.css,
    composed by `UiSkeleton` — a view that grows its own shimmer fails the style ratchet.
-3. **`npx impeccable detect`** on a rendered-HTML dump of every changed screen, plus the
+3. **`node .claude/skills/impeccable/scripts/detect.mjs <changed files>`** — the VENDORED detector,
+   pinned with the repo. **Never `npx impeccable detect`**: unpinned, and a stale cached version
+   once invented a finding that nearly bought §9 a permanent exception row (issue 484). Plus the
    `.claude/skills/impeccable` skill for critique/typography/layout. §9 of DESIGN.md lists the **ruled
    exceptions** — those are settled; don't relitigate them each pass.
 

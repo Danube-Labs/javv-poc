@@ -148,6 +148,31 @@ describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
     expect.soft(ratio('val-act-not-fg', 'slate3'), 'exclude mark on the chip').toBeGreaterThanOrEqual(NON_TEXT)
   })
 
+  /**
+   * A meter's TRACK is the scale its fill is read against, so it has to stay visible on every
+   * ground the row can take. `--line2` did not: 1.03:1 against the button hover wash, so the
+   * triage bars lost their scale the moment a row lit up (operator, 2026-07-28).
+   *
+   * HOUSE floor, not a WCAG one — say so rather than dressing it as 1.4.11. A track carries no
+   * information the numbers beside it don't already state, so 3:1 would force a band dark enough
+   * to fight its own fill; 1.25:1 is where a 7px band stays discernible on this palette (the
+   * value that failed was 1.03, the shipped one is 1.39).
+   */
+  it('meter tracks stay visible on every hover ground', () => {
+    const TRACK_MIN = 1.25
+    expect.soft(ratio('meter-track', 'card'), 'track on the card').toBeGreaterThanOrEqual(TRACK_MIN)
+    expect
+      .soft(ratio('meter-track', 'control-hover-bg'), 'track on a hovered button row')
+      .toBeGreaterThanOrEqual(TRACK_MIN)
+    expect
+      .soft(ratio('meter-track', 'row-hover'), 'track on a hovered grid row')
+      .toBeGreaterThanOrEqual(TRACK_MIN)
+    // and it must stay QUIETER than the fill it measures, or the track reads as the value
+    expect
+      .soft(ratio('state-resolved-solid', 'meter-track'), 'fill against its own track')
+      .toBeGreaterThanOrEqual(2)
+  })
+
   it('dark chrome: the sidebar text ramp on the slate', () => {
     for (const t of ['side-fg', 'side-label', 'side-credit', 'side-foot-fg', 'side-foot-dim', 'side-version', 'side-brand-fg', 'side-fg-hover', 'side-foot-strong']) {
       expect.soft(ratio(t, 'slate'), `${t} on slate`).toBeGreaterThanOrEqual(AA)

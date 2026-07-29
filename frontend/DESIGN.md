@@ -32,6 +32,8 @@ page bg        var(--bg)          cards        var(--card)
 inset/panel    var(--panel)       borders      var(--line)   subtle: var(--line2)
 primary text   var(--ink)         secondary    var(--soft)
 row hover      var(--row-hover)   dark chrome  var(--slate)
+meter track    var(--meter-track) — a meter's unfilled band (triage progress so far;
+               EpssBar + MixBar still sit on --line2 — issue 497 migrates them)
 save-bar dirty var(--save-dirty-bg) + var(--save-dirty-line)  (M9e unsaved-changes surface)
 table head     var(--table-head-bg) + var(--table-head-fg) + dividers var(--table-head-line)
 section accent var(--sect-monitor|inventory|audit|insights|configure)  (decorative only)
@@ -324,10 +326,16 @@ copy. Structural fidelity is a process rule:
 
 ## 9. Anti-pattern detector — ruled exceptions
 
-`npx impeccable detect` (and the `/impeccable` skill in `.claude/skills/`) is part of the
-authoring loop — run it on rendered-HTML dumps of changed screens (its URL mode needs a Chrome
-sandbox this environment doesn't have). Fix what it finds EXCEPT these ruled exceptions — they
-are deliberate contract choices, not reflex defaults (operator ruling 2026-07-09):
+Run the **vendored** detector — `node .claude/skills/impeccable/scripts/detect.mjs <paths>` — as
+part of the authoring loop; it reads source files directly and needs no network. **Never
+`npx impeccable detect`** (ruling 2026-07-28, issue 484): npx is unpinned, and it resolved to a
+cached 3.4.0 whose since-narrowed `side-tab` rule flagged `.head-card`'s inset box-shadow as an
+AI side-stripe. That phantom finding cost an issue and nearly cost §9 a permanent exception row
+for a rule that no longer exists. The vendored copy is version-pinned with the repo, so a finding
+here means the same thing on every machine and on any future day.
+
+Fix what it finds EXCEPT these ruled exceptions — they are deliberate contract choices, not
+reflex defaults (operator ruling 2026-07-09):
 
 | Finding | Ruling |
 |---|---|
@@ -336,7 +344,7 @@ are deliberate contract choices, not reflex defaults (operator ruling 2026-07-09
 | `tiny-text 10–11.5px` on mono micro-scale | Ops-tool density (table headers, counts, chips) per the v4 scale. Body text stays ≥13px. |
 | `low-contrast` white-on-coral (login/action buttons) | Prototype button treatment; 13px/600 button label, not body text. |
 | `cramped-padding` on `tbl-wrap` | Full-bleed table inside the card is the prototype's design. |
-| `layout-transition: width` on `.sidebar` | The collapse rail (226↔64px) — the one deliberate layout animation: user-initiated, rare, and the standard sidebar pattern (Nuxt UI reference does the same). Nothing else animates layout — the `t-*` classes are transform/opacity only. |
+| `layout-transition: width` on `.sidebar` | The collapse rail (226↔64px) — the one deliberate layout animation: user-initiated, rare, and the standard sidebar pattern (Nuxt UI reference does the same). Nothing else animates layout — the `t-*` classes are transform/opacity only. **Enforced, not just stated:** `style-ratchet.spec.ts` fails any other width/height/padding/margin transition in `src/` (issue 484 — the triage meter had been breaking this sentence unnoticed). |
 | `ai-color-palette` purple/violet | The `--scanner-grype-*` identity tokens (chip language A) — Grype's brand tone, deliberately distinct from Trivy's teal. Fires on every dump because tokens.css ships globally; not an accent choice. |
 
 Everything else it flags (real contrast failures, hierarchy problems) gets fixed or gets its

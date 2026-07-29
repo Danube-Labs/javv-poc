@@ -7,6 +7,7 @@ import {
   actorTone,
   ackOf,
   daysFromWindow,
+  fillTransform,
   fmtMedian,
   initials,
   progressRows,
@@ -126,5 +127,23 @@ describe('progressRows', () => {
     expect(progressRows([b('medium', 3)], undefined, ORDER)).toEqual([
       { severity: 'medium', done: 0, total: 3 },
     ])
+  })
+})
+
+/** The meter fill slides instead of resizing (issue 484) — a width transition relayouts the row
+ * every frame. The offset is the only arithmetic the swap introduced, so it is pinned here. */
+describe('fillTransform', () => {
+  it('maps a percentage to the leftward offset that reveals it', () => {
+    expect(fillTransform(0)).toBe('translateX(-100%)') // nothing done: fully slid out
+    expect(fillTransform(37)).toBe('translateX(-63%)')
+    expect(fillTransform(100)).toBe('translateX(0%)') // all done: flush, exactly as a full width
+  })
+
+  it('never resizes — every value is a translate, so the radius cannot squash', () => {
+    // scaleX was the other candidate and would distort the fill's 4px right corner at low
+    // percentages; a translate keeps the drawn box identical at every value.
+    for (const p of [0, 1, 50, 99, 100]) {
+      expect(fillTransform(p)).toMatch(/^translateX\(-?\d+%\)$/)
+    }
   })
 })
