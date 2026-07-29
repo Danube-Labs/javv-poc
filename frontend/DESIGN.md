@@ -125,6 +125,26 @@ solve that; severity is data-only (§2). The marks are CSS bars on whole-pixel o
 typed `+`/`−` (glyph metrics differ, so the box centres the line box and not the ink) and never
 an `AppIcon` addition (the set is ported verbatim and has no `minus`).
 
+**The grid bar hangs off the cell's top-LEFT corner, always upward** (operator rulings
+2026-07-28, on built specimens against the running Kibana Discover). Four things are load-bearing
+and none is taste:
+- **Flush on the corner** (`left: 0`), never inset — Kibana measures `left: 0`, and any inset
+  reads as floating near the edge rather than attached to it.
+- **Every row overhangs UP, the first one included.** The first-row flip this replaces was built
+  on a false premise (that the card would clip it; the real clipping ancestor starts at the
+  header's top, so it does not) and it made row 1 **unusable**: the seam then held two bars, and
+  reaching for either moved the pointer into the other row.
+- **Row 1 inverts** to a light fill with dark marks, because on the slate head band the normal
+  `--slate3` fill computes 1.17:1. `tr:first-child` is a proxy for "lands on the header" and is
+  exact only because the head travels with the rows — asserted in `tests/e2e/value-actions.spec.ts`,
+  not assumed. Every bar also carries a `--chip-hi` hairline so it separates regardless.
+- **Square corners, and a GAP rather than a divider between the marks.** This grid cannot put the
+  bar on the pixel grid at DPR 1 — the card starts at x.5, rows are 37.5px (`--text-mono-cell`
+  12.5px × 1.5 = 18.75), and column edges are percentages — so a radius stair-steps and a 1px
+  rule fringes. Whole-pixel rows would not rescue it; the card's own .5 origin survives.
+- The reveal **lifts** (the ruled `t-pop` vocabulary, mirrored: it rises out of its cell rather
+  than descending from a trigger). It previously had no transition at all.
+
 **The cell hover is a translucent STATE LAYER, not a tint** (operator ruling 2026-07-28, on
 built 4/7/11% specimens): a filterable cell washes at `--cell-act-wash` — our own on-surface
 slate at low alpha — so the affordance recedes and composites correctly over whatever it lands

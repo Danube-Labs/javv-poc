@@ -20,6 +20,8 @@
  * a per-value dropdown. Its at-rest-vs-hover reveal is a HOST decision — the visual states
  * live in `base.css` beside `.cell-go` because they key off the host row's `:hover`.
  */
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+
 import type { FilterMode } from '@/stores/filters'
 
 const props = defineProps<{
@@ -35,6 +37,54 @@ const props = defineProps<{
 
 const emit = defineEmits<{ pick: [mode: FilterMode] }>()
 
+/**
+ * Snap the bar onto the device-pixel grid (operator ruling 2026-07-28).
+ *
+ * This grid cannot place it there by itself: at devicePixelRatio 1 the bar inherits a
+ * fractional origin from three independent directions — the table card starts at x.5, rows are
+ * 37.5px (`--text-mono-cell` 12.5px x 1.5 line-height = 18.75), and column edges are
+ * percentages. Everything drawn on it then straddles pixels: measured here, the plus's two 2px
+ * strokes each smeared across THREE device pixels, and with different splits per axis
+ * (0.75/0.25 down, 0.64/0.36 across) — which is why one stroke read thicker than the other,
+ * and why the corners and a 1px divider fringed before them.
+ *
+ * No CSS can fix it — the offset is unknowable to the stylesheet — so the remainder is measured
+ * and handed back as two custom properties the transform consumes, composed WITH the lift
+ * rather than fighting it (see `.val-act-reveal` in base.css).
+ *
+ * Measured on the HOST's `mouseenter`, not the bar's: the bar hangs outside its cell, so the
+ * pointer never crosses it on the way in and its own enter event would fire far too late. One
+ * listener per instance, on the element that already decides when this is revealed.
+ */
+const root = ref<HTMLElement | null>(null)
+let host: HTMLElement | null = null
+
+function snapToPixelGrid() {
+  const el = root.value
+  if (!el) return
+  const { left, top } = el.getBoundingClientRect()
+  // the rect carries whatever transform is applied AT THIS INSTANT — mid-lift that is the snap
+  // plus the animation's leftover, not the value last written to `--snap-*`. Subtracting the
+  // written value here once baked that leftover into the snap on any re-hover inside the 120ms
+  // transition, so the live matrix is read instead (absent in jsdom, hence the guard).
+  const t = getComputedStyle(el).transform
+  const m =
+    t && t !== 'none' && typeof DOMMatrixReadOnly !== 'undefined'
+      ? new DOMMatrixReadOnly(t)
+      : null
+  // rounded because `695.36 % 1` is 0.3600000000000136 in binary floating point, and an
+  // unrounded remainder would write that whole tail into the DOM for no sub-pixel benefit
+  const frac = (v: number) => -Math.round((((v % 1) + 1) % 1) * 1000) / 1000
+  el.style.setProperty('--snap-x', `${frac(left - (m?.m41 ?? 0))}px`)
+  el.style.setProperty('--snap-y', `${frac(top - (m?.m42 ?? 0))}px`)
+}
+
+onMounted(() => {
+  host = root.value?.closest('td, .facet-row') ?? null
+  host?.addEventListener('mouseenter', snapToPixelGrid)
+})
+onBeforeUnmount(() => host?.removeEventListener('mouseenter', snapToPixelGrid))
+
 /** Clicking the side that is already active clears it — the same toggle the row/pill offer. */
 const label = (mode: FilterMode) =>
   props.active === mode
@@ -43,7 +93,7 @@ const label = (mode: FilterMode) =>
 </script>
 
 <template>
-  <span class="val-act" @click.stop>
+  <span ref="root" class="val-act" @click.stop>
     <span
       v-if="!excludeOnly"
       class="val-act-btn val-act-is"
