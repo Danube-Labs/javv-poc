@@ -92,6 +92,7 @@ async def test_enqueue_writes_a_pending_doc_and_status_reads_it_back(env) -> Non
         "image_repo": None,
         "namespace": None,
         "ptype": None,  # M8d/#241 — mirrors SearchFilters
+        "package_name": None,  # issue 492 — the package lens, an exact term
         "q": None,  # M9b slice 4 — the contains-search lens
         "present": True,
         "new_within_days": None,  # the new-in-range event lens
@@ -104,6 +105,8 @@ async def test_enqueue_writes_a_pending_doc_and_status_reads_it_back(env) -> Non
         "exclude_image_repo": None,
         "exclude_namespace": None,
         "exclude_ptype": None,
+        "exclude_cve_id": None,  # issue 492 — the last two facets to grow an exclude side
+        "exclude_package_name": None,
     }
 
     # the status view returns the public shape, never the params blob or claim internals

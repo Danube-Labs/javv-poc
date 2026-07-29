@@ -59,6 +59,9 @@ class SearchFilters:
     image_repo: str | None = None
     namespace: str | None = None
     ptype: str | None = None  # package type (M8d/B-1): "os" | ecosystem string
+    # the package a finding sits in (issue 492) — an EXACT keyword term, not the fuzzy reading
+    # `q` offers. `ptype` is the package's TYPE and answers a different question.
+    package_name: str | None = None
     q: str | None = None  # contains-search across cve/image/namespace/assignee/package (slice 4)
     present: bool = True  # the "now" grid; tombstones are opt-in
     # "new in range": first_seen_at ≥ the trend window's day-floored start — the SAME bounds
@@ -82,6 +85,8 @@ class SearchFilters:
     exclude_image_repo: str | None = None
     exclude_namespace: str | None = None
     exclude_ptype: str | None = None
+    exclude_cve_id: str | None = None
+    exclude_package_name: str | None = None
 
 
 def has_owner_clause() -> dict[str, Any]:
@@ -180,6 +185,7 @@ def build_search_body(
         ("image_repo", filters.image_repo),
         ("namespaces", filters.namespace),  # keyword[] — array-contains
         ("ptype", filters.ptype),
+        ("package_name", filters.package_name),
     ):
         if term is not None:
             fl.append({"term": {field: term}})
@@ -201,6 +207,8 @@ def build_search_body(
         ("image_repo", "image_repo", filters.image_repo, filters.exclude_image_repo),
         ("namespace", "namespaces", filters.namespace, filters.exclude_namespace),
         ("ptype", "ptype", filters.ptype, filters.exclude_ptype),
+        ("cve_id", "cve_id", filters.cve_id, filters.exclude_cve_id),
+        ("package_name", "package_name", filters.package_name, filters.exclude_package_name),
     ):
         if exc_term is not None:
             if inc_term is not None:

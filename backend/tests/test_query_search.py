@@ -383,6 +383,8 @@ def test_exclude_facets_land_as_pure_must_not() -> None:
             exclude_image_repo="docker.io/library/memcached",
             exclude_namespace="kube-system",
             exclude_ptype="deb",
+            exclude_cve_id="CVE-2021-3711",
+            exclude_package_name="zlib",
         ),
         size=10,
     )
@@ -395,6 +397,11 @@ def test_exclude_facets_land_as_pure_must_not() -> None:
         ("image_repo", "docker.io/library/memcached"),
         ("namespaces", "kube-system"),
         ("ptype", "deb"),
+        # issue 492: the last two facets to grow an exclude side. `package_name` is the one
+        # field that is commonly ABSENT on a row (an OS-level finding with no package), which
+        # is exactly the case the no-exists-guard assertion below protects
+        ("cve_id", "CVE-2021-3711"),
+        ("package_name", "zlib"),
     ):
         assert {"term": {field: term}} in mn
     assert not any("exists" in json.dumps(c) for c in mn)
@@ -409,6 +416,22 @@ def test_include_and_exclude_on_one_field_is_rejected() -> None:
         build_search_body(SearchFilters(severity=["high"], exclude_severity=["low"]), size=10)
     with pytest.raises(ValueError, match="namespace"):
         build_search_body(SearchFilters(namespace="prod", exclude_namespace="kube-system"), size=10)
+    with pytest.raises(ValueError, match="cve_id"):
+        build_search_body(
+            SearchFilters(cve_id="CVE-2021-3711", exclude_cve_id="CVE-2022-0001"), size=10
+        )
+    with pytest.raises(ValueError, match="package_name"):
+        build_search_body(
+            SearchFilters(package_name="zlib", exclude_package_name="openssl"), size=10
+        )
+
+
+def test_package_name_include_is_an_exact_term() -> None:
+    """Issue 492: `package_name` filters the keyword field exactly — the fuzzy reading of a
+    package name is `q`'s wildcard, which is a different question and stays include-only."""
+    body = build_search_body(SearchFilters(package_name="zlib"), size=10)
+    assert {"term": {"package_name": "zlib"}} in body["query"]["bool"]["filter"]
+    assert "must_not" not in body["query"]["bool"]
 
 
 def test_exclude_composes_with_overdue_false() -> None:

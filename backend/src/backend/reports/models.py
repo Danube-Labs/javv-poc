@@ -46,6 +46,7 @@ class ExportParams(BaseModel):
     image_repo: str | None = Field(default=None, max_length=512)
     namespace: str | None = Field(default=None, max_length=256)
     ptype: str | None = Field(default=None, max_length=64)
+    package_name: str | None = Field(default=None, max_length=512)
     q: str | None = Field(default=None, min_length=2, max_length=128)
     present: bool = True
     new_within_days: int | None = Field(default=None, ge=1, le=365)
@@ -58,6 +59,8 @@ class ExportParams(BaseModel):
     exclude_image_repo: str | None = Field(default=None, max_length=512)
     exclude_namespace: str | None = Field(default=None, max_length=256)
     exclude_ptype: str | None = Field(default=None, max_length=64)
+    exclude_cve_id: str | None = Field(default=None, max_length=128)
+    exclude_package_name: str | None = Field(default=None, max_length=512)
 
     @model_validator(mode="after")
     def _vex_needs_scanner(self) -> "ExportParams":

@@ -60,6 +60,7 @@ class ViewPreset(BaseModel):
     image_repo: str | None = Field(default=None, max_length=512)
     namespace: str | None = Field(default=None, max_length=256)
     ptype: str | None = Field(default=None, max_length=64, pattern=r"^[a-z0-9][a-z0-9+._-]*$")
+    package_name: str | None = Field(default=None, max_length=512)
     q: str | None = Field(default=None, min_length=2, max_length=128)
     present: bool = True
     new_within_days: int | None = Field(default=None, ge=1, le=365)
@@ -74,6 +75,8 @@ class ViewPreset(BaseModel):
     exclude_ptype: str | None = Field(
         default=None, max_length=64, pattern=r"^[a-z0-9][a-z0-9+._-]*$"
     )
+    exclude_cve_id: str | None = Field(default=None, max_length=128)
+    exclude_package_name: str | None = Field(default=None, max_length=512)
 
     @field_validator("severity", "exclude_severity")
     @classmethod
