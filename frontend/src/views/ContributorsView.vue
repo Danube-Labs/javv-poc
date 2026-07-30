@@ -268,6 +268,17 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
 .card-action {
   margin-left: auto;
   align-self: center;
+  /* the kit's default --line border is near-invisible on a white card, which left this
+     reading as a label rather than a control directly above the dark table header
+     (operator ruling 2026-07-30 on built specimens) */
+  border-color: var(--slate2);
+}
+/* the kit's hover line (--control-hover-line) is a LIGHTER beige, tuned against that default
+   border — inherited here it made the button weaken on hover. Keep the kit's wash, step the
+   border darker instead, so both hover signals point the same way */
+.card-action:hover:not(:disabled),
+.card-action:active:not(:disabled) {
+  border-color: var(--slate);
 }
 .contrib-layout {
   display: grid;
