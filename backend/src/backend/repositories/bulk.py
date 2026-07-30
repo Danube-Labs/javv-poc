@@ -14,6 +14,14 @@ from backend.core.metrics import OS_BACKOFF_RETRIES, OS_REQUEST_ERRORS
 RETRYABLE = {429, 503}
 
 
+def race_backoff_delay(attempt: int, *, base: float = 0.02, cap: float = 2.0) -> float:
+    """Backoff ceiling for the commit-race retry loops (issue 510): exponential from `base`,
+    capped per-sleep at `cap`. Ten attempts ≈ 8.5s worst case — sized to outlast a racing
+    merge/reconcile pass whose own `_bulk` backoff can sleep ≤ 7.5s when saturated
+    (max_retries=4, base_delay=0.5). Callers draw uniform(0, delay) — full jitter."""
+    return min(cap, base * 2**attempt)
+
+
 class BulkError(Exception):
     """Non-retryable item failures (or retries exhausted). Carries the failed items."""
 

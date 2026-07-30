@@ -106,3 +106,58 @@ async def test_triage_survives_a_rescan(real_os: tuple[AsyncOpenSearch, str]) ->
     # scanner fields still refreshed
     assert after["last_scan_run_id"] == env.scan_run_id
     assert after["present"] is True
+
+
+# --- issue 510: merge_findings re-issues 409-conflicted pairs, bounded ---------
+
+
+class _ScriptedBulk:
+    """Scripted per-item statuses per round, action lines are `update` pairs."""
+
+    def __init__(self, rounds: list[list[int]]) -> None:
+        self.rounds = rounds
+        self.calls: list[list[dict]] = []
+
+    async def bulk(self, body: list[dict]) -> dict:
+        self.calls.append(body)
+        statuses = self.rounds[len(self.calls) - 1]
+        assert len(body) == 2 * len(statuses)
+        items = []
+        for i, s in enumerate(statuses):
+            meta = next(iter(body[2 * i].values()))
+            items.append({"update": {"status": s, "_id": meta.get("_id")}})
+        return {"errors": any(s >= 300 for s in statuses), "items": items}
+
+
+def _update_actions(n: int) -> list[dict]:
+    out: list[dict] = []
+    for i in range(n):
+        out += [{"update": {"_index": "findings", "_id": f"k{i}"}}, {"doc": i}]
+    return out
+
+
+async def test_merge_findings_reissues_only_the_conflicted_pair() -> None:
+    from backend.services.merge import merge_findings
+
+    async def no_sleep(d: float) -> None:
+        return None
+
+    fake = _ScriptedBulk([[200, 409, 200], [200]])
+    written = await merge_findings(fake, _update_actions(3), sleep=no_sleep)  # type: ignore[arg-type]
+    assert written == 3
+    assert [a["update"]["_id"] for a in fake.calls[1][::2]] == ["k1"]  # only the 409 pair
+
+
+async def test_merge_findings_conflicts_that_never_drain_raise_bulk_error() -> None:
+    import pytest
+
+    from backend.repositories.bulk import BulkError
+    from backend.services.merge import _CONFLICT_RETRIES, merge_findings
+
+    async def no_sleep(d: float) -> None:
+        return None
+
+    fake = _ScriptedBulk([[409]] * _CONFLICT_RETRIES)
+    with pytest.raises(BulkError):
+        await merge_findings(fake, _update_actions(1), sleep=no_sleep)  # type: ignore[arg-type]
+    assert len(fake.calls) == _CONFLICT_RETRIES  # bounded, never an unbounded spin

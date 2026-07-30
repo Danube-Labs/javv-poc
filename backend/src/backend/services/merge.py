@@ -9,7 +9,18 @@ allowlists, or merge and rebuild will diverge (CORRECTNESS-CONTRACT §6).
 together (§7/§9): a finding re-appearing on a scan flips `present=true` and clears `resolved_at`.
 """
 
+import asyncio
+import random
+from collections.abc import Awaitable, Callable, Sequence
 from typing import Any
+
+import structlog
+from opensearchpy import AsyncOpenSearch
+
+from backend.core.metrics import CAS_CONFLICTS
+from backend.repositories.bulk import BulkError, bulk_write, race_backoff_delay
+
+log = structlog.get_logger()
 
 # refreshed on every scan (scanner-owned)
 SCANNER_FIELDS = frozenset(
@@ -71,3 +82,43 @@ def merge_action(doc: dict[str, Any], *, index: str) -> tuple[dict[str, Any], di
             "upsert": {**doc, "resolved_at": None},
         },
     )
+
+
+# same sizing as reconcile's drain loop — the two guard the SAME race from opposite sides
+_CONFLICT_RETRIES = 10
+
+
+async def merge_findings(
+    client: AsyncOpenSearch,
+    actions: Sequence[dict[str, Any]],
+    *,
+    sleep: Callable[[float], Awaitable[None]] | None = None,
+    rng: random.Random | None = None,
+) -> int:
+    """Ingest 3b's writer: bulk merge with bounded re-issue of 409-conflicted pairs (issue 510).
+
+    A 409 here is a concurrent reconcile `update_by_query` (or another merge) bumping the doc's
+    version mid-bulk — the other arm of the commit race. Re-issuing is safe: `_MERGE_SCRIPT`
+    self-guards on `scan_order`, so a re-run against the changed doc re-evaluates newer-wins and
+    no-ops if the doc moved past us. Anything non-409 still raises from `bulk_write` unchanged."""
+    sleep = sleep or asyncio.sleep
+    rng = rng or random.Random()
+    written = 0
+    pending = list(actions)
+    for attempt in range(_CONFLICT_RETRIES):
+        got, conflicts = await bulk_write(client, pending, collect_conflicts=True)
+        written += got
+        if not conflicts:
+            return written
+        ids = {c["_id"] for c in conflicts}
+        pending = [
+            line
+            for action, doc in zip(pending[::2], pending[1::2], strict=True)
+            if action["update"]["_id"] in ids
+            for line in (action, doc)
+        ]
+        CAS_CONFLICTS.labels("merge").inc()  # D40 early warning: multi-writer contention
+        log.debug("merge: version conflicts, retrying", conflicts=len(ids))
+        await sleep(rng.uniform(0.0, race_backoff_delay(attempt)))
+    log.warning("merge: version conflicts did not drain", attempts=_CONFLICT_RETRIES)
+    raise BulkError([{"status": "conflicts_did_not_drain", "count": len(pending) // 2}])

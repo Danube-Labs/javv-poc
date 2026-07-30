@@ -22,7 +22,7 @@ from backend.services.disagreement import (
     latest_committed_total,
     recompute_disagreement,
 )
-from backend.services.merge import merge_action
+from backend.services.merge import merge_action, merge_findings
 from backend.services.reconcile import reconcile_absent
 from backend.services.sla_clock import recompute_sla_clocks
 from backend.services.watermarks import advance_watermark
@@ -200,7 +200,9 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
     actions: list[dict[str, Any]] = []
     for doc in docs["findings"]:
         actions += merge_action(doc, index=f"{prefix}findings")
-    written = await bulk_write(client, actions)
+    # merge_findings, not raw bulk_write (issue 510): a concurrent reconcile pass can 409 a
+    # merge item mid-bulk — those re-issue bounded; the script's newer-wins guard keeps it safe
+    written = await merge_findings(client, actions)
     log.debug(
         "ingest: findings merged",
         image_digest=env.image_digest,
