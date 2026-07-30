@@ -3,8 +3,9 @@
  * Data inspector (issue 406 — the shipped mockup's console + rail): raw read-only queries
  * through the backend's allowlist proxy. Left rail = INDEX-MAP-grouped indices from
  * `_cat/indices`; main = request editor + response pane with the byte-budget meter; every
- * rejection renders the backend's reason verbatim. The repair-actions card from the mockup
- * is deliberately NOT here — job triggers are their own reviewed surface.
+ * rejection renders the backend's reason verbatim. The mockup's repair-actions card sits below
+ * the console (`RepairActionsCard`) — the three sanctioned, journaled jobs, lifecycle behind a
+ * confirm. Both loops are covered at the browser seam by `tests/e2e/inspect.spec.ts`.
  */
 import { computed, onMounted, ref } from 'vue'
 
