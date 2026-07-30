@@ -21,6 +21,22 @@ import { BASE, login, loginViewer } from './helpers'
 const repairRow = (page: Page, label: string) =>
   page.locator('.repair-row').filter({ has: page.locator('b', { hasText: label }) })
 
+/**
+ * How many `job_trigger` rows the audit lens holds, read from the response that renders the
+ * filtered view. The lens is applied from the URL, so the first fetch can be the UNfiltered one —
+ * the waiter is armed before navigating and matches only the filtered request.
+ */
+async function auditTriggerTotal(page: Page): Promise<number> {
+  const filtered = page.waitForResponse(
+    (r) => r.url().includes('/api/v1/audit?') && r.url().includes('action=job_trigger'),
+    { timeout: 20_000 },
+  )
+  await page.goto(`${BASE}/audit?action=job_trigger`)
+  // the audit read returns OpenSearch's own total object, not a flat int (query/audit.py:188)
+  const body = (await (await filtered).json()) as { total: { value: number; relation: string } }
+  return body.total.value
+}
+
 async function openInspect(page: Page) {
   await login(page)
   await page.goto(`${BASE}/inspect`)
@@ -89,11 +105,14 @@ test('the repair card triggers a job that settles to done with counts, and it la
   // Count the journaled triggers BEFORE, so the assertion afterwards proves THIS run landed.
   // Matching row text alone would not: a store that has ever run this job already carries
   // `staleness_sweep` rows, so the check would pass without the trigger doing anything.
-  // `count()` (not a visibility wait) because a fresh CI store has zero such rows.
+  //
+  // The count comes from the RESPONSE that renders the filtered view, not from counting rows.
+  // Counting the DOM raced the filter: the lens is URL-driven and applies after the first fetch,
+  // so on CI a pre-filter row was counted as if it were a job_trigger (before=1 on a store that
+  // had none, so the assertion demanded 2). `networkidle` does not order those. The response's
+  // own `total` is also not page-limited, which row-counting is.
   await login(page)
-  await page.goto(`${BASE}/audit?action=job_trigger`)
-  await page.waitForLoadState('networkidle')
-  const triggersBefore = await page.locator('.tbl tbody tr').count()
+  const triggersBefore = await auditTriggerTotal(page)
 
   await page.goto(`${BASE}/inspect`)
   await expect(page.locator('.idx, .load-error').first()).toBeVisible({ timeout: 20_000 })
@@ -121,11 +140,12 @@ test('the repair card triggers a job that settles to done with counts, and it la
 
   // the trigger is journaled (D17) — the same fact the operator can audit afterwards. One MORE
   // row than before is what proves this run was recorded, rather than an old one being matched.
-  await page.goto(`${BASE}/audit?action=job_trigger`)
-  await expect(page.locator('.tbl tbody tr')).toHaveCount(triggersBefore + 1, { timeout: 20_000 })
-  // the newest row (the walk's default order is desc) names the job kind. NB the action column
-  // renders humanized — "job trigger", not the raw `job_trigger` the URL filters on
-  await expect(page.locator('.tbl tbody tr').first()).toContainText('staleness_sweep')
+  expect(await auditTriggerTotal(page)).toBe(triggersBefore + 1)
+  // and it is rendered: the newest row (the read's default order is desc) names the job kind.
+  // NB the action column renders humanized — "job trigger", not the raw `job_trigger` filtered on
+  await expect(page.locator('.tbl tbody tr').first()).toContainText('staleness_sweep', {
+    timeout: 20_000,
+  })
 })
 
 test('the lifecycle sweep cannot fire from one click, and cancel changes nothing', async ({
