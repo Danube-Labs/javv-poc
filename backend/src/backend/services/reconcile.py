@@ -19,14 +19,21 @@ same digest bumps `_version`, so a conflicted doc is simply re-evaluated on the 
 
 import asyncio
 import random
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Any
 
 import structlog
 from opensearchpy import AsyncOpenSearch
 
-# real contention is ~1 (one CronJob per scanner, Forbid); the ceiling covers a merge racing the UBQ
-_CONFLICT_RETRIES = 8
+from backend.core.metrics import CAS_CONFLICTS
+from backend.repositories.bulk import race_backoff_delay
+
+# real contention is ~1 (one CronJob per scanner, Forbid); the ceiling covers a merge racing the
+# UBQ. Sized with race_backoff_delay (issue 510): ten exponential rounds ≈ 8.5s worst case, enough
+# to outlast a racing merge whose own `_bulk` backoff sleeps ≤ 7.5s saturated — the old flat
+# 8 × uniform(0, 0.02s) ≈ 0.16s budget was thinner than its adversary and flaked on loaded runners.
+_CONFLICT_RETRIES = 10
 log = structlog.get_logger()
 
 
@@ -39,6 +46,8 @@ async def reconcile_absent(
     committed_at: datetime | str,
     *,
     prefix: str = "",
+    sleep: Callable[[float], Awaitable[None]] | None = None,
+    rng: random.Random | None = None,
 ) -> int:
     """Flip `present=false` (+ `resolved_at`) on findings of this digest the fresh run omitted.
     Returns the number reconciled. Raises if version conflicts never drain (caller surfaces 5xx)."""
@@ -68,8 +77,10 @@ async def reconcile_absent(
     # read load (a bounded reconcile is the eventual fix; the refresh is load-bearing until then).
     await client.indices.refresh(index=index)
 
+    sleep = sleep or asyncio.sleep  # real backoff in prod; tests inject a no-op
+    rng = rng or random.Random()
     reconciled = 0
-    for _ in range(_CONFLICT_RETRIES):
+    for attempt in range(_CONFLICT_RETRIES):
         resp = await client.update_by_query(
             index=index, body=body, params={"conflicts": "proceed", "refresh": "true"}
         )
@@ -78,6 +89,11 @@ async def reconcile_absent(
         conflicts = int(resp.get("version_conflicts", 0))
         if conflicts == 0:
             return reconciled
+        CAS_CONFLICTS.labels("reconcile").inc()  # D40 early warning: multi-writer contention
         log.debug("reconcile: version conflicts, retrying", conflicts=conflicts)
-        await asyncio.sleep(random.uniform(0, 0.02))  # jitter so a racing merge can settle
+        # full jitter over a growing ceiling — a racing merge gets time to actually settle
+        await sleep(rng.uniform(0.0, race_backoff_delay(attempt)))
+    # ops parity on the ceiling: the raise surfaces the failed unit of work, the warning names
+    # the pathology (CONFIGURATION.md: reaching this ceiling is a signal, not a workload)
+    log.warning("reconcile: version conflicts did not drain", attempts=_CONFLICT_RETRIES)
     raise RuntimeError("reconcile: version conflicts did not drain")
