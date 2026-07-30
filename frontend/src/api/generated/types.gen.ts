@@ -1656,6 +1656,42 @@ export type ContributorsApiV1ContributorsGetResponses = {
 
 export type ContributorsApiV1ContributorsGetResponse = ContributorsApiV1ContributorsGetResponses[keyof ContributorsApiV1ContributorsGetResponses];
 
+export type ExportContributorsCsvApiV1ContributorsExportCsvGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+        /**
+         * Days
+         */
+        days?: number;
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+    };
+    url: '/api/v1/contributors/export.csv';
+};
+
+export type ExportContributorsCsvApiV1ContributorsExportCsvGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExportContributorsCsvApiV1ContributorsExportCsvGetError = ExportContributorsCsvApiV1ContributorsExportCsvGetErrors[keyof ExportContributorsCsvApiV1ContributorsExportCsvGetErrors];
+
+export type ExportContributorsCsvApiV1ContributorsExportCsvGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
+
 export type ListDecisionsApiV1DecisionsGetData = {
     body?: never;
     path?: never;

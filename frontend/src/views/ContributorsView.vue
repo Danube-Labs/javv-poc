@@ -8,7 +8,8 @@
  * the feed is the M8c audit read. Scoped by the global trend window (`days`) and rewindable
  * (D28: the endpoint reconstructs at a past `as_of` — no limitation notice here). Trimmed by
  * ruling: per-actor severity mix / pace / streaks / roles (not on the wire), the scan-observed
- * trends chart (not attributable to contributors, A-m9), CSV export (issue 359).
+ * trends chart (not attributable to contributors, A-m9). CSV export landed with issue 359 —
+ * the button exports the SAME lens this screen reads, so the file cannot disagree with it.
  */
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -23,6 +24,7 @@ import ContributorsLens from '@/components/contributors/ContributorsLens.vue'
 import LeaderboardTable from '@/components/contributors/LeaderboardTable.vue'
 import PodiumCard from '@/components/contributors/PodiumCard.vue'
 import ProgressPanel from '@/components/contributors/ProgressPanel.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import { useApi } from '@/composables/useApi'
 import {
   daysFromWindow,
@@ -34,6 +36,7 @@ import {
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useTimeTravelStore } from '@/stores/timeTravel'
+import { useToastStore } from '@/stores/toast'
 
 const BOARD_CAP = 100 // the endpoint's terms-agg board size — the table labels the cap
 
@@ -100,6 +103,42 @@ const podium = computed(() => {
   ]
   return top.map((row, i) => ({ row, rank: (i + 1) as 1 | 2 | 3 }))
 })
+
+/* ---- Export CSV (prototype screen-head action): fetch → blob → download, so a 413/failed
+ * response surfaces as a message rather than a broken tab (the AuditTrailView pattern). The
+ * request carries `query` itself — the exact object the screen fetched with — so the file is
+ * this window's leaderboard and not some other one ---- */
+const toast = useToastStore()
+const exporting = ref(false)
+
+async function exportCsv() {
+  const q = query.value
+  if (!q || exporting.value) return
+  exporting.value = true
+  const qs = new URLSearchParams(
+    Object.entries(q).flatMap(([k, v]) =>
+      v === undefined || v === null ? [] : [[k, String(v)] as [string, string]],
+    ),
+  )
+  const resp = await fetch(`/api/v1/contributors/export.csv?${qs}`, { credentials: 'same-origin' })
+  exporting.value = false
+  if (resp.status === 413) {
+    toast.info('Over the inline export cap — narrow the window first.')
+    return
+  }
+  if (!resp.ok) {
+    toast.error(`Export failed (${resp.status}) — check the backend connection.`)
+    logger.warn('contributors_export_failed', { status: resp.status })
+    return
+  }
+  const blob = await resp.blob()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `javv-contributors-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
+  toast.success(`Export downloaded · ${a.download}`)
+}
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 const teamSla = computed(() =>
@@ -185,6 +224,16 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
             <div class="card-head">
               <h2>Leaderboard</h2>
               <p class="card-sub">all contributors · ranked by resolved</p>
+              <UiButton
+                class="card-action"
+                variant="control"
+                :disabled="exporting || board.length === 0"
+                @click="exportCsv"
+              >
+                <AppIcon name="download" :size="13" />{{
+                  exporting ? 'Exporting…' : 'Export leaderboard (CSV)'
+                }}
+              </UiButton>
             </div>
             <LeaderboardTable :rows="board" :cap="BOARD_CAP" />
           </section>
@@ -214,6 +263,23 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
 
 <style scoped>
 /* band/head scaffolding lives in base.css (shared data-screen grammar) */
+/* the card head is baseline-aligned for its title+sub pair; a control has no useful baseline,
+   so it centers itself and takes the row's slack to sit at the right edge */
+.card-action {
+  margin-left: auto;
+  align-self: center;
+  /* the kit's default --line border is near-invisible on a white card, which left this
+     reading as a label rather than a control directly above the dark table header
+     (operator ruling 2026-07-30 on built specimens) */
+  border-color: var(--slate2);
+}
+/* the kit's hover line (--control-hover-line) is a LIGHTER beige, tuned against that default
+   border — inherited here it made the button weaken on hover. Keep the kit's wash, step the
+   border darker instead, so both hover signals point the same way */
+.card-action:hover:not(:disabled),
+.card-action:active:not(:disabled) {
+  border-color: var(--slate);
+}
 .contrib-layout {
   display: grid;
   grid-template-columns: 2fr 1fr;

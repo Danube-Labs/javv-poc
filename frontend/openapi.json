@@ -3325,6 +3325,76 @@
         ]
       }
     },
+    "/api/v1/contributors/export.csv": {
+      "get": {
+        "description": "The prototype's Export CSV (issue 359): the leaderboard of the current window.\n\n`as_of` rides the SAME D28 seam as the JSON read because both go through `_payload` \u2014 the\nM8b reader when one is registered, 501 otherwise. Deliberately not the findings export's\nflat 501: this screen is rewindable, so its export inherits whatever the screen can answer.\n\nThe cap check is a POST-count, not the audit/findings pre-count: the row count only exists\nonce the aggregation has run, and there is no cheaper way to learn it. It is a backstop\nrather than a hot guard \u2014 the board is already bounded by its own terms-agg size, well\nunder any sane `JAVV_EXPORT_MAX_ROWS`.",
+        "operationId": "export_contributors_csv_api_v1_contributors_export_csv_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "as_of",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "As Of"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Contributors Csv",
+        "tags": [
+          "contributors"
+        ]
+      }
+    },
     "/api/v1/decisions": {
       "get": {
         "operationId": "list_decisions_api_v1_decisions_get",
