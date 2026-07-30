@@ -499,3 +499,24 @@ def test_unassigned_composes_with_the_other_must_not_writers() -> None:
     assert {"term": {"scanner": "grype"}} in mn
     assert has_owner_clause() in mn
     assert len(mn) == 3
+
+
+async def test_run_search_overdue_policy_failure_opens_no_pit(monkeypatch) -> None:
+    """A failing sla-policy read on an overdue first page must not leak a PIT: the read runs
+    BEFORE create_pit, so the error paths (which only reclaim what the try block sees) never
+    have an orphan to miss (issue 509 sweep)."""
+    from backend.query import search as search_module
+
+    async def boom(*a: Any, **kw: Any) -> dict[str, Any]:
+        raise RuntimeError("policy read exploded")
+
+    monkeypatch.setattr(search_module, "read_sla_policy", boom)
+    fake = _PitOS(pages=[])
+    with pytest.raises(RuntimeError, match="policy read exploded"):
+        await run_search(
+            fake,  # type: ignore[arg-type]
+            cluster_id="c-unit-search",
+            filters=SearchFilters(overdue=True),
+            size=2,
+        )
+    assert fake.created == 0 and fake.deleted == []  # never opened → nothing to leak

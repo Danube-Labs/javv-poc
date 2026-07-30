@@ -417,3 +417,42 @@ async def test_export_csv_streams_decorated_sanitized_rows(env, monkeypatch) -> 
         "/api/v1/audit/export.csv", params={"cluster_id": cid, "actor": "u-csv-actor"}
     )
     assert r.status_code == 413  # over the cap → clean reject before any stream
+
+
+async def test_failed_decorate_on_a_nonfinal_page_reclaims_the_opened_pit(monkeypatch) -> None:
+    """decorate_rows runs after the search call's reclaim guard — a failure there on a
+    NON-final page must still delete the PIT this call opened, or it leaks until keep_alive
+    (issue 509 sweep). A final page has already deleted it; a cursor PIT stays the client's."""
+    from backend.query import audit as audit_module
+
+    class _Stub:
+        def __init__(self) -> None:
+            self.deleted: list[str] = []
+
+        async def create_pit(self, *a: Any, **kw: Any) -> dict[str, Any]:
+            return {"pit_id": "pit-1"}
+
+        async def delete_pit(self, body: dict[str, Any]) -> dict[str, Any]:
+            self.deleted += body["pit_id"]
+            return {}
+
+        async def search(self, **kw: Any) -> dict[str, Any]:
+            hits = [
+                {"_source": {"action": "login", "event_id": f"e{i}"}, "sort": [i, f"e{i}"]}
+                for i in range(2)
+            ]
+            return {"hits": {"total": {"value": 5, "relation": "eq"}, "hits": hits}}
+
+    async def boom(*a: Any, **kw: Any) -> None:
+        raise RuntimeError("decorate exploded")
+
+    monkeypatch.setattr(audit_module, "decorate_rows", boom)
+    stub = _Stub()
+    with pytest.raises(RuntimeError, match="decorate exploded"):
+        await audit_module.run_audit_search(
+            stub,  # type: ignore[arg-type]
+            cluster_id="c-unit-audit",
+            filters=AuditFilters(),
+            size=2,
+        )
+    assert stub.deleted == ["pit-1"]

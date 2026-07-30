@@ -181,7 +181,15 @@ async def run_audit_search(
             pit_id=pit_id, search_after=hits[-1]["sort"], sort=_SORT_KEY, order=order
         )
     rows = [h["_source"] for h in hits]
-    await decorate_rows(client, cluster_id=cluster_id, rows=rows, prefix=prefix)
+    try:
+        await decorate_rows(client, cluster_id=cluster_id, rows=rows, prefix=prefix)
+    except BaseException:
+        # non-final page: the walk dies with this exception, so reclaim the PIT this call
+        # opened (a final page already deleted it; a cursor PIT is the client's walk)
+        if opened_here and next_cursor is not None:
+            await client.delete_pit(body={"pit_id": [pit_id]})
+            log.warning("audit decorate failed — PIT reclaimed", cluster_id=cluster_id)
+        raise
     return {
         "data": rows,
         "next_cursor": next_cursor,
