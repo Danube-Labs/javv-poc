@@ -10,7 +10,7 @@ rail always describes the queue below it (the findings-rail contract).
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 STATUS_VALUES = ("active", "expiring", "expired", "open-ended")
@@ -77,6 +77,12 @@ def derive_status(expiry: str | None, *, now: datetime, warn_days: int) -> str:
         when = datetime.fromisoformat(expiry)
     except ValueError:
         return "open-ended"
+    if when.tzinfo is None:
+        # a stored expiry is routinely DATE-ONLY ("2026-07-15") — the UI's picker submits a day,
+        # and the mapping is a `date`. Parsed, that is naive, and OpenSearch reads it as midnight
+        # UTC when the range clause compares it. Attaching UTC here is what keeps this function
+        # agreeing with `_status_clause` on exactly those rows.
+        when = when.replace(tzinfo=UTC)
     if when <= now:
         return "expired"
     return "expiring" if when <= now + timedelta(days=warn_days) else "active"

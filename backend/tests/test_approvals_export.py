@@ -82,6 +82,7 @@ async def _accept(
     cve: str,
     created_by: str = "lead",
     expiry: datetime | None = None,
+    expiry_raw: str | None = None,
     justification: str = "accepted for now",
     scanner: str | None = None,
     both: bool = True,
@@ -104,7 +105,7 @@ async def _accept(
         "justification": justification,
         "created_by": created_by,
         "created_at": datetime.now(UTC).isoformat(),
-        "expiry": expiry.isoformat() if expiry else None,
+        "expiry": expiry_raw or (expiry.isoformat() if expiry else None),
         "revoked_at": datetime.now(UTC).isoformat() if revoked else None,
         "cluster_id": cid,
         "schema_version": 1,
@@ -319,3 +320,34 @@ async def test_the_sweep_pages_past_one_batch_without_losing_rows(env) -> None:
     got = [row["cve_id"] for row in _rows(r.text)]
     assert set(got) == expected  # nothing dropped
     assert len(got) == len(set(got)) == 12  # and nothing repeated across the page boundaries
+
+
+async def test_a_date_only_expiry_does_not_truncate_the_stream(env) -> None:
+    """Caught on the running dev stack, not by the suite: the app stores `expiry` as a bare
+    DATE, which parses NAIVE — comparing it to a tz-aware `now` raised inside the generator
+    AFTER the header had been yielded, so the client got 200 + a header and no rows.
+
+    Seeded with the shape the app actually writes (`2026-07-15`, not an ISO instant), because
+    seeding a tz-aware string is what hid this in the first place.
+    """
+    login_with, client = env
+    cid = f"c-aexp-{uuid.uuid4().hex[:8]}"
+    today = datetime.now(UTC)
+    await _accept(
+        client,
+        cid,
+        cve="CVE-2024-DATEONLY",
+        expiry_raw=(today - timedelta(days=3)).date().isoformat(),
+    )
+    await _accept(
+        client,
+        cid,
+        cve="CVE-2024-DATEFAR",
+        expiry_raw=(today + timedelta(days=60)).date().isoformat(),
+    )
+    lead = await login_with(LEAD)
+
+    r = await lead.get("/api/v1/decisions/approvals/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 200
+    rows = {row["cve_id"]: row["status"] for row in _rows(r.text)}
+    assert rows == {"CVE-2024-DATEONLY": "expired", "CVE-2024-DATEFAR": "active"}

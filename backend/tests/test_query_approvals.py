@@ -214,3 +214,22 @@ def test_the_sweep_sort_is_unique_so_search_after_cannot_drop_rows() -> None:
     assert APPROVALS_SORT[0] == {"expiry": {"order": "asc", "missing": "_last"}}
     assert APPROVALS_SORT[-1] == {"decision_id": {"order": "asc"}}
     assert build_approvals_body(ApprovalFilters(), **KW)["sort"] == [APPROVALS_SORT[0]]
+
+
+def test_a_date_only_expiry_is_read_as_utc_midnight_like_opensearch_does() -> None:
+    """The regression that a self-consistent test hid. The app stores `expiry` as a DATE
+    ("2026-07-15") — the picker submits a day and the mapping is a `date` — so
+    `fromisoformat` hands back a NAIVE datetime. Comparing that against a tz-aware `now`
+    raised TypeError and truncated the export mid-stream (200 + header, zero rows).
+
+    OpenSearch reads a bare date as midnight UTC when the range clause compares it, so that is
+    what this must do, or the column and the filter disagree on exactly these rows.
+    """
+    day_before = (NOW - timedelta(days=2)).date().isoformat()
+    day_after = (NOW + timedelta(days=2)).date().isoformat()
+    far_off = (NOW + timedelta(days=60)).date().isoformat()
+    assert derive_status(day_before, now=NOW, warn_days=7) == "expired"
+    assert derive_status(day_after, now=NOW, warn_days=7) == "expiring"
+    assert derive_status(far_off, now=NOW, warn_days=7) == "active"
+    # the midnight-UTC reading itself: today's date is already past at midday NOW
+    assert derive_status(NOW.date().isoformat(), now=NOW, warn_days=7) == "expired"
