@@ -16,6 +16,10 @@ export default defineConfig({
     },
   },
   server: {
+    // `coverage/` is vitest output, gitignored and never imported. Watched, it cost a full page
+    // reload PER FILE written — 80 of them on one `npm run test:ci` — so running the suite while
+    // the dev server was up wiped whatever the operator had on screen mid-session.
+    watch: { ignored: ['**/coverage/**'] },
     proxy: {
       // the live dev backend (uvicorn :8000) — same paths the k8s ingress will route
       '/api': 'http://localhost:8000',
