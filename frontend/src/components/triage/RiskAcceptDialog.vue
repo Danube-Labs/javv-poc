@@ -49,9 +49,11 @@ const valid = computed(() => justification.value.trim().length > 0)
 
 async function submit() {
   if (!valid.value || submitting.value) return
+  // withGlobals throws when no cluster is selected — resolve it BEFORE arming the busy flag,
+  // or a throw here would strand the dialog at "Saving…" (issue 509's defect class)
+  const globals = withGlobals()
   submitting.value = true
   error.value = null
-  const globals = withGlobals()
   const response = await createApiV1DecisionsPost({
     body: {
       type: 'risk_accepted',

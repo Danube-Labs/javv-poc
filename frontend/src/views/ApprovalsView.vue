@@ -33,6 +33,7 @@ import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
+import { useCsvExport } from '@/composables/useCsvExport'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import { activeMode } from '@/filters/fields.config'
 import type { FacetsResponse } from '@/filters/facets'
@@ -89,41 +90,28 @@ const filterQuery = computed(() =>
     : null,
 )
 
-/* ---- Export CSV (issue 359): fetch → blob → download, so a 413/failed response surfaces as
- * a message rather than a broken tab (the AuditTrailView pattern). The request carries
- * `filterQuery` + the same `warn_days` the queue fetched with, so the file is the lens on
- * screen — including which rows count as "expiring" ---- */
-const exporting = ref(false)
+/* ---- Export CSV (issue 359): useCsvExport owns fetch → blob → download, so a 413/failed
+ * response surfaces as a message rather than a broken tab. The request carries `filterQuery`
+ * + the same `warn_days` the queue fetched with, so the file is the lens on screen —
+ * including which rows count as "expiring" ---- */
+const { exporting, run: runExport } = useCsvExport({
+  path: '/api/v1/decisions/approvals/export.csv',
+  filename: (stamp) => `javv-approvals-${stamp}.csv`,
+  event: 'approvals_export_failed',
+  onCapped: () => toast.info('Over the inline export cap — narrow the filters first.'),
+  onFailed: (status) =>
+    toast.error(
+      status
+        ? `Export failed (${status}) — check the backend connection.`
+        : 'Export failed — check the backend connection.',
+    ),
+  onDone: (name) => toast.success(`Export downloaded · ${name}`),
+})
 
 async function exportCsv() {
   const q = filterQuery.value
-  if (!q || exporting.value) return
-  exporting.value = true
-  const qs = new URLSearchParams(
-    Object.entries({ ...q, warn_days: EXPIRY_WARN_DAYS }).flatMap(([k, v]) =>
-      v === undefined || v === null ? [] : [[k, String(v)] as [string, string]],
-    ),
-  )
-  const resp = await fetch(`/api/v1/decisions/approvals/export.csv?${qs}`, {
-    credentials: 'same-origin',
-  })
-  exporting.value = false
-  if (resp.status === 413) {
-    toast.info('Over the inline export cap — narrow the filters first.')
-    return
-  }
-  if (!resp.ok) {
-    toast.error(`Export failed (${resp.status}) — check the backend connection.`)
-    logger.warn('approvals_export_failed', { status: resp.status })
-    return
-  }
-  const blob = await resp.blob()
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `javv-approvals-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(a.href)
-  toast.success(`Export downloaded · ${a.download}`)
+  if (!q) return
+  await runExport({ ...q, warn_days: EXPIRY_WARN_DAYS })
 }
 
 async function fetchQueue() {

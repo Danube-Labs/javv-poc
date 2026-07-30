@@ -18,6 +18,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiField from '@/components/ui/UiField.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { useApi } from '@/composables/useApi'
+import { useCsvExport } from '@/composables/useCsvExport'
 import { buildFilterQuery } from '@/filters/buildFilterQuery'
 import { scheduleParams, unrepresentableKeys } from '@/findings/exportParams'
 import type { FilterField } from '@/filters/fields.config'
@@ -92,42 +93,32 @@ onUnmounted(() => {
   if (poll) clearInterval(poll)
 })
 
-/* ---- run now: fetch → blob → download (so 413/501 surface as messages, not broken tabs) ---- */
-async function runNow() {
-  busy.value = true
-  error.value = null
-  const q = { ...lensQuery.value } as Record<string, unknown>
-  const path = format.value === 'csv' ? 'export.csv' : 'export.vex'
-  if (format.value === 'vex') q.scanner = vexScanner.value
-  const qs = new URLSearchParams(
-    Object.entries(q).flatMap(([k, v]) =>
-      v === undefined || v === null
-        ? []
-        : Array.isArray(v)
-          ? v.map((x) => [k, String(x)] as [string, string])
-          : [[k, String(v)] as [string, string]],
-    ),
-  )
-  const resp = await fetch(`/api/v1/findings/${path}?${qs}`, { credentials: 'same-origin' })
-  busy.value = false
-  if (resp.status === 413) {
+/* ---- run now: useCsvExport owns fetch → blob → download (so 413/501 surface as messages,
+ * not broken tabs); this dialog's 413 pivots to the schedule tab instead of toasting ---- */
+const { exporting, run: runExport } = useCsvExport({
+  path: () => `/api/v1/findings/${format.value === 'csv' ? 'export.csv' : 'export.vex'}`,
+  filename: (stamp) => `javv-findings-${stamp}.${format.value === 'csv' ? 'csv' : 'openvex.json'}`,
+  event: 'export_failed',
+  onCapped: () => {
     error.value = 'Over the inline export cap — narrow the lens, or schedule it off-peak.'
     tab.value = 'schedule'
-    return
-  }
-  if (!resp.ok) {
-    error.value = `Export failed (${resp.status}) — check the backend connection.`
-    logger.warn('export_failed', { status: resp.status })
-    return
-  }
-  const blob = await resp.blob()
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `javv-findings-${new Date().toISOString().slice(0, 10)}.${format.value === 'csv' ? 'csv' : 'openvex.json'}`
-  a.click()
-  URL.revokeObjectURL(a.href)
-  logger.info('export_downloaded', { format: format.value })
-  toast.success(`Export downloaded · ${a.download}`)
+  },
+  onFailed: (status) => {
+    error.value = status
+      ? `Export failed (${status}) — check the backend connection.`
+      : 'Export failed — check the backend connection.'
+  },
+  onDone: (name) => {
+    logger.info('export_downloaded', { format: format.value })
+    toast.success(`Export downloaded · ${name}`)
+  },
+})
+
+async function runNow() {
+  error.value = null
+  const q = { ...lensQuery.value } as Record<string, unknown>
+  if (format.value === 'vex') q.scanner = vexScanner.value
+  await runExport(q)
 }
 
 /* ---- schedule: enqueue → poll status → signed download link + expiry ---- */
@@ -266,15 +257,15 @@ const downloadHref = computed(() =>
           <UiButton
             v-if="tab === 'now'"
             variant="primary"
-            :disabled="busy"
+            :disabled="busy || exporting"
             @click="runNow"
           >
-            {{ busy ? 'Exporting…' : 'Download' }}
+            {{ exporting ? 'Exporting…' : 'Download' }}
           </UiButton>
           <UiButton
             v-else
             variant="primary"
-            :disabled="busy || !!scheduleBlocked || report !== null"
+            :disabled="busy || exporting || !!scheduleBlocked || report !== null"
             @click="schedule"
           >
             {{ busy ? 'Scheduling…' : 'Schedule' }}
