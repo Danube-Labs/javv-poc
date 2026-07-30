@@ -1,0 +1,321 @@
+"""Issue 359 (absorbing #373) — GET /api/v1/decisions/approvals/export.csv against real
+OpenSearch.
+
+Pins what this export can get wrong that the queue read cannot: leaking a capability-gated
+queue to a session that may not see it, a formula-armed justification cell, a derived status
+column that disagrees with the chip it mirrors, and a sweep that drops rows because the review
+sort is not unique.
+"""
+
+import csv
+import io
+import uuid
+from datetime import UTC, datetime, timedelta
+
+import httpx
+import pytest
+from opensearchpy import AsyncOpenSearch
+
+from backend.auth.passwords import hash_password
+from backend.core.metrics import EXPORT_BYTES, EXPORT_ROWS, LIMIT_REJECTIONS
+from backend.core.settings import get_settings
+from backend.decisions.lifecycle import DECISIONS_INDEX
+from backend.export.approvals_csv import APPROVALS_CSV_COLUMNS
+from backend.main import create_app
+from os_env import OS_URL, requires_opensearch
+
+PASSWORD = "approvals-export-password"
+LEAD = ["can_triage", "can_accept_audit_final"]
+
+pytestmark = requires_opensearch
+
+
+@pytest.fixture(autouse=True)
+def _clear_settings_cache():
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+@pytest.fixture
+async def env():
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    app = create_app()
+    app.state.opensearch = client
+    transport = httpx.ASGITransport(app=app)
+    jars: list[httpx.AsyncClient] = []
+
+    async def login_with(capabilities: list[str]) -> httpx.AsyncClient:
+        username = f"u-{uuid.uuid4().hex[:12]}"
+        await client.index(
+            index="system-users",
+            id=username,
+            body={
+                "username": username,
+                "password_hash": hash_password(PASSWORD),
+                "role": "custom",
+                "capabilities": capabilities,
+                "must_change": False,
+                "disabled": False,
+                "auth_source": "local",
+                "external_id": None,
+                "created_at": "2026-07-05T00:00:00+00:00",
+            },
+            params={"refresh": "true"},
+        )
+        http = httpx.AsyncClient(transport=transport, base_url="https://t")
+        jars.append(http)
+        r = await http.post("/auth/login", json={"username": username, "password": PASSWORD})
+        assert r.status_code == 200
+        return http
+
+    yield login_with, client
+    for http in jars:
+        await http.aclose()
+    await client.close()
+
+
+async def _accept(
+    client: AsyncOpenSearch,
+    cid: str,
+    *,
+    cve: str,
+    created_by: str = "lead",
+    expiry: datetime | None = None,
+    justification: str = "accepted for now",
+    scanner: str | None = None,
+    both: bool = True,
+    revoked: bool = False,
+    namespaces: list[str] | None = None,
+    images: list[str] | None = None,
+) -> str:
+    """One standing risk-acceptance, written straight to the index — the queue is a read over
+    whatever lives there, and going through the create route would drag in SEC-2 plumbing this
+    file is not testing."""
+    did = f"d-{uuid.uuid4().hex[:12]}"
+    body = {
+        "decision_id": did,
+        "type": "risk_accepted",
+        "cve_id": cve,
+        "scope": {"namespaces": namespaces or [], "images": images or []},
+        "apply_both_scanners": both,
+        "scanner": scanner,
+        "vex_justification": "vulnerable_code_not_in_execute_path",
+        "justification": justification,
+        "created_by": created_by,
+        "created_at": datetime.now(UTC).isoformat(),
+        "expiry": expiry.isoformat() if expiry else None,
+        "revoked_at": datetime.now(UTC).isoformat() if revoked else None,
+        "cluster_id": cid,
+        "schema_version": 1,
+    }
+    await client.index(
+        index=DECISIONS_INDEX,
+        id=did,
+        body={k: v for k, v in body.items() if v is not None},
+        params={"refresh": "true"},
+    )
+    return did
+
+
+def _rows(text: str) -> list[dict[str, str]]:
+    return list(csv.DictReader(io.StringIO(text)))
+
+
+async def _pit_count(client: AsyncOpenSearch) -> int:
+    resp = await client.transport.perform_request("GET", "/_search/point_in_time/_all")
+    return len(resp.get("pits") or [])
+
+
+async def test_the_export_inherits_the_queue_s_capability_gate(env) -> None:
+    """The queue names who accepted which risk — the file is exactly as sensitive as the
+    screen, so a plain session must not be able to download it."""
+    login_with, client = env
+    cid = f"c-aexp-{uuid.uuid4().hex[:8]}"
+    await _accept(client, cid, cve="CVE-2024-0001")
+
+    viewer = await login_with(["can_triage"])  # triager, but NOT accept-final
+    r = await viewer.get("/api/v1/decisions/approvals/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 403
+
+    bare = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=viewer._transport.app),  # type: ignore[attr-defined]
+        base_url="https://t",
+    )
+    r = await bare.get("/api/v1/decisions/approvals/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 401
+    await bare.aclose()
+
+    lead = await login_with(LEAD)
+    r = await lead.get("/api/v1/decisions/approvals/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 200
+
+
+async def test_rows_statuses_and_scope_match_the_screen_and_defuse_formulas(env) -> None:
+    """The justification is free text the approver wrote, so it carries the injection bait.
+
+    The derived `status` column is checked against the SAME four boundaries the chip and the
+    `status` filter use, and the scope columns carry the raw lists rather than the screen's
+    truncating label — an export that dropped scope entries would be quietly lossy.
+    """
+    login_with, client = env
+    cid = f"c-aexp-{uuid.uuid4().hex[:8]}"
+    now = datetime.now(UTC)
+    bait = "=cmd()|'/c calc'!A1"
+
+    await _accept(client, cid, cve="CVE-2024-EXPIRED", expiry=now - timedelta(days=2))
+    await _accept(client, cid, cve="CVE-2024-EXPIRING", expiry=now + timedelta(days=3))
+    await _accept(client, cid, cve="CVE-2024-ACTIVE", expiry=now + timedelta(days=90))
+    await _accept(
+        client,
+        cid,
+        cve="CVE-2024-OPEN",
+        justification=bait,
+        namespaces=["team-a", "team-b"],
+        images=["nginx"],
+        both=False,
+        scanner="trivy",
+    )
+    await _accept(client, cid, cve="CVE-2024-REVOKED", revoked=True)
+
+    lead = await login_with(LEAD)
+    r = await lead.get("/api/v1/decisions/approvals/export.csv", params={"cluster_id": cid})
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/csv")
+    assert "javv-approvals-" in r.headers["content-disposition"]
+
+    lines = r.text.splitlines()
+    assert lines[0].split(",") == list(APPROVALS_CSV_COLUMNS)
+    by_cve = {row["cve_id"]: row for row in _rows(r.text)}
+
+    # the revoked guard is the queue's definition — an export must never resurrect one
+    assert "CVE-2024-REVOKED" not in by_cve
+    assert len(by_cve) == 4
+
+    assert by_cve["CVE-2024-EXPIRED"]["status"] == "expired"
+    assert by_cve["CVE-2024-EXPIRING"]["status"] == "expiring"  # inside the default 7d window
+    assert by_cve["CVE-2024-ACTIVE"]["status"] == "active"
+    assert by_cve["CVE-2024-OPEN"]["status"] == "open-ended"  # no expiry at all
+
+    row = by_cve["CVE-2024-OPEN"]
+    assert row["justification"] == f"'{bait}"  # armed cell defused, value still readable
+    assert not any(ln.startswith(("=", "+", "@")) for ln in lines[1:])
+    assert row["scope_namespaces"] == "team-a;team-b"  # raw list, not the truncating label
+    assert row["scope_images"] == "nginx"
+    assert row["scanner"] == "trivy"  # the COLUMN's value (D22), not the raw field alone
+    assert by_cve["CVE-2024-ACTIVE"]["scanner"] == "both"
+    # cluster-wide is the doc's own empty-scope convention, carried through as empty cells
+    assert by_cve["CVE-2024-ACTIVE"]["scope_namespaces"] == ""
+
+
+async def test_warn_days_moves_the_status_column_the_same_way_it_moves_the_filter(env) -> None:
+    """chip ≡ filter ≡ export: widening the warn window must reclassify the same row in the
+    file that it reclassifies in the queue."""
+    login_with, client = env
+    cid = f"c-aexp-{uuid.uuid4().hex[:8]}"
+    await _accept(client, cid, cve="CVE-2024-2020", expiry=datetime.now(UTC) + timedelta(days=20))
+    lead = await login_with(LEAD)
+
+    r = await lead.get("/api/v1/decisions/approvals/export.csv", params={"cluster_id": cid})
+    assert _rows(r.text)[0]["status"] == "active"  # 20d out, default 7d window
+    r = await lead.get(
+        "/api/v1/decisions/approvals/export.csv", params={"cluster_id": cid, "warn_days": 30}
+    )
+    assert _rows(r.text)[0]["status"] == "expiring"  # same row, wider window
+
+
+async def test_the_file_carries_the_lens_and_only_this_tenant(env) -> None:
+    login_with, client = env
+    cid = f"c-aexp-{uuid.uuid4().hex[:8]}"
+    other = f"c-aexp-{uuid.uuid4().hex[:8]}"
+    await _accept(client, cid, cve="CVE-2024-1111", created_by="ana")
+    await _accept(client, cid, cve="CVE-2024-2222", created_by="bo")
+    await _accept(client, other, cve="CVE-2024-9999", created_by="ana")
+    lead = await login_with(LEAD)
+    base = {"cluster_id": cid}
+
+    r = await lead.get("/api/v1/decisions/approvals/export.csv", params=base)
+    assert {row["cve_id"] for row in _rows(r.text)} == {"CVE-2024-1111", "CVE-2024-2222"}
+    assert "CVE-2024-9999" not in r.text  # SEC-4 — the other tenant never leaks
+
+    r = await lead.get(
+        "/api/v1/decisions/approvals/export.csv", params={**base, "created_by": "ana"}
+    )
+    assert {row["cve_id"] for row in _rows(r.text)} == {"CVE-2024-1111"}
+    r = await lead.get(
+        "/api/v1/decisions/approvals/export.csv", params={**base, "exclude_created_by": "ana"}
+    )
+    assert {row["cve_id"] for row in _rows(r.text)} == {"CVE-2024-2222"}
+    r = await lead.get("/api/v1/decisions/approvals/export.csv", params={**base, "q": "1111"})
+    assert {row["cve_id"] for row in _rows(r.text)} == {"CVE-2024-1111"}
+
+    # a field is include OR exclude, never both — the same 422 the queue raises
+    r = await lead.get(
+        "/api/v1/decisions/approvals/export.csv",
+        params={**base, "created_by": "ana", "exclude_created_by": "bo"},
+    )
+    assert r.status_code == 422
+    r = await lead.get(
+        "/api/v1/decisions/approvals/export.csv", params={**base, "status": "nonsense"}
+    )
+    assert r.status_code == 422
+
+
+async def test_over_the_cap_is_413_before_any_pit_and_the_sweep_cleans_up(env, monkeypatch) -> None:
+    """The pre-count runs before a PIT opens (audit A-M6), so an oversized lens costs one count
+    and no sweep. Ops parity: the 413 logs a warning AND bumps LIMIT_REJECTIONS."""
+    login_with, client = env
+    cid = f"c-aexp-{uuid.uuid4().hex[:8]}"
+    for i in range(3):
+        await _accept(client, cid, cve=f"CVE-2024-30{i}")
+    lead = await login_with(LEAD)
+
+    before = LIMIT_REJECTIONS.labels("export_rows")._value.get()
+    pits_before = await _pit_count(client)
+    params = {"cluster_id": cid}
+
+    monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "2")  # 3 acceptances > cap 2
+    get_settings.cache_clear()
+    r = await lead.get("/api/v1/decisions/approvals/export.csv", params=params)
+    assert r.status_code == 413
+    assert "inline export limit" in r.json()["title"]
+    assert LIMIT_REJECTIONS.labels("export_rows")._value.get() == before + 1
+    assert await _pit_count(client) == pits_before  # the 413 landed BEFORE any PIT opened
+
+    monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "50")
+    get_settings.cache_clear()
+    rows_before = EXPORT_ROWS.labels("approvals_csv")._value.get()
+    bytes_before = EXPORT_BYTES.labels("approvals_csv")._value.get()
+    r = await lead.get("/api/v1/decisions/approvals/export.csv", params=params)
+    assert r.status_code == 200
+    assert len(r.text.splitlines()) == 1 + 3
+    assert EXPORT_ROWS.labels("approvals_csv")._value.get() == rows_before + 3  # header excluded
+    assert EXPORT_BYTES.labels("approvals_csv")._value.get() == bytes_before + len(r.text)
+    assert await _pit_count(client) == pits_before  # the sweep deleted its PIT (D38)
+
+
+async def test_the_sweep_pages_past_one_batch_without_losing_rows(env) -> None:
+    """The review sort (`expiry asc`) is NOT unique, so a search_after walk needs the
+    decision_id tiebreaker. Seeded with rows that all share ONE expiry — the exact tie the
+    tiebreaker exists for — and asserted whole across a forced multi-page sweep."""
+    login_with, client = env
+    cid = f"c-aexp-{uuid.uuid4().hex[:8]}"
+    same = datetime.now(UTC) + timedelta(days=45)
+    expected = set()
+    for i in range(12):
+        await _accept(client, cid, cve=f"CVE-2024-7{i:03d}", expiry=same)
+        expected.add(f"CVE-2024-7{i:03d}")
+    lead = await login_with(LEAD)
+
+    import backend.export.approvals_csv as mod
+
+    original = mod._PAGE_SIZE
+    mod._PAGE_SIZE = 5  # force 3 pages over 12 tied rows
+    try:
+        r = await lead.get("/api/v1/decisions/approvals/export.csv", params={"cluster_id": cid})
+    finally:
+        mod._PAGE_SIZE = original
+    assert r.status_code == 200
+    got = [row["cve_id"] for row in _rows(r.text)]
+    assert set(got) == expected  # nothing dropped
+    assert len(got) == len(set(got)) == 12  # and nothing repeated across the page boundaries

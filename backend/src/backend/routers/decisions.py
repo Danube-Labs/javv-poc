@@ -10,16 +10,21 @@ List is a tenant read: `cluster_id` is a REQUIRED filter (the chokepoint discipl
 unscoped cross-cluster read), with task-E pagination (`size`/`offset` + `total`).
 """
 
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import StreamingResponse
 from opensearchpy import NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
+from backend.core.metrics import EXPORT_BYTES, EXPORT_ROWS, LIMIT_REJECTIONS
+from backend.core.settings import get_settings
 from backend.decisions.lifecycle import (
     DECISIONS_INDEX,
     DecisionPayload,
@@ -27,6 +32,8 @@ from backend.decisions.lifecycle import (
     edit_decision,
     revoke_decision,
 )
+from backend.export.approvals_csv import count_approvals_lens, stream_approvals_csv
+from backend.query import pit_guard
 from backend.query.approvals import (
     SCANNER_VALUES,
     STATUS_VALUES,
@@ -36,6 +43,7 @@ from backend.query.approvals import (
 )
 
 router = APIRouter(prefix="/api/v1/decisions", tags=["decisions"])
+log = structlog.get_logger()
 
 CanTriage = Annotated[Principal, Depends(require_capability("can_triage"))]
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
@@ -109,13 +117,7 @@ async def edit(
     return {"revoked": revoked, "decision": new}
 
 
-@router.get("/approvals")
-async def approval_list(
-    request: Request,
-    principal: Annotated[Principal, Depends(require_capability("can_accept_audit_final"))],
-    cluster_id: ClusterId,
-    size: Annotated[int, Query(ge=1, le=500)] = 50,
-    offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
+def _approval_lens(
     q: Annotated[str | None, Query(min_length=2, max_length=128)] = None,
     status: Annotated[str | None, Query(max_length=16)] = None,
     created_by: Annotated[str | None, Query(max_length=128)] = None,
@@ -123,15 +125,10 @@ async def approval_list(
     exclude_status: Annotated[str | None, Query(max_length=16)] = None,
     exclude_created_by: Annotated[str | None, Query(max_length=128)] = None,
     exclude_scanner: Annotated[str | None, Query(max_length=8)] = None,
-    warn_days: Annotated[int, Query(ge=1, le=365)] = 7,
-) -> dict[str, Any]:
-    """M5d/FR-8: the risk-accept review surface for accept_final holders — ACTIVE risk-accept
-    decisions, soonest-expiring first (RULING, #30: creation is already SEC-2-gated, so this is
-    a review queue over standing acceptances, not a pending-approval workflow). Slice 4b
-    (operator re-ruling on the built 4a screen): the prototype rail's dims served server-side —
-    `q` (CVE contains) / `status` (derived from `expiry` at query time against `warn_days`,
-    mirroring the FE chip's window) / `created_by` / `scanner` (the column value, both|trivy|
-    grype) — plus facet counts under the same lens, one round trip."""
+) -> ApprovalFilters:
+    """The 4b lens, validated once at the edge (the `findings._filters` pattern). The queue read
+    and its CSV export (issue 359) share it, so an export can never accept a lens the screen
+    would have rejected."""
     for name, value, vocabulary in (
         ("status", status, STATUS_VALUES),
         ("exclude_status", exclude_status, STATUS_VALUES),
@@ -149,19 +146,44 @@ async def approval_list(
     ):
         if inc is not None and exc is not None:
             raise HTTPException(422, f"{name} and exclude_{name} are mutually exclusive")
+    return ApprovalFilters(
+        q=q,
+        status=status,
+        created_by=created_by,
+        scanner=scanner,
+        exclude_status=exclude_status,
+        exclude_created_by=exclude_created_by,
+        exclude_scanner=exclude_scanner,
+    )
+
+
+ApprovalLens = Annotated[ApprovalFilters, Depends(_approval_lens)]
+AcceptFinal = Annotated[Principal, Depends(require_capability("can_accept_audit_final"))]
+WarnDays = Annotated[int, Query(ge=1, le=365)]
+
+
+@router.get("/approvals")
+async def approval_list(
+    request: Request,
+    principal: AcceptFinal,
+    cluster_id: ClusterId,
+    filters: ApprovalLens,
+    size: Annotated[int, Query(ge=1, le=500)] = 50,
+    offset: Annotated[int, Query(ge=0, le=10_000)] = 0,
+    warn_days: WarnDays = 7,
+) -> dict[str, Any]:
+    """M5d/FR-8: the risk-accept review surface for accept_final holders — ACTIVE risk-accept
+    decisions, soonest-expiring first (RULING, #30: creation is already SEC-2-gated, so this is
+    a review queue over standing acceptances, not a pending-approval workflow). Slice 4b
+    (operator re-ruling on the built 4a screen): the prototype rail's dims served server-side —
+    `q` (CVE contains) / `status` (derived from `expiry` at query time against `warn_days`,
+    mirroring the FE chip's window) / `created_by` / `scanner` (the column value, both|trivy|
+    grype) — plus facet counts under the same lens, one round trip."""
     client = cast(Any, request.app.state.opensearch)
     # no read-side refresh (audit A-m2/#191): decision writes use refresh=true, so read-your-writes
     # holds without forcing a Lucene refresh on every read
     body = build_approvals_body(
-        ApprovalFilters(
-            q=q,
-            status=status,
-            created_by=created_by,
-            scanner=scanner,
-            exclude_status=exclude_status,
-            exclude_created_by=exclude_created_by,
-            exclude_scanner=exclude_scanner,
-        ),
+        filters,
         cluster_id=cluster_id,
         size=size,
         offset=offset,
@@ -176,6 +198,66 @@ async def approval_list(
         "offset": offset,
         "facets": shape_facets(resp["aggregations"]),
     }
+
+
+@router.get("/approvals/export.csv")
+async def export_approvals_csv(
+    request: Request,
+    principal: AcceptFinal,
+    cluster_id: ClusterId,
+    filters: ApprovalLens,
+    warn_days: WarnDays = 7,
+) -> StreamingResponse:
+    """The queue's Export CSV (issue 359, absorbing #373): the CURRENT lens, streamed.
+
+    Capability-gated like the queue it exports — standing risk-acceptances name who accepted
+    what, so the file is exactly as sensitive as the screen and inherits its
+    `can_accept_audit_final` gate rather than settling for session auth.
+
+    `now` is read ONCE and passed to both the count and the sweep, so the derived `status`
+    column and the `status` filter cannot straddle a tick and disagree.
+    """
+    client = cast(Any, request.app.state.opensearch)
+    now = datetime.now(UTC)
+    max_rows = get_settings().export_max_rows
+    n = await count_approvals_lens(
+        client, cluster_id=cluster_id, filters=filters, now=now, warn_days=warn_days
+    )
+    if n > max_rows:
+        log.warning("inline export capped", cluster_id=cluster_id, cap=max_rows, format="approv")
+        LIMIT_REJECTIONS.labels("export_rows").inc()  # M-4 (#220)
+        raise HTTPException(
+            413,
+            f"{n} acceptances exceed the inline export limit ({max_rows}) — narrow the filters",
+        )
+    try:
+        pit_guard.acquire(principal.user_id)
+    except pit_guard.PitCapExceeded as exc:
+        log.warning("PIT cap reached for principal", format="approvals")
+        raise HTTPException(429, str(exc), headers={"Retry-After": "5"}) from exc
+
+    async def body() -> AsyncIterator[str]:
+        # M-4 (#220): rows/bytes counted in the same finally that frees the PIT slot — a client
+        # that disconnects mid-stream reports what was ACTUALLY streamed
+        rows, size = 0, 0
+        try:
+            async for line in stream_approvals_csv(
+                client, cluster_id=cluster_id, filters=filters, now=now, warn_days=warn_days
+            ):
+                rows += 1
+                size += len(line)
+                yield line
+        finally:
+            pit_guard.release_one(principal.user_id)
+            EXPORT_ROWS.labels("approvals_csv").inc(max(0, rows - 1))  # minus the header line
+            EXPORT_BYTES.labels("approvals_csv").inc(size)
+
+    stamp = now.strftime("%Y-%m-%d")
+    return StreamingResponse(
+        body(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="javv-approvals-{stamp}.csv"'},
+    )
 
 
 @router.get("")
