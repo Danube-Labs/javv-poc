@@ -3571,6 +3571,18 @@
           },
           {
             "in": "query",
+            "name": "warn_days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Warn Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -3688,18 +3700,6 @@
               ],
               "title": "Exclude Scanner"
             }
-          },
-          {
-            "in": "query",
-            "name": "warn_days",
-            "required": false,
-            "schema": {
-              "default": 7,
-              "maximum": 365,
-              "minimum": 1,
-              "title": "Warn Days",
-              "type": "integer"
-            }
           }
         ],
         "responses": {
@@ -3727,6 +3727,179 @@
           }
         },
         "summary": "Approval List",
+        "tags": [
+          "decisions"
+        ]
+      }
+    },
+    "/api/v1/decisions/approvals/export.csv": {
+      "get": {
+        "description": "The queue's Export CSV (issue 359, absorbing #373): the CURRENT lens, streamed.\n\nCapability-gated like the queue it exports \u2014 standing risk-acceptances name who accepted\nwhat, so the file is exactly as sensitive as the screen and inherits its\n`can_accept_audit_final` gate rather than settling for session auth.\n\n`now` is read ONCE and passed to both the count and the sweep, so the derived `status`\ncolumn and the `status` filter cannot straddle a tick and disagree.",
+        "operationId": "export_approvals_csv_api_v1_decisions_approvals_export_csv_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "warn_days",
+            "required": false,
+            "schema": {
+              "default": 7,
+              "maximum": 365,
+              "minimum": 1,
+              "title": "Warn Days",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "minLength": 2,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "created_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Created By"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scanner"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 16,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_created_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Created By"
+            }
+          },
+          {
+            "in": "query",
+            "name": "exclude_scanner",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 8,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Exclude Scanner"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Export Approvals Csv",
         "tags": [
           "decisions"
         ]

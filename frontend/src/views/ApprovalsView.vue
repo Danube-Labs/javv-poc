@@ -6,7 +6,8 @@
  * active risk-accepts, soonest-expiring first, server offset paging. The five slice rulings
  * (operator, 2026-07-13): no facet rail v1 · decision-activity lens · row → CVE-searched
  * findings · T<now = limitation notice (the endpoint has no as_of seam) · expiry-warn knob.
- * Route + nav are capability-gated (can_accept_audit_final) since the M9a shell.
+ * Route + nav are capability-gated (can_accept_audit_final) since the M9a shell; the CSV
+ * export (issue 359) inherits that gate — these rows name who accepted which risk.
  */
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -87,6 +88,43 @@ const filterQuery = computed(() =>
       )
     : null,
 )
+
+/* ---- Export CSV (issue 359): fetch → blob → download, so a 413/failed response surfaces as
+ * a message rather than a broken tab (the AuditTrailView pattern). The request carries
+ * `filterQuery` + the same `warn_days` the queue fetched with, so the file is the lens on
+ * screen — including which rows count as "expiring" ---- */
+const exporting = ref(false)
+
+async function exportCsv() {
+  const q = filterQuery.value
+  if (!q || exporting.value) return
+  exporting.value = true
+  const qs = new URLSearchParams(
+    Object.entries({ ...q, warn_days: EXPIRY_WARN_DAYS }).flatMap(([k, v]) =>
+      v === undefined || v === null ? [] : [[k, String(v)] as [string, string]],
+    ),
+  )
+  const resp = await fetch(`/api/v1/decisions/approvals/export.csv?${qs}`, {
+    credentials: 'same-origin',
+  })
+  exporting.value = false
+  if (resp.status === 413) {
+    toast.info('Over the inline export cap — narrow the filters first.')
+    return
+  }
+  if (!resp.ok) {
+    toast.error(`Export failed (${resp.status}) — check the backend connection.`)
+    logger.warn('approvals_export_failed', { status: resp.status })
+    return
+  }
+  const blob = await resp.blob()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `javv-approvals-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
+  toast.success(`Export downloaded · ${a.download}`)
+}
 
 async function fetchQueue() {
   if (!filterQuery.value || !timeTravel.isNow) return
@@ -263,6 +301,15 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             @clear-field="filters.clearField"
             @clear-all="filters.clearAll"
           />
+          <UiButton
+            variant="control"
+            :disabled="exporting || rows.length === 0"
+            @click="exportCsv"
+          >
+            <AppIcon name="download" :size="13" />{{
+              exporting ? 'Exporting…' : 'Export approvals (CSV)'
+            }}
+          </UiButton>
         </div>
 
       <UiSkeleton v-if="!settled" :height="220" label="Loading approvals" class="skel-gap" />

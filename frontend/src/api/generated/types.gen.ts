@@ -1788,6 +1788,10 @@ export type ApprovalListApiV1DecisionsApprovalsGetData = {
          */
         offset?: number;
         /**
+         * Warn Days
+         */
+        warn_days?: number;
+        /**
          * Q
          */
         q?: string | null;
@@ -1815,10 +1819,6 @@ export type ApprovalListApiV1DecisionsApprovalsGetData = {
          * Exclude Scanner
          */
         exclude_scanner?: string | null;
-        /**
-         * Warn Days
-         */
-        warn_days?: number;
     };
     url: '/api/v1/decisions/approvals';
 };
@@ -1844,6 +1844,66 @@ export type ApprovalListApiV1DecisionsApprovalsGetResponses = {
 };
 
 export type ApprovalListApiV1DecisionsApprovalsGetResponse = ApprovalListApiV1DecisionsApprovalsGetResponses[keyof ApprovalListApiV1DecisionsApprovalsGetResponses];
+
+export type ExportApprovalsCsvApiV1DecisionsApprovalsExportCsvGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+        /**
+         * Warn Days
+         */
+        warn_days?: number;
+        /**
+         * Q
+         */
+        q?: string | null;
+        /**
+         * Status
+         */
+        status?: string | null;
+        /**
+         * Created By
+         */
+        created_by?: string | null;
+        /**
+         * Scanner
+         */
+        scanner?: string | null;
+        /**
+         * Exclude Status
+         */
+        exclude_status?: string | null;
+        /**
+         * Exclude Created By
+         */
+        exclude_created_by?: string | null;
+        /**
+         * Exclude Scanner
+         */
+        exclude_scanner?: string | null;
+    };
+    url: '/api/v1/decisions/approvals/export.csv';
+};
+
+export type ExportApprovalsCsvApiV1DecisionsApprovalsExportCsvGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ExportApprovalsCsvApiV1DecisionsApprovalsExportCsvGetError = ExportApprovalsCsvApiV1DecisionsApprovalsExportCsvGetErrors[keyof ExportApprovalsCsvApiV1DecisionsApprovalsExportCsvGetErrors];
+
+export type ExportApprovalsCsvApiV1DecisionsApprovalsExportCsvGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: unknown;
+};
 
 export type EditApiV1DecisionsDecisionIdPatchData = {
     body: DecisionEditRequest;
