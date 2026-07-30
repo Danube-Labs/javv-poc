@@ -31,6 +31,34 @@ else
   echo "seed: logged in + rotated must_change password"
 fi
 
+# 1b. a capability-LESS viewer (issue 460): the e2e suite needs a session that must NOT reach
+# a gated route, and proving a gate with the admin session is impossible. Born must_change like
+# any created user, so the password is rotated here — a must_change session can reach only
+# /auth/* and would 403 everywhere, which is the wrong negative to be testing.
+VIEWER_USER="${VIEWER_USER:-smoke-viewer}"
+VIEWER_PW_INIT="${VIEWER_PW_INIT:-ci-smoke-viewer-init}"
+VIEWER_PW="${VIEWER_PW:-ci-smoke-viewer-pw}"
+if curl -sf -o /dev/null -X POST "$BACKEND/auth/login" -H 'content-type: application/json' \
+     -d "{\"username\":\"$VIEWER_USER\",\"password\":\"$VIEWER_PW\"}"; then
+  echo "seed: viewer $VIEWER_USER already usable"
+else
+  # role `viewer` is the EMPTY capability bundle (auth/capabilities.py) — exactly the negative
+  # the gate test needs. The caller supplies the temp password; both it and the rotated one must
+  # satisfy the password policy or the create/rotate 422s.
+  curl -sf -b "$COOKIES" -o /dev/null -X POST "$BACKEND/api/v1/admin/users" \
+    -H 'content-type: application/json' \
+    -d "{\"username\":\"$VIEWER_USER\",\"temp_password\":\"$VIEWER_PW_INIT\",\"role\":\"viewer\"}" \
+    || fail "viewer create"
+  VJAR="$(mktemp)"
+  curl -sf -c "$VJAR" -o /dev/null -X POST "$BACKEND/auth/login" -H 'content-type: application/json' \
+    -d "{\"username\":\"$VIEWER_USER\",\"password\":\"$VIEWER_PW_INIT\"}" || fail "viewer initial login"
+  curl -sf -b "$VJAR" -o /dev/null -X POST "$BACKEND/auth/password" -H 'content-type: application/json' \
+    -d "{\"current_password\":\"$VIEWER_PW_INIT\",\"new_password\":\"$VIEWER_PW\"}" \
+    || fail "viewer rotate"
+  rm -f "$VJAR"
+  echo "seed: viewer $VIEWER_USER created + rotated (role viewer — no capabilities)"
+fi
+
 # 2. ingest token for the fixture's cluster + scanner
 CLUSTER_ID="$(jq -r .cluster_id "$FIXTURE")"
 SCANNER="$(jq -r .scanner "$FIXTURE")"
