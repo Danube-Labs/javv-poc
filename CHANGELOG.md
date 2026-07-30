@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.4.5](https://github.com/Danube-Labs/javv-poc/compare/v0.4.4...v0.4.5) (2026-07-30)
+
+
+### Features
+
+* approvals queue CSV export ([#359](https://github.com/Danube-Labs/javv-poc/issues/359), absorbing [#373](https://github.com/Danube-Labs/javv-poc/issues/373)) ([#507](https://github.com/Danube-Labs/javv-poc/issues/507)) ([b39c410](https://github.com/Danube-Labs/javv-poc/commit/b39c410232290dbabbd136998d9d9ecd30c8dea3))
+* contributors leaderboard CSV export ([#359](https://github.com/Danube-Labs/javv-poc/issues/359)) ([#506](https://github.com/Danube-Labs/javv-poc/issues/506)) ([0d63037](https://github.com/Danube-Labs/javv-poc/commit/0d630372a5606e2fc972df247693e24d2a640139))
+* package_name filter and the cve/package exclude twins ([#492](https://github.com/Danube-Labs/javv-poc/issues/492)) ([#501](https://github.com/Danube-Labs/javv-poc/issues/501)) ([0d5933d](https://github.com/Danube-Labs/javv-poc/commit/0d5933d4bafd1b74c6f321183ab2c2c48bfb3aea))
+* **ui:** click to exclude a value from the rail and the grids ([#349](https://github.com/Danube-Labs/javv-poc/issues/349) §2) ([#491](https://github.com/Danube-Labs/javv-poc/issues/491)) ([19697a5](https://github.com/Danube-Labs/javv-poc/commit/19697a5de3a8ea4e9c5309ba352ddb1c55bf7fef))
+
+
+### Bug Fixes
+
+* **backend:** close the two pit-leak windows outside the reclaim guards ([#512](https://github.com/Danube-Labs/javv-poc/issues/512)) ([5cb14a1](https://github.com/Danube-Labs/javv-poc/commit/5cb14a12bf7aa8be727f6b5dc9f5030f9365043f)), closes [#509](https://github.com/Danube-Labs/javv-poc/issues/509)
+* **backend:** drain the commit race from both sides, not just the retry count ([#513](https://github.com/Danube-Labs/javv-poc/issues/513)) ([795493a](https://github.com/Danube-Labs/javv-poc/commit/795493acfccaf51e2463907e76a3b8c0e80603b8)), closes [#510](https://github.com/Danube-Labs/javv-poc/issues/510)
+* **frontend:** one csv-export path with try/finally — no more strandable buttons (issue 509) ([#511](https://github.com/Danube-Labs/javv-poc/issues/511)) ([25e794b](https://github.com/Danube-Labs/javv-poc/commit/25e794bcaa969137b5687adb153f3fc9028a8055)), closes [#509](https://github.com/Danube-Labs/javv-poc/issues/509)
+* **frontend:** stop the dev server watching the gitignored coverage dir ([#504](https://github.com/Danube-Labs/javv-poc/issues/504)) ([ea04931](https://github.com/Danube-Labs/javv-poc/commit/ea04931c5af6a2bc0082e08030deead96e4c167a)), closes [#502](https://github.com/Danube-Labs/javv-poc/issues/502)
+* **ui:** epss and mix bar tracks move onto --meter-track ([#498](https://github.com/Danube-Labs/javv-poc/issues/498)) ([c93ce7c](https://github.com/Danube-Labs/javv-poc/commit/c93ce7c90a3eb8098a26aac97983994836883286))
+* **ui:** facet rail collapses long groups behind a show-all expander ([#500](https://github.com/Danube-Labs/javv-poc/issues/500)) ([ffd0544](https://github.com/Danube-Labs/javv-poc/commit/ffd05448adb7f69e15995815447d9550d00e280c))
+* **ui:** make the grid value bar reachable, legible and pixel-crisp ([#496](https://github.com/Danube-Labs/javv-poc/issues/496)) ([9d559fb](https://github.com/Danube-Labs/javv-poc/commit/9d559fbb78c4fd9b4bd4de96650fac35760f8b41))
+* **ui:** the two impeccable findings — a real layout animation and a phantom ([#495](https://github.com/Danube-Labs/javv-poc/issues/495)) ([ee05668](https://github.com/Danube-Labs/javv-poc/commit/ee05668e6a81847d85978035522189831a969212))
+
 ## [0.4.4](https://github.com/Danube-Labs/javv-poc/compare/v0.4.3...v0.4.4) (2026-07-27)
 
 
