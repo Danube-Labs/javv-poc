@@ -323,14 +323,20 @@ async def run_search(
     sla_cutoffs: dict[str, str] | None = None
     if cursor is not None:
         pit_id, search_after, sort, order, sla_cutoffs = decode_cursor(cursor)
+        if filters.overdue is not None and sla_cutoffs is None:
+            # a cursor minted by a non-overdue walk carries no frozen cutoffs — resolve live
+            policy = await read_sla_policy(client, prefix=prefix)
+            sla_cutoffs = overdue_cutoffs(policy, now=datetime.now(UTC))
     else:
+        if filters.overdue is not None:
+            # first page resolves the LIVE policy once; continuations reuse the cursor-frozen
+            # cutoffs. Resolved BEFORE the PIT opens — a failing policy read must not leak a
+            # just-created PIT the error paths below never see (issue 509's sweep).
+            policy = await read_sla_policy(client, prefix=prefix)
+            sla_cutoffs = overdue_cutoffs(policy, now=datetime.now(UTC))
         pit_id = (
             await client.create_pit(index=f"{prefix}findings", params={"keep_alive": keep_alive})
         )["pit_id"]
-    if filters.overdue is not None and sla_cutoffs is None:
-        # first page resolves the LIVE policy once; continuations reuse the cursor-frozen cutoffs
-        policy = await read_sla_policy(client, prefix=prefix)
-        sla_cutoffs = overdue_cutoffs(policy, now=datetime.now(UTC))
 
     opened_here = cursor is None  # this call created the PIT (vs. a client-owned cursor PIT)
     body = build_search_body(
