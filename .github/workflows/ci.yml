@@ -380,6 +380,11 @@ jobs:
         env:
           ADMIN_PW_INIT: ci-smoke-initial-pw
           ADMIN_PW: ci-smoke-rotated-pw
+          # the capability-less viewer the /inspect gate spec logs in as (issue 460); passed
+          # explicitly rather than leaning on the script's defaults so the two cannot drift
+          VIEWER_USER: smoke-viewer
+          VIEWER_PW_INIT: ci-smoke-viewer-init
+          VIEWER_PW: ci-smoke-viewer-pw
         run: ./development/scripts/seed-smoke.sh
 
       - name: Set up Node
@@ -411,13 +416,15 @@ jobs:
           JAVV_PASS: ci-smoke-rotated-pw
         run: node scripts/ci-smoke.mjs --core-loop
 
-      - name: E2E smoke suite (login, triage round-trip, degraded banner, server-side paging)
+      - name: E2E smoke suite (login, triage round-trip, degraded banner, paging, /inspect loops)
         if: steps.detect.outputs.present == 'true'
         working-directory: frontend
         env:
           JAVV_BASE: http://localhost:4173
           JAVV_USER: admin
           JAVV_PASS: ci-smoke-rotated-pw
+          JAVV_VIEWER_USER: smoke-viewer
+          JAVV_VIEWER_PASS: ci-smoke-viewer-pw
         run: npx playwright test
 
       - name: Backend log on failure
