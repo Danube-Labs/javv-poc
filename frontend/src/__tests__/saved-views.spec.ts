@@ -134,3 +134,49 @@ describe('saved views — negated text field round-trip', () => {
     )
   })
 })
+
+/**
+ * Issue 492: `cve` and `package` are the last two fields to join the family. They are
+ * config-driven end to end — capture, apply and summary needed no code of their own — so the
+ * round-trip is asserted rather than assumed, the same golden discipline as `image` above.
+ */
+describe('saved views — cve + package round-trip (issue 492)', () => {
+  const CVE = 'CVE-2021-3711'
+  const PKG = 'zlib'
+  const SEL = { ...emptySelections(FINDINGS_FIELDS), cve: [CVE], package: [PKG] }
+
+  it('capture: both directions land on the right params', () => {
+    expect(captureLens(FINDINGS_FIELDS, SEL, {}, 30)).toEqual({ cve_id: CVE, package_name: PKG })
+    expect(captureLens(FINDINGS_FIELDS, SEL, { cve: 'not', package: 'not' }, 30)).toEqual({
+      exclude_cve_id: CVE,
+      exclude_package_name: PKG,
+    })
+  })
+
+  it('apply: the exclude params restore through the same ! grammar', () => {
+    expect(
+      presetToRouteQuery(FINDINGS_FIELDS, {
+        exclude_cve_id: CVE,
+        exclude_package_name: PKG,
+      } as never),
+    ).toEqual({ cve: `!${CVE}`, package: `!${PKG}` })
+  })
+
+  it('round-trip: the applied URL re-emits both exclude params EXACTLY', () => {
+    setActivePinia(createPinia())
+    const store = makeFiltersStore('golden-492', FINDINGS_FIELDS)()
+    store.fromQuery({ cve: `!${CVE}`, package: `!${PKG}` })
+    const body = buildFilterQuery(FINDINGS_FIELDS, store.selections, { cluster_id: CID }, store.modes)
+    expect(body).toEqual({
+      cluster_id: CID,
+      exclude_cve_id: CVE,
+      exclude_package_name: PKG,
+    })
+  })
+
+  it('summary names the field a human recognises, not the param', () => {
+    expect(presetSummary(FINDINGS_FIELDS, { exclude_package_name: PKG } as never)).toBe(
+      `Package is not "${PKG}"`,
+    )
+  })
+})

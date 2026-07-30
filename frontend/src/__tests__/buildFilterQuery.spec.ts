@@ -106,6 +106,30 @@ describe('buildFilterQuery', () => {
     expect(q).not.toHaveProperty('image_repo')
   })
 
+  /** Issue 492 closed the negation family: `cve_id` and `package_name` are the last two, both
+   *  exact terms server-side and both bar-and-cell fields (neither is a facet). */
+  it('cve and package emit their own params in both directions', () => {
+    const inc = buildFilterQuery(
+      FINDINGS_FIELDS,
+      sel({ cve: ['CVE-2021-3711'], package: ['zlib'] }),
+      { cluster_id: CID },
+    )
+    expect(inc.cve_id).toBe('CVE-2021-3711')
+    expect(inc.package_name).toBe('zlib')
+
+    const exc = buildFilterQuery(
+      FINDINGS_FIELDS,
+      sel({ cve: ['CVE-2021-3711'], package: ['zlib'] }),
+      { cluster_id: CID },
+      { cve: 'not', package: 'not' },
+    )
+    expect(exc.exclude_cve_id).toBe('CVE-2021-3711')
+    expect(exc.exclude_package_name).toBe('zlib')
+    // a field is include OR exclude — the mirror replaces the param, never doubles it
+    expect(exc).not.toHaveProperty('cve_id')
+    expect(exc).not.toHaveProperty('package_name')
+  })
+
   it('a text field with no exclude twin ignores the mode entirely', () => {
     const q = buildFilterQuery(FINDINGS_FIELDS, sel({ q: ['nginx'] }), { cluster_id: CID }, { q: 'not' })
     expect(q.q).toBe('nginx') // the rail search box is not negatable

@@ -293,11 +293,14 @@ def test_golden_preset_serialization_is_pinned() -> None:
         kev=True,
         ptype="os",
         namespace="team-a",
+        package_name="zlib",
     )
     assert populated.model_dump() == golden["populated"]
     negated = ViewPreset(
         exclude_severity=["low", "negligible"],
         exclude_namespace="kube-system",
+        exclude_cve_id="CVE-2021-3711",
+        exclude_package_name="openssl",
         state=["open"],
     )
     assert negated.model_dump() == golden["negated"]

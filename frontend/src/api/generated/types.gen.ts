@@ -297,6 +297,10 @@ export type ExportParams = {
      */
     exclude_assignee?: string | null;
     /**
+     * Exclude Cve Id
+     */
+    exclude_cve_id?: string | null;
+    /**
      * Exclude Image Repo
      */
     exclude_image_repo?: string | null;
@@ -304,6 +308,10 @@ export type ExportParams = {
      * Exclude Namespace
      */
     exclude_namespace?: string | null;
+    /**
+     * Exclude Package Name
+     */
+    exclude_package_name?: string | null;
     /**
      * Exclude Ptype
      */
@@ -352,6 +360,10 @@ export type ExportParams = {
      * Overdue
      */
     overdue?: boolean | null;
+    /**
+     * Package Name
+     */
+    package_name?: string | null;
     /**
      * Present
      */
@@ -715,6 +727,10 @@ export type ViewPreset = {
      */
     exclude_assignee?: string | null;
     /**
+     * Exclude Cve Id
+     */
+    exclude_cve_id?: string | null;
+    /**
      * Exclude Image Repo
      */
     exclude_image_repo?: string | null;
@@ -722,6 +738,10 @@ export type ViewPreset = {
      * Exclude Namespace
      */
     exclude_namespace?: string | null;
+    /**
+     * Exclude Package Name
+     */
+    exclude_package_name?: string | null;
     /**
      * Exclude Ptype
      */
@@ -766,6 +786,10 @@ export type ViewPreset = {
      * Overdue
      */
     overdue?: boolean | null;
+    /**
+     * Package Name
+     */
+    package_name?: string | null;
     /**
      * Present
      */
@@ -1926,6 +1950,10 @@ export type SearchFindingsApiV1FindingsGetData = {
          */
         ptype?: string | null;
         /**
+         * Package Name
+         */
+        package_name?: string | null;
+        /**
          * Q
          */
         q?: string | null;
@@ -1973,6 +2001,14 @@ export type SearchFindingsApiV1FindingsGetData = {
          * Exclude Ptype
          */
         exclude_ptype?: string | null;
+        /**
+         * Exclude Cve Id
+         */
+        exclude_cve_id?: string | null;
+        /**
+         * Exclude Package Name
+         */
+        exclude_package_name?: string | null;
         /**
          * As Of
          */
@@ -2085,6 +2121,10 @@ export type ExportCsvApiV1FindingsExportCsvGetData = {
          */
         ptype?: string | null;
         /**
+         * Package Name
+         */
+        package_name?: string | null;
+        /**
          * Q
          */
         q?: string | null;
@@ -2132,6 +2172,14 @@ export type ExportCsvApiV1FindingsExportCsvGetData = {
          * Exclude Ptype
          */
         exclude_ptype?: string | null;
+        /**
+         * Exclude Cve Id
+         */
+        exclude_cve_id?: string | null;
+        /**
+         * Exclude Package Name
+         */
+        exclude_package_name?: string | null;
         /**
          * As Of
          */
@@ -2217,6 +2265,10 @@ export type ExportVexApiV1FindingsExportVexGetData = {
          */
         ptype?: string | null;
         /**
+         * Package Name
+         */
+        package_name?: string | null;
+        /**
          * Q
          */
         q?: string | null;
@@ -2264,6 +2316,14 @@ export type ExportVexApiV1FindingsExportVexGetData = {
          * Exclude Ptype
          */
         exclude_ptype?: string | null;
+        /**
+         * Exclude Cve Id
+         */
+        exclude_cve_id?: string | null;
+        /**
+         * Exclude Package Name
+         */
+        exclude_package_name?: string | null;
         /**
          * As Of
          */
@@ -2355,6 +2415,10 @@ export type FacetFindingsApiV1FindingsFacetsGetData = {
          */
         ptype?: string | null;
         /**
+         * Package Name
+         */
+        package_name?: string | null;
+        /**
          * Q
          */
         q?: string | null;
@@ -2402,6 +2466,14 @@ export type FacetFindingsApiV1FindingsFacetsGetData = {
          * Exclude Ptype
          */
         exclude_ptype?: string | null;
+        /**
+         * Exclude Cve Id
+         */
+        exclude_cve_id?: string | null;
+        /**
+         * Exclude Package Name
+         */
+        exclude_package_name?: string | null;
         /**
          * As Of
          */
@@ -2501,6 +2573,10 @@ export type GroupFindingsApiV1FindingsGroupsGetData = {
          */
         ptype?: string | null;
         /**
+         * Package Name
+         */
+        package_name?: string | null;
+        /**
          * Q
          */
         q?: string | null;
@@ -2548,6 +2624,14 @@ export type GroupFindingsApiV1FindingsGroupsGetData = {
          * Exclude Ptype
          */
         exclude_ptype?: string | null;
+        /**
+         * Exclude Cve Id
+         */
+        exclude_cve_id?: string | null;
+        /**
+         * Exclude Package Name
+         */
+        exclude_package_name?: string | null;
         /**
          * As Of
          */
@@ -2635,6 +2719,10 @@ export type TopComponentsFindingsApiV1FindingsTopComponentsGetData = {
          */
         ptype?: string | null;
         /**
+         * Package Name
+         */
+        package_name?: string | null;
+        /**
          * Q
          */
         q?: string | null;
@@ -2682,6 +2770,14 @@ export type TopComponentsFindingsApiV1FindingsTopComponentsGetData = {
          * Exclude Ptype
          */
         exclude_ptype?: string | null;
+        /**
+         * Exclude Cve Id
+         */
+        exclude_cve_id?: string | null;
+        /**
+         * Exclude Package Name
+         */
+        exclude_package_name?: string | null;
         /**
          * As Of
          */

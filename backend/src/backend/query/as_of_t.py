@@ -359,6 +359,8 @@ class AsOfTQuery:
                 # ptype IS recorded on occurrences from M8d on — a filter at a past T matches
                 # rows as-scanned; v3-era rows carry null and honestly drop out
                 (f.ptype, r["ptype"]),
+                # package_name likewise rides the occurrence row (issue 492)
+                (f.package_name, r["package_name"]),
             )
             if any(want is not None and want != got for want, got in checks):
                 continue
@@ -368,6 +370,8 @@ class AsOfTQuery:
                 (f.exclude_scanner, r["scanner"]),
                 (f.exclude_assignee, r["assignee"]),
                 (f.exclude_ptype, r["ptype"]),
+                (f.exclude_cve_id, r["cve_id"]),
+                (f.exclude_package_name, r["package_name"]),
             )
             if any(want is not None and want == got for want, got in ex_checks):
                 continue
