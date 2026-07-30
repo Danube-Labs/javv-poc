@@ -76,6 +76,32 @@ Leave that running. **Open a second terminal** for the rest (re-export `JAVV_OPE
 if you use `python -m backend.*` tools). The API is now at http://localhost:8000 — live reference
 at http://localhost:8000/docs.
 
+### A2b. Agent sessions: start both servers DETACHED (issue 503)
+
+A dev server started as an agent background task belongs to the agent session, and the harness
+reaps session-owned tasks while the session sits idle — on 2026-07-29 both servers were stopped
+twice this way (task ages 58 and 75 min), with the app blameless each time: clean graceful
+shutdowns while still serving 200s one second earlier. When an agent session starts the stack,
+detach it from the session's process tree (with the A2 exports already set in the shell):
+
+```bash
+mkdir -p development/e2e/logs   # gitignored
+(cd backend  && setsid nohup uv run uvicorn backend.main:app --port 8000 \
+    >> ../development/e2e/logs/backend.log 2>&1 &)
+(cd frontend && setsid nohup npm run dev \
+    >> ../development/e2e/logs/vite.log 2>&1 &)
+
+# verify the parent chain reaches systemd/init, NOT the agent process:
+ps -o pid,ppid,comm -p "$(ss -ltnpH 'sport = :8000' | grep -oP 'pid=\K[0-9]+')"
+```
+
+The consequences, so they don't surprise the next session:
+- These are **orphans** — they survive the session but must be found and killed **by PID**
+  (`ss -ltnp | grep -E ':(8000|5173)'`), never `pkill -f` (hook-blocked; matches its own wrapper).
+- Take process lifetimes from the **log timestamps**, never from `ps` — `lstart`/`etime` are
+  boot+monotonic and slide across machine suspends.
+- An idle vite logs nothing, so its last log line is **not** its time of death.
+
 ### A3. Verify the backend is healthy
 
 ```bash
