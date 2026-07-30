@@ -26,6 +26,7 @@ import PodiumCard from '@/components/contributors/PodiumCard.vue'
 import ProgressPanel from '@/components/contributors/ProgressPanel.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { useApi } from '@/composables/useApi'
+import { useCsvExport } from '@/composables/useCsvExport'
 import {
   daysFromWindow,
   fmtMedian,
@@ -109,35 +110,24 @@ const podium = computed(() => {
  * request carries `query` itself — the exact object the screen fetched with — so the file is
  * this window's leaderboard and not some other one ---- */
 const toast = useToastStore()
-const exporting = ref(false)
+const { exporting, run: runExport } = useCsvExport({
+  path: '/api/v1/contributors/export.csv',
+  filename: (stamp) => `javv-contributors-${stamp}.csv`,
+  event: 'contributors_export_failed',
+  onCapped: () => toast.info('Over the inline export cap — narrow the window first.'),
+  onFailed: (status) =>
+    toast.error(
+      status
+        ? `Export failed (${status}) — check the backend connection.`
+        : 'Export failed — check the backend connection.',
+    ),
+  onDone: (name) => toast.success(`Export downloaded · ${name}`),
+})
 
 async function exportCsv() {
   const q = query.value
-  if (!q || exporting.value) return
-  exporting.value = true
-  const qs = new URLSearchParams(
-    Object.entries(q).flatMap(([k, v]) =>
-      v === undefined || v === null ? [] : [[k, String(v)] as [string, string]],
-    ),
-  )
-  const resp = await fetch(`/api/v1/contributors/export.csv?${qs}`, { credentials: 'same-origin' })
-  exporting.value = false
-  if (resp.status === 413) {
-    toast.info('Over the inline export cap — narrow the window first.')
-    return
-  }
-  if (!resp.ok) {
-    toast.error(`Export failed (${resp.status}) — check the backend connection.`)
-    logger.warn('contributors_export_failed', { status: resp.status })
-    return
-  }
-  const blob = await resp.blob()
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `javv-contributors-${new Date().toISOString().slice(0, 10)}.csv`
-  a.click()
-  URL.revokeObjectURL(a.href)
-  toast.success(`Export downloaded · ${a.download}`)
+  if (!q) return
+  await runExport(q)
 }
 
 const fmt = (n: number) => n.toLocaleString('en-US')
