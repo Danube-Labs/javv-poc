@@ -10,7 +10,7 @@ rail always describes the queue below it (the findings-rail contract).
 """
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 STATUS_VALUES = ("active", "expiring", "expired", "open-ended")
@@ -63,17 +63,39 @@ def _scanner_clause(scanner: str) -> dict[str, Any]:
     }
 
 
-def build_approvals_body(
-    filters: ApprovalFilters,
-    *,
-    cluster_id: str,
-    size: int,
-    offset: int,
-    now: datetime,
-    warn_days: int,
+def derive_status(expiry: str | None, *, now: datetime, warn_days: int) -> str:
+    """One row's status, by the SAME boundaries `_status_clause` filters on — so the CSV export
+    (issue 359) can stamp a status per row without a second reading of the rule.
+
+    The FE chip derives this too (`approvals/viewModel.ts` `expiryStatus`); all three agree by
+    construction: no expiry = open-ended, `expiry <= now` = expired, inside the warn window =
+    expiring, beyond it = active. An unparseable date reads open-ended, matching the chip.
+    """
+    if not expiry:
+        return "open-ended"
+    try:
+        when = datetime.fromisoformat(expiry)
+    except ValueError:
+        return "open-ended"
+    if when.tzinfo is None:
+        # a stored expiry is routinely DATE-ONLY ("2026-07-15") — the UI's picker submits a day,
+        # and the mapping is a `date`. Parsed, that is naive, and OpenSearch reads it as midnight
+        # UTC when the range clause compares it. Attaching UTC here is what keeps this function
+        # agreeing with `_status_clause` on exactly those rows.
+        when = when.replace(tzinfo=UTC)
+    if when <= now:
+        return "expired"
+    return "expiring" if when <= now + timedelta(days=warn_days) else "active"
+
+
+def build_approvals_query(
+    filters: ApprovalFilters, *, cluster_id: str, now: datetime, warn_days: int
 ) -> dict[str, Any]:
-    """Page + facets in ONE query (the queue is fleet-bounded — one round trip beats two).
-    Sort stays the review contract: soonest expiry first, open-ended last."""
+    """The lens itself — the bool query the queue page, its facets, and the CSV export all run.
+
+    One definition so an export can never describe a different set of rows from the screen it
+    was exported from (issue 359).
+    """
     fl: list[dict[str, Any]] = [
         {"term": {"cluster_id": cluster_id}},
         {"term": {"type": "risk_accepted"}},
@@ -99,11 +121,27 @@ def build_approvals_body(
     if filters.exclude_scanner is not None:
         must_not.append(_scanner_clause(filters.exclude_scanner))
 
+    return {"bool": {"filter": fl, "must_not": must_not}}
+
+
+def build_approvals_body(
+    filters: ApprovalFilters,
+    *,
+    cluster_id: str,
+    size: int,
+    offset: int,
+    now: datetime,
+    warn_days: int,
+) -> dict[str, Any]:
+    """Page + facets in ONE query (the queue is fleet-bounded — one round trip beats two).
+    Sort stays the review contract: soonest expiry first, open-ended last."""
     return {
         "size": size,
         "from": offset,
         "track_total_hits": True,
-        "query": {"bool": {"filter": fl, "must_not": must_not}},
+        "query": build_approvals_query(
+            filters, cluster_id=cluster_id, now=now, warn_days=warn_days
+        ),
         "sort": [{"expiry": {"order": "asc", "missing": "_last"}}],
         "aggs": {
             "status": {
