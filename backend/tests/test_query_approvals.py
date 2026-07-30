@@ -6,9 +6,12 @@ revoked rows stay excluded whatever the lens; facets ride the same filtered quer
 
 from datetime import UTC, datetime, timedelta
 
+from backend.export.approvals_csv import APPROVALS_SORT
 from backend.query.approvals import (
     ApprovalFilters,
     build_approvals_body,
+    build_approvals_query,
+    derive_status,
     shape_facets,
 )
 
@@ -156,3 +159,58 @@ def test_include_and_exclude_ride_the_same_query_so_facets_follow_the_lens() -> 
 def _status_clause_present(body: dict, status: str) -> bool:
     expected = build_approvals_body(ApprovalFilters(status=status), **KW)
     return _filters(expected)[-1] in _filters(body)
+
+
+# --- issue 359: the export shares this lens, and stamps a per-row status from it ----------
+
+
+def test_the_export_lens_is_the_page_lens_not_a_second_definition() -> None:
+    """The CSV export runs `build_approvals_query` directly. If the page body stopped being
+    built from it, an export could silently describe a different set of rows than the screen
+    it came from — so the identity is pinned, not assumed."""
+    filters = ApprovalFilters(status="expiring", created_by="lead", exclude_scanner="trivy")
+    page = build_approvals_body(filters, **KW)
+    lens = build_approvals_query(
+        filters, cluster_id=KW["cluster_id"], now=KW["now"], warn_days=KW["warn_days"]
+    )
+    assert page["query"] == lens
+
+
+def test_derive_status_agrees_with_the_clause_that_filters_on_it() -> None:
+    """chip ≡ filter ≡ facet ≡ export. Every status is checked at the boundary INSTANT its
+    clause uses, so an off-by-one between `<=` and `<` on either side fails here."""
+    warn = 7
+    at_now = NOW  # `expiry <= now` is expired — AT now, not after it
+    inside_warn = NOW + timedelta(days=warn)  # the window is inclusive at its far edge
+    past_warn = NOW + timedelta(days=warn, seconds=1)
+    cases = {
+        None: "open-ended",
+        "": "open-ended",
+        at_now.isoformat(): "expired",
+        (NOW - timedelta(days=400)).isoformat(): "expired",
+        (NOW + timedelta(seconds=1)).isoformat(): "expiring",
+        inside_warn.isoformat(): "expiring",
+        past_warn.isoformat(): "active",
+    }
+    for expiry, expected in cases.items():
+        assert derive_status(expiry, now=NOW, warn_days=warn) == expected, expiry
+
+
+def test_derive_status_follows_warn_days_the_same_way_the_clause_does() -> None:
+    twenty_days_out = (NOW + timedelta(days=20)).isoformat()
+    assert derive_status(twenty_days_out, now=NOW, warn_days=7) == "active"
+    assert derive_status(twenty_days_out, now=NOW, warn_days=30) == "expiring"
+
+
+def test_a_garbled_expiry_reads_open_ended_rather_than_raising() -> None:
+    """The chip does the same with an unparseable date. An export that raised would fail the
+    whole download over one bad row."""
+    assert derive_status("not-a-date", now=NOW, warn_days=7) == "open-ended"
+
+
+def test_the_sweep_sort_is_unique_so_search_after_cannot_drop_rows() -> None:
+    """The page sorts on `expiry` alone — fine for from/size, NOT unique. Under search_after a
+    tie would silently skip or repeat rows, so the sweep appends `decision_id`."""
+    assert APPROVALS_SORT[0] == {"expiry": {"order": "asc", "missing": "_last"}}
+    assert APPROVALS_SORT[-1] == {"decision_id": {"order": "asc"}}
+    assert build_approvals_body(ApprovalFilters(), **KW)["sort"] == [APPROVALS_SORT[0]]
