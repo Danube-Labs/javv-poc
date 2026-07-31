@@ -167,6 +167,55 @@
         "title": "BulkTriageRequest",
         "type": "object"
       },
+      "ClientEvent": {
+        "additionalProperties": false,
+        "description": "One browser event. `level` is a `Literal`, so `debug`/`info` are UNREPRESENTABLE at the\nschema edge (a 422) rather than filtered in a branch \u2014 the issue's \"never accept debug/info\"\nbecomes a property of the contract.",
+        "properties": {
+          "event": {
+            "pattern": "^[a-z0-9][a-z0-9 ._-]{0,63}$",
+            "title": "Event",
+            "type": "string"
+          },
+          "fields": {
+            "additionalProperties": true,
+            "title": "Fields",
+            "type": "object"
+          },
+          "level": {
+            "enum": [
+              "warn",
+              "error"
+            ],
+            "title": "Level",
+            "type": "string"
+          }
+        },
+        "required": [
+          "level",
+          "event"
+        ],
+        "title": "ClientEvent",
+        "type": "object"
+      },
+      "ClientEventBatch": {
+        "additionalProperties": false,
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/ClientEvent"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Events",
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "title": "ClientEventBatch",
+        "type": "object"
+      },
       "CommitInventoryRun": {
         "additionalProperties": false,
         "properties": {
@@ -3171,6 +3220,40 @@
         "summary": "Audit Facets",
         "tags": [
           "audit"
+        ]
+      }
+    },
+    "/api/v1/client-events": {
+      "post": {
+        "operationId": "receive_client_events_api_v1_client_events_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientEventBatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receive Client Events",
+        "tags": [
+          "client-events"
         ]
       }
     },
