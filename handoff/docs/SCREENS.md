@@ -479,6 +479,14 @@ The v4 5-role permission matrix is gone.
 > **RULED (A-4, 2026-07-07): keep 4 roles.** A 5th can be seeded later as a `system-roles` data
 > change, no migration.
 
+**Recent sign-ins (card-head action):** opens the Audit screen with the lens pre-applied
+(`/audit?action=login`) — the journal already filters `action` server-side, so this is a URL, not
+a second read. Fleet-scoped auth rows only became visible to the UI when `audit_tenant_query`
+started admitting rows with no `cluster_id`.
+> **RULED (2026-07-30): a canned lens link, not a sign-ins card.** A card would count sign-ins as
+> if they were all of auth activity, but **failed logins are not journaled** — only a metric and a
+> log line. Revisit as a new issue if/when failure journaling lands.
+
 ### 13.7 Data & OpenSearch — editable (Admin)
 Per-cluster retention days, rollover knobs, snapshot repo/schedule + manual snapshot/restore —
 retention/rollover offered **only** for time-partitioned append families; the mutable family

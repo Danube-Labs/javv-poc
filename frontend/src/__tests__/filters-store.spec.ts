@@ -1,10 +1,12 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it } from 'vitest'
 
+import { AUDIT_FIELDS } from '@/audit/fields.config'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { makeFiltersStore } from '@/stores/filters'
 
 const useStore = makeFiltersStore('test-filters', FINDINGS_FIELDS)
+const useAuditStore = makeFiltersStore('test-audit-filters', AUDIT_FIELDS)
 
 describe('filters store', () => {
   beforeEach(() => setActivePinia(createPinia()))
@@ -152,5 +154,19 @@ describe('filters store', () => {
     expect(s.selections.severity).toEqual(['critical'])
     expect(s.selections.attr).toEqual(['kev'])
     expect(s.selections).not.toHaveProperty('evil')
+  })
+
+  /** Canned lens links hand a URL to a screen that was not the one that built it. `?action=login`
+   * (the recent-sign-ins link on admin/users) only lands if the key matches the field key AND the
+   * value is in the vocabulary — the test above proves an unknown value is silently DROPPED, so a
+   * renamed key or a trimmed AUDIT_ACTIONS would leave the link opening an unfiltered log. */
+  it('the recent-sign-ins lens URL is one the audit filter store actually applies', () => {
+    const s = useAuditStore()
+    s.fromQuery({ action: 'login' })
+    expect(s.selections.action).toEqual(['login'])
+    expect(s.modeOf('action')).toBe('is')
+    expect(s.hasFilters).toBe(true)
+    // and it round-trips: the screen re-emits the same URL it was opened with
+    expect(s.toQuery()).toEqual({ action: 'login' })
   })
 })
