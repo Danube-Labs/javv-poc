@@ -8,6 +8,7 @@
  * (D33) — the confirm dialog says so. 409 on the last enabled admin renders inline.
  */
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import {
   createUserApiV1AdminUsersPost,
@@ -44,6 +45,13 @@ interface UserRow {
 
 const auth = useAuthStore()
 const toast = useToastStore()
+const router = useRouter()
+
+/** Sign-in history for these accounts, as a canned audit lens rather than a card: failed logins
+ * are not journaled, so a card counting sign-ins here would report a half-truth. */
+function goSignIns() {
+  void router.push({ name: 'audit', query: { action: 'login' } })
+}
 
 const users = ref<UserRow[]>([])
 const roles = ref<RoleRow[]>([])
@@ -220,7 +228,10 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
       subtitle="role is granted per user — enforced on every API call, not just hidden in the UI"
     >
       <template #action>
-        <UiButton :disabled="busy" @click="openInvite"><AppIcon name="plus" :size="13" />Invite user</UiButton>
+        <span class="head-actions">
+          <UiButton @click="goSignIns"><AppIcon name="clock" :size="13" />Recent sign-ins</UiButton>
+          <UiButton :disabled="busy" @click="openInvite"><AppIcon name="plus" :size="13" />Invite user</UiButton>
+        </span>
       </template>
 
       <UiSkeleton
@@ -411,6 +422,11 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
 .row-actions {
   display: inline-flex;
   gap: 6px;
+}
+.head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 .row-error {
   color: var(--health-down-fg);
