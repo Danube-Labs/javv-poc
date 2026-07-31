@@ -268,6 +268,12 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/api/v1/views"),
         ("PATCH", "/api/v1/views/{view_id}"),
         ("DELETE", "/api/v1/views/{view_id}"),
+        # issue 453 — the client-events beacon: any authenticated user's browser reports its OWN
+        # warn/error events, so there is no capability to hold or withhold and the registry's
+        # "principal WITHOUT the capability → 403" axis is unrepresentable here. The auth regime
+        # it carries instead — 401 anonymous, 403 on a must_change session (SEC-6), and the
+        # per-principal rate cap — is asserted in test_client_events_route.
+        ("POST", "/api/v1/client-events"),
     }
 )
 

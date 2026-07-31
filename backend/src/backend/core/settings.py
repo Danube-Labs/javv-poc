@@ -51,6 +51,12 @@ class Settings(BaseSettings):
     # pod like the ingest/login limiters (N replicas ⇒ N× budget).
     export_max_rows: int = Field(default=50000, ge=1)
     max_concurrent_pits_per_principal: int = Field(default=10, ge=1)
+    # client-events beacon (issue 453): per-principal cap on browser warn/error BATCHES per
+    # minute, the same sliding-window shape as the ingest limiter and in-memory per pod (N
+    # replicas ⇒ N× budget). It bounds log VOLUME, not correctness. Sized well above a normal
+    # session's flush rate so an unload-time beacon burst never trips it — the client never
+    # retries, so a 429 here is silent telemetry loss.
+    client_events_rate_limit_per_minute: int = Field(default=60, ge=1)
     # bootstrap admin (M5a/SEC-6): password from a mounted k8s Secret; empty = don't seed.
     # Seed-once — rotating the mounted value later has no effect on an existing admin by design.
     bootstrap_admin_username: str = "admin"

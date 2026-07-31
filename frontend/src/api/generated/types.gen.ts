@@ -87,6 +87,40 @@ export type BulkTriageRequest = {
 };
 
 /**
+ * ClientEvent
+ *
+ * One browser event. `level` is a `Literal`, so `debug`/`info` are UNREPRESENTABLE at the
+ * schema edge (a 422) rather than filtered in a branch — the issue's "never accept debug/info"
+ * becomes a property of the contract.
+ */
+export type ClientEvent = {
+    /**
+     * Event
+     */
+    event: string;
+    /**
+     * Fields
+     */
+    fields?: {
+        [key: string]: unknown;
+    };
+    /**
+     * Level
+     */
+    level: 'warn' | 'error';
+};
+
+/**
+ * ClientEventBatch
+ */
+export type ClientEventBatch = {
+    /**
+     * Events
+     */
+    events: Array<ClientEvent>;
+};
+
+/**
  * CommitInventoryRun
  */
 export type CommitInventoryRun = {
@@ -1559,6 +1593,31 @@ export type AuditFacetsApiV1AuditFacetsGetResponses = {
 };
 
 export type AuditFacetsApiV1AuditFacetsGetResponse = AuditFacetsApiV1AuditFacetsGetResponses[keyof AuditFacetsApiV1AuditFacetsGetResponses];
+
+export type ReceiveClientEventsApiV1ClientEventsPostData = {
+    body: ClientEventBatch;
+    path?: never;
+    query?: never;
+    url: '/api/v1/client-events';
+};
+
+export type ReceiveClientEventsApiV1ClientEventsPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ReceiveClientEventsApiV1ClientEventsPostError = ReceiveClientEventsApiV1ClientEventsPostErrors[keyof ReceiveClientEventsApiV1ClientEventsPostErrors];
+
+export type ReceiveClientEventsApiV1ClientEventsPostResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type ReceiveClientEventsApiV1ClientEventsPostResponse = ReceiveClientEventsApiV1ClientEventsPostResponses[keyof ReceiveClientEventsApiV1ClientEventsPostResponses];
 
 export type ListClustersApiV1ClustersGetData = {
     body?: never;
