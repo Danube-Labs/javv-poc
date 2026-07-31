@@ -240,6 +240,33 @@ registry (one uvicorn worker); multi-worker needs the multiprocess mode (noted i
 `core/metrics.py` for M10). SLO/alerting rules on top are **owned by M10**
 (`prometheus-rules.yaml`).
 
+### Client events (issue 453)
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| POST | `/api/v1/client-events` | session | Browser `warn`/`error` telemetry → the backend's own stdout stream (**204**, fire-and-forget). Body `{events: [{level, event, fields}]}`, 1–20 events, `extra="forbid"`. `level` is a `Literal['warn','error']`, so `debug`/`info` are **unrepresentable** (422), not filtered. **No storage, no index, no audit row** — the stream IS the destination |
+
+Two properties defend the stream against its own untrusted input, both by construction:
+
+- **Namespaced names.** Every event re-emits as `client.<name>`, so a client posting
+  `event: "scan done"` can never collide with a real backend event — an operator's `grep`, or an
+  alerting rule keyed on an event name, cannot be fooled. `client_event=true` + `username` are
+  tagged too, but they only help a reader who filters on them; the namespace helps one who doesn't.
+- **Nested fields.** Client keys ride under a single `fields` key, never splatted as siblings, so
+  `fields: {"username": "admin"}` cannot forge the line's attribution. The redaction processor
+  recurses in, so `token`-ish keys and `Bearer …` values are masked inside the blob as well.
+
+Shape caps (batch ≤ 20, ≤ 25 keys/object, depth ≤ 3, keys ≤ 64 chars, values ≤ 512 chars, lists ≤
+20, and the event-name pattern `^[a-z0-9][a-z0-9 ._-]{0,63}$`) are the **schema** — violations are
+422 and owe no metric. Only the **per-principal rate cap** is a bounded path in the ops-parity
+sense: over it → **429** + `Retry-After` + `LIMIT_REJECTIONS{limit="client_events"}` + a warning
+(knob `JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE`). The limiter runs *after* body validation on
+purpose — it bounds what reaches the log stream, and a rejected batch emits nothing.
+
+RBAC: **registry-exempt**, not capability-gated — any authenticated user's browser reports its own
+events, so "without the capability → 403" is unrepresentable. The regime it carries instead (401
+anonymous, 403 on a `must_change` session, the rate cap) is asserted in `test_client_events_route`.
+
 ## Logging
 
 Structured JSON via the **shared `libs/javv-common` structlog pipeline only** (observability.md
