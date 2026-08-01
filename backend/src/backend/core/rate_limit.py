@@ -1,9 +1,9 @@
 """The one per-key sliding-window rate limiter (issue 516).
 
-Two byte-identical copies of this used to sit inline in `routers/ingest.py` and
-`routers/client_events.py`. They were never two shapes: both bound a request RATE per key with an
-in-memory `dict[str, deque[float]]` of hit timestamps, a bounded key map, and a per-minute limit
-read from settings.
+Two copies of this used to sit inline in `routers/ingest.py` and `routers/client_events.py` —
+identical in behaviour, differing only in their comments and one loop variable. They were never
+two shapes: both bound a request RATE per key with an in-memory `dict[str, deque[float]]` of hit
+timestamps, a bounded key map, and a per-minute limit read from settings.
 
 **One instance per caller, never a shared module-level map.** The key spaces must stay separate —
 an ingest token hash and a session user id must never draw on the same budget, or a token flood
@@ -42,8 +42,18 @@ class SlidingWindowLimiter:
     def is_limited(self, key: str, limit: int) -> bool:
         """True when `key` has already used its allowance for the current window."""
         now = time.monotonic()
-        if len(self._hits) > self._max_keys:  # cheap: only once the map has actually grown large
+        if len(self._hits) >= self._max_keys and key not in self._hits:
             self._sweep_drained(now)
+            # m-1 (#140), the same guard `auth/lockout.py` and `query/pit_guard.py` already carry:
+            # a spray of distinct keys ALL inside their window drains nothing, so the sweep on its
+            # own cannot hold the cap. Hard-evict oldest-INSERTED (FIFO, O(1)) until it does.
+            # Tradeoff, accepted for the same reason lockout accepts it: the victim is the
+            # earliest-seen key rather than the least-recently-used, so a spray can evict a live
+            # key and hand it a fresh allowance. Buying that costs the attacker `max_keys`
+            # requests per window, and these bound volume rather than guard a correctness
+            # invariant — whereas an unbounded map is a memory DoS on an unauthenticated path.
+            while len(self._hits) >= self._max_keys:
+                del self._hits[next(iter(self._hits))]
         hits = self._hits[key]
         while hits and now - hits[0] > self._window_s:
             hits.popleft()

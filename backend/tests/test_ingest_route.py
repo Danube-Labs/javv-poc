@@ -160,22 +160,22 @@ async def test_expired_token_rejected() -> None:
         assert (await post(c, gz(GOLDEN), t)).status_code == 401
 
 
-def test_rate_limiter_evicts_drained_keys() -> None:  # audit m-4
-    import time
+async def test_the_rate_cap_is_a_real_429_over_http(monkeypatch: Any) -> None:
+    """Ingest's 429 had NO test — the only rate-limit case here poked the module's internals, and
+    those moved to `core/rate_limit.py` (516). The eviction properties are unit-tested there; what
+    belongs at this level is that the cap still reaches the wire, which a direct call cannot show.
+    It also pins the wiring: a leftover private copy would let the second push through."""
+    from backend.routers import ingest as mod
 
-    from backend.routers.ingest import _WINDOW_S, _hits, _sweep_drained
-
-    now = time.monotonic()
+    monkeypatch.setattr(get_settings(), "ingest_rate_limit_per_minute", 1, raising=False)
+    mod._limiter.reset()  # module-level per pod, so tests would inherit each other's budget
+    t = mint_token()
     try:
-        _hits["drained"].append(now - _WINDOW_S - 1)  # last hit older than the window
-        _hits["fresh"].append(now)  # a live key must survive
-        _ = _hits["empty"]  # defaultdict materialises an empty deque
-        _sweep_drained(now)
-        assert "drained" not in _hits and "empty" not in _hits  # garbage-token leak swept
-        assert "fresh" in _hits
+        async with app_with(FakeOS(token_doc(t))) as c:
+            assert (await post(c, gz(GOLDEN), t)).status_code == 202
+            assert (await post(c, gz(GOLDEN), t)).status_code == 429  # same token hash, same key
     finally:
-        for k in ("drained", "fresh", "empty"):
-            _hits.pop(k, None)
+        mod._limiter.reset()
 
 
 async def test_zip_bomb_is_rejected_413() -> None:
