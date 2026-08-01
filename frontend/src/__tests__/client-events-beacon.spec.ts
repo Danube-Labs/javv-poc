@@ -215,6 +215,28 @@ describe('client-events beacon', () => {
     expect(event!.fields.ok).toBe(false)
   })
 
+  it('a self-referencing field object costs its own event, never the caller and never the batch', async () => {
+    const { sendBeacon } = stubTransport()
+    const logger = await loadLogger()
+
+    const cyclic: Record<string, unknown> = { name: 'loop' }
+    cyclic.self = cyclic
+
+    // the clip walks fields in the CALLER's stack, so an unwalkable value must not surface there:
+    // `logger.error` is mostly called from catch blocks, where a throw would replace the very
+    // error being reported
+    expect(() => logger.error('inspect_rejected', { cyclic })).not.toThrow()
+
+    logger.error('audit_load_failed', { status: 500 })
+    vi.advanceTimersByTime(WINDOW_MS)
+
+    // and the neighbour still ships — before the clip existed this reached `JSON.stringify` and
+    // took the whole batch down with it
+    expect(await sentEvents(sendBeacon)).toEqual([
+      { level: 'error', event: 'audit_load_failed', fields: { status: 500 } },
+    ])
+  })
+
   it('falls back to fetch keepalive when sendBeacon refuses the payload', async () => {
     const { sendBeacon, fetchSpy } = stubTransport({ beaconReturns: false })
     const logger = await loadLogger()

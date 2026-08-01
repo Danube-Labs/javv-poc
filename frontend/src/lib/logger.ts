@@ -29,7 +29,10 @@
  * - **Lossy, but never silently so.** A window that dropped events leads its next batch with a
  *   `beacon events dropped` summary carrying the count, so an operator can tell "this session
  *   had no errors" apart from "this session had so many we stopped shipping them" — which is
- *   the case most worth knowing about, and the one a bare gap in the stream hides.
+ *   the case most worth knowing about, and the one a bare gap in the stream hides. The count is
+ *   storm drops only: an event refused for its own sake (an unshippable name, an unwalkable
+ *   fields object) stays uncounted, because a permanent call-site fault would otherwise report
+ *   itself as a fresh storm on every load of that screen.
  * - **No loop.** Nothing in the transport calls `logger` or `console`, so a transport failure
  *   cannot generate the very events it failed to send.
  *
@@ -143,7 +146,17 @@ function enqueue(level: 'warn' | 'error', event: string, fields?: LogFields): vo
     dropped += 1
     return
   }
-  queue.push(fields === undefined ? { level, event } : { level, event, fields: clipFields(fields) })
+  // Clipping walks the value in the CALLER's stack, so an unwalkable one (a cycle) would throw
+  // where `logger.error` was called — usually a catch block, where it would replace the very error
+  // being reported. Drop the one event, as a bad name does. This also keeps a value that
+  // `JSON.stringify` refuses out of the batch, which before the clip died whole on one such field.
+  try {
+    queue.push(
+      fields === undefined ? { level, event } : { level, event, fields: clipFields(fields) },
+    )
+  } catch {
+    return
+  }
   if (timer === null) timer = setTimeout(flush, BEACON_WINDOW_MS)
 }
 
