@@ -52,13 +52,35 @@ def _batch(**event: Any) -> ClientEventBatch:
     return ClientEventBatch(events=[ClientEvent(**{"level": "warn", "event": "x", **event})])
 
 
+async def _seed_user(client: AsyncOpenSearch, *, must_change: bool = False) -> str:
+    """A capability-less viewer, refreshed so the very next login sees it."""
+    username = f"u-{uuid.uuid4().hex[:12]}"
+    await client.index(
+        index="system-users",
+        id=username,
+        body={
+            "username": username,
+            "password_hash": hash_password(PASSWORD),
+            "role": "viewer",
+            "capabilities": [],
+            "must_change": must_change,
+            "disabled": False,
+            "auth_source": "local",
+            "external_id": None,
+            "created_at": "2026-07-31T00:00:00+00:00",
+        },
+        params={"refresh": "true"},
+    )
+    return username
+
+
 @pytest.fixture(autouse=True)
 def _clean_limiter():
     """The limiter is module-level per pod, so tests would otherwise inherit each other's
     budget — the same reset `test_auth_hardening` does for the login lockout."""
-    mod._hits.clear()
+    mod._limiter.reset()
     yield
-    mod._hits.clear()
+    mod._limiter.reset()
 
 
 @pytest.fixture
@@ -262,23 +284,7 @@ async def test_anonymous_is_401_and_must_change_is_403() -> None:
         anon = await http.post("/api/v1/client-events", json=payload)
         assert anon.status_code == 401  # no session — the exemption's first obligation
 
-        username = f"u-{uuid.uuid4().hex[:12]}"
-        await client.index(
-            index="system-users",
-            id=username,
-            body={
-                "username": username,
-                "password_hash": hash_password(PASSWORD),
-                "role": "viewer",
-                "capabilities": [],
-                "must_change": True,
-                "disabled": False,
-                "auth_source": "local",
-                "external_id": None,
-                "created_at": "2026-07-31T00:00:00+00:00",
-            },
-            params={"refresh": "true"},
-        )
+        username = await _seed_user(client, must_change=True)
         r = await http.post("/auth/login", json={"username": username, "password": PASSWORD})
         assert r.status_code == 200
         # SEC-6: a must_change session reaches nothing but /auth/* — telemetry included
@@ -297,23 +303,7 @@ async def test_a_session_gets_204_and_a_bad_shape_gets_422_over_http() -> None:
     app.state.opensearch = client
     http = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://t")
     try:
-        username = f"u-{uuid.uuid4().hex[:12]}"
-        await client.index(
-            index="system-users",
-            id=username,
-            body={
-                "username": username,
-                "password_hash": hash_password(PASSWORD),
-                "role": "viewer",
-                "capabilities": [],
-                "must_change": False,
-                "disabled": False,
-                "auth_source": "local",
-                "external_id": None,
-                "created_at": "2026-07-31T00:00:00+00:00",
-            },
-            params={"refresh": "true"},
-        )
+        username = await _seed_user(client)
         assert (
             await http.post("/auth/login", json={"username": username, "password": PASSWORD})
         ).status_code == 200
@@ -328,6 +318,33 @@ async def test_a_session_gets_204_and_a_bad_shape_gets_422_over_http() -> None:
             "/api/v1/client-events", json={"events": [{"level": "debug", "event": "x"}]}
         )
         assert bad.status_code == 422
+    finally:
+        await http.aclose()
+        await client.close()
+
+
+@requires_opensearch
+async def test_the_rate_cap_is_a_real_429_with_retry_after_over_http(monkeypatch) -> None:
+    """The limiter is unit-tested by calling the handler directly, which cannot show that FastAPI
+    actually surfaces the 429 or that the `Retry-After` header survives the response cycle
+    (#519 item 5). A 422 never reaches the limiter — the body is validated first — so the shape
+    that gets refused here is a legal one."""
+    monkeypatch.setattr(mod.get_settings(), "client_events_rate_limit_per_minute", 1, raising=False)
+    client = AsyncOpenSearch(hosts=[OS_URL])
+    app = create_app()
+    app.state.opensearch = client
+    http = httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://t")
+    payload = {"events": [{"level": "warn", "event": "audit_load_failed"}]}
+    try:
+        username = await _seed_user(client)
+        assert (
+            await http.post("/auth/login", json={"username": username, "password": PASSWORD})
+        ).status_code == 200
+
+        assert (await http.post("/api/v1/client-events", json=payload)).status_code == 204
+        capped = await http.post("/api/v1/client-events", json=payload)
+        assert capped.status_code == 429
+        assert capped.headers["Retry-After"] == "60"  # the client is told when to come back
     finally:
         await http.aclose()
         await client.close()
