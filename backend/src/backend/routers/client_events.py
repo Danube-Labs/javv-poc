@@ -29,8 +29,6 @@ validation). The **rate limiter alone** is the bounded path that owes ops parity
 bound what reaches the LOG STREAM, and a rejected batch emits nothing.
 """
 
-import time
-from collections import defaultdict, deque
 from typing import Annotated, Any, Literal
 
 import structlog
@@ -39,6 +37,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.metrics import LIMIT_REJECTIONS
+from backend.core.rate_limit import SlidingWindowLimiter
 from backend.core.settings import get_settings
 
 log = structlog.get_logger()
@@ -98,7 +97,9 @@ class ClientEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     level: Literal["warn", "error"]
-    event: str = Field(pattern=_EVENT_NAME)
+    # max_length duplicates the pattern's own {0,63} bound on purpose: the pattern enforces it,
+    # but only max_length reaches the OpenAPI schema, so a generated client can see the limit.
+    event: str = Field(pattern=_EVENT_NAME, max_length=64)
     fields: dict[str, Any] = Field(default_factory=dict)
 
     @field_validator("fields")
@@ -114,41 +115,15 @@ class ClientEventBatch(BaseModel):
     events: list[ClientEvent] = Field(min_length=1, max_length=_MAX_BATCH)
 
 
-# In-process sliding window per principal. This is a literal duplicate of
-# `routers/ingest.py::_rate_limited` (that one keys on a token hash, this one on a user id) —
-# kept rather than extracted so a refactor of the untrusted ingest path stayed out of the PR that
-# introduced this surface. Extracting both into one limiter is tracked as issue 516; fix them
-# together, not one at a time. In-memory per pod like every other JAVV limiter, so N replicas ⇒
-# N× the budget — the accepted MVP bound, since this guards log volume, not a correctness
-# invariant.
-_WINDOW_S = 60.0
-_MAX_KEYS = 100_000  # bound the map so a spray of principals can't leak it
-_hits: dict[str, deque[float]] = defaultdict(deque)
-
-
-def _sweep_drained(now: float) -> None:
-    for key in [k for k, dq in _hits.items() if not dq or now - dq[-1] > _WINDOW_S]:
-        del _hits[key]
-
-
-def _rate_limited(key: str, limit: int) -> bool:
-    now = time.monotonic()
-    if len(_hits) > _MAX_KEYS:  # cheap: only once the map has actually grown large
-        _sweep_drained(now)
-    q = _hits[key]
-    while q and now - q[0] > _WINDOW_S:
-        q.popleft()
-    if len(q) >= limit:
-        return True
-    q.append(now)
-    return False
+# Its own instance, so a principal's telemetry budget is never spent by an ingest token (516).
+_limiter = SlidingWindowLimiter()
 
 
 @router.post("", status_code=204)
 async def receive_client_events(body: ClientEventBatch, principal: Authenticated) -> None:
     if principal.must_change:  # SEC-6 — a capability-EXEMPT route guards itself (views.py)
         raise HTTPException(403, "password change required")
-    if _rate_limited(principal.user_id, get_settings().client_events_rate_limit_per_minute):
+    if _limiter.is_limited(principal.user_id, get_settings().client_events_rate_limit_per_minute):
         LIMIT_REJECTIONS.labels("client_events").inc()  # M-4 ops parity: metric AND warning
         log.warning("client events rate-limited", username=principal.username)
         raise HTTPException(429, "too many client-event batches", headers={"Retry-After": "60"})

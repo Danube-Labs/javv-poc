@@ -172,6 +172,7 @@
         "description": "One browser event. `level` is a `Literal`, so `debug`/`info` are UNREPRESENTABLE at the\nschema edge (a 422) rather than filtered in a branch \u2014 the issue's \"never accept debug/info\"\nbecomes a property of the contract.",
         "properties": {
           "event": {
+            "maxLength": 64,
             "pattern": "^[a-z0-9][a-z0-9 ._-]{0,63}$",
             "title": "Event",
             "type": "string"
