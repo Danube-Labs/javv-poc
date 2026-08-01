@@ -26,8 +26,19 @@
  *   fixed window, so an error storm (a render loop calling `logger.error`) drops events instead
  *   of bursting requests. At most one send per window keeps a normal session far under the
  *   server's per-principal rate cap, whose 429 would itself be silent loss.
+ * - **Lossy, but never silently so.** A window that dropped events leads its next batch with a
+ *   `beacon events dropped` summary carrying the count, so an operator can tell "this session
+ *   had no errors" apart from "this session had so many we stopped shipping them" — which is
+ *   the case most worth knowing about, and the one a bare gap in the stream hides. The count is
+ *   storm drops only: an event refused for its own sake (an unshippable name, an unwalkable
+ *   fields object) stays uncounted, because a permanent call-site fault would otherwise report
+ *   itself as a fresh storm on every load of that screen.
  * - **No loop.** Nothing in the transport calls `logger` or `console`, so a transport failure
  *   cannot generate the very events it failed to send.
+ *
+ * Field values are clipped to the server's per-value cap on the way in, because the values that
+ * can actually grow are supplied from outside the app (a `?cluster=` deep link, a typed store
+ * path) rather than being call-site literals, and one oversized value would 422 its whole batch.
  *
  * Off in dev, on in production builds, overridable with `VITE_CLIENT_EVENTS`.
  */
@@ -48,10 +59,14 @@ const BEACON_BATCH = 20 // the server's own batch cap — one full queue is one 
 const BEACON_WINDOW_MS = 5000
 /** The server's event-name contract. A name it would 422 poisons the whole batch it rides in. */
 const BEACON_EVENT_NAME = /^[a-z0-9][a-z0-9 ._-]{0,63}$/
+/** The server's per-value cap, mirrored so an oversized value cannot 422 its whole batch. */
+const BEACON_MAX_VALUE_CHARS = 512
+const BEACON_DROPPED_EVENT = 'beacon events dropped'
 
 type BeaconEvent = { level: 'warn' | 'error'; event: string; fields?: LogFields }
 
 let queue: BeaconEvent[] = []
+let dropped = 0
 let timer: ReturnType<typeof setTimeout> | null = null
 
 function beaconEnabled(): boolean {
@@ -82,14 +97,39 @@ function send(events: BeaconEvent[]): void {
   }
 }
 
+/** Clip strings to the server's per-value cap, recursing so a nested or in-array value is bound
+ *  too. Only strings are clipped: depth, key count and list length are static properties of a
+ *  call site, but a value can arrive from outside the app (a `?cluster=` deep link, a typed
+ *  store path) and one oversized value would 422 the batch it rides in, taking its neighbours. */
+function clip(value: unknown): unknown {
+  if (typeof value === 'string') return value.slice(0, BEACON_MAX_VALUE_CHARS)
+  if (Array.isArray(value)) return value.map(clip)
+  if (value !== null && typeof value === 'object') return clipFields(value as LogFields)
+  return value
+}
+
+function clipFields(fields: LogFields): LogFields {
+  return Object.fromEntries(Object.entries(fields).map(([key, value]) => [key, clip(value)]))
+}
+
 function flush(): void {
   if (timer !== null) {
     clearTimeout(timer)
     timer = null
   }
-  if (queue.length === 0) return
-  const batch = queue
+  if (queue.length === 0 && dropped === 0) return
+  let batch = queue
+  if (dropped > 0) {
+    // A drop only happens against a FULL queue, so the summary needs a slot made for it: evict
+    // the newest event and fold it into the count. Prepending without evicting would post 21
+    // events, and the server's max_length of 20 would 422 the whole batch — losing the very
+    // window this line exists to report on.
+    const kept = batch.slice(0, BEACON_BATCH - 1)
+    const count = dropped + (batch.length - kept.length)
+    batch = [{ level: 'warn', event: BEACON_DROPPED_EVENT, fields: { count } }, ...kept]
+  }
   queue = []
+  dropped = 0
   send(batch)
 }
 
@@ -97,11 +137,26 @@ function enqueue(level: 'warn' | 'error', event: string, fields?: LogFields): vo
   if (!beaconEnabled()) return
   // Drop the one bad event rather than the batch it would have poisoned: a non-conforming name is
   // a static property of its call site, so it would fail forever and take its neighbours with it.
+  // That is also why it must NOT count as a drop below — a permanent fault would otherwise
+  // report itself as a fresh storm on every load of that screen.
   if (!BEACON_EVENT_NAME.test(event)) return
   // Full window = an error storm. Keep the earliest events (a cascade's first error is the
   // causal one) and drop the rest, so the send RATE stays flat no matter the event rate.
-  if (queue.length >= BEACON_BATCH) return
-  queue.push(fields === undefined ? { level, event } : { level, event, fields })
+  if (queue.length >= BEACON_BATCH) {
+    dropped += 1
+    return
+  }
+  // Clipping walks the value in the CALLER's stack, so an unwalkable one (a cycle) would throw
+  // where `logger.error` was called — usually a catch block, where it would replace the very error
+  // being reported. Drop the one event, as a bad name does. This also keeps a value that
+  // `JSON.stringify` refuses out of the batch, which before the clip died whole on one such field.
+  try {
+    queue.push(
+      fields === undefined ? { level, event } : { level, event, fields: clipFields(fields) },
+    )
+  } catch {
+    return
+  }
   if (timer === null) timer = setTimeout(flush, BEACON_WINDOW_MS)
 }
 
