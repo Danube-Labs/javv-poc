@@ -280,12 +280,18 @@ echo "$STATUS" | jq -e 'has("params") or has("attempt_id") | not' >/dev/null || 
 echo "report enqueued: $RID (pending; drain/download asserted when M7 slice 3 lands)"  # TODO(slice 3)
 
 # metrics: ingest counters moved; the #220 series appear once that PR is deployed (guarded)
-METRICS=$(curl -s "$BACKEND/metrics")
-echo "$METRICS" | grep -q 'javv_ingest_accepted_total{scanner="trivy"}' || fail "/metrics missing ingest counters"
-if echo "$METRICS" | grep -q 'javv_http_request_duration_seconds'; then
-  echo "$METRICS" | grep -q 'route="unmatched"' && true
-  echo "request histogram present (#220)"
-fi
+METRICS=$(curl -s --fail-with-body "$BACKEND/metrics") || fail "/metrics fetch failed (curl exit $?)"
+# Capture then test — NEVER `... | grep -q ... || fail`. `grep -q` exits at its first match without
+# draining stdin, so the writer takes SIGPIPE and pipefail promotes that 141 to the pipeline status:
+# the guard fires on a body that DID carry the counter. Payload size is not the safeguard — this
+# fired on a 49 KB body because the match sits ~2 KB in, well inside the writer's first stdio chunk,
+# so grep was gone long before the writer finished. Same trap section 8c documents; `-F` because the
+# pattern is a literal and `{...}` has no business being read as a regex interval.
+INGEST_COUNTER=$(printf '%s\n' "$METRICS" | grep -F 'javv_ingest_accepted_total{scanner="trivy"}' || true)
+[ -n "$INGEST_COUNTER" ] ||
+  fail "/metrics missing ingest counters ($(printf '%s' "$METRICS" | wc -c) bytes read)"
+HISTOGRAM=$(printf '%s\n' "$METRICS" | grep -F 'javv_http_request_duration_seconds' || true)
+[ -z "$HISTOGRAM" ] || echo "request histogram present (#220)"
 echo "read/report surface: ALL GREEN"
 
 # ---- 8b. M8 surface: point-in-time + M8c/d/e reads (#249 gate) ----------------
