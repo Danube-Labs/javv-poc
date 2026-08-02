@@ -8,9 +8,7 @@ tokens are never logged.
 """
 
 import json
-import time
 import zlib
-from collections import defaultdict, deque
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -20,6 +18,7 @@ from opensearchpy.exceptions import ConflictError
 from pydantic import ValidationError
 
 from backend.core.metrics import FINDINGS_WRITTEN, INGEST_ACCEPTED, INGEST_REJECTED
+from backend.core.rate_limit import SlidingWindowLimiter
 from backend.core.security import hash_token, token_expired, tokens_match
 from backend.core.settings import get_settings
 from backend.models.envelope import IngestEnvelope
@@ -37,30 +36,11 @@ def _reject(status: int, reason: str, detail: str) -> HTTPException:
 
 router = APIRouter(prefix="/api/v1/ingest", tags=["ingest"])
 
-# in-process sliding window per token-hash — MVP single-pod (no broker by design)
-_WINDOW_S = 60.0
-_MAX_KEYS = 100_000  # bound the map so a flood of distinct/garbage tokens can't leak it (m-4)
-_hits: dict[str, deque[float]] = defaultdict(deque)
-
-
-def _sweep_drained(now: float) -> None:
-    """Drop keys whose window has fully drained — an unauthenticated token flood keys this map on
-    every request, so without eviction each distinct token leaves a permanent empty deque (m-4)."""
-    for k in [k for k, dq in _hits.items() if not dq or now - dq[-1] > _WINDOW_S]:
-        del _hits[k]
-
-
-def _rate_limited(key: str, limit: int) -> bool:
-    now = time.monotonic()
-    if len(_hits) > _MAX_KEYS:  # cheap: only when the map has actually grown large
-        _sweep_drained(now)
-    q = _hits[key]
-    while q and now - q[0] > _WINDOW_S:
-        q.popleft()
-    if len(q) >= limit:
-        return True
-    q.append(now)
-    return False
+# Its own instance, keyed on token hashes: an unauthenticated flood here must never spend the
+# budget of a logged-in principal's telemetry (516). This is the map the m-1 hard eviction in
+# `SlidingWindowLimiter` exists for — the key space is attacker-supplied and reached BEFORE the
+# token is verified, so it grows on garbage.
+_limiter = SlidingWindowLimiter()
 
 
 async def _read_capped(request: Request, cap: int) -> bytes:
@@ -92,7 +72,7 @@ async def ingest_scan(request: Request) -> dict[str, Any]:
         raise _reject(401, "bad_token", "invalid token")
     candidate = hash_token(auth.removeprefix("Bearer "), pepper=settings.token_pepper)
 
-    if _rate_limited(candidate, settings.ingest_rate_limit_per_minute):
+    if _limiter.is_limited(candidate, settings.ingest_rate_limit_per_minute):
         raise _reject(429, "rate_limited", "rate limit exceeded")
 
     client = cast(Any, request.app.state.opensearch)
