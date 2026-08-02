@@ -190,3 +190,51 @@ BEFORE touching the assertion; none masked a product defect.
 
 Bench idempotency note (pre-existing, not blocking): `bench_read.py` rotates its reader passwords on
 first run (must_change), so a second run on the same store can't re-login — run it against a fresh store.
+
+---
+
+# #520 slice 1 — negation, absence and the newer exports (2026-08-02)
+
+First **fully green** smoke on this store since the dev heap was raised to 1 GB (#529). The run
+proved the new **phase 8e** and, incidentally, that the rig itself had been unreliable: see
+"Findings" below — two of the three defects that surfaced today were masked by the one in front.
+
+## Results — all green
+
+| Component | Result | Real data it asserted on |
+|---|---|---|
+| `smoke.sh` (all 16 phases) | ✅ green | trivy=22869 / grype=10978 findings; disagree=5859; reconcile CRITICAL-only cycle 22794 → present 472 / absent 22397, full cycle restores **exactly** 22794; CSV rows 22794 == present trivy findings; completed reads leaked 0 PITs |
+| — phase 8e negation | ✅ | `exclude_severity=medium` narrows the trivy lens **22794 → 9817**, and no returned row carries `severity_canonical: "medium"`; include+exclude on one field → **422** |
+| — phase 8e `package_name` | ✅ | `libmagickwand-6.q16-6` filters to its own rows only |
+| — phase 8e absence | ✅ | `unassigned` true+false partitions the lens; excluding a name nobody holds removes **nothing** (pure `must_not`) while `unassigned=true` drops the newly-assigned row; a cleared assignee reads unassigned again (the `""` guard) |
+| — phase 8e exports | ✅ | contributors + approvals CSV headers well-formed, sanitizer clean; approvals CSV carries the **whole lens** — 5 rows == server-side `.total` |
+| — phase 8e fleet audit | ✅ | `action=login` rows visible under a cluster-scoped read, all `action == "login"`, at least one with `cluster_id: null` |
+
+## Findings from this run
+
+**1. The approvals assertion read the wrong key — caught by its own gate.** It compared the CSV
+against `jq '.data | length'`, but that route returns rows under `approvals` with `total` already
+unwrapped (`decisions.py:195-198`). jq yields `null` for a missing key and `null | length` is **0**,
+so it compared 0 against a real 5 and failed. **The product was correct throughout.** The replacement
+compares against the server-side `.total` — stricter, since the export carries the whole lens rather
+than a page — and adds a non-vacuous guard. The wider envelope split is recorded as **#530**; it is a
+documentation gap, not a standards violation (`api-design.md:33` governs the *cursor* case only).
+
+This is the failure mode worth remembering: a wrong key is **silent and self-consistent**, and would
+have *passed* on any corpus holding 0 approvals.
+
+**2. `smoke.sh:266`'s CSV formula-injection check had been incapable of failing** (`| grep -q … &&
+fail` — grep exits early, the writer SIGPIPEs, `pipefail` promotes 141, `&& fail` never runs). Fixed
+in this slice, deliberately rather than in its own PR.
+
+**3. Correction to #526 §2 — the threshold is NOT the 64 KiB pipe buffer.** The sibling instance
+(fixed in #528) fired at **49 KB**, under the buffer, because the match sat ~2 KB in — inside the
+writer's first stdio chunk, so grep exited long before the writer finished. The real condition is
+*whether the reader exits before the writer finishes*, which depends on match **position** as much as
+size. #526 §2's conclusion that `smoke-two-cluster.sh:123/:134` "fire correctly today" needs
+re-deriving on that basis.
+
+**4. Instrument note.** `grep` invoked from an agent shell may be a wrapper (ugrep) rather than the
+GNU `grep` a *script* gets — shell functions do not propagate into scripts. ugrep does not exit early
+the same way and **cannot reproduce** the SIGPIPE class at all. Verify bash pipeline behaviour with
+`/usr/bin/grep` named explicitly.
