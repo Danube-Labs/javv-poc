@@ -84,14 +84,22 @@ async def test_findings_trend_derives_new_and_resolved_from_history(
     real_os: tuple[AsyncOpenSearch, str],
 ) -> None:
     client, prefix = real_os
-    await ingest_envelope(client, IngestEnvelope.model_validate(GOLDEN), prefix=prefix)
+    # `first_seen_at` is the envelope's own `last_seen_at` (`services/ingest.py:52`), so ingesting
+    # the fixture verbatim dates these findings to its fixed day — one that recedes from `now` by
+    # another day every day until it falls out of any `days`-bounded window. Stamp run 1 live, as
+    # run 2 already is. The failure mode is worth knowing: `trends_findings` omits the scanner key
+    # entirely when nothing lands in range, so an aged-out window raises KeyError, not a zero.
+    run1 = _envelope(
+        len(GOLDEN["findings"]), ORDER, GOLDEN["scan_run_id"], datetime.now(UTC).isoformat()
+    )
+    await ingest_envelope(client, run1, prefix=prefix)
     t1 = await _now(client, prefix)
     run2 = _envelope(24, ORDER + 1, "goldenrun0002", datetime.now(UTC).isoformat())
     await ingest_envelope(client, run2, prefix=prefix)
     t2 = await _now(client, prefix)
 
     at1 = await READER.trends_findings(client, cluster_id=CLUSTER, t=t1, days=30, prefix=prefix)
-    assert sum(p["count"] for p in at1["new"]["trivy"]) == 29  # first appearances (2026-07-02)
+    assert sum(p["count"] for p in at1["new"]["trivy"]) == 29  # every finding is a first appearance
     assert sum(p["count"] for p in at1["resolved"].get("trivy", [])) == 0  # nothing gone yet
     assert at1["resolved_semantics"] == "scan_resolved"
 
