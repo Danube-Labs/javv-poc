@@ -10,7 +10,7 @@
 # Equivalent throwaway one-liner (no persistence):
 #   docker run -d --name javv-opensearch -p 9200:9200 -p 9600:9600 \
 #     -e discovery.type=single-node -e DISABLE_SECURITY_PLUGIN=true \
-#     -e "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" opensearchproject/opensearch:3.7.0
+#     -e "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g" opensearchproject/opensearch:3.7.0
 #
 # Prereq: vm.max_map_count >= 262144  (sudo sysctl -w vm.max_map_count=262144)
 
@@ -22,7 +22,10 @@ services:
     environment:
       - discovery.type=single-node
       - DISABLE_SECURITY_PLUGIN=true            # DEV ONLY — no TLS/auth on :9200
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m  # small heap for a dev VM
+      # 512m no longer sustains the rigs: the parent circuit breaker sits at 95% of heap, the e2e
+      # corpus alone rested at ~83% of it, and bulk ingest then tripped the breaker mid-run (the
+      # backend saw 34 × 500 on /ingest/scan, matching the node's own parent tripped=34).
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
       # keep single-node health GREEN and crash-tolerant: JAVV does its own lifecycle (M4 job,
       # not the ISM plugin — PLAN D8) and doesn't use query-insights, but their internal indices
       # otherwise stick the cluster on yellow (.opendistro-ism-config wants a replica) or go red
