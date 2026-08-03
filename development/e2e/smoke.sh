@@ -263,7 +263,13 @@ CSV_ROWS=$(($(printf '%s\n' "$CSV" | wc -l) - 1))
 T_NOW=$(count trivy)  # phase-5 helper; present=true is the export's implicit lens too
 echo "csv rows: $CSV_ROWS (present trivy findings: $(present_trivy true))"
 [ "$CSV_ROWS" -gt 0 ] || fail "CSV export empty"
-printf '%s\n' "$CSV" | grep -qE '(^|,)"?[=+@]' && fail "CSV sanitizer let a formula-leading cell through"
+# Capture then test — NEVER `| grep -q … && fail`. `grep -q` exits on the first match without
+# draining stdin, so the writer takes SIGPIPE and pipefail promotes that 141 to the pipeline status:
+# `&& fail` never runs and the check goes silent exactly when it matches. Match POSITION decides
+# this, not payload size — the /metrics instance fired on a 49 KB body because the match sat ~2 KB
+# in, inside the writer's first stdio chunk.
+CSV_BAD=$(printf '%s\n' "$CSV" | grep -E '(^|,)"?[=+@]' || true)
+[ -z "$CSV_BAD" ] || fail "CSV sanitizer let a formula-leading cell through: $CSV_BAD"
 
 # VEX per scanner (never merged): one scanner per document
 api "/api/v1/findings/export.vex?cluster_id=$SCAN_CID&scanner=trivy" \
@@ -463,6 +469,112 @@ PIT_AFTER=$(pit_count)
 [ "$PIT_AFTER" -le "$PIT_BEFORE" ] \
   || fail "a completed read leaked $((PIT_AFTER - PIT_BEFORE)) PIT(s) — a finally-delete is missing (before=$PIT_BEFORE after=$PIT_AFTER)"
 echo "completed reads leaked 0 PITs (before=$PIT_BEFORE after=$PIT_AFTER; abandoned-cursor PITs drain at keep_alive)"
+
+# ---- 8e. negation, absence, and the newer exports (#492 · #349 §1 · #359) ------
+# The read surface grew after the #222/#249 phases were written. Three of these properties are
+# structurally out of reach for unit tests, because each needs a real corpus with a mixed field:
+#   · `exclude_*` is PURE must_not — a row MISSING the field SURVIVES the exclusion;
+#   · `unassigned` is ABSENCE, and no combination of excludes can express it (query/search.py:73-77);
+#   · clearing an owner writes "", and OpenSearch counts "" as existing — so a bare `exists` would
+#     call a cleared row owned, which is has_owner_clause's whole reason to exist.
+# Idempotent: the single assignment made here is cleared again in-phase. Cursor-page PITs opened
+# here drain at keep_alive, same as the other paged reads (see 8d).
+say "negation + absence + newer exports"
+
+# -- negation (#492/#349): a real severity excluded, and provably absent from the rows returned --
+NEG_LENS="/api/v1/findings?cluster_id=$SCAN_CID&scanner=trivy"
+BASE_TOTAL=$(api "$NEG_LENS&size=1" | jq -r '.total.value')
+XSEV=$(api "/api/v1/findings/facets?cluster_id=$SCAN_CID" | jq -r '.facets.severity[0].key')
+EXC=$(api "$NEG_LENS&exclude_severity=$XSEV&size=50")
+EXC_TOTAL=$(echo "$EXC" | jq -r '.total.value')
+[ "$EXC_TOTAL" -lt "$BASE_TOTAL" ] || fail "exclude_severity=$XSEV did not shrink the lens ($EXC_TOTAL vs $BASE_TOTAL)"
+[ "$(echo "$EXC" | jq '.data | length')" -gt 0 ] || fail "exclude lens returned no rows — absence check would pass vacuously"
+# The row field is severity_canonical. A row ALSO carries the scanner's verbatim `severity`
+# ("LOW"), which never equals a facet key ("low") — asserting on that field would pass blind.
+echo "$EXC" | jq -e --arg s "$XSEV" 'all(.data[]; .severity_canonical != $s)' >/dev/null \
+  || fail "exclude_severity=$XSEV left rows carrying it"
+echo "negation: $BASE_TOTAL → $EXC_TOTAL excluding '$XSEV', and no returned row carries it"
+
+# include+exclude on one field is ambiguous — 422, never a 500 (findings.py:117-129 guards all nine)
+S422=$(curl -s -b "$COOKIES" -o /dev/null -w '%{http_code}' \
+  "$BACKEND/api/v1/findings?cluster_id=$SCAN_CID&severity=$XSEV&exclude_severity=$XSEV")
+[ "$S422" = "422" ] || fail "severity + exclude_severity must be 422, got $S422"
+
+# -- package_name (#492): a real package from the corpus filters to exactly its own rows --
+PKG=$(api "$NEG_LENS&size=1" | jq -r '.data[0].package_name // empty')
+[ -n "$PKG" ] || fail "no package_name on a real row to filter by"
+PKG_PAGE=$(api "$NEG_LENS&package_name=$(urlenc "$PKG")&size=50")
+[ "$(echo "$PKG_PAGE" | jq '.data | length')" -gt 0 ] || fail "package_name=$PKG matched no rows"
+echo "$PKG_PAGE" | jq -e --arg p "$PKG" 'all(.data[]; .package_name == $p)' >/dev/null \
+  || fail "package_name=$PKG returned rows for other packages"
+echo "package_name: '$PKG' filters to its own rows only"
+
+# -- absence (#349 §1): unassigned partitions the lens, and is NOT expressible as an exclude --
+OWNED0=$(api "$NEG_LENS&unassigned=false&size=1" | jq -r '.total.value')
+UNOWNED0=$(api "$NEG_LENS&unassigned=true&size=1" | jq -r '.total.value')
+[ $((OWNED0 + UNOWNED0)) -eq "$BASE_TOTAL" ] || fail "unassigned true/false do not partition the lens ($OWNED0+$UNOWNED0 != $BASE_TOTAL)"
+AFK=$(api "$NEG_LENS&unassigned=true&size=1" | jq -r '.data[0].finding_key')
+[ -n "$AFK" ] || fail "no unassigned finding to take ownership of"
+curl -s -b "$COOKIES" -X PATCH "$BACKEND/api/v1/findings/$AFK/triage" -H 'content-type: application/json' \
+  -d '{"assignee":"smoke-owner"}' >/dev/null
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+[ "$(api "$NEG_LENS&unassigned=false&size=1" | jq -r '.total.value')" -eq $((OWNED0 + 1)) ] \
+  || fail "assigning an owner did not move the unassigned=false count"
+# Excluding a name NOBODY holds must remove NOTHING — pure must_not keeps rows missing the field.
+# unassigned=true meanwhile drops the row just assigned. If either collapsed into the other these
+# two totals would agree; that they differ is the property the query layer documents.
+NOBODY_TOTAL=$(api "$NEG_LENS&exclude_assignee=nobody-holds-this-name&size=1" | jq -r '.total.value')
+UNOWNED1=$(api "$NEG_LENS&unassigned=true&size=1" | jq -r '.total.value')
+[ "$NOBODY_TOTAL" -eq "$BASE_TOTAL" ] || fail "exclude_assignee dropped rows with no assignee — must_not is not pure"
+[ "$UNOWNED1" -lt "$NOBODY_TOTAL" ] || fail "unassigned=true behaved like an exclude"
+# Restore — and the restore IS the empty-string assertion: clearing writes "", which OpenSearch
+# counts as existing, so a bare `exists` in has_owner_clause would keep calling this row owned.
+curl -s -b "$COOKIES" -X PATCH "$BACKEND/api/v1/findings/$AFK/triage" -H 'content-type: application/json' \
+  -d '{"assignee":""}' >/dev/null
+curl -s -X POST "$OS/findings/_refresh" >/dev/null
+[ "$(api "$NEG_LENS&unassigned=false&size=1" | jq -r '.total.value')" -eq "$OWNED0" ] \
+  || fail "a cleared assignee still counts as owned — has_owner_clause's empty-string guard is gone"
+echo "absence: partition holds, exclude≠unassigned, cleared owner reads unassigned again (restored)"
+
+# -- the two exports #222 predates (#359): header, sanitizer, and agreement with their JSON lens --
+# Capture the grep output into a var rather than `... | grep -q && fail`: under pipefail an
+# early-closing grep SIGPIPEs the writer, the pipeline reports failure, and `&& fail` never runs
+# (the trap already documented in 8c).
+for EXPORT in contributors decisions/approvals; do
+  ECSV=$(api "/api/v1/$EXPORT/export.csv?cluster_id=$SCAN_CID")
+  EHDR="${ECSV%%$'\n'*}"
+  [ -n "$EHDR" ] || fail "$EXPORT export.csv returned nothing at all"
+  case "$EHDR" in *,*) ;; *) fail "$EXPORT export.csv header is not a CSV row: $EHDR" ;; esac
+  EBAD=$(printf '%s\n' "$ECSV" | grep -E '(^|,)"?[=+@]' || true)
+  [ -z "$EBAD" ] || fail "$EXPORT export.csv let a formula-leading cell through: $EBAD"
+  echo "$EXPORT export.csv: OK (header: $EHDR)"
+done
+# The approvals CSV and its JSON lens are one lens: the export must carry the WHOLE lens, so it is
+# compared against the server-side `.total`, never a page length — a page-length compare would agree
+# with itself whenever the lens exceeds `size`. Note the response shape here is NOT the `data` +
+# `total.value` envelope the findings/audit routes use: this route returns the rows under `approvals`
+# and `total` already unwrapped to a plain number (decisions.py:194-198). Reading `.data` yields jq
+# `null`, whose length is 0 — a silent, self-consistent pass at 0 rows.
+APPROV_TOTAL=$(api "/api/v1/decisions/approvals?cluster_id=$SCAN_CID&size=1" | jq -r '.total')
+APPROV_CSV=$(api "/api/v1/decisions/approvals/export.csv?cluster_id=$SCAN_CID")
+APPROV_ROWS=$(( $(printf '%s\n' "$APPROV_CSV" | wc -l) - 1 ))
+[ "$APPROV_TOTAL" -gt 0 ] || fail "no approvals in the corpus — the CSV/lens agreement would pass vacuously"
+[ "$APPROV_ROWS" -eq "$APPROV_TOTAL" ] || fail "approvals CSV rows ($APPROV_ROWS) != its JSON lens total ($APPROV_TOTAL)"
+echo "approvals CSV carries the whole lens: $APPROV_ROWS row(s) == .total"
+
+# -- fleet-scoped audit rows stay visible under a cluster-scoped read (query/audit.py:53-68) --
+# A login journals with cluster_id=None (audit/writer.py:132) while /api/v1/audit REQUIRES a
+# cluster_id. They reconcile only because the guard admits rows carrying no cluster_id at all —
+# the operator catch of 2026-07-18, which a unit test seeded with cluster-scoped rows cannot reach.
+# This is also the backend half of the users panel's "Recent sign-ins" lens (action=login).
+LOGINS=$(api "/api/v1/audit?cluster_id=$SCAN_CID&action=login&size=5")
+[ "$(echo "$LOGINS" | jq '.data | length')" -gt 0 ] \
+  || fail "no login rows under a cluster-scoped audit read — the fleet-scoped visibility guard regressed"
+echo "$LOGINS" | jq -e 'all(.data[]; .action == "login")' >/dev/null || fail "action=login returned other actions"
+echo "$LOGINS" | jq -e 'any(.data[]; .cluster_id == null)' >/dev/null \
+  || fail "login rows carry a cluster_id — this is no longer the fleet class the guard protects"
+echo "fleet-scoped audit: login rows (cluster_id=null) visible under cluster $SCAN_CID"
+echo "negation + absence + newer exports: ALL GREEN"
 
 # ---- 9. opensearch log snapshot --------------------------------------------
 say "opensearch log snapshot"
