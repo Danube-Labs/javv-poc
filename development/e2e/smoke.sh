@@ -168,6 +168,66 @@ grep -q '"event": "scan done"' "$TLOG" || fail "scanner log has no scan-done lin
 grep -q '"event": "cycle complete"' "$TLOG" || fail "scanner log has no cycle summary"
 echo "backend JSON ingest lines + scanner per-image progress: present and parseable"
 
+# ---- 6c. client events: the BROWSER half of the same log stream (#453/#520) ----
+# `@/lib/logger` is browser-only — close the tab and the evidence is gone. The beacon route is the
+# missing half, and its destination is this very stdout stream, so it belongs beside 6b. Nothing is
+# stored or indexed, so the log line IS the contract and only a live rig can read it.
+# Every probe carries a per-run tag: without it a re-run would match the PREVIOUS run's line and
+# pass while emitting nothing.
+say "client events → backend.log"
+CE_TAG="smoke$(date -u +%s)"
+ce_post() {  # $1 = JSON body; echoes the status code. $2 = "anon" to send no cookie jar
+  if [ "${2:-}" = "anon" ]; then
+    curl -s -o /dev/null -w '%{http_code}' -X POST "$BACKEND/api/v1/client-events" \
+      -H 'content-type: application/json' -d "$1"
+  else
+    curl -s -b "$COOKIES" -o /dev/null -w '%{http_code}' -X POST "$BACKEND/api/v1/client-events" \
+      -H 'content-type: application/json' -d "$1"
+  fi
+}
+
+# A valid batch is 204 — and the body deliberately FORGES the two fields that would make a client
+# line indistinguishable from a genuine backend one.
+CE_CODE=$(ce_post "{\"events\":[{\"level\":\"error\",\"event\":\"smoke probe $CE_TAG\",
+  \"fields\":{\"username\":\"forged-attacker\",\"client_event\":false}}]}")
+[ "$CE_CODE" = "204" ] || fail "a valid client-events batch must be 204, got $CE_CODE"
+
+for _ in $(seq 1 20); do
+  grep -q "client.smoke probe $CE_TAG" "$LOGS/backend.log" 2>/dev/null && break
+  sleep 0.5
+done
+CE_LINE=$(grep -m1 "client.smoke probe $CE_TAG" "$LOGS/backend.log" 2>/dev/null || true)
+[ -n "$CE_LINE" ] || fail "no client.<name> line reached backend.log within 10s"
+
+# The namespace (ruled option A): a client can never mint a line whose `event` collides with a real
+# backend event, so an operator grep — or an alert keyed on an event name — cannot be fooled.
+echo "$CE_LINE" | jq -e --arg e "client.smoke probe $CE_TAG" '.event == $e' >/dev/null \
+  || fail "the client event was not re-emitted under the client.<name> namespace"
+# The anti-forgery property, which is the load-bearing one: client keys are NESTED, never splatted,
+# so the server's own attribution survives at the top level while the forgery stays contained.
+echo "$CE_LINE" | jq -e '.username == "admin" and .client_event == true' >/dev/null \
+  || fail "a client-supplied field overwrote the server's own attribution"
+echo "$CE_LINE" | jq -e '.fields.username == "forged-attacker" and .fields.client_event == false' \
+  >/dev/null || fail "the forged keys did not stay nested under fields"
+
+# An oversized value is refused at the schema edge, and a refused batch emits NOTHING: the cap
+# exists to bound what reaches the log stream, so a 422 that still logged would defeat it.
+CE_BIG=$(printf 'x%.0s' $(seq 1 600))   # > the 512-char per-value cap
+CE_CODE=$(ce_post "{\"events\":[{\"level\":\"error\",\"event\":\"smoke oversized $CE_TAG\",
+  \"fields\":{\"blob\":\"$CE_BIG\"}}]}")
+[ "$CE_CODE" = "422" ] || fail "an oversized field value must be 422, got $CE_CODE"
+CE_LEAK=$(grep -c "client.smoke oversized $CE_TAG" "$LOGS/backend.log" 2>/dev/null || true)
+[ "${CE_LEAK:-0}" = "0" ] || fail "a 422'd batch still reached the log stream ($CE_LEAK line(s))"
+
+# debug/info are UNREPRESENTABLE (a Literal), not filtered in a branch — so the contract itself
+# refuses them rather than the handler remembering to.
+CE_CODE=$(ce_post '{"events":[{"level":"info","event":"smoke info probe"}]}')
+[ "$CE_CODE" = "422" ] || fail "level=info must be 422 at the schema edge, got $CE_CODE"
+# and the route is session-authenticated, so an unauthenticated beacon cannot write to our logs
+CE_CODE=$(ce_post '{"events":[{"level":"error","event":"anon probe"}]}' anon)
+[ "$CE_CODE" = "401" ] || fail "an anonymous client-events POST must be 401, got $CE_CODE"
+echo "client events: 204 + namespaced line · forgery stays nested · 422 oversized (no line) · 422 info · 401 anon"
+
 # ---- 7. background jobs -----------------------------------------------------
 say "background jobs"
 JLOG="$LOGS/jobs.log"; : > "$JLOG"
