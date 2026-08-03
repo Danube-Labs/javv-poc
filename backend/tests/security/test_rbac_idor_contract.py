@@ -6,6 +6,12 @@ capability → 403, (c) a `must_change` principal WITH the capability → 403 (S
 **presence check** walks the live route table: a mutating route that is neither registered nor
 explicitly exempt FAILS the build — forgetting to register is a test failure, not a silent gap.
 
+⚠️ Enumerate routes through `app.openapi()` only (issue 540). The obvious walk over `app.routes`
+filtering on `.methods` returns an EMPTY set once routers are `include_router`-ed, because FastAPI
+wraps them in `_IncludedRouter` — which exposes no `path`, no `methods` and no `routes`. This file
+did that for a while and saw 0 of 37 mutating routes, so the presence check below could not fail
+at all. `test_the_route_enumeration_is_not_blind` now fails loudly if it is ever starved again.
+
 Exemptions are endpoints with their own tested auth regime:
   - `/auth/*` — the session regime itself (test_auth_routes.py)
   - machine-token endpoints (ingest, scan-runs) — SEC-3 binding (test_ingest_route.py)
@@ -246,7 +252,7 @@ EXEMPT_ROUTE_PATHS: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/auth/login"),  # the front door itself
         ("POST", "/auth/logout"),  # session regime (test_auth_routes)
         ("POST", "/auth/password"),  # session regime + must_change escape hatch
-        ("POST", "/api/v1/ingest"),  # machine token + SEC-3 binding (test_ingest_route)
+        ("POST", "/api/v1/ingest/scan"),  # machine token + SEC-3 binding (test_ingest_route)
         ("POST", "/api/v1/scan-runs"),  # machine token (test_scan_orders route tests)
         # M8a slice 2 — machine token + SEC-3 binding: the manifest is always for the token's own
         # cluster; written_count is counted server-side, never client-reported (test_inventory_runs)
@@ -283,20 +289,50 @@ _MUTATING = {"POST", "PUT", "PATCH", "DELETE"}
 # ── presence check: an unregistered mutating route fails the build (AUDIT N4) ─────────────────
 
 
+def _live_mutating_routes() -> set[tuple[str, str]]:
+    """Every mutating (method, path) the app actually serves.
+
+    Read off `app.openapi()`, NOT `app.routes`: FastAPI wraps included routers in
+    `_IncludedRouter`, which exposes no `path`, no `methods` and no `routes`, so walking
+    `app.routes` and filtering on `.methods` silently yields an EMPTY set — every check built on
+    it then passes while asserting nothing. The spec is also what actually ships, and does not
+    depend on a FastAPI internal that can change again.
+    """
+    spec = create_app().openapi()
+    return {
+        (method.upper(), path)
+        for path, ops in spec["paths"].items()
+        for method in ops
+        if method.upper() in _MUTATING
+    }
+
+
+def test_the_route_enumeration_is_not_blind() -> None:
+    """Guard the guard. The presence check below is a set-difference against
+    `_live_mutating_routes()`, so a starved enumeration makes it pass while asserting nothing.
+    Fail loudly on an implausible count instead of trusting a green set-difference."""
+    live = _live_mutating_routes()
+    assert len(live) > 20, (
+        f"route enumeration found {len(live)} mutating routes — too few to be real. The presence "
+        "check is a set-difference against this, so it would now pass while asserting nothing."
+    )
+
+
 def test_every_mutating_route_is_registered_or_exempt() -> None:
-    app = create_app()
     covered = EXEMPT_ROUTE_PATHS | {(e.method, e.route_path) for e in REGISTRY}
-    unaccounted = [
-        (method, path)
-        for route in app.routes
-        if (path := getattr(route, "path", None)) is not None
-        for method in (getattr(route, "methods", None) or ())
-        if method in _MUTATING and (method, path) not in covered
-    ]
+    unaccounted = sorted(_live_mutating_routes() - covered)
     assert not unaccounted, (
         f"mutating routes missing from the RBAC/IDOR registry (register or exempt them): "
         f"{unaccounted}"
     )
+
+
+def test_no_exemption_names_a_route_that_no_longer_exists() -> None:
+    """A stale exemption fails silently in the worst direction: it covers nothing, while its route
+    reappears as unaccounted with no hint that a typo'd path is the reason. Name it directly."""
+    live = _live_mutating_routes()
+    stale = sorted(EXEMPT_ROUTE_PATHS - live)
+    assert not stale, f"exempted mutating routes that no longer exist: {stale}"
 
 
 # ── the parametrized negative axes over every registered endpoint ─────────────────────────────
