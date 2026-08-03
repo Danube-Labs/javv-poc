@@ -34,9 +34,15 @@ optional reading you can skip, they are this file's other half:
 
 ## Code comments
 Default to none; add one only when the WHY is non-obvious (hidden constraint, subtle invariant,
-workaround). Never explain WHAT well-named code already says, and **never reference tickets, PRs, or
+workaround). Never explain WHAT well-named code already says, and **never narrate tickets, PRs, or
 review history in comments** ("fixes #123", "audit caught this") — that context belongs in the PR/issue
 and rots in code. Applies to every tool and human alike.
+
+**A bare anchor is the exception, and it must ride along with the WHY.** A comment that already
+explains the non-obvious thing may name where it was settled — `issue 540`, `D42`, `M9e slice 3`,
+`FR-19` — because that record is permanent and points at reasoning too long to inline. Spell it
+`issue NNN`, never `#NNN` (the style ratchet reads that as a hex color). The banned form is the
+comment whose *content is* the history; an anchor with no explanation next to it is that.
 
 ## Stack (fixed)
 Backend: **Python 3.12 · FastAPI (async) · AsyncOpenSearch (opensearch-py) · Pydantic v2**. Frontend:
