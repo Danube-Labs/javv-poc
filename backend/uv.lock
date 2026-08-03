@@ -724,7 +724,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "argon2-cffi", specifier = ">=25.1.0" },
-    { name = "fastapi", specifier = ">=0.115" },
+    { name = "fastapi", specifier = ">=0.115,<0.140" },
     { name = "javv-common", editable = "../libs/javv-common" },
     { name = "opensearch-py", extras = ["async"], specifier = ">=2.6" },
     { name = "prometheus-client", specifier = ">=0.25.0" },
