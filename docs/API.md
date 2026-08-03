@@ -7,7 +7,11 @@
 > than a wiki so it can't drift silently — **any route change updates this file in the same PR**
 > (`standards/definition-of-done.md` §6). Conventions (`standards/api-design.md`): `/api/v1`
 > prefix for data routes, snake_case, `extra="forbid"` request models, one problem-details error
-> envelope for every non-2xx (`status`/`title`/`request_id`).
+> envelope for every non-2xx (`status`/`title`/`request_id`). **List responses come in three
+> envelope shapes**, picked by pagination style (cursor → `data` + `next_cursor`; offset → a named
+> key + a bare `total`; unpaged → a named key alone) — the shapes, the two routes that break the
+> pattern, and how to read one without silently getting `0` are in
+> [`standards/api-design.md`](../development/standards/api-design.md) § *List response envelopes*.
 
 ## Auth regimes (three classes)
 
