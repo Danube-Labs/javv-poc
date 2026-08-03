@@ -263,9 +263,11 @@ CSV_ROWS=$(($(printf '%s\n' "$CSV" | wc -l) - 1))
 T_NOW=$(count trivy)  # phase-5 helper; present=true is the export's implicit lens too
 echo "csv rows: $CSV_ROWS (present trivy findings: $(present_trivy true))"
 [ "$CSV_ROWS" -gt 0 ] || fail "CSV export empty"
-# Capture then test — NEVER `| grep -q … && fail`. `grep -q` exits on the first match, SIGPIPEs the
-# writer, and pipefail promotes that to the pipeline status, so `&& fail` never runs: the check goes
-# silent exactly when it matches. Only above the 64 KiB pipe buffer, i.e. on every real corpus.
+# Capture then test — NEVER `| grep -q … && fail`. `grep -q` exits on the first match without
+# draining stdin, so the writer takes SIGPIPE and pipefail promotes that 141 to the pipeline status:
+# `&& fail` never runs and the check goes silent exactly when it matches. Match POSITION decides
+# this, not payload size — the /metrics instance fired on a 49 KB body because the match sat ~2 KB
+# in, inside the writer's first stdio chunk.
 CSV_BAD=$(printf '%s\n' "$CSV" | grep -E '(^|,)"?[=+@]' || true)
 [ -z "$CSV_BAD" ] || fail "CSV sanitizer let a formula-leading cell through: $CSV_BAD"
 
