@@ -296,3 +296,24 @@ New section 6c, all green on first gated run:
 
 Each probe carries a per-run tag (`smoke<epoch>`); without it a re-run would match the previous
 run's line and pass while emitting nothing. The line arrived within the first 0.5 s poll.
+
+---
+
+# Combined-file gate — all three #520 slices on merged `main` (2026-08-03)
+
+`main` @ `87c710e`, full smoke, **exit 0**, zero FAIL lines.
+
+Each slice PR gated its own section against a `main` that lacked the other two, so the merged
+`smoke.sh` was unproven by any of them individually. This run is that proof. The three sections are
+disjoint (insert points 171 / 240 / 603) and their helpers do not collide (`ce_post` ·
+`seed_lease`/`jobs_field`/`jcode` · 8e's export loop).
+
+| Section | Verdict on this run |
+|---|---|
+| `6c` client events | `204` + namespaced line · forgery stays nested · `422` oversized (no line) · `422` info · `401` anon |
+| `7b` jobs door | `404` unknown · `422` dry_run-on-wrong-kind · `200` lifecycle dry-run, index list unchanged |
+| `7b` lease | fresh heartbeat → `409` · 2h-silent → `stale:true` → `202` reclaim → `done` (seed superseded) |
+| `8e` negation/absence/exports | ALL GREEN |
+
+Pre-existing phases held on the same run: trivy=22869 / grype=10978, disagree=5859, CSV rows 22794
+== present trivy findings, completed reads leaked 0 PITs (before=5 after=5).
