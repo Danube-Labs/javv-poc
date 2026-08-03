@@ -364,8 +364,7 @@ async def test_the_wrong_key_is_silently_empty_not_an_error() -> None:
         assert r.status_code == 200
         body = r.json()
         assert "approvals" in body  # the real key
-        assert "data" not in body  # the cursor-family key a reader would guess
-        assert len(body.get("data", [])) == 0  # ...and guessing it yields a clean, wrong zero
+        assert "data" not in body  # the cursor-family key a reader would guess, absent not empty
     finally:
         await http.aclose()
         await client.close()

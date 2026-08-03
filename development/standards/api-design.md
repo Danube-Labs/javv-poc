@@ -44,10 +44,12 @@ The rule, and it is descriptive of what ships today rather than aspirational:
 | **offset** (`size`/`offset`) | `{ "<named>": [...], "total": N }` — named key, `total` already unwrapped to a plain number | `/decisions/approvals` → `approvals`, `/decisions` → `decisions`, `/admin/users` → `users`, `/admin/tokens` → `tokens` |
 | **unpaged** | `{ "<named>": [...] }` — named key, **no `total`** | `/contributors` → `leaderboard`, `/images` → `images`, `/images/timeline` → `events`, `/findings/top-components` → `components`, `/clusters` → `clusters`, `/views` → `views`, `/notifications` → `items`, `/admin/jobs` → `jobs`, `/admin/roles` → `roles`, `/admin/snapshots` → `snapshots`, `/scanners/provenance` → `scanners`, `/scanners/freshness` → `scanners` |
 
-**This table is enforced, not just written.** `backend/tests/test_list_envelope_contract.py` asserts
-every row against the live app and fails the build when a `GET` route is neither registered there
-nor exempted with a reason — so a new list route cannot ship undocumented, and a renamed key breaks
-a test rather than a reader.
+**The routes are pinned by a test; this table mirrors that test's registry by hand.**
+`backend/tests/test_list_envelope_contract.py` is the registry of record: it asserts every
+registered route's list key and `total` form against the live app, and fails the build when a `GET`
+route is neither registered there nor exempted with a reason — so a new list route cannot ship
+undocumented, and a renamed key breaks a test rather than a reader. What nothing checks is that
+this table still agrees with that registry, so edit the two together.
 
 **Two exceptions, stated because a reader who assumes the pattern gets them wrong:**
 - **`/notifications` names its array `items`**, not the resource noun — "named key" does not mean "resource name".
