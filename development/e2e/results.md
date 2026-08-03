@@ -238,3 +238,40 @@ re-deriving on that basis.
 GNU `grep` a *script* gets — shell functions do not propagate into scripts. ugrep does not exit early
 the same way and **cannot reproduce** the SIGPIPE class at all. Verify bash pipeline behaviour with
 `/usr/bin/grep` named explicitly.
+
+---
+
+# #520 slice 2 — the jobs HTTP door and the system-jobs lease (2026-08-03)
+
+Adds section **7b**. Section 7 has always run the sweeps as CLI modules; the HTTP trigger, its
+dry-run and the lease both doors contend for were unexercised.
+
+## Results — all green
+
+| Component | Result | Real data it asserted on |
+|---|---|---|
+| `smoke.sh` (all phases) | ✅ green | trivy=22869 / grype=10978; disagree=5859; reconcile restores **exactly** 22794; CSV rows 22794 == present trivy findings |
+| — 7b HTTP trigger | ✅ | unknown kind → **404**; `dry_run` on `staleness_sweep` → **422**; lifecycle dry-run → **200 inline** with the sorted index list **byte-identical** before and after (it dropped nothing) |
+| — 7b lease | ✅ | live heartbeat → `stale:false` + trigger **409**; heartbeat backdated 2h → `stale:true` + trigger **202**; the reclaimed run waited out to `done`, and the seeded `attempt_id` is gone (the lease genuinely changed hands) |
+
+## Notes from this run
+
+**1. The reclaim probe deliberately uses `staleness_sweep`, never `lifecycle_sweep`.** A reclaim
+*succeeds*, so the job then really runs — on lifecycle that is `can_drop_index` dropping whole
+indices, which would break the smoke's idempotency. `lifecycle_sweep` is used only for the dry-run,
+where it is safe by construction and proved so by diffing the index list across it.
+
+**2. The phase waits for the reclaimed run to finalize.** The trigger backgrounds the work
+(`admin_jobs.py:147`) and returns 202 immediately; exiting straight after would leave a held lease
+for the next run to inherit.
+
+**3. The stale heartbeat is backdated 2 hours, not pinned to `report_lease_ttl_seconds`.** Pinning it
+to the knob would let an operator retuning that value silently turn the assertion vacuous.
+
+**4. This phase contains the rig's one sanctioned direct store write** — seeding the lease doc.
+There is no API that parks a lease in a held state without actually running a job, and the kind whose
+real run is destructive is precisely the one whose lease matters most. Operator-ruled (option a on
+issue 520), marked in-place, and superseded in-phase by the reclaim.
+
+**5. `GET /api/v1/admin/jobs` returns `{"jobs": […]}`** — a named-key envelope, not `data`. Noted in
+the assertion itself; the wider split is issue 530.

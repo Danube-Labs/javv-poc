@@ -177,6 +177,76 @@ JLOG="$LOGS/jobs.log"; : > "$JLOG"
   ( cd "$ROOT/backend" && JAVV_OPENSEARCH_URL="$OS" uv run python -m backend.jobs.lifecycle )
 } | tee -a "$JLOG"
 
+# ---- 7b. jobs: the HTTP door, the dry-run, and the system-jobs lease (#520) ----
+# Section 7 above runs the sweeps as CLI modules. The HTTP trigger, its dry-run and the lease are
+# a DIFFERENT door onto the same jobs (jobs/lease.py: both doors contend for one doc per kind) and
+# were entirely unexercised. Ordering matters: this runs AFTER the CLI jobs above, because those
+# take the same lease via `run_under_lease` — seeding a held lease first would make them skip.
+say "jobs: HTTP trigger, dry-run and the lease"
+jcode() { curl -s -b "$COOKIES" -o /dev/null -w '%{http_code}' -X POST "$BACKEND$1"; }
+
+# unknown kind → 404, before any capability or lease work (admin_jobs.py:109)
+JC=$(jcode "/api/v1/admin/jobs/not-a-real-kind/run")
+[ "$JC" = "404" ] || fail "unknown job kind must be 404, got $JC"
+# dry_run is lifecycle-only → 422 on any other kind (admin_jobs.py:119)
+JC=$(jcode "/api/v1/admin/jobs/staleness_sweep/run?dry_run=true")
+[ "$JC" = "422" ] || fail "dry_run on staleness_sweep must be 422, got $JC"
+
+# The lifecycle dry-run answers 200 INLINE — no lease, no status doc, "a read has nothing to fence"
+# (admin_jobs.py:130, and `claim_job` is only reached at :134, past the dry-run return). Proving it
+# is a read means proving it DROPPED NOTHING: lifecycle_sweep's whole job is deleting indices.
+IDX_BEFORE=$(curl -s "$OS/_cat/indices?h=index" | sort | md5sum)
+JC=$(curl -s -b "$COOKIES" -o "$LOGS/jobs-dryrun.json" -w '%{http_code}' \
+  -X POST "$BACKEND/api/v1/admin/jobs/lifecycle_sweep/run?dry_run=true")
+[ "$JC" = "200" ] || fail "the lifecycle dry-run must be 200 inline, got $JC"
+jq -e '.dry_run == true and .kind == "lifecycle_sweep"' "$LOGS/jobs-dryrun.json" >/dev/null \
+  || fail "dry-run body is not a dry-run result: $(cat "$LOGS/jobs-dryrun.json")"
+[ "$IDX_BEFORE" = "$(curl -s "$OS/_cat/indices?h=index" | sort | md5sum)" ] \
+  || fail "the lifecycle DRY RUN changed the index list — it dropped something"
+echo "jobs: 404 unknown · 422 dry_run-on-wrong-kind · 200 lifecycle dry-run, index list unchanged"
+
+# -- the lease. THE ONE SANCTIONED DIRECT STORE MUTATION IN THIS RIG. --------------------------
+# Every other mutation here goes through the API. The lease has no API that parks it in a HELD
+# state without actually running a job, and a real lifecycle_sweep drops indices — so the state is
+# seeded and superseded in-phase. `staleness_sweep` is used deliberately: a reclaim SUCCEEDS, so
+# the job then really runs, and it must therefore be the non-destructive kind (the CLI above just
+# ran it, so a second pass is a no-op).
+seed_lease() {  # $1 = heartbeat_at (ISO); status=running so `claim_job` sees a held lease
+  curl -s -X PUT "$OS/system-jobs/_doc/staleness_sweep?refresh=true" \
+    -H 'content-type: application/json' \
+    -d "{\"kind\":\"staleness_sweep\",\"status\":\"running\",\"requested_by\":\"smoke-seed\",
+         \"attempt_id\":\"smokeseed01\",\"started_at\":\"$1\",\"heartbeat_at\":\"$1\",
+         \"finished_at\":null,\"result\":null,\"error\":null,\"schema_version\":1}" >/dev/null
+}
+jobs_field() {  # $1=kind $2=jq expr — NOTE the envelope is {"jobs":[…]}, not `data` (see 530)
+  curl -s -b "$COOKIES" "$BACKEND/api/v1/admin/jobs" \
+    | jq -r --arg k "$1" ".jobs[] | select(.kind == \$k) | $2"
+}
+
+seed_lease "$(date -u +%FT%TZ)"                       # a LIVE heartbeat → the lease is held
+[ "$(jobs_field staleness_sweep .stale)" = "false" ] || fail "a fresh heartbeat must not read stale"
+JC=$(jcode "/api/v1/admin/jobs/staleness_sweep/run")
+[ "$JC" = "409" ] || fail "a freshly-held lease must 409, got $JC"
+
+# Backdated far past any sane `report_lease_ttl_seconds` (default 300s) — deliberately not pinned
+# to the knob's value, so an operator retuning it cannot silently turn this assertion vacuous.
+seed_lease "$(date -u -d '-2 hours' +%FT%TZ)"
+[ "$(jobs_field staleness_sweep .stale)" = "true" ] || fail "a heartbeat 2h silent must read stale"
+JC=$(jcode "/api/v1/admin/jobs/staleness_sweep/run")
+[ "$JC" = "202" ] || fail "a stale lease must be reclaimable (202), got $JC"
+
+# The reclaim really runs the sweep (backgrounded, admin_jobs.py:147) — wait for it to finalize, or
+# the rig exits leaving a held lease and the next run's assertions inherit it.
+for _ in $(seq 1 40); do
+  [ "$(jobs_field staleness_sweep .status)" = "running" ] || break
+  sleep 1
+done
+JSTATUS=$(jobs_field staleness_sweep .status)
+[ "$JSTATUS" = "done" ] || fail "the reclaimed staleness_sweep did not finish cleanly: $JSTATUS"
+[ "$(jobs_field staleness_sweep .attempt_id)" != "smokeseed01" ] \
+  || fail "the seeded attempt_id survived — the reclaim did not take the lease"
+echo "lease: fresh heartbeat → 409 · 2h-silent → stale:true → 202 reclaim → done (seed superseded)"
+
 # ---- 8. read/report surface (#222 — major-audit phase 9) ---------------------
 # Everything M5c→M7 built, exercised against the REAL corpus phases 1–7 produced. Idempotent:
 # the decision is revoked in-phase, SLA is restored, the enqueued report is pending-only.
