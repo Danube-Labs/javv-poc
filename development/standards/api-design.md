@@ -34,6 +34,42 @@ fetch **and export** (IDOR). See [`../../CLAUDE.md`](../../CLAUDE.md) hard const
   the client passes `cursor` back verbatim. Never leak raw `search_after` arrays as a contract.
 - Every list response is explicitly **sorted** (stable tiebreak on a unique key) so paging is deterministic.
 
+### List response envelopes (three shapes — pagination style picks the shape)
+
+The rule, and it is descriptive of what ships today rather than aspirational:
+
+| Paging | Envelope | Examples |
+|---|---|---|
+| **cursor** (PIT + `search_after`, composite `after_key`) | `{ "data": [...], "next_cursor": "<opaque>\|null", "total": {"value": N, "relation": "eq"} }` | `/findings`, `/audit`, and both at a past `as_of` |
+| **offset** (`size`/`offset`) | `{ "<named>": [...], "total": N }` — named key, `total` already unwrapped to a plain number | `/decisions/approvals` → `approvals`, `/decisions` → `decisions`, `/admin/users` → `users`, `/admin/tokens` → `tokens` |
+| **unpaged** | `{ "<named>": [...] }` — named key, **no `total`** | `/contributors` → `leaderboard`, `/images` → `images`, `/clusters` → `clusters`, `/views` → `views`, `/admin/jobs` → `jobs`, `/admin/roles` → `roles`, `/admin/snapshots` → `snapshots`, `/scanners/provenance` → `scanners` |
+
+**Two exceptions, stated because a reader who assumes the pattern gets them wrong:**
+- **`/notifications` names its array `items`**, not the resource noun — "named key" does not mean "resource name".
+- **`/findings/groups` is cursor-paged but carries no `total`** (composite-agg paging can't cheaply produce one), so "cursor ⇒ three keys" does not hold either.
+
+A route may also carry siblings alongside its array — `/contributors` returns a **second** array (`handled_over_time`), `/decisions/approvals` echoes `size`/`offset`/`facets`, `/images` carries `inventory`.
+
+#### Reading one of these safely
+
+**The generated TS client does not protect you.** No route declares a `response_model`, so OpenAPI
+records `{type: object, additionalProperties: true}` and the client's type is `{[key: string]: unknown}`;
+frontend consumers re-declare the shape with a hand-written cast. A wrong key is therefore **not** a
+compile error on any consumer — it is `undefined` at runtime, and in `jq` it is worse: a missing key
+yields `null`, and `null | length` is **0**. That reads as a legitimately empty list, is
+self-consistent, and *passes* any assertion whenever the real answer is also 0.
+
+So never reach for a key positionally. Assert it exists, and compare counts against the server:
+
+```bash
+jq -e 'has("approvals")' <<<"$body" >/dev/null || fail "wrong envelope for this route"
+TOTAL=$(jq -r '.total' <<<"$body")        # offset-paged: already a plain number
+TOTAL=$(jq -r '.total.value' <<<"$body")  # cursor-paged: unwrap .value
+```
+
+Compare an export or a sweep against that server-side `total`, **never against a page's length** — a
+page-length comparison agrees with itself whenever the lens exceeds `size`.
+
 ## Responses & status
 - Success: `200` read · `201` create (+ `Location`) · `202` accepted (async/queued ingest) · `204` no content.
 - **Counts/pages come from OpenSearch aggregations/queries — never from shipping raw findings to the client**
