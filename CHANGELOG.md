@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.6](https://github.com/Danube-Labs/javv-poc/compare/v0.4.5...v0.4.6) (2026-08-03)
+
+
+### Features
+
+* **backend:** client-events beacon endpoint with namespaced re-emit (issue 453) ([#517](https://github.com/Danube-Labs/javv-poc/issues/517)) ([0e32e0a](https://github.com/Danube-Labs/javv-poc/commit/0e32e0add053b5be8f9c95ff6ec6c3d5b5e8d4db)), closes [#453](https://github.com/Danube-Labs/javv-poc/issues/453)
+* **frontend:** report dropped beacon events and clip oversized field values (issue 519) ([#521](https://github.com/Danube-Labs/javv-poc/issues/521)) ([cf3f5a0](https://github.com/Danube-Labs/javv-poc/commit/cf3f5a0de886f18cd67844385dcf3bdd00e525eb))
+* **frontend:** ship warn/error to the client-events beacon from lib/logger (issue 453) ([#518](https://github.com/Danube-Labs/javv-poc/issues/518)) ([bc44c4a](https://github.com/Danube-Labs/javv-poc/commit/bc44c4ab3913a9ee195666868822b470250c9cce))
+* **ui:** recent sign-ins lens link on the users panel (issue 460 §2) ([#514](https://github.com/Danube-Labs/javv-poc/issues/514)) ([560b71f](https://github.com/Danube-Labs/javv-poc/commit/560b71fff9e1b46bc706f565f19e672966af55ec)), closes [#460](https://github.com/Danube-Labs/javv-poc/issues/460)
+
+
+### Bug Fixes
+
+* **e2e:** metrics assertions fired on bodies that carried the counter ([#528](https://github.com/Danube-Labs/javv-poc/issues/528)) ([dff5243](https://github.com/Danube-Labs/javv-poc/commit/dff5243db3e74174f5a3ca35c9f188cef51ff9d4))
+
 ## [0.4.5](https://github.com/Danube-Labs/javv-poc/compare/v0.4.4...v0.4.5) (2026-07-30)
 
 
