@@ -42,7 +42,12 @@ The rule, and it is descriptive of what ships today rather than aspirational:
 |---|---|---|
 | **cursor** (PIT + `search_after`, composite `after_key`) | `{ "data": [...], "next_cursor": "<opaque>\|null", "total": {"value": N, "relation": "eq"} }` | `/findings`, `/audit`, and both at a past `as_of` |
 | **offset** (`size`/`offset`) | `{ "<named>": [...], "total": N }` — named key, `total` already unwrapped to a plain number | `/decisions/approvals` → `approvals`, `/decisions` → `decisions`, `/admin/users` → `users`, `/admin/tokens` → `tokens` |
-| **unpaged** | `{ "<named>": [...] }` — named key, **no `total`** | `/contributors` → `leaderboard`, `/images` → `images`, `/clusters` → `clusters`, `/views` → `views`, `/admin/jobs` → `jobs`, `/admin/roles` → `roles`, `/admin/snapshots` → `snapshots`, `/scanners/provenance` → `scanners` |
+| **unpaged** | `{ "<named>": [...] }` — named key, **no `total`** | `/contributors` → `leaderboard`, `/images` → `images`, `/images/timeline` → `events`, `/findings/top-components` → `components`, `/clusters` → `clusters`, `/views` → `views`, `/notifications` → `items`, `/admin/jobs` → `jobs`, `/admin/roles` → `roles`, `/admin/snapshots` → `snapshots`, `/scanners/provenance` → `scanners`, `/scanners/freshness` → `scanners` |
+
+**This table is enforced, not just written.** `backend/tests/test_list_envelope_contract.py` asserts
+every row against the live app and fails the build when a `GET` route is neither registered there
+nor exempted with a reason — so a new list route cannot ship undocumented, and a renamed key breaks
+a test rather than a reader.
 
 **Two exceptions, stated because a reader who assumes the pattern gets them wrong:**
 - **`/notifications` names its array `items`**, not the resource noun — "named key" does not mean "resource name".
