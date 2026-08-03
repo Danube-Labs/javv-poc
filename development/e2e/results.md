@@ -275,3 +275,24 @@ issue 520), marked in-place, and superseded in-phase by the reclaim.
 
 **5. `GET /api/v1/admin/jobs` returns `{"jobs": […]}`** — a named-key envelope, not `data`. Noted in
 the assertion itself; the wider split is issue 530.
+
+---
+
+# #520 slice 3 gate run (2026-08-03) — client-events beacon section (6c)
+
+Full smoke, exit 0, zero FAIL lines. Corpus: trivy=22869 / grype=10978, disagree=5859; the
+reconcile phase restored its 22794 baseline exactly; PIT-leak zero (before=5 after=5).
+
+New section 6c, all green on first gated run:
+
+- valid batch → **204**, and the tagged line lands in `backend.log` as `client.<name>` — the
+  namespace property observed, not assumed.
+- the probe **forges `username` and `client_event` in its payload**: the server's own attribution
+  survives at the top level (`username: admin`, `client_event: true`) while both forged keys stay
+  nested under `fields` — nesting-never-splatting proved by reading the actual line.
+- oversized value (600 chars vs the 512 cap) → **422 and no line at all** in the stream.
+- `level: info` → **422** (unrepresentable in the schema, not filtered in a branch).
+- anonymous POST → **401**.
+
+Each probe carries a per-run tag (`smoke<epoch>`); without it a re-run would match the previous
+run's line and pass while emitting nothing. The line arrived within the first 0.5 s poll.
