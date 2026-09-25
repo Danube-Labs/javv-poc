@@ -36,7 +36,7 @@ yet - that lands at M10.
 | `development/` | How to build it: bolts, standards, setup, e2e | see below |
 | `handoff/` | UI/UX reference - **`docs/` current**, `v4/` frozen trail | **reference only**, not a contract |
 | `design/` | Brand source of record (logos, tokens, brand guide) | binding for brand |
-| `.github/` | CI + release automation workflows | — |
+| `.github/` | CI + release automation workflows; issue forms, PR template, `CODEOWNERS` | — |
 | `.claude/` | Repo-scoped Claude config: `settings.json` (team allowlist + hook setup), `rules/` (path-scoped instructions that auto-load with matching files — CLAUDE.md's other half), `hooks/` (the PreToolUse Bash guard + its cases), `commands/`, `skills/`, and `sessions/` infra (snapshots are local-only) | `rules/` binding |
 | `.deprecated/` | Frozen archive - superseded V1/V2/V3 docs, the v1 UI handoff, archived v1 UI guidelines | history only |
 | root configs | `commitlint.config.mjs`, `renovate.json`, `release-please-config.json`, `.release-please-manifest.json`, `.pre-commit-config.yaml` | — |
