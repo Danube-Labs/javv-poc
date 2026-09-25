@@ -117,8 +117,8 @@ log.info(f"scanned {ref} and found {n}")                           # not
 - Cut from `main`. Naming: `feat/<slug>`, `fix/<slug>`, `chore/<slug>`, `docs/<slug>`.
 - **Conventional commits:** `type: subject`, where type is one of
   `feat`, `fix`, `chore`, `docs`, `test`, `refactor`. Imperative and present tense.
-- **Subjects are lowercase even for identifiers** (`opensearch`, not `OpenSearch`). CI's commitlint
-  is stricter than the local hook, and the header must be 100 characters or fewer.
+- **Subjects are lowercase even for identifiers** (`opensearch`, not `OpenSearch`). The header and
+  every body line must be 100 characters or fewer. The local hook checks the same rules as CI.
 - The body explains *why* when it is not obvious. Leave the *what* to the code.
 - **Never use `--no-verify`.** If a hook fails, fix the cause.
 

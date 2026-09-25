@@ -43,9 +43,19 @@ repos:
         pass_filenames: false
         files: '^\.claude/hooks/'
 
+      - id: conventional-commit-cases
+        name: commit-message hook cases
+        # Same reason as the guard cases: the hook must reject what CI's commitlint rejects and
+        # nothing it accepts, which only the case suite proves.
+        entry: bash development/hooks/test-conventional-commit.sh
+        language: system
+        pass_filenames: false
+        files: '^development/hooks/'
+
       - id: conventional-commit
         name: conventional commit message
-        # Same 6 types as commitlint in CI + development/standards/git-workflow.md.
+        # Mirrors CI's commitlint (commitlint.config.mjs): the 6 types, subject case and period,
+        # header and every body/footer line at most 100 chars.
         entry: development/hooks/conventional-commit.sh
         language: script
         stages: [commit-msg]
