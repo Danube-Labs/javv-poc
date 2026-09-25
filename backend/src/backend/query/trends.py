@@ -14,7 +14,7 @@ bucket on SERVER-stamped times (`ingested_at`/`first_seen_at`/`resolved_at`) —
 severity totals (state at T) are NOT derivable from these logs at read cost — that's the v1.1
 `javv-metrics` rollup; these series are the MVP trend surface.
 
-The tenant filter is forced by the chokepoint at execution; scan-events routing additionally
+The tenant filter is forced by the tenant read path at execution; scan-events routing additionally
 pins the per-cluster index pattern.
 """
 

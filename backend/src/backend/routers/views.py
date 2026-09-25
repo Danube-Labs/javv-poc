@@ -10,7 +10,7 @@ Presets are validated at the edge against the CLOSED vocabularies (`extra="forbi
 canonical severities incl. `negligible`, the 6 triage states, the two scanners, the M8d ptype
 shape. Garbage is 422 and never stored — a preset outlives UI versions, so only vocabulary the
 server owns goes in. `q` (DATA_MODEL sketch) is deliberately absent: there is no server text
-query (the chokepoint refuses `q=`, SEC-4) and the §6 deep-link contract is query-params-only.
+query (the tenant read path refuses `q=`, SEC-4) and the §6 deep-link contract is query-params-only.
 
 Every mutation is journaled **journal-first** (D17/A-M5): the audit row lands before the doc
 write, so a journal failure leaves no applied-but-unjournaled change. `owner` = the creating

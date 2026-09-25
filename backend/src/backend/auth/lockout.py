@@ -5,7 +5,7 @@ and IP-level flood control belongs to the ingress (M10), where the real client I
 
 In-memory = per-pod, like the ingest limiter: with N pods an attacker gets N× the budget — an
 accepted MVP bound (single-replica deploys today; revisit alongside the ingest limiter if that
-changes). Knobs: `JAVV_LOGIN_MAX_ATTEMPTS` failures per `JAVV_LOGIN_LOCKOUT_MINUTES` sliding
+changes). Settings: `JAVV_LOGIN_MAX_ATTEMPTS` failures per `JAVV_LOGIN_LOCKOUT_MINUTES` sliding
 window; a success clears the key."""
 
 import time

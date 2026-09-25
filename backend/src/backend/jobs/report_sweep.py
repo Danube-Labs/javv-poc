@@ -1,13 +1,13 @@
 """M7 slice 4 (#32) — the TTL + orphan sweep for the report queue (D40/I-r3).
 
-Runnable `uv run python -m backend.jobs.report_sweep` (k8s CronJob in M10). Three reap classes,
+Runnable `uv run python -m backend.jobs.report_sweep` (k8s CronJob in M10). Three deletion classes,
 all via `delete_by_query` — sanctioned HERE because `system-reports`/`system-report-chunks` are
 small bounded ops indices (the "drop whole indices, never delete_by_query" day-one rule targets
 the huge occurrence/images time-series):
 
 1. **Expired results** — `done` past `expires_at`: the report doc AND all its chunks go (a
    download already 410s; the sweep reclaims the bytes).
-2. **Stale failures** — `failed` finished longer than the TTL ago: same reap (kept until then
+2. **Stale failures** — `failed` finished longer than the TTL ago: same deletion (kept until then
    for operator visibility of the error).
 3. **Orphan chunks** — chunks whose `attempt_id` is not their report's current one (fenced
    losers from reclaimed leases — slice 3 deliberately leaves them), or whose report doc no
@@ -15,7 +15,7 @@ the huge occurrence/images time-series):
    chunks match `report.attempt_id` by construction and are never touched; `pending` jobs have
    no chunks.
 
-Idempotent — a rerun on a clean store reaps nothing.
+Idempotent — a rerun on a clean store deletes nothing.
 """
 
 import asyncio
@@ -32,21 +32,21 @@ from backend.reports.models import DONE, FAILED, REPORT_CHUNKS_INDEX, REPORTS_IN
 
 log = structlog.get_logger()
 
-_PAGE = 500  # reports per reap page; chunk agg page size — small bounded ops indices
+_PAGE = 500  # reports per deletion page; chunk agg page size — small bounded ops indices
 
 
-async def _reap_reports(
+async def _delete_reports(
     client: AsyncOpenSearch, reports: str, chunks: str, query: dict[str, Any]
 ) -> int:
     """Delete every report matching `query`, chunks first (so a crash leaves orphan chunks —
-    which class 3 reaps next run — never a chunkless zombie doc that nothing would revisit)."""
-    reaped = 0
+    which class 3 deletes next run — never a chunkless zombie doc that nothing would revisit)."""
+    removed = 0
     while True:
         hits = (await client.search(index=reports, body={"size": _PAGE, "query": query}))["hits"][
             "hits"
         ]
         if not hits:
-            return reaped
+            return removed
         ids = [h["_id"] for h in hits]
         await client.delete_by_query(
             index=chunks,
@@ -58,14 +58,14 @@ async def _reap_reports(
             body={"query": {"ids": {"values": ids}}},
             params={"refresh": "true", "conflicts": "proceed"},
         )
-        reaped += len(ids)
+        removed += len(ids)
         if len(hits) < _PAGE:
-            return reaped
+            return removed
 
 
-async def _reap_orphan_chunks(client: AsyncOpenSearch, reports: str, chunks: str) -> int:
+async def _delete_orphan_chunks(client: AsyncOpenSearch, reports: str, chunks: str) -> int:
     """Delete chunk groups whose (report_id, attempt_id) doesn't match a live report."""
-    reaped = 0
+    removed = 0
     after: dict[str, Any] | None = None
     pairs: list[tuple[str, str]] = []
     while True:  # collect every distinct (report_id, attempt_id) pair in the chunk store
@@ -114,24 +114,24 @@ async def _reap_orphan_chunks(client: AsyncOpenSearch, reports: str, chunks: str
             },
             params={"refresh": "true", "conflicts": "proceed"},
         )
-        reaped += int(deleted.get("deleted", 0))
+        removed += int(deleted.get("deleted", 0))
         log.info(
-            "report sweep: orphan chunks reaped",
+            "report sweep: orphan chunks deleted",
             report_id=report_id,
             attempt_id=attempt_id,
             chunks=deleted.get("deleted", 0),
         )
-    return reaped
+    return removed
 
 
 async def sweep(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, int]:
-    """One sweep cycle. Returns reap counts (all zero on a clean store — idempotence)."""
+    """One sweep cycle. Returns deletion counts (all zero on a clean store — idempotence)."""
     reports = f"{prefix}{REPORTS_INDEX}"
     chunks = f"{prefix}{REPORT_CHUNKS_INDEX}"
     now = datetime.now(UTC)
     failed_cutoff = now - timedelta(hours=await read_report_ttl_hours(client, prefix=prefix))
 
-    expired = await _reap_reports(
+    expired = await _delete_reports(
         client,
         reports,
         chunks,
@@ -144,7 +144,7 @@ async def sweep(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, int]:
             }
         },
     )
-    stale_failed = await _reap_reports(
+    stale_failed = await _delete_reports(
         client,
         reports,
         chunks,
@@ -157,7 +157,7 @@ async def sweep(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, int]:
             }
         },
     )
-    orphan_chunks = await _reap_orphan_chunks(client, reports, chunks)
+    orphan_chunks = await _delete_orphan_chunks(client, reports, chunks)
 
     counts = {
         "expired_reports": expired,

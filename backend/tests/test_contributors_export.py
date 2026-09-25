@@ -220,7 +220,7 @@ async def test_columns_are_fixed_and_isolation_holds_on_an_empty_board(env) -> N
 
 async def test_over_the_row_cap_is_413_with_the_ops_parity_pair(env, monkeypatch) -> None:
     """The cap is a backstop here, not a hot guard: the board is bounded by its own terms-agg
-    size, so this only fires under a deliberately low knob — which is exactly how it is driven.
+    size, so this only fires under a deliberately low setting — which is exactly how it is driven.
 
     Ops parity (the bounded-endpoint rule): the 413 logs a warning AND bumps LIMIT_REJECTIONS.
     """

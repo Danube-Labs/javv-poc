@@ -1,6 +1,6 @@
 """SLA policy (M5d, FR-10) — per-severity days + the KEV override, tier-③ runtime config.
 
-Fleet-wide `system-config` doc (`_id = "sla"`), the LifecycleKnobs pattern: read live per
+Fleet-wide `system-config` doc (`_id = "sla"`), the LifecycleSettings pattern: read live per
 request/sweep so an edit applies immediately; defaults are FR-10's (critical 2 / high 7 /
 medium 30 / low 90, KEV 1 day). `negligible`/`unknown` carry NO SLA (ruling in
 tests/test_sla.py): FR-10 names only the actionable buckets; paging on unrated noise helps nobody.
@@ -19,7 +19,7 @@ SLA_KEY = "sla"  # the fleet-wide system-config doc _id
 
 class SlaPolicy(BaseModel):
     """Per-canonical-severity SLA days + KEV override — editable via PUT /settings/sla.
-    D46 (#274): full-word knob names, HARD rename from crit_days/med_days (dev data disposable
+    D46 (#274): full-word setting names, HARD rename from crit_days/med_days (dev data disposable
     — no aliases; the config doc reseeds on the next write)."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)

@@ -1,7 +1,8 @@
-"""M9e slice 4 — the Data & OpenSearch panel's backend: retention/rollover knob routes (FR-19/D26,
-thin over M4's lifecycle doc the sweep reads live — sweep BEHAVIOR is test_lifecycle.py's),
-report-TTL graduation (row 11), the findings-cleanup knob (D37/M12), snapshots (NFR-6) and the
-runtime proxy. Real OpenSearch (the admin_env idiom); every knob write journaled (D17)."""
+"""M9e slice 4 — the Data & OpenSearch panel's backend: retention/rollover setting routes
+(FR-19/D26, thin over M4's lifecycle doc the sweep reads live — sweep BEHAVIOR is
+test_lifecycle.py's), report TTL made runtime-editable (row 11), the findings-cleanup setting
+(D37/M12), snapshots (NFR-6) and the runtime proxy. Real OpenSearch (the admin_env idiom); every
+setting write journaled (D17)."""
 
 import contextlib
 import os
@@ -12,7 +13,7 @@ import pytest
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
 from backend.auth.passwords import hash_password
-from backend.jobs.lifecycle import LifecycleKnobs, read_lifecycle_knobs
+from backend.jobs.lifecycle import LifecycleSettings, read_lifecycle_settings
 from backend.main import create_app
 from os_env import OS_URL, requires_opensearch
 
@@ -85,12 +86,12 @@ def _cluster() -> str:
     return f"c-{uuid.uuid4().hex[:12]}"
 
 
-# --- retention + rollover (one LifecycleKnobs doc) ----------------------------------------
+# --- retention + rollover (one LifecycleSettings doc) ----------------------------------------
 
 
 async def test_retention_put_lands_in_the_doc_the_sweep_reads(env) -> None:
-    """The route writes exactly what `read_lifecycle_knobs` — the sweep's own read — serves for
-    that cluster; sweep behavior on these knobs is test_lifecycle.py's contract."""
+    """The route writes exactly what `read_lifecycle_settings` — the sweep's own read — serves for
+    that cluster; sweep behavior on these settings is test_lifecycle.py's contract."""
     make_http, client, docs = env
     admin = make_http()
     await _login(admin, client, ["can_manage_retention"], docs)
@@ -103,9 +104,9 @@ async def test_retention_put_lands_in_the_doc_the_sweep_reads(env) -> None:
     assert r.status_code == 200
     assert r.json()["lifecycle"]["retention_days"] == 45.0
 
-    knobs = await read_lifecycle_knobs(client, cluster_id=cluster)
-    assert knobs.retention_days == 45.0
-    assert knobs.max_docs == LifecycleKnobs().max_docs  # RMW preserved the rollover half
+    settings = await read_lifecycle_settings(client, cluster_id=cluster)
+    assert settings.retention_days == 45.0
+    assert settings.max_docs == LifecycleSettings().max_docs  # RMW preserved the rollover half
 
     got = await admin.get("/api/v1/settings/data", params={"cluster_id": cluster})
     assert got.status_code == 200
@@ -130,9 +131,9 @@ async def test_rollover_put_preserves_the_retention_half(env) -> None:
     )
     assert r1.status_code == 200 and r2.status_code == 200
 
-    knobs = await read_lifecycle_knobs(client, cluster_id=cluster)
-    assert (knobs.max_age_days, knobs.max_docs, knobs.max_size_gb) == (7.0, 1000, 5.0)
-    assert knobs.retention_days == 45.0  # the earlier retention edit survived the RMW
+    settings = await read_lifecycle_settings(client, cluster_id=cluster)
+    assert (settings.max_age_days, settings.max_docs, settings.max_size_gb) == (7.0, 1000, 5.0)
+    assert settings.retention_days == 45.0  # the earlier retention edit survived the RMW
     assert "rollover_change" in await _audit_actions(client, f"lifecycle:{cluster}")
 
 
@@ -147,7 +148,7 @@ async def test_data_settings_read_is_capability_gated(env) -> None:
     assert (await viewer.get("/api/v1/admin/opensearch-runtime")).status_code == 403
 
 
-async def test_knob_routes_reject_non_positive_values(env) -> None:
+async def test_setting_routes_reject_non_positive_values(env) -> None:
     make_http, client, docs = env
     admin = make_http()
     await _login(admin, client, ["can_manage_retention"], docs)
@@ -172,10 +173,10 @@ def test_the_lifecycle_sweep_source_never_gained_a_delete_by_query() -> None:
     assert "indices.delete(" in inspect.getsource(lifecycle)
 
 
-# --- report TTL (row-11 graduation) -------------------------------------------------------
+# --- report TTL (row 11: now a runtime setting) -----------------------------------------------
 
 
-async def test_report_ttl_defaults_to_env_then_the_knob_wins(env) -> None:
+async def test_report_ttl_defaults_to_env_then_the_setting_wins(env) -> None:
     from backend.admin.report_ttl import read_report_ttl_hours
     from backend.core.settings import get_settings
 
@@ -183,26 +184,26 @@ async def test_report_ttl_defaults_to_env_then_the_knob_wins(env) -> None:
     admin = make_http()
     await _login(admin, client, ["can_manage_retention"], docs)
 
-    # no doc → the env seed (what the report jobs used before graduation)
+    # no doc → the env seed (what the report jobs used before it became a runtime setting)
     with contextlib.suppress(NotFoundError):
         existing = await client.get(index="system-config", id="report_ttl")
-        pytest.skip(f"shared store already has a report_ttl knob: {existing['_source']}")
+        pytest.skip(f"shared store already has a report_ttl setting: {existing['_source']}")
     assert await read_report_ttl_hours(client) == get_settings().export_ttl_hours
 
     docs.append(("system-config", "report_ttl"))
     r = await admin.put("/api/v1/settings/report-ttl", json={"hours": 48})
     assert r.status_code == 200
 
-    # the jobs' own read (drain stamps expires_at with it; sweep reaps failed past it) sees 48
+    # the jobs' own read (drain stamps expires_at with it; sweep deletes failures past it) sees 48
     assert await read_report_ttl_hours(client) == 48
     assert "report_ttl_change" in await _audit_actions(client, "report_ttl")
 
 
-# --- findings cleanup knob (D37/M12 — the job consumes it in the next slice) ---------------
+# --- findings cleanup setting (D37/M12 — the job consumes it in the next slice) ---------------
 
 
-async def test_findings_cleanup_knob_round_trips_and_is_journaled(env) -> None:
-    from backend.jobs.findings_cleanup import read_findings_cleanup_knob
+async def test_findings_cleanup_setting_round_trips_and_is_journaled(env) -> None:
+    from backend.jobs.findings_cleanup import read_findings_cleanup_setting
 
     make_http, client, docs = env
     admin = make_http()
@@ -210,20 +211,20 @@ async def test_findings_cleanup_knob_round_trips_and_is_journaled(env) -> None:
 
     with contextlib.suppress(NotFoundError):
         existing = await client.get(index="system-config", id="findings_cleanup")
-        pytest.skip(f"shared store already has a findings_cleanup knob: {existing['_source']}")
-    assert (await read_findings_cleanup_knob(client)).cleanup_days == 180.0  # the default
+        pytest.skip(f"shared store already has a findings_cleanup setting: {existing['_source']}")
+    assert (await read_findings_cleanup_setting(client)).cleanup_days == 180.0  # the default
 
     docs.append(("system-config", "findings_cleanup"))
     r = await admin.put("/api/v1/settings/findings-cleanup", json={"cleanup_days": 365})
     assert r.status_code == 200
-    assert (await read_findings_cleanup_knob(client)).cleanup_days == 365.0
+    assert (await read_findings_cleanup_setting(client)).cleanup_days == 365.0
     assert "findings_cleanup_change" in await _audit_actions(client, "findings_cleanup")
 
 
 async def test_findings_cleanup_per_cluster_override_routes(env) -> None:
     """PUT with cluster_id writes the `findings_cleanup:<cluster_id>` override (never the fleet
     doc) and the panel GET serves that cluster's effective window + override flag (issue 431)."""
-    from backend.jobs.findings_cleanup import read_findings_cleanup_knob
+    from backend.jobs.findings_cleanup import read_findings_cleanup_setting
 
     make_http, client, docs = env
     admin = make_http()
@@ -235,7 +236,7 @@ async def test_findings_cleanup_per_cluster_override_routes(env) -> None:
         "/api/v1/settings/findings-cleanup", json={"cleanup_days": 30, "cluster_id": cid}
     )
     assert r.status_code == 200
-    assert (await read_findings_cleanup_knob(client, cluster_id=cid)).cleanup_days == 30.0
+    assert (await read_findings_cleanup_setting(client, cluster_id=cid)).cleanup_days == 30.0
 
     got = await admin.get(f"/api/v1/settings/data?cluster_id={cid}")
     assert got.json()["findings_cleanup"] == {"cleanup_days": 30.0}

@@ -1,6 +1,6 @@
 """M6 slice 1 — GET /api/v1/findings against real OpenSearch.
 
-Pins: tenant isolation through the chokepoint (a page NEVER carries another cluster's rows);
+Pins: tenant isolation through the tenant read path (a page NEVER carries another cluster's rows);
 deep paging via the opaque cursor with ZERO PITs left behind after the walk (D38); facet
 filters; the default present=true grid vs the opt-in tombstone view; overdue decoration via the
 M5d group clock (D21 — the group's EARLIEST first_seen_at drives every sibling, even when the
@@ -403,7 +403,7 @@ async def test_group_clock_is_exact_across_a_paged_composite(env, monkeypatch) -
 
 
 async def test_group_clock_is_tenant_scoped(env) -> None:
-    """The group-clock fetch carries cluster_id (the chokepoint): an identical (cve, digest) in
+    """The group-clock fetch carries cluster_id (tenant read path): an identical (cve, digest) in
     ANOTHER cluster, however ancient, must never anchor this cluster's clock (audit #187)."""
     login, client = env
     cid = f"c-srch-{uuid.uuid4().hex[:8]}"
@@ -760,4 +760,4 @@ async def test_unbackfilled_rows_keep_their_chip_but_escape_the_filter_loudly(en
     assert page.json()["data"][0]["overdue"] is True  # the chip is right (fallback agg)
 
     breached = await http.get("/api/v1/findings", params={"cluster_id": cid, "overdue": "true"})
-    assert breached.json()["data"] == []  # honest gap until rebuild-state backfills
+    assert breached.json()["data"] == []  # an expected gap until rebuild-state backfills

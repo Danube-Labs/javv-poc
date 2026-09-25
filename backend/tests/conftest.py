@@ -1,4 +1,4 @@
-"""Session-wide test wiring (#221, major-audit 01 §2 S-1).
+"""Session-wide test setup (#221, major-audit 01 §2 S-1).
 
 The suite's dominant cost was ~0.85 s of per-test *setup*: every integration fixture re-ran
 `bootstrap(client)` (+ `seed_default_roles`) against the shared dev/CI OpenSearch — idempotent,

@@ -6,7 +6,7 @@ requires `can_accept_audit_final`. All three mutating routes are registered in t
 RBAC/IDOR suite. This layer only translates auth + errors — the service owns CAS, journaling,
 the revoke+create pair, and re-projection.
 
-List is a tenant read: `cluster_id` is a REQUIRED filter (the chokepoint discipline — never an
+List is a tenant read: `cluster_id` is a REQUIRED filter (the tenant-read-path rule — never an
 unscoped cross-cluster read), with task-E pagination (`size`/`offset` + `total`).
 """
 

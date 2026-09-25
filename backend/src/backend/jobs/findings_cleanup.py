@@ -1,12 +1,12 @@
-"""Findings long-window cleanup (D37/M12) — the knob + the sweep. Rows in the mutable `findings`
+"""Findings long-window cleanup (D37/M12) — the setting + the sweep. Rows in the mutable `findings`
 cache (+ their paired `javv-scan-watermarks` docs) whose image has been gone from every committed
 run (`present=false`) longer than `cleanup_days` are the ONE sanctioned `delete_by_query` on
 `findings` — deletion never rides the freshness timer (`stale` stays a flag, D20), and history
 (`javv-finding-occurrences-*`, `javv-scan-events-*`, `javv-images-*`) is untouched: the cache is
-rebuildable, so nothing audit-relevant is lost. The knob is tier-③ runtime config in
+rebuildable, so nothing audit-relevant is lost. The setting is tier-③ runtime config in
 `system-config` — fleet-wide `findings_cleanup` default + a per-cluster
 `findings_cleanup:<cluster_id>` override (the lifecycle sweep's D26 pattern; the two-cluster walk
-on issue 431 flagged the old fleet-only knob as a tenancy asymmetry) — edited from the Data &
+on issue 431 flagged the old fleet-only setting as a tenancy asymmetry) — edited from the Data &
 OpenSearch panel. The sweep runs per cluster with each tenant's effective window.
 
 **"Gone since" = `resolved_at`** — the reconcile stamp set the moment a committed run stopped
@@ -44,7 +44,7 @@ _PAGE = 500  # watermark-candidate page; the index is bounded by the live fleet
 FINDINGS_CLEANUP_KEY = "findings_cleanup"
 
 
-class FindingsCleanupKnob(BaseModel):
+class FindingsCleanupSetting(BaseModel):
     """The LONG window (D37/M12) — deliberately independent of, and much longer than, both the
     staleness timers and the append-family retention window."""
 
@@ -53,47 +53,47 @@ class FindingsCleanupKnob(BaseModel):
     cleanup_days: float = Field(default=180, gt=0)
 
 
-def _knob_id(cluster_id: str | None) -> str:
+def _setting_id(cluster_id: str | None) -> str:
     return FINDINGS_CLEANUP_KEY if cluster_id is None else f"{FINDINGS_CLEANUP_KEY}:{cluster_id}"
 
 
 async def _read_one(
     client: AsyncOpenSearch, doc_id: str, prefix: str
-) -> FindingsCleanupKnob | None:
+) -> FindingsCleanupSetting | None:
     try:
         got = await client.get(index=f"{prefix}system-config", id=doc_id)
     except NotFoundError:
         return None
-    return FindingsCleanupKnob.model_validate(got["_source"]["value"])
+    return FindingsCleanupSetting.model_validate(got["_source"]["value"])
 
 
-async def read_findings_cleanup_knob(
+async def read_findings_cleanup_setting(
     client: AsyncOpenSearch, *, cluster_id: str | None = None, prefix: str = ""
-) -> FindingsCleanupKnob:
+) -> FindingsCleanupSetting:
     """A cluster's effective window: per-cluster `findings_cleanup:<cluster_id>` if set, else the
-    fleet-wide `findings_cleanup` default, else the D37 default (the lifecycle-knobs rule)."""
+    fleet-wide `findings_cleanup` default, else the D37 default (the lifecycle-settings rule)."""
     if cluster_id is not None:
-        per_cluster = await _read_one(client, _knob_id(cluster_id), prefix)
+        per_cluster = await _read_one(client, _setting_id(cluster_id), prefix)
         if per_cluster is not None:
             return per_cluster
-    return await _read_one(client, FINDINGS_CLEANUP_KEY, prefix) or FindingsCleanupKnob()
+    return await _read_one(client, FINDINGS_CLEANUP_KEY, prefix) or FindingsCleanupSetting()
 
 
-async def write_findings_cleanup_knob(
+async def write_findings_cleanup_setting(
     client: AsyncOpenSearch,
-    knob: FindingsCleanupKnob,
+    setting: FindingsCleanupSetting,
     *,
     updated_by: str,
     cluster_id: str | None = None,
     prefix: str = "",
 ) -> None:
-    doc_id = _knob_id(cluster_id)
+    doc_id = _setting_id(cluster_id)
     await client.index(
         index=f"{prefix}system-config",
         id=doc_id,
         body={
             "key": doc_id,
-            "value": knob.model_dump(),
+            "value": setting.model_dump(),
             "updated_at": datetime.now(UTC).isoformat(),
             "updated_by": updated_by,
         },
@@ -186,7 +186,7 @@ async def _prune_watermarks(
 async def run_findings_cleanup(
     client: AsyncOpenSearch, *, now: datetime | None = None, prefix: str = ""
 ) -> dict[str, int]:
-    """One cleanup cycle, per cluster with each tenant's effective window: reap long-absent
+    """One cleanup cycle, per cluster with each tenant's effective window: delete long-absent
     `findings` rows, then prune orphaned watermarks. Returns fleet totals (all zero on a clean
     store — idempotence). `now` is injectable for tests."""
     now = now or datetime.now(UTC)
@@ -201,8 +201,8 @@ async def run_findings_cleanup(
     pruned = 0
     by_cluster: dict[str, dict[str, float]] = {}
     for cluster_id in sorted(await _cluster_ids(client, findings_index, watermarks_index)):
-        knob = await read_findings_cleanup_knob(client, cluster_id=cluster_id, prefix=prefix)
-        cutoff = (now - timedelta(days=knob.cleanup_days)).isoformat()
+        setting = await read_findings_cleanup_setting(client, cluster_id=cluster_id, prefix=prefix)
+        cutoff = (now - timedelta(days=setting.cleanup_days)).isoformat()
         resp = await client.delete_by_query(
             index=findings_index,
             body={
@@ -225,7 +225,7 @@ async def run_findings_cleanup(
         deleted += c_deleted
         pruned += c_pruned
         by_cluster[cluster_id] = {
-            "cleanup_days": knob.cleanup_days,
+            "cleanup_days": setting.cleanup_days,
             "findings_deleted": c_deleted,
             "watermarks_pruned": c_pruned,
         }

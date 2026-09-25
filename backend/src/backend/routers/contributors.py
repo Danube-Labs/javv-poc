@@ -3,7 +3,7 @@
 Orchestrates `query/contributors.py`: one aggregation pass over `system-audit-log-*` (the
 leaderboard + the handled-over-time series), one bounded fetch of the window's handling rows,
 one findings lookup for the clocks/SLA inputs, then the pure `compute_ttr_sla`. All three reads
-go through the tenant chokepoint; the SLA verdicts use the LIVE policy (M5d). Same uniform
+go through the tenant read path; the SLA verdicts use the LIVE policy (M5d). Same uniform
 `as_of` seam as every read (D28).
 """
 
@@ -28,7 +28,7 @@ from backend.query.contributors import (
 )
 from backend.routers.findings import AsOf, Authenticated, _reader_or_501, _reconstructed
 from backend.sla.policy import read_sla_policy
-from backend.tenancy.chokepoint import tenant_query, tenant_search
+from backend.tenancy.read_path import tenant_query, tenant_search
 
 router = APIRouter(prefix="/api/v1/contributors", tags=["contributors"])
 log = structlog.get_logger()

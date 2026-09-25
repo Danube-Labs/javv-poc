@@ -1,4 +1,4 @@
-"""Tenant chokepoint (M5a slice 5, SEC-4): `tenant_query` is the unit-tested contract — whatever
+"""Tenant read path (M5a slice 5, SEC-4): `tenant_query` is the unit-tested contract — whatever
 body a caller passes, the emitted DSL carries the `cluster_id` term filter. Pure units + one real
 round-trip proving cross-tenant rows cannot come back."""
 
@@ -9,7 +9,7 @@ import pytest
 from opensearchpy import AsyncOpenSearch
 
 from backend.core.bootstrap import bootstrap
-from backend.tenancy.chokepoint import tenant_query, tenant_search
+from backend.tenancy.read_path import tenant_query, tenant_search
 from os_env import OS_URL, requires_opensearch
 
 FILTER = {"term": {"cluster_id": "c-1"}}

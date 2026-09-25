@@ -405,5 +405,7 @@ def test_scan_all_certifies_the_cycle_inventory_at_the_end() -> None:
     assert len(commits) == 1
     run_id, expected, started = commits[0]
     assert run_id == pushed[0].scan_run_id  # the cycle's ONE shared identity
-    assert expected == 2  # discovered, not delivered — the broken image keeps the run honest
+    assert (
+        expected == 2
+    )  # discovered, not delivered — the broken image keeps the run's count accurate
     assert started.tzinfo is not None

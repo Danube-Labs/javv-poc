@@ -1,7 +1,7 @@
 """The findings read surface (M6 slices 1–2, FR-12): grid, facets, groups.
 
 Read = any authenticated principal (MVP tenant model, D38/H9); `cluster_id` is REQUIRED and
-forced into every query by the tenant chokepoint — never a UI-only filter (SEC-4). One shared
+forced into every query by the tenant read path — never a UI-only filter (SEC-4). One shared
 filter-context dependency drives all three endpoints, so the facet counts always describe the
 grid the user is looking at.
 
@@ -44,7 +44,7 @@ from backend.query.as_of import AsOfTReader, AsOfTUnavailable, as_of_t_reader, p
 from backend.query.search import CursorExpired, SearchFilters, run_search
 from backend.sla.overdue import compute_overdue, overdue_cutoffs
 from backend.sla.policy import read_sla_policy
-from backend.tenancy.chokepoint import tenant_search
+from backend.tenancy.read_path import tenant_search
 
 log = structlog.get_logger()
 

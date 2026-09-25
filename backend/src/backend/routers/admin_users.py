@@ -204,7 +204,10 @@ async def create_user(request: Request, body: CreateUser, principal: ManageUsers
             index=USERS_INDEX,
             id=body.username,
             body=doc,
-            params={"op_type": "create", "refresh": "true"},  # an existing user is NEVER clobbered
+            params={
+                "op_type": "create",
+                "refresh": "true",
+            },  # an existing user is NEVER overwritten
         )
     except ConflictError:
         raise HTTPException(409, "user already exists") from None

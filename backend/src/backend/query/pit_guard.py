@@ -7,10 +7,10 @@ CLUSTER PIT cap — at which point EVERYONE's paging and exports fail. This boun
 PITs per principal so one client can't starve the rest.
 
 A slot is reserved on open (`acquire`), released eagerly when the walk finishes or an export
-completes (`release_one`), and — for a walk the client simply abandons — self-reaps at the PIT's own
+completes (`release_one`), and — for a walk the client simply abandons — is freed at the PIT's own
 horizon (`keep_alive` + margin), because the abandoned PIT dies there server-side anyway. Leaky but
 bounded is the accepted MVP shape: the cap is defense against a BURST faster than expiry, not a
-substitute for it. Knob: `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL`; past it the route 429s."""
+substitute for it. Setting: `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL`; past it the route 429s."""
 
 import re
 import time
@@ -19,7 +19,7 @@ from backend.core.metrics import LIMIT_REJECTIONS, PITS_OPEN
 from backend.core.settings import get_settings
 
 _MAX_KEYS = 100_000  # bound the map so a spray of principals can't leak it (login-lockout m-1)
-_REAP_MARGIN_S = 30.0  # past keep_alive the PIT is dead server-side — drop the stale slot
+_EXPIRY_MARGIN_S = 30.0  # past keep_alive the PIT is dead server-side — drop the stale slot
 _slots: dict[str, list[float]] = {}
 
 
@@ -43,9 +43,9 @@ def _keep_alive_s() -> float:
     return float(m.group(1)) * _UNIT_S[m.group(2)]
 
 
-def _reap(principal: str, now: float) -> list[float]:
+def _drop_expired(principal: str, now: float) -> list[float]:
     """Drop this principal's slots older than the PIT horizon; return the live remainder."""
-    horizon = _keep_alive_s() + _REAP_MARGIN_S
+    horizon = _keep_alive_s() + _EXPIRY_MARGIN_S
     live = [t for t in _slots.get(principal, ()) if now - t < horizon]
     if live:
         _slots[principal] = live
@@ -61,7 +61,7 @@ def _publish_gauge() -> None:
 def acquire(principal: str) -> None:
     """Reserve a PIT slot for the principal; raise `PitCapExceeded` if it is at the cap."""
     now = time.monotonic()
-    live = _reap(principal, now)
+    live = _drop_expired(principal, now)
     if len(live) >= get_settings().max_concurrent_pits_per_principal:
         LIMIT_REJECTIONS.labels("pit_cap").inc()  # M-4 (#220)
         raise PitCapExceeded("too many concurrent open cursors/exports for this principal")
@@ -74,7 +74,7 @@ def acquire(principal: str) -> None:
 
 def release_one(principal: str) -> None:
     """Free one slot (oldest) — a finished walk or completed export. No-op if none held; an
-    abandoned slot self-reaps at the horizon, so an occasional missed release only leaks a slot
+    abandoned slot frees itself at the horizon, so an occasional missed release only leaks a slot
     for `keep_alive`, never permanently."""
     q = _slots.get(principal)
     if q:
