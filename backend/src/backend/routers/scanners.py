@@ -15,7 +15,7 @@ runs by construction — an uncommitted run has no catalog row to surface. "Late
 `scan_order` (D40) resolved via `top_hits` sorted on the exact long — NEVER a `max` metric agg
 (#257: float64 collapses pre-D45 time_ns-scale orders).
 
-Both are session-auth reads through the tenant chokepoint."""
+Both are session-auth reads through the tenant read path."""
 
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, Query, Request
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
-from backend.tenancy.chokepoint import tenant_search
+from backend.tenancy.read_path import tenant_search
 
 router = APIRouter(prefix="/api/v1/scanners", tags=["scanners"])
 

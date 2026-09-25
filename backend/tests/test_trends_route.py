@@ -95,7 +95,7 @@ def _today_bucket(series: list[dict[str, Any]], value_key: str) -> int:
 
 
 async def test_hourly_interval_is_span_capped(env) -> None:
-    """Contract guard (audit 343): hourly buckets over a year is a ~8.8k-bucket cost knob no
+    """Contract guard (audit 343): hourly buckets over a year is a ~8.8k-bucket cost setting no
     UI uses — the combination 422s; a month of hourly stays legal (744 buckets)."""
     login, _client = env
     cid = f"c-trend-{uuid.uuid4().hex[:8]}"

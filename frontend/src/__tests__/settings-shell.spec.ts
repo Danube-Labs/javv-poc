@@ -60,7 +60,7 @@ describe('slaForm', () => {
     expect(isDirty(draft, POLICY)).toBe(true)
   })
 
-  it('draft covers exactly the SlaPolicy knobs', () => {
+  it('draft covers exactly the SlaPolicy settings', () => {
     expect(Object.keys(draftFromPolicy(POLICY)).sort()).toEqual([...SLA_KEYS].sort())
   })
 })

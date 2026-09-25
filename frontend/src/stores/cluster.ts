@@ -1,6 +1,6 @@
 /**
  * Cluster context: the registry list (M8c, display names from system-config) + the selected
- * `cluster_id` — the tenant chokepoint value every data read carries (D38/H9). Selection
+ * `cluster_id` — the tenant key every data read carries (D38/H9). Selection
  * persists per browser; `cluster_id` (immutable) is the key, never the relabelable name.
  */
 import { defineStore } from 'pinia'

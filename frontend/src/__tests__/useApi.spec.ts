@@ -8,7 +8,7 @@ import { useTimeTravelStore } from '@/stores/timeTravel'
 beforeEach(() => setActivePinia(createPinia()))
 
 describe('useApi.withGlobals — the tenant + rewind injector', () => {
-  it('always injects the selected cluster_id (D38/H9 chokepoint)', () => {
+  it('always injects the selected cluster_id (D38/H9 tenant read path)', () => {
     useClusterStore().selectedId = 'c-1'
     expect(useApi().withGlobals({ size: 25 })).toEqual({ size: 25, cluster_id: 'c-1' })
   })

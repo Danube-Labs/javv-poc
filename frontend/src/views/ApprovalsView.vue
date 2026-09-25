@@ -5,7 +5,7 @@
  * approval workflow; revoked decisions never appear here). Wire: GET /decisions/approvals —
  * active risk-accepts, soonest-expiring first, server offset paging. The five slice rulings
  * (operator, 2026-07-13): no facet rail v1 · decision-activity lens · row → CVE-searched
- * findings · T<now = limitation notice (the endpoint has no as_of seam) · expiry-warn knob.
+ * findings · T<now = limitation notice (the endpoint has no as_of seam) · expiry-warn setting.
  * Route + nav are capability-gated (can_accept_audit_final) since the M9a shell; the CSV
  * export (issue 359) inherits that gate — these rows name who accepted which risk.
  */
@@ -53,7 +53,7 @@ const route = useRoute()
 const router = useRouter()
 
 /* the 4b rail (operator re-ruling on the built 4a screen): one config drives rail + bar +
-   URL sync, the audit-screen wiring verbatim; every dim is served by the endpoint itself */
+   URL sync, the audit-screen setup verbatim; every dim is served by the endpoint itself */
 const useApprovalFilters = makeFiltersStore('approvals-filters', APPROVAL_FIELDS)
 const filters = useApprovalFilters()
 filters.fromQuery(route.query)
@@ -186,7 +186,7 @@ const lensQuery = computed(() =>
 )
 
 /* row click (ruling 3): the findings grid searched to the CVE — a decision may be
-   cluster-wide, so the grid (not a single finding) is the honest landing */
+   cluster-wide, so the grid (not a single finding) is the correct landing */
 function openFindings(row: ApprovalRow) {
   logger.debug('approval_row_clicked', { decision_id: row.decision_id })
   const query: Record<string, string> = { q: row.cve_id }
@@ -476,7 +476,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   white-space: nowrap;
 }
 /* two-click revoke: the armed state speaks in the alarm register — hue in bg/border,
-   prose stays ink (the ratchet's same-hue rule, DESIGN.md §2) */
+   prose stays ink (the style rules' same-hue rule, DESIGN.md §2) */
 .row-actions :deep(.revoke-armed) {
   background: var(--sev-critical-bg);
   border-color: var(--sev-critical-solid);

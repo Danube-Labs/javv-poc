@@ -28,7 +28,7 @@ from backend.core.settings import get_settings
 from backend.query.trends import window_bounds
 from backend.sla.overdue import HANDLED_STATES, overdue_cutoffs
 from backend.sla.policy import read_sla_policy
-from backend.tenancy.chokepoint import tenant_query
+from backend.tenancy.read_path import tenant_query
 
 log = structlog.get_logger()
 
@@ -159,7 +159,7 @@ def build_search_body(
     """Pure — the unit-tested contract. Does NOT include the tenant filter (tenant_query
     forces that in) or the PIT (the executor owns its lifecycle). An `overdue` filter REQUIRES
     `sla_cutoffs` (derive via `overdue_cutoffs` from the live policy) — raising instead of
-    silently dropping the facet is what keeps every consumer honest."""
+    silently dropping the facet is what keeps every consumer's results correct."""
     if sort not in _SORT_FIELDS:
         raise ValueError(f"sort must be one of {_SORT_FIELDS}")
     if order not in ("asc", "desc"):

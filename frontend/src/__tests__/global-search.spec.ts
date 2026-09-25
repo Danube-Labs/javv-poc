@@ -87,7 +87,7 @@ describe('useGlobalSearch — emitted params (the §15 contract)', () => {
     expect(gs.results.value.namespaces).toEqual([{ key: 'ns-new', count: 1 }])
   })
 
-  it('a failed leg flags degraded and clears results (honest error, no partials)', async () => {
+  it('a failed leg flags degraded and clears results (accurate error, no partials)', async () => {
     groupsMock
       .mockResolvedValueOnce(ok([{ key: 'x', count: 1 }]) as never)
       .mockResolvedValueOnce({ response: { ok: false, status: 503 }, data: null } as never)

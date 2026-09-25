@@ -68,7 +68,7 @@ async def test_scans_trend_window_anchors_at_t(real_os: tuple[AsyncOpenSearch, s
     # before the ingest: an anchored window ending at t0 must see nothing (ingested_at > t0)
     before = await READER.trends_scans(client, cluster_id=CLUSTER, t=t0, days=30, prefix=prefix)
     assert sum(p["scans"] for pts in before["series"].values() for p in pts) == 0
-    after = await READER.trends_findings(  # placeholder to keep line count honest
+    after = await READER.trends_findings(  # placeholder that keeps the line count accurate
         client, cluster_id=CLUSTER, t=t0, days=30, prefix=prefix
     )
     assert after["days"] == 30

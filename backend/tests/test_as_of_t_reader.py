@@ -258,7 +258,7 @@ async def test_facets_and_groups_reconstruct_with_scanner_split(
     assert sum(states.values()) == 29
     for b in facets["facets"]["state"]:
         assert b["by_scanner"] == {"trivy": b["count"]}  # per-scanner is sacred
-    assert facets["facets"]["kev"] == []  # whitelisted but unrecorded at T — honest empty
+    assert facets["facets"]["kev"] == []  # whitelisted but unrecorded at T — explicit empty
     # issue 363: the overdue facet at T counts the reconstruction's OWN at-T verdict — pin it
     # against the page surface's row verdicts (facet ≡ rows), never a constant: the golden
     # corpus is dated, so the breached share grows with the wall clock
@@ -503,7 +503,7 @@ def test_every_search_filter_is_handled_or_rejected_at_past_t() -> None:
         try:
             out = AsOfTQuery._apply_filters([dict(row)], f)
         except ValueError:
-            continue  # explicit unrecorded rejection — honest
+            continue  # explicit unrecorded rejection
         if name in missing_field_excludes:
             assert len(out) == 1, f"exclude semantics drifted: {name} must keep a field-less row"
             continue

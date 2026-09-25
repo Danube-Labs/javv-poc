@@ -435,7 +435,7 @@ def test_package_name_include_is_an_exact_term() -> None:
 
 
 def test_exclude_composes_with_overdue_false() -> None:
-    """Both write must_not — they must accumulate, never clobber each other."""
+    """Both write must_not — they must accumulate, never overwrite each other."""
     body = build_search_body(
         SearchFilters(exclude_scanner="grype", overdue=False), size=10, sla_cutoffs=_CUTOFFS
     )

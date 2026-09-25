@@ -6,7 +6,7 @@
  * live from GET /api/v1/audit/facets. The grid is the shared cursor-stack pager (GridPager)
  * over GET /api/v1/audit; every read carries cluster_id + as_of (D28: a rewound T bounds the
  * log). Click-through only where entity_type=="finding" (A-5), through the row's read-time
- * decoration — an aged-out finding row stays inert and honest.
+ * decoration — an aged-out finding row stays inert and accurate.
  */
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

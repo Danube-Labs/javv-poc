@@ -35,7 +35,7 @@ const ICON: Record<ToastKind, IconName> = { success: 'check', error: 'alert', in
   position: fixed;
   right: 20px;
   bottom: 20px;
-  z-index: 90; /* above the modal scrim (80) — outcomes show even over a closing dialog */
+  z-index: 90; /* above the modal backdrop (80) — outcomes show even over a closing dialog */
   display: flex;
   flex-direction: column;
   gap: 8px;

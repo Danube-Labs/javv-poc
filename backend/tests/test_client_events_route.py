@@ -296,7 +296,7 @@ async def test_anonymous_is_401_and_must_change_is_403() -> None:
 
 @requires_opensearch
 async def test_a_session_gets_204_and_a_bad_shape_gets_422_over_http() -> None:
-    """One end-to-end pass so the wiring itself is proven: FastAPI really mounts the route,
+    """One end-to-end pass so the setup itself is proven: FastAPI really mounts the route,
     really returns 204, and really surfaces the model's rejections as 422."""
     client = AsyncOpenSearch(hosts=[OS_URL])
     app = create_app()

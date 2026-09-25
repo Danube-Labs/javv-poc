@@ -191,7 +191,7 @@ function cellValue(key: string, r: FindingRow): string | null {
   if (key === 'package') return r.package_name || null
   if (key === 'namespace') {
     const ns = Array.isArray(r.namespaces) ? (r.namespaces as string[]) : []
-    return ns.length === 1 ? ns[0]! : null // ambiguous across several — no honest single value
+    return ns.length === 1 ? ns[0]! : null // ambiguous across several — no true single value
   }
   return null
 }

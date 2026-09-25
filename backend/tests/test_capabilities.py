@@ -1,5 +1,5 @@
 """Capability RBAC (M5a slice 4, D33/SEC-2/SEC-9): `require_capability` is the single enforcement
-chokepoint every protected route declares. 401 = who are you (no/dead session); 403 = you may not
+point every protected route declares. 401 = who are you (no/dead session); 403 = you may not
 (missing capability, or a `must_change` session touching anything but the password routes). Admin
 holds all via the "*" marker. Real OpenSearch, real routes, unique per-test usernames."""
 
@@ -29,7 +29,7 @@ async def auth_client():
     app = create_app()
     app.state.opensearch = client
 
-    @app.get("/test-triage")  # a stand-in protected route — the chokepoint under test
+    @app.get("/test-triage")  # a stand-in protected route — the enforcement point under test
     async def protected(
         principal: Annotated[Principal, Depends(require_capability("can_triage"))],
     ) -> dict:
@@ -119,7 +119,7 @@ async def test_capabilities_fall_back_to_the_role_bundle(auth_client) -> None:
 async def test_default_role_bundles_seed_once_and_match_d33(auth_client) -> None:
     _, client = auth_client
     first = await seed_default_roles(client)
-    second = await seed_default_roles(client)  # idempotent — customized bundles never clobbered
+    second = await seed_default_roles(client)  # idempotent — customized bundles never overwritten
 
     assert second == 0 and first in (0, len(ROLE_BUNDLES))  # 0 when another test seeded already
     doc = (await client.get(index="system-roles", id="security_lead"))["_source"]

@@ -1,5 +1,5 @@
-"""The tenant chokepoint (M5a, SEC-4/D38-H9) — the ONLY sanctioned OpenSearch read path for the
-user-facing API (M6 consumes it; internal jobs/services keep their explicit-filter queries).
+"""The tenant read path (M5a, SEC-4/D38-H9) — the ONLY sanctioned way for the user-facing API
+to read OpenSearch (M6 consumes it; internal jobs/services keep their explicit-filter queries).
 
 Every read/agg/export goes through `tenant_search`, which structurally forces the immutable
 `cluster_id` term filter into the query — a caller cannot express a cross-tenant read through this
@@ -56,7 +56,7 @@ async def tenant_search(
     if params and "q" in params:
         # task C n-1 (#140): `?q=` is a URI query-string query evaluated OUTSIDE the body —
         # it would sidestep the filter tenant_query just forced in. No legitimate caller
-        # needs it through this chokepoint.
+        # needs it through this read path.
         raise ValueError("the q= query-string param would bypass the tenant filter (SEC-4)")
     return await client.search(
         index=index, body=tenant_query(cluster_id, body), params=params or {}

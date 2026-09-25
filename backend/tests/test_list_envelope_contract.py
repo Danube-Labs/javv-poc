@@ -5,7 +5,7 @@ array on every list route and what `total` looks like. Prose decays: #530 existe
 read `.data` from a route that returns `approvals`, and jq answered `null` — whose `length` is
 **0**, a silent, self-consistent wrong answer that passes whenever the real answer is also 0.
 
-Two guarantees here, and the second is the one that keeps the doc honest:
+Two guarantees here, and the second is the one that keeps the doc accurate:
 
 1. **Shape** — for every registered route, the declared list key exists and is an array, and
    `total` matches its declared form (`wrapped` `{value, relation}` · `bare` int · `absent`).
@@ -371,7 +371,7 @@ async def test_the_wrong_key_is_silently_empty_not_an_error() -> None:
 
 
 def test_no_route_declares_a_response_model() -> None:
-    """Doc-sync ratchet for the claim in `api-design.md` § Reading one of these safely: the
+    """Doc-sync check for the claim in `api-design.md` § Reading one of these safely: the
     OpenAPI contract carries no response shape, so the generated TS client cannot protect a
     consumer from a wrong key (issue 539).
 

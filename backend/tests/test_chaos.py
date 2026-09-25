@@ -144,7 +144,7 @@ async def test_pit_killed_under_a_live_cursor_is_410_and_releases_the_slot(
 
     # The walk-opening slot is deliberately NOT released on a continuation's 410: the guard
     # frees the OLDEST slot, which may belong to a different live walk — so the dead walk's
-    # slot is left to self-reap at the keep-alive horizon (pit_guard's documented 'leaky but
+    # slot is left to free itself at the keep-alive horizon (pit_guard's documented 'leaky but
     # bounded' shape). Pin that contract: at cap=1 the follow-up search is a clean 429 with
     # Retry-After — budget spent until the horizon, never a 500, never permanent.
     fresh = await http.get("/api/v1/findings", params={"cluster_id": cid, "size": 2})

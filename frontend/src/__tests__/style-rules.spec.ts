@@ -1,5 +1,5 @@
 /**
- * The style ratchet (ui-foundations §Enforcement): a component that ADDS a hand-rolled color —
+ * The style rules test (ui-foundations §Enforcement): a component that ADDS a hand-rolled color —
  * a hex/rgb literal in a .vue file or in script outside the sanctioned token modules — fails CI.
  * The baseline below may only SHRINK, never grow: fixing a violation removes its entry; adding
  * one is a build break, not a new baseline entry.
@@ -30,7 +30,7 @@ function walk(dir: string): string[] {
   })
 }
 
-describe('style ratchet — no new hand-rolled colors', () => {
+describe('style rules — no new hand-rolled colors', () => {
   const offenders = walk(SRC)
     .map((p) => relative(SRC, p).split('\\').join('/'))
     .filter((rel) => !SANCTIONED.has(rel))
@@ -56,7 +56,7 @@ describe('style ratchet — no new hand-rolled colors', () => {
  * code. base.css rules the arrow globally; ECharts series carry `cursor: 'default'`
  * (overview-charts.spec pins those). Nothing may opt back into the hand.
  */
-describe('style ratchet — no pointer cursor', () => {
+describe('style rules — no pointer cursor', () => {
   it('no `cursor: pointer` anywhere in src', () => {
     const hits = walk(SRC)
       .map((p) => relative(SRC, p).split('\\').join('/'))
@@ -75,7 +75,7 @@ describe('style ratchet — no pointer cursor', () => {
  * only by luck: the triage meter had been transitioning `width` since M9d and surfaced through
  * the anti-pattern detector, not through CI. Enforced here so the claim stays true on its own.
  */
-describe('style ratchet — nothing else animates layout', () => {
+describe('style rules — nothing else animates layout', () => {
   /** No /g: a stateful regex would skip files on alternate `.test()` calls. */
   const LAYOUT_TRANSITION = /transition(?:-property)?:[^;}]*\b(?:width|height|padding|margin)\b/
   /** The one §9-ruled layout animation: the 226↔64px sidebar collapse rail. */
@@ -103,7 +103,7 @@ describe('style ratchet — nothing else animates layout', () => {
  * `UiSkeleton` composes them. The pulse had been re-declared in 18 files under 8 keyframe names
  * before anyone counted, so a view that grows its own shimmer fails here instead of drifting.
  */
-describe('style ratchet — one shared skeleton pulse', () => {
+describe('style rules — one shared skeleton pulse', () => {
   it('no shimmer keyframes outside base.css', () => {
     const hits = walk(SRC)
       .map((p) => relative(SRC, p).split('\\').join('/'))
@@ -131,7 +131,7 @@ const CHIP_SELECTOR =
   // cards' panel-band that joined it 2026-07-18)
   /\.(time-range-hist|kev-tag|kev-lg|both-tag|state-opt-on|vm-fp|vm-ne|side-item|tbl|triage-head|so-head|card-head|assignee-none|panel-band)\b/
 
-describe('style ratchet — no same-hue text on its own tint', () => {
+describe('style rules — no same-hue text on its own tint', () => {
   const files = walk(SRC)
     .map((p) => relative(SRC, p).split('\\').join('/'))
     .filter((rel) => /\.(vue|css)$/.test(rel) && !SANCTIONED.has(rel))

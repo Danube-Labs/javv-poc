@@ -46,9 +46,9 @@ Three **separate** buckets; using one where another belongs is a bug:
   **fail on raw `#hex`/`rgb()`, non-token `font-family`, and arbitrary `font-size`** in components - hard-coded
   values must come from a token. This is what stops the "10 000 style variants" drift.
 - Severity/status colors are only ever read from the token map (lint/grep guard against literal severity hex).
-- **Style ratchet (M9a):** a pinned test fails CI when a component **adds** a hand-rolled severity/status
+- **Style rules test (M9a):** a pinned test fails CI when a component **adds** a hand-rolled severity/status
   color that bypasses the token map/badge helpers; the recorded baseline may only shrink, never grow.
-  stylelint catches raw hex/fonts - the ratchet catches *semantic* bypasses (a literal red where the
+  stylelint catches raw hex/fonts - the style rules test catches *semantic* bypasses (a literal red where the
   severity token belongs). **Extended (post-M9b):** it also fails any rule pairing `--X-fg` text with its
   own `--X-bg` tint - the "never same-hue text on its own tint" ruling is machine-enforced (chips are the
   listed exception).

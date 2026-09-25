@@ -2,7 +2,7 @@
 
 Pins: risk-accept needs `can_accept_audit_final` on CREATE **and on an EDIT that would produce
 one** (no smuggling); a plain `can_triage` holder can still create ignore_rule/not_affected;
-double-revoke → 409; empty edit → 422; the list read REQUIRES `cluster_id` (chokepoint
+double-revoke → 409; empty edit → 422; the list read REQUIRES `cluster_id` (tenant read path
 discipline) and paginates. Real OpenSearch — same fixture family as test_admin_users."""
 
 import uuid

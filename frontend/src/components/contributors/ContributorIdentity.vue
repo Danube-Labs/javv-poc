@@ -13,7 +13,7 @@ import { actorTone, initials } from '@/contributors/viewModel'
 const props = withDefaults(
   defineProps<{
     actor: string
-    /** quiet secondary line under the name (honest wire facts only, e.g. "12 actions") */
+    /** quiet secondary line under the name (real wire facts only, e.g. "12 actions") */
     sub?: string
     size?: number
     /** avatar above the name (podium) instead of beside it */

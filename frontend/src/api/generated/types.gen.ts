@@ -624,7 +624,7 @@ export type ScanScopePut = {
  * SlaPolicy
  *
  * Per-canonical-severity SLA days + KEV override — editable via PUT /settings/sla.
- * D46 (#274): full-word knob names, HARD rename from crit_days/med_days (dev data disposable
+ * D46 (#274): full-word setting names, HARD rename from crit_days/med_days (dev data disposable
  * — no aliases; the config doc reseeds on the next write).
  */
 export type SlaPolicy = {

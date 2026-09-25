@@ -3,7 +3,7 @@
  *
  * Values are promoted once from handoff/v4/docs/DESIGN_SYSTEM.md (§2–§4, prototype fidelity);
  * components reference tokens only — never a raw hex, font-family, or ad-hoc font-size
- * (stylelint enforces this; tokens.ts + the style-ratchet test guard the severity map).
+ * (stylelint enforces this; tokens.ts + the style rules test guard the severity map).
  *
  * Three color buckets — using one where another belongs is a bug:
  *   brand    coral/amber/teal — chrome, accents, info. NEVER severity.
@@ -48,9 +48,9 @@
   --shadow:
     0 1px 2px rgba(22, 35, 47, 0.06),
     0 10px 28px -14px rgba(22, 35, 47, 0.38);
-  --scrim: rgba(22, 35, 47, 0.46); /* modal backdrop (prototype .modal-scrim) */
+  --backdrop: rgba(22, 35, 47, 0.46); /* modal backdrop (the prototype calls it .modal-scrim) */
   /* glass drawer (operator 2026-07-17): semi-opaque panel over a backdrop blur; the edge is
-     NEUTRAL slate-alpha — the beige --line hairline glowed against the dark scrim */
+     NEUTRAL slate-alpha — the beige --line hairline glowed against the dark backdrop */
   --glass: rgba(255, 255, 255, 0.78);
   --glass-edge: rgba(22, 35, 47, 0.1);
 

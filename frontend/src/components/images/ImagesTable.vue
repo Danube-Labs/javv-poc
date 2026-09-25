@@ -205,7 +205,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           </span>
           <span v-else-if="key === 'namespace'" class="cell-actionable">
             <span class="mono-cell sm" :title="data.namespaces.join(', ')">{{ nsLabel(data) }}</span>
-            <!-- only a single-namespace row has one honest value to filter on; the mix and
+            <!-- only a single-namespace row has one true value to filter on; the mix and
                  scanner columns have none at all, so they carry no action (issue 349 §2) -->
             <ValueActions
               v-if="data.namespaces.length === 1"

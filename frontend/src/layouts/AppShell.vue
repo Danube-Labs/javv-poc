@@ -59,7 +59,7 @@ const urlCluster = clusterFromQuery(route.query)
 
 // re-stamp on NAVIGATION too — a bare next-page URL would lose the range on ITS refresh
 // (operator bug report: set 24h → navigate → refresh → back to 30 days). One watcher stamps
-// ALL global keys in a single replace — two racing replaces could clobber each other.
+// ALL global keys in a single replace — two racing replaces could overwrite each other.
 watch(
   () => [timeTravel.t, timeTravel.windowDays, clusterStore.selectedId, route.path] as const,
   ([t, win, cid]) => {

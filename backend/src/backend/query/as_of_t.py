@@ -8,7 +8,7 @@ Ownership at T mirrors `_target_for`: a direct human state ≠ open owns the fin
 the winning active decision projects.
 
 Return shapes MATCH the current-state responses (FR-23: time-travel changes WHEN, never the
-wire contract). Two honest deviations, both spec-rooted:
+wire contract). Two deliberate deviations, both spec-rooted:
 - fields history deliberately does not record (OE-5/D38: `kev`, `epss`, `disagree`,
   `image_repo`, `tag`, `app`) come back `null`; a FILTER or SORT or GROUP on them at past T is a
   422 (`ValueError` at the seam) — silently mis-filtering would be worse; whitelisted FACETS on
@@ -180,7 +180,7 @@ def _finding_row(raw: dict[str, Any], human: dict[str, Any]) -> dict[str, Any]:
         "cvss": occ.get("cvss"),
         "fixable": occ.get("fixable"),
         "fixed_version": occ.get("fixed_version"),
-        "ptype": occ.get("ptype"),  # recorded from M8d on; honest null on v3-era rows
+        "ptype": occ.get("ptype"),  # recorded from M8d on; explicit null on v3-era rows
         "epss": None,
         "kev": None,
         "disagree": None,
@@ -357,7 +357,7 @@ class AsOfTQuery:
                 (f.cve_id, r["cve_id"]),
                 (f.image_digest, r["image_digest"]),
                 # ptype IS recorded on occurrences from M8d on — a filter at a past T matches
-                # rows as-scanned; v3-era rows carry null and honestly drop out
+                # rows as-scanned; v3-era rows carry null and correctly drop out
                 (f.ptype, r["ptype"]),
                 # package_name likewise rides the occurrence row (issue 492)
                 (f.package_name, r["package_name"]),
@@ -478,7 +478,7 @@ class AsOfTQuery:
         )
         facets: dict[str, list[dict[str, Any]]] = {}
         for field in chosen:
-            if field in _EMPTY_FACETS:  # whitelisted but unrecorded at T — honest empty
+            if field in _EMPTY_FACETS:  # whitelisted but unrecorded at T — explicit empty
                 facets[field] = []
                 continue
             counts: dict[Any, dict[str, Any]] = {}
@@ -556,7 +556,7 @@ class AsOfTQuery:
     ) -> dict[str, Any]:
         from backend.query.trends import build_scans_trend_body
         from backend.routers.trends import _series
-        from backend.tenancy.chokepoint import tenant_search
+        from backend.tenancy.read_path import tenant_search
 
         body = build_scans_trend_body(days=days, anchor=t)  # ValueError on bad days → 422
         resp = await tenant_search(
@@ -637,7 +637,7 @@ class AsOfTQuery:
         )
         from backend.routers.contributors import _findings_for, _handling_rows
         from backend.sla.policy import read_sla_policy as _policy
-        from backend.tenancy.chokepoint import tenant_search
+        from backend.tenancy.read_path import tenant_search
 
         body = build_actions_body(days=days, anchor=t)  # ValueError on bad days → 422
         resp = await tenant_search(

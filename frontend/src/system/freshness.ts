@@ -8,7 +8,7 @@ export interface FreshnessRow {
 
 /** The D20 seed default (N = 3 days) — mirrors the backend's `StalenessTimers` default. Only a
  * fallback while the live read is in flight: callers thread the cluster's EFFECTIVE window from
- * `stores/staleness` (the settings panel edits it at runtime, so build-time knobs are a lie). */
+ * `stores/staleness` (the settings panel edits it at runtime, so build-time settings would be wrong). */
 export const D20_FRESHNESS_DEFAULT_S = 3 * 24 * 3600
 
 /** Cluster-grade freshness status: ok / stale (any scanner silent past the D20 threshold) /

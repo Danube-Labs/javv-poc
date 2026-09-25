@@ -41,7 +41,7 @@ and rots in code. Applies to every tool and human alike.
 **A bare anchor is the exception, and it must ride along with the WHY.** A comment that already
 explains the non-obvious thing may name where it was settled — `issue 540`, `D42`, `M9e slice 3`,
 `FR-19` — because that record is permanent and points at reasoning too long to inline. Spell it
-`issue NNN`, never `#NNN` (the style ratchet reads that as a hex color). The banned form is the
+`issue NNN`, never `#NNN` (the style rules test reads that as a hex color). The banned form is the
 comment whose *content is* the history; an anchor with no explanation next to it is that.
 
 ## Stack (fixed)
@@ -172,7 +172,7 @@ process before debugging behaviour (`ps -o lstart -p <pid>`), and confirm what i
   `t-*` indices) — sweep AFTER the last run, keep `{admin, rig}`.
 - Commit subjects: lowercase first word even for identifiers (`m5c`, `opensearch` — CI commitlint is
   stricter than the local hook), header ≤ 100 chars, types `feat|fix|chore|docs|test|refactor` only.
-- `#NNN` in a code comment reads as a hex color to the style ratchet — write "issue NNN".
+- `#NNN` in a code comment reads as a hex color to the style rules test — write "issue NNN".
 
 ## UI work
 The settled UI rulings (grammar sources incl. ui.nuxt.com + framework7.io, the color buckets,
@@ -209,6 +209,6 @@ Invoke the matching skill before starting that kind of work:
   them into FastAPI. The agent should read the schema, not guess it.
 - **Context7 MCP** - pull version-current docs for Pydantic v2 / PrimeVue / vue-echarts / AsyncOpenSearch
   before generating API code.
-- **Static floor:** ruff + pyright (Python); vue-tsc (Volar) + ESLint/oxlint + stylelint + the style-ratchet test (Vue — all via `npm run lint` / `npm run test`). Run them; fix what they flag.
+- **Static floor:** ruff + pyright (Python); vue-tsc (Volar) + ESLint/oxlint + stylelint + the style rules test (Vue — all via `npm run lint` / `npm run test`). Run them; fix what they flag.
 - **@hey-api/openapi-ts** - regenerate the Vue TS client from FastAPI's OpenAPI so types can't drift.
 - **Kubernetes MCP / Playwright MCP** - once there's a deploy loop / UI to drive.

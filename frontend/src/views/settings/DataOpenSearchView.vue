@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * Data & OpenSearch panel (§13.7, FR-19/D26): the four knob groups (retention / rollover /
+ * Data & OpenSearch panel (§13.7, FR-19/D26): the four setting groups (retention / rollover /
  * findings-cleanup / report-TTL) on one SaveBar — save PUTs only the changed groups
  * (`changedGroups`); the sweeps read the docs live, so edits apply at the next run. The
  * retention card lists EVERY index family (row 23): the append families share the ONE editable
  * window, protected families are read-only rows saying why. Snapshots and the OpenSearch
  * runtime display are focused sibling panels (SnapshotsCard / OpensearchRuntimeCard) — this
- * view owns only the knob form.
+ * view owns only the settings form.
  */
 import { computed, ref, watch } from 'vue'
 
@@ -34,19 +34,19 @@ import { useToastStore } from '@/stores/toast'
 import {
   changedGroups,
   draftDirty,
-  draftFromKnobs,
+  draftFromSettings,
   draftInvalid,
   FAMILY_ROWS,
   parseDraft,
   type DataDraft,
-  type DataKnobs,
+  type DataSettings,
 } from './dataForm'
 
 const clusterStore = useClusterStore()
 const toast = useToastStore()
 
-// ── knobs (one SaveBar over the four groups) ────────────────────────────────────────────
-const saved = ref<DataKnobs | null>(null)
+// ── settings (one SaveBar over the four groups) ────────────────────────────────────────────
+const saved = ref<DataSettings | null>(null)
 const draft = ref<DataDraft>({
   retention: '',
   maxAge: '',
@@ -60,7 +60,7 @@ const loading = ref(true)
 const failed = ref(false)
 const busy = ref(false)
 
-async function loadKnobs(clusterId: string) {
+async function loadSettings(clusterId: string) {
   loading.value = true
   const { data, response } = await getDataSettingsApiV1SettingsDataGet({
     client,
@@ -95,13 +95,13 @@ async function loadKnobs(clusterId: string) {
   // one toggle for the panel: "this cluster is overridden" = any override doc exists
   // (saving with it on writes per-cluster docs for every changed group)
   override.value = body.per_cluster_override || body.findings_cleanup_override
-  draft.value = draftFromKnobs(saved.value)
+  draft.value = draftFromSettings(saved.value)
 }
 
 watch(
   () => clusterStore.selectedId,
   (id) => {
-    if (id) void loadKnobs(id)
+    if (id) void loadSettings(id)
   },
   { immediate: true },
 )
@@ -117,7 +117,7 @@ async function save() {
   const clusterId = clusterStore.selectedId
   busy.value = true
   let allOk = true
-  // per-cluster knobs edit the doc the effective read served (the staleness editor's rule);
+  // per-cluster settings edit the doc the effective read served (the staleness editor's rule);
   // TTL is fleet-wide by design
   const clusterArg = override.value && clusterId ? { cluster_id: clusterId } : {}
   if (groups.retention) {
@@ -157,7 +157,7 @@ async function save() {
   if (!allOk) {
     logger.warn('data_settings_save_failed', {})
     toast.error('Saving failed — the store keeps the previous values. Reload to see what landed.')
-    if (clusterId) void loadKnobs(clusterId) // partial saves must not fake a clean state
+    if (clusterId) void loadSettings(clusterId) // partial saves must not fake a clean state
     return
   }
   saved.value = {
@@ -172,7 +172,7 @@ async function save() {
 }
 
 function discard() {
-  if (saved.value !== null) draft.value = draftFromKnobs(saved.value)
+  if (saved.value !== null) draft.value = draftFromSettings(saved.value)
 }
 
 </script>

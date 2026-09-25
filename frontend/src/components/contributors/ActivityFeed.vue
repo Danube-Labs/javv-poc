@@ -19,7 +19,7 @@ import { logger } from '@/lib/logger'
 import type { AuditEvent } from '@/stores/audit'
 import { lastDataAt } from '@/system/freshness'
 
-// a display cap, not a knob: the feed shows one glance's worth — "view all" is the audit screen
+// a display cap, not a setting: the feed shows one glance's worth — "view all" is the audit screen
 const FEED_SIZE = 8
 
 const props = defineProps<{
@@ -70,7 +70,7 @@ function openFinding(row: AuditEvent) {
   })
 }
 
-/** one honest detail line: the journaled field change, nothing invented */
+/** one factual detail line: the journaled field change, nothing invented */
 function detail(row: AuditEvent): string {
   if (!row.field) return ''
   const to = row.new_value ?? (row.new_value_json ? 'updated' : '∅')
@@ -123,7 +123,7 @@ function detail(row: AuditEvent): string {
 </template>
 
 <style scoped>
-/* prototype .feed family on tokens; items are buttons only when click-through is honest */
+/* prototype .feed family on tokens; items are buttons only when click-through is meaningful */
 .feed {
   display: flex;
   flex-direction: column;
