@@ -1,7 +1,7 @@
 /**
  * Approvals view-model pins (M9d slice 4): expiry status derives from the DISPLAY clock
- * (never stored — expiry itself is immutable, D39); the warn window is the documented knob's
- * default; scope/scanner labels compact the D22 subject honestly.
+ * (never stored — expiry itself is immutable, D39); the warn window is the documented setting's
+ * default; scope/scanner labels compact the D22 subject accurately.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -37,7 +37,7 @@ describe('expiryStatus (the chip contract)', () => {
     expect(expiryStatus('not-a-date', NOW)).toBe('open-ended')
   })
 
-  it('the knob default is 7 days (docs/CONFIGURATION.md)', () => {
+  it('the setting default is 7 days (docs/CONFIGURATION.md)', () => {
     expect(EXPIRY_WARN_DAYS).toBe(7)
   })
 

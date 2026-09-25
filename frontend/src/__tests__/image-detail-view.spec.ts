@@ -107,7 +107,7 @@ describe('ImageDetailView (M9c slice 3)', () => {
     expect(w.text()).toContain('nginx:1.21.6')
   })
 
-  it('empty per-scanner result renders the honest empty state, not an error', async () => {
+  it('empty per-scanner result renders the explicit empty state, not an error', async () => {
     facetsMock.mockResolvedValue(ok({ facets: {} }) as never)
     searchMock.mockResolvedValue(ok({ data: [], total: { value: 0 }, next_cursor: null }) as never)
     await router.push('/images/sha256:clean?repo=r&tag=t')

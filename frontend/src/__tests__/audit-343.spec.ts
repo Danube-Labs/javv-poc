@@ -5,7 +5,7 @@ import { FINDINGS_FIELDS } from '@/filters/fields.config'
 import { FAILURE_COPY, failureKind } from '@/findings/failureCopy'
 import { clusterFromQuery, foreignQuery, ownQuery, ttFromQuery, ttToQuery } from '@/system/globalUrl'
 
-describe('honest-error mapping (audit 343 rule 1)', () => {
+describe('accurate-error mapping (audit 343 rule 1)', () => {
   it('names the actual cause per status, rewound or not', () => {
     expect(failureKind(422, false)).toBe('bad_filter')
     expect(failureKind(422, true)).toBe('past_t') // the reader's unrecorded-filter 422

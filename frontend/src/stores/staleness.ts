@@ -1,6 +1,6 @@
 /**
- * Live staleness timers (FR-6/D20, M9e banner rewire): the freshness banner and the fleet
- * health chips threshold on what the settings panel ACTUALLY edits — never a build-time knob.
+ * Live staleness timers (FR-6/D20, M9e banner rework): the freshness banner and the fleet
+ * health chips threshold on what the settings panel ACTUALLY edits — never a build-time setting.
  * Two reads off `GET /api/v1/settings/staleness` (any authenticated session): the selected
  * cluster's EFFECTIVE timers (its override if one exists, else the fleet default) for the
  * banner, and the fleet default once for the all-clusters view. D20 defaults hold while a
@@ -48,7 +48,7 @@ export const useStalenessStore = defineStore('staleness', {
         this.effective = (data as unknown as StalenessBody).staleness
         this.effectiveFor = clusterId
       } else {
-        // the D20 default getter keeps the banner honest-ish; log so silence isn't a bug
+        // the D20 default getter keeps the banner roughly accurate; log so silence isn't a bug
         logger.warn('staleness_timers_fetch_failed', { status: response?.status })
       }
     },

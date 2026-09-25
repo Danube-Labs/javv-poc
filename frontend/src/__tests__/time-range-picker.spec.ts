@@ -27,7 +27,7 @@ describe('GlobalTimePicker (single range control)', () => {
     await w.find('input[aria-label="Range length"]').setValue(90)
     await w.find('select[aria-label="Range unit"]').setValue('minutes')
     await w.find('.time-rel .time-apply').trigger('click')
-    expect(store.windowDays).toBeCloseTo(0.0625) // isSubDayWindow drives the honesty notes
+    expect(store.windowDays).toBeCloseTo(0.0625) // isSubDayWindow drives the sub-day notes
     expect(store.windowLabel).toBe('Last 90 minutes')
     expect(store.t).toBeNull() // quick selects end now — no as_of
   })
@@ -94,7 +94,7 @@ describe('GlobalTimePicker (single range control)', () => {
   it('rewound, the chip names T from `t` itself — a URL-borne rewind can never hide its instant', async () => {
     // operator bug 2026-07-12: a pasted ?t=…Z URL sets no windowLabel, so the chip read
     // "Last 30 days" while the app was rewound — and the URL's UTC frame beside local
-    // on-screen dates made an honest SLA look like a reset
+    // on-screen dates made a correct SLA look like a reset
     const w = mount(GlobalTimePicker)
     const store = useTimeTravelStore()
     store.rewindTo('2026-07-08T23:59:59.999Z') // as ttFromQuery would — no setWindow call

@@ -5,7 +5,7 @@
  * ride every screen's query like filters do — a pasted link reproduces exactly what the sender
  * saw, and a reload keeps the context. T=now + the 30-day default serialize to NOTHING, so
  * everyday URLs stay clean; the cluster always serializes once selected. Pure + unit-tested;
- * the AppShell owns the wiring. (Formerly timeTravelUrl.ts — grew the cluster key.)
+ * the AppShell owns the setup. (Formerly timeTravelUrl.ts — grew the cluster key.)
  */
 import type { LocationQuery } from 'vue-router'
 

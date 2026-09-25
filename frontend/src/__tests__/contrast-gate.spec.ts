@@ -1,5 +1,5 @@
 /**
- * The contrast GATE (issue #301): stylelint + the ratchet police token USAGE; this test polices
+ * The contrast GATE (issue #301): stylelint + the style rules test police token USAGE; this test polices
  * token VALUES. It parses tokens.css and computes WCAG ratios for every text-bearing pair the
  * design uses — a PR that darkens a bg or adds a failing chip pair breaks CI, not the operator's
  * eyes. Ruled exceptions (DESIGN.md §9: white-on-coral action chips) are listed explicitly.

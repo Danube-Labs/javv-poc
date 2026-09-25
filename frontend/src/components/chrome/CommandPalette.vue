@@ -112,7 +112,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
 <template>
   <Transition name="t-modal" appear>
-    <div class="cp-scrim" @click.self="emit('close')">
+    <div class="cp-backdrop" @click.self="emit('close')">
       <div class="cp" role="dialog" aria-modal="true" aria-label="Global search">
         <div class="cp-input-row">
           <AppIcon name="search" :size="15" />
@@ -165,10 +165,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 </template>
 
 <style scoped>
-.cp-scrim {
+.cp-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--scrim);
+  background: var(--backdrop);
   z-index: 60;
   display: flex;
   justify-content: center;

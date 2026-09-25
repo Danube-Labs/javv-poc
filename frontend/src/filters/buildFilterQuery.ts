@@ -1,7 +1,7 @@
 /**
  * Pure option-builder: fields config + active selections + globals → the exact query-param
  * object sent to the backend. The primary unit-tested surface (bolt M9a DoD):
- *   - `cluster_id` is ALWAYS present (tenant chokepoint — throws if missing);
+ *   - `cluster_id` is ALWAYS present (tenant read path — throws if missing);
  *   - `as_of` passes through only when time-traveling (T=now omits it, D28);
  *   - term values are lowercased (severity case-insensitive, D16);
  *   - single-value params never join/merge multiple selections — a second selection is a bug

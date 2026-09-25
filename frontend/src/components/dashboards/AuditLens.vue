@@ -23,7 +23,7 @@ const props = withDefaults(
      * exactly what the table shows */
     query: Record<string, unknown> | null
     /** strip heading — screens pointing the lens at a SLICE of the journal (e.g. Approvals →
-     * decision activity) rename it so the copy stays honest about what is counted */
+     * decision activity) rename it so the copy stays accurate about what is counted */
     title?: string
     sub?: string
   }>(),

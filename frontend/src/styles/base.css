@@ -749,7 +749,7 @@ button.stat-cell:hover .cell-go,
 /* ---- motion layer: the shared <Transition> classes, on the motion tokens.
    t-pop  = floating panels (dropdown menus/popovers): fade + 4px rise, quick both ways.
    t-fade = banners and other in-flow appearances: crossfade only — never animate height.
-   t-modal = dialog entrance (scrim fade + card rise); close is instant by design, the
+   t-modal = dialog entrance (backdrop fade + card rise); close is instant by design, the
    consumers v-if the dialog away so its form state resets on unmount. */
 .t-pop-enter-active,
 .t-pop-leave-active {

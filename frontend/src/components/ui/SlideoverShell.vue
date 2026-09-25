@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * THE slideover skeleton (ModalShell's right-drawer sibling; ui.nuxt.com USlideover grammar
- * on JAVV tokens): scrim + right-anchored panel + head/body slots, carrying the ruled dismiss
+ * on JAVV tokens): backdrop + right-anchored panel + head/body slots, carrying the ruled dismiss
  * contract (DESIGN.md §2) — Escape, outside-click, visible ✕. For tall workflows that want
  * the page context to stay visible behind them (triage, future notification rail).
  */
@@ -19,7 +19,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
 <template>
   <Transition name="t-slideover" appear>
-    <div class="so-scrim" @click.self="emit('close')">
+    <div class="so-backdrop" @click.self="emit('close')">
       <div
         class="so-panel"
         role="dialog"
@@ -41,15 +41,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 </template>
 
 <style scoped>
-.so-scrim {
+.so-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--scrim);
+  background: var(--backdrop);
   z-index: 80;
   display: flex;
   justify-content: flex-end;
   /* floating register (operator 2026-07-17, the framework7 float): the panel detaches from
-     the screen edges instead of running flush; the scrim itself blurs slightly so the beige
+     the screen edges instead of running flush; the backdrop itself blurs slightly so the beige
      page reads soft through the margins */
   padding: 12px;
   backdrop-filter: blur(4px);
@@ -57,7 +57,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 }
 .so-panel {
   /* glass register (operator 2026-07-17): semi-opaque over a backdrop blur; neutral edge —
-     the beige hairline bled against the dark scrim */
+     the beige hairline bled against the dark backdrop */
   background: var(--glass);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -109,7 +109,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   flex: 1;
 }
 
-/* drawer motion: slide from the right; scrim fades (transform/opacity only) */
+/* drawer motion: slide from the right; backdrop fades (transform/opacity only) */
 .t-slideover-enter-active,
 .t-slideover-leave-active {
   transition: opacity 0.16s ease-out;

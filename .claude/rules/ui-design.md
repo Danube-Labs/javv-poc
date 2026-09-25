@@ -27,7 +27,7 @@ operator ruling on a **built specimen** (DESIGN.md §8.5), not an argument in a 
    layer rather than a new curve: `t-pop` = floating panels (dropdowns/popovers), fade + 4px rise,
    quick both ways; `t-fade` = banners and in-flow appearances, crossfade only, **never animate
    height**. Skeletons are shared: the pulse is `.skel` + `@keyframes skel-shimmer` in base.css,
-   composed by `UiSkeleton` — a view that grows its own shimmer fails the style ratchet.
+   composed by `UiSkeleton` — a view that grows its own shimmer fails the style rules test.
 3. **`node .claude/skills/impeccable/scripts/detect.mjs <changed files>`** — the VENDORED detector,
    pinned with the repo. **Never `npx impeccable detect`**: unpinned, and a stale cached version
    once invented a finding that nearly bought §9 a permanent exception row (issue 484). Plus the

@@ -3,7 +3,7 @@
  * POC (operator option D, 2026-07-09): ONE time-RANGE control replacing the
  * two-section time-travel/trend-window menu. A range maps exactly onto the shipped backend:
  * the END of the range is the whole-app `as_of` T (D28 — `null` when the range ends now), the
- * SPAN is `days` for the M9c trend charts (int 1–365). One mental model, honest copy:
+ * SPAN is `days` for the M9c trend charts (int 1–365). One mental model, accurate copy:
  * tables show state at the END of the range; charts aggregate the whole span.
  * The button goes amber (`--hist-*`) whenever the range ends in the past.
  */

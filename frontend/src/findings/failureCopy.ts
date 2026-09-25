@@ -1,4 +1,4 @@
-/** Honest-error rule (audit 343): every status the grid can receive maps to copy that names the
+/** Accurate-error rule (audit 343): every status the grid can receive maps to copy that names the
  * actual cause — a user-input 422 or a busy 429 must never read as a backend outage. */
 
 export type FailureKind = 'past_t' | 'bad_filter' | 'busy' | 'backend'

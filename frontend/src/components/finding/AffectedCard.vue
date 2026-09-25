@@ -2,7 +2,7 @@
 /**
  * Affected components table (issue 434 refresh): every occurrence of the CVE across the last
  * committed inventory — one row per image + package, scanners listed, never merged. Truncation
- * is said out loud (honest data), never silently. Kit skin + DetailCard chrome.
+ * is said out loud (accurate data), never silently. Kit skin + DetailCard chrome.
  */
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import DetailCard from '@/components/finding/DetailCard.vue'

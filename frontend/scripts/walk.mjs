@@ -132,7 +132,7 @@ export async function walkRoutes(page, base, issues, { onRoute } = {}) {
     issues.push(...(await layoutIssues(page, route.name)))
     if (onRoute) await onRoute(route, page)
     // brief settle: back-to-back navigation opens search cursors faster than the
-    // per-principal PIT budget self-reaps (A-m12 429s) — no human hops routes this fast
+    // per-principal PIT budget frees itself (A-m12 429s) — no human hops routes this fast
     await page.waitForTimeout(250)
   }
 }
