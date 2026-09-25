@@ -9,7 +9,7 @@ scan flow end to end. Three paths:
   pushes for real. This is the end-to-end smoke from risk register #134.
 - **Path F — the frontend** on top of Path A (or B): the Vue app against the local backend.
 
-Every command is run from the repo root (`/home/sirbudd/Desktop/Github/javv-poc`) unless noted.
+Every command is run from the repo root (the directory holding this repo's `README.md`) unless noted.
 Lines starting `#` are comments; don't type them.
 
 ---

@@ -38,7 +38,7 @@ export function sortBoard(rows: BoardRow[]): BoardRow[] {
 }
 
 /** "AB" from a username — first letters of the first two word-ish parts, else the first two
- * characters ("dragos.daniel" → DD, "admin" → AD). Presentation only; the wire has no names. */
+ * characters ("jane.doe" → JD, "admin" → AD). Presentation only; the wire has no names. */
 export function initials(actor: string): string {
   const parts = actor.split(/[^a-zA-Z0-9]+/).filter(Boolean)
   const two =

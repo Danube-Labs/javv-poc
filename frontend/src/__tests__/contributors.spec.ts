@@ -58,7 +58,7 @@ describe('by_action extractors', () => {
 
 describe('initials', () => {
   it('takes the first two word-ish parts, else the first two chars', () => {
-    expect(initials('dragos.daniel')).toBe('DD')
+    expect(initials('jane.doe')).toBe('JD')
     expect(initials('ana-maria_p')).toBe('AM')
     expect(initials('admin')).toBe('AD')
     expect(initials('x')).toBe('X')
@@ -69,7 +69,7 @@ describe('actorTone', () => {
   it('is deterministic and stays on the sanctioned categorical ramp', () => {
     expect(actorTone('admin')).toBe(actorTone('admin'))
     expect(CHART_PTYPE_RAMP).toContain(actorTone('admin'))
-    expect(CHART_PTYPE_RAMP).toContain(actorTone('dragos.daniel'))
+    expect(CHART_PTYPE_RAMP).toContain(actorTone('jane.doe'))
   })
 })
 
