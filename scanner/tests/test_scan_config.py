@@ -52,7 +52,7 @@ def test_trivy_scanners_override() -> None:
     assert cmd[cmd.index("--scanners") + 1] == "vuln,secret"
 
 
-def test_trivy_from_env_parses_all_knobs() -> None:
+def test_trivy_from_env_parses_all_settings() -> None:
     cfg = TrivyConfig.from_env(
         {
             "JAVV_TRIVY_SCANNERS": "vuln,misconfig",
@@ -80,7 +80,7 @@ def test_grype_only_fixed_and_scope() -> None:
     assert cmd[cmd.index("--scope") + 1] == "all-layers"
 
 
-def test_grype_from_env_parses_all_knobs() -> None:
+def test_grype_from_env_parses_all_settings() -> None:
     cfg = GrypeConfig.from_env(
         {
             "JAVV_GRYPE_ONLY_FIXED": "yes",
@@ -104,7 +104,7 @@ def test_grype_garbage_timeout_fails_fast_with_the_env_name() -> None:
         GrypeConfig.from_env({"JAVV_GRYPE_SCAN_TIMEOUT": "abc"})
 
 
-# --- garbage-value fail-fast (#97): every knob rejects junk, naming its env var
+# --- garbage-value fail-fast (#97): every setting rejects junk, naming its env var
 
 
 def test_trivy_scanners_rejects_unknown_token() -> None:

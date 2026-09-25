@@ -60,7 +60,7 @@ async def put_staleness(
         freshness_days=body.freshness_days, scanner_down_days=body.scanner_down_days
     )
     old = await read_staleness_timers(client, cluster_id=body.cluster_id)
-    # journal-first (D17, audit #188): the row lands before the knob write; a failure leaves
+    # journal-first (D17, audit #188): the row lands before the setting write; a failure leaves
     # no applied-but-unjournaled change and a retry re-drives both (the SLA routes' pattern)
     await append_field_change(
         client,

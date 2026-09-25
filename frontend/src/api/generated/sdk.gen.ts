@@ -466,7 +466,7 @@ export const scannerProvenanceApiV1ScannersProvenanceGet = <ThrowOnError extends
  * Get Data Settings
  *
  * Everything the panel renders in one read: the EFFECTIVE lifecycle + findings-cleanup
- * knobs for the cluster (override if set, else fleet default), whether each override doc
+ * settings for the cluster (override if set, else fleet default), whether each override doc
  * exists (the editor must know which doc it edits), the report TTL (fleet-wide), and the
  * non-secret snapshot repo ref (None until M2 config lands in the store).
  */

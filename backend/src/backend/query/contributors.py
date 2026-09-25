@@ -15,7 +15,7 @@ a finding since dropped by retention degrades that row's TTR/SLA to None, never 
 - **SLA-hit %**: handled before the LIVE policy's due date (M5d `SlaPolicy`); no-SLA severities
   (negligible/unknown) are excluded from the denominator — they count as work, not as hits.
 
-The tenant filter is forced by the chokepoint at execution (audit rows carry `cluster_id`).
+The tenant filter is forced by the tenant read path at execution (audit rows carry `cluster_id`).
 """
 
 import statistics

@@ -1,7 +1,7 @@
 """Unit: per-principal concurrent-PIT guard (audit A-m12/#189).
 
 The cap bounds simultaneous open PITs per principal; a release frees a slot; a different principal
-is unaffected; an abandoned slot self-reaps at the PIT horizon (keep_alive + margin). No OpenSearch
+is unaffected; an abandoned slot is freed at the PIT horizon (keep_alive + margin). No OpenSearch
 — these are pure counter mechanics."""
 
 import pytest
@@ -41,7 +41,7 @@ def test_release_one_is_a_noop_when_none_held() -> None:
     assert "nobody" not in pit_guard._slots
 
 
-def test_abandoned_slot_self_reaps_at_horizon(monkeypatch) -> None:
+def test_abandoned_slot_frees_itself_at_horizon(monkeypatch) -> None:
     class _Clock:
         now = 0.0
 
@@ -59,4 +59,4 @@ def test_abandoned_slot_self_reaps_at_horizon(monkeypatch) -> None:
         pit_guard.acquire("x")  # still within the horizon — the slot is live
 
     clock.now = 120 + 30 + 1  # past keep_alive (120s) + margin (30s)
-    pit_guard.acquire("x")  # the stale slot reaped → the new open fits
+    pit_guard.acquire("x")  # the stale slot dropped → the new open fits

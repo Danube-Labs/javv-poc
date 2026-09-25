@@ -1,7 +1,7 @@
 """Lifecycle sweep (M4 slice 2, D8/D26 via the CronJob — Option A): one daily job rolls each
 per-cluster series write alias when the configured conditions are met (`_rollover` + `conditions`,
 evaluated server-side by OpenSearch) and drops whole expired NON-write backing indices per the
-per-cluster `retention_days`. Never `delete_by_query`; never the write index. Knobs are tier-③
+per-cluster `retention_days`. Never `delete_by_query`; never the write index. Settings are tier-③
 runtime config in `system-config` (fleet default + per-cluster override), like the D20 staleness
 timers. Retention age = the index's newest `@timestamp` (data age) — NOT `creation_date`, which
 would delete fresh data out of a long-lived just-rolled index. Real OpenSearch."""
@@ -11,10 +11,10 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from backend.jobs.lifecycle import (
-    LifecycleKnobs,
-    read_lifecycle_knobs,
+    LifecycleSettings,
+    read_lifecycle_settings,
     run_lifecycle_sweep,
-    write_lifecycle_knobs,
+    write_lifecycle_settings,
 )
 from backend.services.aliases import ensure_write_alias
 from os_env import requires_opensearch
@@ -38,35 +38,35 @@ async def _write_index(client, alias: str) -> str:
     return next(i for i, m in got.items() if m["aliases"][alias].get("is_write_index"))
 
 
-# --- config: UI-configurable knobs, defaults when unset -------------------------
+# --- config: UI-configurable settings, defaults when unset -------------------------
 
 
 @requires_opensearch
-async def test_knobs_default_then_read_back_from_config(real_os) -> None:
+async def test_settings_default_then_read_back_from_config(real_os) -> None:
     client, prefix = real_os
-    assert await read_lifecycle_knobs(client, prefix=prefix) == LifecycleKnobs()
-    await write_lifecycle_knobs(
-        client, LifecycleKnobs(retention_days=30, max_docs=100), updated_by="t", prefix=prefix
+    assert await read_lifecycle_settings(client, prefix=prefix) == LifecycleSettings()
+    await write_lifecycle_settings(
+        client, LifecycleSettings(retention_days=30, max_docs=100), updated_by="t", prefix=prefix
     )
-    got = await read_lifecycle_knobs(client, prefix=prefix)
+    got = await read_lifecycle_settings(client, prefix=prefix)
     assert got.retention_days == 30 and got.max_docs == 100
 
 
 @requires_opensearch
-async def test_per_cluster_knobs_override_the_fleet_default(real_os) -> None:
+async def test_per_cluster_settings_override_the_fleet_default(real_os) -> None:
     client, prefix = real_os
-    await write_lifecycle_knobs(
-        client, LifecycleKnobs(retention_days=10), updated_by="t", prefix=prefix
+    await write_lifecycle_settings(
+        client, LifecycleSettings(retention_days=10), updated_by="t", prefix=prefix
     )
-    await write_lifecycle_knobs(
+    await write_lifecycle_settings(
         client,
-        LifecycleKnobs(retention_days=365),
+        LifecycleSettings(retention_days=365),
         updated_by="t",
         cluster_id=CLUSTER,
         prefix=prefix,
     )
-    mine = await read_lifecycle_knobs(client, cluster_id=CLUSTER, prefix=prefix)
-    other = await read_lifecycle_knobs(client, cluster_id="other-cluster-9x", prefix=prefix)
+    mine = await read_lifecycle_settings(client, cluster_id=CLUSTER, prefix=prefix)
+    other = await read_lifecycle_settings(client, cluster_id="other-cluster-9x", prefix=prefix)
     assert mine.retention_days == 365 and other.retention_days == 10
 
 
@@ -79,7 +79,9 @@ async def test_rollover_fires_when_max_docs_is_met(real_os) -> None:
     alias = f"{prefix}javv-scan-events-{CLUSTER}"
     await ensure_write_alias(client, alias)
     await _seed_event(client, alias, at=NOW)
-    await write_lifecycle_knobs(client, LifecycleKnobs(max_docs=1), updated_by="t", prefix=prefix)
+    await write_lifecycle_settings(
+        client, LifecycleSettings(max_docs=1), updated_by="t", prefix=prefix
+    )
 
     result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
 
@@ -107,7 +109,9 @@ async def test_sweep_manages_both_series(real_os) -> None:
         alias = f"{prefix}{series}-{CLUSTER}"
         await ensure_write_alias(client, alias)
         await _seed_event(client, alias, at=NOW)
-    await write_lifecycle_knobs(client, LifecycleKnobs(max_docs=1), updated_by="t", prefix=prefix)
+    await write_lifecycle_settings(
+        client, LifecycleSettings(max_docs=1), updated_by="t", prefix=prefix
+    )
 
     result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
 
@@ -174,9 +178,9 @@ async def test_retention_honors_the_per_cluster_override(real_os) -> None:
         )
         await client.indices.rollover(alias=alias)
     # fleet default 90d would drop both; keep_cluster's override says hold for 10 years
-    await write_lifecycle_knobs(
+    await write_lifecycle_settings(
         client,
-        LifecycleKnobs(retention_days=3650),
+        LifecycleSettings(retention_days=3650),
         updated_by="t",
         cluster_id=keep_cluster,
         prefix=prefix,
@@ -213,8 +217,10 @@ async def test_dry_run_counts_would_roll_and_would_drop_but_writes_nothing(real_
     await ensure_write_alias(client, alias)
     await _seed_event(client, alias, at=NOW - timedelta(days=200))  # -000001: expired data
     await client.indices.rollover(alias=alias)
-    await _seed_event(client, alias, at=NOW)  # -000002: one doc, over the max_docs=1 knob
-    await write_lifecycle_knobs(client, LifecycleKnobs(max_docs=1), updated_by="t", prefix=prefix)
+    await _seed_event(client, alias, at=NOW)  # -000002: one doc, over the max_docs=1 setting
+    await write_lifecycle_settings(
+        client, LifecycleSettings(max_docs=1), updated_by="t", prefix=prefix
+    )
 
     result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix, dry_run=True)
 
@@ -228,7 +234,7 @@ async def test_dry_run_reports_zeros_on_a_quiet_series(real_os) -> None:
     client, prefix = real_os
     alias = f"{prefix}javv-scan-events-{CLUSTER}"
     await ensure_write_alias(client, alias)
-    await _seed_event(client, alias, at=NOW)  # fresh data, default knobs — nothing to do
+    await _seed_event(client, alias, at=NOW)  # fresh data, default settings — nothing to do
 
     result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix, dry_run=True)
 
@@ -282,7 +288,7 @@ async def test_backdated_client_timestamps_cannot_age_out_fresh_data(real_os) ->
 
 
 @requires_opensearch
-async def test_a_malformed_knobs_doc_cannot_abort_the_whole_sweep(real_os) -> None:
+async def test_a_malformed_settings_doc_cannot_abort_the_whole_sweep(real_os) -> None:
     # m-5: one cluster's broken config is skipped + counted; every other cluster still sweeps.
     # The broken cluster is NOT swept with defaults — a default window shorter than the
     # operator's intent would delete data (fail-closed, ruling in the module docstring).
@@ -311,7 +317,7 @@ async def test_a_malformed_knobs_doc_cannot_abort_the_whole_sweep(real_os) -> No
 
 @requires_opensearch
 async def test_audit_log_rolls_over_but_is_never_retired(real_os) -> None:
-    # m-6: the append-only journal rolls on the fleet knobs but has NO retention
+    # m-6: the append-only journal rolls on the fleet settings but has NO retention
     client, prefix = real_os
     alias = f"{prefix}system-audit-log"
     await ensure_write_alias(client, alias)
@@ -320,8 +326,8 @@ async def test_audit_log_rolls_over_but_is_never_retired(real_os) -> None:
         body={"@timestamp": (NOW - timedelta(days=400)).isoformat(), "event_id": "e1"},
         params={"refresh": "true"},
     )
-    await write_lifecycle_knobs(  # fleet knobs: roll after 1 doc
-        client, LifecycleKnobs(max_docs=1), updated_by="test", prefix=prefix
+    await write_lifecycle_settings(  # fleet settings: roll after 1 doc
+        client, LifecycleSettings(max_docs=1), updated_by="test", prefix=prefix
     )
 
     result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
@@ -348,7 +354,9 @@ async def test_sweep_logs_rollover_and_drop_at_info(real_os) -> None:
     await _seed_event(client, alias, at=NOW - timedelta(days=200))  # expired vs retention(90)
     await client.indices.rollover(alias=alias)  # -000001 becomes a non-write expired index
     await _seed_event(client, alias, at=NOW, run_id="r2")
-    await write_lifecycle_knobs(client, LifecycleKnobs(max_docs=1), updated_by="t", prefix=prefix)
+    await write_lifecycle_settings(
+        client, LifecycleSettings(max_docs=1), updated_by="t", prefix=prefix
+    )
 
     with structlog.testing.capture_logs() as logs:
         result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)

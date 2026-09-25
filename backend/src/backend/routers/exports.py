@@ -7,7 +7,7 @@
 - `GET /api/v1/findings/export.vex` — OpenVEX / CycloneDX VEX document (slice 6).
 
 Read = any authenticated principal (MVP tenant model); `cluster_id` is REQUIRED and forced
-into the sweep by the tenant chokepoint — entitlement is re-checked on the export exactly
+into the sweep by the tenant read path — entitlement is re-checked on the export exactly
 like any fetch (IDOR, api-design tenant rule). `as_of`: exports describe current state;
 a past T is 501 until the M8b reconstruction can feed an export (D28).
 """

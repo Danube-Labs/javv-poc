@@ -147,7 +147,7 @@ async def inspect_store(
             body.method, f"/{path}", params=params, body=body.body
         )
     except TransportError as exc:
-        # the store's own 4xx (bad query DSL, unknown index) surfaces verbatim — honest errors
+        # the store's own 4xx (bad query DSL, unknown index) surfaces verbatim — the real errors
         status = exc.status_code if isinstance(exc.status_code, int) else 502
         raise HTTPException(status, str(exc.error)) from exc
     took_ms = int((time.monotonic() - started) * 1000)

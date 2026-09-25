@@ -149,7 +149,7 @@ async def test_as_of_t_reconstruction_carries_filters_and_facets_ptype(env, read
     )
     assert r.status_code == 200
     body = r.json()
-    assert body["total"]["value"] == 29  # as-scanned: v3-era rows honestly drop out
+    assert body["total"]["value"] == 29  # as-scanned: v3-era rows correctly drop out
     assert all(row["ptype"] == "os" for row in body["data"])
 
     r = await http.get(

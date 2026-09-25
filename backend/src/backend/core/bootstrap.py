@@ -125,7 +125,7 @@ _FINDINGS_PROPERTIES: dict[str, Any] = {
 }
 
 # system-config (M2): a small key/value config shelf — SLA policy, rollover/retention/staleness
-# knobs, and the snapshot-repo ref (creds live in the OS keystore, never here). `value` is an
+# settings, and the snapshot-repo ref (creds live in the OS keystore, never here). `value` is an
 # opaque object (`enabled:false`): stored in _source, never indexed, so heterogeneous config
 # payloads can't explode the mapping. Fetch by `_id` (the config key), never aggregate.
 _CONFIG_PROPERTIES: dict[str, Any] = {
@@ -314,7 +314,7 @@ MUTABLE_INDEXES: dict[str, dict[str, Any]] = {
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_TOKENS_PROPERTIES),
     },
-    "system-config": {  # M2 — snapshot-repo ref + other config knobs
+    "system-config": {  # M2 — snapshot-repo ref + other config settings
         "settings": {"index": _BASE_SETTINGS},
         "mappings": _mappings(_CONFIG_PROPERTIES),
     },
@@ -383,7 +383,7 @@ _SCAN_EVENTS_PROPERTIES: dict[str, Any] = {
     "tag": _KW,
     "app": _KW,
     # D44/FR-25: what the cycle ran with — stored for display/audit, deliberately NOT indexed
-    # (enabled:false keeps it in _source without mapping churn as tuning knobs evolve)
+    # (enabled:false keeps it in _source without mapping churn as tuning settings evolve)
     "effective_config": {"type": "object", "enabled": False},
     **{bucket: _INT for bucket in _COUNT_BUCKETS},
     "schema_version": {"type": "short"},

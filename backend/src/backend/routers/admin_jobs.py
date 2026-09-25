@@ -5,7 +5,7 @@ One `system-jobs` doc per kind (_id = kind) is the whole surface, and the lease 
 in `jobs/lease.py` shared with the scheduled CronJob door (issue 459): OCC claim (seq_no CAS)
 makes the trigger exactly-once across pods AND across doors; a fencing `attempt_id` guards
 heartbeat/finalize exactly like the reports lease (D39/D40); a run whose heartbeat goes silent
-past the lease TTL is honestly `stale` and reclaimable. The job itself executes in-process
+past the lease TTL is correctly marked `stale` and reclaimable. The job itself executes in-process
 after the 202 — every one of them is idempotent/convergent by design (rebuild re-derives,
 sweeps converge), so a pod death mid-run loses nothing but the status doc's happy ending.
 
@@ -55,7 +55,7 @@ async def _execute(client: AsyncOpenSearch, kind: str, attempt_id: str) -> None:
     beat = asyncio.create_task(heartbeat_loop(client, kind, attempt_id))
     try:
         result = await JOB_KINDS[kind][1](client)
-    except Exception as exc:  # noqa: BLE001 — the failure lands in the status doc, honestly
+    except Exception as exc:  # noqa: BLE001 — the failure lands in the status doc, visibly
         log.error("repair job failed", kind=kind, attempt_id=attempt_id)
         beat.cancel()
         await finalize_job(client, kind, attempt_id, {"status": "failed", "error": str(exc)})

@@ -1,7 +1,8 @@
-"""Report/export TTL knob (M9e row-11 graduation) — tier-③ runtime config in `system-config`
-(doc `report_ttl`), seeded by `JAVV_EXPORT_TTL_HOURS`: the env value is the default whenever no
-doc exists, so a fresh install behaves exactly as before. Consumed by the report jobs (drain
-stamps `expires_at` at completion, sweep reaps past it); edited from the Data & OpenSearch panel.
+"""Report/export TTL setting — tier-③ runtime config in `system-config` (doc `report_ttl`),
+made runtime-editable by M9e row 11 and seeded by `JAVV_EXPORT_TTL_HOURS`: the env value is
+the default whenever no doc exists, so a fresh install behaves exactly as before. Consumed by the
+report jobs (drain stamps `expires_at` at completion, sweep deletes reports past it); edited from
+the Data & OpenSearch panel.
 """
 
 from datetime import UTC, datetime
@@ -21,7 +22,7 @@ class ReportTtl(BaseModel):
 
 
 async def read_report_ttl_hours(client: AsyncOpenSearch, *, prefix: str = "") -> int:
-    """The effective TTL in hours: the system-config knob if set, else the env-seeded default."""
+    """The effective TTL in hours: the system-config setting if set, else the env-seeded default."""
     try:
         got = await client.get(index=f"{prefix}system-config", id=REPORT_TTL_KEY)
     except NotFoundError:

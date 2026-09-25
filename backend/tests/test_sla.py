@@ -11,7 +11,7 @@ Rulings pinned here:
 - KEV wins over severity (a KEV `low` is due in 1 day).
 - States a human/decision already handled (`risk_accepted`, `not_affected`, `resolved`) are never
   overdue — overdue is a call-to-action, not a report on settled work.
-- Storage: fleet-wide `system-config` doc (`sla`), LifecycleKnobs pattern, read live per request.
+- Storage: fleet-wide `system-config` doc (`sla`), LifecycleSettings pattern, read live per request.
 """
 
 import uuid

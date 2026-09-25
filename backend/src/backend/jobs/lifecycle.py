@@ -10,7 +10,7 @@ fit one static policy — while `_rollover` + `conditions` is evaluated server-s
 either way; this job only pulls the trigger (the Curator model). Rollover precision = job cadence,
 which is noise at monthly-rollover scale.
 
-Knobs are tier-③ runtime config in `system-config` (fleet-wide `lifecycle` doc + per-cluster
+Settings are tier-③ runtime config in `system-config` (fleet-wide `lifecycle` doc + per-cluster
 `lifecycle:<cluster_id>` override — edited in the M9e UI or the interim CLI below, never
 hardcoded), read live on every run so a D26 edit applies at the next sweep.
 
@@ -23,10 +23,10 @@ creation-age deletion would destroy it. Empty indices fall back to `creation_dat
 index is never dropped.
 
 `system-audit-log` is ROLLOVER-ONLY (task F m-6): the append-only journal rolls on the fleet
-knobs like any series but is NEVER retention-dropped — audit history has no expiry in MVP
-(revisit only with an explicit compliance-driven window). A broken cluster (malformed knobs doc,
+settings like any series but is NEVER retention-dropped — audit history has no expiry in MVP
+(revisit only with an explicit compliance-driven window). A broken cluster (malformed settings doc,
 index-level error) is skipped and counted, never allowed to abort the sweep for every other
-cluster (task F m-5) — and never silently swept with DEFAULT knobs, which could apply a shorter
+cluster (task F m-5) — and never silently swept with DEFAULT settings, which could apply a shorter
 retention than the operator configured (fail-closed beats fail-default for a destructive op).
 """
 
@@ -44,11 +44,11 @@ SERIES = ("javv-scan-events", "javv-images", "javv-finding-occurrences", "javv-i
 ROLLOVER_ONLY = ("system-audit-log",)  # rolls, NEVER retention-dropped (task F m-6)
 
 
-def _knobs_id(cluster_id: str | None) -> str:
+def _settings_id(cluster_id: str | None) -> str:
     return LIFECYCLE_KEY if cluster_id is None else f"{LIFECYCLE_KEY}:{cluster_id}"
 
 
-class LifecycleKnobs(BaseModel):
+class LifecycleSettings(BaseModel):
     """D26 rollover conditions + retention window. Tier-③ runtime config, M9e-editable."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -59,7 +59,7 @@ class LifecycleKnobs(BaseModel):
     retention_days: float = Field(default=90, gt=0)  # per-cluster drop-whole-index window
 
     def rollover_conditions(self) -> dict[str, Any]:
-        # sub-day units so fractional-day knobs stay exact (OpenSearch rejects "0.5d"-style sizes)
+        # sub-day units keep fractional-day settings exact (OpenSearch rejects "0.5d"-style sizes)
         return {
             "max_age": f"{int(self.max_age_days * 24 * 60)}m",
             "max_docs": self.max_docs,
@@ -67,42 +67,42 @@ class LifecycleKnobs(BaseModel):
         }
 
 
-async def _read_one(client: AsyncOpenSearch, doc_id: str, prefix: str) -> LifecycleKnobs | None:
+async def _read_one(client: AsyncOpenSearch, doc_id: str, prefix: str) -> LifecycleSettings | None:
     try:
         got = await client.get(index=f"{prefix}system-config", id=doc_id)
     except NotFoundError:
         return None
-    return LifecycleKnobs.model_validate(got["_source"]["value"])
+    return LifecycleSettings.model_validate(got["_source"]["value"])
 
 
-async def read_lifecycle_knobs(
+async def read_lifecycle_settings(
     client: AsyncOpenSearch, *, cluster_id: str | None = None, prefix: str = ""
-) -> LifecycleKnobs:
-    """A cluster's knobs: per-cluster `lifecycle:<cluster_id>` if set, else the fleet-wide
+) -> LifecycleSettings:
+    """A cluster's settings: per-cluster `lifecycle:<cluster_id>` if set, else the fleet-wide
     `lifecycle` default, else the D8/INDEX-MAP defaults (30d/5M/50gb roll, 90d retention)."""
     if cluster_id is not None:
-        per_cluster = await _read_one(client, _knobs_id(cluster_id), prefix)
+        per_cluster = await _read_one(client, _settings_id(cluster_id), prefix)
         if per_cluster is not None:
             return per_cluster
-    return await _read_one(client, LIFECYCLE_KEY, prefix) or LifecycleKnobs()
+    return await _read_one(client, LIFECYCLE_KEY, prefix) or LifecycleSettings()
 
 
-async def write_lifecycle_knobs(
+async def write_lifecycle_settings(
     client: AsyncOpenSearch,
-    knobs: LifecycleKnobs,
+    settings: LifecycleSettings,
     *,
     updated_by: str,
     cluster_id: str | None = None,
     prefix: str = "",
 ) -> None:
-    """Persist the knobs in system-config (interim admin path until the M9e UI)."""
-    doc_id = _knobs_id(cluster_id)
+    """Persist the settings in system-config (interim admin path until the M9e UI)."""
+    doc_id = _settings_id(cluster_id)
     await client.index(
         index=f"{prefix}system-config",
         id=doc_id,
         body={
             "key": doc_id,
-            "value": knobs.model_dump(),
+            "value": settings.model_dump(),
             "updated_at": datetime.now(UTC).isoformat(),
             "updated_by": updated_by,
         },
@@ -179,22 +179,24 @@ async def run_lifecycle_sweep(
     would-drop instead of did."""
     now = now or datetime.now(UTC)
     rolled = dropped = errors = 0
-    knobs_by_cluster: dict[str, LifecycleKnobs] = {}  # read once per cluster per run (D26 live)
+    settings_by_cluster: dict[
+        str, LifecycleSettings
+    ] = {}  # read once per cluster per run (D26 live)
 
     for alias, backing in (await _series_aliases(client, prefix)).items():
         series = next(s for s in SERIES if alias.startswith(f"{prefix}{s}-"))
         cluster_id = alias[len(f"{prefix}{series}-") :]
         try:
-            if cluster_id not in knobs_by_cluster:
-                knobs_by_cluster[cluster_id] = await read_lifecycle_knobs(
+            if cluster_id not in settings_by_cluster:
+                settings_by_cluster[cluster_id] = await read_lifecycle_settings(
                     client, cluster_id=cluster_id, prefix=prefix
                 )
-            knobs = knobs_by_cluster[cluster_id]
+            settings = settings_by_cluster[cluster_id]
 
             # 1) rollover — OpenSearch evaluates the conditions; no-op unless one is met
             resp = await client.indices.rollover(
                 alias=alias,
-                body={"conditions": knobs.rollover_conditions()},
+                body={"conditions": settings.rollover_conditions()},
                 params={"dry_run": "true"} if dry_run else None,
             )
             if resp.get("rolled_over") or (dry_run and any(resp.get("conditions", {}).values())):
@@ -208,7 +210,7 @@ async def run_lifecycle_sweep(
                     )
 
             # 2) retention — drop whole expired NON-write indices (never the write index, D8)
-            cutoff = now - timedelta(days=knobs.retention_days)
+            cutoff = now - timedelta(days=settings.retention_days)
             for index_name, is_write in backing.items():
                 if is_write:
                     continue
@@ -224,20 +226,20 @@ async def run_lifecycle_sweep(
                             "index dropped",
                             index=index_name,
                             newest_data_at=aged_at.isoformat(),
-                            retention_days=knobs.retention_days,
+                            retention_days=settings.retention_days,
                         )
                     dropped += 1
         except Exception:  # noqa: BLE001 — m-5: isolate the broken cluster, sweep the rest
             log.exception("lifecycle sweep failed for alias", alias=alias, cluster=cluster_id)
             errors += 1
 
-    # 3) rollover-only series (m-6): the audit journal rolls on the fleet knobs, NEVER retires
+    # 3) rollover-only series (m-6): the audit journal rolls on the fleet settings, NEVER retires
     for name in ROLLOVER_ONLY:
         alias = f"{prefix}{name}"
         if not await client.indices.exists_alias(name=alias):
             continue
         try:
-            fleet = await read_lifecycle_knobs(client, prefix=prefix)
+            fleet = await read_lifecycle_settings(client, prefix=prefix)
             resp = await client.indices.rollover(
                 alias=alias,
                 body={"conditions": fleet.rollover_conditions()},
@@ -259,14 +261,14 @@ async def run_lifecycle_sweep(
     return {"rolled": rolled, "dropped": dropped, "errors": errors}
 
 
-if __name__ == "__main__":  # daily CronJob entrypoint + interim knob-config CLI (until M9e UI)
+if __name__ == "__main__":  # daily CronJob entrypoint + interim settings CLI (until M9e UI)
     import argparse
     import asyncio
 
     from backend.core.settings import get_settings
     from backend.jobs.lease import run_under_lease
 
-    ap = argparse.ArgumentParser(description="Run the lifecycle sweep, or set the D26 knobs")
+    ap = argparse.ArgumentParser(description="Run the lifecycle sweep, or set the D26 settings")
     ap.add_argument("--set-max-age-days", type=float, help="rollover: max index age (default 30)")
     ap.add_argument("--set-max-docs", type=int, help="rollover: max docs (default 5,000,000)")
     ap.add_argument("--set-max-size-gb", type=float, help="rollover: max size (default 50)")
@@ -289,13 +291,13 @@ if __name__ == "__main__":  # daily CronJob entrypoint + interim knob-config CLI
                 if value is not None
             }
             if updates:
-                current = await read_lifecycle_knobs(client, cluster_id=args.cluster)
-                knobs = current.model_copy(update=updates)
-                await write_lifecycle_knobs(
-                    client, knobs, updated_by="cli", cluster_id=args.cluster
+                current = await read_lifecycle_settings(client, cluster_id=args.cluster)
+                new_settings = current.model_copy(update=updates)
+                await write_lifecycle_settings(
+                    client, new_settings, updated_by="cli", cluster_id=args.cluster
                 )
                 scope = f"cluster {args.cluster}" if args.cluster else "fleet-wide"
-                print(f"lifecycle knobs set ({scope}): {knobs.model_dump()}")
+                print(f"lifecycle settings set ({scope}): {new_settings.model_dump()}")
             else:
                 result = await run_under_lease(client, "lifecycle_sweep", run_lifecycle_sweep)
                 print(

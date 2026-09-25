@@ -7,7 +7,7 @@ timestamps, a bounded key map, and a per-minute limit read from settings.
 
 **One instance per caller, never a shared module-level map.** The key spaces must stay separate —
 an ingest token hash and a session user id must never draw on the same budget, or a token flood
-would eat the UI's allowance — and each surface reads its own knob and owns its own metric.
+would eat the UI's allowance — and each surface reads its own setting and owns its own metric.
 
 `auth/lockout.py` and `query/pit_guard.py` are deliberately NOT folded in here: the first counts
 failures per username, the second holds slots rather than a rate. Same word, different shapes.
