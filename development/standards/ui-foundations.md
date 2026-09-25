@@ -97,9 +97,10 @@ Binding detail: `frontend/DESIGN.md` §5 "Motion".
    visible feedback — toast, spinner, or state change. Silent success is indistinguishable
    from silent failure.
 4. **Restorable state.** Any state that changes what the data MEANS (time range `t`/`win`,
-   filters, cluster) rides the URL and survives reload — `src/system/timeTravelUrl.ts` +
-   `makeFiltersStore.toQuery/fromQuery`. Screens that own their query spread `keepTT()` in so
-   `router.replace` never wipes the global range.
+   filters, cluster) rides the URL and survives reload — `src/system/globalUrl.ts` +
+   `makeFiltersStore.toQuery/fromQuery`. Screens that own their query rewrite only their own keys:
+   `router.replace({ query: { ...foreignQuery(route.query, OWN_KEYS), ...q } })`, so the global
+   range, the cluster and any key the screen doesn't know about are kept.
 5. **Semantics surface.** Every data-table screen carries the D28 line ("the table shows the
    state at the END of this range") — the `IngestLens` provides it; a screen that can't host
    the lens states it another visible way.

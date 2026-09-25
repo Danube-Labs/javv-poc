@@ -153,10 +153,12 @@ if [ -n "$ALPHA_CID" ]; then
     BT=$(api "/api/v1/findings?cluster_id=$BETA_CID&image_digest=$SHARED&size=1" | jq -r '.total.value')
     AT=$(api "/api/v1/findings?cluster_id=$ALPHA_CID&image_digest=$SHARED&size=1" | jq -r '.total.value')
     OS_B=$(curl -s "$OS/findings/_count" -H 'content-type: application/json' \
-      -d "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"cluster_id\":\"$BETA_CID\"}},{\"term\":{\"image_digest\":\"$SHARED\"}}]}}}" | jq -r .count)
+      -d "{\"query\":{\"bool\":{\"filter\":[{\"term\":{\"cluster_id\":\"$BETA_CID\"}},{\"term\":{\"image_digest\":\"$SHARED\"}},{\"term\":{\"present\":true}}]}}}" | jq -r .count)
     echo "shared digest ${SHARED:7:12}…  beta api=$BT (store $OS_B) · alpha api=$AT"
     [ "$BT" -gt 0 ] && [ "$AT" -gt 0 ] || fail "shared digest not visible in both tenants"
-    # the API total for beta must equal beta's OWN store count — never beta+alpha combined
+    # the API total for beta must equal beta's OWN store count — never beta+alpha combined.
+    # present:true only: the API serves current findings, and a tenant that has seen a finding
+    # go away keeps it as a present:false row, which an unfiltered count would include.
     [ "$BT" -eq "$OS_B" ] || fail "beta API total ($BT) != beta-only store count ($OS_B) — combined read?"
   else
     echo "SKIPPED: no digest shared with alpha in this corpus (alpha unseeded/stale?)"
