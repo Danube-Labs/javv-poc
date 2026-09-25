@@ -9,7 +9,10 @@ one status taxonomy). Don't restate index mappings or requirements - link to the
 
 ## Versioning & shape
 - All app routes are under **`/api/v1/`** (e.g. `POST /api/v1/ingest/scan`). Bump the prefix only on a
-  breaking change; additive fields are not breaking (guarded by the I8 oasdiff check).
+  breaking change; additive fields are not breaking. **Review is the only guard today:** CI's
+  contract gate (I4/I7) checks that `frontend/openapi.json` matches the code, not whether a change
+  breaks clients. An automatic breaking-change check is I8, still open in
+  `docs/audits/remaining_audit_items.md`.
 - **JSON only.** Request **and** response bodies are `snake_case` (matches Pydantic v2 / OpenSearch fields).
 - **Paths:** lowercase, **kebab-case**, **plural** resource nouns (`/findings`, `/scan-events`,
   `/audit-log`); item by id `/findings/{finding_id}`; sub-resources nest one level max.

@@ -56,7 +56,8 @@ demonstrated - by an automated test wherever possible.
   errors, contract guards, feedback within 200ms, restorable state, the D28 semantics surface,
   silence-is-a-bug, the Playwright zero-console-error + measured-parity gates) and the shared
   patterns they produced (`IngestLens`, provenance stamps on now-claims, `failureCopy`,
-  `keepTT`/`stripTT` URL sync). Re-solving one of these ad hoc is drift.
+  `foreignQuery`/`ownQuery` URL sync in `src/system/globalUrl.ts`). Re-solving one of these ad hoc
+  is drift.
 
 ## 7. Review & CI
 - `code-review-and-quality` skill pass on the diff.

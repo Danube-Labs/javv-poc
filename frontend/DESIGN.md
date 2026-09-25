@@ -330,8 +330,9 @@ copy. Structural fidelity is a process rule:
 2. **Name the source in the PR.** A screen PR states which prototype component/classes it ports
    (e.g. "Sidebar → main.jsx `Sidebar` + `.side-*` CSS") so review can diff against it.
 3. **Screenshots in every screen PR.** `/visual-test` captures the implementation; put them in the
-   PR next to the prototype's rendering of the same section. (Needs the Playwright MCP connected —
-   until then the operator eyeballs the dev server against the prototype tab.)
+   PR next to the prototype's rendering of the same section. (`/visual-test` captures with the
+   committed rig `frontend/scripts/visual-capture.mjs`, which needs no MCP; the Playwright MCP is
+   optional, for interactive checks.)
 4. **Deviations are rulings, not taste.** Departing from the prototype requires a recorded reason
    (a SCREENS ruling, a shipped-backend constraint) noted in the PR — same discipline as the
    DECIDE register.
