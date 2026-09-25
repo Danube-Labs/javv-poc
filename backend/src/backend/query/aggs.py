@@ -12,7 +12,7 @@ client — server-side-everything):
 
 Every bucket carries a `by_scanner` sub-agg: per-scanner is sacred (the UI can always split;
 a cross-scanner merge is never forced). The caller's SearchFilters context applies to every
-body, and `tenant_query` (the chokepoint) forces the cluster filter on top at execution.
+body, and `tenant_query` (the tenant read path) forces the cluster filter on top at execution.
 """
 
 import base64

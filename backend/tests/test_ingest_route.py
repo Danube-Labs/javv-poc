@@ -164,7 +164,7 @@ async def test_the_rate_cap_is_a_real_429_over_http(monkeypatch: Any) -> None:
     """Ingest's 429 had NO test — the only rate-limit case here poked the module's internals, and
     those moved to `core/rate_limit.py` (516). The eviction properties are unit-tested there; what
     belongs at this level is that the cap still reaches the wire, which a direct call cannot show.
-    It also pins the wiring: a leftover private copy would let the second push through."""
+    It also pins the setup: a leftover private copy would let the second push through."""
     from backend.routers import ingest as mod
 
     monkeypatch.setattr(get_settings(), "ingest_rate_limit_per_minute", 1, raising=False)

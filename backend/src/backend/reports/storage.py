@@ -4,7 +4,7 @@ A result streams in as text pieces and lands as ~5 MiB `system-report-chunks` do
 (`report_id`, `attempt_id`, `seq`, un-indexed `data`), so the drain stays constant-memory and
 each write stays under `http.max_content_length`. Chunks are written under the drain's
 `attempt_id`; only the `done` doc's attempt is canonical on download — a fenced loser's chunks
-are orphans for the sweep (slice 4). The chunk size is a frozen internal constant, not a knob.
+are orphans for the sweep (slice 4). The chunk size is a frozen internal constant, not a setting.
 """
 
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -14,7 +14,7 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.reports.models import REPORT_CHUNKS_INDEX
 
-CHUNK_BYTES = 5 * 1024 * 1024  # frozen internal constant (bolt README §knobs)
+CHUNK_BYTES = 5 * 1024 * 1024  # frozen internal constant (bolt README §settings)
 _READ_PAGE = 500  # chunks per read page — 500 × 5 MiB ≫ the per-export byte ceiling
 
 

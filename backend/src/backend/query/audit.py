@@ -21,7 +21,7 @@ from opensearchpy.exceptions import NotFoundError, RequestError
 from backend.core.settings import get_settings
 from backend.query.aggs import _FACET_TERMS_SIZE
 from backend.query.search import CursorExpired, decode_cursor, encode_cursor
-from backend.tenancy.chokepoint import tenant_query
+from backend.tenancy.read_path import tenant_query
 
 log = structlog.get_logger()
 

@@ -1,10 +1,10 @@
 """Capability gate (M5a, D33/SEC-2/SEC-9) — `require_capability(cap)` is THE enforcement
-chokepoint: every mutating/protected route declares it and receives a `Principal`. 401 answers
+point: every mutating/protected route declares it and receives a `Principal`. 401 answers
 "who are you"; 403 answers "you may not" — including any `must_change` session touching anything
 beyond the /auth/* escape hatch (SEC-6). Admin holds all via the `"*"` marker.
 
 Role bundles live in `system-roles` (doc `_id` = role); the defaults below seed once
-(`op_type=create`) so an operator's customized bundle is never clobbered. Destructive caps
+(`op_type=create`) so an operator's customized bundle is never overwritten. Destructive caps
 (`can_manage_*`, `can_restore_snapshot`, `can_drop_index`, `can_rebuild_state`) are Admin-only by
 default and stay journaled (D17)."""
 

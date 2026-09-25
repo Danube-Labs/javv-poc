@@ -274,7 +274,7 @@ async def test_fenced_drain_publishes_nothing_and_rings_nothing(client) -> None:
             }
         },
     )
-    assert orphans["count"] >= 1  # A's orphans exist — slice 4's sweep reaps them
+    assert orphans["count"] >= 1  # A's orphans exist — slice 4's sweep deletes them
 
 
 def test_export_params_mirror_search_filters_one_to_one() -> None:

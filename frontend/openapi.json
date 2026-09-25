@@ -1280,7 +1280,7 @@
       },
       "SlaPolicy": {
         "additionalProperties": false,
-        "description": "Per-canonical-severity SLA days + KEV override \u2014 editable via PUT /settings/sla.\nD46 (#274): full-word knob names, HARD rename from crit_days/med_days (dev data disposable\n\u2014 no aliases; the config doc reseeds on the next write).",
+        "description": "Per-canonical-severity SLA days + KEV override \u2014 editable via PUT /settings/sla.\nD46 (#274): full-word setting names, HARD rename from crit_days/med_days (dev data disposable\n\u2014 no aliases; the config doc reseeds on the next write).",
         "properties": {
           "critical_days": {
             "default": 2,
@@ -8032,7 +8032,7 @@
     },
     "/api/v1/settings/data": {
       "get": {
-        "description": "Everything the panel renders in one read: the EFFECTIVE lifecycle + findings-cleanup\nknobs for the cluster (override if set, else fleet default), whether each override doc\nexists (the editor must know which doc it edits), the report TTL (fleet-wide), and the\nnon-secret snapshot repo ref (None until M2 config lands in the store).",
+        "description": "Everything the panel renders in one read: the EFFECTIVE lifecycle + findings-cleanup\nsettings for the cluster (override if set, else fleet default), whether each override doc\nexists (the editor must know which doc it edits), the report TTL (fleet-wide), and the\nnon-secret snapshot repo ref (None until M2 config lands in the store).",
         "operationId": "get_data_settings_api_v1_settings_data_get",
         "parameters": [
           {

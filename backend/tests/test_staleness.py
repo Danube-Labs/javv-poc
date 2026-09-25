@@ -189,7 +189,9 @@ async def test_sweep_is_idempotent(real_os) -> None:
 
     assert first["staled"] == 1 and second["staled"] == 0  # already stale — not re-marked
     old = await _get(client, prefix, "old")
-    assert old["state"] == "stale" and old["pre_stale_status"] == "open"  # not clobbered to "stale"
+    assert (
+        old["state"] == "stale" and old["pre_stale_status"] == "open"
+    )  # not overwritten to "stale"
 
 
 # --- M-2: a disabled/rotated stale token must not mass-stale a healthy scanner ---------

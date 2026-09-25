@@ -49,7 +49,7 @@ async def test_scheduled_run_claims_finalizes_and_journals(real_os) -> None:
     assert result == {"staled": 3}
     doc = (await client.get(index=f"{prefix}{JOBS_INDEX}", id=KIND))["_source"]
     assert doc["status"] == "done"
-    assert doc["requested_by"] == SCHEDULED_ACTOR  # the card shows who ran it — honestly
+    assert doc["requested_by"] == SCHEDULED_ACTOR  # the card shows who really ran it
     assert doc["result"] == {"staled": 3}
     assert doc["finished_at"] is not None
 

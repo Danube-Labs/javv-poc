@@ -65,7 +65,7 @@ async def test_v3_envelope_ingests_green_with_null_ptype_then_a_v4_rescan_heals(
     findings = await _rows(client, "findings", cid)
     assert len(findings) == 29 and all(f["ptype"] is None for f in findings)
     occurrences = await _rows(client, f"javv-finding-occurrences-{cid}-*", cid)
-    assert all(o["ptype"] is None for o in occurrences)  # history stays honest: not observed
+    assert all(o["ptype"] is None for o in occurrences)  # history stays accurate: not observed
 
     # the operator swaps the image; the next (v4) cycle re-observes everything (D30) and the
     # D31 partial merge refreshes ptype on the cache — one sweep heals the nulls

@@ -1,10 +1,10 @@
 """Data & OpenSearch settings (M9e, FR-19/D26) — the admin panel's backend.
 
-Knob writes are thin wrappers over the owning modules (`jobs/lifecycle.py`,
+Setting writes are thin wrappers over the owning modules (`jobs/lifecycle.py`,
 `admin/report_ttl.py`, `jobs/findings_cleanup.py`): journal-FIRST with the full old/new values
 (D17/#188, the staleness routes' pattern), then persist; the daily sweeps read the docs live, so
 an edit applies at the next run with no re-apply step. Retention/rollover edit ONE
-`LifecycleKnobs` doc (`lifecycle`/`lifecycle:<cluster_id>`) — each PUT is a read-modify-write of
+`LifecycleSettings` doc (`lifecycle`/`lifecycle:<cluster_id>`) — each PUT is a read-modify-write of
 the other half's current values.
 
 Snapshots wrap `admin/snapshot.py` (M2). Restore NEVER lands on a live index: it renames into
@@ -34,11 +34,11 @@ from backend.auth.principal import Principal
 from backend.core.identifiers import ClusterId
 from backend.jobs.findings_cleanup import (
     FINDINGS_CLEANUP_KEY,
-    FindingsCleanupKnob,
-    read_findings_cleanup_knob,
-    write_findings_cleanup_knob,
+    FindingsCleanupSetting,
+    read_findings_cleanup_setting,
+    write_findings_cleanup_setting,
 )
-from backend.jobs.lifecycle import LIFECYCLE_KEY, read_lifecycle_knobs, write_lifecycle_knobs
+from backend.jobs.lifecycle import LIFECYCLE_KEY, read_lifecycle_settings, write_lifecycle_settings
 
 router = APIRouter(prefix="/api/v1", tags=["settings"])
 
@@ -105,17 +105,17 @@ async def get_data_settings(
     cluster_id: Annotated[str | None, Query()] = None,
 ) -> dict[str, Any]:
     """Everything the panel renders in one read: the EFFECTIVE lifecycle + findings-cleanup
-    knobs for the cluster (override if set, else fleet default), whether each override doc
+    settings for the cluster (override if set, else fleet default), whether each override doc
     exists (the editor must know which doc it edits), the report TTL (fleet-wide), and the
     non-secret snapshot repo ref (None until M2 config lands in the store)."""
     client = _client(request)
-    knobs = await read_lifecycle_knobs(client, cluster_id=cluster_id)
+    settings = await read_lifecycle_settings(client, cluster_id=cluster_id)
     override = cluster_id is not None and await _has_lifecycle_override(client, cluster_id)
-    cleanup = await read_findings_cleanup_knob(client, cluster_id=cluster_id)
+    cleanup = await read_findings_cleanup_setting(client, cluster_id=cluster_id)
     cleanup_override = cluster_id is not None and await _has_cleanup_override(client, cluster_id)
     repo = await read_snapshot_repo_ref(client)
     return {
-        "lifecycle": knobs.model_dump(),
+        "lifecycle": settings.model_dump(),
         "per_cluster_override": override,
         "report_ttl_hours": await read_report_ttl_hours(client),
         "findings_cleanup": cleanup.model_dump(),
@@ -129,7 +129,7 @@ async def put_retention(
     request: Request, body: RetentionPut, principal: ManageRetention
 ) -> dict[str, Any]:
     client = _client(request)
-    old = await read_lifecycle_knobs(client, cluster_id=body.cluster_id)
+    old = await read_lifecycle_settings(client, cluster_id=body.cluster_id)
     new = old.model_copy(update={"retention_days": body.retention_days})
     await append_field_change(
         client,
@@ -143,7 +143,7 @@ async def put_retention(
         revision=1,
         cluster_id=body.cluster_id or "fleet",
     )
-    await write_lifecycle_knobs(
+    await write_lifecycle_settings(
         client, new, updated_by=principal.user_id, cluster_id=body.cluster_id
     )
     return {"lifecycle": new.model_dump()}
@@ -154,7 +154,7 @@ async def put_rollover(
     request: Request, body: RolloverPut, principal: ManageRetention
 ) -> dict[str, Any]:
     client = _client(request)
-    old = await read_lifecycle_knobs(client, cluster_id=body.cluster_id)
+    old = await read_lifecycle_settings(client, cluster_id=body.cluster_id)
     new = old.model_copy(
         update={
             "max_age_days": body.max_age_days,
@@ -176,7 +176,7 @@ async def put_rollover(
         revision=1,
         cluster_id=body.cluster_id or "fleet",
     )
-    await write_lifecycle_knobs(
+    await write_lifecycle_settings(
         client, new, updated_by=principal.user_id, cluster_id=body.cluster_id
     )
     return {"lifecycle": new.model_dump()}
@@ -209,8 +209,8 @@ async def put_findings_cleanup(
     request: Request, body: FindingsCleanupPut, principal: ManageRetention
 ) -> dict[str, Any]:
     client = _client(request)
-    old = await read_findings_cleanup_knob(client, cluster_id=body.cluster_id)
-    knob = FindingsCleanupKnob(cleanup_days=body.cleanup_days)
+    old = await read_findings_cleanup_setting(client, cluster_id=body.cluster_id)
+    setting = FindingsCleanupSetting(cleanup_days=body.cleanup_days)
     await append_field_change(
         client,
         actor=principal.user_id,
@@ -219,14 +219,14 @@ async def put_findings_cleanup(
         entity_id=_cleanup_entity(body.cluster_id),
         field="cleanup_days",
         old_value=str(old.cleanup_days),
-        new_value=str(knob.cleanup_days),
+        new_value=str(setting.cleanup_days),
         revision=1,
         cluster_id=body.cluster_id or "fleet",
     )
-    await write_findings_cleanup_knob(
-        client, knob, updated_by=principal.user_id, cluster_id=body.cluster_id
+    await write_findings_cleanup_setting(
+        client, setting, updated_by=principal.user_id, cluster_id=body.cluster_id
     )
-    return {"findings_cleanup": knob.model_dump()}
+    return {"findings_cleanup": setting.model_dump()}
 
 
 @router.get("/admin/snapshots")

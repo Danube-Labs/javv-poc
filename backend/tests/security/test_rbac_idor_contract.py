@@ -17,8 +17,8 @@ Exemptions are endpoints with their own tested auth regime:
   - machine-token endpoints (ingest, scan-runs) — SEC-3 binding (test_ingest_route.py)
 
 Cross-`cluster_id` IDOR (the suite's third axis): MVP = all-clusters-visible with `cluster_id` as
-an always-applied data filter (D38/H9) — reads are guarded structurally by the tenant chokepoint
-(test_tenant_chokepoint.py). When per-user `allowed_cluster_ids` grants land post-MVP, this file
+an always-applied data filter (D38/H9) — reads are guarded structurally by the tenant read path
+(test_tenant_read_path.py). When per-user `allowed_cluster_ids` grants land post-MVP, this file
 grows the cross-tenant case for every registered endpoint.
 """
 
@@ -164,7 +164,7 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"cluster_id": "c-rbac-sample", "ignore_namespaces": ["kube-system"]},
     ),
-    MutatingEndpoint(  # M9e slice 4 — retention window (FR-19/D26; edits the lifecycle knob doc)
+    MutatingEndpoint(  # M9e slice 4 — retention window (FR-19/D26; edits the lifecycle setting doc)
         method="PUT",
         path="/api/v1/settings/retention",
         route_path="/api/v1/settings/retention",
@@ -178,7 +178,7 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_retention",
         body={"max_age_days": 30, "max_docs": 5_000_000, "max_size_gb": 50},
     ),
-    MutatingEndpoint(  # M9e slice 4 — report/export TTL (row-11 graduation)
+    MutatingEndpoint(  # M9e slice 4 — report/export TTL (row 11: now a runtime setting)
         method="PUT",
         path="/api/v1/settings/report-ttl",
         route_path="/api/v1/settings/report-ttl",

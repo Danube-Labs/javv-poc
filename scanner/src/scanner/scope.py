@@ -1,7 +1,7 @@
 """Scan scope (D43/FR-24) — the scanner side. Mirrors the backend `ScanScope` wire shape
 (`backend/admin/scan_scope.py`); the scanner fetches it from the backend at cycle start and filters
 discovery *before* pull/scan. This is a **lenient reader** (unknown fields ignored) so a newer
-backend adding a scope knob doesn't break an older scanner.
+backend adding a scope setting doesn't break an older scanner.
 
 Fail-closed contract (D43): `fetch_scan_scope` returns `None` when the backend is unreachable — the
 caller must then **not scan** (distinct from a *fetched empty* scope, which means scan everything).

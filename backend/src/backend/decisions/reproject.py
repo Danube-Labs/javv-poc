@@ -8,7 +8,7 @@ finding, runs `project()`, and bulk-writes only the deltas — idempotent, a re-
 Overwrite discipline (direct action > auto-rule): a finding's `state` is written only when
 projection already owns it (`state_decision_id` set) or it sits at the default (`open`).
 A human-set state (acknowledged/resolved/… with null provenance) and the system's `stale` are
-never clobbered. Fallback ruling: when a projected finding's winner retires and NO other rule
+never overwritten. Fallback ruling: when a projected finding's winner retires and NO other rule
 matches, it reverts to `open` (the pre-decision state isn't stored; PLAN §5.7's "next applicable
 rule, not open" is satisfied because `project()` ranks the survivors first).
 

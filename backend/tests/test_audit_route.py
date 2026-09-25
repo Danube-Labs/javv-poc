@@ -237,7 +237,7 @@ def test_until_bounds_the_walk_at_t() -> None:
 
 
 async def test_facets_count_the_rail_dims_tenant_scoped(env) -> None:
-    # M9d rework: the rail needs honest server counts (entity_type/action/actor terms aggs)
+    # M9d rework: the rail needs real server counts (entity_type/action/actor terms aggs)
     http, client = env
     cid, other = (f"c-audit-{uuid.uuid4().hex[:8]}" for _ in range(2))
     facet_a, facet_b, theirs = (f"u-facet-{uuid.uuid4().hex[:8]}" for _ in range(3))
@@ -281,7 +281,7 @@ async def test_fleet_events_are_visible_under_any_cluster(env) -> None:
         assert r.status_code == 200
         rows = r.json()["data"]
         assert [row["action"] for row in rows] == ["job_trigger"]
-        assert rows[0].get("cluster_id") is None  # honestly fleet-scoped, no tenant claims it
+        assert rows[0].get("cluster_id") is None  # fleet-scoped, no tenant claims it
     # and the rail facet sees the fleet row too
     r = await http.get(
         "/api/v1/audit/facets",
@@ -292,7 +292,7 @@ async def test_fleet_events_are_visible_under_any_cluster(env) -> None:
 
 async def test_finding_rows_are_decorated_with_their_identity(env) -> None:
     # M9d rework (operator): an opaque finding_key answers nothing — rows carry the finding's
-    # (cve, image, scanner) at read time; a finding aged out of the store degrades honestly
+    # (cve, image, scanner) at read time; a finding aged out of the store degrades gracefully
     http, client = env
     cid = f"c-audit-{uuid.uuid4().hex[:8]}"
     fk = f"fk-{cid}-0"
@@ -322,7 +322,7 @@ async def test_finding_rows_are_decorated_with_their_identity(env) -> None:
     assert deco["cve_id"] == "CVE-2024-0001"
     assert deco["image_repo"] == "bench/app"
     assert deco["scanner"] == "trivy"
-    assert rows[f"fk-{cid}-1"]["finding"] is None  # aged out — the bare key stays honest
+    assert rows[f"fk-{cid}-1"]["finding"] is None  # aged out — the bare key stays accurate
 
 
 async def test_decoration_never_crosses_the_tenant_boundary(env) -> None:

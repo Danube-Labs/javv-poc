@@ -235,7 +235,7 @@ async def ingest_envelope(client: AsyncOpenSearch, env: IngestEnvelope, *, prefi
     if stamped:
         log.debug("ingest: sla clocks stamped", image_digest=env.image_digest, count=stamped)
     # 3e) D19 projection-on-new-only: decisions cascade onto the CVEs this commit touched
-    # (one terms query; only CVEs that HAVE decisions reproject — delta-only, never a clobber)
+    # (one terms query; only CVEs that HAVE decisions reproject — delta-only, never a overwrite)
     from backend.decisions.reproject import project_at_ingest
 
     await project_at_ingest(

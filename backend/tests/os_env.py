@@ -1,4 +1,4 @@
-"""The one copy of the OpenSearch test wiring (#368 conftest dedup, the #384 remainder).
+"""The one copy of the OpenSearch test setup (#368 conftest dedup, the #384 remainder).
 
 Every integration test file used to carry its own OS_URL constant, reachability probe, and
 skip guard (63 copies). They import from here instead; the probe result is cached so a suite

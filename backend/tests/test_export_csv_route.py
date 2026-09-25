@@ -2,7 +2,7 @@
 
 Pins: the export is the SAME lens as the grid (filters apply); every row is
 injection-sanitized on the wire; the sweep walks multiple PIT pages and leaves ZERO PITs
-behind (D38 — the sweep case); tenant isolation via the chokepoint (a bait row in another
+behind (D38 — the sweep case); tenant isolation via the tenant read path (a bait row in another
 cluster never leaks into the file); auth required; `as_of` in the past is 501 (D28 seam).
 """
 
