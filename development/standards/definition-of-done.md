@@ -40,10 +40,10 @@ demonstrated - by an automated test wherever possible.
 - The bolt implemented what the canonical docs say. **A new decision is not invented in code** - if reality
   forces a change, update `PLAN`/`SPEC`/`INDEX-MAP` (with a decision id) *first*, then build.
 - The bolt README's **Deliverables** all exist; **Out of scope** items were genuinely deferred, not silently built.
-- **New config keys are tracked.** If the bolt introduces any configuration knob — a `JAVV_*` or
+- **New config keys are tracked.** If the bolt introduces any configuration setting — a `JAVV_*` or
   OpenSearch env var, a `system-config` key, or a scanner scan flag — add it to
   [`docs/CONFIGURATION.md`](../../docs/CONFIGURATION.md) in the **same PR**: its default, how it's set,
-  and whether it's UI-controllable. That file is the single tracker for every knob; leaving a new key
+  and whether it's UI-controllable. That file is the single tracker for every setting; leaving a new key
   out is config drift.
 - **Routes are tracked.** A route added, changed (method/params/auth/capability), or removed →
   [`docs/API.md`](../../docs/API.md) updated in the **same PR** (same rule as config keys; the major
@@ -52,7 +52,7 @@ demonstrated - by an automated test wherever possible.
 
 - **UI surfaces follow the binding UI standards.** Any bolt touching `frontend/` satisfies
   [`frontend/DESIGN.md`](../../frontend/DESIGN.md) and
-  [`ui-foundations.md`](ui-foundations.md) — including the **Audit rules** (issue 343: honest
+  [`ui-foundations.md`](ui-foundations.md) — including the **Audit rules** (issue 343: accurate
   errors, contract guards, feedback within 200ms, restorable state, the D28 semantics surface,
   silence-is-a-bug, the Playwright zero-console-error + measured-parity gates) and the shared
   patterns they produced (`IngestLens`, provenance stamps on now-claims, `failureCopy`,

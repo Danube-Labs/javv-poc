@@ -105,7 +105,7 @@ install_precommit() {
     skip pre-commit "$(pre-commit --version)"
   fi
   if [ -f .pre-commit-config.yaml ]; then
-    log "Wiring git hooks (pre-commit + commit-msg)"
+    log "Installing git hooks (pre-commit + commit-msg)"
     pre-commit install --install-hooks >/dev/null
     pre-commit install --hook-type commit-msg >/dev/null
   else

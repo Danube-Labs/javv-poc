@@ -121,7 +121,7 @@ from an env/secret and must change the password on first login - FR-18.)
   now"** or **"schedule off-peak"** (throttled - PIT+`search_after`, small pages, brief sleeps); the result
   is stored **in OpenSearch**, chunked into `system-report-chunks` (un-indexed slices; amended 2026-07-07,
   #32/#212 - supersedes the earlier object-storage model, single-store constraint honored), downloaded via a
-  backend endpoint gated by the tenant chokepoint + a short-lived token, and **TTL-expired** (`expires_at`,
+  backend endpoint gated by the tenant read path + a short-lived token, and **TTL-expired** (`expires_at`,
   default 24 h - 410 after); user is notified via the **bell**. Broker-free (CronJob drain). **Each job is
   claimed by optimistic concurrency** (`pending→running` via `seq_no`/`primary_term` CAS + `heartbeat_at` +
   `lease_expires_at` + `retry_count` - D38/M17) plus a **fencing `attempt_id`** (heartbeat + `done` CAS on it,
@@ -154,14 +154,14 @@ from an env/secret and must change the password on first login - FR-18.)
   for risk-accept, `can_manage_*`; destructive caps Admin-only + journaled). `get_current_principal()`
   resolves the session (OIDC-swappable later); **ingest-token auth separate**, with **token↔payload binding**
   (SEC-3). Per-request entitlement on every fetch **and export** (IDOR); **tenant `cluster_id` filter via one
-  chokepoint helper** + negative test (SEC-4), never UI-only. **MVP tenant model (D38/H9):** all clusters are
+  tenant read path** + negative test (SEC-4), never UI-only. **MVP tenant model (D38/H9):** all clusters are
   visible to any authenticated user - `cluster_id` is a **data filter applied on every read/agg/export** (guards
   accidental cross-cluster bleed), **not** a per-user auth boundary; per-user/role `allowed_cluster_ids` grants
   are **post-MVP**. RBAC gated client + server.
 - **FR-19 Data & OpenSearch settings (Admin, D26).** `Settings → Data & OpenSearch`: per-`cluster_id`
-  `retention_days`; **rollover** knobs (doc count / age / size; defaults ~40 GB / 30 d / 50 M docs);
+  `retention_days`; **rollover** settings (doc count / age / size; defaults ~40 GB / 30 d / 50 M docs);
   **snapshot** repository + schedule + manual snapshot/restore; **staleness timers** (FR-6) (here or a
-  sibling "Scanning" section). JAVV applies/updates the ISM policies. *(Superseded by the M4 mechanism decision: the daily lifecycle sweep reads the `system-config` knobs live and drops whole indices at horizon — no ISM policy re-apply; see the M9e bolt README.)* (Full index-management UI is v1.x.)
+  sibling "Scanning" section). JAVV applies/updates the ISM policies. *(Superseded by the M4 mechanism decision: the daily lifecycle sweep reads the `system-config` settings live and drops whole indices at horizon — no ISM policy re-apply; see the M9e bolt README.)* (Full index-management UI is v1.x.)
 - **FR-20 Observability.** `/healthz`, `/readyz`, Prometheus `/metrics` (ingestion rate, 4xx/413/429/503,
   payload sizes, **decompression ratio**, queue depth, latency, memory); structured logs (structlog). M1.
 - **FR-21 Risk metadata.** Capture **EPSS/KEV** from Grype (explicit mapped fields; absent for Trivy).

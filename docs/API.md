@@ -29,7 +29,7 @@ can reach **only `/auth/*`** — everything else 403s until the password is chan
 (registry + exemptions); if this table and the registry disagree, the registry wins.
 
 Tenancy: `cluster_id` is an always-applied data filter on every read/export (D38/H9), enforced in
-the query layer (tenant chokepoint), not per-user grants (post-MVP).
+the query layer (tenant read path), not per-user grants (post-MVP).
 
 ## Endpoints
 
@@ -89,7 +89,7 @@ All session-auth, no capability (reads). All take the filter family (`cluster_id
 display-only in rows. `ptype` (M8d/#241) is also a facet (pre-v4 rows bucket as
 `"unknown"` until a sweep heals them, D30) and a group dim — and unlike `kev`/`epss` it IS
 recorded on occurrences, so it stays filterable/facetable at a past `as_of` (v3-era rows are
-honestly `null` there). `overdue=true|false` (issue #363) filters on the **materialized D21 group
+explicitly `null` there). `overdue=true|false` (issue #363) filters on the **materialized D21 group
 clock** (`sla_clock_at`) against cutoffs derived from the **live SLA policy at query time** — a
 policy edit moves the filter instantly, chip ≡ filter by construction (shared handled-states set,
 KEV fast-lane included); works on grid/facets/groups/exports, and at a past `as_of` it filters the
@@ -158,17 +158,17 @@ routes stay current-state-only).
 
 | Method | Path | Auth | Purpose |
 |---|---|---|---|
-| GET | `/api/v1/settings/sla` | session | Read SLA policy (`critical_days`/`high_days`/`medium_days`/`low_days`/`kev_days` — full-word knobs, D46/#274) |
+| GET | `/api/v1/settings/sla` | session | Read SLA policy (`critical_days`/`high_days`/`medium_days`/`low_days`/`kev_days` — full-word settings, D46/#274) |
 | PUT | `/api/v1/settings/sla` | `can_manage_settings` | Replace SLA policy |
 | GET | `/api/v1/settings/staleness` | session | Effective D20 timers for `?cluster_id` (its override if set, else the fleet default) + `per_cluster_override` (M9e) |
 | PUT | `/api/v1/settings/staleness` | `can_manage_settings` | Replace the timers; `cluster_id` in the body writes the per-cluster override, absent = the fleet default. Journaled (D17) |
 | GET | `/api/v1/settings/scan-scope` | session | The D-2 session read of `?cluster_id`'s scan scope (the bearer `GET /api/v1/scan-scope` stays scanner-only; M9e) |
 | PUT | `/api/v1/scan-scope` | `can_manage_settings` | Replace a cluster's scan scope (D43/FR-24: empty include = all, ignore wins). Journaled (D17) |
-| GET | `/api/v1/settings/data` | `can_manage_retention` | The Data & OpenSearch panel's one read: effective lifecycle knobs for `?cluster_id` (+ `per_cluster_override`), report TTL, the effective findings-cleanup window for `?cluster_id` (+ `findings_cleanup_override`), snapshot repo ref (M9e) |
+| GET | `/api/v1/settings/data` | `can_manage_retention` | The Data & OpenSearch panel's one read: effective lifecycle settings for `?cluster_id` (+ `per_cluster_override`), report TTL, the effective findings-cleanup window for `?cluster_id` (+ `findings_cleanup_override`), snapshot repo ref (M9e) |
 | PUT | `/api/v1/settings/retention` | `can_manage_retention` | Set `retention_days` (RMW of the lifecycle doc; `cluster_id` in body = the per-cluster override). Journaled (D17) |
 | PUT | `/api/v1/settings/rollover` | `can_manage_retention` | Set `max_age_days`/`max_docs`/`max_size_gb` (same doc/override rule). Journaled (D17) |
-| PUT | `/api/v1/settings/report-ttl` | `can_manage_retention` | Set the export TTL `hours` (fleet-wide `report_ttl` knob — the row-11 graduation of `JAVV_EXPORT_TTL_HOURS`). Journaled (D17) |
-| PUT | `/api/v1/settings/findings-cleanup` | `can_manage_retention` | Set the D37/M12 long `cleanup_days` window — fleet default, or a per-cluster override via body `cluster_id` (the lifecycle-knobs pattern; consumed per cluster by the findings-cleanup job). Journaled (D17) |
+| PUT | `/api/v1/settings/report-ttl` | `can_manage_retention` | Set the export TTL `hours` (fleet-wide `report_ttl` setting — row 11 made `JAVV_EXPORT_TTL_HOURS` runtime-editable). Journaled (D17) |
+| PUT | `/api/v1/settings/findings-cleanup` | `can_manage_retention` | Set the D37/M12 long `cleanup_days` window — fleet default, or a per-cluster override via body `cluster_id` (the lifecycle-settings pattern; consumed per cluster by the findings-cleanup job). Journaled (D17) |
 | PUT | `/api/v1/clusters/{cluster_id}/name` | `can_manage_settings` | Rename a cluster's display name (M8c/#240): journaled per D17 (journal-first), stored in the `system-config` `cluster-registry` doc via a seq_no-CAS write. `cluster_id` itself is immutable |
 
 ### Saved views (M8e, C-6)
@@ -264,7 +264,7 @@ Shape caps (batch ≤ 20, ≤ 25 keys/object, depth ≤ 3, keys ≤ 64 chars, va
 20, and the event-name pattern `^[a-z0-9][a-z0-9 ._-]{0,63}$`) are the **schema** — violations are
 422 and owe no metric. Only the **per-principal rate cap** is a bounded path in the ops-parity
 sense: over it → **429** + `Retry-After` + `LIMIT_REJECTIONS{limit="client_events"}` + a warning
-(knob `JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE`). The limiter runs *after* body validation on
+(setting `JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE`). The limiter runs *after* body validation on
 purpose — it bounds what reaches the log stream, and a rejected batch emits nothing.
 
 RBAC: **registry-exempt**, not capability-gated — any authenticated user's browser reports its own

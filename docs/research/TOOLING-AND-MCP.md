@@ -1,7 +1,7 @@
 # JAVV - Tooling, MCP servers & skills (ranked)
 
 > Research agent output, captured 2026-06-20. Verify exact install flags against each tool's README
-> before wiring up. Companion to [[stack-best-practices]] and the project guidance in `CLAUDE.md`.
+> before setting up. Companion to [[stack-best-practices]] and the project guidance in `CLAUDE.md`.
 
 ## TL;DR - top picks in order
 1. **Serena MCP** (High) - symbol-level navigation/editing across Python+TS. Highest-leverage add.
@@ -31,7 +31,7 @@ First session: ask Claude to "read Serena's initial instructions." Needs `uv`/`u
 Official `opensearch-project/opensearch-mcp-server-py`: `ListIndexTool`, `IndexMappingTool`,
 `SearchIndexTool`, `ClusterHealthTool`, `CountTool`. OpenSearch *is* JAVV's entire data layer - the agent
 can inspect real mappings (keep Pydantic + query builders in sync), validate aggregations behind each
-screen before wiring them, and sanity-check shard counts against the per-cluster partition decision.
+screen before connecting them, and sanity-check shard counts against the per-cluster partition decision.
 ```bash
 claude mcp add opensearch -- uvx opensearch-mcp-server-py   # env: OPENSEARCH_URL / _USERNAME / _PASSWORD
 ```

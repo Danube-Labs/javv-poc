@@ -49,7 +49,7 @@ fi
 
 # --- 3. residue docs by query -------------------------------------------------------------
 # rt-* saved views · cluster-scoped config for c-* test clusters · c-* tenant rows in the caches
-reap() { # index, query-json, label
+delete_matching() { # index, query-json, label
   local index=$1 query=$2 label=$3
   local n
   n=$(curl -s "$OS_URL/$index/_count" -H 'content-type: application/json' -d "$query" 2>/dev/null \
@@ -60,14 +60,14 @@ reap() { # index, query-json, label
       -H 'content-type: application/json' -d "$query" | jq -r '"  deleted \(.deleted)"'
   fi
 }
-reap "system-views"        '{"query":{"prefix":{"view_id":"rt-"}}}'                "rt-* saved views"
-reap "system-views"        '{"query":{"prefix":{"owner":"u-"}}}'                   "u-*-owned saved views"
-reap "system-notifications" '{"query":{"prefix":{"user_id":"u-"}}}'                "u-* notification docs"
-reap "system-config"       '{"query":{"wildcard":{"key":{"value":"*:c-*"}}}}'      "c-* cluster config docs"
-reap "findings"            '{"query":{"prefix":{"cluster_id":"c-"}}}'              "c-* findings rows"
-reap "javv-scan-watermarks" '{"query":{"prefix":{"cluster_id":"c-"}}}'             "c-* watermark rows"
-reap "javv-scan-orders"    '{"query":{"prefix":{"cluster_id":"c-"}}}'              "c-* scan-order counters"
-reap "system-audit-log-*"  '{"query":{"bool":{"should":[{"prefix":{"actor":"u-"}},{"prefix":{"actor":"nu-"}},{"prefix":{"actor":"ext-"}},{"prefix":{"actor":"0-list-"}}],"minimum_should_match":1}}}' "test-actor audit rows"
+delete_matching "system-views"        '{"query":{"prefix":{"view_id":"rt-"}}}'                "rt-* saved views"
+delete_matching "system-views"        '{"query":{"prefix":{"owner":"u-"}}}'                   "u-*-owned saved views"
+delete_matching "system-notifications" '{"query":{"prefix":{"user_id":"u-"}}}'                "u-* notification docs"
+delete_matching "system-config"       '{"query":{"wildcard":{"key":{"value":"*:c-*"}}}}'      "c-* cluster config docs"
+delete_matching "findings"            '{"query":{"prefix":{"cluster_id":"c-"}}}'              "c-* findings rows"
+delete_matching "javv-scan-watermarks" '{"query":{"prefix":{"cluster_id":"c-"}}}'             "c-* watermark rows"
+delete_matching "javv-scan-orders"    '{"query":{"prefix":{"cluster_id":"c-"}}}'              "c-* scan-order counters"
+delete_matching "system-audit-log-*"  '{"query":{"bool":{"should":[{"prefix":{"actor":"u-"}},{"prefix":{"actor":"nu-"}},{"prefix":{"actor":"ext-"}},{"prefix":{"actor":"0-list-"}}],"minimum_should_match":1}}}' "test-actor audit rows"
 
 if [ "$APPLY" = 1 ]; then
   say "sweep applied. users kept: $(curl -s "$OS_URL/system-users/_search?size=10&_source=false" | jq -cr '[.hits.hits[]._id]')"

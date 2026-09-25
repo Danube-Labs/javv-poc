@@ -85,7 +85,7 @@ Opened from a CVE (the audit page). The decision is anchored on the **CVE**, wit
 - After save, the CVE's per-image findings reflect `risk_accepted` (projection).
 - **Editing is revoke + re-create, never in-place (new):** a decision is immutable except its lifecycle stamp.
   "Edit scope/justification" should read as **"revoke this acceptance and create a new one"** (so history/
-  time-travel stays honest). Show **revoked / expired** decisions in the audit history (struck-through or a
+  time-travel stays accurate). Show **revoked / expired** decisions in the audit history (struck-through or a
   status chip), not just active ones.
 
 ### 2.3 Point-in-time image view (changed) - digest is the identity
@@ -96,7 +96,7 @@ On image detail, the global picker rewinds the image. **"Image" = a content dige
 - "Not yet scanned then" empty-state when there's no scan ≤ T.
 - **Two separate questions, two answers (new):** "**was this image running at T**" (runtime inventory) and
   "**what did a scan find on it**" (as-scanned vulns) are distinct. An image can be present-but-not-yet-scanned,
-  or scanned-but-no-longer-running. Don't merge them into one "state at T" - surface both honestly.
+  or scanned-but-no-longer-running. Don't merge them into one "state at T" - surface both clearly.
 
 ### 2.4 Inventory staleness banner (new)
 "Running images" = the **latest *committed* inventory run** for the cluster (an undeployed image disappears at
@@ -123,7 +123,7 @@ current user + role; an Admin **Users & Roles** screen (assign capability bundle
 
 ### 2.8 Contributors (expanded)
 Keep + expand the leaderboard: resolved-over-time, median TTR, SLA-hit %, richer per-user metrics. Time-range
-scoped; honest about the audit-log retention window.
+scoped; upfront about the audit-log retention window.
 
 ### 2.9 Notifications bell (kept)
 Per-user: expired-SLA, new assignments, ready exports. Polling (no live socket needed).

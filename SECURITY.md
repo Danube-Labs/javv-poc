@@ -64,7 +64,7 @@ JAVV is pre-1.0 and moves quickly. Security fixes land on `main` and go out in t
 - findings that require an already-compromised cluster, host, or administrator account
 - a JAVV deployment that an operator has configured insecurely, where JAVV's documented defaults are
   safe. Note that some hardening is deliberately the operator's job, and
-  [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) is the reference for every knob.
+  [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) is the reference for every setting.
 
 ## Design notes worth knowing before you test
 

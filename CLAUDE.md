@@ -24,7 +24,7 @@ optional reading you can skip, they are this file's other half:
 | Adding/changing **HTTP endpoints** or their contracts | `docs/API.md` (+ the router in `backend/src/backend/routers/`) |
 | Working a **bolt** (any milestone slice) | that bolt's `development/bolts/<bolt>/README.md` — the spec of record, incl. its `## Updates` |
 | Writing/modifying **frontend UI / styling** | `.claude/rules/ui-design.md` (auto-loads on frontend source) → `frontend/DESIGN.md` (binding: tokens, Hanken Grotesk, AA floor, §8 fidelity protocol — **a screen's grammar is the prototype's; substituting it needs a live operator ruling on a built specimen, §8.5** — §9 ruled exceptions) → `development/standards/ui-foundations.md` · `handoff/docs/SCREENS.md` |
-| Adding/changing **any config knob, env var, or threshold** | `docs/CONFIGURATION.md` — document the knob there the **same PR**; hardcoding a tunable is a review-fail. Constants only when they mirror an already-documented cap (say so in a comment). |
+| Adding/changing **any config setting, env var, or threshold** | `docs/CONFIGURATION.md` — document the setting there the **same PR**; hardcoding a tunable is a review-fail. Constants only when they mirror an already-documented cap (say so in a comment). |
 | **Committing / branching / PRs** | `development/standards/git-workflow.md` (bolt tracking, housekeeping, the pre-commit trap) |
 | **Starting/stopping/operating** the dev stack | § *Running the stack* below → `development/RUNNING-THE-STACK.md` (paths A/B/F) |
 | Adding **any log line** (either stack) | `.claude/rules/logging.md` (auto-loads on source) — shared library only; `console.*`/`print` are banned |
@@ -125,7 +125,7 @@ process before debugging behaviour (`ps -o lstart -p <pid>`), and confirm what i
 ## Hard-won reflexes (each line has bitten ≥ 2 sessions — check them, don't rediscover them)
 
 > Two of these are now **mechanical**, not advisory: `.claude/hooks/guard_bash.py` (a PreToolUse hook,
-> wired in `.claude/settings.json`) refuses `git add -A|.` and `pkill|pgrep -f` before they run. It
+> set up in `.claude/settings.json`) refuses `git add -A|.` and `pkill|pgrep -f` before they run. It
 > tokenizes properly, so those strings are still fine inside a commit message or a heredoc. Cases:
 > `python3 .claude/hooks/test_guard_bash.py`.
 
@@ -157,7 +157,7 @@ process before debugging behaviour (`ps -o lstart -p <pid>`), and confirm what i
 - New mutating route → the RBAC/IDOR registry (`tests/security/test_rbac_idor_contract.py`).
   Any route/param change → `docs/API.md` + regenerated `frontend/openapi.json` + `npm run gen:api`
   client (the contract gate diffs the snapshot). Mapping change → `MAPPING_VERSION` bump + INDEX-MAP.
-  New knob → CONFIGURATION.md (§ "Read this FIRST" table).
+  New setting → CONFIGURATION.md (§ "Read this FIRST" table).
 - New field on a shared shape (SearchFilters and friends) → sweep every consumer and the parity
   guards; targeted test runs have missed these.
 - Scanner vocabulary is canonicalized at every boundary (`canonical_severity()`); seed tests with the
@@ -205,7 +205,7 @@ Invoke the matching skill before starting that kind of work:
 
 ## Tooling to lean on (see `docs/research/TOOLING-AND-MCP.md` for install)
 - **Serena MCP** - symbol-level nav/edit across Python+TS. Use instead of grep-and-replace for refactors.
-- **OpenSearch MCP** - introspect real mappings + run query-DSL to verify aggregations *before* wiring
+- **OpenSearch MCP** - introspect real mappings + run query-DSL to verify aggregations *before* adding
   them into FastAPI. The agent should read the schema, not guess it.
 - **Context7 MCP** - pull version-current docs for Pydantic v2 / PrimeVue / vue-echarts / AsyncOpenSearch
   before generating API code.

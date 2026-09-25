@@ -43,7 +43,7 @@ for c in alpha bravo charlie; do echo -n "$c -> "; \
   kubectl --context k3d-$c get namespace kube-system -o jsonpath='{.metadata.uid}'; echo; done
 ```
 Three real, distinct `cluster_id`s to validate per-cluster index routing never collides. Caveat: k3d
-clusters share the host kernel/CPU/disk - fine for functional multi-cluster wiring, **don't benchmark scan
+clusters share the host kernel/CPU/disk - fine for functional multi-cluster testing, **don't benchmark scan
 throughput** this way. Teardown: `k3d cluster delete alpha bravo charlie`.
 
 ## TRACK 2 - Free / very cheap online managed k8s

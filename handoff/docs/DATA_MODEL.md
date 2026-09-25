@@ -306,7 +306,7 @@ there is no client-side permission matrix (the v4 `rbac.permissions` table is go
 
 ## Cluster
 
-`cluster_id` — immutable key, always-applied read filter (tenant chokepoint). `cluster_name` —
+`cluster_id` — immutable key, always-applied read filter (tenant read path). `cluster_name` —
 relabelable display name, **RULED (D-5, 2026-07-07)**: lives in a `system-config` cluster-registry
 doc, shipped with its session read (+ journaled rename write) in **M8c** — which also solves
 cluster enumeration for the All-clusters screen. Display-only, never a query key.

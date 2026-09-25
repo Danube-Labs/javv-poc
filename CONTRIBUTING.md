@@ -43,7 +43,7 @@ Do not work from memory on these. Each area has a source of truth, and reviews c
 | HTTP endpoints or their contracts | [`docs/API.md`](docs/API.md) |
 | Frontend UI or styling | [`frontend/DESIGN.md`](frontend/DESIGN.md) (binding); see *Building UI* below |
 | Adding a log line, either stack | *Logging* below: shared library only, never `console.*` or `print` |
-| Any config knob, env var, or threshold | [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) |
+| Any config setting, env var, or threshold | [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) |
 | Commits, branches, PRs | [`development/standards/git-workflow.md`](development/standards/git-workflow.md) |
 | What "done" means | [`development/standards/definition-of-done.md`](development/standards/definition-of-done.md) |
 
@@ -60,7 +60,7 @@ good the code is:
   filter, enforced in the query layer and never only in the UI.
 - **Per-scanner is sacred.** Never dedupe or merge a CVE across scanners. Disagreement gets flagged,
   not resolved.
-- **No hardcoded tunables.** A new knob is documented in
+- **No hardcoded tunables.** A new setting is documented in
   [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) in the same PR. Hardcoding one fails review.
 - **Use the shared loggers.** Backend uses `structlog.get_logger()`; frontend uses `@/lib/logger`
   (`console.*` is lint-banned). See *Logging* below for the shape.
@@ -126,7 +126,7 @@ log.info(f"scanned {ref} and found {n}")                           # not
 > aborts the commit with HEAD unmoved. A commit is not committed until `git log --oneline -1` shows
 > it. Running `uv run ruff format <file>` before staging avoids this entirely.
 
-> **If you use Claude Code, two commands are blocked** by `.claude/hooks/guard_bash.py`, wired as a
+> **If you use Claude Code, two commands are blocked** by `.claude/hooks/guard_bash.py`, set up as a
 > PreToolUse hook in the tracked `.claude/settings.json`. `git add -A|.` has swept gitignored files
 > into commits here, and `pkill|pgrep -f` matches the agent's own wrapper process, killing its shell
 > or hanging a wait loop. Stage explicit paths; find the PID with `ss -ltnp`. The guard tokenizes the
@@ -179,7 +179,7 @@ cd ../frontend && npm run gen:api
 - CI must be green before merge.
 - Changes carry their artifacts **in the same PR**: a new mutating route updates the RBAC/IDOR
   registry, a route change updates `docs/API.md` plus the regenerated client, a mapping change bumps
-  `MAPPING_VERSION` and updates INDEX-MAP, and a new knob documents itself in CONFIGURATION.md.
+  `MAPPING_VERSION` and updates INDEX-MAP, and a new setting documents itself in CONFIGURATION.md.
 
 ## Licensing of contributions
 

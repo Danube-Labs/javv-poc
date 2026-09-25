@@ -13,7 +13,7 @@ something to copy.
 - **Product:** a lightweight, self-hosted security tool - it discovers what's running in a k8s cluster,
   scans it (Trivy/Grype), and gives security engineers Kibana-grade dashboards with a triage workflow.
 - **Name tone:** the self-deprecating "just another…" is intentional - approachable, no-hype,
-  engineer-first, pragmatic. The logo should feel honest and workmanlike, not enterprise-slick or
+  engineer-first, pragmatic. The logo should feel plain and workmanlike, not enterprise-slick or
   hacker-edgy.
 - **Vendor:** Danube Labs - named for the Danube river; a subtle nod to steady flow / Central-European
   engineering heritage is welcome but must stay subtle.

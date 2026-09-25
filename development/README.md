@@ -69,7 +69,7 @@ k3d cluster delete alpha
 > [`RUNNING-THE-STACK.md`](RUNNING-THE-STACK.md) §B6. Don't run extras by default; one keeps the VM light.
 
 Give the VM ≥2 vCPU / ≥4 GB / ~30 GB disk (image layers + scanner DBs). k3d clusters share the host
-kernel - fine for functional wiring, **not** for benchmarking scan throughput.
+kernel - fine for functional testing, **not** for benchmarking scan throughput.
 
 ### Scanning the cluster (Trivy / Grype)
 
@@ -114,7 +114,7 @@ syft python:3.4-slim -o json | grype --output json            # SBOM → grype (
 
 Keep the two scanners **separate**: never merge a CVE across Trivy and Grype (per-scanner is sacred).
 The two Dockerfiles + the scanner package land in **M0**; image build/publish + the compatibility gate in
-**M0b** (`python -m scanner.compat`); their Helm/CronJob wiring in **M10**.
+**M0b** (`python -m scanner.compat`); their Helm/CronJob setup in **M10**.
 
 ---
 

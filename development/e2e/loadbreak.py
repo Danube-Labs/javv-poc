@@ -3,7 +3,7 @@
 A synthetic-envelope rig (no k3d, no real scanners — that's `smoke.sh`'s job) that drives the LIVE
 backend + OpenSearch hard, captures every read surface, and then actively tries to break the app.
 Complements the two benches (which measure ONE axis each) and the smoke (which proves pipeline
-CORRECTNESS on real scanners). This one proves the app stays UP, honest, and leak-free when abused.
+CORRECTNESS on real scanners). This one proves the app stays UP, accurate, and leak-free when abused.
 
 Phases (`--phase load|capture|break|lifecycle|invariants|all`, default `all`):
   LOAD       flood /api/v1/ingest/scan with mixed v3+v4 envelopes across a synthetic fleet. 429/503

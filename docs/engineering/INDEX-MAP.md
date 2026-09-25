@@ -16,7 +16,7 @@
 | `javv-scan-events-<cluster_id>-*` | append (trends + **commit catalog**) | cluster (scanner = field, D38) | **yes** | per-cluster drop-whole-index |
 | `javv-images-<cluster_id>-*` | append (inventory snapshots, per `inventory_run_id`) | cluster | **yes** | per-cluster drop-whole-index |
 | `javv-inventory-runs-<cluster_id>-*` | append (**inventory commit manifest**, 1/run) | cluster | **yes** | per-cluster drop-whole-index |
-| `system-audit-log-*` | append (human-state timeline + trail) | time | **yes** (fleet knobs; rollover-ONLY in the sweep - task F m-6, #143) | **keep long** - the sweep NEVER retention-drops it (no expiry in MVP) |
+| `system-audit-log-*` | append (human-state timeline + trail) | time | **yes** (fleet settings; rollover-ONLY in the sweep - task F m-6, #143) | **keep long** - the sweep NEVER retention-drops it (no expiry in MVP) |
 | `javv-metrics-*` *(v1.1)* | append (downsample rollup) | cluster | **yes** | keep long (tiny) |
 | `findings` | mutable current-state ("now" cache) | none (field `cluster_id`) | **no** | `stale`/`present` are **flags**; `delete_by_query` only after a **long** window (D37/M12) |
 | `javv-scan-watermarks` | mutable (per-digest commit pointer) | none (field `cluster_id`) | **no** | bounded by live fleet; prune with `findings` |
@@ -352,7 +352,7 @@ revoked           boolean       revoke-on-role-change / logout-all
 
 ### `system-config` · `system-tags` · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks` · `system-jobs`
 ```
-# system-config        : SLA policy, rollover/retention/staleness knobs, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c)
+# system-config        : SLA policy, rollover/retention/staleness settings, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c)
 # system-tags          : { tag, kind: team|app|org, ... }
 # system-views         : { view_id, name, description, preset, workbench, owner, created_at,
 #                          updated_at, schema_version }
@@ -386,7 +386,7 @@ revoked           boolean       revoke-on-role-change / logout-all
 #                          heartbeat outlives JAVV_REPORT_LEASE_TTL_SECONDS reads as stale/reclaimable.
 # -- M7 STORAGE DECISION (2026-07-07, #32): result blobs live IN OpenSearch (chunked), NOT an object
 #    store. Fits the single-store / broker-free hard constraint; download via a backend endpoint
-#    (`GET /api/v1/reports/{id}/download`) gated by the tenant chokepoint + `expires_at` (410 once
+#    (`GET /api/v1/reports/{id}/download`) gated by the tenant read path + `expires_at` (410 once
 #    expired) + a short-lived signed download token -- this SUPERSEDES SEC-10's S3/MinIO + presigned-URL
 #    model for M7 (the token satisfies SEC-10's per-tenant + time-limited intent without object-store
 #    creds). Retention = a `delete_by_query expires_at < now` sweep on these SMALL bounded ops indices

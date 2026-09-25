@@ -14,7 +14,7 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 - Imperative, present tense, lower-case subject. Body explains *why* when non-obvious.
 - Reference the bolt where useful: `feat(M1): hardened POST /ingest/scan`.
 - Footer on AI-assisted commits: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
-- **Never** `--no-verify` / skip hooks. If a hook fails, fix the cause. Hooks are wired by
+- **Never** `--no-verify` / skip hooks. If a hook fails, fix the cause. Hooks are installed by
   [`.pre-commit-config.yaml`](../../.pre-commit-config.yaml) (ruff + the conventional-commit check, same
   6 types as CI commitlint); `setup-dev.sh` installs them.
 - **Pre-commit trap — the first commit of a new/reformatted file can silently NOT land:** when the
@@ -60,7 +60,7 @@ A PR is ready for review only when its description carries:
    where routes changed, and a one-line stranger's-walk note (walked the screens as a user, with data
    verified against the corpus — not hand-crafted docs).
 4. **Contract artifacts in the same diff.** Route/param change → API.md + regenerated
-   `frontend/openapi.json` + client; new knob → CONFIGURATION.md; mapping → INDEX-MAP +
+   `frontend/openapi.json` + client; new setting → CONFIGURATION.md; mapping → INDEX-MAP +
    `MAPPING_VERSION`; new mutating route → the RBAC/IDOR registry. Listing them beats the reviewer
    discovering them missing.
 5. **Known gaps stated.** What was deliberately not done, and why. A gap the implementer names costs
@@ -79,7 +79,7 @@ of checked against it is this repo's most repeated defect (see PR #480's history
 Each bolt has a GitHub issue (label `bolt`) on the
 [project board](https://github.com/orgs/Danube-Labs/projects/1) — that's the **live status**; the bolt
 README is the spec. While working a bolt, comment its issue at these checkpoints:
-- **Kickoff** — "starting M<n>" (and move the card to In Progress). First **verify dev tooling is wired**:
+- **Kickoff** — "starting M<n>" (and move the card to In Progress). First **verify dev tooling is connected**:
   the bolt's relevant MCPs (`claude mcp list` → serena / opensearch / context7 per
   [`docs/research/TOOLING-AND-MCP.md`](../../docs/research/TOOLING-AND-MCP.md)) and the static floor
   (ruff/pyright). If any are missing, wire them at kickoff (they load on the next session) — don't skip and
@@ -88,7 +88,7 @@ README is the spec. While working a bolt, comment its issue at these checkpoints
 - **Scope / decision change** — and mirror anything spec-level into the bolt README's `## Updates` log; the
   issue comment can just link it (don't double-maintain — issue = running commentary, README = durable spec).
 - **Done** — a short wrap-up; the PR's `Closes #<n>` then closes the issue + moves the card to Done.
-  Note which **MCPs/skills you actually used** (one line — self-attestation; keeps the tooling honest,
+  Note which **MCPs/skills you actually used** (one line — self-attestation; keeps the tooling record accurate,
   since tool-use can't be CI-enforced).
 
 Mechanical activity (commits/PRs that mention `#<n>`) shows up in the issue timeline automatically — no comment

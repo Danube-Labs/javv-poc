@@ -14,7 +14,7 @@ Two kinds of guard live here:
   the loser is a `commit`, pre-commit surfaces it as a stack trace and the commit silently
   does not land — which is exactly how it bit twice on 2026-07-28.
 
-  Honest limit: this narrows the window, it does not close it. If both hooks run before
+  Known limit: this narrows the window, it does not close it. If both hooks run before
   either command has taken the lock, both are allowed and the race still happens. It fixes
   the common case (one command already holds the lock) and turns the rest into a named
   diagnosis instead of a pre-commit traceback. The real rule is still "don't issue git
