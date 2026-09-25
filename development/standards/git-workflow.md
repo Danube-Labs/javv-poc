@@ -96,15 +96,15 @@ Mechanical activity (commits/PRs that mention `#<n>`) shows up in the issue time
 needed for that. Agent included: when Claude works a bolt, it follows these same checkpoints.
 
 ## Housekeeping (non-bolt chores)
-Maintenance work — CI/tooling bumps, dependency hygiene, version pins, doc/branch cleanup — is tracked on the
-ongoing **housekeeping issue [#66](https://github.com/Danube-Labs/javv-poc/issues/66)**, not the bolt board.
-For every such PR:
-- Add the **`housekeeping`** label (for filtering: `is:pr label:housekeeping`).
-- Put **`Refs #66`** in the body — a *non-closing* reference, so the PR lands in #66's timeline.
-- **Never** use a closing keyword (`Closes/Fixes/Resolves #66`) — that would close the ongoing tracker.
+Maintenance work — CI/tooling bumps, dependency hygiene, version pins, doc/branch cleanup — stays off the
+bolt board. There is no shared tracker issue (the old one, #66, was closed 2026-07-07). For every such PR:
+- Add the **`housekeeping`** label; `is:pr label:housekeeping` lists them all.
+- Put **`Refs #<n>`** in the body for the issue the work came from, so the PR shows up in that issue's
+  timeline. Use `Closes #<n>` only when the PR finishes that issue. If no issue exists, say where the
+  work came from in the body instead.
 
-Renovate PRs do this automatically (`labels: [dependencies, housekeeping]` + `prBodyNotes` → `#66` in
-renovate.json). Hand-authored chore PRs follow the convention; the agent included.
+Renovate PRs get the label automatically (`labels: [dependencies, housekeeping]` in renovate.json).
+Hand-authored chore PRs follow the convention; the agent included.
 
 ## main
 - Protected. No direct pushes; PR + green CI + review to merge.
