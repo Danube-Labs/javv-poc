@@ -2,7 +2,7 @@
 /**
  * SLA-hit percentage pill (M9d slice 3; prototype `.sla-pct`, tiers pinned in viewModel).
  * Wears the state-tone families (good=resolved, ok=ack, low=open) — a quiet tonal badge,
- * never an alarm chip; null (no SLA-bearing sample) renders the honest dash.
+ * never an alarm chip; null (no SLA-bearing sample) renders an explicit dash.
  */
 import { computed } from 'vue'
 

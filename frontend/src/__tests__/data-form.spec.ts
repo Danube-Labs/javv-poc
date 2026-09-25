@@ -1,20 +1,20 @@
 /** M9e slice 4 — the Data & OpenSearch pure form module (parsing, dirty groups, row-23 family
- * registry) + the live staleness threshold plumbing the banner rewire introduced. */
+ * registry) + the live staleness threshold plumbing the banner rework introduced. */
 import { describe, expect, it } from 'vitest'
 
 import {
   changedGroups,
   draftDirty,
-  draftFromKnobs,
+  draftFromSettings,
   draftInvalid,
   FAMILY_ROWS,
   parseCount,
   parseDraft,
-  type DataKnobs,
+  type DataSettings,
 } from '@/views/settings/dataForm'
 import { D20_FRESHNESS_DEFAULT_S, freshnessStatus, silentRows } from '@/system/freshness'
 
-const SAVED: DataKnobs = {
+const SAVED: DataSettings = {
   retention_days: 90,
   max_age_days: 30,
   max_docs: 5_000_000,
@@ -35,15 +35,15 @@ describe('dataForm parsing', () => {
     expect(parseCount('abc')).toBeNull()
   })
 
-  it('round-trips knobs → draft → parsed unchanged', () => {
-    const draft = draftFromKnobs(SAVED)
+  it('round-trips settings → draft → parsed unchanged', () => {
+    const draft = draftFromSettings(SAVED)
     expect(parseDraft(draft)).toEqual(SAVED)
     expect(draftInvalid(draft)).toBe(false)
     expect(draftDirty(SAVED, draft)).toBe(false)
   })
 
   it('flags the one invalid field without failing the rest', () => {
-    const draft = { ...draftFromKnobs(SAVED), maxDocs: 'many' }
+    const draft = { ...draftFromSettings(SAVED), maxDocs: 'many' }
     const parsed = parseDraft(draft)
     expect(parsed.max_docs).toBeNull()
     expect(parsed.retention_days).toBe(90)
@@ -51,14 +51,14 @@ describe('dataForm parsing', () => {
   })
 
   it('a re-typed identical value is NOT dirty (semantic compare)', () => {
-    const draft = { ...draftFromKnobs(SAVED), retention: '90.0' }
+    const draft = { ...draftFromSettings(SAVED), retention: '90.0' }
     expect(draftDirty(SAVED, draft)).toBe(false)
   })
 })
 
 describe('changedGroups (save PUTs only what changed)', () => {
   it('clean draft → no groups', () => {
-    expect(changedGroups(SAVED, draftFromKnobs(SAVED))).toEqual({
+    expect(changedGroups(SAVED, draftFromSettings(SAVED))).toEqual({
       retention: false,
       rollover: false,
       cleanup: false,
@@ -67,7 +67,7 @@ describe('changedGroups (save PUTs only what changed)', () => {
   })
 
   it('one rollover field marks only the rollover group', () => {
-    const draft = { ...draftFromKnobs(SAVED), maxDocs: '1000' }
+    const draft = { ...draftFromSettings(SAVED), maxDocs: '1000' }
     expect(changedGroups(SAVED, draft)).toEqual({
       retention: false,
       rollover: true,
@@ -77,7 +77,7 @@ describe('changedGroups (save PUTs only what changed)', () => {
   })
 
   it('retention + ttl edits mark exactly those groups', () => {
-    const draft = { ...draftFromKnobs(SAVED), retention: '45', ttl: '48' }
+    const draft = { ...draftFromSettings(SAVED), retention: '45', ttl: '48' }
     expect(changedGroups(SAVED, draft)).toEqual({
       retention: true,
       rollover: false,
@@ -110,7 +110,7 @@ describe('the row-23 family registry', () => {
   })
 })
 
-describe('live staleness threshold (banner rewire)', () => {
+describe('live staleness threshold (banner rework)', () => {
   const rows = [
     { scanner: 'trivy', last_ingest_at: '2026-07-15T00:00:00Z', silent_for_seconds: 2 * 86_400 },
     { scanner: 'grype', last_ingest_at: '2026-07-10T00:00:00Z', silent_for_seconds: 6 * 86_400 },

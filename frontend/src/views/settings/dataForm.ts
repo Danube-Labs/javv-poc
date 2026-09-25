@@ -1,12 +1,12 @@
 /**
  * Pure form logic for the Data & OpenSearch panel (FR-19/D26 + rows 10/11/23) — parsing,
  * dirty/invalid derivation and the row-23 index-family registry, unit-tested; the view stays
- * a thin binding. All four knob groups share one SaveBar: save PUTs only the changed groups.
+ * a thin binding. All four setting groups share one SaveBar: save PUTs only the changed groups.
  */
 import { parseWindow } from './slaForm'
 
-/** Every knob the panel edits, as saved on the server (the GET /settings/data flattening). */
-export interface DataKnobs {
+/** Every setting the panel edits, as saved on the server (the GET /settings/data flattening). */
+export interface DataSettings {
   retention_days: number
   max_age_days: number
   max_docs: number
@@ -33,7 +33,7 @@ export function parseCount(raw: string): number | null {
   return Number.isSafeInteger(n) && n > 0 ? n : null
 }
 
-export function draftFromKnobs(k: DataKnobs): DataDraft {
+export function draftFromSettings(k: DataSettings): DataDraft {
   return {
     retention: String(k.retention_days),
     maxAge: String(k.max_age_days),
@@ -45,7 +45,7 @@ export function draftFromKnobs(k: DataKnobs): DataDraft {
 }
 
 /** Per-field parse results — null marks the invalid input (drives the field's invalid state). */
-export function parseDraft(d: DataDraft): { [K in keyof DataKnobs]: number | null } {
+export function parseDraft(d: DataDraft): { [K in keyof DataSettings]: number | null } {
   return {
     retention_days: parseWindow(d.retention),
     max_age_days: parseWindow(d.maxAge),
@@ -61,20 +61,20 @@ export function draftInvalid(d: DataDraft): boolean {
 }
 
 /** Semantic dirty: a re-typed identical value ("30" → "30.0") is NOT a change. */
-export function draftDirty(saved: DataKnobs, d: DataDraft): boolean {
+export function draftDirty(saved: DataSettings, d: DataDraft): boolean {
   const parsed = parseDraft(d)
-  return (Object.keys(parsed) as (keyof DataKnobs)[]).some(
+  return (Object.keys(parsed) as (keyof DataSettings)[]).some(
     (k) => parsed[k] !== null && parsed[k] !== saved[k],
   )
 }
 
 /** Which PUTs a save must issue (retention / rollover / cleanup / ttl), given what changed. */
 export function changedGroups(
-  saved: DataKnobs,
+  saved: DataSettings,
   d: DataDraft,
 ): { retention: boolean; rollover: boolean; cleanup: boolean; ttl: boolean } {
   const p = parseDraft(d)
-  const differs = (k: keyof DataKnobs) => p[k] !== null && p[k] !== saved[k]
+  const differs = (k: keyof DataSettings) => p[k] !== null && p[k] !== saved[k]
   return {
     retention: differs('retention_days'),
     rollover: differs('max_age_days') || differs('max_docs') || differs('max_size_gb'),

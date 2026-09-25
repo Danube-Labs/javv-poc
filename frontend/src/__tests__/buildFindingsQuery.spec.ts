@@ -19,7 +19,7 @@ describe('buildFindingsQuery', () => {
     })
   })
 
-  it('throws without a cluster_id (tenant chokepoint, inherited)', () => {
+  it('throws without a cluster_id (tenant read path, inherited)', () => {
     expect(() => buildFindingsQuery(FINDINGS_FIELDS, sel(), { cluster_id: '' }, GRID)).toThrow(
       /cluster_id/,
     )

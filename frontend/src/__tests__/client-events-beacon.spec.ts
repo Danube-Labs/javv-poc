@@ -3,7 +3,7 @@
  *
  * Every assertion here is about a property that only holds if the mechanism is present, so each
  * test fails if its guard is deleted: batching, the fixed window, the queue cap that keeps an
- * error storm from bursting requests, the loop guard, and the knob.
+ * error storm from bursting requests, the loop guard, and the setting.
  *
  * The transport keeps module-level state (queue + timer), so every test re-imports the module
  * through `vi.resetModules()` rather than sharing one instance.
@@ -273,7 +273,7 @@ describe('client-events beacon', () => {
     expect(errorEmissions).toBe(before)
   })
 
-  it('is off by default in dev, and the knob turns it off explicitly', async () => {
+  it('is off by default in dev, and the setting turns it off explicitly', async () => {
     vi.unstubAllEnvs() // VITE_CLIENT_EVENTS unset; vitest runs with DEV true
     const { sendBeacon, fetchSpy } = stubTransport()
     let logger = await loadLogger()

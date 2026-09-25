@@ -11,7 +11,7 @@ describe('buildFilterQuery', () => {
     expect(buildFilterQuery(FINDINGS_FIELDS, sel(), { cluster_id: CID })).toEqual({ cluster_id: CID })
   })
 
-  it('throws when cluster_id is missing (tenant chokepoint)', () => {
+  it('throws when cluster_id is missing (tenant read path)', () => {
     expect(() => buildFilterQuery(FINDINGS_FIELDS, sel(), { cluster_id: '' })).toThrow(/cluster_id/)
   })
 

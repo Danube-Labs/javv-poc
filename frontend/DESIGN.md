@@ -6,7 +6,7 @@ Read this before writing or modifying any frontend code. It condenses the bindin
 disagreement, tokens.css + ui-foundations win.
 
 Enforced, not advisory: **stylelint** fails raw hex/`rgb()`/non-token fonts/ad-hoc font-sizes in
-components; the **style ratchet** (`src/__tests__/style-ratchet.spec.ts`) fails a color literal
+components; the **style rules test** (`src/__tests__/style-rules.spec.ts`) fails a color literal
 anywhere else (inline styles, script, chart options) outside `styles/tokens.*` + `theme/preset.ts`,
 and fails any rule pairing `--X-fg` text with its own `--X-bg` tint (the "green on green" ruling —
 chips are the listed exception).
@@ -66,7 +66,7 @@ hover/pressed/focus states; reviews reject "border-shift-only" or feedback-less 
 - **Arrow cursor everywhere** — never `cursor: pointer` (desktop-app convention: Linear/Notion;
   the hand is a web-document tell). **Sharpened 2026-07-11: no I-beam either** — `base.css`
   rules `* { cursor: default }` app-wide (text and inputs included; text stays selectable),
-  ECharts series carry `cursor: 'default'`, and the style ratchet fails any `cursor: pointer`
+  ECharts series carry `cursor: 'default'`, and the style rules test fails any `cursor: pointer`
   in src. `not-allowed` on disabled stays (it's feedback — component rules outrank the
   zero-specificity universal).
 - **Click affordance = row wash + link-styled TARGET cell**: the row hover wash says "this row
@@ -210,7 +210,7 @@ rows/cells; text stays selectable). Affordance comes from the chevron + wash + l
 never the cursor (Linear-style desktop-app convention). **One ruled exception (operator
 2026-07-11, task 92): DRAG surfaces show `grab`/`grabbing`** — reorderable table headers and
 menu grip rows. Drag is a different verb than click; the arrow there hid a real affordance.
-`pointer` stays banned (ratchet-enforced).
+`pointer` stays banned (enforced by the style rules test).
 
 ### Motion (#319) — the one scale, applied through the kit
 
@@ -218,7 +218,7 @@ Durations/curves come from the motion tokens (`--ease-out`, `--dur-quick` 120ms,
 `--dur-panel` 200ms) — never ad-hoc values. Open/close motion is BAKED INTO the kit:
 `UiDropdown` animates every menu (`t-pop`: fade + 4px rise, both ways; its `closed` event
 fires after the leave for teardown that must not show mid-fade), `ModalShell` animates every
-dialog entrance (`t-modal`: scrim fade + card rise; close is instant — unmount resets consumer
+dialog entrance (`t-modal`: backdrop fade + card rise; close is instant — unmount resets consumer
 form state). Anything non-kit that appears/disappears in-flow (banners) wraps in
 `<Transition name="t-fade">` — crossfade only, NEVER animate height/layout. All `t-*` classes
 live in `base.css` and collapse under `prefers-reduced-motion`. Animate `transform`/`opacity`
@@ -235,8 +235,8 @@ the raw markup/CSS they encapsulate is a review failure — extend the component
 | `UiSegControl` | padded seg bar, per-option radius (ring never clipped), `aria-pressed`; tones `accent` (coral selection) / `neutral` (card-lift) | any pick-one bar |
 | `UiField` | mono uppercase micro-label + parenthesized `hint`, 14px band / 6px label gap (`first` zeroes the top) | any labeled control |
 | `UiDropdown` | open state + outside-mousedown + document Escape + relative anchor; `trigger`/default slots (menu markup stays yours) | any popover menu |
-| `ModalShell` | scrim + card + head/✕/actions, Escape + outside-click dismiss | every dialog |
-| `UiSkeleton` | the one loading pulse (`.skel` + `skel-shimmer` in base.css) and its reduced-motion off-switch; `height` is a prop because a skeleton mirrors the panel it stands in for, `label` only when it is its own loading region | every loading placeholder. A style-ratchet test fails any view that grows its own shimmer |
+| `ModalShell` | backdrop + card + head/✕/actions, Escape + outside-click dismiss | every dialog |
+| `UiSkeleton` | the one loading pulse (`.skel` + `skel-shimmer` in base.css) and its reduced-motion off-switch; `height` is a prop because a skeleton mirrors the panel it stands in for, `label` only when it is its own loading region | every loading placeholder. The style rules test fails any view that grows its own shimmer |
 | `AppIcon` | the stroke icon set | every icon |
 | `ToastStack` + `useToastStore` | the confirmation channel: `success/error/info` from ANY component/store, auto-dismiss, capped stack, t-toast motion, ink text + hue on the icon | every action outcome the user would otherwise hunt for; inline contextual errors stay inline |
 
@@ -313,7 +313,7 @@ Focus:          outline: var(--focus-ring); outline-offset: 1px
 
 ## 8. Fidelity protocol — how we stop drifting from the prototype
 
-The gates (stylelint/ratchet) pin token *values*; they cannot see layout, icons, spacing rhythm, or
+The gates (stylelint and the style rules test) pin token *values*; they cannot see layout, icons, spacing rhythm, or
 copy. Structural fidelity is a process rule:
 
 1. **Build with the prototype open.** The reference is
@@ -330,7 +330,7 @@ copy. Structural fidelity is a process rule:
 2. **Name the source in the PR.** A screen PR states which prototype component/classes it ports
    (e.g. "Sidebar → main.jsx `Sidebar` + `.side-*` CSS") so review can diff against it.
 3. **Screenshots in every screen PR.** `/visual-test` captures the implementation; put them in the
-   PR next to the prototype's rendering of the same section. (Needs the Playwright MCP wired —
+   PR next to the prototype's rendering of the same section. (Needs the Playwright MCP connected —
    until then the operator eyeballs the dev server against the prototype tab.)
 4. **Deviations are rulings, not taste.** Departing from the prototype requires a recorded reason
    (a SCREENS ruling, a shipped-backend constraint) noted in the PR — same discipline as the
@@ -363,7 +363,7 @@ reflex defaults (operator ruling 2026-07-09):
 | `tiny-text 10–11.5px` on mono micro-scale | Ops-tool density (table headers, counts, chips) per the v4 scale. Body text stays ≥13px. |
 | `low-contrast` white-on-coral (login/action buttons) | Prototype button treatment; 13px/600 button label, not body text. |
 | `cramped-padding` on `tbl-wrap` | Full-bleed table inside the card is the prototype's design. |
-| `layout-transition: width` on `.sidebar` | The collapse rail (226↔64px) — the one deliberate layout animation: user-initiated, rare, and the standard sidebar pattern (Nuxt UI reference does the same). Nothing else animates layout — the `t-*` classes are transform/opacity only. **Enforced, not just stated:** `style-ratchet.spec.ts` fails any other width/height/padding/margin transition in `src/` (issue 484 — the triage meter had been breaking this sentence unnoticed). |
+| `layout-transition: width` on `.sidebar` | The collapse rail (226↔64px) — the one deliberate layout animation: user-initiated, rare, and the standard sidebar pattern (Nuxt UI reference does the same). Nothing else animates layout — the `t-*` classes are transform/opacity only. **Enforced, not just stated:** `style-rules.spec.ts` fails any other width/height/padding/margin transition in `src/` (issue 484 — the triage meter had been breaking this sentence unnoticed). |
 | `ai-color-palette` purple/violet | The `--scanner-grype-*` identity tokens (chip language A) — Grype's brand tone, deliberately distinct from Trivy's teal. Fires on every dump because tokens.css ships globally; not an accent choice. |
 
 Everything else it flags (real contrast failures, hierarchy problems) gets fixed or gets its
@@ -391,7 +391,7 @@ filter module — those are §5's territory and stay props-driven.
   count them.
 - Carries its own loading, empty and error states, because on a composed page nobody else will.
 
-**The honest trade.** Host-fed panels are not a mistake, and the existing ones are correct as built.
+**The real trade-off.** Host-fed panels are not a mistake, and the existing ones are correct as built.
 Feeding several panels from one response is why per-scanner numbers on a screen cannot disagree with
 each other: one response, no second fetch (`ContributorsLens` says exactly this in its header). A
 self-contained lens gives that up — two lenses on one page can be a few hundred milliseconds apart.
@@ -407,7 +407,7 @@ section governs what you *add*.
 Until #440 lands there is no registry to register with — a new lens just conforms to the contract
 and lives where it is used. That is the whole ask: stop growing the pile that bolt has to move.
 
-## 11. Keeping this file honest
+## 11. Keeping this file accurate
 
 This file mirrors `tokens.css` — when a token is added/renamed, update both in the same PR (the
 tokens unit test pins `CHART_SEV` to the CSS; the M9a DoD spot-check is "every token family in the

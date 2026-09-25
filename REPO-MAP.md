@@ -127,7 +127,7 @@ gates ESLint/oxlint + stylelint + vue-tsc (`npm run lint` / `npm run test`, the 
 design contract over `src/styles/tokens.css` (the binding token source, ui-foundations.md).
 `src/components/ui/` is the mandatory UI kit (buttons/segs/fields/dropdowns/modals/toasts +
 motion - DESIGN.md §5; re-rolling any of it is a review failure). Other shared families:
-`components/chips/` (every same-hue status/severity pair lives here - style-ratchet-enforced),
+`components/chips/` (every same-hue status/severity pair lives here - enforced by the style rules test),
 `components/filters/` (FacetRail/FilterBar over `filters/fields.config.ts`),
 `components/time-travel/` (the global range picker, D28), `charts/` (pure ECharts option
 builders), and the per-screen dirs (`findings/`, `audit/`, `contributors/`, `scanners/`, …).

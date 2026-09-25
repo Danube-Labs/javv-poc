@@ -3,7 +3,7 @@
  * Repair actions (issue 406 — the mockup's third card, backed by /api/v1/admin/jobs):
  * "something looks broken" never means raw writes — the three sanctioned, journaled jobs are
  * the fix. Rows: icon tile · name + capability sub · description · status (state chip, the
- * in-flight bar, last-result counts, stale-lease honesty) · the run button. Lifecycle DROPS
+ * in-flight bar, last-result counts, stale-lease status) · the run button. Lifecycle DROPS
  * whole indices, so its button confirms through ModalShell first — and carries the mockup's
  * Dry run (issue 459): an inline would-roll/would-drop answer that changes nothing, so the
  * operator can see what the sweep WOULD delete before confirming the real one. Polls while
@@ -292,7 +292,7 @@ function canRun(job: JobDoc): boolean {
 }
 /* the in-flight indicator — the same infinite-bar grammar as the console's runbar; result
    counts land the moment the run finishes (no per-row percentage: the jobs report counts,
-   not progress — honest over decorative) */
+   not progress — accurate over decorative) */
 .job-runbar {
   height: 4px;
   border-radius: 2px;

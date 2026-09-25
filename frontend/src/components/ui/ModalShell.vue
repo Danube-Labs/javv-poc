@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * THE modal skeleton: scrim + card + head/body/actions slots, carrying the ruled
+ * THE modal skeleton: backdrop + card + head/body/actions slots, carrying the ruled
  * dismiss contract (DESIGN.md §2) once — Escape, outside-click, visible ✕ — so dialogs can't
  * drift apart again. Consumers own only their body content and action buttons.
  */
@@ -20,7 +20,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   <!-- appear: consumers v-if the whole dialog, so the t-modal entrance plays on mount;
        close stays instant — unmount is what resets consumer form state. -->
   <Transition name="t-modal" appear>
-  <div class="modal-scrim" @click.self="emit('close')">
+  <div class="modal-backdrop" @click.self="emit('close')">
     <div class="modal" role="dialog" aria-modal="true" :aria-label="title" :style="{ width: `min(${width ?? 520}px, 100%)` }">
       <div class="modal-head">
         <div>
@@ -37,10 +37,10 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 </template>
 
 <style scoped>
-.modal-scrim {
+.modal-backdrop {
   position: fixed;
   inset: 0;
-  background: var(--scrim);
+  background: var(--backdrop);
   display: grid;
   place-items: center;
   z-index: 80;

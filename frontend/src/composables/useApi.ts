@@ -1,6 +1,6 @@
 /**
  * The global-params injector: every data read carries the selected `cluster_id` (tenant
- * chokepoint) and the time-travel `as_of` (omitted at T=now). Views build their own params and
+ * read path) and the time-travel `as_of` (omitted at T=now). Views build their own params and
  * spread `withGlobals()` in — so the D28 rewind and the tenant filter can never be forgotten
  * on a call site.
  */

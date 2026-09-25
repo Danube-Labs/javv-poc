@@ -64,7 +64,7 @@ const sev = computed<Severity>(() =>
 .sev[data-sev='unknown'] { background: var(--sev-unknown-bg); color: var(--sev-unknown-fg); box-shadow: inset 0 0 0 1px var(--sev-unknown-line); }
 .sev[data-sev='unknown'] .sev-dot { background: var(--sev-unknown-solid); }
 
-/* `solid` stays a valid emphasis knob (finding-detail header) — for critical it's already
+/* `solid` stays a valid emphasis option (finding-detail header) — for critical it's already
    the resting look; other levels keep their tinted chip per the AA ruling. */
 .sev.sev-solid[data-sev='critical'] { padding: 3px 9px; }
 </style>
