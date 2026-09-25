@@ -169,7 +169,7 @@ async def test_login_logout_and_pwd_change_each_append_one_audit_row(admin_clien
     assert len(await _audit_rows(client, action="logout", entity_id=username)) == 1
 
 
-# --- task E (#142): expiry knob, shared cluster_id shape, list pagination -----------------
+# --- task E (#142): expiry setting, shared cluster_id shape, list pagination -----------------
 
 
 async def test_mint_with_expiry_stores_it_and_rotate_inherits_it(admin_client) -> None:

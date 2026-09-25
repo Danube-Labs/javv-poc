@@ -5,7 +5,7 @@ One *document* in the existing `system-config` (`_id = "cluster-registry"`), not
 index name, never a filter (hard constraint; `cluster_id` is the immutable tenant key). The
 listing is cross-cluster BY DESIGN (MVP tenant model D38/H9: all clusters visible to any
 authenticated user): known clusters = the distinct `cluster_id`s that ever minted a token (the
-onboarding chokepoint — a cluster cannot push without one) ∪ registry entries; unnamed clusters
+onboarding requirement — a cluster cannot push without one) ∪ registry entries; unnamed clusters
 default `cluster_name = cluster_id`.
 
 Rename = `can_manage_settings` (admin), journal-FIRST per D17/#188 (the audit row lands before

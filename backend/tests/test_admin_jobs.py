@@ -129,7 +129,7 @@ async def test_stale_lease_is_reclaimable(env):
     await client.index(
         index=JOBS, id="staleness_sweep", body=_running_doc(old), params={"refresh": "true"}
     )
-    # the status read is honest about the silence before anyone reclaims
+    # the status read reports the silence before anyone reclaims
     s = await http.get("/api/v1/admin/jobs")
     doc = next(j for j in s.json()["jobs"] if j["kind"] == "staleness_sweep")
     assert doc["stale"] is True

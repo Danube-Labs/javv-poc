@@ -76,7 +76,7 @@ def test_snapshot_policy_body_shape() -> None:
     assert body["deletion"]["condition"] == {"max_age": "30d", "min_count": 14, "max_count": 50}
 
 
-def test_snapshot_policy_knobs_are_configurable() -> None:
+def test_snapshot_policy_settings_are_configurable() -> None:
     body = snapshot_policy_body(
         repository="r", indices="findings", creation_cron="*/30 * * * *", retention_min_count=3
     )

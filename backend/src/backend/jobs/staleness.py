@@ -16,7 +16,7 @@ one finding at a time); the inventory view shows a "scanner silent since T'" ban
 banner is a read-time concern (computed from `last_ingest_at`), not written here. When the scanner
 returns and re-reports a finding (merge refreshes `last_seen_at`), the next sweep **reverts** it to
 its `pre_stale_status`. Presence ⟂ state (D39): this only ever touches `state`/`pre_stale_status`,
-never `present`. Idempotent: `state != stale` guards the mark, so re-runs don't clobber
+never `present`. Idempotent: `state != stale` guards the mark, so re-runs don't overwrite
 `pre_stale_status`; `update_by_query` runs `conflicts=proceed` (a dropped conflict is picked up next
 day).
 """

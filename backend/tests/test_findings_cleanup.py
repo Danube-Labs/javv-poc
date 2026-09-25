@@ -1,5 +1,5 @@
 """Findings long-window cleanup (M9e slice 5, D37/M12): `present=false` rows whose `resolved_at`
-predates `now - cleanup_days` are reaped from the mutable `findings` cache — the ONE sanctioned
+predates `now - cleanup_days` are deleted from the mutable `findings` cache — the ONE sanctioned
 `delete_by_query` on `findings` — and watermarks whose digest has no remaining rows are pruned
 with them (D40 guard preserved for every digest that still has rows). History is NEVER touched
 (`stale`/`present` stay flags on the freshness path; the cache is rebuildable). Real OpenSearch."""
@@ -7,10 +7,10 @@ with them (D40 guard preserved for every digest that still has rows). History is
 from datetime import UTC, datetime, timedelta
 
 from backend.jobs.findings_cleanup import (
-    FindingsCleanupKnob,
-    read_findings_cleanup_knob,
+    FindingsCleanupSetting,
+    read_findings_cleanup_setting,
     run_findings_cleanup,
-    write_findings_cleanup_knob,
+    write_findings_cleanup_setting,
 )
 from os_env import requires_opensearch
 
@@ -72,16 +72,16 @@ async def _ids(client, index: str) -> set[str]:
     return {h["_id"] for h in resp["hits"]["hits"]}
 
 
-# --- the reap: long-absent rows go, everything else stays ---------------------------------
+# --- the deletion: long-absent rows go, everything else stays ---------------------------------
 
 
 @requires_opensearch
-async def test_only_long_absent_rows_are_reaped(real_os) -> None:
+async def test_only_long_absent_rows_are_deleted(real_os) -> None:
     """Deletion needs present=false AND a resolved_at past the window — a present row (however
     old or stale-flagged), a recently-resolved row, and an unstamped absent row all survive."""
     client, prefix = real_os
-    await write_findings_cleanup_knob(
-        client, FindingsCleanupKnob(cleanup_days=180), updated_by="t", prefix=prefix
+    await write_findings_cleanup_setting(
+        client, FindingsCleanupSetting(cleanup_days=180), updated_by="t", prefix=prefix
     )
     await _seed_finding(client, prefix, "gone-long", present=False, resolved_at=_days_ago(200))
     await _seed_finding(client, prefix, "gone-recent", present=False, resolved_at=_days_ago(10))
@@ -102,21 +102,21 @@ async def test_only_long_absent_rows_are_reaped(real_os) -> None:
 
 
 @requires_opensearch
-async def test_the_knob_window_is_live_config(real_os) -> None:
-    """A D26-style knob edit applies on the next run — no restart, no re-apply step."""
+async def test_the_setting_window_is_live_config(real_os) -> None:
+    """A D26-style setting edit applies on the next run — no restart, no re-apply step."""
     client, prefix = real_os
     await _seed_finding(client, prefix, "gone-30d", present=False, resolved_at=_days_ago(30))
 
     assert (await run_findings_cleanup(client, now=NOW, prefix=prefix))["findings_deleted"] == 0
 
-    await write_findings_cleanup_knob(
-        client, FindingsCleanupKnob(cleanup_days=7), updated_by="t", prefix=prefix
+    await write_findings_cleanup_setting(
+        client, FindingsCleanupSetting(cleanup_days=7), updated_by="t", prefix=prefix
     )
     assert (await run_findings_cleanup(client, now=NOW, prefix=prefix))["findings_deleted"] == 1
 
 
 @requires_opensearch
-async def test_a_rerun_on_a_clean_store_reaps_nothing(real_os) -> None:
+async def test_a_rerun_on_a_clean_store_deletes_nothing(real_os) -> None:
     client, prefix = real_os
     await _seed_finding(client, prefix, "gone-long", present=False, resolved_at=_days_ago(200))
     assert (await run_findings_cleanup(client, now=NOW, prefix=prefix))["findings_deleted"] == 1
@@ -132,7 +132,7 @@ async def test_a_rerun_on_a_clean_store_reaps_nothing(real_os) -> None:
 @requires_opensearch
 async def test_watermarks_prune_only_when_old_and_orphaned(real_os) -> None:
     client, prefix = real_os
-    # digest A: its only row is long-absent → row reaped → watermark orphaned + old → pruned
+    # digest A: its only row is long-absent → row deleted → watermark orphaned + old → pruned
     await _seed_finding(
         client, prefix, "a-gone", digest="sha256:aaa", present=False, resolved_at=_days_ago(200)
     )
@@ -156,21 +156,21 @@ async def test_watermarks_prune_only_when_old_and_orphaned(real_os) -> None:
 
 
 @requires_opensearch
-async def test_knob_read_resolves_override_then_fleet_then_default(real_os) -> None:
+async def test_setting_read_resolves_override_then_fleet_then_default(real_os) -> None:
     client, prefix = real_os
 
     async def effective(cluster_id: str) -> float:
-        knob = await read_findings_cleanup_knob(client, cluster_id=cluster_id, prefix=prefix)
-        return knob.cleanup_days
+        setting = await read_findings_cleanup_setting(client, cluster_id=cluster_id, prefix=prefix)
+        return setting.cleanup_days
 
     assert await effective("c-a") == 180
-    await write_findings_cleanup_knob(
-        client, FindingsCleanupKnob(cleanup_days=42), updated_by="t", prefix=prefix
+    await write_findings_cleanup_setting(
+        client, FindingsCleanupSetting(cleanup_days=42), updated_by="t", prefix=prefix
     )
     assert await effective("c-a") == 42
-    await write_findings_cleanup_knob(
+    await write_findings_cleanup_setting(
         client,
-        FindingsCleanupKnob(cleanup_days=7),
+        FindingsCleanupSetting(cleanup_days=7),
         updated_by="t",
         cluster_id="c-a",
         prefix=prefix,
@@ -182,12 +182,12 @@ async def test_knob_read_resolves_override_then_fleet_then_default(real_os) -> N
 
 @requires_opensearch
 async def test_the_sweep_applies_each_clusters_own_window(real_os) -> None:
-    """Fleet default 180d, cluster c-a overridden to 30d: a 60-day-gone row is reaped in c-a and
+    """Fleet default 180d, cluster c-a overridden to 30d: a 60-day-gone row is deleted in c-a and
     KEPT in c-b — the retention asymmetry the two-cluster walk flagged (issue 431)."""
     client, prefix = real_os
-    await write_findings_cleanup_knob(
+    await write_findings_cleanup_setting(
         client,
-        FindingsCleanupKnob(cleanup_days=30),
+        FindingsCleanupSetting(cleanup_days=30),
         updated_by="t",
         cluster_id="c-a",
         prefix=prefix,
@@ -207,9 +207,9 @@ async def test_the_sweep_applies_each_clusters_own_window(real_os) -> None:
 
 
 @requires_opensearch
-async def test_history_survives_a_reaping_run(real_os) -> None:
+async def test_history_survives_a_cleanup_run(real_os) -> None:
     """The cleanup deletes cache rows only — occurrences and scan-events docs for the very same
-    reaped finding stay, tombstone-free (the cache is rebuildable from them, D37)."""
+    deleted finding stay, tombstone-free (the cache is rebuildable from them, D37)."""
     client, prefix = real_os
     occurrences = f"{prefix}javv-finding-occurrences-{CLUSTER}-000001"
     events = f"{prefix}javv-scan-events-{CLUSTER}-000001"
@@ -234,9 +234,9 @@ async def test_history_survives_a_reaping_run(real_os) -> None:
     assert await _ids(client, events) == {"h1"}
 
 
-def test_the_cleanup_source_never_drops_indices_and_reaps_findings_only() -> None:
+def test_the_cleanup_source_never_drops_indices_and_deletes_findings_only() -> None:
     """DoD tripwire (the test_settings_data.py idiom): this module's ONE `delete_by_query` is the
-    sanctioned findings reap; watermarks go via per-doc seq-guarded deletes; whole indices are
+    sanctioned findings deletion; watermarks go via per-doc seq-guarded deletes; whole indices are
     never dropped here (that's the lifecycle sweep's job, and only for append families)."""
     import inspect
 

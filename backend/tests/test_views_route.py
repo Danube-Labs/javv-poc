@@ -216,7 +216,7 @@ async def test_concurrent_edit_is_a_409_never_a_silent_overwrite(env) -> None:
     view = await _create(http, f"cas-{uuid.uuid4().hex[:8]}")
     # someone else moves the doc between our (hypothetical) read and write — simulate by a
     # direct store touch, then PATCH normally: the route re-reads, so to force the CAS window
-    # we patch twice from two stale snapshots via raw seq_no writes instead. Simplest honest
+    # we patch twice from two stale snapshots via raw seq_no writes instead. Simplest reliable
     # probe: the route's own CAS is exercised by racing two PATCHes.
     import asyncio
 

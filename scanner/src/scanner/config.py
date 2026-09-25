@@ -1,9 +1,9 @@
-"""Scanner scan-config (Phase 1 of #91) — the Trivy/Grype scan *behaviour* knobs, read from
+"""Scanner scan-config (Phase 1 of #91) — the Trivy/Grype scan *behaviour* settings, read from
 `JAVV_TRIVY_*` / `JAVV_GRYPE_*` env vars. Every field defaults to the previously-hardcoded value, so
 an unset environment produces the exact same command as before (no behaviour change unless set).
 
 Every set value is validated against the pinned binary's accepted set at startup (#97) — a typo'd
-knob fails the cycle fast with the env-var name, instead of a per-image scanner error loop (or,
+setting fails the cycle fast with the env-var name, instead of a per-image scanner error loop (or,
 worse, silently feeding an unexpected argv token to the subprocess).
 
 Env-only + GitOps: these are set on the scanner CronJob manifest, not read from OpenSearch — the

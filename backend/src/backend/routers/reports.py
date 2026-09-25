@@ -94,7 +94,7 @@ async def enqueue_report(
             "target_ids": target_ids,  # FROZEN — the drain applies exactly this set
         }
 
-    # op_type=create: the id is fresh (uuid4), so this can't clobber; refresh so a status read /
+    # op_type=create: the id is fresh (uuid4), so this can't overwrite; refresh so a status read /
     # the drain sees it immediately (a single small ops write, not the read-side refresh storm)
     await client.index(
         index=REPORTS_INDEX, id=report_id, body=doc, params={"op_type": "create", "refresh": "true"}

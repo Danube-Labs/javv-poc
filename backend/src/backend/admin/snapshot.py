@@ -21,7 +21,7 @@ SNAPSHOT_REPO_KEY = "snapshot_repo"  # the system-config doc _id holding the rep
 # per-cluster append series (occurrences) are snapshotted less often / separately (DR RPO note).
 DURABILITY_INDICES = "findings,javv-images-*,system-*"
 
-# Only these repo-settings keys may be persisted — non-secret location/addressing knobs. Anything
+# Only these repo-settings keys may be persisted — non-secret location/addressing settings. Anything
 # else (notably credentials) is refused. Allowlist, not denylist: safe by construction.
 _ALLOWED_SETTINGS: dict[str, frozenset[str]] = {
     "fs": frozenset(
@@ -171,7 +171,7 @@ async def restore_snapshot(
 # --- scheduled snapshots (OpenSearch Snapshot Management) --------------------
 # Native SM policy (`_plugins/_sm/policies`) — OpenSearch schedules + takes the snapshot itself, so
 # no CronJob/broker is needed for the *taking* (coordination stays in OpenSearch). The retention/
-# schedule knobs are D26-configurable; these defaults are the starting policy. The k8s deploy
+# schedule settings are D26-configurable; these defaults are the starting policy. The k8s deploy
 # manifests (repo registration + the restore-drill verify CronJob) are M10's, where the chart lives.
 
 
@@ -188,7 +188,8 @@ def snapshot_policy_body(
     time_limit: str = "1h",
 ) -> dict[str, Any]:
     """Build an SM policy body: take a scheduled snapshot of `indices` into `repository`, and prune
-    old snapshots by age/count (retention floor keeps at least `retention_min_count`). D26 knobs."""
+    old snapshots by age/count (retention floor keeps at least `retention_min_count`).
+    D26 settings."""
     return {
         "description": "JAVV automated durability snapshots (current-state + config indices)",
         "creation": {

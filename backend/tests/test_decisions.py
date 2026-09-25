@@ -361,7 +361,7 @@ async def test_not_affected_decision_round_trips_to_valid_vex(real_os) -> None:
     assert cdx["vulnerabilities"][0]["analysis"]["justification"] == "code_not_present"
 
 
-async def test_projection_never_clobbers_a_direct_human_state(real_os) -> None:
+async def test_projection_never_overwrites_a_direct_human_state(real_os) -> None:
     client, prefix = real_os
     fk = await _seed_finding(client, prefix, state="acknowledged")  # human-set: provenance null
     await create_decision(client, actor="ana", payload=_payload(), prefix=prefix)
@@ -466,7 +466,7 @@ async def test_daily_sweep_reprojects_expired_decisions(real_os) -> None:
 
 async def test_rebuild_state_reconstructs_the_projection_from_source(real_os) -> None:
     """Self-heal (M5c DoD): corrupt the projected cache directly — rebuild_state reproduces the
-    identical projection from `system-decisions` source (both damage directions: a clobbered
+    identical projection from `system-decisions` source (both damage directions: an overwritten
     projection AND a phantom projection pointing at a decision that no longer wins)."""
     from backend.jobs.rebuild_state import rebuild_decision_projection
 
@@ -614,7 +614,7 @@ async def test_concurrent_reprojects_do_not_500_and_converge(real_os) -> None:
     assert got["state"] == "risk_accepted"  # converged to the projection
 
 
-async def test_reproject_does_not_clobber_a_concurrent_human_triage(real_os) -> None:
+async def test_reproject_does_not_overwrite_a_concurrent_human_triage(real_os) -> None:
     """A-M3 consequence 2: a direct human triage that lands mid-reproject MUST survive — the
     guarded RMW re-checks ownership on the fresh source and keeps its hands off (the unguarded
     write silently overwrote it, breaking 'direct action > auto-rule' and defeating rebuild)."""

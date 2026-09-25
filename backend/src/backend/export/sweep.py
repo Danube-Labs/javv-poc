@@ -20,7 +20,7 @@ from backend.core.settings import get_settings
 from backend.query.search import SearchFilters, build_search_body
 from backend.sla.overdue import overdue_cutoffs
 from backend.sla.policy import read_sla_policy
-from backend.tenancy.chokepoint import tenant_query
+from backend.tenancy.read_path import tenant_query
 
 log = structlog.get_logger()
 
@@ -44,7 +44,7 @@ async def count_lens(
     filters: SearchFilters,
     prefix: str = "",
 ) -> int:
-    """Cheap pre-count of the lens through the tenant chokepoint (audit A-M6/#189) — lets an
+    """Cheap pre-count of the lens through the tenant read path (audit A-M6/#189) — lets an
     export enforce its row cap with a clean 413 BEFORE opening a PIT / streaming a body."""
     body = build_search_body(
         filters,
@@ -53,7 +53,7 @@ async def count_lens(
         order="asc",
         sla_cutoffs=await _cutoffs(client, filters, prefix),
     )
-    del body["track_total_hits"]  # count has its own total; drop the search-only knob
+    del body["track_total_hits"]  # count has its own total; drop the search-only setting
     body = tenant_query(cluster_id, body)  # SEC-4 — the cluster filter is forced in
     resp = await client.count(index=f"{prefix}findings", body={"query": body["query"]})
     return int(resp["count"])
