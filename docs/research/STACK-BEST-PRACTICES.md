@@ -51,7 +51,7 @@ httpx ASGITransport against real OpenSearch.
   503 with exponential backoff (that's your only flow control without a broker); log 4xx mapping errors,
   don't retry. Prefer `helpers.async_streaming_bulk`.
 - **Upsert with `detect_noop`** (keep on - skips writes/segment churn when unchanged). Conditional
-  newer-wins updates via a small Painless script comparing `@timestamp` so a late older scan can't clobber.
+  newer-wins updates via a small Painless script comparing `@timestamp` so a late older scan can't overwrite.
 - **PIT + `search_after`, not `scroll`.** Sort on a tiebreaker (`[@timestamp, _id]`); **delete the PIT in
   `finally:`**. UI DataTables: `from`/`size` within `max_result_window` (10k); beyond → PIT+`search_after`.
 - **Aggregation safety.** `max_buckets` (65 535) will abort big terms aggs - design around it.

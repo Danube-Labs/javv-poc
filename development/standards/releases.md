@@ -3,7 +3,7 @@
 How JAVV versions, releases, and keeps dependencies current. Conventional-commit
 discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all of this.
 
-> **Status: implemented** (2026-06-27). release-please and Renovate are wired up:
+> **Status: implemented** (2026-06-27). release-please and Renovate are set up:
 > `.github/workflows/release-please.yml`, `release-please-config.json`,
 > `.release-please-manifest.json`, `renovate.json`. Remaining gap below.
 

@@ -265,7 +265,7 @@ reconcile** flips `present=false` on `findings` the run omitted (cache only - hi
    `commit_key` per digest; Step 2 `commit_key IN {…} AND vuln_id=Y` - F2/D39, not a composite over
    occurrences); trends ← scan-events; Contributors ← audit-log; vuln-age/SLA at read time (D21). All via
    PIT+`search_after` (**closed in `finally`**, D38/M16), faceted by scanner, **tenant-filtered via the
-   chokepoint helper** (SEC-4). **In MVP, historical all-clusters dashboards are limited/unavailable** until
+   tenant read path** (SEC-4). **In MVP, historical all-clusters dashboards are limited/unavailable** until
    the `javv-metrics` rollup (v1.1); per-cluster rewind is fully supported (D39/M11-r2).
 7. **Maintain (CronJobs, idempotent)** - daily **two-timer staleness sweep** (per-finding N + scanner-down
    escalation M, banner between) + **decision-expiry re-projection**; **export drain** (off-peak, throttled,

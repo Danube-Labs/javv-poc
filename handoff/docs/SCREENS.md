@@ -10,7 +10,7 @@ only ruling-forced changes are made. Every screen names its **bolt** (M9a–M9f 
 
 Conventions used below:
 - **Data** = concrete calls (method + path + key params from API.md). `cluster_id` is **required on
-  every read** (tenant chokepoint, D38/H9). The global `as_of` (`T`) rides on every read; `T=now`
+  every read** (tenant read path, D38/H9). The global `as_of` (`T`) rides on every read; `T=now`
   omits it.
 - **Every number on every screen is a server aggregation** — the client never counts, sums, or
   pages locally. Per-scanner counts are **sacred**: Trivy and Grype numbers are never summed,
@@ -236,7 +236,7 @@ B-2/B-3 (metadata cuts), B-5 (server SLA), V4-DELTA-1 (old triage fields removed
 
 ---
 
-## 5. Export dialog + scheduled reports (bolt: **M9b** wiring; download/bell states **M9f**)
+## 5. Export dialog + scheduled reports (bolt: **M9b** integration; download/bell states **M9f**)
 
 Reachable from Findings/Overview/Images "Export".
 
@@ -488,7 +488,7 @@ started admitting rows with no `cluster_id`.
 > log line. Revisit as a new issue if/when failure journaling lands.
 
 ### 13.7 Data & OpenSearch — editable (Admin)
-Per-cluster retention days, rollover knobs, snapshot repo/schedule + manual snapshot/restore —
+Per-cluster retention days, rollover settings, snapshot repo/schedule + manual snapshot/restore —
 retention/rollover offered **only** for time-partitioned append families; the mutable family
 (findings, watermarks, scan-orders, system-*) never gets a drop control.
 **Data:** `PUT /settings/retention`, `PUT /settings/rollover`, `POST /snapshots`,
@@ -589,7 +589,7 @@ grammar is the prototype's — substituting it needs a live ruling (DESIGN.md §
 | 13.3 | "Security Lead can edit" SLA | Edit gate is **`can_manage_settings`** (admin bundle) | M9e README row 5 |
 | 13.6 | 5-role matrix, user delete | **4 capability bundles** (A-4), **disable-never-delete**, invite = temp password + `must_change` | M9e README row 8 |
 | 13.7 | (v4 prototype) 4 editable per-purpose retention windows | **One** editable window over the 4 append families; protected families render read-only with the why written in the panel | 2026-07-15 ruling, M9e README row 23 |
-| 13.7 | — | Panel additions beyond the contract: report/export-TTL knob (row-11 graduation), findings-cleanup window (D37/M12), read-only **OpenSearch runtime** card (§D), snapshots restore into `restored-*` copies only | M9e README rows 10/11 + §D |
+| 13.7 | — | Panel additions beyond the contract: report/export-TTL setting (row 11: now runtime-editable), findings-cleanup window (D37/M12), read-only **OpenSearch runtime** card (§D), snapshots restore into `restored-*` copies only | M9e README rows 10/11 + §D |
 | 13.8 | `schema_version: 3` | **4** (M8d ptype bump) | M9e README row 9 |
 | global | FE freshness banner on a build-time env var | Banner + fleet chips read the **live staleness timers** (selected cluster's effective window); `VITE_FRESHNESS_BANNER_HOURS` removed | M9e README row 14 |
 | global | — | Severity everywhere is the **six-word canonical vocabulary** (D46); verbatim scanner casing is display-only | D46/#274 |
@@ -603,6 +603,6 @@ grammar is the prototype's — substituting it needs a live ruling (DESIGN.md §
 | 6 | — | Cards additionally show the schema-v2 **workbench capture** (columns/density/sort/relative window; cluster-agnostic by shape) and page through the kit GridPager (operator ask); apply = deep-link round-trip incl. `!`-negation grammar | 2026-07-17, M9f slice 4 |
 | global | (prototype topbar: disabled search input, text sign-out, mixed control heights) | **Topbar register**: all three controls (cluster switcher · time picker · search) at **40px** with **2px `--line` borders**, keep-beige (white-chip and slate-tint A/Bs LOST); search sits on `--bg` with ink hint + real control wash; Sign out = kit UiButton `control`; FilterBar pills/add-filter at **38px** | 2026-07-17 §8.5 rulings on built specimens (M9f slice 2) |
 | global | (prototype primary button: gloss — inset highlight + drop shadow) | **Flat solid coral** (solid-button grammar): hue kept, gloss removed; hover/active = `--coral-dd` (a full step — `--coral-d` was too small). Muted-terracotta and soft-wash variants built and LOST | 2026-07-17 §8.5 ruling (M9f slice 3) |
-| global | (prototype drawer: flush right panel, opaque card) | **Glass floating drawer** (SlideoverShell): `--glass` 0.78 white + 14px backdrop blur, neutral `--glass-edge`, 12px scrim detach + 4px scrim blur, nested head radius (kills the corner seam). 0.65 opacity tried and reverted | 2026-07-17 §8.5 rulings (M9f slice 3) |
+| global | (prototype drawer: flush right panel, opaque card) | **Glass floating drawer** (SlideoverShell): `--glass` 0.78 white + 14px backdrop blur, neutral `--glass-edge`, 12px backdrop detach + 4px backdrop blur, nested head radius (kills the corner seam). 0.65 opacity tried and reverted | 2026-07-17 §8.5 rulings (M9f slice 3) |
 | global | (prototype: topbar search input) | **⌘K command palette** (issue-319 ruling): composed `/findings/groups` queries (CVE/image/namespace) + jump-to-screen off the ONE nav model; the topbar "input" is a button that opens it | 2026-07-17, M9f slice 2 |
 | global | — | **Notification bell**: ringed count badge (server unread, pauses on failed poll), inbox rows with per-row ✕ + Mark-all-read/Clear-all (kit mini buttons), ready-export resolves the signed token on click (expired flips the row), toast ECHO for mid-session arrivals only | 2026-07-17 rulings (M9f slice 3) |

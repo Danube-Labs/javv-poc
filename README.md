@@ -145,7 +145,7 @@ fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequi
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Setup, house conventions, the gates a PR must pass |
 | [SECURITY.md](SECURITY.md) | How to report a vulnerability in JAVV (privately), and what's in scope |
 | [docs/API.md](docs/API.md) | The shipped HTTP surface at a glance (auth regimes, capabilities) |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration knob: default, tier, UI-controllability |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration setting: default, tier, UI-controllability |
 | [development/RUNNING-THE-STACK.md](development/RUNNING-THE-STACK.md) | Bring the stack up by hand (backend / full-stack / frontend) |
 | [docs/research/](docs/research/) | Stack best-practices, tooling/MCP, audits backing v4 |
 | [design/](design/) | Brand source of record (logos, tokens, guide) |

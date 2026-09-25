@@ -5,7 +5,7 @@ This is the **success/shape** side; errors live in [`observability.md`](observab
 one status taxonomy). Don't restate index mappings or requirements - link to them.
 
 > Owned by **M1** (skeleton + ingest sets the conventions) and **M6** (read/reporting applies them at scale).
-> The generated TS client (`@hey-api/openapi-ts`, M9a) is downstream of these - keep OpenAPI honest.
+> The generated TS client (`@hey-api/openapi-ts`, M9a) is downstream of these - keep OpenAPI accurate.
 
 ## Versioning & shape
 - All app routes are under **`/api/v1/`** (e.g. `POST /api/v1/ingest/scan`). Bump the prefix only on a
@@ -16,7 +16,7 @@ one status taxonomy). Don't restate index mappings or requirements - link to the
 
 ## The tenant rule (hard constraint)
 Every read/export endpoint carries an explicit **`cluster_id`** and filters on it **in the query layer**,
-never UI-only - routed through the single `tenant_search` chokepoint (SEC-4), entitlement re-checked on every
+never UI-only - routed through `tenant_search`, the single tenant read path (SEC-4), entitlement re-checked on every
 fetch **and export** (IDOR). See [`../../CLAUDE.md`](../../CLAUDE.md) hard constraints + INDEX-MAP routing.
 `cluster_id` **shape is validated at the edge**; an absent/!malformed one is `400`, not a silent all-tenant read.
 

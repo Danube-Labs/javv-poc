@@ -79,7 +79,7 @@ at http://localhost:8000/docs.
 ### A2b. Agent sessions: start both servers DETACHED (issue 503)
 
 A dev server started as an agent background task belongs to the agent session, and the harness
-reaps session-owned tasks while the session sits idle — on 2026-07-29 both servers were stopped
+stops session-owned tasks while the session sits idle — on 2026-07-29 both servers were stopped
 twice this way (task ages 58 and 75 min), with the app blameless each time: clean graceful
 shutdowns while still serving 200s one second earlier. When an agent session starts the stack,
 detach it from the session's process tree (with the A2 exports already set in the shell):
@@ -208,7 +208,7 @@ uv run python -m backend.jobs.staleness         # two-timer staleness sweep (D20
 uv run python -m backend.jobs.lifecycle         # rollover + per-cluster drop-whole-index retention
 uv run python -m backend.jobs.findings_cleanup  # long-window findings cache cleanup (D37/M12)
 uv run python -m backend.jobs.report_drain      # scheduled-export worker (leases pending reports)
-uv run python -m backend.jobs.report_sweep      # report TTL + orphan-chunk reaper
+uv run python -m backend.jobs.report_sweep      # report TTL + orphan-chunk cleanup
 uv run python -m backend.jobs.rebuild_state     # crash self-heal: decisions/presence/SLA-clock arms
 ```
 
@@ -343,7 +343,7 @@ test that drills it — these can't drift from the code:
 | Rebuild state (crash self-heal) | `uv run python -m backend.jobs.rebuild_state` | `backend/tests/test_rebuild_presence.py` |
 | Token rotation | Settings → Access & tokens (rotate = new secret, same scope), or `POST /api/v1/admin/tokens/{id}/rotate` | `backend/tests/test_token_admin.py` |
 | Retention / rollover changes | Settings → Data & OpenSearch (applies at the next lifecycle sweep) | `backend/tests/test_lifecycle.py` |
-| Findings cache cleanup | knob in the same panel; `uv run python -m backend.jobs.findings_cleanup` | `backend/tests/test_findings_cleanup.py` |
+| Findings cache cleanup | setting in the same panel; `uv run python -m backend.jobs.findings_cleanup` | `backend/tests/test_findings_cleanup.py` |
 
 ---
 

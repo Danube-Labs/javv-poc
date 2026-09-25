@@ -30,7 +30,7 @@
 | M1 | M1 | + golden-envelope round-trip gate; + `severity` normalizer |
 | - | **M2** | **new** - snapshot/restore (durability pulled forward) |
 | M2 | M3 | + inline-preserve-as-cache framing; + two-timer staleness; projection-on-new (rebuild-state job deferred: M5c creates the human/decision arm, M8a adds the scanner-presence arm) |
-| M2.5 | M4 | + idempotent `_id`; rollover knobs surface in settings |
+| M2.5 | M4 | + idempotent `_id`; rollover settings surface in settings |
 | M3 (one bolt) | **M5a–M5d** | split: access · state machine · decisions/projection · SLA/bulk |
 | M4 | M6 | read/reporting + VEX **export** (import → v1.1) |
 | - | **M7** | **new** - scheduled/throttled export (`system-reports`) |
@@ -85,7 +85,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   on `findings` only as a **denormalized cache** for fast grid filter/sort; the **sources of truth** are
   `system-decisions` (rule-derived state) + `system-audit-log` (every direct action, structured - D32).
   Ingest writes scanner fields via a **partial-doc `_update` (merge semantics)** that simply doesn't name
-  human fields - **no preserve script, nothing to clobber** (D31; a script only if newer-scan-wins ordering
+  human fields - **no preserve script, nothing to overwrite** (D31; a script only if newer-scan-wins ordering
   is wanted). Projection writes `state`; triage writes human fields directly. An admin **rebuild-state** job
   (kept day-one - OE-2) re-projects all findings from the sources of truth (self-heal; recomputes `stale`
   from `last_seen_at` - SND-6/D36). **Requirement:** *every* triage action appends to `system-audit-log`, so
@@ -171,7 +171,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   decision; in-cluster scan CPU accepted.) (`SPEC` FR-2.)
 - **D31 - Partial-doc merge replaces the preserve script.** Ingest updates `findings` with a **partial doc of
   scanner fields only**; OpenSearch merge leaves human fields untouched - no preserve script, nothing to
-  clobber. (D17; §5.1/§5.2.)
+  overwrite. (D17; §5.1/§5.2.)
 - **D32 - `system-audit-log` is structured + required (enriched per D38/D39).** One row per field change with
   the **full schema** (`event_id`, `actor`, `action`, `entity_type`, `entity_id`, `finding_key`, `field`,
   `field_type`, typed `old_value`/`new_value` (+ `*_json` for non-scalars), **frozen `target_ids`** for bulk
@@ -190,11 +190,11 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   **revoke + create-new**, so the role allows only the `revoked_at` stamp while every change still emits an
   audit-log event. **Ingest tokens:** 256-bit random, **peppered SHA-256** at rest (M14/D38); **token↔payload
   binding** = authorization matching - reject payload `cluster_id`/`scanner` ≠ token scope → 403 (SEC-3); not
-  cryptographic body signing (body-HMAC + replay nonce → post-MVP). **tenant chokepoint** (one `tenant_search`
+  cryptographic body signing (body-HMAC + replay nonce → post-MVP). **tenant read path** (one `tenant_search`
   helper + negative test - SEC-4); **bootstrap admin** mounted-secret/seed-once/server-`must_change` (SEC-6);
   **replay protection** (reject envelope older than the latest committed run for `(cluster,scanner,digest)` -
   SEC-7); **TLS** on all hops + OpenSearch security plugin on in prod (SEC-8); snapshot/export creds in OS
-  keystore; export results stored in OpenSearch (chunked) + a tenant-chokepoint-gated backend download
+  keystore; export results stored in OpenSearch (chunked) + a tenant-read-path-gated backend download
   endpoint with a short-lived signed token + `expires_at` + download entitlement (SEC-10, revised by M7/#32);
   **decompression-ratio kill-switch** (~100:1 abort + per-token abort rate-limit - SEC-11). (`SPEC` NFR-7;
   M1/M5a/M10.)
@@ -410,7 +410,7 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   `system-config`" idea. (Closes the #91 arc; joint with #94's effective scope.)
 - **D46 - full-word canonical severity vocabulary (#274, ruled 2026-07-08).** The canonical severity
   vocabulary is the six FULL words - `critical, high, medium, low, negligible, unknown` - everywhere a
-  severity **value** appears (API filters, facet bucket keys, saved-view presets, SLA knobs
+  severity **value** appears (API filters, facet bucket keys, saved-view presets, SLA settings
   `critical_days`/`medium_days`, the stored canonical field). The historical `crit`/`med` shorthand
   survives only as count **column names** on the envelope/scan-events/images (documented physical names -
   they live in the immutable append history; renaming them buys nothing a human ever types). Findings +
@@ -606,7 +606,7 @@ present in later snapshots - **no close events** (validated: this is Elastic CSP
   rollover, per-cluster `retention_days` (drop-whole-index). **NON-downsampled** - accurate detail horizon =
   raw retention.
 
-### 5.5b Retention horizons (one knob per purpose)
+### 5.5b Retention horizons (one setting per purpose)
 | Index | Type | Retention = how far back you can see… | Size | Default |
 |---|---|---|---|---|
 | `findings` / `images` | current-state (mutable) | "now" | bounded | no time-retention |
@@ -737,7 +737,7 @@ Each ends on a verifiable check + Confirm gate.
      (`system-sessions`, httpOnly+Secure+SameSite cookie, TTL, revoke-on-role-change); **password policy +
      login lockout/throttle**; **capability-based RBAC** (`system-roles` bundles; `can_accept_audit_final`
      gates risk-accept - D33); **bootstrap admin** (mounted secret, seed-once, server-enforced `must_change`
-     - SEC-6); `get_current_principal()`; **tenant `cluster_id` chokepoint** (one `tenant_search` helper +
+     - SEC-6); `get_current_principal()`; **tenant `cluster_id` read path** (one `tenant_search` helper +
      negative test - SEC-4); IDOR; **auth-event auditing**. *Prerequisite for all mutations.* (Ingest-token
      auth stays separate, with **token↔payload binding** - SEC-3.)
    - **M5b - VEX two-field state machine.** `state` + `vex_justification`; transitions; **every action →

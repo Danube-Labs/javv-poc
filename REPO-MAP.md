@@ -16,7 +16,7 @@ yet - that lands at M10.
 2. [`CLAUDE.md`](CLAUDE.md) - **hard constraints + working rules** (read before changing anything).
 3. [`docs/engineering/PLAN.md`](docs/engineering/PLAN.md) - decisions D1-D45, data model, milestones M0-M10.
 4. [`docs/engineering/INDEX-MAP.md`](docs/engineering/INDEX-MAP.md) - **source of truth** for every OpenSearch index + mapping.
-5. [`docs/API.md`](docs/API.md) - the shipped HTTP surface (auth regimes + capabilities) · [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) - every knob.
+5. [`docs/API.md`](docs/API.md) - the shipped HTTP surface (auth regimes + capabilities) · [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) - every setting.
 6. [`development/bolts/`](development/bolts/) - the milestone you're actually building.
 
 ## Top-level layout
@@ -37,7 +37,7 @@ yet - that lands at M10.
 | `handoff/` | UI/UX reference - **`docs/` current**, `v4/` frozen trail | **reference only**, not a contract |
 | `design/` | Brand source of record (logos, tokens, brand guide) | binding for brand |
 | `.github/` | CI + release automation workflows | — |
-| `.claude/` | Repo-scoped Claude config: `settings.json` (team allowlist + hook wiring), `rules/` (path-scoped instructions that auto-load with matching files — CLAUDE.md's other half), `hooks/` (the PreToolUse Bash guard + its cases), `commands/`, `skills/`, and `sessions/` infra (snapshots are local-only) | `rules/` binding |
+| `.claude/` | Repo-scoped Claude config: `settings.json` (team allowlist + hook setup), `rules/` (path-scoped instructions that auto-load with matching files — CLAUDE.md's other half), `hooks/` (the PreToolUse Bash guard + its cases), `commands/`, `skills/`, and `sessions/` infra (snapshots are local-only) | `rules/` binding |
 | `.deprecated/` | Frozen archive - superseded V1/V2/V3 docs, the v1 UI handoff, archived v1 UI guidelines | history only |
 | root configs | `commitlint.config.mjs`, `renovate.json`, `release-please-config.json`, `.release-please-manifest.json`, `.pre-commit-config.yaml` | — |
 
@@ -50,7 +50,7 @@ consolidated into the live backlog.
 `backend/src/backend/`: `routers/` (HTTP surface) · `query/` (DSL builders, PIT guard, as-of dispatch) ·
 `repositories/` (bulk helper with backoff) · `services/` (watermarks, scan-orders) · `models/` ·
 `core/` (settings - validated at boot, logging shim, metrics) · `auth/` + `tenancy/` (sessions,
-capabilities, the always-applied `cluster_id` chokepoint) · `triage/` · `decisions/` · `sla/` ·
+capabilities, the always-applied `cluster_id` filter) · `triage/` · `decisions/` · `sla/` ·
 `export/` · `reports/` (M7) · `audit/` · `admin/` · `jobs/`. Tests in `backend/tests/`
 (~60 files, 520+ tests; session-scoped bootstrap in `conftest.py` - new test files must NOT
 re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in app code;
@@ -62,7 +62,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 |---|---|
 | **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D45, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `DESIGN-BRIEF` |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
-| **`docs/CONFIGURATION.md`** | Every configuration knob: default, tier, UI-controllability. **New knob → same PR** |
+| **`docs/CONFIGURATION.md`** | Every configuration setting: default, tier, UI-controllability. **New setting → same PR** |
 | **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; `major_audit/` = the 2026-07-07 project-hygiene audit (6 guides incl. the §F UI-refresh prompt); archived point-in-time reports in `.deprecated/docs/audits/` |
 | **`docs/research/`** | Backing research. `STACK-BEST-PRACTICES` (day-one engineering rules) · `TOOLING-AND-MCP` (MCP servers + install) · `K8S-DEV-CLUSTER` (k3d/remote options) · `INDEPENDENT-AUDIT-v3` · `SNAPSHOT-MODEL-VALIDATION` · `OPENSEARCH-DYNAMIC-CONFIG` |
 | `.deprecated/` | Frozen V1/V2/V3 docs + original notes (evolution trail; `.deprecated/docs/deprecated/original_notes_for_app.md` is **read-only**) |

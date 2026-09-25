@@ -94,7 +94,7 @@ if command -v claude >/dev/null 2>&1; then
     if printf '%s\n' "$mcps" | grep -qE "^${m}:.*Connected"; then
       ok "MCP $m connected"
     else
-      warn "MCP $m not wired/connected — see docs/research/TOOLING-AND-MCP.md (loads next session)"
+      warn "MCP $m not connected — see docs/research/TOOLING-AND-MCP.md (loads next session)"
     fi
   done
 else

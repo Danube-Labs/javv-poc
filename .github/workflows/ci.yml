@@ -4,8 +4,8 @@ name: CI
 # development/standards/definition-of-done.md, git-workflow.md and testing.md. Active gates:
 #   - commitlint (PR commits; release-please depends on the types)
 #   - javv-common / backend / scanner: ruff + pyright + pytest (backend against a real
-#     OpenSearch service container; coverage ratchet --cov-fail-under, #383)
-#   - frontend: oxlint/eslint/stylelint + vue-tsc + vitest (coverage ratchet in
+#     OpenSearch service container; coverage floor --cov-fail-under, #383)
+#   - frontend: oxlint/eslint/stylelint + vue-tsc + vitest (coverage floor in
 #     vitest.config.ts, #383) + the I4/I7 contract gates (openapi.json snapshot must match
 #     the backend code, generated client must match the snapshot — this is what catches a
 #     backend route/model change shipped without regenerating the client)
@@ -191,7 +191,7 @@ jobs:
         # store-exclusive tests (marker `serial`, e.g. the admin demote race that disables every
         # enabled admin) run AFTER the parallel pass, alone — under -n N they poison concurrent
         # tests' sessions (broke main 2026-07-07). A plain local `pytest` runs everything serially.
-        # Coverage ratchet (#383): 92.4% lines measured 2026-07-15, floored at −2pts on the
+        # Coverage floor (#383): 92.4% lines measured 2026-07-15, floored at −2pts on the
         # parallel pass (the serial pass adds a sliver — the floor stays conservative).
         # Raise when coverage grows, never lower (docs/CONFIGURATION.md §8).
         run: |
@@ -284,7 +284,7 @@ jobs:
         working-directory: frontend
         run: npm run lint
 
-      - name: Test (with coverage ratchet, #383)
+      - name: Test (with coverage floor, #383)
         if: steps.detect.outputs.present == 'true'
         working-directory: frontend
         run: npm run test:ci
@@ -361,7 +361,7 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         working-directory: backend
         # JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL raised: the walk hops routes faster than a
-        # human and PIT slots self-reap slower than it navigates (docs/CONFIGURATION.md)
+        # human and PIT slots free themselves slower than it navigates (docs/CONFIGURATION.md)
         env:
           JAVV_ENV: dev
           JAVV_BOOTSTRAP_ADMIN_USERNAME: admin

@@ -21,7 +21,7 @@ actually enforces. Regeneration command: in that test's docstring.
 | 2 | `POST /api/v1/ingest/scan` — one envelope per image | machine token | per image in the cycle |
 | 3 | `POST /api/v1/inventory-runs` — body `{"scan_run_id", "expected_count", "started_at"}` | machine token | once at cycle **end** |
 
-Notes that keep the data model honest:
+Notes that keep the data model accurate:
 
 - **`scan_order` comes from step 1 — never invent it.** It is the strictly-increasing
   per-`(cluster, scanner)` ordering key (D45) that the whole correctness model sorts by; every

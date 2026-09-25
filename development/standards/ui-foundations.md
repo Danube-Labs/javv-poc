@@ -85,7 +85,7 @@ Binding detail: `frontend/DESIGN.md` §5 "Motion".
 
 ## Audit rules (ruled 2026-07-11, #343) — every screen, present and future
 
-1. **Honest errors.** A 4xx caused by user input names the input, never blames the backend.
+1. **Accurate errors.** A 4xx caused by user input names the input, never blames the backend.
    Every status the FE can receive (401 / 410 / 422 / 429 / 5xx) maps to distinct copy — one
    generic "check the backend connection" for everything is a bug. Findings' mapping lives in
    `src/findings/failureCopy.ts` (unit-tested); new grids follow it.

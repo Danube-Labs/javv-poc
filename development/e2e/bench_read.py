@@ -18,7 +18,7 @@ PREREQUISITES (same as bench_refresh.py — this does NOT start them):
                  JAVV_BOOTSTRAP_ADMIN_PASSWORD=smoke-admin-pw \\
                  uv run uvicorn backend.main:app --port 8000
 Run:  cd backend && uv run python ../development/e2e/bench_read.py
-Knobs: BENCH_READERS (8) · BENCH_OPS_PER_READER (40) · BENCH_CLUSTERS/DIGESTS/FINDINGS
+Settings: BENCH_READERS (8) · BENCH_OPS_PER_READER (40) · BENCH_CLUSTERS/DIGESTS/FINDINGS
 (inherited, default 3x30x150 findings/scanner) · BENCH_SEED=0 to skip seeding on re-runs.
 Residue: cluster_ids `c-bench-*` + bench users `u-bench-*` (wipe = compose down -v && up -d).
 """
@@ -174,7 +174,7 @@ async def _pit_cap_scenario(
     http: httpx.AsyncClient, hdr: dict[str, str]
 ) -> dict[str, Any]:
     """One user opens first pages WITHOUT following cursors until the per-principal cap 429s;
-    asserts Retry-After is present and that slots free up (reaper horizon) afterward."""
+    asserts Retry-After is present and that slots free up (expiry horizon) afterward."""
     opened = 0
     while opened < 40:
         r = await http.get(
@@ -194,7 +194,7 @@ async def _pit_cap_scenario(
         opened += 1
     return {
         "pages_before_cap": None,
-        "note": "cap never hit in 40 opens (check the knob)",
+        "note": "cap never hit in 40 opens (check the setting)",
     }
 
 

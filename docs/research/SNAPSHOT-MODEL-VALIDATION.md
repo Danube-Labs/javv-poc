@@ -44,7 +44,7 @@ the fixes below.
   `images` covers "now").
 - **F5 - Storage wording (Low).** Snapshot volume = full set per scan-that-runs; a daily vuln-DB bump
   invalidates skip-unchanged fleet-wide → ~daily full snapshots (~10–15 GB/month at 5k images × 100 findings
-  × 2 scanners, dropped by monthly rollover). Within the owner's accepted storage stance; state it honestly.
+  × 2 scanners, dropped by monthly rollover). Within the owner's accepted storage stance; state it plainly.
 - **F6 - "Fixed-at"/last-seen is now an inference (Low).** Disappearance = a snapshot-diff, not a stored
   event. No MVP screen needs it (FR-5b/FR-14 are point-in-time *state*); flag before anyone builds a "when
   was it fixed" view.

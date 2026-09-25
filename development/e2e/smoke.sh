@@ -289,7 +289,7 @@ JC=$(jcode "/api/v1/admin/jobs/staleness_sweep/run")
 [ "$JC" = "409" ] || fail "a freshly-held lease must 409, got $JC"
 
 # Backdated far past any sane `report_lease_ttl_seconds` (default 300s) — deliberately not pinned
-# to the knob's value, so an operator retuning it cannot silently turn this assertion vacuous.
+# to the setting's value, so an operator retuning it cannot silently turn this assertion vacuous.
 seed_lease "$(date -u -d '-2 hours' +%FT%TZ)"
 [ "$(jobs_field staleness_sweep .stale)" = "true" ] || fail "a heartbeat 2h silent must read stale"
 JC=$(jcode "/api/v1/admin/jobs/staleness_sweep/run")
@@ -368,7 +368,7 @@ curl -s -b "$COOKIES" -X POST "$BACKEND/api/v1/decisions/$DID/revoke" | jq -e '.
 echo "decision round-trip on $DCVE: projected $PROJ finding(s), revoked"
 
 # SLA: tweak -> read back -> restore (no residue). GET wraps as {"sla":{...}}; PUT takes the BARE
-# policy (extra=forbid), and the knob is critical_days after the D46 hard rename (#274) — the old
+# policy (extra=forbid), and the setting is critical_days after the D46 hard rename (#274) — the old
 # `crit_days` against the wrapper 422'd twice over, a live e2e gap the vocabulary rework left.
 SLA0=$(api "/api/v1/settings/sla" | jq '.sla')
 curl -s -b "$COOKIES" -X PUT "$BACKEND/api/v1/settings/sla" -H 'content-type: application/json' \
