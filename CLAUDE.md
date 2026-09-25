@@ -170,8 +170,9 @@ process before debugging behaviour (`ps -o lstart -p <pid>`), and confirm what i
   `gen:api` (stale module graph "does not provide an export").
 - Backend pytest against the shared dev store leaves residue (`nu-*`/`ext-*`/`0-list-*` users,
   `t-*` indices) — sweep AFTER the last run, keep `{admin, rig}`.
-- Commit subjects: lowercase first word even for identifiers (`m5c`, `opensearch` — CI commitlint is
-  stricter than the local hook), header ≤ 100 chars, types `feat|fix|chore|docs|test|refactor` only.
+- Commit subjects: lowercase first word even for identifiers (`m5c`, `opensearch`), header **and every
+  body line** ≤ 100 chars, types `feat|fix|chore|docs|test|refactor` only. The local commit-msg hook
+  mirrors CI commitlint, so a rejection locally is the same one CI would give.
 - `#NNN` in a code comment reads as a hex color to the style rules test — write "issue NNN".
 
 ## UI work

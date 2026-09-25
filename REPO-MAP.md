@@ -78,7 +78,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 | **`development/standards/`** | Process rules: `definition-of-done` · `testing` (suite budget, no per-test bootstrap) · `git-workflow` (bolt tracking on issues) · `releases` · `observability` (**javv-common logging only**) · `api-design` · `ui-foundations` (binding FE tokens) · `bolt-readme-template` |
 | **`development/e2e/`** | Operator rigs: `smoke.sh` (full-stack smoke incl. read/report phase) · `bench_refresh.py` + `bench_read.py` (ingest + read-contention benches) · `results.md` (run log). Run logs are git-ignored |
 | `development/scripts/` | `check-versions.sh` (versions.yaml ↔ consumers drift gate) · `check-scanner-db-policy.sh` |
-| `development/hooks/` | `conventional-commit.sh` (local commitlint mirror; CI is stricter - lowercase subjects) |
+| `development/hooks/` | `conventional-commit.sh` (local commitlint mirror: types, subject case, 100-char lines) + its case suite `test-conventional-commit.sh` |
 
 ### Milestone map (`development/bolts/`)
 Each bolt README is a self-contained brief (Goal · Canonical refs · Depends on · Deliverables · DoD · Tests · Out-of-scope). ✅ = shipped.
