@@ -54,6 +54,16 @@ describe('audit store (cursor-stack paging)', () => {
     expect(s.hasNext).toBe(false)
   })
 
+  it('a second Next before the new page lands stays put', () => {
+    const s = useAuditStore()
+    s.setResult([ev('a')], exact(100), 'cur-1')
+    s.goNext()
+    expect(s.hasNext).toBe(false) // unknown until page 1 lands
+    s.goNext()
+    expect(s.page).toBe(1)
+    expect(s.activeCursor).toBe('cur-1')
+  })
+
   it('setSize resets paging', () => {
     const s = useAuditStore()
     s.setResult([ev('a')], exact(100), 'cur-1')

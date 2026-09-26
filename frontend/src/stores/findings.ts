@@ -1,14 +1,17 @@
 /**
  * Grid state for the findings table. The shipped M6 contract pages by cursor (PIT +
  * search_after) — there is no offset, so no random page jumps: the pager walks prev/next over a
- * cursor stack (`cursors[i]` = cursor that FETCHES page i; page 0 = null). Everything displayed
- * (rows, total) is the server's — nothing is counted or paged client-side.
+ * cursor stack kept by `useCursorPager`. Everything displayed (rows, total) is the server's —
+ * nothing is counted or paged client-side. A store, not component state, so the grid keeps its
+ * page and sort across a navigation away and back.
  *
  * Cursors embed a PIT that the server expires after a while — a stale-cursor fetch fails and the
  * caller resets to page 0 (`resetPaging`).
  */
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 
+import { useCursorPager } from '@/composables/useCursorPager'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 
 /** The findings-search row shape this bolt renders (subset of the server doc; B-2: only real fields). */
@@ -37,71 +40,70 @@ export interface FindingRow {
   [key: string]: unknown
 }
 
-export const useFindingsStore = defineStore('findings', {
-  state: () => ({
-    rows: [] as FindingRow[],
-    total: 0,
-    sort: 'severity_rank' as SortField,
-    order: 'desc' as SortOrder,
-    size: 25,
-    page: 0,
-    cursors: [null] as (string | null)[],
-    nextCursor: null as string | null,
-    loading: false,
-    /** A read for the current (cluster, T, filters) has come back at least once. `loading` alone
-     * cannot carry this: before the cluster resolves no request has started, so a grid gated on
-     * `loading` spends that window claiming the cluster is empty. Unknown is not zero. */
-    settled: false,
-    failed: false,
-    failedStatus: null as number | null,
-  }),
-  getters: {
-    hasPrev: (s) => s.page > 0,
-    hasNext: (s) => s.nextCursor !== null,
+export const useFindingsStore = defineStore('findings', () => {
+  const pager = useCursorPager()
+  const rows = ref<FindingRow[]>([])
+  const total = ref(0)
+  const sort = ref<SortField>('severity_rank')
+  const order = ref<SortOrder>('desc')
+  const loading = ref(false)
+  /** A read for the current (cluster, T, filters) has come back at least once. `loading` alone
+   * cannot carry this: before the cluster resolves no request has started, so a grid gated on
+   * `loading` spends that window claiming the cluster is empty. Unknown is not zero. */
+  const settled = ref(false)
+  const failed = ref(false)
+  const failedStatus = ref<number | null>(null)
+
+  function setResult(newRows: FindingRow[], newTotal: number, nextCursor: string | null) {
+    rows.value = newRows
+    total.value = newTotal
+    settled.value = true
+    pager.landed(nextCursor)
+  }
+  /** A read finished without rows to show (a failure) — the grid is answered, not pending. */
+  function markSettled() {
+    settled.value = true
+  }
+  function setSort(field: SortField) {
+    // same column toggles direction; a new column starts desc (prototype behavior)
+    order.value = sort.value === field ? (order.value === 'desc' ? 'asc' : 'desc') : 'desc'
+    sort.value = field
+    pager.reset()
+  }
+  /** Cluster or T switched — the held rows belong to another tenant/world; drop them so the
+   * loading state shows instead of readable stale data while the new read is in flight. */
+  function clearResults() {
+    rows.value = []
+    total.value = 0
+    settled.value = false
+    pager.reset()
+  }
+
+  return {
+    rows,
+    total,
+    sort,
+    order,
+    size: pager.size,
+    page: pager.page,
+    cursors: pager.cursors,
+    nextCursor: pager.nextCursor,
+    loading,
+    settled,
+    failed,
+    failedStatus,
+    hasPrev: pager.hasPrev,
+    hasNext: pager.hasNext,
     /** Cursor to fetch the CURRENT page with. */
-    activeCursor: (s) => s.cursors[s.page] ?? null,
-  },
-  actions: {
-    setResult(rows: FindingRow[], total: number, nextCursor: string | null) {
-      this.rows = rows
-      this.total = total
-      this.nextCursor = nextCursor
-      this.settled = true
-      if (nextCursor !== null) this.cursors[this.page + 1] = nextCursor
-    },
-    /** A read finished without rows to show (a failure) — the grid is answered, not pending. */
-    markSettled() {
-      this.settled = true
-    },
-    goNext() {
-      if (this.nextCursor !== null) this.page += 1
-    },
-    goPrev() {
-      if (this.page > 0) this.page -= 1
-    },
-    setSort(sort: SortField) {
-      // same column toggles direction; a new column starts desc (prototype behavior)
-      this.order = this.sort === sort ? (this.order === 'desc' ? 'asc' : 'desc') : 'desc'
-      this.sort = sort
-      this.resetPaging()
-    },
-    setSize(size: number) {
-      this.size = size
-      this.resetPaging()
-    },
+    activeCursor: pager.cursor,
+    setResult,
+    markSettled,
+    goNext: pager.next,
+    goPrev: pager.prev,
+    setSort,
+    setSize: pager.setSize,
     /** Filters/sort/size changed or a cursor went stale — back to page 0, stack rebuilt. */
-    resetPaging() {
-      this.page = 0
-      this.cursors = [null]
-      this.nextCursor = null
-    },
-    /** Cluster or T switched — the held rows belong to another tenant/world; drop them so the
-     * loading state shows instead of readable stale data while the new read is in flight. */
-    clearResults() {
-      this.rows = []
-      this.total = 0
-      this.settled = false
-      this.resetPaging()
-    },
-  },
+    resetPaging: pager.reset,
+    clearResults,
+  }
 })
