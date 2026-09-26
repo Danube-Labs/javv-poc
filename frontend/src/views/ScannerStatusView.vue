@@ -127,18 +127,19 @@ const scanners = computed(() => {
             :provenance="s.provenance"
             :freshness="s.freshness"
           />
+          <!-- what needs attention sits right under the health card, above the run history -->
+          <IngestFailuresTable
+            :cluster-id="clusterStore.selectedId!"
+            :scanner="s.name as ScannerName"
+            :t="timeTravel.t"
+            :window-days="timeTravel.windowDays"
+          />
           <!-- the committed-run timeline: shared table template + shared pager -->
           <ScannerRunsTable
             v-if="(s.provenance?.runs ?? []).length"
             :runs="s.provenance!.runs!"
             :scanner="s.name"
             :cap="RUNS_FETCHED"
-          />
-          <IngestFailuresTable
-            :cluster-id="clusterStore.selectedId!"
-            :scanner="s.name as ScannerName"
-            :t="timeTravel.t"
-            :window-days="timeTravel.windowDays"
           />
         </div>
       </div>
