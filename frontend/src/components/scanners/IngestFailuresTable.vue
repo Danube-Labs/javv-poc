@@ -147,6 +147,14 @@ function goPrev() {
 </template>
 
 <style scoped>
+/* a host that stretches the card (a row-aligned grid) keeps the pager at the card's foot */
+.tbl-card {
+  display: flex;
+  flex-direction: column;
+}
+.tbl-card > .tbl-wrap {
+  flex: 1;
+}
 .skel-rows {
   padding: 0 16px 14px;
 }

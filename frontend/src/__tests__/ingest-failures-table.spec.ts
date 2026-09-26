@@ -160,5 +160,14 @@ describe('ScannerStatusView wiring', () => {
     expect(w.findAllComponents(IngestFailuresTable)).toHaveLength(2)
     const asked = failuresMock.mock.calls.map((c) => (c[0] as { query: { scanner: string } }).query.scanner)
     expect(asked.sort()).toEqual(['grype', 'trivy'])
+
+    // one lane per scanner, each named and carrying its identity hook for the head colour
+    const lanes = w.findAll('section.lane')
+    expect(lanes.map((l) => l.attributes('data-scanner'))).toEqual(['grype', 'trivy'])
+    expect(lanes.map((l) => l.find('.lane-head').text())).toEqual(['grype', 'trivy'])
+    // the narrow-screen picker starts on the first lane; the other is the one CSS hides there
+    expect(lanes.map((l) => l.classes('lane-off'))).toEqual([false, true])
+    await w.findAll('.lane-pick button')[1]!.trigger('click')
+    expect(w.findAll('section.lane').map((l) => l.classes('lane-off'))).toEqual([true, false])
   })
 })

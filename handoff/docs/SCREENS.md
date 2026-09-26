@@ -431,6 +431,14 @@ Columns: When · Image (`—` when the push was refused before its body parsed) 
 status + the server's message). Server-paged with the shared pager; empty = "No failed ingests in
 this range." A self-contained panel (DESIGN.md §10), so it can sit on a composed dashboard.
 
+**Scanner lanes (operator ruling 2026-09-27, on built A/B/C specimens — B chosen, plus C on narrow):**
+each scanner is a lane — a head in the scanner hue with a 3px rule, then card · Failed ingests ·
+committed runs. The lane's table heads take the scanner hue instead of the slate band, so the two
+columns can't be confused at a glance. Lanes share one row grid (CSS subgrid): each section starts
+on the same line in every lane. Below 1100px the lanes stop sitting side by side and a segmented
+Trivy | Grype picker shows one lane at a time. Rejected: tinted lane backgrounds (too faint on the
+warm canvas) and one-at-a-time on wide screens (loses the side-by-side comparison).
+
 **States:** loading; never-ingested; scanner-silent (chip + global banner agree); degraded;
 `T<now` → "history for scanner status is limited until the v1.1 metrics rollup" (C-1/D39).
 
