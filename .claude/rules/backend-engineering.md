@@ -19,9 +19,10 @@ Loaded when you touch backend or scanner source.
   without a broker - make it a shared, well-tested helper).
 - Time-series indices: partition by `cluster_id`, monthly rollover, 1 primary shard, **drop whole indices**
   for retention. **`delete_by_query` is not banned outright** — the rule targets the time-series
-  append family. Two sanctioned exceptions exist and say so in their own headers:
-  `jobs/findings_cleanup.py` (the `findings` cache) and `jobs/report_sweep.py` (small bounded ops
-  indices). Adding a third needs a ruling.
+  append family. Three sanctioned exceptions exist and say so in their own headers:
+  `jobs/findings_cleanup.py` (the `findings` cache), `jobs/report_sweep.py` (small bounded ops
+  indices) and `jobs/session_sweep.py` (expired `system-sessions` rows, ruled on issue 532). Adding
+  a fourth needs a ruling.
 - PIT + `search_after` (delete the PIT in `finally`) for deep paging/sweeps; `from/size` only under 10k.
 - **Logging** has its own rule (`.claude/rules/logging.md`, loads alongside this one) — a shared
   library on both stacks, never `console.*`/`print`.

@@ -25,7 +25,7 @@
 | `system-users` | mutable | none | **no** | none |
 | `system-roles` | mutable (capability bundles) | none | **no** | none |
 | `system-tokens` | mutable | none | **no** | manual revoke |
-| `system-sessions` | mutable | none | **no** | TTL expiry |
+| `system-sessions` | mutable | none | **no** | refused on lookup once `expires_at` passes; deleted by the session sweep (`jobs/session_sweep.py`) after `JAVV_SESSION_SWEEP_GRACE_HOURS` more (default 24h), revoked rows included |
 | `system-config` | mutable | none | **no** | none |
 | `system-tags` | mutable *(planned — not yet created by bootstrap; the tags feature is post-MVP)* | none | **no** | none |
 | `system-views` | mutable | none | **no** | none |

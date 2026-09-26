@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     ingest_rate_limit_per_minute: int = Field(default=120, ge=1)
     # human sessions (M5a/SEC-5): server-side TTL — the cookie's own lifetime is advisory
     session_ttl_hours: float = Field(default=24.0, gt=0)
+    # how long an expired session row stays before `jobs/session_sweep.py` deletes it (issue 532)
+    session_sweep_grace_hours: float = Field(default=24.0, ge=0)
     # login lockout (M5a): N failures per sliding window locks the username (429)
     login_max_attempts: int = Field(default=5, ge=1)
     login_lockout_minutes: float = Field(default=15.0, gt=0)
