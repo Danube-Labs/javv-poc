@@ -423,7 +423,12 @@ refused after the token check are recorded (`javv-ingest-failures-*`) and read p
 `GET /api/v1/scanners/ingest-failures?cluster_id=…&scanner=…&days=…` (When · Scanner · Image · Stage ·
 Error). **Still cut (A-7/D-4):** retry status, the Retry button, the "in retry queue" count and any
 dead-letter feed — retries and dead-lettering stay scanner-local; JAVV only sees its own refusals.
-The panel's placement is specified with its UI slice.
+**Placement (agreed by the operator 2026-09-26; §8.5 check on the built specimen in the UI PR):** one **Failed ingests** panel per
+scanner, under that scanner's committed-runs table — the screen's per-scanner columns carry it, so
+no count mixes scanners (the prototype's single full-width table with a Scanner column is replaced).
+Columns: When · Image (`—` when the push was refused before its body parsed) · Stage · Error (HTTP
+status + the server's message). Server-paged with the shared pager; empty = "No failed ingests in
+this range." A self-contained panel (DESIGN.md §10), so it can sit on a composed dashboard.
 
 **States:** loading; never-ingested; scanner-silent (chip + global banner agree); degraded;
 `T<now` → "history for scanner status is limited until the v1.1 metrics rollup" (C-1/D39).

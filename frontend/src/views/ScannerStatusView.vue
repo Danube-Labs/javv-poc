@@ -3,10 +3,11 @@
  * Scanner status screen (M9d slice 2; SCREENS §12, C-3 redesign): the shared data-screen
  * band (head-card + the scan-ingest lens — the same "committed runs per bucket, per scanner"
  * strip findings/images carry, operator ruling 2026-07-12) over per-(cluster, scanner) cards
- * — D20 freshness + D41 read-only provenance + last-N committed runs. The prototype's
- * failed-ingests feed is CUT by ruling (A-7/D-4): dead-lettering is scanner-local by design,
- * so no feed exists to show. Freshness/provenance are NOW-truth reads — at a rewound T the
- * screen renders the C-1/D39 limitation notice instead of data.
+ * — D20 freshness + D41 read-only provenance + last-N committed runs + the pushes the backend
+ * refused (issue 357; one self-contained panel per scanner, so no count ever mixes them).
+ * Retry and dead-letter stay cut (A-7/D-4): they are scanner-local, so the panel is read-only.
+ * Freshness/provenance are NOW-truth reads — at a rewound T the screen renders the C-1/D39
+ * limitation notice instead of data.
  */
 import { computed, ref, watch } from 'vue'
 
@@ -16,6 +17,7 @@ import {
 } from '@/api/generated'
 import { client } from '@/api/client'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
+import IngestFailuresTable from '@/components/scanners/IngestFailuresTable.vue'
 import LimitedHistoricalNotice from '@/components/dashboards/LimitedHistoricalNotice.vue'
 import ScannerRunsTable from '@/components/scanners/ScannerRunsTable.vue'
 import ScannerStatusCard, {
@@ -26,6 +28,7 @@ import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import type { FreshnessRow } from '@/system/freshness'
+import type { ScannerName } from '@/system/ingestFailures'
 
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
@@ -130,6 +133,12 @@ const scanners = computed(() => {
             :runs="s.provenance!.runs!"
             :scanner="s.name"
             :cap="RUNS_FETCHED"
+          />
+          <IngestFailuresTable
+            :cluster-id="clusterStore.selectedId!"
+            :scanner="s.name as ScannerName"
+            :t="timeTravel.t"
+            :window-days="timeTravel.windowDays"
           />
         </div>
       </div>

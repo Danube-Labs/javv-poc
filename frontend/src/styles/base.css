@@ -217,6 +217,24 @@ html [class*=' p-'] {
   border-radius: 0;
   box-shadow: none;
 }
+/* the title row of a table card: h3 + a soft one-line sub, over the table. The shared form of the
+   head the overview boards each scope for themselves, so a table panel that must render on any
+   host (DESIGN.md section 10) needs no per-component copy */
+.tbl-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 10px;
+}
+.tbl-card-head h3 {
+  margin: 0;
+}
+.tbl-card-sub {
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  color: var(--soft);
+}
 .tbl {
   width: 100%;
   border-collapse: collapse;
