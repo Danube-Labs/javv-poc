@@ -43,7 +43,7 @@ The rule, and it is descriptive of what ships today rather than aspirational:
 
 | Paging | Envelope | Examples |
 |---|---|---|
-| **cursor** (PIT + `search_after`, composite `after_key`) | `{ "data": [...], "next_cursor": "<opaque>\|null", "total": {"value": N, "relation": "eq"} }` | `/findings`, `/audit`, and both at a past `as_of` |
+| **cursor** (PIT + `search_after`, composite `after_key`, or `search_after` alone on an append-only newest-first read) | `{ "data": [...], "next_cursor": "<opaque>\|null", "total": {"value": N, "relation": "eq"} }` | `/findings`, `/audit`, and both at a past `as_of`; `/scanners/ingest-failures` (no PIT, issue 357) |
 | **offset** (`size`/`offset`) | `{ "<named>": [...], "total": N }` — named key, `total` already unwrapped to a plain number | `/decisions/approvals` → `approvals`, `/decisions` → `decisions`, `/admin/users` → `users`, `/admin/tokens` → `tokens` |
 | **unpaged** | `{ "<named>": [...] }` — named key, **no `total`** | `/contributors` → `leaderboard`, `/images` → `images`, `/images/timeline` → `events`, `/findings/top-components` → `components`, `/clusters` → `clusters`, `/views` → `views`, `/notifications` → `items`, `/admin/jobs` → `jobs`, `/admin/roles` → `roles`, `/admin/snapshots` → `snapshots`, `/scanners/provenance` → `scanners`, `/scanners/freshness` → `scanners` |
 
