@@ -58,11 +58,31 @@ async def _execute(client: AsyncOpenSearch, kind: str, attempt_id: str) -> None:
     except Exception as exc:  # noqa: BLE001 — the failure lands in the status doc, visibly
         log.error("repair job failed", kind=kind, attempt_id=attempt_id)
         beat.cancel()
-        await finalize_job(client, kind, attempt_id, {"status": "failed", "error": str(exc)})
+        await _record_ending(client, kind, attempt_id, {"status": "failed", "error": str(exc)})
         return
     beat.cancel()
-    await finalize_job(client, kind, attempt_id, {"status": "done", "result": result})
+    await _record_ending(client, kind, attempt_id, {"status": "done", "result": result})
     log.info("repair job done", kind=kind, attempt_id=attempt_id, **result_flat(result))
+
+
+async def _record_ending(
+    client: AsyncOpenSearch, kind: str, attempt_id: str, updates: dict[str, Any]
+) -> None:
+    """The status write can fail too, usually for the reason the job did (the store is gone).
+    Nothing awaits this task after the 202, so a raise would surface only as asyncio's "never
+    retrieved" line. Log it instead: the doc stays `running` until its lease goes stale, and the
+    existing reclaim takes over. The CronJob door (`run_under_lease`) keeps raising on purpose —
+    there, a non-zero pod exit is the signal."""
+    try:
+        await finalize_job(client, kind, attempt_id, updates)
+    except Exception as exc:  # noqa: BLE001 — see the docstring: log, never raise from here
+        log.error(
+            "repair job status not recorded",
+            kind=kind,
+            attempt_id=attempt_id,
+            status=updates["status"],
+            error=str(exc),
+        )
 
 
 def result_flat(result: dict[str, Any]) -> dict[str, Any]:
