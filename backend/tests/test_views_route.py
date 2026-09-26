@@ -118,6 +118,8 @@ async def test_created_view_is_visible_to_everyone_and_journaled(env) -> None:
     )
     assert rows["hits"]["total"]["value"] == 1
     assert rows["hits"]["hits"][0]["_source"]["actor"] == username
+    # views are fleet-global: no cluster_id, so the Audit screen shows the row (issue 559)
+    assert rows["hits"]["hits"][0]["_source"].get("cluster_id") is None
 
 
 async def test_a_must_change_session_cannot_save_a_view(env) -> None:

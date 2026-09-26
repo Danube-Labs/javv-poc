@@ -193,7 +193,7 @@ async def create_view(
     }
     # journal-first (D17/A-M5): the row lands before the view write — a journal failure leaves
     # no applied-but-unjournaled view; a retry re-drives both. Views are fleet-global (a preset
-    # carries no cluster_id — the cluster is chosen at query time), hence the "fleet" row.
+    # carries no cluster_id — the cluster is chosen at query time), hence the fleet-wide row.
     await append_field_change(
         client,
         actor=principal.user_id,
@@ -205,7 +205,7 @@ async def create_view(
         new_value=body.name,
         new_value_json=doc,
         revision=1,
-        cluster_id="fleet",
+        cluster_id=None,  # fleet-wide: no cluster_id, the class the Audit screen shows (issue 559)
     )
     await client.index(
         index=VIEWS_INDEX,
@@ -251,7 +251,7 @@ async def update_view(
         old_value_json=doc,
         new_value_json=updated,
         revision=1,
-        cluster_id="fleet",
+        cluster_id=None,  # fleet-wide: no cluster_id, the class the Audit screen shows (issue 559)
     )
     try:
         await client.index(
@@ -289,7 +289,7 @@ async def delete_view(
         new_value=None,
         old_value_json=doc,
         revision=1,
-        cluster_id="fleet",
+        cluster_id=None,  # fleet-wide: no cluster_id, the class the Audit screen shows (issue 559)
     )
     try:
         await client.delete(index=VIEWS_INDEX, id=view_id, params={"refresh": "true", **cas})
