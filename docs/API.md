@@ -229,6 +229,12 @@ warning with `reason`, `status` and the token's `cluster_id` and `scanner`, plus
 never logged. A `429` logs at most one warning per token per minute. A `401` is counted only, because
 an unauthenticated sender could otherwise choose how much the backend writes to its log.
 
+**Recording of rejections** (issue 357). The same post-token rejections are also written as one doc
+each to `javv-ingest-failures-<cluster_id>` (INDEX-MAP), under the **token's** cluster and scanner,
+for the scanner-status failed-ingests table. The `401` and the `429` record nothing, for the same
+reason they don't log per request. The response is unchanged by recording: if the write fails, the
+scanner still gets the same status and body, and the backend logs `ingest failure not recorded`.
+
 ## Metrics (`/metrics`, Prometheus)
 
 | Metric | Type | Labels | Meaning |

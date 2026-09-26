@@ -87,6 +87,20 @@ def test_images_template_carries_observed_topology() -> None:
     assert p["inventory_run_id"] == {"type": "keyword"}  # R-CATALOG read key (D37)
 
 
+def test_ingest_failures_template_matches_index_map() -> None:
+    body = INDEX_TEMPLATES["javv-ingest-failures"]
+    assert body["index_patterns"] == ["javv-ingest-failures-*"]  # scanner is a FIELD
+    p = _props(body)
+    for f in ("failure_id", "cluster_id", "scanner", "stage", "reason"):
+        assert p[f] == {"type": "keyword"}, f
+    for f in ("@timestamp", "ingested_at"):  # ingested_at is the lifecycle retention basis
+        assert p[f] == {"type": "date"}, f
+    assert p["status"] == {"type": "short"}
+    # display-only text a sender can influence: never indexed, never aggregated
+    assert p["error"] == {"type": "keyword", "index": False, "doc_values": False}
+    assert p["image_ref"] == {"type": "keyword", "ignore_above": 512}
+
+
 def test_tokens_index_matches_index_map() -> None:
     p = _props(MUTABLE_INDEXES["system-tokens"])
     assert p["token_hash"] == {"type": "keyword"}  # peppered SHA-256, never the raw token
@@ -124,6 +138,7 @@ def test_bootstrap_scope() -> None:
         "javv-images",
         "javv-finding-occurrences",
         "javv-inventory-runs",
+        "javv-ingest-failures",  # issue 357 — failed-ingest records
         "system-audit-log",
     }
 

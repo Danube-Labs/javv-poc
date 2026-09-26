@@ -339,24 +339,20 @@ async def test_a_429_logs_once_per_key_per_window(captured: Any, monkeypatch: An
     assert (line["log_level"], line["reason"], line["status"]) == ("warning", "rate_limited", 429)
 
 
-@pytest.mark.parametrize(
-    ("case", "status", "reason"),
-    [
-        ("zip_bomb", 413, "too_large"),
-        ("oversized_wire", 413, "too_large"),
-        ("bad_gzip", 400, "bad_gzip"),
-        ("bad_json", 400, "bad_json"),
-        ("extra_field", 422, "invalid_envelope"),
-        ("wrong_scanner", 403, "scope_mismatch"),
-        ("storage_down", 503, "storage_error"),
-    ],
-)
-async def test_every_rejection_after_the_token_check_logs_a_warning(
-    captured: Any, monkeypatch: Any, case: str, status: int, reason: str
-) -> None:
-    """Past the token check a sender is authenticated and already rate-limited per token, so a
-    warning per rejection is bounded and tells the operator which cluster's scanner misbehaves."""
-    t = mint_token()
+# every rejection past the token check: (case, status, metric reason)
+POST_AUTH_REJECTIONS = [
+    ("zip_bomb", 413, "too_large"),
+    ("oversized_wire", 413, "too_large"),
+    ("bad_gzip", 400, "bad_gzip"),
+    ("bad_json", 400, "bad_json"),
+    ("extra_field", 422, "invalid_envelope"),
+    ("wrong_scanner", 403, "scope_mismatch"),
+    ("storage_down", 503, "storage_error"),
+]
+
+
+def _rejected_push(case: str, t: str, monkeypatch: Any) -> tuple[dict[str, Any], bytes]:
+    """The token doc and body for one POST_AUTH_REJECTIONS case (storage_down patches ingest)."""
     doc = token_doc(t, scanner="grype") if case == "wrong_scanner" else token_doc(t)
     body = {
         "zip_bomb": gzip.compress(b"0" * (70 * 1024 * 1024)),
@@ -373,6 +369,17 @@ async def test_every_rejection_after_the_token_check_logs_a_warning(
             raise BulkError([{"index": {"status": 503}}])
 
         monkeypatch.setattr(ingest_mod, "ingest_envelope", _fail)
+    return doc, body
+
+
+@pytest.mark.parametrize(("case", "status", "reason"), POST_AUTH_REJECTIONS)
+async def test_every_rejection_after_the_token_check_logs_a_warning(
+    captured: Any, monkeypatch: Any, case: str, status: int, reason: str
+) -> None:
+    """Past the token check a sender is authenticated and already rate-limited per token, so a
+    warning per rejection is bounded and tells the operator which cluster's scanner misbehaves."""
+    t = mint_token()
+    doc, body = _rejected_push(case, t, monkeypatch)
     before = _count(reason)
     async with app_with(FakeOS(doc)) as c:
         assert (await post(c, body, t)).status_code == status
@@ -386,3 +393,89 @@ async def test_every_rejection_after_the_token_check_logs_a_warning(
         assert line["payload_scanner"] == "trivy"
     if case == "extra_field":
         assert line["errors"] >= 1
+
+
+# --- failed-ingest records (issue 357) -------------------------------------------------------
+
+
+def _failure_writes(fake: FakeOS) -> list[dict[str, Any]]:
+    return [w for w in fake.indexes if str(w["index"]).startswith("javv-ingest-failures-")]
+
+
+GOLDEN_IMAGE = json.loads(GOLDEN)["image_ref"]
+STAGE = {
+    "too_large": "receive",
+    "bad_gzip": "decode",
+    "bad_json": "decode",
+    "invalid_envelope": "validate",
+    "scope_mismatch": "authorize",
+    "storage_error": "store",
+}
+
+
+@pytest.mark.parametrize(("case", "status", "reason"), POST_AUTH_REJECTIONS)
+async def test_every_rejection_after_the_token_check_is_recorded_under_the_tokens_scope(
+    monkeypatch: Any, case: str, status: int, reason: str
+) -> None:
+    t = mint_token()
+    doc, body = _rejected_push(case, t, monkeypatch)
+    fake = FakeOS(doc)
+    async with app_with(fake) as c:
+        r = await post(c, body, t)
+    assert r.status_code == status
+    [write] = _failure_writes(fake)
+    rec = write["body"]
+    # routed on the TOKEN's scope: the wrong_scanner payload claims trivy, the token is grype
+    assert write["index"] == f"javv-ingest-failures-{doc['cluster_id']}"
+    assert (rec["cluster_id"], rec["scanner"]) == (doc["cluster_id"], doc["scanner"])
+    assert (rec["reason"], rec["status"], rec["stage"]) == (reason, status, STAGE[reason])
+    assert write["id"] == rec["failure_id"]
+    assert t not in repr(rec) and doc["token_hash"] not in repr(rec)
+    # the image is known once the body parsed as an object; before that it is honestly absent
+    parsed_as_object = case in ("extra_field", "wrong_scanner", "storage_down")
+    assert rec["image_ref"] == (GOLDEN_IMAGE if parsed_as_object else None)
+    if case == "extra_field":  # the first validation error names its location, never the input
+        assert rec["error"] == "envelope rejected: 1 error(s); first: extra: extra_forbidden"
+    else:
+        assert rec["error"] == r.json()["title"]  # the text the scanner itself was sent
+
+
+async def test_unauthenticated_rejections_record_nothing(monkeypatch: Any) -> None:
+    """A write per anonymous request would let a sender choose our write volume: the 401 and
+    the pre-token 429 only count."""
+    monkeypatch.setattr(get_settings(), "ingest_rate_limit_per_minute", 1, raising=False)
+    ingest_mod._limiter.reset()
+    t = mint_token()
+    fake = FakeOS(token_doc(t))
+    try:
+        async with app_with(fake) as c:
+            assert (await c.post("/api/v1/ingest/scan", content=b"x")).status_code == 401
+            assert (await post(c, gz(GOLDEN), mint_token())).status_code == 401
+            assert (await post(c, gz(GOLDEN), t)).status_code == 202
+            assert (await post(c, gz(GOLDEN), t)).status_code == 429
+    finally:
+        ingest_mod._limiter.reset()
+        ingest_mod._rate_limit_warned.reset()
+    assert _failure_writes(fake) == []
+
+
+class _RecordingBroken(FakeOS):
+    async def index(self, **kw: Any) -> dict[str, Any]:
+        if str(kw["index"]).startswith("javv-ingest-failures-"):
+            raise ConnectionError("failures index unreachable")
+        return await super().index(**kw)
+
+
+@pytest.mark.parametrize(("case", "status", "reason"), POST_AUTH_REJECTIONS)
+async def test_a_failed_record_leaves_the_rejection_byte_identical(
+    monkeypatch: Any, case: str, status: int, reason: str
+) -> None:
+    """Bookkeeping on a decided rejection must never turn it into something else (a 500)."""
+    t = mint_token()
+    doc, body = _rejected_push(case, t, monkeypatch)
+    async with app_with(FakeOS(doc)) as c:
+        recorded = await post(c, body, t)
+    async with app_with(_RecordingBroken(doc)) as c:
+        unrecorded = await post(c, body, t)
+    assert unrecorded.status_code == recorded.status_code == status
+    assert unrecorded.content == recorded.content
