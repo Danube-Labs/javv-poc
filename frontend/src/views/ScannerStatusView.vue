@@ -3,10 +3,11 @@
  * Scanner status screen (M9d slice 2; SCREENS §12, C-3 redesign): the shared data-screen
  * band (head-card + the scan-ingest lens — the same "committed runs per bucket, per scanner"
  * strip findings/images carry, operator ruling 2026-07-12) over per-(cluster, scanner) cards
- * — D20 freshness + D41 read-only provenance + last-N committed runs. The prototype's
- * failed-ingests feed is CUT by ruling (A-7/D-4): dead-lettering is scanner-local by design,
- * so no feed exists to show. Freshness/provenance are NOW-truth reads — at a rewound T the
- * screen renders the C-1/D39 limitation notice instead of data.
+ * — D20 freshness + D41 read-only provenance + last-N committed runs + the pushes the backend
+ * refused (issue 357; one self-contained panel per scanner, so no count ever mixes them).
+ * Retry and dead-letter stay cut (A-7/D-4): they are scanner-local, so the panel is read-only.
+ * Freshness/provenance are NOW-truth reads — at a rewound T the screen renders the C-1/D39
+ * limitation notice instead of data.
  */
 import { computed, ref, watch } from 'vue'
 
@@ -16,16 +17,19 @@ import {
 } from '@/api/generated'
 import { client } from '@/api/client'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
+import IngestFailuresTable from '@/components/scanners/IngestFailuresTable.vue'
 import LimitedHistoricalNotice from '@/components/dashboards/LimitedHistoricalNotice.vue'
 import ScannerRunsTable from '@/components/scanners/ScannerRunsTable.vue'
 import ScannerStatusCard, {
   type ProvenanceRow,
 } from '@/components/scanners/ScannerStatusCard.vue'
+import UiSegControl from '@/components/ui/UiSegControl.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import type { FreshnessRow } from '@/system/freshness'
+import type { ScannerName } from '@/system/ingestFailures'
 
 const clusterStore = useClusterStore()
 const timeTravel = useTimeTravelStore()
@@ -77,6 +81,23 @@ const scanners = computed(() => {
     freshness: freshness.value.find((f) => f.scanner === name) ?? null,
   }))
 })
+
+/** below 1100px the columns become one lane at a time, picked here (CSS hides the rest) */
+const picked = ref('')
+watch(
+  scanners,
+  (list) => {
+    if (!list.some((s) => s.name === picked.value)) picked.value = list[0]?.name ?? ''
+  },
+  { immediate: true },
+)
+const laneOptions = computed(() =>
+  scanners.value.map((s) => ({
+    value: s.name,
+    label: s.name,
+    accent: `var(--scanner-${s.name}-fg)`,
+  })),
+)
 </script>
 
 <template>
@@ -117,22 +138,41 @@ const scanners = computed(() => {
         <p>No scanner has reported for this cluster yet — the first committed run lands here.</p>
       </div>
 
-      <div v-else class="scan-cards">
-        <div v-for="s in scanners" :key="s.name" class="scan-stack">
-          <ScannerStatusCard
-            :scanner="s.name"
-            :provenance="s.provenance"
-            :freshness="s.freshness"
-          />
-          <!-- the committed-run timeline: shared table template + shared pager -->
-          <ScannerRunsTable
-            v-if="(s.provenance?.runs ?? []).length"
-            :runs="s.provenance!.runs!"
-            :scanner="s.name"
-            :cap="RUNS_FETCHED"
-          />
+      <template v-else>
+        <div class="lane-pick">
+          <UiSegControl v-model="picked" :options="laneOptions" />
         </div>
-      </div>
+        <div class="lanes" :style="{ '--lanes': scanners.length }">
+          <section
+            v-for="s in scanners"
+            :key="s.name"
+            class="lane"
+            :class="{ 'lane-off': s.name !== picked }"
+            :data-scanner="s.name"
+            :aria-label="`${s.name} scanner`"
+          >
+            <h2 class="lane-head">{{ s.name }}</h2>
+            <ScannerStatusCard
+              :scanner="s.name"
+              :provenance="s.provenance"
+              :freshness="s.freshness"
+            />
+            <!-- what needs attention sits right under the health card, above the run history -->
+            <IngestFailuresTable
+              :cluster-id="clusterStore.selectedId!"
+              :scanner="s.name as ScannerName"
+              :t="timeTravel.t"
+              :window-days="timeTravel.windowDays"
+            />
+            <ScannerRunsTable
+              v-if="(s.provenance?.runs ?? []).length"
+              :runs="s.provenance!.runs!"
+              :scanner="s.name"
+              :cap="RUNS_FETCHED"
+            />
+          </section>
+        </div>
+      </template>
     </template>
   </div>
 </template>
@@ -145,14 +185,61 @@ const scanners = computed(() => {
   gap: 14px;
   align-items: start;
 }
-.scan-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
 @media (width <= 1100px) {
   .scan-cards {
     grid-template-columns: 1fr;
+  }
+}
+/* One lane per scanner, side by side (operator ruling 2026-09-27, on built A/B/C specimens).
+   Each lane is a column of one shared 4-row subgrid, so a section starts on the same line in
+   every lane however tall its neighbour above is. */
+.lanes {
+  display: grid;
+  grid-template-columns: repeat(var(--lanes), minmax(0, 1fr));
+  grid-template-rows: repeat(4, auto);
+  column-gap: 28px;
+}
+.lane {
+  display: grid;
+  grid-row: 1 / span 4;
+  grid-template-rows: subgrid;
+  row-gap: 14px;
+  min-width: 0;
+}
+/* Identity is carried by the lane head and by the lane's own table heads, which take the
+   scanner hue instead of the shared slate band. Only --table-head-bg moves: --table-head-fg stays,
+   and it clears AA on both hues (contrast-gate.spec.ts). */
+.lane[data-scanner='trivy'] {
+  --lane-hue: var(--scanner-trivy-fg);
+}
+.lane[data-scanner='grype'] {
+  --lane-hue: var(--scanner-grype-fg);
+}
+.lane {
+  --table-head-bg: var(--lane-hue, var(--slate2));
+}
+.lane-head {
+  margin: 0;
+  padding-bottom: 8px;
+  border-bottom: 3px solid var(--lane-hue, var(--line));
+  color: var(--lane-hue, var(--ink));
+  font-size: var(--text-card-title);
+  text-transform: capitalize;
+}
+/* the picker only exists where the lanes can't sit side by side */
+.lane-pick {
+  display: none;
+  justify-content: center;
+}
+@media (width <= 1100px) {
+  .lane-pick {
+    display: flex;
+  }
+  .lanes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lane-off {
+    display: none;
   }
 }
 .load-error {

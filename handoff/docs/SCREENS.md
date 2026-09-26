@@ -423,7 +423,21 @@ refused after the token check are recorded (`javv-ingest-failures-*`) and read p
 `GET /api/v1/scanners/ingest-failures?cluster_id=…&scanner=…&days=…` (When · Scanner · Image · Stage ·
 Error). **Still cut (A-7/D-4):** retry status, the Retry button, the "in retry queue" count and any
 dead-letter feed — retries and dead-lettering stay scanner-local; JAVV only sees its own refusals.
-The panel's placement is specified with its UI slice.
+**Placement (agreed by the operator 2026-09-26; §8.5 check on the built specimen in the UI PR):** one **Failed ingests** panel per
+scanner, between that scanner's card and its committed-runs table (what needs attention before the
+history; operator, 2026-09-26) — the screen's per-scanner columns carry it, so
+no count mixes scanners (the prototype's single full-width table with a Scanner column is replaced).
+Columns: When · Image (`—` when the push was refused before its body parsed) · Stage · Error (HTTP
+status + the server's message). Server-paged with the shared pager; empty = "No failed ingests in
+this range." A self-contained panel (DESIGN.md §10), so it can sit on a composed dashboard.
+
+**Scanner lanes (operator ruling 2026-09-27, on built A/B/C specimens — B chosen, plus C on narrow):**
+each scanner is a lane — a head in the scanner hue with a 3px rule, then card · Failed ingests ·
+committed runs. The lane's table heads take the scanner hue instead of the slate band, so the two
+columns can't be confused at a glance. Lanes share one row grid (CSS subgrid): each section starts
+on the same line in every lane. Below 1100px the lanes stop sitting side by side and a segmented
+Trivy | Grype picker shows one lane at a time. Rejected: tinted lane backgrounds (too faint on the
+warm canvas) and one-at-a-time on wide screens (loses the side-by-side comparison).
 
 **States:** loading; never-ingested; scanner-silent (chip + global banner agree); degraded;
 `T<now` → "history for scanner status is limited until the v1.1 metrics rollup" (C-1/D39).

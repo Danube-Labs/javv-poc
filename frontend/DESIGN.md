@@ -274,7 +274,10 @@ Severity chip:  color var(--sev-critical-fg); background var(--sev-critical-bg);
 Chart series:   CHART_SEV.critical … (from '@/styles/tokens' — pinned to tokens.css by test)
 State pill:     var(--state-open-*) etc.   Health dot: var(--health-ok-dot)
 Table head:     background var(--table-head-bg); color var(--table-head-fg)
-Scanner identity: var(--scanner-trivy-*) / var(--scanner-grype-*)  (tags, seg dots, mix labels)
+Scanner identity: var(--scanner-trivy-*) / var(--scanner-grype-*)  (tags, seg dots, mix labels,
+                and on Scanner status each lane's head + table-head band: --table-head-bg takes the
+                lane's -fg hue there, the one place the slate band yields — ruling 2026-09-27 on
+                built A/B/C specimens; the head text stays --table-head-fg, AA-gated on both hues)
 Section accent: var(--sect-*)   (sidebar group dot + head-card top bar — never text)
 Mono data:      font-family var(--font-mono); font-size var(--text-mono-cell)
 Focus:          outline: var(--focus-ring); outline-offset: 1px

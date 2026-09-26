@@ -148,6 +148,15 @@ describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
     expect.soft(ratio('val-act-not-fg', 'slate3'), 'exclude mark on the chip').toBeGreaterThanOrEqual(NON_TEXT)
   })
 
+  it('scanner-status lanes: the table-head text clears AA on each scanner hue', () => {
+    // a lane swaps only --table-head-bg for its scanner's -fg hue; the head text token stays
+    for (const scanner of ['trivy', 'grype']) {
+      expect
+        .soft(ratio('table-head-fg', `scanner-${scanner}-fg`), `table head on the ${scanner} lane`)
+        .toBeGreaterThanOrEqual(AA)
+    }
+  })
+
   /**
    * A meter's TRACK is the scale its fill is read against, so it has to stay visible on every
    * ground the row can take. `--line2` did not: 1.03:1 against the button hover wash, so the
