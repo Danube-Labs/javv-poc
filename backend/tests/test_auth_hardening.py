@@ -8,7 +8,7 @@ CSRF — a cross-site HTML form can smuggle a JSON-shaped body only as `text/pla
 route accepts JSON content types only (fetch+application/json from another origin dies in CORS
 preflight; no CORS middleware is configured — also pinned). m-10: a login that arrives with a
 still-valid session cookie revokes THAT session — switching accounts can't orphan a live session.
-Codex M3: the dev-only token pepper must fail startup in a production profile."""
+Audit M3: the dev-only token pepper must fail startup in a production profile."""
 
 import uuid
 from typing import Any
@@ -77,7 +77,7 @@ async def test_revoke_all_retries_until_zero_conflicts() -> None:
     assert updated == 3
 
 
-# --- Codex M3: pepper fail-fast in a production profile (pure) ---------------------------
+# --- audit M3: pepper fail-fast in a production profile (pure) ---------------------------
 
 
 def test_dev_pepper_refuses_to_start_in_production() -> None:

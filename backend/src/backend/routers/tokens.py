@@ -42,7 +42,7 @@ ManageTokens = Annotated[Principal, Depends(require_capability("can_manage_token
 class MintRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    cluster_id: ClusterId  # the ONE shared shape (task E/Codex M2)
+    cluster_id: ClusterId  # the ONE shared shape (task E / audit M2)
     scanner: str = Field(pattern="^(trivy|grype)$")  # per-scanner is sacred — no other value
     # optional expiry (task E m-7): enforced at ingest since the M3 audit — now settable too
     expiry: datetime | None = None
@@ -102,7 +102,7 @@ async def list_tokens(
     size: Annotated[int, Query(ge=1, le=1000)] = 100,
     offset: Annotated[int, Query(ge=0, le=9000)] = 0,
 ) -> dict[str, Any]:
-    # explicit from/size pagination (task E/Codex L1) — fine under 10k (day-one rule);
+    # explicit from/size pagination (task E / audit L1) — fine under 10k (day-one rule);
     # an admin token inventory beyond that is not a realistic MVP shape
     filters: list[dict[str, Any]] = []
     if cluster_id:

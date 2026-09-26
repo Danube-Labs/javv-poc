@@ -1,4 +1,4 @@
-"""The shared `cluster_id` shape (task E / Codex M2, #142) — ONE rule, used by the envelope,
+"""The shared `cluster_id` shape (task E / audit M2, #142) — ONE rule, used by the envelope,
 the token mint API + CLI, and decisions. The shape is the envelope's original: lowercase
 alnum/hyphen, 8-64 chars, alnum first."""
 

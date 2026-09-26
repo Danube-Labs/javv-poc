@@ -41,7 +41,7 @@ _CANONICAL = {
     "unknown": "unknown",
 }
 
-# cluster_id shape: the ONE shared rule lives in core/identifiers.py (task E/Codex M2)
+# cluster_id shape: the ONE shared rule lives in core/identifiers.py (task E / audit M2)
 
 
 def canonical_severity(raw: str) -> str:

@@ -29,7 +29,7 @@ log = structlog.get_logger()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
-    assert_production_ready(settings)  # task C/Codex M3: dev secrets never survive a prod boot
+    assert_production_ready(settings)  # task C / audit M3: dev secrets never survive a prod boot
     client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
     app.state.opensearch = client
 

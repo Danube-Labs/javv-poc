@@ -13,7 +13,7 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 - **Conventional commits:** `type: subject` - `feat`, `fix`, `chore`, `docs`, `test`, `refactor`.
 - Imperative, present tense, lower-case subject. Body explains *why* when non-obvious.
 - Reference the bolt where useful: `feat(M1): hardened POST /ingest/scan`.
-- Footer on AI-assisted commits: `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`.
+- No attribution footers (`Co-Authored-By` lines for tools) and no session links in commits or PRs.
 - **Never** `--no-verify` / skip hooks. If a hook fails, fix the cause. Hooks are installed by
   [`.pre-commit-config.yaml`](../../.pre-commit-config.yaml) (ruff + the conventional-commit check,
   which mirrors CI commitlint: the 6 types, subject case, header and every body line ≤ 100 chars);
@@ -37,7 +37,8 @@ Lightweight rules for a small team. Full rationale in the `git-workflow-and-vers
 
 ## Handing a PR to review (implementer → reviewer)
 
-Standing division of labour (operator ruling 2026-07-27): **Opus 5 implements, Fable 5 reviews.**
+Standing division of labour (operator ruling 2026-07-27): **one agent implements, an independent
+reviewer checks.**
 Scoped issues carry an implementation-prompt comment ending in a **Review gate** — that list is the
 review contract for the PR.
 
@@ -93,7 +94,7 @@ README is the spec. While working a bolt, comment its issue at these checkpoints
   since tool-use can't be CI-enforced).
 
 Mechanical activity (commits/PRs that mention `#<n>`) shows up in the issue timeline automatically — no comment
-needed for that. Agent included: when Claude works a bolt, it follows these same checkpoints.
+needed for that. Agent included: when an AI agent works a bolt, it follows these same checkpoints.
 
 ## Housekeeping (non-bolt chores)
 Maintenance work — CI/tooling bumps, dependency hygiene, version pins, doc/branch cleanup — stays off the
