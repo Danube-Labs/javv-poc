@@ -137,6 +137,28 @@ async def test_retention_drops_an_expired_rolled_index(real_os) -> None:
 
 
 @requires_opensearch
+async def test_failed_ingest_records_age_out_under_the_same_retention(real_os) -> None:
+    """Issue 357: the failures series is a managed series like any other — rolled, and dropped
+    whole once its newest server stamp passes `retention_days`. No new job, no new knob."""
+    client, prefix = real_os
+    alias = f"{prefix}javv-ingest-failures-{CLUSTER}"
+    await ensure_write_alias(client, alias)
+    old = (NOW - timedelta(days=200)).isoformat()
+    await client.index(
+        index=alias,
+        body={"@timestamp": old, "ingested_at": old, "failure_id": "f1", "cluster_id": CLUSTER},
+        params={"refresh": "true"},
+    )
+    await client.indices.rollover(alias=alias)
+
+    result = await run_lifecycle_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["dropped"] == 1
+    assert not await client.indices.exists(index=f"{alias}-000001")
+    assert await client.indices.exists(index=f"{alias}-000002")  # the write index stays
+
+
+@requires_opensearch
 async def test_retention_never_touches_the_write_index(real_os) -> None:
     client, prefix = real_os
     alias = f"{prefix}javv-scan-events-{CLUSTER}"

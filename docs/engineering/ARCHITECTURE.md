@@ -60,6 +60,7 @@ flowchart TB
                 OCC[("javv-finding-occurrences-* (full snapshots → point-in-time)")]
                 I[("javv-images-* (inventory snapshots)")]
                 IRUN[("javv-inventory-runs-* (inventory commit manifest)")]
+                IFAIL[("javv-ingest-failures-* (pushes refused past the token check)")]
                 MET[("javv-metrics-* (rollup, v1.1)")]
             end
             subgraph SYS["system-* (repository interface)"]
@@ -88,6 +89,7 @@ flowchart TB
     APPEND --> OCC
     APPEND --> I
     APPEND --> IRUN
+    INGEST -->|"rejected after the token check"| IFAIL
     APPEND -->|"CAS watermark"| WM
     WM -.->|"newer-scan-wins guard"| UPSERT
     UPSERT --> PROJECT
@@ -212,6 +214,7 @@ the `findings` cache - the heart of D17.
 | **Logs - history** | `javv-finding-occurrences-*` | append-only | ingest only (full per-scan snapshots) | accurate point-in-time (read via catalog) |
 | **Logs - inventory** | `javv-images-*` | append-only | ingest only (snapshots per `inventory_run_id`) | running-images @ latest committed run; rewind ≤ T |
 | **Logs - inventory catalog** | `javv-inventory-runs-*` | append-only | ingest only (1 manifest/run, written last) | certifies a run complete (`status=committed`) - read gate for "running images" |
+| **Logs - ingest failures** | `javv-ingest-failures-*` | append-only | ingest only (1 doc per push rejected after the token check, token's scope) | scanner-status failed-ingests table (issue 357) |
 | **Human decisions (source of truth)** | `system-decisions`, `system-audit-log` | append/mutable | triage only; **every** action journaled | scoped decisions + audit + Contributors |
 | **Ops** | `system-reports`, `system-notifications`, `system-saved-views` | mutable | API/jobs | export queue · bell · views |
 

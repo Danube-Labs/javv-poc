@@ -113,6 +113,11 @@ export const FAMILY_ROWS: FamilyRow[] = [
     kind: 'append',
   },
   {
+    pattern: 'javv-ingest-failures-*',
+    purpose: 'pushes the backend refused after checking their token',
+    kind: 'append',
+  },
+  {
     pattern: 'system-audit-log-*',
     purpose: 'who-did-what journal',
     kind: 'protected',

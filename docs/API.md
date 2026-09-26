@@ -224,10 +224,19 @@ token↔payload scope binding → commit-then-cache writes (D39, deterministic `
 
 **Logging of rejections** (issue 523). Every rejection increments `javv_ingest_rejected_total{reason}`.
 Every rejection after the token check (`400`, `403`, `413`, `422`, `503`) also logs one `ingest rejected`
-warning with `reason`, `status` and the token's `cluster_id` and `scanner`, plus `limit_bytes` on a
+warning with `reason`, `status`, the token's `cluster_id` and `scanner`, and `failure_id` (the id of
+the failed-ingest record below, so a table row and its log line join), plus `limit_bytes` on a
 `413`, `errors` on a `422`, and `payload_cluster_id` / `payload_scanner` on a `403`. The token itself is
 never logged. A `429` logs at most one warning per token per minute. A `401` is counted only, because
 an unauthenticated sender could otherwise choose how much the backend writes to its log.
+
+**Recording of rejections** (issue 357). The same post-token rejections are also written as one doc
+each to `javv-ingest-failures-<cluster_id>` (INDEX-MAP), under the **token's** cluster and scanner,
+for the scanner-status failed-ingests table. The `401` and the `429` record nothing, for the same
+reason they don't log per request. The response is unchanged by recording: if the write fails, the
+scanner still gets the same status and body, and the backend logs `ingest failure not recorded`
+(with the `failure_id`) and increments `javv_ingest_failures_unrecorded_total{reason}`, because the
+table cannot show its own gaps.
 
 ## Metrics (`/metrics`, Prometheus)
 
@@ -235,6 +244,7 @@ an unauthenticated sender could otherwise choose how much the backend writes to 
 |---|---|---|---|
 | `javv_ingest_accepted_total` | counter | `scanner` | Envelopes accepted + committed |
 | `javv_ingest_rejected_total` | counter | `reason` | Envelopes rejected — `reason` ∈ `bad_token`, `rate_limited`, `too_large`, `bad_gzip`, `bad_json`, `invalid_envelope`, `scope_mismatch`, `storage_error` |
+| `javv_ingest_failures_unrecorded_total` | counter | `reason` | Post-token rejections whose failed-ingest record could not be written (issue 357) — non-zero means the scanner-status failed-ingests table is missing rows. `reason` ∈ the six post-token values above |
 | `javv_ingest_findings_written_total` | counter | `scanner` | Finding docs written |
 | `javv_http_request_duration_seconds` | histogram | `method`, `route`, `status` | Route-TEMPLATE labels (unrouted → one `unmatched` series); `/metrics` + probes excluded (#220 M-1) |
 | `javv_opensearch_request_errors_total` | counter | `kind` | `conn`, `timeout`, `429`, `503` — dependency failures on read + bulk paths (M-2) |

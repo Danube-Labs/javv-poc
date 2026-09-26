@@ -16,6 +16,7 @@
 | `javv-scan-events-<cluster_id>-*` | append (trends + **commit catalog**) | cluster (scanner = field, D38) | **yes** | per-cluster drop-whole-index |
 | `javv-images-<cluster_id>-*` | append (inventory snapshots, per `inventory_run_id`) | cluster | **yes** | per-cluster drop-whole-index |
 | `javv-inventory-runs-<cluster_id>-*` | append (**inventory commit manifest**, 1/run) | cluster | **yes** | per-cluster drop-whole-index |
+| `javv-ingest-failures-<cluster_id>-*` | append (pushes rejected past the token check, issue 357) | cluster (scanner = field) | **yes** | per-cluster drop-whole-index (the same `retention_days`) |
 | `system-audit-log-*` | append (human-state timeline + trail) | time | **yes** (fleet settings; rollover-ONLY in the sweep - task F m-6, #143) | **keep long** - the sweep NEVER retention-drops it (no expiry in MVP) |
 | `javv-metrics-*` *(v1.1)* | append (downsample rollup) | cluster | **yes** | keep long (tiny) |
 | `findings` | mutable current-state ("now" cache) | none (field `cluster_id`) | **no** | `stale`/`present` are **flags**; `delete_by_query` only after a **long** window (D37/M12) |
@@ -144,6 +145,35 @@ completed_at      date
 expected_count    integer       images discovered this run
 written_count     integer       image docs successfully appended (== expected_count when committed)
 status            keyword        committed | partial | failed   (only committed is read)
+schema_version    short
+```
+
+### `javv-ingest-failures-<cluster_id>-*` - failed-ingest records (issue 357)
+1 immutable doc per push the ingest route **rejected after the token check** — the data behind
+scanner status's failed-ingests table (When · Scanner · Image · Stage · Error). The 401 and the
+pre-token 429 write **nothing**: a write per anonymous request would let a sender choose our write
+volume; past the token, the per-token rate limit bounds it. **Routed on the token's
+`cluster_id`/`scanner`, never the payload's** (a `scope_mismatch` envelope's self-declared cluster is
+the untrusted value). Recording never changes the response: a failed write is logged, counted in
+`javv_ingest_failures_unrecorded_total`, and swallowed (`services/ingest_failures.py`). JAVV sees only its own refusal, so there is **no status/retry
+field** — retries and dead-lettering stay scanner-side (A-7/D-4). `_id = failure_id`. 1 primary
+shard, monthly rollover, retention = the lifecycle's per-cluster `retention_days` (drop-whole-index).
+```
+@timestamp        date          server time of the rejection
+ingested_at       date          same server stamp - the retention age basis (task F m-4)
+failure_id        keyword       uuid4 hex; = _id; the unique tiebreak for the newest-first paged read;
+                                also on the route's `ingest rejected` warning (row ↔ log-line join)
+cluster_id        keyword       the TOKEN's cluster (tenant + routing)
+scanner           keyword       the TOKEN's scanner - a field, never in the index name (D38)
+stage             keyword       receive | decode | validate | authorize | store
+reason            keyword       the javv_ingest_rejected_total label: too_large | bad_gzip | bad_json |
+                                invalid_envelope | scope_mismatch | storage_error
+status            short         the HTTP status the scanner was sent
+error             keyword       index:false, doc_values:false - display only. Server-authored: the
+                                response text, plus the first validation error's location + type
+                                (never the rejected input); control chars stripped, ≤ 512 chars
+image_ref         keyword       ignore_above 512; best-effort, null until the body parsed as an
+                                object; sender-supplied, so capped + stripped like `error`
 schema_version    short
 ```
 

@@ -56,7 +56,9 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #             overdue FILTER ranges on it, the verdict stays read-time against the live policy)
 #          v17 + system-jobs (issue 406 repair actions — one lease/status doc per maintenance
 #             job kind; bounded at #kinds docs, OCC claim + fencing attempt_id like reports)
-MAPPING_VERSION = 17
+#          v18 + javv-ingest-failures template (issue 357 — one doc per push rejected past the
+#             token check; per-cluster series under the lifecycle's drop-whole-index retention)
+MAPPING_VERSION = 18
 
 _KW = {"type": "keyword"}
 _DATE = {"type": "date"}
@@ -482,6 +484,24 @@ _AUDIT_LOG_PROPERTIES: dict[str, Any] = {
     "schema_version": {"type": "short"},
 }
 
+# javv-ingest-failures-* (issue 357): 1 immutable doc per push rejected PAST the token check
+# (401/429 write nothing), routed on the token's cluster, never the payload's. The table behind
+# scanner status's failed-ingests panel. `error` is display-only, so it is neither indexed nor
+# aggregatable; `failure_id` is the unique tiebreak for the newest-first paged read.
+_INGEST_FAILURES_PROPERTIES: dict[str, Any] = {
+    "@timestamp": _DATE,  # server time of the rejection
+    "ingested_at": _DATE,  # same server stamp — the lifecycle retention basis (task F m-4)
+    "failure_id": _KW,
+    "cluster_id": _KW,  # the TOKEN's cluster
+    "scanner": _KW,  # the TOKEN's scanner — a field, never in the index name (D38)
+    "stage": _KW,  # receive | decode | validate | authorize | store
+    "reason": _KW,  # the javv_ingest_rejected_total label
+    "status": {"type": "short"},  # the HTTP status the scanner got
+    "error": {"type": "keyword", "index": False, "doc_values": False},
+    "image_ref": {"type": "keyword", "ignore_above": 512},  # null before the body parsed
+    "schema_version": {"type": "short"},
+}
+
 INDEX_TEMPLATES: dict[str, dict[str, Any]] = {
     "system-audit-log": {
         "index_patterns": ["system-audit-log-*"],
@@ -522,6 +542,14 @@ INDEX_TEMPLATES: dict[str, dict[str, Any]] = {
         "template": {
             "settings": {"index": _BASE_SETTINGS},
             "mappings": _mappings(_INVENTORY_RUNS_PROPERTIES),
+        },
+    },
+    "javv-ingest-failures": {  # issue 357 — failed-ingest records
+        "index_patterns": ["javv-ingest-failures-*"],
+        "priority": 10,
+        "template": {
+            "settings": {"index": _BASE_SETTINGS},
+            "mappings": _mappings(_INGEST_FAILURES_PROPERTIES),
         },
     },
 }
