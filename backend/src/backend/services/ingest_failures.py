@@ -16,13 +16,13 @@ validation locations can carry sender-chosen strings.
 """
 
 import re
-import uuid
 from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 from opensearchpy import AsyncOpenSearch
 
+from backend.core.metrics import INGEST_FAILURES_UNRECORDED
 from backend.services.aliases import ensure_write_alias
 
 log = structlog.get_logger()
@@ -78,6 +78,7 @@ def build_failure_doc(
 async def record_ingest_failure(
     client: AsyncOpenSearch,
     *,
+    failure_id: str,
     cluster_id: str,
     scanner: str,
     reason: str,
@@ -86,8 +87,10 @@ async def record_ingest_failure(
     image_ref: str | None = None,
     prefix: str = "",
 ) -> None:
-    """Append one failure doc. Never raises. `prefix` isolates index names (tests only)."""
-    failure_id = uuid.uuid4().hex
+    """Append one failure doc under `failure_id` — the id the route already put on its
+    `ingest rejected` line, so a table row and its log line join. Never raises; a miss is a
+    warning plus `javv_ingest_failures_unrecorded_total`, because the table can't show its own
+    gaps. `prefix` isolates index names (tests only)."""
     try:
         doc = build_failure_doc(
             cluster_id=cluster_id,
@@ -103,8 +106,10 @@ async def record_ingest_failure(
         await ensure_write_alias(client, alias)
         await client.index(index=alias, id=failure_id, body=doc)
     except Exception as exc:  # noqa: BLE001 — see the module docstring: log, never raise
+        INGEST_FAILURES_UNRECORDED.labels(reason=reason).inc()
         log.warning(
             "ingest failure not recorded",
+            failure_id=failure_id,
             cluster_id=cluster_id,
             scanner=scanner,
             reason=reason,

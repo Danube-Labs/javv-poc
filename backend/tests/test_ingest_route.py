@@ -12,7 +12,7 @@ import pytest
 import structlog
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
-from backend.core.metrics import INGEST_REJECTED
+from backend.core.metrics import INGEST_FAILURES_UNRECORDED, INGEST_REJECTED
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
 from backend.main import create_app
@@ -337,6 +337,7 @@ async def test_a_429_logs_once_per_key_per_window(captured: Any, monkeypatch: An
     assert _count("rate_limited") == before + 3
     [line] = _rejections(captured)
     assert (line["log_level"], line["reason"], line["status"]) == ("warning", "rate_limited", 429)
+    assert "failure_id" not in line  # pre-token: nothing is recorded, so there's no row to name
 
 
 # every rejection past the token check: (case, status, metric reason)
@@ -415,7 +416,7 @@ STAGE = {
 
 @pytest.mark.parametrize(("case", "status", "reason"), POST_AUTH_REJECTIONS)
 async def test_every_rejection_after_the_token_check_is_recorded_under_the_tokens_scope(
-    monkeypatch: Any, case: str, status: int, reason: str
+    captured: Any, monkeypatch: Any, case: str, status: int, reason: str
 ) -> None:
     t = mint_token()
     doc, body = _rejected_push(case, t, monkeypatch)
@@ -430,6 +431,9 @@ async def test_every_rejection_after_the_token_check_is_recorded_under_the_token
     assert (rec["cluster_id"], rec["scanner"]) == (doc["cluster_id"], doc["scanner"])
     assert (rec["reason"], rec["status"], rec["stage"]) == (reason, status, STAGE[reason])
     assert write["id"] == rec["failure_id"]
+    # the warning names the record it produced: a table row and its log line join on this id
+    [line] = _rejections(captured)
+    assert line["failure_id"] == rec["failure_id"]
     assert t not in repr(rec) and doc["token_hash"] not in repr(rec)
     # the image is known once the body parsed as an object; before that it is honestly absent
     parsed_as_object = case in ("extra_field", "wrong_scanner", "storage_down")
@@ -475,7 +479,10 @@ async def test_a_failed_record_leaves_the_rejection_byte_identical(
     doc, body = _rejected_push(case, t, monkeypatch)
     async with app_with(FakeOS(doc)) as c:
         recorded = await post(c, body, t)
+    missed = INGEST_FAILURES_UNRECORDED.labels(reason=reason)
+    before = missed._value.get()
     async with app_with(_RecordingBroken(doc)) as c:
         unrecorded = await post(c, body, t)
     assert unrecorded.status_code == recorded.status_code == status
     assert unrecorded.content == recorded.content
+    assert missed._value.get() == before + 1  # the miss is counted, not just logged

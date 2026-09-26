@@ -8,6 +8,7 @@ from typing import Any, cast
 import structlog
 from opensearchpy import AsyncOpenSearch
 
+from backend.core.metrics import INGEST_FAILURES_UNRECORDED
 from backend.services import ingest_failures
 from backend.services.ingest_failures import (
     MAX_TEXT,
@@ -86,9 +87,12 @@ class _StoreDown:
 async def test_a_failing_store_is_logged_never_raised(monkeypatch: Any) -> None:
     capture = structlog.testing.LogCapture()
     monkeypatch.setattr(ingest_failures, "log", structlog.wrap_logger(None, processors=[capture]))
+    unrecorded = INGEST_FAILURES_UNRECORDED.labels(reason="storage_error")
+    before = unrecorded._value.get()
 
     await record_ingest_failure(
         cast(AsyncOpenSearch, _StoreDown()),
+        failure_id="f-down",
         cluster_id="c-down",
         scanner="trivy",
         reason="storage_error",
@@ -98,6 +102,9 @@ async def test_a_failing_store_is_logged_never_raised(monkeypatch: Any) -> None:
 
     [line] = capture.entries
     assert (line["event"], line["log_level"]) == ("ingest failure not recorded", "warning")
+    assert line["failure_id"] == "f-down"  # the same id the route's `ingest rejected` line has
+    # the table can't show its own gaps, so a miss is also a metric an alert can watch
+    assert unrecorded._value.get() == before + 1
     assert (line["cluster_id"], line["scanner"], line["reason"]) == (
         "c-down",
         "trivy",
@@ -110,6 +117,7 @@ async def test_round_trip_through_the_template(real_os: Any) -> None:
     client, prefix = real_os
     await record_ingest_failure(
         client,
+        failure_id="f-roundtrip",
         cluster_id="c-roundtrip",
         scanner="grype",
         reason="scope_mismatch",
@@ -123,7 +131,7 @@ async def test_round_trip_through_the_template(real_os: Any) -> None:
     hits = (await client.search(index=f"{series}-*", body={"query": {"match_all": {}}}))["hits"]
     [hit] = hits["hits"]
     assert hit["_source"]["stage"] == "authorize"
-    assert hit["_id"] == hit["_source"]["failure_id"]
+    assert hit["_id"] == hit["_source"]["failure_id"] == "f-roundtrip"
 
     # the template applied: strict mapping, filterable scope, and `error` is display-only
     mapping = await client.indices.get_mapping(index=f"{series}-*")

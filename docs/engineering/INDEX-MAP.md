@@ -154,14 +154,15 @@ scanner status's failed-ingests table (When · Scanner · Image · Stage · Erro
 pre-token 429 write **nothing**: a write per anonymous request would let a sender choose our write
 volume; past the token, the per-token rate limit bounds it. **Routed on the token's
 `cluster_id`/`scanner`, never the payload's** (a `scope_mismatch` envelope's self-declared cluster is
-the untrusted value). Recording never changes the response: a failed write is logged and swallowed
-(`services/ingest_failures.py`). JAVV sees only its own refusal, so there is **no status/retry
+the untrusted value). Recording never changes the response: a failed write is logged, counted in
+`javv_ingest_failures_unrecorded_total`, and swallowed (`services/ingest_failures.py`). JAVV sees only its own refusal, so there is **no status/retry
 field** — retries and dead-lettering stay scanner-side (A-7/D-4). `_id = failure_id`. 1 primary
 shard, monthly rollover, retention = the lifecycle's per-cluster `retention_days` (drop-whole-index).
 ```
 @timestamp        date          server time of the rejection
 ingested_at       date          same server stamp - the retention age basis (task F m-4)
-failure_id        keyword       uuid4 hex; = _id; the unique tiebreak for the newest-first paged read
+failure_id        keyword       uuid4 hex; = _id; the unique tiebreak for the newest-first paged read;
+                                also on the route's `ingest rejected` warning (row ↔ log-line join)
 cluster_id        keyword       the TOKEN's cluster (tenant + routing)
 scanner           keyword       the TOKEN's scanner - a field, never in the index name (D38)
 stage             keyword       receive | decode | validate | authorize | store

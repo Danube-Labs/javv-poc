@@ -25,6 +25,12 @@ from prometheus_client import (
 
 INGEST_ACCEPTED = Counter("javv_ingest_accepted_total", "Envelopes accepted", ["scanner"])
 INGEST_REJECTED = Counter("javv_ingest_rejected_total", "Envelopes rejected", ["reason"])
+# issue 357: a rejection the failed-ingests table will never show — its record write failed
+INGEST_FAILURES_UNRECORDED = Counter(
+    "javv_ingest_failures_unrecorded_total",
+    "Post-auth ingest rejections whose failed-ingest record could not be written",
+    ["reason"],
+)
 FINDINGS_WRITTEN = Counter(
     "javv_ingest_findings_written_total", "Finding docs written", ["scanner"]
 )
@@ -122,6 +128,7 @@ __all__ = [
     "FINDINGS_WRITTEN",
     "HTTP_REQUEST_DURATION",
     "INGEST_ACCEPTED",
+    "INGEST_FAILURES_UNRECORDED",
     "INGEST_REJECTED",
     "LIMIT_REJECTIONS",
     "OS_BACKOFF_RETRIES",

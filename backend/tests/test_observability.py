@@ -42,6 +42,7 @@ async def test_metrics_endpoint_exposes_ingest_counters() -> None:
     assert r.status_code == 200
     assert "javv_ingest_accepted_total" in r.text
     assert "javv_ingest_rejected_total" in r.text
+    assert "javv_ingest_failures_unrecorded_total" in r.text  # issue 357
     assert "javv_ingest_findings_written_total" in r.text
 
 
