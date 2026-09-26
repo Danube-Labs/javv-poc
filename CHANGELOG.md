@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.4.6](https://github.com/Danube-Labs/javv-poc/compare/v0.4.5...v0.4.6) (2026-09-26)
+
+
+### Features
+
+* **backend:** client-events beacon endpoint with namespaced re-emit (issue 453) ([#517](https://github.com/Danube-Labs/javv-poc/issues/517)) ([0e32e0a](https://github.com/Danube-Labs/javv-poc/commit/0e32e0add053b5be8f9c95ff6ec6c3d5b5e8d4db)), closes [#453](https://github.com/Danube-Labs/javv-poc/issues/453)
+* **backend:** read one scanner's failed ingests, newest first ([#573](https://github.com/Danube-Labs/javv-poc/issues/573)) ([ca49e69](https://github.com/Danube-Labs/javv-poc/commit/ca49e69ae72b6e6f5b1b112bf2818d86ae53d77e)), closes [#357](https://github.com/Danube-Labs/javv-poc/issues/357)
+* **backend:** record ingests rejected past the token check, with lifecycle retention ([#572](https://github.com/Danube-Labs/javv-poc/issues/572)) ([2109af7](https://github.com/Danube-Labs/javv-poc/commit/2109af7ae9410c34f6f01e4a92dc078ffb259d4a)), closes [#357](https://github.com/Danube-Labs/javv-poc/issues/357)
+* **backend:** sweep expired login sessions past a grace window ([#558](https://github.com/Danube-Labs/javv-poc/issues/558)) ([4ee2ff2](https://github.com/Danube-Labs/javv-poc/commit/4ee2ff2905646fb0dbeda047911185b2ce7070f1)), closes [#532](https://github.com/Danube-Labs/javv-poc/issues/532)
+* **frontend:** report dropped beacon events and clip oversized field values (issue 519) ([#521](https://github.com/Danube-Labs/javv-poc/issues/521)) ([cf3f5a0](https://github.com/Danube-Labs/javv-poc/commit/cf3f5a0de886f18cd67844385dcf3bdd00e525eb))
+* **frontend:** ship warn/error to the client-events beacon from lib/logger (issue 453) ([#518](https://github.com/Danube-Labs/javv-poc/issues/518)) ([bc44c4a](https://github.com/Danube-Labs/javv-poc/commit/bc44c4ab3913a9ee195666868822b470250c9cce))
+* **frontend:** show each scanner's failed ingests on scanner status ([#574](https://github.com/Danube-Labs/javv-poc/issues/574)) ([53d9abd](https://github.com/Danube-Labs/javv-poc/commit/53d9abd556f8a0d256ccfcf08d5fe596c319c715)), closes [#357](https://github.com/Danube-Labs/javv-poc/issues/357)
+* **ui:** recent sign-ins lens link on the users panel (issue 460 §2) ([#514](https://github.com/Danube-Labs/javv-poc/issues/514)) ([560b71f](https://github.com/Danube-Labs/javv-poc/commit/560b71fff9e1b46bc706f565f19e672966af55ec)), closes [#460](https://github.com/Danube-Labs/javv-poc/issues/460)
+
+
+### Bug Fixes
+
+* **backend:** log a warning on capped and rejected paths that only bumped a metric ([#562](https://github.com/Danube-Labs/javv-poc/issues/562)) ([3722df8](https://github.com/Danube-Labs/javv-poc/commit/3722df83d41afaf5508dce12b783a029e51a74bc)), closes [#523](https://github.com/Danube-Labs/javv-poc/issues/523)
+* **backend:** show fleet-wide audit rows on the audit log page ([#561](https://github.com/Danube-Labs/javv-poc/issues/561)) ([1dfae86](https://github.com/Danube-Labs/javv-poc/commit/1dfae868f96aa0e698e665ee27f156f0e48d2d7f)), closes [#559](https://github.com/Danube-Labs/javv-poc/issues/559)
+* **backend:** wait out the reclaimed job in its test, and log an unrecordable job ending ([#570](https://github.com/Danube-Labs/javv-poc/issues/570)) ([e7cc2fd](https://github.com/Danube-Labs/javv-poc/commit/e7cc2fdde70ebb8b76136940564920735e3d7e65)), closes [#566](https://github.com/Danube-Labs/javv-poc/issues/566)
+* **e2e:** metrics assertions fired on bodies that carried the counter ([#528](https://github.com/Danube-Labs/javv-poc/issues/528)) ([dff5243](https://github.com/Danube-Labs/javv-poc/commit/dff5243db3e74174f5a3ca35c9f188cef51ff9d4))
+* **frontend:** guard beacon event names at build time and mark clipped values ([#569](https://github.com/Danube-Labs/javv-poc/issues/569)) ([75b61bc](https://github.com/Danube-Labs/javv-poc/commit/75b61bcfc15a74dd649b61b061f96138ca2a9f5b)), closes [#525](https://github.com/Danube-Labs/javv-poc/issues/525)
+
 ## [0.4.5](https://github.com/Danube-Labs/javv-poc/compare/v0.4.4...v0.4.5) (2026-07-30)
 
 
