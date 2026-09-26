@@ -8,14 +8,17 @@ import asyncio
 import contextlib
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 
 import httpx
 import pytest
+import structlog
 from opensearchpy import AsyncOpenSearch
+from opensearchpy.exceptions import ConnectionError as OpenSearchConnectionError
 
 from backend.auth.passwords import hash_password
 from backend.main import create_app
+from backend.routers import admin_jobs
 from os_env import OS_URL, requires_opensearch
 
 PASSWORD = "correct horse battery staple"
@@ -219,3 +222,41 @@ async def test_status_lists_every_kind_with_capability(env):
     jobs = {j["kind"]: j for j in s.json()["jobs"]}
     assert set(jobs) == {"rebuild_state", "staleness_sweep", "lifecycle_sweep"}
     assert jobs["lifecycle_sweep"]["capability"] == "can_drop_index"
+
+
+@pytest.mark.parametrize("outcome", ["done", "failed"])
+async def test_an_unrecordable_ending_is_logged_not_raised(monkeypatch, outcome):
+    """The status write can fail too (the store is gone when the job ends). Nothing awaits the
+    task after the 202, so a raise there surfaces only as asyncio's "never retrieved" line: it must
+    be one searchable ERROR instead. The doc stays `running` until its lease goes stale — the
+    existing reclaim handles it."""
+
+    async def runner(_client: AsyncOpenSearch) -> dict[str, Any]:
+        if outcome == "failed":
+            raise RuntimeError("sweep failed")
+        return {"staled": 0, "reverted": 0}
+
+    async def no_heartbeat(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
+    async def store_gone(*_args: Any, **_kwargs: Any) -> None:
+        raise OpenSearchConnectionError(
+            "N/A", "Session is closed", RuntimeError("Session is closed")
+        )
+
+    capture = structlog.testing.LogCapture()
+    monkeypatch.setattr(admin_jobs, "log", structlog.wrap_logger(None, processors=[capture]))
+    monkeypatch.setitem(admin_jobs.JOB_KINDS, "staleness_sweep", ("can_manage_settings", runner))
+    monkeypatch.setattr(admin_jobs, "heartbeat_loop", no_heartbeat)
+    monkeypatch.setattr(admin_jobs, "finalize_job", store_gone)
+
+    await admin_jobs._execute(cast(AsyncOpenSearch, object()), "staleness_sweep", "att-1")
+
+    lost = [e for e in capture.entries if e["event"] == "repair job status not recorded"]
+    assert len(lost) == 1
+    assert lost[0]["log_level"] == "error"
+    assert (lost[0]["kind"], lost[0]["attempt_id"], lost[0]["status"]) == (
+        "staleness_sweep",
+        "att-1",
+        outcome,
+    )
