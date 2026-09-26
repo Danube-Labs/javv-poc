@@ -84,6 +84,13 @@ paging/filtering asserted on the NETWORK — cursor + filter params must ride ba
   the date from `datetime.now(UTC)` ± a delta. Never widen the window to buy time. Dates compared
   only with each other (ordering, equality, an explicit `t` into a pure function) are fine as
   literals.
+  - **Frontend (issue 564):** the same rule, with the clock usually read inside the component or
+    helper rather than the spec. Pass a frozen clock through the seam where one exists —
+    `refNowMs(t, wallMs)`, `expiryStatus(…, nowMs)`, `bucketEndT(…, nowMs)`,
+    `dbAgeSeconds(…, nowMs)`, `SlaCell`'s `nowMs` prop, `tokenStatus` / `mintExpiry(…, now)` —
+    otherwise pin it with `vi.setSystemTime`, otherwise build the date from `Date.now()`. Note that
+    `vi.useFakeTimers()` alone does **not** pin a day: its clock starts at the real now (it only
+    controls how time advances).
 - **Concurrency tests are required** where the design relies on it: concurrent ingest+triage (`retry_on_conflict`),
   out-of-order commits, reconcile-to-zero-conflicts.
 - A bug fix starts with a **failing test that reproduces it**, then the fix (TDD).
