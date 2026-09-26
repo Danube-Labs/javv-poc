@@ -91,6 +91,11 @@ paging/filtering asserted on the NETWORK — cursor + filter params must ride ba
     otherwise pin it with `vi.setSystemTime`, otherwise build the date from `Date.now()`. Note that
     `vi.useFakeTimers()` alone does **not** pin a day: its clock starts at the real now (it only
     controls how time advances).
+  - **The net under the rule:** `.github/workflows/clock-drift.yml` runs weekly (and on any edit to
+    itself) with the clock shifted forward — backend `+90d`, frontend `+365d` — so a date bomb
+    inside that horizon fails there instead of on `main`. A red run is a finding, not a flake:
+    fix the test per this rule. Reproduce locally with libfaketime:
+    `faketime -f '+90d' uv run pytest …` (the `-f` is required).
 - **Concurrency tests are required** where the design relies on it: concurrent ingest+triage (`retry_on_conflict`),
   out-of-order commits, reconcile-to-zero-conflicts.
 - A bug fix starts with a **failing test that reproduces it**, then the fix (TDD).
