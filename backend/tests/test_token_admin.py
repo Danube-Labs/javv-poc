@@ -177,9 +177,8 @@ async def test_mint_with_expiry_stores_it_and_rotate_inherits_it(admin_client) -
     http, client, _ = admin_client
     cluster = _cluster()
     # a year out from now, never a fixed date: the mint rejects an expiry in the past, so a fixed
-    # one turns this mint into a 422 once the calendar passes it (whole seconds, so the stored
-    # value round-trips string-equal)
-    expiry = (datetime.now(UTC) + timedelta(days=365)).replace(microsecond=0).isoformat()
+    # one turns this mint into a 422 once the calendar passes it
+    expiry = (datetime.now(UTC) + timedelta(days=365)).isoformat()
 
     r = await http.post(
         "/api/v1/admin/tokens",
