@@ -83,7 +83,7 @@ async def append_field_change(
     old_value: str | None,
     new_value: str | None,
     revision: int,
-    cluster_id: str,
+    cluster_id: str | None,  # None = fleet-wide; the Audit screen shows those, a literal wouldn't
     finding_key: str | None = None,
     decision_id: str | None = None,
     old_value_json: dict[str, Any] | None = None,
