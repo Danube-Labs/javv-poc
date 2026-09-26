@@ -12,6 +12,8 @@ without guessing at house conventions.
   settled architectural decisions, and a change that cuts against one is painful to unwind after
   it is written. A quick issue saves you that.
 - **Lost in the tree?** [REPO-MAP.md](REPO-MAP.md) maps every folder and suggests a reading order.
+- Everyone taking part follows the [Code of Conduct](CODE_OF_CONDUCT.md). Bug reports and feature
+  requests use the issue forms; security reports go through [SECURITY.md](SECURITY.md) instead.
 - The canonical design lives in [`docs/engineering/`](docs/engineering/):
   [PLAN.md](docs/engineering/PLAN.md) holds the decisions and milestones,
   [SPEC.md](docs/engineering/SPEC.md) the requirements.
