@@ -15,15 +15,22 @@ runs by construction — an uncommitted run has no catalog row to surface. "Late
 `scan_order` (D40) resolved via `top_hits` sorted on the exact long — NEVER a `max` metric agg
 (#257: float64 collapses pre-D45 time_ns-scale orders).
 
-Both are session-auth reads through the tenant read path."""
+`GET /api/v1/scanners/ingest-failures` (issue 357) — one scanner's pushes the ingest route refused
+after the token check, newest first, paged (`query/ingest_failures.py` for the paging contract).
+The data behind scanner status's failed-ingests panel.
+
+All three are session-auth reads through the tenant read path."""
 
 from datetime import UTC, datetime
-from typing import Annotated, Any, cast
+from typing import Annotated, Any, Literal, cast
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import ClusterId
+from backend.query.ingest_failures import build_ingest_failures_body, decode_cursor, page_of
+from backend.routers.findings import AsOf
+from backend.routers.trends import Days
 from backend.tenancy.read_path import tenant_search
 
 router = APIRouter(prefix="/api/v1/scanners", tags=["scanners"])
@@ -226,3 +233,30 @@ async def scanner_provenance(
         )
     scanners.sort(key=lambda row: row["scanner"])
     return {"cluster_id": cluster_id, "scanners": scanners}
+
+
+@router.get("/ingest-failures")
+async def scanner_ingest_failures(
+    request: Request,
+    principal: Authenticated,
+    cluster_id: ClusterId,
+    scanner: Literal["trivy", "grype"],
+    as_of_t: AsOf,
+    days: Days = 30,
+    size: Annotated[int, Query(ge=1, le=100)] = 25,
+    cursor: Annotated[str | None, Query(max_length=1024)] = None,
+) -> dict[str, Any]:
+    """An append-only log read directly at any T (the window just ends there), so a past
+    `as_of` needs no reconstruction and never 501s."""
+    try:
+        after = None if cursor is None else decode_cursor(cursor)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    client = cast(Any, request.app.state.opensearch)
+    body = build_ingest_failures_body(
+        scanner=scanner, days=days, size=size, anchor=as_of_t, search_after=after
+    )
+    resp = await tenant_search(
+        client, index=f"javv-ingest-failures-{cluster_id}-*", cluster_id=cluster_id, body=body
+    )
+    return page_of(resp, size)

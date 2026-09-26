@@ -418,13 +418,17 @@ The v4 per-file ingest feed is gone. New composition per C-3:
 **Trend:** `GET /api/v1/trends/scans?cluster_id=…&range=…` — scans over time per scanner
 (replaces "ingested vs failed": accepted/rejected are Prometheus counters, not a UI API).
 
-**Cut (A-7/D-4):** the Failed-ingests table and per-file retry/dead-letter feed — dead-lettering
-is scanner-local by design; **do not build** a feed. The card links to the ops runbook instead.
+**Failed ingests — reinstated by ruling (issue 357, option 2, 2026-07-30):** the pushes JAVV itself
+refused after the token check are recorded (`javv-ingest-failures-*`) and read per scanner by
+`GET /api/v1/scanners/ingest-failures?cluster_id=…&scanner=…&days=…` (When · Scanner · Image · Stage ·
+Error). **Still cut (A-7/D-4):** retry status, the Retry button, the "in retry queue" count and any
+dead-letter feed — retries and dead-lettering stay scanner-local; JAVV only sees its own refusals.
+The panel's placement is specified with its UI slice.
 
 **States:** loading; never-ingested; scanner-silent (chip + global banner agree); degraded;
 `T<now` → "history for scanner status is limited until the v1.1 metrics rollup" (C-1/D39).
 
-**Changed vs SCREENS.md:** C-3 (whole-screen redesign), A-7/D-4 (failed-ingest feed cut), D41
+**Changed vs SCREENS.md:** C-3 (whole-screen redesign), A-7/D-4 (retry/dead-letter feed cut), issue 357 (JAVV-side refusals reinstated), D41
 (version/DB lines are provenance display only), C-1 (historical limitation).
 
 ---

@@ -74,6 +74,15 @@ REGISTRY: tuple[ListEndpoint, ...] = (
         total=WRAPPED,
     ),
     ListEndpoint(
+        path=f"/api/v1/scanners/ingest-failures?cluster_id={EMPTY_CLUSTER}&scanner=trivy&size=1",
+        route_path="/api/v1/scanners/ingest-failures",
+        family=CURSOR,
+        list_key="data",
+        total=WRAPPED,
+        why="search_after without a PIT (issue 357): an append-only newest-first read is stable "
+        "without one — same three keys as the PIT-paged routes.",
+    ),
+    ListEndpoint(
         path=f"/api/v1/findings/groups?cluster_id={EMPTY_CLUSTER}&by=cve_id&size=1",
         route_path="/api/v1/findings/groups",
         family=CURSOR,

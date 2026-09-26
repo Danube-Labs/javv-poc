@@ -3409,6 +3409,60 @@ export type ScannerFreshnessApiV1ScannersFreshnessGetResponses = {
 
 export type ScannerFreshnessApiV1ScannersFreshnessGetResponse = ScannerFreshnessApiV1ScannersFreshnessGetResponses[keyof ScannerFreshnessApiV1ScannersFreshnessGetResponses];
 
+export type ScannerIngestFailuresApiV1ScannersIngestFailuresGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+        /**
+         * Scanner
+         */
+        scanner: 'trivy' | 'grype';
+        /**
+         * Days
+         */
+        days?: number;
+        /**
+         * Size
+         */
+        size?: number;
+        /**
+         * Cursor
+         */
+        cursor?: string | null;
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+    };
+    url: '/api/v1/scanners/ingest-failures';
+};
+
+export type ScannerIngestFailuresApiV1ScannersIngestFailuresGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ScannerIngestFailuresApiV1ScannersIngestFailuresGetError = ScannerIngestFailuresApiV1ScannersIngestFailuresGetErrors[keyof ScannerIngestFailuresApiV1ScannersIngestFailuresGetErrors];
+
+export type ScannerIngestFailuresApiV1ScannersIngestFailuresGetResponses = {
+    /**
+     * Response Scanner Ingest Failures Api V1 Scanners Ingest Failures Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type ScannerIngestFailuresApiV1ScannersIngestFailuresGetResponse = ScannerIngestFailuresApiV1ScannersIngestFailuresGetResponses[keyof ScannerIngestFailuresApiV1ScannersIngestFailuresGetResponses];
+
 export type ScannerProvenanceApiV1ScannersProvenanceGetData = {
     body?: never;
     path?: never;

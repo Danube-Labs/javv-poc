@@ -107,6 +107,7 @@ flowchart TB
     SEARCH --> F
     SEARCH --> I
     SEARCH --> IRUN
+    SEARCH --> IFAIL
     SEARCH --> SE
     SEARCH --> OCC
     SEARCH --> SA
