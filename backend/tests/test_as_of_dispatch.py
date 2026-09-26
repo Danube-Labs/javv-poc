@@ -9,7 +9,7 @@ M8b+M7); malformed/naive `as_of` is 422, never a silent "now".
 """
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -150,7 +150,10 @@ async def test_t_now_never_touches_the_seam(http) -> None:
     register_as_of_t(reader)
     cid = f"c-asof-{uuid.uuid4().hex[:8]}"
 
-    for as_of in (None, "now", "2030-01-01T00:00:00+00:00"):  # absent / literal / future
+    # the future T is built from now: a fixed one becomes a PAST T once the calendar passes it,
+    # and the route then (correctly) hands it to the reader this test asserts is never touched
+    future = (datetime.now(UTC) + timedelta(days=365)).isoformat()
+    for as_of in (None, "now", future):  # absent / literal / future
         params: dict[str, Any] = {"cluster_id": cid}
         if as_of is not None:
             params["as_of"] = as_of

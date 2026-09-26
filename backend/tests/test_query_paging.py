@@ -89,7 +89,8 @@ async def test_finding_states_at_replays_past_the_old_cap(real_os, monkeypatch) 
     await client.indices.refresh(index=f"{prefix}system-audit-log-*")
 
     monkeypatch.setattr(human_at, "_ROW_PAGE", 2)
-    result = await human_at.finding_states_at(
-        client, cluster, datetime(2027, 1, 1, tzinfo=UTC), finding_keys=[fk], prefix=prefix
-    )
+    # T read after the writes, never a fixed date: the writer stamps real time, so a fixed T
+    # falls behind the very rows it replays once the calendar passes it
+    t = datetime.now(UTC)
+    result = await human_at.finding_states_at(client, cluster, t, finding_keys=[fk], prefix=prefix)
     assert result[fk]["state"] == "acknowledged"  # the last row, beyond the old cap

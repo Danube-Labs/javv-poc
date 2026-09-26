@@ -11,6 +11,7 @@ CLOCK, never the verdict). Real OpenSearch, prefix-isolated."""
 
 import json
 from collections import Counter
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from backend.core.bootstrap import _OCCURRENCES_PROPERTIES
@@ -202,8 +203,11 @@ async def test_policy_edit_moves_the_filter_instantly_without_reingest(real_os) 
     from backend.sla.policy import SlaPolicy, write_sla_policy
 
     client, prefix = real_os
-    # LOW severity, first seen T1 (11 days before T2's commit) — the group clock is T1
-    await ingest_envelope(client, _env("trivy", 1, "t-r1", [BASE], seen=T1), prefix=prefix)
+    # LOW severity, first seen 11 days ago — the group clock. Stamped from now, not T1: the
+    # verdicts below are measured against the real clock, and a fixed sighting ages past the
+    # default low SLA (90 days) until the "nothing breached" assert fails on its own.
+    seen = (datetime.now(UTC) - timedelta(days=11)).isoformat()
+    await ingest_envelope(client, _env("trivy", 1, "t-r1", [BASE], seen=seen), prefix=prefix)
     cluster_id = GOLDEN["cluster_id"]
     lens = SearchFilters(overdue=True)
 
