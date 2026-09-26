@@ -195,7 +195,21 @@ describe('client-events beacon', () => {
 
     const events = (await sentEvents(sendBeacon)) as { fields: { cluster_id?: string } }[]
     expect(events[0]!.fields.cluster_id).toHaveLength(512) // the server's per-value cap
+    expect(events[0]!.fields.cluster_id!.endsWith('…')).toBe(true) // visibly clipped (issue 525)
     expect(events).toHaveLength(2) // and the neighbour it would have taken down still shipped
+  })
+
+  it('marks only clipped values: one exactly at the cap arrives byte-identical', async () => {
+    const { sendBeacon } = stubTransport()
+    const logger = await loadLogger()
+
+    // without this, the marker could not tell "clipped" from "genuinely 512 characters"
+    const atCap = 'z'.repeat(512)
+    logger.warn('url_cluster_unknown', { cluster_id: atCap })
+    vi.advanceTimersByTime(WINDOW_MS)
+
+    const [event] = (await sentEvents(sendBeacon)) as { fields: { cluster_id: string } }[]
+    expect(event!.fields.cluster_id).toBe(atCap)
   })
 
   it('clips nested and in-array strings, leaving non-strings untouched', async () => {
@@ -210,7 +224,9 @@ describe('client-events beacon', () => {
       fields: { nested: { path: string }; list: string[]; status: number; ok: boolean }
     }[]
     expect(event!.fields.nested.path).toHaveLength(512)
+    expect(event!.fields.nested.path.endsWith('…')).toBe(true)
     expect(event!.fields.list[0]).toHaveLength(512)
+    expect(event!.fields.list[0]!.endsWith('…')).toBe(true)
     expect(event!.fields.status).toBe(422) // numbers survive the walk unchanged
     expect(event!.fields.ok).toBe(false)
   })

@@ -39,6 +39,7 @@
  * Field values are clipped to the server's per-value cap on the way in, because the values that
  * can actually grow are supplied from outside the app (a `?cluster=` deep link, a typed store
  * path) rather than being call-site literals, and one oversized value would 422 its whole batch.
+ * A clipped value ends in `…`, so it reads as clipped rather than as exactly 512 characters.
  *
  * Off in dev, on in production builds, overridable with `VITE_CLIENT_EVENTS`.
  */
@@ -101,9 +102,14 @@ function send(events: BeaconEvent[]): void {
 /** Clip strings to the server's per-value cap, recursing so a nested or in-array value is bound
  *  too. Only strings are clipped: depth, key count and list length are static properties of a
  *  call site, but a value can arrive from outside the app (a `?cluster=` deep link, a typed
- *  store path) and one oversized value would 422 the batch it rides in, taking its neighbours. */
+ *  store path) and one oversized value would 422 the batch it rides in, taking its neighbours.
+ *  A clipped value ends in `…`, spending one character of the cap so an operator can tell it
+ *  from a value that was genuinely that long; one at or under the cap passes untouched. */
 function clip(value: unknown): unknown {
-  if (typeof value === 'string') return value.slice(0, BEACON_MAX_VALUE_CHARS)
+  if (typeof value === 'string')
+    return value.length > BEACON_MAX_VALUE_CHARS
+      ? value.slice(0, BEACON_MAX_VALUE_CHARS - 1) + '…'
+      : value
   if (Array.isArray(value)) return value.map(clip)
   if (value !== null && typeof value === 'object') return clipFields(value as LogFields)
   return value
