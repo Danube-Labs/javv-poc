@@ -74,7 +74,7 @@ async def put_staleness(
         old_value_json=old.model_dump(),
         new_value_json=timers.model_dump(),
         revision=1,
-        cluster_id=body.cluster_id or "fleet",
+        cluster_id=body.cluster_id,  # None = the fleet-wide default (issue 559)
     )
     await write_staleness_timers(
         client, timers, updated_by=principal.user_id, cluster_id=body.cluster_id

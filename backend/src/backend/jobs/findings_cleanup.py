@@ -243,7 +243,7 @@ async def run_findings_cleanup(
         new_value=None,
         new_value_json={**counts, "by_cluster": by_cluster},
         revision=1,
-        cluster_id="fleet",
+        cluster_id=None,  # fleet-wide: no cluster_id, the class the Audit screen shows (issue 559)
         prefix=prefix,
     )
     return counts

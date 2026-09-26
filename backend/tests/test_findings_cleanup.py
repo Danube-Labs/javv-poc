@@ -268,6 +268,7 @@ async def test_each_run_journals_its_counts(real_os) -> None:
     row = hits[0]["_source"]
     assert row["actor"] == "findings-cleanup-job"
     assert row["entity_type"] == "job"
+    assert row.get("cluster_id") is None  # fleet-wide: the Audit screen shows it (issue 559)
     assert row["new_value_json"] == {
         "findings_deleted": 1,
         "watermarks_pruned": 0,

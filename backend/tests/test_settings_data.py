@@ -82,6 +82,20 @@ async def _audit_actions(client: AsyncOpenSearch, entity_id: str) -> list[str]:
     return [h["_source"]["action"] for h in hits["hits"]["hits"]]
 
 
+async def _latest_audit_row(client: AsyncOpenSearch, entity_id: str) -> dict:
+    """The newest journal row for an entity — older runs of the same test share the store."""
+    await client.indices.refresh(index="system-audit-log-*")
+    hits = await client.search(
+        index="system-audit-log-*",
+        body={
+            "size": 1,
+            "sort": [{"@timestamp": "desc"}],
+            "query": {"term": {"entity_id": entity_id}},
+        },
+    )
+    return hits["hits"]["hits"][0]["_source"]
+
+
 def _cluster() -> str:
     return f"c-{uuid.uuid4().hex[:12]}"
 
@@ -197,6 +211,8 @@ async def test_report_ttl_defaults_to_env_then_the_setting_wins(env) -> None:
     # the jobs' own read (drain stamps expires_at with it; sweep deletes failures past it) sees 48
     assert await read_report_ttl_hours(client) == 48
     assert "report_ttl_change" in await _audit_actions(client, "report_ttl")
+    # a fleet-wide change is journaled with no cluster_id, so the Audit screen shows it (issue 559)
+    assert (await _latest_audit_row(client, "report_ttl")).get("cluster_id") is None
 
 
 # --- findings cleanup setting (D37/M12 — the job consumes it in the next slice) ---------------
@@ -242,6 +258,8 @@ async def test_findings_cleanup_per_cluster_override_routes(env) -> None:
     assert got.json()["findings_cleanup"] == {"cleanup_days": 30.0}
     assert got.json()["findings_cleanup_override"] is True
     assert "findings_cleanup_change" in await _audit_actions(client, f"findings_cleanup:{cid}")
+    # an override is journaled under its own cluster, never as fleet-wide
+    assert (await _latest_audit_row(client, f"findings_cleanup:{cid}"))["cluster_id"] == cid
 
 
 # --- snapshots (NFR-6; wraps the M2 machinery the restore drill proves) --------------------
