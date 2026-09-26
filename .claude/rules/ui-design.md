@@ -55,6 +55,10 @@ no ad-hoc sizes — use the scale tokens (`--text-page-title`, `--text-card-titl
 SlideoverShell · ToastStack · EmptyState · UiSkeleton · AppIcon), plus `components/chips/`, the M9a filter module,
 the shared table skin + GridPager, and the stat-band skin (`.stat-band`/`.stat-cell` in base.css,
 composed by `components/overview/OverviewStatBands.vue` — it is a skin, not a kit component).
+Paging behind GridPager is two composables, never a hand-written stack: `useCursorPager`
+(server `next_cursor` paging — the findings/audit stores, ImageFindingsPanel, IngestFailuresTable)
+and `usePagedSlice` (a bounded row set the client already holds — saved views, a finding's
+Activity/Affected cards, DecisionsCard).
 Backend: `query/paging.py` + the bulk helpers.
 **Grep first.** A raw parallel implementation of a solved surface fails review.
 

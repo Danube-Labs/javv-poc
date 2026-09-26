@@ -13,6 +13,7 @@ import { searchFindingsApiV1FindingsGet } from '@/api/generated'
 import FindingsTable from '@/components/findings/FindingsTable.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import { useApi } from '@/composables/useApi'
+import { useCursorPager } from '@/composables/useCursorPager'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
@@ -35,10 +36,8 @@ const loading = ref(false)
 const failed = ref(false)
 const sort = ref<SortField>('severity_rank')
 const order = ref<SortOrder>('desc')
-const size = ref(25)
-const page = ref(0)
-const cursors = ref<(string | null)[]>([null]) // cursor that FETCHES page i
-const nextCursor = ref<string | null>(null)
+const pager = useCursorPager()
+const { page, size, hasPrev, hasNext } = pager
 
 const baseQuery = computed(() =>
   clusterStore.selectedId
@@ -59,7 +58,7 @@ async function loadRows() {
       sort: sort.value,
       order: order.value,
       size: size.value,
-      ...(cursors.value[page.value] ? { cursor: cursors.value[page.value] } : {}),
+      ...(pager.cursor.value ? { cursor: pager.cursor.value } : {}),
     } as SearchFindingsApiV1FindingsGetData['query'],
   })
   loading.value = false
@@ -67,7 +66,7 @@ async function loadRows() {
     const body = data as { data: FindingRow[]; total: { value: number }; next_cursor: string | null }
     rows.value = body.data
     total.value = body.total.value
-    nextCursor.value = body.next_cursor
+    pager.landed(body.next_cursor)
     failed.value = false
   } else {
     failed.value = true
@@ -75,16 +74,10 @@ async function loadRows() {
   }
 }
 
-function resetPaging() {
-  page.value = 0
-  cursors.value = [null]
-  nextCursor.value = null
-}
-
 watch(
   [baseQuery, sort, order, size],
   () => {
-    resetPaging()
+    pager.reset()
     void loadRows()
   },
   { immediate: true },
@@ -99,15 +92,10 @@ function onSort(field: SortField) {
   }
 }
 function goNext() {
-  if (!nextCursor.value) return
-  cursors.value[page.value + 1] = nextCursor.value
-  page.value += 1
-  void loadRows()
+  if (pager.next()) void loadRows()
 }
 function goPrev() {
-  if (page.value === 0) return
-  page.value -= 1
-  void loadRows()
+  if (pager.prev()) void loadRows()
 }
 
 function openFinding(row: FindingRow) {
@@ -148,11 +136,11 @@ function openFinding(row: FindingRow) {
       :page="page"
       :size="size"
       :shown="rows.length"
-      :has-prev="page > 0"
-      :has-next="nextCursor !== null"
+      :has-prev="hasPrev"
+      :has-next="hasNext"
       @prev="goPrev"
       @next="goNext"
-      @update:size="(s: number) => (size = s)"
+      @update:size="pager.setSize"
     />
   </div>
 </template>

@@ -43,6 +43,18 @@ describe('findings store (cursor-stack paging)', () => {
     expect(s.hasNext).toBe(false)
   })
 
+  /** A second Next before page 1 lands used to step to page 2 with no cursor stacked, so the grid
+   * re-fetched page 1's rows (or page 0's) under a later page number. */
+  it('a second Next before the new page lands stays put', () => {
+    const s = useFindingsStore()
+    s.setResult([row('a')], 100, 'cur-1')
+    s.goNext()
+    expect(s.hasNext).toBe(false) // unknown until page 1 lands
+    s.goNext()
+    expect(s.page).toBe(1)
+    expect(s.activeCursor).toBe('cur-1')
+  })
+
   it('sort toggles direction on the same column, desc on a new one, and resets paging', () => {
     const s = useFindingsStore()
     s.setResult([row('a')], 100, 'cur-1')
