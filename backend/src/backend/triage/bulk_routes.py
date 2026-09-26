@@ -12,6 +12,7 @@ triage: `can_triage`, plus `can_accept_audit_final` when the patch risk-accepts 
 
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -28,6 +29,8 @@ from backend.triage.bulk import (
     validate_bulk_patch,
 )
 from backend.triage.state_machine import TransitionError
+
+log = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/findings", tags=["triage"])
 
@@ -92,6 +95,11 @@ async def bulk_triage(request: Request, body: BulkTriageRequest, principal: CanT
         )
     except SelectorTooBroad as exc:
         LIMIT_REJECTIONS.labels("bulk_targets").inc()  # M-4 (#220)
+        log.warning(
+            "bulk triage rejected: selector too broad",
+            cluster_id=body.cluster_id,
+            max_targets=settings.bulk_max_targets,
+        )
         raise HTTPException(413, str(exc)) from exc
     if not target_ids:
         return {"count": 0, "applied": True, "result_hash": None}
@@ -99,6 +107,12 @@ async def bulk_triage(request: Request, body: BulkTriageRequest, principal: CanT
     limit = settings.bulk_inline_limit
     if len(target_ids) > limit:
         LIMIT_REJECTIONS.labels("bulk_inline").inc()  # M-4 (#220)
+        log.warning(
+            "bulk triage rejected: over the inline limit",
+            cluster_id=body.cluster_id,
+            targets=len(target_ids),
+            limit=limit,
+        )
         raise HTTPException(
             413,
             f"{len(target_ids)} findings exceed the inline bulk limit ({limit}) — "

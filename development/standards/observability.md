@@ -66,7 +66,9 @@ the client body — only the envelope; the stack goes to the log under the same 
 ## 5. Metrics (`/metrics`, Prometheus) — FR-20
 Ingestion rate, **4xx/413/429/503 counters**, payload sizes, **decompression ratio**, in-flight/queue depth
 (the `Semaphore`), request latency, memory. The same events that log `warning`/`error` increment a counter —
-logs explain *one* failure, metrics show the *trend*.
+logs explain *one* failure, metrics show the *trend*. The reverse holds too, with one exception: a
+rejection an unauthenticated sender can repeat with no budget is counted but not logged, and a
+rate-limit rejection keyed on unverified input logs once per key per window (`.claude/rules/logging.md`).
 
 ## 6. Tested, not assumed
 - **Redaction:** a log line built from a request carrying a token/password contains neither.

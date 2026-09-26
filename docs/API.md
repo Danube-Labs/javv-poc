@@ -222,6 +222,13 @@ token↔payload scope binding → commit-then-cache writes (D39, deterministic `
 | `429` | Per-token rate limit exceeded |
 | `503` | Storage temporarily unavailable (bulk retries exhausted) |
 
+**Logging of rejections** (issue 523). Every rejection increments `javv_ingest_rejected_total{reason}`.
+Every rejection after the token check (`400`, `403`, `413`, `422`, `503`) also logs one `ingest rejected`
+warning with `reason`, `status` and the token's `cluster_id` and `scanner`, plus `limit_bytes` on a
+`413`, `errors` on a `422`, and `payload_cluster_id` / `payload_scanner` on a `403`. The token itself is
+never logged. A `429` logs at most one warning per token per minute. A `401` is counted only, because
+an unauthenticated sender could otherwise choose how much the backend writes to its log.
+
 ## Metrics (`/metrics`, Prometheus)
 
 | Metric | Type | Labels | Meaning |

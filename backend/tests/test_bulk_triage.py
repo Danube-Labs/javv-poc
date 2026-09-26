@@ -13,11 +13,14 @@ from typing import Any
 
 import httpx
 import pytest
+import structlog
 from opensearchpy import AsyncOpenSearch
 
 from backend.auth.passwords import hash_password
+from backend.core.metrics import LIMIT_REJECTIONS
 from backend.core.settings import get_settings
 from backend.main import create_app
+from backend.triage import bulk_routes
 from os_env import OS_URL, requires_opensearch
 
 CID = "c-bulk-triage"
@@ -147,7 +150,17 @@ async def test_bulk_applies_and_journals_exactly_one_row_with_frozen_ids(env) ->
     assert row["result_hash"]
 
 
-async def test_set_over_inline_limit_is_413_not_async(env, monkeypatch) -> None:
+@pytest.fixture
+def captured(monkeypatch):
+    """The route's logger, wired straight to a capture. `capture_logs` swaps the GLOBAL config,
+    which `create_app()` → `configure_logging()` swaps back, so it only worked while `env` happened
+    to build the app first; a logger that owns its processor chain doesn't depend on that order."""
+    capture = structlog.testing.LogCapture()
+    monkeypatch.setattr(bulk_routes, "log", structlog.wrap_logger(None, processors=[capture]))
+    return capture.entries
+
+
+async def test_set_over_inline_limit_is_413_not_async(env, monkeypatch, captured) -> None:
     """A-Mc (audit #189): a frozen set larger than the inline limit but within the freeze cap →
     413 (narrow, or M7's scheduled bulk). NO 202/async path exists any more, and NOTHING is
     applied — a rejected bulk leaves the findings untouched."""
@@ -159,14 +172,23 @@ async def test_set_over_inline_limit_is_413_not_async(env, monkeypatch) -> None:
     cve = f"CVE-{uuid.uuid4().hex[:8]}"
     keys = await _seed(client, cve, 3)
 
+    before = LIMIT_REJECTIONS.labels("bulk_inline")._value.get()
     r = await http.post("/api/v1/findings/bulk-triage", json=_body(cve))
     assert r.status_code == 413
     assert "inline bulk limit" in r.json()["title"]
+    # ops parity (logging.md, issue 523): a cap logs a warning AND bumps its metric
+    assert LIMIT_REJECTIONS.labels("bulk_inline")._value.get() == before + 1
+    [line] = [e for e in captured if e["event"] == "bulk triage rejected: over the inline limit"]
+    assert line["log_level"] == "warning"
+    assert (line["targets"], line["limit"]) == (3, 2)
+    assert line["cluster_id"] == CID
     for fk in keys:  # nothing applied — no volatile background write
         assert (await client.get(index="findings", id=fk))["_source"]["state"] == "open"
 
 
-async def test_selector_over_max_targets_is_selector_too_broad_413(env, monkeypatch) -> None:
+async def test_selector_over_max_targets_is_selector_too_broad_413(
+    env, monkeypatch, captured
+) -> None:
     """A-Mc (audit #189): a selector matching more than the hard freeze cap → 413 "selector too
     broad", and freeze_targets bails DURING paging (count-don't-collect) — never materializes the
     whole match."""
@@ -178,9 +200,15 @@ async def test_selector_over_max_targets_is_selector_too_broad_413(env, monkeypa
     cve = f"CVE-{uuid.uuid4().hex[:8]}"
     keys = await _seed(client, cve, 4)
 
+    before = LIMIT_REJECTIONS.labels("bulk_targets")._value.get()
     r = await http.post("/api/v1/findings/bulk-triage", json=_body(cve))
     assert r.status_code == 413
     assert "selector too broad" in r.json()["title"]
+    assert LIMIT_REJECTIONS.labels("bulk_targets")._value.get() == before + 1
+    [line] = [e for e in captured if e["event"] == "bulk triage rejected: selector too broad"]
+    assert line["log_level"] == "warning"
+    assert line["max_targets"] == 2
+    assert line["cluster_id"] == CID
     for fk in keys:
         assert (await client.get(index="findings", id=fk))["_source"]["state"] == "open"
 
