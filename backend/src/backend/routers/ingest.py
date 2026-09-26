@@ -10,7 +10,7 @@ tokens are never logged.
 import json
 import zlib
 from datetime import UTC, datetime
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 import structlog
 from fastapi import APIRouter, HTTPException, Request
@@ -26,6 +26,13 @@ from backend.repositories.bulk import BulkError
 from backend.services.ingest import ingest_envelope
 
 log = structlog.get_logger()
+
+
+class _Scope(TypedDict):
+    """The authenticated token's scope, named on every post-auth rejection line."""
+
+    cluster_id: str
+    scanner: str
 
 
 def _reject(
@@ -52,7 +59,7 @@ _limiter = SlidingWindowLimiter()
 _rate_limit_warned = SlidingWindowLimiter()
 
 
-async def _read_capped(request: Request, cap: int, scope: dict[str, str]) -> bytes:
+async def _read_capped(request: Request, cap: int, scope: _Scope) -> bytes:
     chunks, size = [], 0
     async for chunk in request.stream():
         size += len(chunk)
@@ -62,7 +69,7 @@ async def _read_capped(request: Request, cap: int, scope: dict[str, str]) -> byt
     return b"".join(chunks)
 
 
-def _decompress_capped(raw: bytes, cap: int, scope: dict[str, str]) -> bytes:
+def _decompress_capped(raw: bytes, cap: int, scope: _Scope) -> bytes:
     d = zlib.decompressobj(wbits=31)  # gzip container
     try:
         out = d.decompress(raw, cap + 1)
@@ -104,7 +111,7 @@ async def ingest_scan(request: Request) -> dict[str, Any]:
 
     # authenticated from here on, and already rate-limited per token: every rejection below logs
     # a bounded warning naming whose scanner it was (the token's scope, never the token)
-    scope = {"cluster_id": token["cluster_id"], "scanner": token["scanner"]}
+    scope = _Scope(cluster_id=token["cluster_id"], scanner=token["scanner"])
     raw = await _read_capped(request, settings.ingest_max_compressed_bytes, scope)
     if request.headers.get("content-encoding", "").lower() == "gzip":
         raw = _decompress_capped(raw, settings.ingest_max_body_bytes, scope)
