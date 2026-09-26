@@ -27,6 +27,9 @@ log = structlog.get_logger()
 
 _PATTERN = "system-audit-log-*"
 _SORT_KEY = "@timestamp"  # fixed — the cursor's `s` field must round-trip exactly this
+# Fleet-wide settings rows written before issue 559 carry this literal instead of no cluster_id.
+# The log is append-only, so they keep it; no real cluster can match, since ids are 8-64 chars.
+_LEGACY_FLEET_CLUSTER_ID = "fleet"
 
 
 @dataclass(frozen=True)
@@ -55,13 +58,18 @@ def audit_tenant_query(cluster_id: str, body: dict[str, Any]) -> dict[str, Any]:
     classes — cluster-scoped (triage, decisions) and FLEET-scoped (auth, user admin, store
     inspect, job triggers — no cluster to belong to). The plain term guard silently hid the
     whole fleet class from the audit screen. Still a structural, server-built guard: a row is
-    visible iff it is the selected tenant's OR carries no cluster_id at all (MVP tenancy is
-    all-clusters-visible, D38 — nothing here a session holder can't already see)."""
+    visible iff it is the selected tenant's, carries no cluster_id at all, or carries the legacy
+    fleet literal (MVP tenancy is all-clusters-visible, D38 — nothing here a session holder
+    can't already see)."""
     guarded = tenant_query(cluster_id, body)
     term = guarded["query"]["bool"]["filter"][0]
     guarded["query"]["bool"]["filter"][0] = {
         "bool": {
-            "should": [term, {"bool": {"must_not": [{"exists": {"field": "cluster_id"}}]}}],
+            "should": [
+                term,
+                {"bool": {"must_not": [{"exists": {"field": "cluster_id"}}]}},
+                {"term": {"cluster_id": _LEGACY_FLEET_CLUSTER_ID}},
+            ],
             "minimum_should_match": 1,
         }
     }

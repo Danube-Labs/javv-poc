@@ -111,8 +111,9 @@ async def test_each_run_journals_its_counts_where_the_audit_screen_can_see_them(
     assert sorted(r["new_value_json"]["sessions_deleted"] for r in rows) == [0, 1]
     assert all(r["new_value_json"]["grace_hours"] == GRACE for r in rows)
 
-    # The Audit screen reads through audit_tenant_query, which shows a row only when it is the
-    # selected tenant's or carries no cluster_id. A cluster_id of "fleet" would hide the row.
+    # fleet-wide rows are written with no cluster_id (issue 559); "fleet" is a legacy spelling
+    assert all(r.get("cluster_id") is None for r in rows)
+    # and the Audit screen, which reads through audit_tenant_query, returns them for any cluster
     body = audit_tenant_query(
         "0f0e6c4e-0000-4000-8000-000000000000",
         {"size": 10, "query": {"bool": {"filter": [{"term": {"action": "session_sweep_run"}}]}}},

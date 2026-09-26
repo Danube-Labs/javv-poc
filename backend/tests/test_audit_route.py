@@ -290,6 +290,46 @@ async def test_fleet_events_are_visible_under_any_cluster(env) -> None:
     assert {b["key"]: b["count"] for b in r.json()["facets"]["action"]} == {"job_trigger": 1}
 
 
+async def test_rows_stamped_with_the_legacy_fleet_literal_are_visible_under_any_cluster(
+    env,
+) -> None:
+    # Before issue 559 the fleet-wide settings writers stamped cluster_id="fleet" — neither the
+    # selected tenant nor cluster-less — so the screen never showed them. Those rows stay in
+    # the append-only log as written; the read must reach them in the list, the rail facets and
+    # the CSV export alike, while another tenant's cluster row stays out.
+    http, client = env
+    actor = f"u-legacy-{uuid.uuid4().hex[:8]}"
+    await append_field_change(
+        client,
+        actor=actor,
+        action="sla_policy_change",
+        entity_type="config",
+        entity_id="sla_policy",
+        field="policy",
+        old_value=None,
+        new_value=None,
+        revision=1,
+        cluster_id="fleet",
+    )
+    await _journal(client, f"c-audit-{uuid.uuid4().hex[:8]}", n=1, actor=actor)  # another tenant
+    await client.indices.refresh(index="system-audit-log-*")
+
+    for cid in (f"c-audit-{uuid.uuid4().hex[:8]}", f"c-audit-{uuid.uuid4().hex[:8]}"):
+        r = await http.get("/api/v1/audit", params={"cluster_id": cid, "actor": actor})
+        assert r.status_code == 200
+        assert [row["action"] for row in r.json()["data"]] == ["sla_policy_change"]
+
+        r = await http.get("/api/v1/audit/facets", params={"cluster_id": cid, "actor": actor})
+        assert {b["key"]: b["count"] for b in r.json()["facets"]["action"]} == {
+            "sla_policy_change": 1
+        }
+
+        r = await http.get("/api/v1/audit/export.csv", params={"cluster_id": cid, "actor": actor})
+        assert r.status_code == 200
+        lines = r.text.strip().splitlines()
+        assert len(lines) == 2 and "sla_policy_change" in lines[1]  # header + the fleet row
+
+
 async def test_finding_rows_are_decorated_with_their_identity(env) -> None:
     # M9d rework (operator): an opaque finding_key answers nothing — rows carry the finding's
     # (cve, image, scanner) at read time; a finding aged out of the store degrades gracefully
