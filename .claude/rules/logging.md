@@ -38,3 +38,9 @@ lint-banned** and CI fails on it. Same shape as the backend: an event name plus 
 **Ops parity is not optional on bounded or streamed paths.** An endpoint that caps (413/429) logs a
 `warning` *and* bumps its metric; a streaming export counts rows and bytes in the stream's `finally`,
 so a client disconnect still records what left the building.
+
+**One exception: a rejection an unauthenticated sender can repeat with no budget is metric-only**,
+because a line per request would let the sender choose our log volume. Today that is ingest's 401,
+decided before any token is known. A rejection with a budget but an attacker-chosen key logs at most
+once per key per window (ingest's 429). Everything past authentication logs a warning, since the
+per-token rate limit already bounds it (issue 523).

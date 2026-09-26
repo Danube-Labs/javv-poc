@@ -152,11 +152,12 @@ async def test_bulk_applies_and_journals_exactly_one_row_with_frozen_ids(env) ->
 
 @pytest.fixture
 def captured(monkeypatch):
-    """`capture_logs` cannot see a proxy already bound under the cached prod config — swap in a
-    fresh logger first (the pattern from test_client_events_route)."""
-    monkeypatch.setattr(bulk_routes, "log", structlog.get_logger())
-    with structlog.testing.capture_logs() as logs:
-        yield logs
+    """The route's logger, wired straight to a capture. `capture_logs` swaps the GLOBAL config,
+    which `create_app()` → `configure_logging()` swaps back, so it only worked while `env` happened
+    to build the app first; a logger that owns its processor chain doesn't depend on that order."""
+    capture = structlog.testing.LogCapture()
+    monkeypatch.setattr(bulk_routes, "log", structlog.wrap_logger(None, processors=[capture]))
+    return capture.entries
 
 
 async def test_set_over_inline_limit_is_413_not_async(env, monkeypatch, captured) -> None:

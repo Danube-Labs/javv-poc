@@ -8,11 +8,16 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
+import structlog
 from opensearchpy import AsyncOpenSearch, NotFoundError
 
+from backend.core.metrics import INGEST_REJECTED
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
 from backend.main import create_app
+from backend.repositories.bulk import BulkError
+from backend.routers import ingest as ingest_mod
 from os_env import OS_URL, requires_opensearch
 
 GOLDEN = (Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text()
@@ -279,3 +284,105 @@ async def test_repush_is_idempotent_counts_stay_stable() -> None:
         assert first == second == 29  # re-push overwrote, never duplicated
     finally:
         await client.close()
+
+
+# --- ops parity (issue 523): which rejections log, and which only count ----------------------
+
+
+@pytest.fixture
+def captured(monkeypatch: Any):
+    """The route's logger, wired straight to a capture. `capture_logs` swaps the GLOBAL config,
+    and `app_with` → `create_app()` → `configure_logging()` swaps it back mid-test, so a logger
+    that owns its processor chain is the one that survives building the app inside the test."""
+    capture = structlog.testing.LogCapture()
+    monkeypatch.setattr(ingest_mod, "log", structlog.wrap_logger(None, processors=[capture]))
+    return capture.entries
+
+
+def _rejections(logs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [e for e in logs if e["event"] == "ingest rejected"]
+
+
+def _count(reason: str) -> float:
+    return INGEST_REJECTED.labels(reason=reason)._value.get()
+
+
+async def test_a_401_is_counted_but_never_logged(captured: Any) -> None:
+    """An unauthenticated sender reaches 401 with no budget at all, so a line per request would
+    let it choose our log volume. The metric still counts every one."""
+    before = _count("bad_token")
+    async with app_with(FakeOS(None)) as c:
+        await c.post("/api/v1/ingest/scan", content=b"x")
+        await post(c, gz(GOLDEN), mint_token())
+    assert _count("bad_token") == before + 2
+    assert _rejections(captured) == []
+
+
+async def test_a_429_logs_once_per_key_per_window(captured: Any, monkeypatch: Any) -> None:
+    """The rate limit runs before the token is verified, so the key is anything a sender puts in
+    the header. One hammered key logs its first 429 in a window, never one line per request."""
+    monkeypatch.setattr(get_settings(), "ingest_rate_limit_per_minute", 1, raising=False)
+    ingest_mod._limiter.reset()
+    ingest_mod._rate_limit_warned.reset()
+    before = _count("rate_limited")
+    t = mint_token()
+    try:
+        async with app_with(FakeOS(token_doc(t))) as c:
+            assert (await post(c, gz(GOLDEN), t)).status_code == 202
+            for _ in range(3):
+                assert (await post(c, gz(GOLDEN), t)).status_code == 429
+    finally:
+        ingest_mod._limiter.reset()
+        ingest_mod._rate_limit_warned.reset()
+    assert _count("rate_limited") == before + 3
+    [line] = _rejections(captured)
+    assert (line["log_level"], line["reason"], line["status"]) == ("warning", "rate_limited", 429)
+
+
+@pytest.mark.parametrize(
+    ("case", "status", "reason"),
+    [
+        ("zip_bomb", 413, "too_large"),
+        ("oversized_wire", 413, "too_large"),
+        ("bad_gzip", 400, "bad_gzip"),
+        ("bad_json", 400, "bad_json"),
+        ("extra_field", 422, "invalid_envelope"),
+        ("wrong_scanner", 403, "scope_mismatch"),
+        ("storage_down", 503, "storage_error"),
+    ],
+)
+async def test_every_rejection_after_the_token_check_logs_a_warning(
+    captured: Any, monkeypatch: Any, case: str, status: int, reason: str
+) -> None:
+    """Past the token check a sender is authenticated and already rate-limited per token, so a
+    warning per rejection is bounded and tells the operator which cluster's scanner misbehaves."""
+    t = mint_token()
+    doc = token_doc(t, scanner="grype") if case == "wrong_scanner" else token_doc(t)
+    body = {
+        "zip_bomb": gzip.compress(b"0" * (70 * 1024 * 1024)),
+        "oversized_wire": b"\x1f\x8b" + b"0" * (11 * 1024 * 1024),
+        "bad_gzip": b"not-gzip",
+        "bad_json": gz("{not json"),
+        "extra_field": gz(json.dumps({**json.loads(GOLDEN), "extra": 1})),
+        "wrong_scanner": gz(GOLDEN),
+        "storage_down": gz(GOLDEN),
+    }[case]
+    if case == "storage_down":
+
+        async def _fail(*_: Any, **__: Any) -> int:
+            raise BulkError([{"index": {"status": 503}}])
+
+        monkeypatch.setattr(ingest_mod, "ingest_envelope", _fail)
+    before = _count(reason)
+    async with app_with(FakeOS(doc)) as c:
+        assert (await post(c, body, t)).status_code == status
+    assert _count(reason) == before + 1
+    [line] = _rejections(captured)
+    assert (line["log_level"], line["reason"], line["status"]) == ("warning", reason, status)
+    # the token's scope names whose scanner this is; the token itself is never logged
+    assert (line["cluster_id"], line["scanner"]) == (doc["cluster_id"], doc["scanner"])
+    assert t not in repr(line) and doc["token_hash"] not in repr(line)
+    if case == "wrong_scanner":
+        assert line["payload_scanner"] == "trivy"
+    if case == "extra_field":
+        assert line["errors"] >= 1
