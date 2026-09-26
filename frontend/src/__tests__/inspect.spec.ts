@@ -13,6 +13,8 @@ const rows = [
   { index: 'javv-finding-occurrences-aaa-000002', 'docs.count': '2400', 'store.size': '20mb' },
   { index: 'javv-finding-occurrences-bbb-000001', 'docs.count': '600', 'store.size': '5mb' },
   { index: 'javv-images-aaa-000001', 'docs.count': '50', 'store.size': '1mb' },
+  { index: 'javv-ingest-failures-aaa-000001', 'docs.count': '7', 'store.size': '1kb' },
+  { index: 'javv-ingest-failures-bbb-000001', 'docs.count': '2', 'store.size': '1kb' },
   { index: 'findings', 'docs.count': '32806', 'store.size': '64mb' },
   { index: 'javv-scan-watermarks', 'docs.count': '1400', 'store.size': '2mb' },
   { index: 'system-audit-log-000001', 'docs.count': '18000', 'store.size': '8mb' },
@@ -30,6 +32,7 @@ describe('groupIndices', () => {
   it('collapses time-partitioned families to one summed pattern', () => {
     expect(groups.history).toContainEqual({ pattern: 'javv-finding-occurrences-*', docs: 4000 })
     expect(groups.history).toContainEqual({ pattern: 'javv-images-*', docs: 50 })
+    expect(groups.history).toContainEqual({ pattern: 'javv-ingest-failures-*', docs: 9 })
     expect(groups.history).toContainEqual({ pattern: 'system-audit-log-*', docs: 18000 })
   })
 

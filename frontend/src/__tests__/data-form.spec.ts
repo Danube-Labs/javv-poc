@@ -88,13 +88,14 @@ describe('changedGroups (save PUTs only what changed)', () => {
 })
 
 describe('the row-23 family registry', () => {
-  it('lists exactly the four append families sharing the window', () => {
+  it('lists exactly the five append families sharing the window', () => {
     const append = FAMILY_ROWS.filter((f) => f.kind === 'append').map((f) => f.pattern)
     expect(append).toEqual([
       'javv-finding-occurrences-*',
       'javv-scan-events-*',
       'javv-images-*',
       'javv-inventory-runs-*',
+      'javv-ingest-failures-*',
     ])
   })
 

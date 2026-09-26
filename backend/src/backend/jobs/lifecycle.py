@@ -1,5 +1,6 @@
 """Lifecycle sweep (M4, D8/D26) — a daily `Forbid` CronJob that rolls + retires the per-cluster
-append series (`javv-scan-events-<cluster>`, `javv-images-<cluster>`).
+append series (`SERIES` below: scan-events, images, occurrences, inventory runs, and the
+failed-ingest records of issue 357).
 
 Mechanism decision (#26): the D8 contract — numbered backing indices behind a write alias, rollover
 on doc/age/size, retention by **dropping whole indices**, never `delete_by_query` — is executed by
@@ -40,7 +41,13 @@ from pydantic import BaseModel, ConfigDict, Field
 log = structlog.get_logger()
 
 LIFECYCLE_KEY = "lifecycle"  # fleet-wide default doc _id; per-cluster is `lifecycle:<cluster_id>`
-SERIES = ("javv-scan-events", "javv-images", "javv-finding-occurrences", "javv-inventory-runs")
+SERIES = (
+    "javv-scan-events",
+    "javv-images",
+    "javv-finding-occurrences",
+    "javv-inventory-runs",
+    "javv-ingest-failures",
+)
 ROLLOVER_ONLY = ("system-audit-log",)  # rolls, NEVER retention-dropped (task F m-6)
 
 

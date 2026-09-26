@@ -197,7 +197,7 @@ function discard() {
       >
         <SettingsRow
           label="Append-family retention"
-          hint="Applies to the four append families below; expired indices are dropped whole by the daily sweep."
+          hint="Applies to the five append families below; expired indices are dropped whole by the daily sweep."
         >
           <SettingsInput
             id="ret-days"

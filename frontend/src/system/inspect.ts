@@ -31,6 +31,7 @@ const HISTORY_FAMILIES = [
   'javv-images',
   'javv-scan-events',
   'javv-inventory-runs',
+  'javv-ingest-failures',
   'system-audit-log',
   'javv-metrics',
 ] as const
