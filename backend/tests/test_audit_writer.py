@@ -141,3 +141,21 @@ async def test_the_absorbed_auth_appender_writes_the_same_shape(real_os) -> None
     assert row["action"] == "login" and row["entity_type"] == "user"
     assert row["schema_version"] == AUDIT_SCHEMA_VERSION
     assert row["event_id"] and row["@timestamp"]
+
+
+def test_no_writer_stamps_the_legacy_fleet_literal() -> None:
+    """A fleet-wide row is written with no cluster_id, the class the Audit screen's reader was
+    built for (issue 559). `"fleet"` survives only as the reader's legacy constant, for rows
+    written before the fix; a writer passing it again would bring back the second spelling."""
+    import re
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[1] / "src" / "backend"
+    stamp = re.compile(r"""cluster_id\s*=\s*[^,\n]*["']fleet["']""")
+    offenders = [
+        f"{path.relative_to(src)}:{lineno}"
+        for path in sorted(src.rglob("*.py"))
+        for lineno, line in enumerate(path.read_text().splitlines(), start=1)
+        if stamp.search(line)
+    ]
+    assert offenders == []

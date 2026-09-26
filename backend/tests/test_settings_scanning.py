@@ -80,6 +80,20 @@ async def _audit_actions(client: AsyncOpenSearch, entity_id: str) -> list[str]:
     return [h["_source"]["action"] for h in hits["hits"]["hits"]]
 
 
+async def _latest_audit_row(client: AsyncOpenSearch, entity_id: str) -> dict:
+    """The newest journal row for an entity — older runs of the same test share the store."""
+    await client.indices.refresh(index="system-audit-log-*")
+    hits = await client.search(
+        index="system-audit-log-*",
+        body={
+            "size": 1,
+            "sort": [{"@timestamp": "desc"}],
+            "query": {"term": {"entity_id": entity_id}},
+        },
+    )
+    return hits["hits"]["hits"][0]["_source"]
+
+
 def _cluster() -> str:
     return f"c-{uuid.uuid4().hex[:12]}"
 
@@ -189,6 +203,8 @@ async def test_staleness_put_round_trips_and_is_journaled(env) -> None:
         "per_cluster_override": True,
     }
     assert "staleness_timers_change" in await _audit_actions(client, f"staleness:{cluster}")
+    # an override is journaled under its own cluster, never as fleet-wide (issue 559)
+    assert (await _latest_audit_row(client, f"staleness:{cluster}"))["cluster_id"] == cluster
 
 
 async def test_staleness_defaults_read_when_nothing_is_configured(env) -> None:

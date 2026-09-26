@@ -44,7 +44,7 @@ async def put_sla(request: Request, policy: SlaPolicy, principal: ManageSettings
         old_value_json=old.model_dump(),
         new_value_json=policy.model_dump(),
         revision=1,
-        cluster_id="fleet",  # fleet-wide config — not a tenant row
+        cluster_id=None,  # fleet-wide config — not a tenant row (issue 559)
     )
     await write_sla_policy(client, policy, updated_by=principal.user_id)
     return {"sla": policy.model_dump()}

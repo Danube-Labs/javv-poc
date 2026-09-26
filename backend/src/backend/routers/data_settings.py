@@ -141,7 +141,7 @@ async def put_retention(
         old_value=str(old.retention_days),
         new_value=str(new.retention_days),
         revision=1,
-        cluster_id=body.cluster_id or "fleet",
+        cluster_id=body.cluster_id,  # None = the fleet-wide default (issue 559)
     )
     await write_lifecycle_settings(
         client, new, updated_by=principal.user_id, cluster_id=body.cluster_id
@@ -174,7 +174,7 @@ async def put_rollover(
         old_value_json=old.model_dump(),
         new_value_json=new.model_dump(),
         revision=1,
-        cluster_id=body.cluster_id or "fleet",
+        cluster_id=body.cluster_id,  # None = the fleet-wide default (issue 559)
     )
     await write_lifecycle_settings(
         client, new, updated_by=principal.user_id, cluster_id=body.cluster_id
@@ -198,7 +198,7 @@ async def put_report_ttl(
         old_value=str(old_hours),
         new_value=str(body.hours),
         revision=1,
-        cluster_id="fleet",
+        cluster_id=None,  # fleet-wide: no cluster_id, the class the Audit screen shows (issue 559)
     )
     await write_report_ttl(client, ReportTtl(hours=body.hours), updated_by=principal.user_id)
     return {"report_ttl_hours": body.hours}
@@ -221,7 +221,7 @@ async def put_findings_cleanup(
         old_value=str(old.cleanup_days),
         new_value=str(setting.cleanup_days),
         revision=1,
-        cluster_id=body.cluster_id or "fleet",
+        cluster_id=body.cluster_id,  # None = the fleet-wide default (issue 559)
     )
     await write_findings_cleanup_setting(
         client, setting, updated_by=principal.user_id, cluster_id=body.cluster_id
@@ -274,7 +274,7 @@ async def take_manual_snapshot(request: Request, principal: ManageRetention) -> 
         new_value=name,
         new_value_json={"repository": repo.repository, "indices": DURABILITY_INDICES},
         revision=1,
-        cluster_id="fleet",
+        cluster_id=None,  # fleet-wide: no cluster_id, the class the Audit screen shows (issue 559)
     )
     await take_snapshot(
         client, repository=repo.repository, snapshot=name, indices=DURABILITY_INDICES, wait=False
@@ -306,7 +306,7 @@ async def restore_manual_snapshot(
         new_value=snapshot_name,
         new_value_json={"repository": repo.repository, "rename_prefix": "restored-"},
         revision=1,
-        cluster_id="fleet",
+        cluster_id=None,  # fleet-wide: no cluster_id, the class the Audit screen shows (issue 559)
     )
     await restore_snapshot(
         client,

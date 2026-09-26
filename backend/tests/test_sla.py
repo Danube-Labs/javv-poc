@@ -163,9 +163,15 @@ async def test_sla_read_for_all_write_admin_gated_and_journaled(env) -> None:
     await client.indices.refresh(index="system-audit-log")
     rows = await client.search(
         index="system-audit-log*",
-        body={"size": 5, "query": {"term": {"action": "sla_policy_change"}}},
+        body={
+            "size": 1,
+            "sort": [{"@timestamp": "desc"}],
+            "query": {"term": {"action": "sla_policy_change"}},
+        },
     )
     assert rows["hits"]["total"]["value"] >= 1  # the edit is journaled (D17)
+    # fleet-wide config is journaled with no cluster_id, so the Audit screen shows it (issue 559)
+    assert rows["hits"]["hits"][0]["_source"].get("cluster_id") is None
 
     # restore defaults so re-runs and other suites see the documented values
     from backend.sla.policy import SlaPolicy, write_sla_policy
