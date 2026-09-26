@@ -209,6 +209,7 @@ uv run python -m backend.jobs.lifecycle         # rollover + per-cluster drop-wh
 uv run python -m backend.jobs.findings_cleanup  # long-window findings cache cleanup (D37/M12)
 uv run python -m backend.jobs.report_drain      # scheduled-export worker (leases pending reports)
 uv run python -m backend.jobs.report_sweep      # report TTL + orphan-chunk cleanup
+uv run python -m backend.jobs.session_sweep     # expired login sessions, past the grace
 uv run python -m backend.jobs.rebuild_state     # crash self-heal: decisions/presence/SLA-clock arms
 ```
 
