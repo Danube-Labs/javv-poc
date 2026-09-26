@@ -74,6 +74,16 @@ paging/filtering asserted on the NETWORK — cursor + filter params must ride ba
 
 ## Conventions
 - **Deterministic:** freeze time; no calls to real registries/vuln-DBs; seed any randomness.
+- **No fixed date where code compares it to the real clock (issue 533).** Such a test passes
+  today and fails on a calendar day nobody chose. Two shapes: a *past* date read through a window
+  measured from now (a `days` window, an SLA cutoff) ages out of it; a *future* date (an expiry,
+  an `as_of`) stops being future. The clock may be read by the server, not the test (a route's
+  default window, the SLA filter, the token mint's expiry check), so a test that never calls
+  `datetime.now()` can still carry one. Fix, in this order: freeze a module-level `NOW` and inject
+  it where the code takes a `now` / `t` / `anchor` (`test_query_approvals.py`); otherwise build
+  the date from `datetime.now(UTC)` ± a delta. Never widen the window to buy time. Dates compared
+  only with each other (ordering, equality, an explicit `t` into a pure function) are fine as
+  literals.
 - **Concurrency tests are required** where the design relies on it: concurrent ingest+triage (`retry_on_conflict`),
   out-of-order commits, reconcile-to-zero-conflicts.
 - A bug fix starts with a **failing test that reproduces it**, then the fix (TDD).

@@ -6,6 +6,7 @@ coverage — never a gap where a risk-acceptance silently lapses). Every lifecyc
 journaled. Real OpenSearch, prefix-isolated."""
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -21,6 +22,11 @@ from os_env import requires_opensearch
 
 pytestmark = requires_opensearch
 
+# A year out from the run, never a fixed date: creating a decision projects it at the real clock
+# (active iff `expiry > now`), so a fixed expiry makes every new decision born-expired once the
+# calendar passes it and each "create → risk_accepted" assert below fails on that day.
+EXPIRY = (datetime.now(UTC) + timedelta(days=365)).isoformat()
+
 
 def _payload(**overrides) -> DecisionPayload:
     return DecisionPayload.model_validate(
@@ -31,7 +37,7 @@ def _payload(**overrides) -> DecisionPayload:
             "apply_both_scanners": True,
             "vex_justification": None,
             "justification": "compensating control in place",
-            "expiry": "2026-12-31T00:00:00+00:00",
+            "expiry": EXPIRY,
             "cluster_id": "c-decisions",
             **overrides,
         }
@@ -336,8 +342,6 @@ async def test_not_affected_decision_round_trips_to_valid_vex(real_os) -> None:
     """A-M2 end-to-end (audit #185): a valid not_affected decision projects a CISA justification
     onto the finding, and both VEX serializers emit it — never a null status/justification and
     never a KeyError."""
-    from datetime import UTC, datetime
-
     from backend.export.vex import to_cyclonedx, to_openvex
 
     client, prefix = real_os
@@ -445,18 +449,17 @@ async def test_daily_sweep_reprojects_expired_decisions(real_os) -> None:
 
     client, prefix = real_os
     fk = await _seed_finding(client, prefix)
+    expires = datetime.now(UTC) + timedelta(days=30)
     made = await create_decision(
         client,
         actor="ana",
-        payload=_payload(expiry="2027-01-01T00:00:00+00:00"),
+        payload=_payload(expiry=expires.isoformat()),
         prefix=prefix,
     )
     assert (await _finding(client, prefix, fk))["state"] == "risk_accepted"
 
     # time passes: the decision is now expired (sweep runs with an injected `now` past expiry)
-    from datetime import UTC, datetime
-
-    result = await run_staleness_sweep(client, now=datetime(2027, 6, 1, tzinfo=UTC), prefix=prefix)
+    result = await run_staleness_sweep(client, now=expires + timedelta(days=150), prefix=prefix)
 
     got = await _finding(client, prefix, fk)
     assert (got["state"], got["state_decision_id"]) == ("open", None)

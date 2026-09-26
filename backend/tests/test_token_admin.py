@@ -8,6 +8,7 @@ structured row to the system-audit-log write alias (D17; schema owned by M5b, te
 early so the appender never writes into a dynamic-mapped index). Real OpenSearch."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -175,7 +176,9 @@ async def test_login_logout_and_pwd_change_each_append_one_audit_row(admin_clien
 async def test_mint_with_expiry_stores_it_and_rotate_inherits_it(admin_client) -> None:
     http, client, _ = admin_client
     cluster = _cluster()
-    expiry = "2030-01-01T00:00:00+00:00"
+    # a year out from now, never a fixed date: the mint rejects an expiry in the past, so a fixed
+    # one turns this mint into a 422 once the calendar passes it
+    expiry = (datetime.now(UTC) + timedelta(days=365)).isoformat()
 
     r = await http.post(
         "/api/v1/admin/tokens",
