@@ -57,8 +57,9 @@ export type LogFields = Record<string, unknown>
 const BEACON_PATH = '/api/v1/client-events'
 const BEACON_BATCH = 20 // the server's own batch cap — one full queue is one legal request
 const BEACON_WINDOW_MS = 5000
-/** The server's event-name contract. A name it would 422 poisons the whole batch it rides in. */
-const BEACON_EVENT_NAME = /^[a-z0-9][a-z0-9 ._-]{0,63}$/
+/** The server's event-name contract. A name it would 422 poisons the whole batch it rides in.
+ *  Exported for `logger-event-names.spec.ts`, which checks every call site against THIS copy. */
+export const BEACON_EVENT_NAME = /^[a-z0-9][a-z0-9 ._-]{0,63}$/
 /** The server's per-value cap, mirrored so an oversized value cannot 422 its whole batch. */
 const BEACON_MAX_VALUE_CHARS = 512
 const BEACON_DROPPED_EVENT = 'beacon events dropped'
