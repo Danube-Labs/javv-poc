@@ -135,6 +135,18 @@ async def test_stale_lease_is_reclaimable(env):
     assert doc["stale"] is True
     r = await http.post("/api/v1/admin/jobs/staleness_sweep/run")
     assert r.status_code == 202
+    attempt = r.json()["attempt_id"]
+    assert attempt != "aaaaaaaaaaaa"  # a new fencing id: the silent run was reclaimed, not joined
+
+    # wait the reclaimed run out: returning on the 202 lets teardown close the client under it
+    for _ in range(100):
+        s = await http.get("/api/v1/admin/jobs")
+        doc = next(j for j in s.json()["jobs"] if j["kind"] == "staleness_sweep")
+        if doc["status"] in ("done", "failed"):
+            break
+        await asyncio.sleep(0.2)
+    assert doc["status"] == "done", doc.get("error")
+    assert doc["attempt_id"] == attempt
 
 
 @pytest.mark.parametrize("kind", ["rebuild_state", "lifecycle_sweep"])
