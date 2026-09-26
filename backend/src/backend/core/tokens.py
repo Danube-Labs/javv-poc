@@ -40,7 +40,7 @@ if __name__ == "__main__":
     ap.add_argument("--cluster", required=True)
     ap.add_argument("--scanner", required=True, choices=["trivy", "grype"])
     args = ap.parse_args()
-    from backend.core.identifiers import validate_cluster_id  # shared shape (task E/Codex M2)
+    from backend.core.identifiers import validate_cluster_id  # shared shape (task E / audit M2)
 
     validate_cluster_id(args.cluster)
     raw = asyncio.run(mint(args.cluster, args.scanner))

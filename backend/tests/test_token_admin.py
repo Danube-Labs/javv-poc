@@ -206,7 +206,7 @@ async def test_mint_with_a_past_expiry_is_422(admin_client) -> None:
 
 
 async def test_mint_rejects_a_malformed_cluster_id(admin_client) -> None:
-    # Codex M2: one shared cluster_id shape — the envelope's rule, everywhere
+    # audit M2: one shared cluster_id shape — the envelope's rule, everywhere
     http, _, _ = admin_client
     for bad in ("UPPER-CASE-ID", "short", "has_underscore_x", "-leading-hyphen"):
         r = await http.post("/api/v1/admin/tokens", json={"cluster_id": bad, "scanner": "trivy"})

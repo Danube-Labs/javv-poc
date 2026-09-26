@@ -32,7 +32,7 @@ def test_benign_values_pass_through() -> None:
 
 
 def test_csv_injection_bypass_corpus_stays_neutralized_or_inert() -> None:
-    """A-m13 (audit #192): a REGRESSION lock, not a fix — Fable verified the current sanitizer has
+    """A-m13 (audit #192): a REGRESSION lock, not a fix — review confirmed the sanitizer has
     no live bypass in the target consumers. This corpus freezes that behavior so a future refactor
     can't silently weaken it. Do NOT change the sanitizer to make these pass differently."""
     # ASCII formula leads → neutralized with a leading apostrophe
@@ -41,7 +41,7 @@ def test_csv_injection_bypass_corpus_stays_neutralized_or_inert() -> None:
     assert sanitize_cell("\r=formula") == "'\r=formula"  # CR is a trigger
     # list elements are sanitized ELEMENT-WISE before the ';' join — no re-split bypass
     assert sanitize_cell(["=cmd", "ok", "=x"]) == "'=cmd;ok;'=x"
-    # provably inert in the target consumers (Fable-verified) — pass through unchanged:
+    # provably inert in the target consumers (review-verified) — pass through unchanged:
     assert sanitize_cell(" =1+1") == " =1+1"  # a leading ASCII space doesn't arm the formula
     assert sanitize_cell("﻿=1") == "﻿=1"  # BOM / zero-width prefix doesn't arm
     assert sanitize_cell("＝1+1") == "＝1+1"  # full-width homoglyph is not a formula char

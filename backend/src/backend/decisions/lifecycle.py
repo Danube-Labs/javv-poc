@@ -49,7 +49,7 @@ class DecisionPayload(BaseModel):
     vex_justification: str | None = Field(default=None, max_length=128)
     justification: str = Field(min_length=1, max_length=10_000)
     expiry: str | None = None  # ISO date; IMMUTABLE after creation — change = revoke+create
-    cluster_id: ClusterId  # the ONE shared shape (task E/Codex M2)
+    cluster_id: ClusterId  # the ONE shared shape (task E / audit M2)
 
     @field_validator("expiry")
     @classmethod

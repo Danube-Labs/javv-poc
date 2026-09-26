@@ -140,7 +140,7 @@ async def list_users(
     size: Annotated[int, Query(ge=1, le=1000)] = 100,
     offset: Annotated[int, Query(ge=0, le=9000)] = 0,
 ) -> dict[str, Any]:
-    # explicit from/size pagination (task E/Codex L1) — same shape as the token list
+    # explicit from/size pagination (task E / audit L1) — same shape as the token list
     hits = await _os(request).search(
         index=USERS_INDEX,
         body={

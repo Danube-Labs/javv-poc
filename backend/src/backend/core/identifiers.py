@@ -1,4 +1,4 @@
-"""Shared identifier shapes (task E / Codex M2, #142). `cluster_id` flows into index names,
+"""Shared identifier shapes (task E / audit M2, #142). `cluster_id` flows into index names,
 routing, and every tenant filter — its shape rule must be ONE definition, not four drifting
 copies. This is the envelope's original rule (models/envelope.py imports it back): lowercase
 alnum/hyphen, 8–64 chars, alnum first. Use `ClusterId` in pydantic models and
