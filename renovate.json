@@ -3,9 +3,14 @@
   "extends": [
     "config:recommended",
     ":semanticCommits",
-    ":dependencyDashboard"
+    ":dependencyDashboard",
+    "helpers:pinGitHubActionDigests"
   ],
   "labels": ["dependencies", "housekeeping"],
+  "schedule": ["before 4am"],
+  "automerge": false,
+  "vulnerabilityAlerts": { "labels": ["security", "dependencies"] },
+  "osvVulnerabilityAlerts": true,
   "customManagers": [
     {
       "description": "versions.yaml single source of truth (D42) — bump the annotated `current` pins",
