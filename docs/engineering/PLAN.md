@@ -704,7 +704,7 @@ Each ends on a verifiable check + Confirm gate.
 1. **M0 - Scanner modules** (Trivy+Grype, shared pipeline). v3 gates + EPSS/KEV, `scan_run_id`,
    **local digest-dedup, scan-all** (no skip-unchanged - D30), **full-precision `last_seen_at`** (D37/M13),
    backoff/jitter/dead-letter. **+ severity vocabulary
-   canonicalization** (map each scanner's ramp → `crit/high/med/low`; verbatim word preserved) (D16).
+   canonicalization** (map each scanner's ramp → the canonical words, full since D46; verbatim word preserved) (D16).
 2. **M1 - Backend skeleton + indexes + ingest + observability.** Explicit `dynamic:false` mappings
    (keyword ids, **severity normalizer** D16, reshaped CVSS, EPSS/KEV) for current-state + `system-*`;
    versioned bootstrap; **hardened** `POST /ingest/scan` (rate-limit, size+decompression caps, **256-bit

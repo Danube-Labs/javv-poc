@@ -14,7 +14,7 @@ milestone gates, not per-change QA.)
 
 ## Frontend delta → type-check + tests + lint
 - `npm run type-check` (vue-tsc) — never skip; template type errors hide here.
-- `npm run test` (Vitest) — the option-builders/emitted-params units are the contract.
+- `npm run test:ci` (Vitest + the coverage floor, what CI runs) — the option-builders/emitted-params units are the contract.
 - `npm run lint` (ESLint) + stylelint (raw hex / non-token fonts fail — ui-foundations).
 - Touched the API surface? `npm run gen:api` and check `git diff` is clean (the I7 contract gate
   will fail CI otherwise).

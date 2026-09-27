@@ -383,6 +383,7 @@ revoked           boolean       revoke-on-role-change / logout-all
 ### `system-config` · `system-tags` · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks` · `system-jobs`
 ```
 # system-config        : SLA policy, rollover/retention/staleness settings, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c)
+#                        doc shape: { key (= _id), value (opaque, not indexed), updated_at, updated_by }
 # system-tags          : { tag, kind: team|app|org, ... }
 # system-views         : { view_id, name, description, preset, workbench, owner, created_at,
 #                          updated_at, schema_version }
@@ -395,11 +396,11 @@ revoked           boolean       revoke-on-role-change / logout-all
 #                          owner-or-admin. `preset` = the SearchFilters mirror, {enabled:false} in _source
 #                          — presets are fetched by _id/list, never queried by their innards; card counts
 #                          come from /findings/facets at render time, never stored.)
-# system-notifications : { user_id, type: sla_breach|assignment|report_ready, ref, created_at, read }
+# system-notifications : { notification_id, user_id, type: sla_breach|assignment|report_ready, ref, cluster_id, created_at, read }
 # system-reports       : { report_id, kind: export|bulk_triage, status: pending|running|done|failed,
 #                          params, requested_by, run_mode: now|offpeak, scheduled_for, cluster_id,
 #                          bytes, chunk_count, expires_at, heartbeat_at, lease_expires_at, retry_count,
-#                          attempt_id, worker, started_at, finished_at }   job claim = optimistic concurrency (pending→running via
+#                          attempt_id, worker, started_at, finished_at, as_of_t (export at a past T) }   job claim = optimistic concurrency (pending→running via
 #                          seq_no/primary_term CAS) so replicas/retries can't double-run (D38/M17);
 #                          attempt_id = fencing token - heartbeat + done CAS on it, so an expired-then-
 #                          reclaimed slow worker can't double-publish (the bell reads only the done doc).

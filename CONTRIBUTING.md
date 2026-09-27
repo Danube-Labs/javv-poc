@@ -150,7 +150,7 @@ output. Tools can report passing tests and still fail the build.
 # backend (from backend/)
 uv run ruff check . && uv run ruff format --check .
 uv run pyright                 # tree-wide, no path arguments
-uv run pytest
+uv run pytest -n 2 -m "not serial" && uv run pytest -m serial   # what CI runs
 
 # frontend (from frontend/)
 npm run lint
