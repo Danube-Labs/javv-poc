@@ -56,5 +56,18 @@ export function useCursorPager(initialSize = 25) {
     reset()
   }
 
-  return { page, size, cursor, hasPrev, hasNext, landed, next, prev, reset, setSize }
+  return {
+    page,
+    size,
+    cursors,
+    nextCursor,
+    cursor,
+    hasPrev,
+    hasNext,
+    landed,
+    next,
+    prev,
+    reset,
+    setSize,
+  }
 }
