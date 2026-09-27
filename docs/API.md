@@ -82,8 +82,8 @@ the query layer (tenant read path), not per-user grants (post-MVP).
 ### Findings — read (M6)
 
 All session-auth, no capability (reads). All take the filter family (`cluster_id` **required**,
-`scanner`, `severity`, `state`, `namespace`, `image`, `cve_id`, `package_name`, `kev`,
-`fixable`, `disagree`, `ptype`, …) and the global `as_of`. `severity` values are the **full-word canonical vocabulary**
+`scanner`, `severity`, `state`, `namespace`, `image_repo`, `image_digest`, `cve_id`, `package_name`,
+`assignee`, `kev`, `fixable`, `disagree`, `ptype`, `present`, `new_within_days`, `overdue`, `unassigned`, …) and the global `as_of`. `severity` values are the **full-word canonical vocabulary**
 (D46/#274: `critical|high|medium|low|negligible|unknown`) served by the server-derived
 `severity_canonical` key — facet bucket keys are the same words; the verbatim scanner word stays
 display-only in rows. `ptype` (M8d/#241) is also a facet (pre-v4 rows bucket as

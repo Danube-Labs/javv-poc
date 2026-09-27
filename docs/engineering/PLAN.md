@@ -618,11 +618,13 @@ present in later snapshots - **no close events** (validated: this is Elastic CSP
 
 ### 5.6 `system-*` - system + human-decision indexes
 `system-users` (username, `password_hash` argon2id, role, created_at, disabled), `system-roles`,
-`system-tokens` (per `(cluster,scanner)`, hashed, scope `push:findings`, `last_ingest_at`), `system-config`,
-`system-tags`, **`system-decisions`** (scoped decisions - see 5.7; *was `system-exceptions`*),
-**`system-audit-log`** (immutable, every action - D17), **`system-saved-views`**, **`system-notifications`**
-(per-user SLA breaches + assignments), **`system-reports`** (export jobs - D24). All behind a **repository
-interface** (later SQLite/Postgres swap stays localized).
+`system-tokens` (per `(cluster,scanner)`, hashed, scope `push:findings`, `last_ingest_at`), `system-sessions`
+(server-side sessions - SEC-5), `system-config`, **`system-decisions`** (scoped decisions - see 5.7; *was
+`system-exceptions`*), **`system-audit-log`** (immutable, every action - D17), **`system-views`** (saved filter
+views, visible to every signed-in user - M8e/C-6), **`system-notifications`** (per-user SLA breaches +
+assignments), **`system-reports`** (export jobs - D24) + `system-report-chunks` (their stored output),
+`system-jobs` (the repair-actions lease + status). `system-tags` is planned, not created yet (tagging, FR-9, is
+post-MVP). All behind a **repository interface** (later SQLite/Postgres swap stays localized).
 
 ### 5.7 `system-decisions` - scoped decisions + projection (D3/D4)
 ```
@@ -747,8 +749,8 @@ Each ends on a verifiable check + Confirm gate.
    - **M5c - Decisions & projection (own gate).** `system-decisions` scoped risk-accept/ignore/not-affected
      with **precedence + expiry-refresh + `apply_both` per D22**; projection cache + rebuild. *Gate verifies
      the pinned `apply_both` rule.*
-   - **M5d - SLA/overdue + bulk.** SLA policy + KEV override (FR-10); overdue; bulk via `_bulk` (202+async,
-     one audit entry per bulk action); approval list.
+   - **M5d - SLA/overdue + bulk.** SLA policy + KEV override (FR-10); overdue; bulk via `_bulk` (bounded-synchronous:
+     up to `JAVV_BULK_INLINE_LIMIT` applies now, larger is a 413 - A-Mc; one audit entry per bulk action); approval list.
 7. **M6 - Read/reporting + VEX export.** PIT+`search_after` search (faceted by scanner, composite aggs);
    trend endpoints over scan-events; **Contributors (expanded)** over `system-audit-log`; streaming
    sanitized CSV; **VEX export** (state/justification → OpenVEX/CycloneDX). *(VEX import → v1.1.)* **As-of-T
