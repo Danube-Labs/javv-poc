@@ -36,7 +36,7 @@ The script is **idempotent** - re-run it any time; it skips tools already presen
   [`docs/research/TOOLING-AND-MCP.md`](../docs/research/TOOLING-AND-MCP.md) with `claude mcp add …`. `uvx`/`npx` are
   prerequisites and the script installs both.
 - **OpenSearch** - for local dev, run the pinned single-node container (security off, `:9200`):
-  `docker compose -f development/setup/opensearch-dev.yml up -d`. In-cluster deploy comes later (M9e/M10).
+  `docker compose -f development/setup/opensearch-dev.yml up -d`. In-cluster deploy comes with M10.
 
 ### After it runs
 
@@ -118,50 +118,48 @@ The two Dockerfiles + the scanner package land in **M0**; image build/publish + 
 
 ---
 
-## 3. Repo layout (planned)
+## 3. Repo layout
 
-> The **`scanner/`** package exists (M0/M0b); **`backend/`** and **`frontend/`** are not scaffolded yet
-> (`backend/` lands in **M1**). Target shape from
-> [`docs/research/STACK-BEST-PRACTICES.md`](../docs/research/STACK-BEST-PRACTICES.md) §1:
+**[`REPO-MAP.md`](../REPO-MAP.md) maps every folder**; the top level in one screen:
 
 ```
-scanner/          in-cluster scanner package (M0/M0b): adapters · normalize · envelope · push · discovery
-                  · compat (blessing gate) · run (entrypoint); Dockerfile.{trivy,grype} · docker-bake.hcl
-backend/          (M1) FastAPI
-  routers/        HTTP layer (FastAPI)
-  services/       business logic - takes the OpenSearch client as a param, no FastAPI imports
-  repositories/   raw OpenSearch query bodies
-  models/         Pydantic v2 schemas
-  core/           settings, logging, lifespan (single AsyncOpenSearch client)
-  jobs/           CronJob entrypoints - reuse services, must NOT import FastAPI
-frontend/         Vue 3 (<script setup lang="ts">) · PrimeVue · vue-echarts · Pinia
-versions.yaml     pinned external tool/service versions (scanners, OpenSearch) - single source of truth (D42)
-development/      dev docs + this guide; setup/ (setup-dev.sh, preflight.sh, opensearch-dev.yml), bolts/, standards/, scripts/
-deploy/           Helm charts (→ k3s)
+backend/          FastAPI service (routers · services · query · jobs · … - see backend/README.md)
+frontend/         Vue 3 app (<script setup lang="ts">) · PrimeVue · vue-echarts · Pinia
+scanner/          the in-cluster scanner package + Dockerfile.{trivy,grype}
+libs/javv-common/ the shared logging pipeline (backend + scanner)
+versions.yaml     pinned external versions (scanners, OpenSearch, toolchain) - single source of truth (D42)
+docs/             canonical design (engineering/), API.md, CONFIGURATION.md, research/
+development/      this guide; setup/, bolts/, standards/, scripts/, e2e/
+handoff/          the UI reference (docs/ current, v4/ frozen)
 ```
+
+Helm charts land with **M10**.
 
 ---
 
 ## 4. Quality gates & dev loop
 
-Run these locally before pushing; CI enforces the same (see the `ci-cd-and-automation` skill / M10):
+Run what CI runs before pushing. The commands, per component:
 
 ```bash
-# Scanner (exists today) - run from scanner/
-cd scanner && uv sync --all-extras --dev && uv run ruff check . && uv run pyright && uv run pytest
+# Backend - from backend/ (needs OpenSearch; see backend/README.md)
+uv run ruff check . && uv run ruff format --check . && uv run pyright   # pyright tree-wide, no path args
+uv run pytest -n 2 -m "not serial" && uv run pytest -m serial
 
-# Backend (once backend/pyproject.toml exists, M1)
-uv sync
-uv run ruff check . && uv run ruff format --check .
-pyright
-uv run pytest                 # pytest-asyncio + httpx.AsyncClient against a real containerized OpenSearch
+# Scanner - from scanner/  ·  shared lib - from libs/javv-common/
+uv run ruff check . && uv run ruff format --check . && uv run pyright && uv run pytest
 
-# Frontend
-npm install && npm run lint && npm run test    # ESLint + eslint-plugin-vue · Vitest
+# Frontend - from frontend/
+npm run lint && npm run test:ci      # not `npm run test`: test:ci adds the coverage floor
 ```
 
-Static floor: **ruff + pyright** (Python), **Volar + ESLint** (Vue). Generate the FE TS client from
-FastAPI's OpenAPI with `@hey-api/openapi-ts` so the Pydantic↔TS contract can't drift.
+CI also runs gates with no local equivalent you'd run every time: the **contract gate** (the
+committed `frontend/openapi.json` and generated client must match the backend; fix with
+`export_openapi` + `npm run gen:api`), the **docs-drift** check (`development/scripts/check-docs-drift.sh`),
+the **Frontend smoke** (a built app against a seeded backend), commitlint, the gitleaks secret scan and
+the report-only dependency audit. `versions.yml` checks every consumer against `versions.yaml`.
+
+Static floor: **ruff + pyright** (Python), **vue-tsc + ESLint + oxlint + stylelint** (Vue).
 
 ---
 
@@ -169,7 +167,7 @@ FastAPI's OpenAPI with `@hey-api/openapi-ts` so the Pydantic↔TS contract can't
 
 | Doc | What |
 |---|---|
-| [`docs/engineering/PLAN.md`](../docs/engineering/PLAN.md) | Decisions (D1-D42), data model, milestones (M0-M10) |
+| [`docs/engineering/PLAN.md`](../docs/engineering/PLAN.md) | Decisions (D1-D46), data model, milestones (M0-M10) |
 | [`docs/engineering/INDEX-MAP.md`](../docs/engineering/INDEX-MAP.md) | **Source of truth** for every OpenSearch index + mapping - read before touching any index |
 | [`docs/research/STACK-BEST-PRACTICES.md`](../docs/research/STACK-BEST-PRACTICES.md) | Day-one engineering rules (async client, mappings, `_bulk`, Vue patterns) |
 | [`docs/research/TOOLING-AND-MCP.md`](../docs/research/TOOLING-AND-MCP.md) | MCP servers + tooling, ranked, with install commands |
