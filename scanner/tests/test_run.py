@@ -373,6 +373,61 @@ def test_scan_all_logs_a_failed_image_as_a_warning() -> None:
     assert warnings[0]["image_ref"] == "broken:1"
 
 
+def test_cycle_lines_render_as_json_with_the_standard_keys(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The tests above use capture_logs, which stops before the renderer — this one runs the
+    production pipeline, so a line that loses its context or its traceback fails here, not in
+    an operator's log search."""
+    import json
+    import logging
+
+    import structlog
+    from javv_common.logging import configure_logging
+
+    configure_logging(level="info")
+    monkeypatch.setattr(run, "log", structlog.get_logger())  # fresh proxy, restored after
+    structlog.contextvars.bind_contextvars(scanner="trivy", cluster_id="c-json")  # as main() does
+
+    def scan_fn(ref: str) -> ScanResult:
+        if ref == "broken:1":
+            raise subprocess.CalledProcessError(1, ["trivy"], stderr="image not found")
+        return ScanResult(findings=[], provenance=Provenance(scanner_version="0.71.2"))
+
+    def push_fn(env: Envelope) -> PushResult:
+        return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+    try:
+        scan_all(
+            [target("sha256:a", "nginx:1.21.6"), target("sha256:b", "broken:1")],
+            scanner="trivy",
+            cluster_id="c-json",
+            scan_fn=scan_fn,
+            push_fn=push_fn,
+            scan_order=7,
+        )
+    finally:
+        structlog.contextvars.clear_contextvars()
+        structlog.reset_defaults()
+        logging.getLogger().handlers.clear()
+
+    lines = [json.loads(raw) for raw in capsys.readouterr().out.splitlines() if raw.strip()]
+    assert [e["event"] for e in lines] == [
+        "scanning image",
+        "scan done",
+        "scanning image",
+        "scan failed, image skipped",
+    ]
+    for line in lines:
+        assert list(line)[:3] == ["timestamp", "level", "event"]
+        assert line["scanner"] == "trivy" and line["cluster_id"] == "c-json"
+        assert line["scan_order"] == 7 and line["scan_run_id"]
+    assert len({e["scan_run_id"] for e in lines}) == 1  # one cycle, one run id
+    failed = lines[-1]
+    assert failed["level"] == "warning" and "exc_info" not in failed
+    assert "CalledProcessError" in failed["exception"]
+
+
 def test_scan_all_certifies_the_cycle_inventory_at_the_end() -> None:
     # M8a slice 2: commit_fn fires once with the cycle's shared run id and the DISCOVERED count —
     # a failing image still counts as expected (its envelope never lands → the run stays partial)

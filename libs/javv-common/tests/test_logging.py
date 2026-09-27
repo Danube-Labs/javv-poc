@@ -185,6 +185,36 @@ def test_opensearch_bodies_never_emit_even_at_debug(capsys) -> None:
     assert _lines(capsys.readouterr().err) == []
 
 
+# --- exceptions: the traceback is rendered text, and redacted ---------------------
+
+
+def test_native_exception_renders_the_traceback_as_text(capsys) -> None:
+    """Without a formatting processor JSONRenderer emits `"exc_info": true` and the cause is
+    gone — the operator sees that something failed but never why."""
+    configure_logging(level="info")
+    try:
+        raise RuntimeError("disk full")
+    except RuntimeError:
+        structlog.get_logger().exception("job failed")
+    (line,) = _lines(capsys.readouterr().out)
+    assert "exc_info" not in line
+    assert "Traceback" in line["exception"] and "RuntimeError: disk full" in line["exception"]
+
+
+def test_bridged_exception_renders_the_traceback_and_scrubs_bearer(capsys) -> None:
+    """A stdlib record's exc_info is a tuple, which redaction does not walk — rendered raw, the
+    exception message reaches the stream unscrubbed."""
+    configure_logging(level="info")
+    try:
+        raise RuntimeError("upstream rejected Bearer leaked-token-value")
+    except RuntimeError:
+        logging.getLogger("test.bridge").exception("bridged failure")
+    (line,) = _lines(capsys.readouterr().err)
+    assert "exc_info" not in line
+    assert "RuntimeError: upstream rejected" in line["exception"]
+    assert "leaked-token-value" not in line["exception"] and REDACTED in line["exception"]
+
+
 # --- key order: a line reads timestamp → level → event → detail -----------------
 
 
