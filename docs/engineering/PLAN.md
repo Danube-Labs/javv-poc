@@ -652,7 +652,9 @@ scopes do **not** auto-apply to new images; namespace/cluster scopes do (the cas
   counts observed). Cache-only, scanner-owned fields only - `occurrences` is never touched (no close-events).
 - **Staleness sweep** (daily CronJob, `Forbid`): **two-timer** (D20) - per-finding `last_seen_at < now−N →
   stale` (save `pre_stale_status`); **scanner-down guard** holds the per-finding timer between N and M days
-  (banner shown); past **M days** silent → mark all that cluster's findings `stale`. Also runs
+  (banner shown); past **M days** silent → mark all that cluster's findings `stale`. A `stale` row a
+  later scan confirmed gone (`present=false`) reverts to `pre_stale_status` on every sweep (issue 576:
+  `stale` means presence unknown, and gone is known). Also runs
   **decision-expiry re-projection** (5.7). **`stale` is a flag, not a delete** (D37/M12): `findings` docs are
   removed only after a separate **long** window (or once gone from inventory that long), never on the
   freshness timer. Re-running is a no-op; `conflicts=proceed`.

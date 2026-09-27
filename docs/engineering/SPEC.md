@@ -82,7 +82,8 @@ from an env/secret and must change the password on first login - FR-18.)
   silent beyond the **scanner-down escalation window** (default **7 d**) → all that cluster's findings →
   `stale`. Between (a) and (b) the per-finding timer is **held** (no mass-staling on a brief outage) but every
   inventory view shows a **"data as of T; scanner silent since T'"** banner. Re-push reverts to
-  `pre_stale_status`. `resolved` is manual-only. Both windows editable (FR-19/D26). **`stale` is a flag, not a
+  `pre_stale_status`, and so does a later scan confirming the finding gone (`present=false`: presence is
+  then known, issue 576). `resolved` is manual-only. Both windows editable (FR-19/D26). **`stale` is a flag, not a
   delete** (D37/M12) - `findings` docs are purged only after a separate long window; the freshness timer reads
   full-precision `last_seen_at`.
 - **FR-7 Triage (VEX two-field model).** `state ∈ {open, acknowledged, not_affected, risk_accepted,

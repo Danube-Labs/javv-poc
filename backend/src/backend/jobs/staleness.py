@@ -15,10 +15,11 @@ Between the thresholds the per-finding timer is **HELD** (a brief scanner outage
 one finding at a time); the inventory view shows a "scanner silent since T'" banner instead — that
 banner is a read-time concern (computed from `last_ingest_at`), not written here. When the scanner
 returns and re-reports a finding (merge refreshes `last_seen_at`), the next sweep **reverts** it to
-its `pre_stale_status`. Presence ⟂ state (D39): this only ever touches `state`/`pre_stale_status`,
-never `present`. Idempotent: `state != stale` guards the mark, so re-runs don't overwrite
-`pre_stale_status`; `update_by_query` runs `conflicts=proceed` (a dropped conflict is picked up next
-day).
+its `pre_stale_status`. A stale finding a later scan confirmed gone (`present=false`) reverts too,
+on every sweep: its presence is no longer unknown (issue 576). Presence ⟂ state (D39): this only
+ever touches `state`/`pre_stale_status`, never `present`. Idempotent: `state != stale` guards the
+mark, so re-runs don't overwrite `pre_stale_status`; `update_by_query` runs `conflicts=proceed` (a
+dropped conflict is picked up next day).
 """
 
 from datetime import UTC, datetime, timedelta
@@ -137,36 +138,59 @@ async def _mark_stale(
     return int(resp.get("updated", 0))
 
 
-async def _revert_returned(
-    client: AsyncOpenSearch, cluster_id: str, scanner: str, *, fresh_cutoff: datetime, prefix: str
+# restore the state the flag saved (defaulting to `open` if it was never recorded)
+_REVERT_SCRIPT = (
+    "ctx._source.state = ctx._source.pre_stale_status != null "
+    "? ctx._source.pre_stale_status : 'open'; "
+    "ctx._source.pre_stale_status = null;"
+)
+
+
+async def _revert(
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    scanner: str,
+    *,
+    presence: list[dict[str, Any]],
+    prefix: str,
 ) -> int:
-    """Un-stale findings the scanner has re-reported (fresh `last_seen_at`) — restore
-    `pre_stale_status` (defaulting to `open` if it was never recorded)."""
     body = {
         "query": {
             "bool": {
                 "filter": [
                     {"term": {"cluster_id": cluster_id}},
                     {"term": {"scanner": scanner}},
-                    {"term": {"present": True}},
                     {"term": {"state": "stale"}},
-                    {"range": {"last_seen_at": {"gte": fresh_cutoff.isoformat()}}},
+                    *presence,
                 ]
             }
         },
-        "script": {
-            "lang": "painless",
-            "source": (
-                "ctx._source.state = ctx._source.pre_stale_status != null "
-                "? ctx._source.pre_stale_status : 'open'; "
-                "ctx._source.pre_stale_status = null;"
-            ),
-        },
+        "script": {"lang": "painless", "source": _REVERT_SCRIPT},
     }
     resp = await client.update_by_query(
         index=f"{prefix}findings", body=body, params={"conflicts": "proceed", "refresh": "true"}
     )
     return int(resp.get("updated", 0))
+
+
+async def _revert_returned(
+    client: AsyncOpenSearch, cluster_id: str, scanner: str, *, fresh_cutoff: datetime, prefix: str
+) -> int:
+    """Un-stale findings the scanner has re-reported (fresh `last_seen_at`)."""
+    presence = [
+        {"term": {"present": True}},
+        {"range": {"last_seen_at": {"gte": fresh_cutoff.isoformat()}}},
+    ]
+    return await _revert(client, cluster_id, scanner, presence=presence, prefix=prefix)
+
+
+async def _revert_gone(
+    client: AsyncOpenSearch, cluster_id: str, scanner: str, *, prefix: str
+) -> int:
+    """Un-stale findings a later scan confirmed gone (`present=false`, issue 576). `stale` means
+    presence unknown (D39); gone is a known answer, so this runs whatever the scanner's silence."""
+    presence = [{"term": {"present": False}}]
+    return await _revert(client, cluster_id, scanner, presence=presence, prefix=prefix)
 
 
 async def run_staleness_sweep(
@@ -222,6 +246,7 @@ async def run_staleness_sweep(
                 client, cluster_id, scanner, fresh_cutoff=n_cutoff, prefix=prefix
             )
         # else N <= silent < M: HELD — banner only (read-time), no state change
+        reverted += await _revert_gone(client, cluster_id, scanner, prefix=prefix)
 
     # decision expiry-refresh (M5c/SND-9, PLAN §5.7): re-project every (cluster, cve) that has an
     # expired-but-unrevoked decision — the projector drops the dead winner and the next applicable
