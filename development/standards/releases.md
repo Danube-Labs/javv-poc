@@ -45,6 +45,9 @@ We use **[Renovate](https://docs.renovatebot.com/)** (config: `renovate.json`) t
 bump dependencies. It's **orthogonal** to release automation — it feeds the dep-update PRs that
 release-please later turns into releases.
 
+**The policy it follows** (cadence, no automerge, fix deadlines for vulnerable dependencies) is
+[dependency-policy.md](dependency-policy.md).
+
 **Why Renovate over Dependabot:** Renovate covers JAVV's whole polyglot stack in one tool —
 **uv/pip, npm, Docker base images, Helm charts, and GitHub Actions** — with grouping and
 scheduling. Dependabot is simpler and GitHub-native but weaker on Helm/Docker and grouping.

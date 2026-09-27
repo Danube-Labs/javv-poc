@@ -16,6 +16,8 @@ own goal, deliverables, and bolt-specific gates, and links here for everything s
 | [ui-foundations.md](ui-foundations.md) | One visual system: design tokens as source of truth, typography, semantic color buckets, stylelint enforcement |
 | [git-workflow.md](git-workflow.md) | Branch naming, commits, PR checklist, merge rules |
 | [releases.md](releases.md) | Versioning + release automation (release-please) + dependency updates (Renovate) |
+| [dependency-policy.md](dependency-policy.md) | Where each version is pinned, update cadence, the fix deadlines for vulnerable dependencies, adding a dependency |
+| [security.md](security.md) | The engineering threat model (ingest, tenants, secrets) and the security checks that run; reporting lives in the root `SECURITY.md` |
 | [bolt-readme-template.md](bolt-readme-template.md) | Copy this when starting a new bolt README |
 
 ## Don't duplicate - point

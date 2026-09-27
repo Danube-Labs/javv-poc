@@ -52,8 +52,11 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
 ### Missing standards docs (N1 residue)
 
 - [ ] `code-review.md` — DoD §7 mandates a review pass but defines no rubric.
-- [ ] `security.md` — threat model for the untrusted ingest surface, secret handling, dep-vuln SLA.
-- [ ] `dependency-policy.md` — how fast a security bump merges; auto-merge rules for grouped dev deps.
+- [x] `security.md` — threat model for the untrusted ingest surface, secret handling, dep-vuln SLA.
+  **Done (issue 552):** `development/standards/security.md`; the SLA is in `dependency-policy.md`.
+- [x] `dependency-policy.md` — how fast a security bump merges; auto-merge rules for grouped dev deps.
+  **Done (issue 552):** `development/standards/dependency-policy.md` (7 days for critical/high in
+  production dependencies; nothing auto-merges).
 
 ### Standing process (tracked live on [#134 risk register](https://github.com/Danube-Labs/javv-poc/issues/134) — OPEN)
 
