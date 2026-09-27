@@ -7,7 +7,7 @@ resume fast. Steps:
 
 1. Gather current state (don't guess): `git rev-parse --short HEAD`, `git status -sb`,
    `gh pr list --state open`, and the active bolt/issue if any.
-2. Use [`.claude/sessions/TEMPLATE.md`](sessions/TEMPLATE.md) as the structure. Keep it **tight** — it's a
+2. Use [`.claude/sessions/TEMPLATE.md`](../sessions/TEMPLATE.md) as the structure. Keep it **tight** — it's a
    fast-resume snapshot, not a report. Be concrete in **▶ Next step**.
 3. File name: today's date + a short slug of the focus (e.g. `2026-07-02-m3-watermark-cas.md`).
 4. The file is **gitignored by default** (local-only) — that's intended. Only `git add -f` it if the user

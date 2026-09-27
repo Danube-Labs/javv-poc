@@ -157,7 +157,7 @@ After R2: CVE-1 is current (and risk-accepted); CVE-2 was not re-reported, so th
   "finding_key": "f3a9c1",
   "cluster_id": "9b1e-uid", "scanner": "trivy",
   "image_digest": "sha256:AAA", "image_repo": "docker.io/library/nginx",
-  "tag": "1.25", "namespace": "shop", "app": "storefront",
+  "tag": "1.25", "namespaces": ["shop"], "app": "storefront",
   "cve_id": "CVE-1", "package_name": "openssl", "installed_version": "3.0.1",
   "severity": "HIGH",            // _source verbatim; indexed as "high" via normalizer
   "severity_rank": 4,            // numeric sort key (critical=5 … unknown=0)
@@ -194,13 +194,13 @@ One snapshot per (image, scan), each cycle sharing an `inventory_run_id` certifi
 vanish at the next committed run and age out via retention (D29). Two docs here (R1, R2):
 ```jsonc
 { "@timestamp":"2026-03-01T02:00:00Z", "scan_run_id":"R1", "inventory_run_id":"R1", "cluster_id":"9b1e-uid", "image_digest":"sha256:AAA",
-  "image_repo":"docker.io/library/nginx", "tag":"1.25", "namespace":"shop", "app":"storefront", "scanners":["trivy"],
+  "image_repo":"docker.io/library/nginx", "tag":"1.25", "namespaces":["shop"], "app":"storefront", "scanners":["trivy"],
   "crit":0,"high":1,"med":0,"low":0,"negligible":0,"unknown":0,"total":1,"fixable":1,
   "trivy_count":1, "grype_count":null, "count_delta":null,  // count-disagreement pair (D5b)
   "replicas":3, "schema_version":1 }
 
 { "@timestamp":"2026-03-15T02:00:00Z", "scan_run_id":"R2", "inventory_run_id":"R2", "cluster_id":"9b1e-uid", "image_digest":"sha256:AAA",
-  "image_repo":"docker.io/library/nginx", "tag":"1.25", "namespace":"shop", "app":"storefront", "scanners":["trivy"],
+  "image_repo":"docker.io/library/nginx", "tag":"1.25", "namespaces":["shop"], "app":"storefront", "scanners":["trivy"],
   "crit":1,"high":0,"med":0,"low":0,"negligible":0,"unknown":0,"total":1,"fixable":1,
   "trivy_count":1, "grype_count":null, "count_delta":null, "replicas":3, "schema_version":1 }
 ```
@@ -231,13 +231,13 @@ first, then reads occurrences for it).
 ```jsonc
 { "@timestamp": "2026-03-01T02:00:00Z", "scan_run_id": "R1", "scan_order": 1, "commit_key": "hash(9b1e-uid|trivy|sha256:AAA|R1)",
   "cluster_id": "9b1e-uid", "scanner": "trivy", "scanner_version": "0.71.2", "scanner_db_version": null, "scanner_db_built": null,  // provenance (D41); Trivy JSON has no DB info
-  "namespace": "shop", "image_repo": "docker.io/library/nginx",
+  "namespaces": ["shop"], "image_repo": "docker.io/library/nginx",
   "image_digest": "sha256:AAA", "tag": "1.25", "app": "storefront",
   "crit": 1, "high": 1, "med": 0, "low": 0, "negligible": 0, "unknown": 0, "total": 2, "fixable": 2,
   "schema_version": 1 }
 
 { "@timestamp": "2026-03-15T02:00:00Z", "scan_run_id": "R2", "scan_order": 2, "commit_key": "hash(9b1e-uid|trivy|sha256:AAA|R2)",
-  "cluster_id": "9b1e-uid", "scanner": "trivy", "image_digest": "sha256:AAA", "namespace": "shop", "tag": "1.25",
+  "cluster_id": "9b1e-uid", "scanner": "trivy", "image_digest": "sha256:AAA", "namespaces": ["shop"], "tag": "1.25",
   "crit": 0, "high": 1, "med": 0, "low": 0, "negligible": 0, "unknown": 0, "total": 1, "fixable": 1,
   "schema_version": 1 }
 ```
@@ -247,20 +247,20 @@ first, then reads occurrences for it).
 ```jsonc
 // R1 snapshot @ Mar 1  (complete list as of R1)
 { "@timestamp": "2026-03-01T02:00:00Z", "scan_run_id": "R1", "scan_order": 1, "commit_key": "hash(9b1e-uid|trivy|sha256:AAA|R1)", "cluster_id": "9b1e-uid", "scanner": "trivy",
-  "image_digest": "sha256:AAA", "namespace": "shop", "vuln_id": "CVE-1",
+  "image_digest": "sha256:AAA", "namespaces": ["shop"], "vuln_id": "CVE-1",
   "package_name": "openssl", "package_version": "3.0.1", "finding_key": "f3a9c1",
   "severity": "HIGH", "cvss": 7.5, "fixable": true, "fixed_version": "3.0.2",   // no severity_rank on occurrences (OE-5/D38)
   "schema_version": 1 }
 
 { "@timestamp": "2026-03-01T02:00:00Z", "scan_run_id": "R1", "scan_order": 1, "commit_key": "hash(9b1e-uid|trivy|sha256:AAA|R1)", "cluster_id": "9b1e-uid", "scanner": "trivy",
-  "image_digest": "sha256:AAA", "namespace": "shop", "vuln_id": "CVE-2",
+  "image_digest": "sha256:AAA", "namespaces": ["shop"], "vuln_id": "CVE-2",
   "package_name": "zlib", "package_version": "1.2.11", "finding_key": "b7d2e8",
   "severity": "CRITICAL", "cvss": 9.1, "fixable": true, "fixed_version": "1.2.12",   // no severity_rank on occurrences (OE-5/D38)
   "schema_version": 1 }
 
 // R2 snapshot @ Mar 15  (complete list as of R2 - CVE-2 simply not here)
 { "@timestamp": "2026-03-15T02:00:00Z", "scan_run_id": "R2", "scan_order": 2, "commit_key": "hash(9b1e-uid|trivy|sha256:AAA|R2)", "cluster_id": "9b1e-uid", "scanner": "trivy",
-  "image_digest": "sha256:AAA", "namespace": "shop", "vuln_id": "CVE-1",
+  "image_digest": "sha256:AAA", "namespaces": ["shop"], "vuln_id": "CVE-1",
   "package_name": "openssl", "package_version": "3.0.1", "finding_key": "f3a9c1",
   "severity": "HIGH", "cvss": 7.5, "fixable": true, "fixed_version": "3.0.2",   // no severity_rank on occurrences (OE-5/D38)
   "schema_version": 1 }
@@ -345,10 +345,10 @@ every CVE change (write amplification, breaks `detect_noop`) and balloon into a 
 
 ```jsonc
 { "finding_key": "f3a9c1", "cve_id": "CVE-1", "scanner": "trivy",
-  "image_digest": "sha256:AAA", "image_repo": ".../nginx", "namespace": "shop", "state": "open" }
+  "image_digest": "sha256:AAA", "image_repo": ".../nginx", "namespaces": ["shop"], "state": "open" }
 
 { "finding_key": "9d4b20", "cve_id": "CVE-1", "scanner": "trivy",
-  "image_digest": "sha256:BBB", "image_repo": ".../api",   "namespace": "shop", "state": "open" }
+  "image_digest": "sha256:BBB", "image_repo": ".../api",   "namespaces": ["shop"], "state": "open" }
 ```
 
 **"Which images have CVE-1 now?"** = a **"now" query must scope tenant + scanner + presence** (D39/M10-r2),
