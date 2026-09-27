@@ -100,7 +100,7 @@ as pure units** (Vitest).
   the envelope (v1.1, #308). Also: the UI kit (`components/ui/`) landed — controls are imported,
   never re-rolled (DESIGN.md §5); the style ratchet now fails same-hue fg/bg pairs.
 
-- **2026-07-07 — backend↔UI drift rulings (major audit #224, `docs/audits/major_audit/05-backend-ui-drift-m9.md`):**
+- **2026-07-07 — backend↔UI drift rulings (major audit #224, `.deprecated/docs/audits/major_audit/05-backend-ui-drift-m9.md`):**
   the grid + detail + triage flow follow the SHIPPED backend, not the v4 prototype where they differ:
   **(A-1)** filters/aggs send lowercase severities and the `negligible` bucket exists (display may
   uppercase; [DECIDE at kickoff]: show `negligible` — recommended — or fold into `unknown`);

@@ -3,9 +3,9 @@
 > **Living doc** (formerly `AUDIT-RESPONSE_v4.md` in `docs/engineering/V4/` — suffixes dropped 2026-07-16, #410).
 > The v1–v3 evolution trail is frozen in `.deprecated/`; version markers are reserved for frozen generations.
 
-> **Status:** review doc - *no spec edits applied yet.* This maps every external finding to a
-> verdict, the concrete fix, and the target doc(s) to change. Once you sign off, the fixes land in
-> `INDEX-MAP.md` / `PLAN.md` / `SPEC.md` / `ARCHITECTURE.md` / `FLOW-EXAMPLE.md`.
+> **Status:** settled. Every round's rulings are applied: they live in `PLAN.md` as D37-D40 and in
+> `INDEX-MAP.md` / `SPEC.md` / `ARCHITECTURE.md` / `FLOW-EXAMPLE.md`. This file keeps the reasoning:
+> each external finding, its verdict, the concrete fix, and the doc(s) it changed.
 >
 > **Decisions already locked for this round:**
 > - **H9 tenant scope →** *all clusters visible to any authenticated user* for MVP. `cluster_id` is a

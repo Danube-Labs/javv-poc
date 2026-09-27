@@ -1,54 +1,60 @@
-# frontend
+# JAVV frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Vue 3 (`<script setup lang="ts">`) · PrimeVue · vue-echarts · Pinia · Vue Router, built with Vite.
+Every number and page comes from the backend; the client never computes counts from raw findings.
 
-## Recommended IDE Setup
+**Before changing any UI, read [`DESIGN.md`](DESIGN.md)** (tokens, type, the fidelity protocol and
+the ruled exceptions), then `handoff/docs/SCREENS.md` for the screen you're touching.
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Run it
 
-## Recommended Browser Setup
-
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
-
-## Type Support for `.vue` Imports in TS
-
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
+Node `^22.18.0 || >=24.12.0`. The dev server needs the backend on `:8000`
+(see [`development/RUNNING-THE-STACK.md`](../development/RUNNING-THE-STACK.md)).
 
 ```sh
 npm install
+npm run dev        # :5173; proxies /api, /auth, /readyz and /metrics to localhost:8000
 ```
 
-### Compile and Hot-Reload for Development
+The proxy uses the same paths the k8s ingress routes, so the app never needs a backend URL.
+`vite preview` (the built app) carries the same proxy.
+
+## The API contract
+
+The typed client in `src/api/generated/` is generated from the committed schema snapshot
+`openapi.json`. After any backend route or parameter change:
 
 ```sh
-npm run dev
+(cd ../backend && uv run python -m backend.tools.export_openapi ../frontend/openapi.json)
+npm run gen:api
 ```
 
-### Type-Check, Compile and Minify for Production
+Then restart `npm run dev`: a running dev server keeps the old module graph and fails with
+"does not provide an export". CI's contract gate fails the build if either the snapshot or the
+generated client is stale.
 
-```sh
-npm run build
-```
+## What CI runs
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+| Command | What it does |
+|---|---|
+| `npm run lint` | oxlint, ESLint and stylelint. The first two run with `--fix`, so review the diff after |
+| `npm run test:ci` | `vue-tsc` type check, then vitest with the coverage floor. Run this, not `npm run test`, before pushing |
+| `npm run smoke` | the route walk (`scripts/ci-smoke.mjs`): a built app against a seeded backend, desktop viewport, zero console errors, layout checks |
+| `npm run test:e2e` | the Playwright specs in `tests/e2e/`, same environment as the smoke |
 
-```sh
-npm run test:unit
-```
+The last two need a running backend and `JAVV_BASE`, `JAVV_USER` and `JAVV_PASS`; see the headers
+of `scripts/ci-smoke.mjs` and `playwright.config.ts`. `npm run build` type-checks and builds `dist/`.
 
-### Lint with [ESLint](https://eslint.org/)
+## Where things live
 
-```sh
-npm run lint
-```
+| Path | What |
+|---|---|
+| `src/views/` | one component per route |
+| `src/components/ui/` | the kit: buttons, fields, dropdowns, modal and slide-over shells, skeletons, empty states, toasts. Reuse before writing a new control |
+| `src/components/chips/` | status chips and tags: severity, state, scanner, KEV, SLA, disagreement, … |
+| `src/components/<area>/` | panels per screen area (findings, dashboards, settings, …) |
+| `src/filters/` | the shared filter module: the field config (`fields.config.ts`) and the query builder |
+| `src/composables/`, `src/stores/` | shared state and hooks |
+| `src/lib/logger.ts` | the only logger. `console.*` is lint-banned |
+| `src/styles/`, `src/theme/` | tokens and the PrimeVue theme |
+| `scripts/` | the smoke, the authoring screenshot rig (`visual-capture.mjs`) and the demo recorder |
