@@ -6,15 +6,15 @@
 > are added or repurposed.
 
 **Status:** backend + scanner shipped through **M8** (scheduled reports/drain + the D28 historical
-readers; releases via release-please). Frontend shipped through **M9e** (findings/triage, overview,
-all-clusters, images, audit log, scanner status, contributors, approvals, the full Settings area
-incl. the findings-cleanup sweep) - **M9f next**, then Helm deploy (M10). There is no `deploy/`
-yet - that lands at M10.
+readers; releases via release-please). Frontend shipped through **M9f** (findings/triage, overview,
+all-clusters, images, audit log, scanner status, contributors, approvals, the full Settings area,
+then search, the bell, saved views, RBAC and empty states - 0.4.0, #449), plus the post-M9f polish
+wave (#450). **Next: M10** (polish + Helm deploy, #41). There is no `deploy/` yet - that lands at M10.
 
 ## Start here (reading order)
 1. [`README.md`](README.md) - what JAVV is, stack, toolchain table, license.
 2. [`CLAUDE.md`](CLAUDE.md) - **hard constraints + working rules** (read before changing anything).
-3. [`docs/engineering/PLAN.md`](docs/engineering/PLAN.md) - decisions D1-D45, data model, milestones M0-M10.
+3. [`docs/engineering/PLAN.md`](docs/engineering/PLAN.md) - decisions D1-D46, data model, milestones M0-M10.
 4. [`docs/engineering/INDEX-MAP.md`](docs/engineering/INDEX-MAP.md) - **source of truth** for every OpenSearch index + mapping.
 5. [`docs/API.md`](docs/API.md) - the shipped HTTP surface (auth regimes + capabilities) · [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) - every setting.
 6. [`development/bolts/`](development/bolts/) - the milestone you're actually building.
@@ -38,12 +38,13 @@ yet - that lands at M10.
 | `design/` | Brand source of record (logos, tokens, brand guide) | binding for brand |
 | `.github/` | CI + release automation workflows; issue forms, PR template, `CODEOWNERS` | — |
 | `.claude/` | Repo-scoped Claude config: `settings.json` (team allowlist + hook setup), `rules/` (path-scoped instructions that auto-load with matching files — CLAUDE.md's other half), `hooks/` (the PreToolUse Bash guard + its cases), `commands/`, `skills/`, and `sessions/` infra (snapshots are local-only) | `rules/` binding |
-| `.deprecated/` | Frozen archive - superseded V1/V2/V3 docs, the v1 UI handoff, archived v1 UI guidelines | history only |
+| `.deprecated/` | Frozen archive - superseded V1/V2/V3 docs, the v1 UI handoff, archived v1 UI guidelines, finished audit guides, the v4 design brief, the logo prompt | history only |
 | root configs | `commitlint.config.mjs`, `renovate.json`, `release-please-config.json`, `.release-please-manifest.json`, `.pre-commit-config.yaml` | — |
 
 **Two deprecation homes, one rule:** `.deprecated/` holds superseded *design generations* (whole
 doc sets); `.deprecated/docs/audits/` holds *point-in-time audit reports* once their findings are
-consolidated into the live backlog.
+consolidated into the live backlog. Finished one-off docs (an audit's implementation guides, a
+remediation bolt, a design brief) move to the matching path under `.deprecated/` once their work ships.
 
 ## `backend/` - the FastAPI service
 
@@ -51,8 +52,9 @@ consolidated into the live backlog.
 `repositories/` (bulk helper with backoff) · `services/` (watermarks, scan-orders) · `models/` ·
 `core/` (settings - validated at boot, logging shim, metrics) · `auth/` + `tenancy/` (sessions,
 capabilities, the always-applied `cluster_id` filter) · `triage/` · `decisions/` · `sla/` ·
-`export/` · `reports/` (M7) · `audit/` · `admin/` · `jobs/`. Tests in `backend/tests/`
-(~60 files, 520+ tests; session-scoped bootstrap in `conftest.py` - new test files must NOT
+`export/` · `reports/` (M7) · `snapshots/` (occurrences + inventory runs, M8a) · `audit/` ·
+`admin/` · `jobs/` · `tools/` (`export_openapi`). Tests in `backend/tests/`
+(97 files, ~980 tests; session-scoped bootstrap in `conftest.py` - new test files must NOT
 re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in app code;
 `tests/security/test_rbac_idor_contract.py` is the **capability registry of record**).
 
@@ -60,10 +62,10 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 
 | Path | Contents |
 |---|---|
-| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D45, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `DESIGN-BRIEF` |
+| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D46, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
 | **`docs/CONFIGURATION.md`** | Every configuration setting: default, tier, UI-controllability. **New setting → same PR** |
-| **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; `major_audit/` = the 2026-07-07 project-hygiene audit (6 guides incl. the §F UI-refresh prompt); archived point-in-time reports in `.deprecated/docs/audits/` |
+| **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; archived point-in-time reports, and the finished 2026-07-07 hygiene audit (`major_audit/`), in `.deprecated/docs/audits/` |
 | **`docs/research/`** | Backing research. `STACK-BEST-PRACTICES` (day-one engineering rules) · `TOOLING-AND-MCP` (MCP servers + install) · `K8S-DEV-CLUSTER` (k3d/remote options) · `INDEPENDENT-AUDIT-v3` · `SNAPSHOT-MODEL-VALIDATION` · `OPENSEARCH-DYNAMIC-CONFIG` |
 | `.deprecated/` | Frozen V1/V2/V3 docs + original notes (evolution trail; `.deprecated/docs/deprecated/original_notes_for_app.md` is **read-only**) |
 
@@ -73,11 +75,11 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 |---|---|
 | `development/README.md` | **Dev-environment + local-loop guide**: setup, single k3d cluster, scanning the cluster, quality gates |
 | `development/RUNNING-THE-STACK.md` | Run the whole stack by hand (OpenSearch, backend, scanners) |
-| `development/setup/` | `setup-dev.sh` (idempotent toolchain installer, pinned gate-tool versions) · `preflight.sh` (host readiness) · `opensearch-dev.yml` (dev store) · `seed-vuln-workloads.yaml` · `setup-branch-protection.sh` (**run after the repo goes public** - free-plan private can't enforce) |
+| `development/setup/` | `setup-dev.sh` (idempotent toolchain installer, pinned gate-tool versions) · `preflight.sh` (host readiness) · `opensearch-dev.yml` (dev store) · `seed-vuln-workloads.yaml` + `seed-beta-workloads.yaml` (the second k3d tenant) · `setup-branch-protection.sh` (the required checks on `main`; re-run after changing its list) |
 | **`development/bolts/`** | One folder per milestone unit M0-M10 (the **execution briefs**) - see milestone map below |
-| **`development/standards/`** | Process rules: `definition-of-done` · `testing` (suite budget, no per-test bootstrap) · `git-workflow` (bolt tracking on issues) · `releases` · `observability` (**javv-common logging only**) · `api-design` · `ui-foundations` (binding FE tokens) · `bolt-readme-template` |
-| **`development/e2e/`** | Operator rigs: `smoke.sh` (full-stack smoke incl. read/report phase) · `bench_refresh.py` + `bench_read.py` (ingest + read-contention benches) · `results.md` (run log). Run logs are git-ignored |
-| `development/scripts/` | `check-versions.sh` (versions.yaml ↔ consumers drift gate) · `check-scanner-db-policy.sh` |
+| **`development/standards/`** | Process rules: `definition-of-done` · `testing` (suite budget, no per-test bootstrap) · `git-workflow` (bolt tracking on issues) · `releases` · `observability` (**javv-common logging only**) · `api-design` · `ui-foundations` (binding FE tokens) · `security` · `dependency-policy` (fix deadlines, Renovate) · `bolt-readme-template` |
+| **`development/e2e/`** | Operator rigs: `smoke.sh` (full-stack smoke incl. read/report phase) · `smoke-two-cluster.sh` (two-tenant isolation) · `bench_refresh.py` + `bench_read.py` (ingest + read-contention benches) · `loadbreak.py` (synthetic load + break attempts) · `results.md` (run log). Run logs are git-ignored |
+| `development/scripts/` | `check-versions.sh` (versions.yaml ↔ consumers drift gate) · `check-scanner-db-policy.sh` · `check-docs-drift.sh` (API.md + CONFIGURATION.md vs code, CI) · `clean-dev-store.sh` (test-residue sweep) · `dependency-audit.sh` (report-only, CI) · `seed-smoke.sh` (seeds the CI smoke's backend) · `make-demo-gif.sh` (README demo) |
 | `development/hooks/` | `conventional-commit.sh` (local commitlint mirror: types, subject case, 100-char lines) + its case suite `test-conventional-commit.sh` |
 
 ### Milestone map (`development/bolts/`)
@@ -98,9 +100,9 @@ Each bolt README is a self-contained brief (Goal · Canonical refs · Depends on
 | **M9a-c** ✅ | Frontend: shell+filters+design gates · findings grid+detail+triage · overview+all-clusters+images |
 | **M9d** ✅ | Audit log · scanner status · contributors · approvals (bolt #38) |
 | **M9e** ✅ | Settings: SLA · tokens · users · cluster · scanning · scan scope · Data & OpenSearch · findings-cleanup sweep (bolt #39) |
-| **M9f** | Cross-cutting (search, bell, saved views, RBAC, empty states) |
+| **M9f** ✅ | Cross-cutting (search, bell, saved views, RBAC, empty states) (bolt #40) |
 | **M10** | Polish + deploy (Helm→k3s, scanner CronJobs, vuln-DB cache) |
-| AUDIT-M5c-M5d-M6-remediation ✅ | The #185-#192 audit wave (shipped v0.3.0) |
+| AUDIT-M5c-M5d-M6-remediation ✅ | The #185-#192 audit wave (shipped v0.3.0; guides archived in `.deprecated/development/bolts/`) |
 
 ## `handoff/` - UI reference (NOT a contract)
 **`handoff/docs/` (current):** `SCREENS.md` + `DATA_MODEL.md` - the design refreshed
@@ -111,19 +113,22 @@ is archived under `.deprecated/handoff/v1/`.
 
 ## `design/` - brand source of record
 `design/brand/`: `BRAND.md`, logos/wordmarks/icons (SVG, light+dark), `favicon.svg`, `github/`.
-Plus `LOGO-PROMPT.md`. `handoff/v4/brand/` is an embedded copy - regenerate from here.
+`handoff/v4/brand/` is an embedded copy - regenerate from here. The original logo prompt is archived in
+`.deprecated/design/`.
 
 ## `.github/` - automation
-`workflows/ci.yml` (Backend pytest + parallel Backend-static ruff/pyright + Frontend gates +
-commitlint; detect-step jobs always run for branch protection) · `workflows/release-please.yml`
+`workflows/ci.yml` (Backend pytest + parallel Backend-static ruff/pyright/docs-drift + Frontend
+lint/test + the contract gate + Frontend smoke + Scanner + javv-common + commitlint + the gitleaks
+Secret scan + the report-only Dependency audit; detect-step jobs always run for branch protection) ·
+`workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
 (batched release PRs) · `workflows/scanner-images.yml` (publish the pinned scanner images) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both
 test suites with the clock shifted forward, to catch date bombs before they fire on main).
 
 ---
-## `frontend/` - the Vue 3 SPA (M9a-f, in progress)
+## `frontend/` - the Vue 3 SPA (M9a-f)
 Vue 3 `<script setup lang="ts">` + PrimeVue 4 + Pinia + Vue Router, built with Vite; tests Vitest,
-gates ESLint/oxlint + stylelint + vue-tsc (`npm run lint` / `npm run test`, the CI `Frontend` job).
+gates ESLint/oxlint + stylelint + vue-tsc (`npm run lint` / `npm run test:ci`, the CI `Frontend` job).
 **Read [`frontend/DESIGN.md`](frontend/DESIGN.md) before touching any screen** - the agent-facing
 design contract over `src/styles/tokens.css` (the binding token source, ui-foundations.md).
 `src/components/ui/` is the mandatory UI kit (buttons/segs/fields/dropdowns/modals/toasts +

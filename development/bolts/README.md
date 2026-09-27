@@ -41,6 +41,9 @@ Order: **scanners → backend core → durability → identity/triage → read �
 | **M7** | Scheduled / throttled export | M6 |
 | **M8a** | Per-scan snapshot append | M3, M4 |
 | **M8b** | Point-in-time query API | M8a |
+| **M8c** | M9-prep session reads (audit · provenance · inventory · cluster registry) | M8b (shares its query layer) |
+| **M8d** | Package type in the envelope (`ptype`) | - (lands before M9b/M9c) |
+| **M8e** | Server-side saved views (`system-views`) | - (lands before M9f) |
 | **M9a** | Shell + tokens + filter module | M6 |
 | **M9b** | Findings grid + detail/triage *(core loop gate)* | M9a, M5b |
 | **M9c** | Overview / all-clusters / images | M9b, M8b |

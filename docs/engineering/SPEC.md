@@ -34,7 +34,7 @@ from an env/secret and must change the password on first login - FR-18.)
   (each unique digest once) and namespace/label **exclusions** only (no skip-unchanged, no backend query -
   D30); bounded concurrency.
 - **FR-3 Ingest.** Scanner **normalizes** Trivy/Grype JSON into the shared shape (canonicalizing the severity
-  *vocabulary* to `crit/high/med/low` while **preserving the verbatim scanner word**) and pushes per-image,
+  *vocabulary* to the D46 full words `critical/high/medium/low/negligible/unknown` while **preserving the verbatim scanner word**) and pushes per-image,
   gzipped, retried (backoff+jitter, dead-letter), to `POST /api/v1/ingest/scan` over a private network with a
   per-`(cluster,scanner)` token. The endpoint **validates** the **versioned** envelope and **accepts the
   current envelope only, rejecting older with a clear 4xx** (D25/D35/D38 - N/N-1 dual-parse dropped); it is

@@ -27,8 +27,9 @@ A **fourth category sits outside configuration entirely: frozen internal constan
 batch sizes and safety ceilings that are deliberately *not* exposed as settings. See §8 for the motive
 and the frozen-vs-setting test.
 
-Legend for the **UI?** column below: ⚙️ **GitOps** (build-time, never UI, by design) · ✅ **Planned**
-(a bolt owns the UI) · ❌ **Gap** (no owner yet) · 🔒 secret · n/a.
+Legend for the **UI?** column below: ✅ **UI-editable** · **read-only display** (shown in Settings, set by
+deploy - C-4) · ⚙️ **GitOps** (set on the manifest, never UI, by design) · 🔒 secret · **n/a** (deploy, build or
+dev time; not a UI concern) · **no** (a build-time value with no UI).
 
 ---
 
@@ -109,7 +110,7 @@ rebuild, not a restart).
 
 ---
 
-## 3. Trivy — scan parameters ⚠️ (the hardcoding gap)
+## 3. Trivy — scan parameters
 
 Source: `scanner/src/scanner/config.py` + `adapters/trivy.py`. **Phase 1 of #91 done:** scan flags are
 now `JAVV_TRIVY_*` env vars (tier ②), each defaulting to the previously-hardcoded value — an unset env
@@ -131,7 +132,7 @@ severities ∈ `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`, pkg-types ∈ `os,library`, t
 
 ---
 
-## 4. Grype — scan parameters ⚠️ (same gap)
+## 4. Grype — scan parameters
 
 Source: `scanner/src/scanner/config.py` + `adapters/grype.py`. **Phase 1 of #91 done:** `JAVV_GRYPE_*`
 env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (parser depends on it).

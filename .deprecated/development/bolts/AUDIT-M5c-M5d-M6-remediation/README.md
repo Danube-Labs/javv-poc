@@ -10,7 +10,7 @@ layer** — one self-contained guide per task, each ≈ one PR, sized for a sing
 **Read first:**
 [`docs/audits/audit-2026-07-06-m5c-m5d-m6-UNION.md`](../../../docs/audits/audit-2026-07-06-m5c-m5d-m6-UNION.md)
 (the reconciled operator view) · the per-model reports (`-codex.md`, `-fable.md`) · the live backlog
-[`docs/audits/remaining_audit_items.md`](../../../docs/audits/remaining_audit_items.md).
+[`docs/audits/remaining_audit_items.md`](../../../../docs/audits/remaining_audit_items.md).
 
 ## Tasks
 
@@ -45,7 +45,7 @@ Task 7 both touch PIT lifecycle (Task 5 = concurrency cap, Task 7 = error handli
 
 ## Conventions every task MUST follow (do not skip)
 
-These are the DoD floor on top of [`definition-of-done.md`](../../standards/definition-of-done.md):
+These are the DoD floor on top of [`definition-of-done.md`](../../../../development/standards/definition-of-done.md):
 
 - **TDD.** Every fix lands with a test that FAILS before it and passes after. For the reproduced
   race (Task 2) the failing test already exists and is flaky-red — pin it green. Use the
@@ -54,7 +54,7 @@ These are the DoD floor on top of [`definition-of-done.md`](../../standards/defi
   pipeline; add domain-event / anomaly log lines where these fixes introduce a new failure mode
   (e.g. "reproject retried to N conflicts", "export capped at N rows", "sibling clock fetch
   truncated"). **Never `print()`, never `logging.getLogger()`, never a private setup**
-  ([observability.md §1](../../standards/observability.md)). Query strings / OpenSearch bodies /
+  ([observability.md §1](../../../../development/standards/observability.md)). Query strings / OpenSearch bodies /
   tokens never logged; redaction stays broad (fix call sites, never the regex).
 - **Every new knob → `docs/CONFIGURATION.md` in the same PR.** Tasks 5 and 6 introduce `JAVV_*`
   env knobs (specified in their guides) — add the row (default · how set · UI-controllable) the

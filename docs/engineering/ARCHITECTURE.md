@@ -40,13 +40,16 @@ flowchart TB
             SWEEP["Two-timer staleness sweep + expiry re-project<br/>per-finding (N) + scanner-down escalation (M)"]
             REBUILD["Rebuild-state job (safety net)<br/>re-project cache from decisions + audit_log"]
             EXPORT["Export drain (CronJob)<br/>system-reports · off-peak · throttled"]
+            LIFE["Lifecycle sweep (CronJob)<br/>rollover + drop-whole-index retention, per cluster"]
+            CLEAN["Findings cleanup (CronJob)<br/>deletes rows gone longer than cleanup_days"]
+            TTL["Report + session sweeps (CronJobs)<br/>report TTL + orphan chunks · expired sessions"]
             TRIAGE["Triage API · VEX two-field · bulk<br/>every action → audit_log · refresh=wait_for"]
             SEARCH["Search/aggs · faceted by scanner · PIT+search_after (closed in finally)<br/>trends ← scan-events · contributors ← audit_log<br/>point-in-time ← R-CATALOG (latest committed run from scan-events, then occurrences)<br/>vuln-age computed at read time"]
             CSV["Streaming CSV (sanitized) → now | scheduled"]
             AUTH["Auth/RBAC · local users (argon2id) · bootstrap admin<br/>get_current_principal · IDOR · tenant filter"]
-            RET["Retention/rollover/snapshot mgr → ISM (per cluster_id)"]
+            RET["Retention/rollover/snapshot settings (per cluster_id)"]
             OBS["/healthz /readyz /metrics · structlog"]
-            BOOT["Index bootstrap · mappings (normalizer) · ISM · snapshots"]
+            BOOT["Index bootstrap · mappings (normalizer) · templates · versioned"]
         end
 
         subgraph OS["OpenSearch - single store"]
@@ -55,7 +58,7 @@ flowchart TB
                 F[("findings<br/>per-scanner · triage cache · disagree flag")]
                 WM[("javv-scan-watermarks<br/>per-digest committed-scan order (CAS guard)")]
             end
-            subgraph LOG["logs (append-only, per-cluster, ISM rollover + drop-retention)"]
+            subgraph LOG["logs (append-only, per-cluster, rollover + drop-retention by the lifecycle sweep)"]
                 SE[("javv-scan-events-* (receipts + trends + commit catalog)")]
                 OCC[("javv-finding-occurrences-* (full snapshots → point-in-time)")]
                 I[("javv-images-* (inventory snapshots)")]
@@ -100,6 +103,10 @@ flowchart TB
     REBUILD --> SD
     REBUILD --> SA
     EXPORT --> SV
+    LIFE --> LOG
+    CLEAN --> F
+    TTL --> SV
+    TTL --> SU
     TRIAGE --> F
     TRIAGE --> SD
     TRIAGE --> SA
@@ -149,6 +156,9 @@ flowchart LR
         SWP["Staleness sweep<br/>(two-timer)"]
         RBD["Rebuild-state<br/>(safety net)"]
         EXP["Export drain"]
+        LIF["Lifecycle sweep"]
+        CLN["Findings cleanup"]
+        SWS["Report + session sweeps"]
     end
 
     subgraph IDX["OpenSearch indexes"]
@@ -185,6 +195,11 @@ flowchart LR
     RBD -.->|reads| SD
     RBD -.->|reads| SA
     EXP -->|"job rows + result loc"| SR
+    LIF -->|"rollover · drop expired indices"| OCC
+    LIF --> SE
+    LIF --> IM
+    CLN -->|"delete long-gone rows"| F
+    SWS -->|"TTL + orphans"| SR
     SD -.->|reads| PRJ
 
     F --> GRID
@@ -272,12 +287,17 @@ reconcile** flips `present=false` on `findings` the run omitted (cache only - hi
    tenant read path** (SEC-4). **In MVP, historical all-clusters dashboards are limited/unavailable** until
    the `javv-metrics` rollup (v1.1); per-cluster rewind is fully supported (D39/M11-r2).
 7. **Maintain (CronJobs, idempotent)** - daily **two-timer staleness sweep** (per-finding N + scanner-down
-   escalation M, banner between) + **decision-expiry re-projection**; **export drain** (off-peak, throttled,
-   D24, fencing `attempt_id` + orphan sweep - D40/I-r3); **rebuild-state** on demand (**human cache** from
+   escalation M, banner between) + **decision-expiry re-projection**; the **lifecycle sweep** (rollover +
+   per-cluster retention for the append series, D8/D26 - see step 8); **findings cleanup** (deletes `findings`
+   rows whose image has been gone longer than `cleanup_days`, D37/M12); **export drain** (off-peak, throttled,
+   D24, fencing `attempt_id`) + the **report sweep** (report TTL + orphan chunks - D40/I-r3); the **session
+   sweep** (expired `system-sessions` rows, issue 532); **rebuild-state** on demand (**human cache** from
    decisions+audit-log **and scanner-presence cache** from the catalog - D40/D-r3); optional **rollup** (v1.1). *(No close-event job - occurrences are full
    snapshots, §5.5/D2b.)*
-8. **Retain / protect** - ISM rollover (doc/age/size) + per-cluster `retention_days` delete by **dropping
-   whole indices**; **native Snapshot/Restore** to S3/MinIO on a schedule (tested restore). All Admin-managed
+8. **Retain / protect** - rollover (doc/age/size) + per-cluster `retention_days` delete by **dropping whole
+   indices**, both driven by the lifecycle sweep, not the ISM plugin (a per-cluster retention doesn't fit one
+   static ISM policy - `jobs/lifecycle.py`); **native Snapshot/Restore** to S3/MinIO, snapshots on demand
+   (no scheduled snapshot yet), restores into `restored-*` copies (tested restore drill). All Admin-managed
    via the **Data & OpenSearch** panel (D26).
 
 ## 4. Projection & precedence (FR-8)
