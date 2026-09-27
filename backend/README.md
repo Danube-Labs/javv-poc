@@ -1,26 +1,50 @@
 # JAVV backend
 
-FastAPI (async) + `AsyncOpenSearch`. Ingests the M0 scanner envelope and serves the read/reporting
-API — every number comes from an OpenSearch aggregation (server-side; no raw findings to the client).
-Bolt: **M1** (`development/bolts/M1-backend-skeleton/`, #23).
+FastAPI (async) + `AsyncOpenSearch`. Ingests the scanner envelope and serves the read, triage,
+reporting and admin API. Every number comes from an OpenSearch aggregation (server-side; no raw
+findings to the client). Started as bolt **M1** (`development/bolts/M1-backend-skeleton/`, #23).
 
-## Layout (STACK-BEST-PRACTICES §1)
+The HTTP surface is documented in [`docs/API.md`](../docs/API.md); every setting in
+[`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md); every index in
+[`docs/engineering/INDEX-MAP.md`](../docs/engineering/INDEX-MAP.md).
+
+## Layout
 ```
 src/backend/
-  core/       settings · lifespan (single AsyncOpenSearch client) · errors (problem-details envelope)
-              · bootstrap (versioned dynamic:false indexes/templates — INDEX-MAP is the source of truth)
-  routers/    HTTP layer — health now; ingest + read APIs next
-  main.py     app factory (create_app)
+  main.py       app factory (create_app)
+  core/         settings · lifespan · bootstrap (versioned indexes/templates) · errors · logging ·
+                metrics · rate limits · security headers
+  routers/      the HTTP layer, one module per resource (ingest, findings, triage, decisions,
+                exports, reports, trends, views, admin, auth, …)
+  models/       the ingest envelope
+  services/     ingest pipeline: merge, reconcile-on-commit, watermarks, disagreement, SLA clock
+  snapshots/    per-scan occurrences + inventory-run certification (point-in-time reads)
+  query/        OpenSearch query builders: search, aggs, paging (PIT + search_after), trends, as_of
+  tenancy/      the tenant read path (every read carries an explicit cluster_id)
+  triage/       the state machine, single and bulk triage
+  decisions/    scoped decisions, projection onto findings, reproject
+  sla/          SLA policy and overdue
+  audit/        the append-only audit-log writer
+  auth/         sessions, passwords, lockout, capabilities, the bootstrap admin
+  export/       CSV and VEX streams
+  reports/      the scheduled-export queue: claim, lease, chunked storage, download tokens
+  admin/        scan scope, snapshot repo, report TTL settings
+  jobs/         the CronJob entry points (staleness, lifecycle, findings_cleanup, report_drain,
+                report_sweep, session_sweep, rebuild_state) and their shared lease
+  repositories/ the `_bulk` helper (per-item status, 429/503 backoff)
+  tools/        export_openapi (the frontend contract snapshot)
 ```
-Bootstrap the indexes against a running OpenSearch: `uv run python -m backend.core.bootstrap`
-(idempotent + versioned; M1 scope = `findings`, `system-tokens`, and the `javv-scan-events-*` /
-`javv-images-*` templates — watermarks are M3's, occurrences M8a's, audit-log M5a's).
 
-**When it runs:** manual for now; the observability slice wires it into **app startup** (lifespan:
-ping → bootstrap → serve; unreachable = fail fast) — safe every boot because unchanged versions are
-a no-op and the concurrent-create race is handled (the Kibana pattern: version-gated boot-time
-migration). Additive changes = edit INDEX-MAP + bootstrap.py, bump `MAPPING_VERSION`; a field
-**type change** is a reindex migration — never automatic.
+## Bootstrap
+
+The app bootstraps on every start (`core/lifespan.py`): ping OpenSearch → create or upgrade the
+indexes and templates → seed the default roles and the bootstrap admin → serve. An unreachable
+OpenSearch fails fast. It is safe on every boot: unchanged versions are a no-op and the
+concurrent-create race is handled. `JAVV_BOOTSTRAP_ON_STARTUP=false` turns it off (tests do).
+To run it by hand: `uv run python -m backend.core.bootstrap`.
+
+Additive mapping changes: edit INDEX-MAP + `bootstrap.py` and bump `MAPPING_VERSION`. A field
+**type change** is a reindex migration, never automatic.
 
 ## Manual end-to-end test (the full pipeline, verified 2026-07-02)
 
@@ -42,7 +66,7 @@ TOKEN=$(uv run python -m backend.core.tokens --cluster "$CID" --scanner trivy)
 cd ../scanner
 JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://localhost:8000 JAVV_TOKEN="$TOKEN" \
   uv run python -m scanner
-# → "trivy: scanned 8 image(s) — 8 delivered, 0 dead-lettered"
+# → the last JSON log line is "cycle complete" with scanned / delivered / dead_lettered counts
 
 # 5. see the findings (severity agg; lc normalizer folds scanner casing)
 curl -s 'localhost:9200/findings/_search?size=0' -H 'Content-Type: application/json' \
@@ -87,13 +111,14 @@ curl -s 'localhost:9200/findings/_search?size=0' -H 'Content-Type: application/j
   | jq '.aggregations.by_severity.buckets'
 ```
 
-Next slices: hardened `POST /api/v1/ingest/scan` (token auth, size/decompression caps,
-`extra="forbid"` full-envelope model) · observability (`/metrics`, structlog `request_id`,
-startup fail-fast + `/readyz` degrade) · OpenSearch service container in CI.
-
 ## Dev
 ```bash
 cd backend
 uv sync --all-extras --dev
-uv run ruff check . && uv run pyright && uv run pytest
+uv run ruff check . && uv run pyright       # pyright tree-wide: no path args, as CI runs it
+uv run pytest -n 2 -m "not serial"           # what CI runs: parallel first,
+uv run pytest -m serial                      # then the tests that must run alone
 ```
+The suite needs OpenSearch (`JAVV_OPENSEARCH_URL`, default `http://localhost:9200`) and leaves test
+residue in it: sweep it afterwards with `development/scripts/clean-dev-store.sh`, or point the run at
+a throwaway store. Budget and rules: [`development/standards/testing.md`](../development/standards/testing.md).
