@@ -131,7 +131,7 @@ as pure units** (Vitest).
   built. The real dependency is **`GET /api/v1/scanners/freshness`**, tracked as **#218** and
   scheduled *before* this bolt (audit execution order, PR 3). Deliverable text amended above.
   Further M9-wide backend↔UI drift rulings land right before kickoff via #224
-  (`docs/audits/major_audit/05-backend-ui-drift-m9.md` §E).
+  (`.deprecated/docs/audits/major_audit/05-backend-ui-drift-m9.md` §E).
 
 - **2026-07-07 — v5 design rulings (#237) + handoff/docs landed (#235):** the design contract for
   this bolt is now `handoff/docs/SCREENS.md` (Global chrome, Login) — v4 stays the visual

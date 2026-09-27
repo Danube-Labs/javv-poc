@@ -38,12 +38,13 @@ yet - that lands at M10.
 | `design/` | Brand source of record (logos, tokens, brand guide) | binding for brand |
 | `.github/` | CI + release automation workflows; issue forms, PR template, `CODEOWNERS` | — |
 | `.claude/` | Repo-scoped Claude config: `settings.json` (team allowlist + hook setup), `rules/` (path-scoped instructions that auto-load with matching files — CLAUDE.md's other half), `hooks/` (the PreToolUse Bash guard + its cases), `commands/`, `skills/`, and `sessions/` infra (snapshots are local-only) | `rules/` binding |
-| `.deprecated/` | Frozen archive - superseded V1/V2/V3 docs, the v1 UI handoff, archived v1 UI guidelines | history only |
+| `.deprecated/` | Frozen archive - superseded V1/V2/V3 docs, the v1 UI handoff, archived v1 UI guidelines, finished audit guides, the v4 design brief, the logo prompt | history only |
 | root configs | `commitlint.config.mjs`, `renovate.json`, `release-please-config.json`, `.release-please-manifest.json`, `.pre-commit-config.yaml` | — |
 
 **Two deprecation homes, one rule:** `.deprecated/` holds superseded *design generations* (whole
 doc sets); `.deprecated/docs/audits/` holds *point-in-time audit reports* once their findings are
-consolidated into the live backlog.
+consolidated into the live backlog. Finished one-off docs (an audit's implementation guides, a
+remediation bolt, a design brief) move to the matching path under `.deprecated/` once their work ships.
 
 ## `backend/` - the FastAPI service
 
@@ -60,10 +61,10 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 
 | Path | Contents |
 |---|---|
-| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D45, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `DESIGN-BRIEF` |
+| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D45, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
 | **`docs/CONFIGURATION.md`** | Every configuration setting: default, tier, UI-controllability. **New setting → same PR** |
-| **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; `major_audit/` = the 2026-07-07 project-hygiene audit (6 guides incl. the §F UI-refresh prompt); archived point-in-time reports in `.deprecated/docs/audits/` |
+| **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; archived point-in-time reports, and the finished 2026-07-07 hygiene audit (`major_audit/`), in `.deprecated/docs/audits/` |
 | **`docs/research/`** | Backing research. `STACK-BEST-PRACTICES` (day-one engineering rules) · `TOOLING-AND-MCP` (MCP servers + install) · `K8S-DEV-CLUSTER` (k3d/remote options) · `INDEPENDENT-AUDIT-v3` · `SNAPSHOT-MODEL-VALIDATION` · `OPENSEARCH-DYNAMIC-CONFIG` |
 | `.deprecated/` | Frozen V1/V2/V3 docs + original notes (evolution trail; `.deprecated/docs/deprecated/original_notes_for_app.md` is **read-only**) |
 
@@ -100,7 +101,7 @@ Each bolt README is a self-contained brief (Goal · Canonical refs · Depends on
 | **M9e** ✅ | Settings: SLA · tokens · users · cluster · scanning · scan scope · Data & OpenSearch · findings-cleanup sweep (bolt #39) |
 | **M9f** | Cross-cutting (search, bell, saved views, RBAC, empty states) |
 | **M10** | Polish + deploy (Helm→k3s, scanner CronJobs, vuln-DB cache) |
-| AUDIT-M5c-M5d-M6-remediation ✅ | The #185-#192 audit wave (shipped v0.3.0) |
+| AUDIT-M5c-M5d-M6-remediation ✅ | The #185-#192 audit wave (shipped v0.3.0; guides archived in `.deprecated/development/bolts/`) |
 
 ## `handoff/` - UI reference (NOT a contract)
 **`handoff/docs/` (current):** `SCREENS.md` + `DATA_MODEL.md` - the design refreshed
@@ -111,7 +112,8 @@ is archived under `.deprecated/handoff/v1/`.
 
 ## `design/` - brand source of record
 `design/brand/`: `BRAND.md`, logos/wordmarks/icons (SVG, light+dark), `favicon.svg`, `github/`.
-Plus `LOGO-PROMPT.md`. `handoff/v4/brand/` is an embedded copy - regenerate from here.
+`handoff/v4/brand/` is an embedded copy - regenerate from here. The original logo prompt is archived in
+`.deprecated/design/`.
 
 ## `.github/` - automation
 `workflows/ci.yml` (Backend pytest + parallel Backend-static ruff/pyright + Frontend gates +

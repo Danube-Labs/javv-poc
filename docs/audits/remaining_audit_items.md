@@ -1,7 +1,7 @@
 # Remaining audit items — the one open list
 
 > Consolidated 2026-07-06 from every audit document in the repo. The source reports now live in
-> [`deprecated/`](deprecated/) — **this file is the only live audit backlog**; tick or strike items
+> [`.deprecated/docs/audits/`](../../.deprecated/docs/audits/) — **this file is the only live audit backlog**; tick or strike items
 > here, don't resurrect the old files. Canonical *design* audits are untouched and stay where they
 > are: `docs/engineering/AUDIT.md` + `AUDIT-RESPONSE.md` (rulings folded into V4) and
 > `docs/research/INDEPENDENT-AUDIT-v3.md` (v3→v4 evolution trail).
@@ -73,7 +73,7 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
 
 > Full evidence + reconciliation in `.deprecated/docs/audits/audit-2026-07-06-m5c-m5d-m6-UNION.md`.
 > **Now tracked as 8 remediation tasks** with per-task implementation guides in
-> `development/bolts/AUDIT-M5c-M5d-M6-remediation/` — GitHub issues **#185–#192**:
+> `.deprecated/development/bolts/AUDIT-M5c-M5d-M6-remediation/` — GitHub issues **#185–#192**:
 > #185 input validation (A-M1/A-M2/A-m7/A-m8) · #186 reproject CAS (A-M3/A-m10) · #187 D21 clock
 > (A-M4) · #188 audit completeness (A-M5/A-m3) · #189 export DoS (A-M6/A-Mc/A-m12) · #190
 > Contributors (A-m4/A-m5) · #191 read robustness (A-m1/A-m2) · #192 hardening batch

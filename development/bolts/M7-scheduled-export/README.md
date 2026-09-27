@@ -56,7 +56,7 @@ triage ("risk-accept 50 000 findings off-peak") belongs here**, on the same dura
 a bulk-triage *job* is the same shape as an export job. When M7 lands, extend the enqueue surface to
 accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on completion) and lift the
 5000 inline ceiling's 413 for scheduled runs. Track as an M7 deliverable; the guide is
-`development/bolts/AUDIT-M5c-M5d-M6-remediation/task-5-export-dos-bounding.md` (A-Mc).
+`.deprecated/development/bolts/AUDIT-M5c-M5d-M6-remediation/task-5-export-dos-bounding.md` (A-Mc).
 
 ## Out of scope (defer)
 - The streaming export **engine** itself (CSV sanitizer, VEX serializers, PIT paging) → owned by M6; M7 only invokes it.
@@ -80,7 +80,7 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
   per-tenant + time-limited intent without object-store creds. New index `system-report-chunks`
   (INDEX-MAP updated). *(Propagated into SPEC FR-13 on 2026-07-07 via the major-audit PR —
   the #212 pass amended AUDIT/PLAN/INDEX-MAP but missed SPEC; see
-  `docs/audits/major_audit/04-docs-and-tracker-freshness.md` §2.)*
+  `.deprecated/docs/audits/major_audit/04-docs-and-tracker-freshness.md` §2.)*
 - **2026-07-07** — **retention:** a completed export is TTL-swept `JAVV_EXPORT_TTL_HOURS` (default 24h)
   after completion via a `delete_by_query expires_at < now` on the small bounded `system-reports`/
   `system-report-chunks` indices (the "drop whole indices, never `delete_by_query`" day-one rule targets
