@@ -28,13 +28,16 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
 
 ### CI enforcement gaps (from the 2026-06-24 dev-process review)
 
-- [ ] **C3 — coverage ratchet.** Still a TODO comment in `.github/workflows/ci.yml`. Add
+- [x] **C3 — coverage ratchet.** Add
   `pytest --cov --cov-fail-under=<current>` (+ Vitest `coverage.thresholds` when `frontend/`
   exists); ideally patch coverage (≥ ~85% on changed lines) so new code must be tested while
-  legacy gaps don't block.
-- [ ] **I7 — FE↔BE contract gate.** CI step that regenerates the `@hey-api/openapi-ts` client and
-  fails on non-empty `git diff`. **Owner: M9a** (already a named deliverable there; the ci.yml TODO
-  is the reminder).
+  legacy gaps don't block. **Done (#383, checked 2026-09-27):** the backend Pytest step runs
+  `--cov-fail-under=90` (`.github/workflows/ci.yml`), and `frontend/vitest.config.ts` sets
+  `coverage.thresholds.lines`. Patch coverage (the "ideally" part) was not built.
+- [x] **I7 — FE↔BE contract gate.** CI step that regenerates the `@hey-api/openapi-ts` client and
+  fails on non-empty `git diff`. **Done (checked 2026-09-27):** the Frontend job in
+  `.github/workflows/ci.yml` re-exports `frontend/openapi.json` from the backend and re-runs
+  `npm run gen:api`, failing with a named error if either differs from what is committed.
 - [ ] **I8 — OpenAPI breaking-change check.** `oasdiff`-style classifier on PRs (fail only on
   breaking deltas, not additive). Unowned; lands naturally alongside I7 in M9a.
 - [ ] **I9 (residual) — `_reindex` migration test.** Mapping-vs-INDEX-MAP drift *is* covered by the
