@@ -1,7 +1,8 @@
-"""GET /api/v1/scanners/ingest-failures (issue 357) — the read behind scanner status's
-failed-ingests panel. Pins: the pure builder and cursor codec; per-scanner isolation (never a
-merged page or total); tenant isolation through the read path; newest-first paging with no PIT;
-the shared `days`/`as_of` window; a tampered cursor is a 422, never a 500."""
+"""GET /api/v1/scanners/ingest-failures (issue 357) and its per-day trend (issue 575) — the reads
+behind scanner status's failed-ingests panel and strip. Pins: the pure builder and cursor codec;
+per-scanner isolation (never a merged page, total or series); tenant isolation through the read
+path; newest-first paging with no PIT; the shared `days`/`as_of` window; a tampered cursor is a
+422, never a 500."""
 
 import base64
 import json
@@ -279,4 +280,101 @@ async def test_it_needs_a_session(env) -> None:
     app.state.opensearch = client
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://t") as c:
         r = await c.get(ROUTE, params={"cluster_id": _cluster(), "scanner": "trivy"})
+    assert r.status_code == 401
+
+
+# --- the per-day trend behind the Failed ingests strip (issue 575) ------------------------
+
+TREND = "/api/v1/trends/ingest-failures"
+
+
+def _counts(r: httpx.Response) -> dict[str, int]:
+    """{scanner: refusals summed over the window} — the per-bucket shape is pinned separately."""
+    assert r.status_code == 200
+    return {s: sum(p["count"] for p in pts) for s, pts in r.json()["series"].items()}
+
+
+@requires_opensearch
+async def test_the_trend_is_one_series_per_scanner_per_tenant(env) -> None:
+    http, client = env
+    mine, other = _cluster(), _cluster()
+    for reason in ("too_large", "bad_json", "invalid_envelope"):
+        await _record(client, mine, "trivy", reason)
+    await _record(client, mine, "grype", "bad_json")
+    await _record(client, other, "trivy", "bad_json")  # another tenant's refusal
+    await _refresh(client, mine)
+    await _refresh(client, other)
+
+    r = await http.get(TREND, params={"cluster_id": mine, "days": 7})
+    assert _counts(r) == {"trivy": 3, "grype": 1}  # never merged, never the other cluster's
+    body = r.json()
+    assert body["days"] == 7 and body["interval"] == "day"
+    # a continuous axis: every day of the window is a point, the quiet ones at zero
+    trivy = body["series"]["trivy"]
+    assert len(trivy) == 8  # 7 days back plus today
+    assert [p["count"] for p in trivy[:-1]] == [0] * 7 and trivy[-1]["count"] == 3
+    # the strip's total agrees with the table's total for the same window
+    table = await http.get(ROUTE, params={"cluster_id": mine, "scanner": "trivy", "days": 7})
+    assert table.json()["total"]["value"] == 3
+
+
+@requires_opensearch
+async def test_the_trend_window_ends_at_as_of(env) -> None:
+    http, client = env
+    cluster = _cluster()
+    now = datetime.now(UTC)
+    await _record_at(client, cluster, "grype", now - timedelta(hours=1))
+    await _record_at(client, cluster, "grype", now - timedelta(days=10))
+    await _record_at(client, cluster, "grype", now - timedelta(days=40))
+    await _refresh(client, cluster)
+
+    base = {"cluster_id": cluster}
+    assert _counts(await http.get(TREND, params=base)) == {"grype": 2}  # default 30 days
+    assert _counts(await http.get(TREND, params={**base, "days": 90})) == {"grype": 3}
+    # an append-only log read directly at T — no reconstruction, so never a 501
+    rewound = {**base, "as_of": (now - timedelta(days=5)).isoformat()}
+    assert _counts(await http.get(TREND, params=rewound)) == {"grype": 1}
+
+
+@requires_opensearch
+async def test_hourly_buckets_are_span_capped_like_scan_ingest(env) -> None:
+    http, client = env
+    cluster = _cluster()
+    await _record(client, cluster, "trivy", "bad_json")
+    await _refresh(client, cluster)
+    r = await http.get(TREND, params={"cluster_id": cluster, "days": 1, "interval": "hour"})
+    assert _counts(r) == {"trivy": 1}
+    assert r.json()["interval"] == "hour"
+    r = await http.get(TREND, params={"cluster_id": cluster, "days": 32, "interval": "hour"})
+    assert r.status_code == 422
+
+
+@requires_opensearch
+async def test_a_cluster_with_no_failures_is_an_empty_series(env) -> None:
+    http, _ = env
+    r = await http.get(TREND, params={"cluster_id": _cluster()})
+    assert r.status_code == 200
+    assert r.json() == {"series": {}, "days": 30, "interval": "day"}
+
+
+@requires_opensearch
+async def test_bad_trend_input_is_a_422(env) -> None:
+    http, _ = env
+    for params in (
+        {"cluster_id": _cluster(), "days": 0},
+        {"cluster_id": _cluster(), "days": 366},
+        {"cluster_id": _cluster(), "interval": "minute"},
+        {"cluster_id": "Not A Cluster"},
+        {"cluster_id": _cluster(), "as_of": "yesterday"},
+    ):
+        r = await http.get(TREND, params=params)
+        assert r.status_code == 422, params
+
+
+async def test_the_trend_needs_a_session(env) -> None:
+    _, client = env
+    app = create_app()
+    app.state.opensearch = client
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="https://t") as c:
+        r = await c.get(TREND, params={"cluster_id": _cluster()})
     assert r.status_code == 401

@@ -11,6 +11,9 @@
   finding is not in this burn-down. The response carries `resolved_semantics="scan_resolved"` so
   the M9c burn-down chart labels it accurately; human-resolution counting is a product decision
   deferred to M9c, not a bug.
+- `/trends/ingest-failures` — pushes the ingest route refused after the token check, per bucket per
+  scanner (issue 575), on `/trends/scans`'s exact axis so the two strips line up. An append-only
+  log, so a past `as_of` just ends the window at T — no reconstruction, never a 501.
 
 Tenancy: scan-events routing pins the per-cluster index pattern AND the tenant read path forces the
 `cluster_id` body filter; findings reads carry it through the tenant read path alone. Same uniform
@@ -22,13 +25,25 @@ from typing import Annotated, Any, Literal, cast
 from fastapi import APIRouter, HTTPException, Query, Request
 
 from backend.core.identifiers import ClusterId
-from backend.query.trends import build_findings_trend_body, build_scans_trend_body
+from backend.query.trends import (
+    build_findings_trend_body,
+    build_ingest_failures_trend_body,
+    build_scans_trend_body,
+)
 from backend.routers.findings import AsOf, Authenticated, _reader_or_501, _reconstructed
 from backend.tenancy.read_path import tenant_search
 
 router = APIRouter(prefix="/api/v1/trends", tags=["trends"])
 
 Days = Annotated[int, Query(ge=1, le=365)]
+Interval = Literal["day", "hour"]
+
+
+def _guard_hourly(interval: str, days: int) -> None:
+    # contract guard (audit 343): hourly × long spans is a cost setting no UI uses — 365d hourly
+    # is ~8.8k materialized buckets per scanner per request. 31d hourly (744) stays cheap.
+    if interval == "hour" and days > 31:
+        raise HTTPException(422, "interval=hour is limited to days<=31 — use daily buckets")
 
 
 def _series(
@@ -50,12 +65,9 @@ async def scans_trend(
     cluster_id: ClusterId,
     as_of_t: AsOf,
     days: Days = 30,
-    interval: Literal["day", "hour"] = "day",
+    interval: Interval = "day",
 ) -> dict[str, Any]:
-    # contract guard (audit 343): hourly × long spans is a cost setting no UI uses — 365d hourly
-    # is ~8.8k materialized buckets per scanner per request. 31d hourly (744) stays cheap.
-    if interval == "hour" and days > 31:
-        raise HTTPException(422, "interval=hour is limited to days<=31 — use daily buckets")
+    _guard_hourly(interval, days)
     client = cast(Any, request.app.state.opensearch)
     if as_of_t is not None:  # past T → M8b's reconstruction, never this route's query (D28)
         # the reader reconstructs DAILY only (MVP) — `interval` is a live-path setting; the
@@ -108,3 +120,26 @@ async def findings_trend(
         "days": days,
         "split": split,
     }
+
+
+@router.get("/ingest-failures")
+async def ingest_failures_trend(
+    request: Request,
+    principal: Authenticated,
+    cluster_id: ClusterId,
+    as_of_t: AsOf,
+    days: Days = 30,
+    interval: Interval = "day",
+) -> dict[str, Any]:
+    _guard_hourly(interval, days)
+    client = cast(Any, request.app.state.opensearch)
+    resp = await tenant_search(
+        client,
+        index=f"javv-ingest-failures-{cluster_id}-*",
+        cluster_id=cluster_id,
+        body=build_ingest_failures_trend_body(days=days, anchor=as_of_t, interval=interval),
+    )
+    # a cluster that never had a push refused matches zero indices — no aggregations at all
+    aggs = resp.get("aggregations")
+    series = _series(aggs["by_scanner"]) if aggs else {}
+    return {"series": series, "days": days, "interval": interval}

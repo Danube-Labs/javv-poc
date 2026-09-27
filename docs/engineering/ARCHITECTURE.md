@@ -215,7 +215,7 @@ the `findings` cache - the heart of D17.
 | **Logs - history** | `javv-finding-occurrences-*` | append-only | ingest only (full per-scan snapshots) | accurate point-in-time (read via catalog) |
 | **Logs - inventory** | `javv-images-*` | append-only | ingest only (snapshots per `inventory_run_id`) | running-images @ latest committed run; rewind ≤ T |
 | **Logs - inventory catalog** | `javv-inventory-runs-*` | append-only | ingest only (1 manifest/run, written last) | certifies a run complete (`status=committed`) - read gate for "running images" |
-| **Logs - ingest failures** | `javv-ingest-failures-*` | append-only | ingest only (1 doc per push rejected after the token check, token's scope) | scanner-status failed-ingests table (issue 357) |
+| **Logs - ingest failures** | `javv-ingest-failures-*` | append-only | ingest only (1 doc per push rejected after the token check, token's scope) | scanner-status failed-ingests table (issue 357) + its per-day strip (issue 575) |
 | **Human decisions (source of truth)** | `system-decisions`, `system-audit-log` | append/mutable | triage only; **every** action journaled | scoped decisions + audit + Contributors |
 | **Ops** | `system-reports`, `system-notifications`, `system-saved-views` | mutable | API/jobs | export queue · bell · views |
 

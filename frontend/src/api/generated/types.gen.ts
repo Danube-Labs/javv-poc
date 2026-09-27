@@ -3847,6 +3847,52 @@ export type FindingsTrendApiV1TrendsFindingsGetResponses = {
 
 export type FindingsTrendApiV1TrendsFindingsGetResponse = FindingsTrendApiV1TrendsFindingsGetResponses[keyof FindingsTrendApiV1TrendsFindingsGetResponses];
 
+export type IngestFailuresTrendApiV1TrendsIngestFailuresGetData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+        /**
+         * Days
+         */
+        days?: number;
+        /**
+         * Interval
+         */
+        interval?: 'day' | 'hour';
+        /**
+         * As Of
+         */
+        as_of?: string | null;
+    };
+    url: '/api/v1/trends/ingest-failures';
+};
+
+export type IngestFailuresTrendApiV1TrendsIngestFailuresGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type IngestFailuresTrendApiV1TrendsIngestFailuresGetError = IngestFailuresTrendApiV1TrendsIngestFailuresGetErrors[keyof IngestFailuresTrendApiV1TrendsIngestFailuresGetErrors];
+
+export type IngestFailuresTrendApiV1TrendsIngestFailuresGetResponses = {
+    /**
+     * Response Ingest Failures Trend Api V1 Trends Ingest Failures Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type IngestFailuresTrendApiV1TrendsIngestFailuresGetResponse = IngestFailuresTrendApiV1TrendsIngestFailuresGetResponses[keyof IngestFailuresTrendApiV1TrendsIngestFailuresGetResponses];
+
 export type ScansTrendApiV1TrendsScansGetData = {
     body?: never;
     path?: never;

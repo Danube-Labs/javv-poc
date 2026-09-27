@@ -7,12 +7,15 @@
 - **Findings** (`findings`): the FR-5 "new in Nd" series plus its burn-down twin — new
   (`first_seen_at`) vs resolved (`resolved_at`) per day per scanner. No `present` filter: a
   finding that appeared and was tombstoned inside the window still counts as new that day.
+- **Ingest failures** (`javv-ingest-failures-<cluster_id>-*`, issue 575): pushes refused after
+  the token check, per bucket per scanner, on the scans series' exact axis.
 
-Both are `size:0` (server-side everything), split `by_scanner` (per-scanner is sacred), and
-bucket on SERVER-stamped times (`ingested_at`/`first_seen_at`/`resolved_at`) — the client's
-`@timestamp` is display-only and gameable (D40: never an ordering key). True historical
-severity totals (state at T) are NOT derivable from these logs at read cost — that's the v1.1
-`javv-metrics` rollup; these series are the MVP trend surface.
+All are `size:0` (server-side everything), split `by_scanner` (per-scanner is sacred), and
+bucket on SERVER-stamped times (`ingested_at`/`first_seen_at`/`resolved_at`, and a failure
+record's `@timestamp`, which the server writes — no scanner payload reaches it). A scan event's
+`@timestamp` is the client's: display-only and gameable (D40: never an ordering key). True
+historical severity totals (state at T) are NOT derivable from these logs at read cost — that's
+the v1.1 `javv-metrics` rollup; these series are the MVP trend surface.
 
 The tenant filter is forced by the tenant read path at execution; scan-events routing additionally
 pins the per-cluster index pattern.
@@ -68,6 +71,28 @@ def build_scans_trend_body(
         "size": 0,
         "query": {"bool": {"filter": [{"range": {"ingested_at": window}}]}},
         "aggs": {"by_scanner": {"terms": dict(_BY_SCANNER_TERMS), "aggs": {"timeline": timeline}}},
+    }
+
+
+def build_ingest_failures_trend_body(
+    *, days: int, anchor: datetime | None = None, interval: str = "day"
+) -> dict[str, Any]:
+    """Refused pushes per bucket per scanner (issue 575), on the scans trend's exact axis so the
+    two strips line up. A plain doc count: each refusal is written once under its own id, never
+    retried, so no sibling duplicates exist for a cardinality to fold."""
+    gte, upper = window_bounds(days, anchor)
+    window: dict[str, Any] = {"gte": gte}
+    if anchor is not None:
+        window["lte"] = anchor.isoformat()
+    return {
+        "size": 0,
+        "query": {"bool": {"filter": [{"range": {"@timestamp": window}}]}},
+        "aggs": {
+            "by_scanner": {
+                "terms": dict(_BY_SCANNER_TERMS),
+                "aggs": {"timeline": _timeline("@timestamp", gte, upper, interval)},
+            }
+        },
     }
 
 
