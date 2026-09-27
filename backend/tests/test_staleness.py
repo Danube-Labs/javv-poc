@@ -7,6 +7,8 @@ import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from backend.jobs.staleness import (
     StalenessTimers,
     read_staleness_timers,
@@ -173,6 +175,48 @@ async def test_returned_finding_reverts_to_pre_stale_status(real_os) -> None:
     back = await _get(client, prefix, "back")
     assert back["state"] == "risk_accepted"  # prior human state restored
     assert back["pre_stale_status"] is None
+
+
+@requires_opensearch
+@pytest.mark.parametrize(
+    "silent_for",
+    [timedelta(hours=1), timedelta(days=5), timedelta(days=10)],
+    ids=["healthy", "held", "scanner-down"],
+)
+async def test_a_stale_finding_confirmed_gone_reverts(real_os, silent_for) -> None:
+    """Issue 576: `stale` means presence unknown (D39). A later scan that confirms the finding
+    gone (reconcile set `present=false`) answers that, so the flag comes off — whatever the
+    scanner's silence now, since gone is known either way."""
+    client, prefix = real_os
+    await _seed_token(client, prefix, last_ingest=NOW - silent_for)
+    old = NOW - timedelta(days=60)
+    await _seed_finding(
+        client,
+        prefix,
+        "gone",
+        last_seen=old,
+        state="stale",
+        present=False,
+        pre_stale="risk_accepted",
+    )
+    await _seed_finding(
+        client, prefix, "gone-unrecorded", last_seen=old, state="stale", present=False
+    )
+    # a human decision on a gone row is not a stale flag: never touched
+    await _seed_finding(
+        client, prefix, "decided", last_seen=old, state="not_affected", present=False
+    )
+
+    result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["reverted"] == 2
+    gone = await _get(client, prefix, "gone")
+    assert gone["state"] == "risk_accepted" and gone["pre_stale_status"] is None
+    assert gone["present"] is False  # presence ⟂ state: the sweep never writes presence
+    assert (await _get(client, prefix, "gone-unrecorded"))["state"] == "open"
+    assert (await _get(client, prefix, "decided"))["state"] == "not_affected"
+    again = await run_staleness_sweep(client, now=NOW, prefix=prefix)
+    assert again["reverted"] == 0  # idempotent
 
 
 # --- idempotence ---------------------------------------------------------------
