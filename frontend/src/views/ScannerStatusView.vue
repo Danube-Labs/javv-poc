@@ -2,7 +2,8 @@
 /**
  * Scanner status screen (M9d slice 2; SCREENS §12, C-3 redesign): the shared data-screen
  * band (head-card + the scan-ingest lens — the same "committed runs per bucket, per scanner"
- * strip findings/images carry, operator ruling 2026-07-12) over per-(cluster, scanner) cards
+ * strip findings/images carry, operator ruling 2026-07-12, joined here by the failed-ingests
+ * strip on the same axis, issue 575) over per-(cluster, scanner) cards
  * — D20 freshness + D41 read-only provenance + last-N committed runs + the pushes the backend
  * refused (issue 357; one self-contained panel per scanner, so no count ever mixes them).
  * Retry and dead-letter stay cut (A-7/D-4): they are scanner-local, so the panel is read-only.
@@ -16,6 +17,7 @@ import {
   scannerProvenanceApiV1ScannersProvenanceGet,
 } from '@/api/generated'
 import { client } from '@/api/client'
+import FailedIngestsLens from '@/components/dashboards/FailedIngestsLens.vue'
 import IngestLens from '@/components/dashboards/IngestLens.vue'
 import IngestFailuresTable from '@/components/scanners/IngestFailuresTable.vue'
 import LimitedHistoricalNotice from '@/components/dashboards/LimitedHistoricalNotice.vue'
@@ -110,11 +112,15 @@ const laneOptions = computed(() =>
         </p>
         <p class="head-note">committed runs only · versions are read-only provenance</p>
       </div>
-      <IngestLens
-        v-if="clusterStore.selectedId"
-        :cluster-id="clusterStore.selectedId"
-        subject="this screen"
-      />
+      <!-- one joined band: a day lines up across both strips, each on its own scale -->
+      <div v-if="clusterStore.selectedId" class="lens-stack">
+        <IngestLens :cluster-id="clusterStore.selectedId" subject="this screen" />
+        <FailedIngestsLens
+          :cluster-id="clusterStore.selectedId"
+          :t="timeTravel.t"
+          :window-days="timeTravel.windowDays"
+        />
+      </div>
     </div>
 
     <LimitedHistoricalNotice
@@ -179,6 +185,34 @@ const laneOptions = computed(() =>
 
 <style scoped>
 /* prototype .scan-cards grid; band/head scaffolding lives in base.css */
+/* The two strips as one band: a single outer frame, split by a canvas-coloured gutter so each
+   lens reads as its own panel (operator ruling 2026-09-27, on built A/B/C specimens; a hairline
+   alone read as one chart). The stack carries the frame, the lenses give up theirs — their roots
+   take this scope, so this reaches them. */
+.lens-stack {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.lens-stack > .ingest-lens,
+.lens-stack > .fail-lens {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.lens-stack > .ingest-lens {
+  border-bottom: 1px solid var(--line);
+}
+.lens-stack > .fail-lens {
+  border-top: 1px solid var(--line);
+}
 .scan-cards {
   display: grid;
   grid-template-columns: 1fr 1fr;

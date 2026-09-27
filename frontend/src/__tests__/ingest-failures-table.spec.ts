@@ -10,10 +10,12 @@ vi.mock('@/api/generated', () => ({
   scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
   scannerProvenanceApiV1ScannersProvenanceGet: vi.fn<() => Promise<unknown>>(),
   scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
+  ingestFailuresTrendApiV1TrendsIngestFailuresGet: vi.fn<() => Promise<unknown>>(),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 
 import {
+  ingestFailuresTrendApiV1TrendsIngestFailuresGet,
   scannerFreshnessApiV1ScannersFreshnessGet,
   scannerIngestFailuresApiV1ScannersIngestFailuresGet,
   scannerProvenanceApiV1ScannersProvenanceGet,
@@ -152,12 +154,22 @@ describe('ScannerStatusView wiring', () => {
     )
     vi.mocked(scannerProvenanceApiV1ScannersProvenanceGet).mockResolvedValue(ok({ scanners: [] }))
     vi.mocked(scansTrendApiV1TrendsScansGet).mockResolvedValue(ok({ series: {} }))
+    vi.mocked(ingestFailuresTrendApiV1TrendsIngestFailuresGet).mockResolvedValue(ok({ series: {} }))
     failuresMock.mockResolvedValue(page([], 0, null))
 
     const w = mount(ScannerStatusView)
     await flushPromises()
 
     expect(w.findAllComponents(IngestFailuresTable)).toHaveLength(2)
+    // the failed-ingests strip joins Scan ingest in the head band, for the same cluster
+    const strip = w.find('.screen-head-band .lens-stack')
+    expect(strip.findAll('section').map((s) => s.attributes('aria-label'))).toEqual([
+      'Scan ingest activity',
+      'Failed ingest activity',
+    ])
+    expect(vi.mocked(ingestFailuresTrendApiV1TrendsIngestFailuresGet).mock.calls[0]![0]).toMatchObject({
+      query: { cluster_id: 'c-k3d-0001' },
+    })
     const asked = failuresMock.mock.calls.map((c) => (c[0] as { query: { scanner: string } }).query.scanner)
     expect(asked.sort()).toEqual(['grype', 'trivy'])
 

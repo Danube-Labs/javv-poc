@@ -417,6 +417,13 @@ The v4 per-file ingest feed is gone. New composition per C-3:
 
 **Trend:** `GET /api/v1/trends/scans?cluster_id=…&range=…` — scans over time per scanner
 (replaces "ingested vs failed": accepted/rejected are Prometheus counters, not a UI API).
+**Failed ingests strip (issue 575):** directly under the Scan ingest strip, joined to it as one
+band — a single frame split by a canvas-coloured gutter, so each strip reads as its own lens
+(operator ruling 2026-09-27, on built specimens) — `GET /api/v1/trends/ingest-failures?cluster_id=…&days=…&interval=…`, the
+pushes refused per bucket, one bar series per scanner, on Scan ingest's axis (same range, same
+day/hour rule) so a day lines up across both. Its own scale: runs peak in the hundreds, refusals are
+a handful. Click a day to rewind, like Scan ingest; a range with none reads "No refused pushes in
+this range", never an empty chart.
 
 **Failed ingests — reinstated by ruling (issue 357, option 2, 2026-07-30):** the pushes JAVV itself
 refused after the token check are recorded (`javv-ingest-failures-*`) and read per scanner by

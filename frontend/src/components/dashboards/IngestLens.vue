@@ -20,7 +20,6 @@ import {
   scansTrendApiV1TrendsScansGet,
 } from '@/api/generated'
 import {
-  bucketEndT,
   buildIngestLensOption,
   ingestInterval,
   ingestLensDates,
@@ -29,6 +28,7 @@ import type { ScanActivityData } from '@/charts/buildScanActivityOption'
 import { buildTrendQuery, isSubDayWindow } from '@/charts/buildTrendQuery'
 import EChart from '@/components/charts/EChart.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
+import { useBucketRewind } from '@/composables/useBucketRewind'
 import { logger } from '@/lib/logger'
 import { lastDataAt, silentFor, type FreshnessRow } from '@/system/freshness'
 import { useTimeTravelStore } from '@/stores/timeTravel'
@@ -101,16 +101,9 @@ const subDay = computed(() => interval.value === 'day' && isSubDayWindow(timeTra
  * only when NOTHING was committed in the range — data present stays a plain card. */
 const quiet = computed(() => settled.value && !failed.value && totalRuns.value === 0)
 
+const rewindToBucket = useBucketRewind()
 function onPointClick(params: { dataIndex: number }) {
-  const bucket = ingestLensDates(series.value)[params.dataIndex]
-  if (!bucket) return
-  const t = bucketEndT(bucket, Date.now(), interval.value)
-  if (t === null) {
-    timeTravel.backToNow()
-    return
-  }
-  timeTravel.rewindTo(t)
-  timeTravel.setWindow(timeTravel.windowDays, `→ ${lastDataAt(t)}`)
+  rewindToBucket(ingestLensDates(series.value)[params.dataIndex], interval.value)
 }
 </script>
 
