@@ -11,6 +11,10 @@
   "automerge": false,
   "vulnerabilityAlerts": { "labels": ["security", "dependencies"] },
   "osvVulnerabilityAlerts": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 4am on monday"]
+  },
   "customManagers": [
     {
       "description": "versions.yaml single source of truth (D42) — bump the annotated `current` pins",
@@ -32,6 +36,22 @@
       "matchUpdateTypes": ["minor", "patch"],
       "matchDepTypes": ["devDependencies"],
       "groupName": "dev-dependencies (non-major)"
+    },
+    {
+      "description": "OpenSearch moves as one PR: versions.yaml plus every consumer check-versions.sh checks, including the CI service images the github-actions group would otherwise take",
+      "matchPackageNames": ["opensearchproject/opensearch"],
+      "groupName": "opensearch"
+    },
+    {
+      "description": "Grype is bumped in versions.yaml only: the Dockerfile writes it v-prefixed in FROM, so after the bump run check-versions.sh --fix on the PR",
+      "matchManagers": ["dockerfile"],
+      "matchPackageNames": ["anchore/grype"],
+      "enabled": false
+    },
+    {
+      "description": "Stay on Python 3.12 (requires-python, the scanner images, .python-version) until a deliberate upgrade",
+      "matchPackageNames": ["python"],
+      "allowedVersions": "<3.13"
     }
   ]
 }
