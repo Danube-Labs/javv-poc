@@ -2,7 +2,6 @@
 (scoped to the token's cluster), and the system-config storage round-trip. Endpoint tests use a fake
 OpenSearch (token lookup + doc get); storage tests use a real OpenSearch (skipped if down)."""
 
-import contextlib
 from typing import Any
 from uuid import uuid4
 
@@ -16,7 +15,7 @@ from backend.core.bootstrap import bootstrap
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
 from backend.main import create_app
-from os_env import OS_URL, requires_opensearch
+from os_env import OS_URL, drop_prefix, requires_opensearch
 
 PEPPER = get_settings().token_pepper
 
@@ -113,8 +112,7 @@ async def client():
     try:
         yield c, p
     finally:
-        with contextlib.suppress(NotFoundError):
-            await c.indices.delete(index=f"{p}*")
+        await drop_prefix(c, p)
         await c.close()
 
 

@@ -3,11 +3,10 @@ INDEX-MAP (the source of truth for every mapping); integration tests run against
 OpenSearch (skipped when unreachable — locally the dev container is up, CI gets a service
 container in a later slice)."""
 
-import contextlib
 from uuid import uuid4
 
 import pytest
-from opensearchpy import AsyncOpenSearch, NotFoundError
+from opensearchpy import AsyncOpenSearch
 
 from backend.core.bootstrap import (
     INDEX_TEMPLATES,
@@ -15,7 +14,7 @@ from backend.core.bootstrap import (
     MUTABLE_INDEXES,
     bootstrap,
 )
-from os_env import OS_URL, requires_opensearch
+from os_env import OS_URL, drop_prefix, requires_opensearch
 
 
 def _mappings(body: dict) -> dict:
@@ -182,11 +181,29 @@ async def prefix(client: AsyncOpenSearch):
     try:
         yield p
     finally:
-        with contextlib.suppress(NotFoundError):
-            await client.indices.delete(index=f"{p}*")
-        for name in INDEX_TEMPLATES:
-            with contextlib.suppress(NotFoundError):
-                await client.indices.delete_index_template(name=f"{p}{name}")
+        await drop_prefix(client, p)
+
+
+async def _left_behind(client: AsyncOpenSearch, p: str) -> tuple[list[str], list[str]]:
+    indices = await client.indices.get(index=f"{p}*", params={"expand_wildcards": "all"})
+    templates = (await client.indices.get_index_template())["index_templates"]
+    return sorted(indices), sorted(t["name"] for t in templates if t["name"].startswith(p))
+
+
+@requires_opensearch
+async def test_drop_prefix_leaves_no_index_or_template_behind(client: AsyncOpenSearch) -> None:
+    """Issue 550: a prefixed bootstrap creates index templates as well as indices. Teardowns that
+    dropped only the indices left ~1,236 templates per local run in the shared store, and the
+    growing cluster state made every later bootstrap about 5x slower."""
+    p = f"pytest-{uuid4().hex[:8]}-"
+    await bootstrap(client, prefix=p)
+    indices, templates = await _left_behind(client, p)
+    assert indices and len(templates) == len(INDEX_TEMPLATES)  # the bootstrap made both kinds
+
+    await drop_prefix(client, p)
+
+    assert await _left_behind(client, p) == ([], [])
+    await drop_prefix(client, p)  # a second call (nothing left) must not raise
 
 
 @requires_opensearch
