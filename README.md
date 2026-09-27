@@ -130,7 +130,7 @@ fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequi
 
 | Doc | What |
 |---|---|
-| [PLAN.md](docs/engineering/PLAN.md) | Decisions (D1–D45), data model, milestones (M0–M10) |
+| [PLAN.md](docs/engineering/PLAN.md) | Decisions (D1–D46), data model, milestones (M0–M10) |
 | [SPEC.md](docs/engineering/SPEC.md) | Functional + non-functional requirements (FR/NFR) |
 | [ARCHITECTURE.md](docs/engineering/ARCHITECTURE.md) | Layers, data flow, diagrams (Mermaid) |
 | [INDEX-MAP.md](docs/engineering/INDEX-MAP.md) | Source of truth for every OpenSearch index + mapping |
