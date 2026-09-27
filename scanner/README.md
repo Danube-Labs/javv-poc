@@ -12,16 +12,33 @@ discovery → adapters(trivy|grype) → normalize → envelope (+scanner_version
 ## Run it
 The package is the CronJob entrypoint — one cycle = discover → scan → envelope → push:
 ```bash
-JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://backend python -m scanner
+JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://backend JAVV_TOKEN=<ingest token> python -m scanner
 ```
 | Env | Meaning |
 |---|---|
 | `JAVV_SCANNER` | `trivy` \| `grype` — which scanner this Job runs (default `trivy`) |
 | `JAVV_BACKEND_URL` | ingest endpoint base (default `http://localhost:8000`) |
+| `JAVV_TOKEN` | the ingest bearer token for this `(cluster, scanner)` (`push:findings` scope). **Effectively required**: without it the scan-scope fetch is refused and every cycle is skipped |
+| `JAVV_LOG_LEVEL` | `debug` \| `info` \| `warning` \| `error` (default `info`); JSON lines on the same pipeline as the backend |
 | `JAVV_CLUSTER_ID` | tenant id; defaults to the live `kube-system` namespace UID. Set = **asserted**: a mismatch with the cluster actually reached refuses the cycle (exit 2) |
 | `JAVV_KUBE_CONTEXT` | out-of-cluster only — which kubeconfig context to scan (default: the current one) |
 | `JAVV_DEAD_LETTER` | dead-letter sink path (default `<scanner>.dead-letter.jsonl`) |
 
+Scan tuning (`JAVV_TRIVY_*`: severities, scanners, package types, ignore-unfixed, timeout;
+`JAVV_GRYPE_*`: only-fixed, scope, scan timeout) and every default are in
+[`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md) §2–§4. Unset means the pinned default command; a
+garbage value exits 2 at startup.
+
+### What one cycle asks the backend first
+Before discovering anything, the cycle makes two calls, and both **fail closed**: if either is
+unavailable the cycle is skipped (logged at `error`, exit 0) and nothing is scanned.
+1. `GET /api/v1/scan-scope` — the cluster's scan scope (D43): namespace allow/deny globs, excluded
+   image globs, ignored owner kinds. Discovery filters on it before any pull. A fetched *empty* scope
+   means scan everything; an unreachable backend means scan nothing.
+2. `POST /api/v1/scan-runs` — the backend allocates this cycle's `scan_order` (D45).
+
+At the end, `POST /api/v1/inventory-runs` certifies the cycle's inventory (best effort; a failure leaves
+the run uncertified and is logged as a warning).
 ## Trivy and Grype are two separate CronJobs
 Each scanner is its own self-built image (`Dockerfile.trivy`, `Dockerfile.grype`, pinned binary) run as its
 **own CronJob** — independent, never merged. Each emits its own envelope stream with a monotonic `scan_order`
@@ -54,7 +71,8 @@ Status: ✅ implemented (M0/M0b) · 🏗 M10 (Helm/CronJob hygiene, PVC vuln-DB 
 | Push fails transiently (429/5xx, network) | Retry with **exponential backoff + jitter**; same envelope re-sent | only flow control without a broker | ✅ |
 | Push fails permanently (other 4xx, retries exhausted) | Envelope written to a **dead-letter sink** (`*.dead-letter.jsonl`); run continues | nothing silently lost | ✅ |
 | Push "timed out" but backend got it | Safe re-push — gzipped body is byte-identical; backend **upserts by deterministic `_id`** | idempotent appends (D18); server-side M1 | ✅ / M1 |
-| Backend fully down | Pushes retry → dead-letter; Job exits non-zero; "running at T" still shows last committed run | commit-then-cache: no push = no partial state (D39) | ✅ / M1 |
+| Backend down at cycle start | Scope fetch fails → cycle **skipped** before any scan (logged at `error`, exit 0) | fail-closed scan scope (D43) | ✅ |
+| Backend lost mid-cycle | Pushes retry → dead-letter; the cycle finishes (exit 0); "running at T" still shows last committed run | commit-then-cache: no push = no partial state (D39) | ✅ / M1 |
 | Clean image (0 vulns) | **Still emits a full envelope** (`total:0`) | no skip-unchanged (D30); catalog needs the marker | ✅ |
 | Pod pending / digest unresolved | Image **ignored this cycle**, retried next once `image_id` resolves | discovery requires a `sha256:` digest | ✅ |
 | N replicas of one image | Scanned **once**, attributed to all locations | digest-dedup (D30) | ✅ |

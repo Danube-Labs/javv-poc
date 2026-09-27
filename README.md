@@ -72,7 +72,7 @@ Three things it does differently:
 - **Runtime discovery**: scan the images live in your clusters, per namespace/workload.
 - **Per-scanner, side by side**: Trivy + Grype kept separate; disagreement is surfaced, never merged away.
 - **Per-finding audit trail**: every vulnerability keeps its own immutable history, with each triage action, decision, and note journaled by who, what, and when, replayed in causal-revision order.
-- **Triage lifecycle**: a six-state machine (five operator-settable; `stale` is set by the staleness sweep), VEX import, risk-accept, decisions that apply across scanners.
+- **Triage lifecycle**: a six-state machine (five operator-settable; `stale` is set by the staleness sweep), VEX export (OpenVEX / CycloneDX), risk-accept, decisions that apply across scanners.
 - **Whole-app time-travel**: a global picker rewinds *every* screen to any point ≤ now, reconstructed from the append logs.
 - **Append-only audit log**: immutable, per-finding and per-user, exportable to CSV.
 - **Multi-tenant + RBAC**: isolated by immutable `cluster_id`; capability-based roles, local auth + bootstrap admin.
@@ -130,7 +130,7 @@ fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequi
 
 | Doc | What |
 |---|---|
-| [PLAN.md](docs/engineering/PLAN.md) | Decisions (D1–D45), data model, milestones (M0–M10) |
+| [PLAN.md](docs/engineering/PLAN.md) | Decisions (D1–D46), data model, milestones (M0–M10) |
 | [SPEC.md](docs/engineering/SPEC.md) | Functional + non-functional requirements (FR/NFR) |
 | [ARCHITECTURE.md](docs/engineering/ARCHITECTURE.md) | Layers, data flow, diagrams (Mermaid) |
 | [INDEX-MAP.md](docs/engineering/INDEX-MAP.md) | Source of truth for every OpenSearch index + mapping |

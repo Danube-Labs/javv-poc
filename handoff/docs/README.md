@@ -4,7 +4,7 @@
 > Layered over the frozen `handoff/v4/` prototype; when sources disagree, `docs/engineering/` wins.
 
 Produced 2026-07-07 via Claude design (claude.ai/design) from the major-audit inputs
-(`docs/audits/major_audit/05-backend-ui-drift-m9.md` §F prompt: `docs/API.md` as the contract,
+(`.deprecated/docs/audits/major_audit/05-backend-ui-drift-m9.md` §F prompt: `docs/API.md` as the contract,
 the drift-table rulings, the full v4 handoff docs + prototype + brand assets).
 
 - `SCREENS.md` — screen-by-screen spec; every screen names its M9 bolt, its data as

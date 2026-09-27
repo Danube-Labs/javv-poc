@@ -63,10 +63,10 @@ the query layer (tenant read path), not per-user grants (post-MVP).
 
 | Method | Path | Capability | Purpose |
 |---|---|---|---|
-| GET/POST | `/api/v1/admin/tokens` | `can_manage_tokens` | List / mint ingest tokens (raw token returned **once**, at mint) |
+| GET/POST | `/api/v1/admin/tokens` | `can_manage_tokens` | List / mint ingest tokens (raw token returned **once**, at mint). List pages with `size` (≤1000, default 100) / `offset` (≤9000); optional `cluster_id` |
 | POST | `/api/v1/admin/tokens/{token_id}/revoke` | `can_manage_tokens` | Disable a token |
 | POST | `/api/v1/admin/tokens/{token_id}/rotate` | `can_manage_tokens` | New secret, same scope |
-| GET/POST | `/api/v1/admin/users` | `can_manage_users` | List / create users (`system`/`fleet` usernames reserved → 422) |
+| GET/POST | `/api/v1/admin/users` | `can_manage_users` | List / create users (`system`/`fleet` usernames reserved → 422). List pages with `size` (≤1000, default 100) / `offset` (≤9000) |
 | PATCH | `/api/v1/admin/users/{username}/role` | `can_manage_users` | Role change (revokes the user's sessions) |
 | PATCH | `/api/v1/admin/users/{username}/disabled` | `can_manage_users` | Enable/disable; the **last enabled admin** cannot be disabled (409) |
 | POST | `/api/v1/admin/users/{username}/password-reset` | `can_manage_users` | Temp password + `must_change` |
@@ -82,8 +82,8 @@ the query layer (tenant read path), not per-user grants (post-MVP).
 ### Findings — read (M6)
 
 All session-auth, no capability (reads). All take the filter family (`cluster_id` **required**,
-`scanner`, `severity`, `state`, `namespace`, `image`, `cve_id`, `package_name`, `kev`,
-`fixable`, `disagree`, `ptype`, …) and the global `as_of`. `severity` values are the **full-word canonical vocabulary**
+`scanner`, `severity`, `state`, `namespace`, `image_repo`, `image_digest`, `cve_id`, `package_name`,
+`assignee`, `kev`, `fixable`, `disagree`, `ptype`, `present`, `new_within_days`, `overdue`, `unassigned`, …) and the global `as_of`. `severity` values are the **full-word canonical vocabulary**
 (D46/#274: `critical|high|medium|low|negligible|unknown`) served by the server-derived
 `severity_canonical` key — facet bucket keys are the same words; the verbatim scanner word stays
 display-only in rows. `ptype` (M8d/#241) is also a facet (pre-v4 rows bucket as
@@ -127,9 +127,9 @@ routes stay current-state-only).
 | GET | `/api/v1/findings/facets` | Scanner-faceted aggregations (counts per severity/state/… per scanner) |
 | GET | `/api/v1/findings/groups` | Composite group paging (e.g. by CVE across images) |
 | GET | `/api/v1/findings/top-components` | Top packages by finding rows with per-scanner unique-CVE counts (Overview card; now-only — 422 at a past `as_of`) |
-| GET | `/api/v1/trends/scans` · `/api/v1/trends/findings` | Time series from scan-events; `resolved_semantics: "scan_resolved"` (A-m9 — *scan-observed* resolution, not human `state=resolved`). `/findings` also takes `split=scanner\|severity` (severity = the D16 server-derived canonical, six buckets; **now-only** — 422 at a past `as_of`) and an optional `scanner=trivy\|grype` query-filter scope (M9c 1b) |
+| GET | `/api/v1/trends/scans` · `/api/v1/trends/findings` | Time series from scan-events over `days` (1–365, default 30); `/scans` also takes `interval=day\|hour` (hour only for `days` ≤ 31, else 422 — audit 343); `resolved_semantics: "scan_resolved"` (A-m9 — *scan-observed* resolution, not human `state=resolved`). `/findings` also takes `split=scanner\|severity` (severity = the D16 server-derived canonical, six buckets; **now-only** — 422 at a past `as_of`) and an optional `scanner=trivy\|grype` query-filter scope (M9c 1b) |
 | GET | `/api/v1/trends/ingest-failures` | Pushes the ingest route refused **after the token check** per bucket, one series per scanner (issue 575; the same records `/scanners/ingest-failures` pages, so a series sums to that route's `total` for the same window). Same axis as `/trends/scans` — `days` (1–365, default 30), `interval=day\|hour` (hour only for `days<=31`, else 422) — so the two strips line up. An append-only log: a past `as_of` just ends the window at T (no 501). `{series: {<scanner>: [{date, count}]}, days, interval}`; a cluster with no refusals is `series: {}` |
-| GET | `/api/v1/contributors` | Triage-work leaderboard + TTR/SLA-hit from `system-audit-log` (FR-15). `totals` (M9d slice 3) = the team KPI block: exact team-wide `by_action` (top-level agg, never board-capped), **pooled** median TTR / SLA-hit (never median-of-medians), `critical_cleared`; same block at a rewound `as_of` |
+| GET | `/api/v1/contributors` | Triage-work leaderboard + TTR/SLA-hit from `system-audit-log` (FR-15) over `days` (1–365, default 30). `totals` (M9d slice 3) = the team KPI block: exact team-wide `by_action` (top-level agg, never board-capped), **pooled** median TTR / SLA-hit (never median-of-medians), `critical_cleared`; same block at a rewound `as_of` |
 | GET | `/api/v1/contributors/export.csv` | The leaderboard as CSV (issue 359): the SAME payload `/contributors` serves, so the file can't disagree with the screen. Fixed columns — the five measures + one `action_<name>` per action of the closed triage vocabulary, present as `0` rather than absent in a quiet window. Cells CSV-injection-sanitized (the actor is a username: attacker-controlled). **Not** a PIT sweep — the rows are the terms agg, already bounded by the 100-actor board, so the `JAVV_EXPORT_MAX_ROWS` **413** is a post-count backstop (no cheap pre-count exists) and there is no PIT-slot 429. `as_of` rides the read's D28 seam, not the findings export's flat 501 |
 | GET | `/api/v1/scanners/freshness` | Per-(cluster, scanner) `last_ingest_at` + `silent_for_seconds` (FR-6/D20 banner; #218). Max across tokens; disabled tokens count; never-ingested → nulls |
 | GET | `/api/v1/scanners/ingest-failures` | One scanner's pushes the ingest route refused **after the token check** (issue 357; INDEX-MAP `javv-ingest-failures-*`), newest first. `?scanner=` is **required**, so no page or total ever mixes scanners; `days` (1–365, default 30) + optional `as_of` are the trend window — an append-only log, so a past `as_of` just ends the window at T (no 501). `size` 1–100 (default 25), cursor-paged by `search_after` **without a PIT** (a record written mid-walk lands ahead of the cursor). `{data, total: {value, relation}, next_cursor}`; each row: `@timestamp`, `failure_id` (also on the backend's `ingest rejected` log line), `scanner`, `stage`, `reason`, `status`, `error`, `image_ref`. Tampered cursor → 422 |
@@ -150,7 +150,7 @@ routes stay current-state-only).
 |---|---|---|---|
 | PATCH | `/api/v1/findings/{finding_key}/triage` | `can_triage` | One VEX-model transition (`state` ∈ open/acknowledged/not_affected/risk_accepted/resolved; `vex_justification` required iff `not_affected`); CAS'd on the doc; journaled (D17) |
 | POST | `/api/v1/findings/bulk-triage` | `can_triage` | **Bounded-synchronous** (A-Mc): frozen selector set ≤ `JAVV_BULK_INLINE_LIMIT` (5000) applies now; above → **413**; selector materializing > `JAVV_BULK_MAX_TARGETS` (10000) → **413** "selector too broad". Empty selector → 422. One journal row per action |
-| POST/GET | `/api/v1/decisions` | `can_triage` | Create / list decisions (ignore-rules etc.). **Immutable + lifecycle stamp** — edit = revoke+new. `risk_accepted` type additionally requires `can_accept_audit_final` (SEC-2 → 403 without it) |
+| POST/GET | `/api/v1/decisions` | `can_triage` | Create / list decisions (ignore-rules etc.). **Immutable + lifecycle stamp** — edit = revoke+new. `risk_accepted` type additionally requires `can_accept_audit_final` (SEC-2 → 403 without it). The list takes `cve_id`, `include_revoked` (default false) and `size` (≤500, default 50) / `offset` (≤10000) |
 | PATCH | `/api/v1/decisions/{decision_id}` | `can_triage` | The revoke+new edit (one `effective_at`/`operation_id`, D40) |
 | POST | `/api/v1/decisions/{decision_id}/revoke` | `can_triage` | Revoke (projection un-applies) |
 | GET | `/api/v1/decisions/approvals` | `can_accept_audit_final` | The approvals queue (security-lead view): ACTIVE risk-accepts, soonest expiry first, `size`/`offset` paging. Slice 4b filters, all server-side: `q` (CVE contains) · `status` (`active\|expiring\|expired\|open-ended`, derived from `expiry` at query time against `warn_days`, default 7 — mirrors the UI chip) · `created_by` · `scanner` (`both\|trivy\|grype`, the column value), each with an `exclude_*` twin (issue 349 negation — the vocabularies partition the queue, so excluding `expiring` yields the other three statuses, open-ended included; exclusions never lift the revoked-row guard). Response carries `facets` (status/created_by/scanner counts under the same lens) |

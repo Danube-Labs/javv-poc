@@ -34,7 +34,7 @@ from an env/secret and must change the password on first login - FR-18.)
   (each unique digest once) and namespace/label **exclusions** only (no skip-unchanged, no backend query -
   D30); bounded concurrency.
 - **FR-3 Ingest.** Scanner **normalizes** Trivy/Grype JSON into the shared shape (canonicalizing the severity
-  *vocabulary* to `crit/high/med/low` while **preserving the verbatim scanner word**) and pushes per-image,
+  *vocabulary* to the D46 full words `critical/high/medium/low/negligible/unknown` while **preserving the verbatim scanner word**) and pushes per-image,
   gzipped, retried (backoff+jitter, dead-letter), to `POST /api/v1/ingest/scan` over a private network with a
   per-`(cluster,scanner)` token. The endpoint **validates** the **versioned** envelope and **accepts the
   current envelope only, rejecting older with a clear 4xx** (D25/D35/D38 - N/N-1 dual-parse dropped); it is
@@ -89,7 +89,7 @@ from an env/secret and must change the password on first login - FR-18.)
 - **FR-7 Triage (VEX two-field model).** `state ∈ {open, acknowledged, not_affected, risk_accepted,
   resolved, stale}` + nullable `vex_justification` (CISA five; required iff `not_affected`). "False positive"
   = `not_affected` + component/code-not-present justification (UI chip). Notes; optimistic concurrency; bulk
-  via `_bulk` (202+async for large sets); each triage write is **CAS'd on the finding** and **every action
+  via `_bulk`, bounded-synchronous (up to `JAVV_BULK_INLINE_LIMIT` applies now, larger is a 413 - A-Mc); each triage write is **CAS'd on the finding** and **every action
   (incl. acknowledge/assign/note) appends one `system-audit-log` entry** (one per bulk action, recording the
   **frozen `target_ids`** of the affected set - not a selector or count - plus the finding's resulting
   **`revision`** so replay orders same-field edits causally, not by `event_id` - D38/H8, D40/H-r3) - D17.
@@ -145,8 +145,8 @@ from an env/secret and must change the password on first login - FR-18.)
   **Leaderboard window is bounded by `system-audit-log` retention** (kept long - §5.5b).
 - **FR-16 Notifications (MVP, per-user).** `system-notifications` populated with the user's SLA breaches +
   new assignments + ready exports; bell badge; polling (no broker).
-- **FR-17 Saved views (MVP, per-user).** `system-saved-views` named filter sets; deep-link into pre-filtered
-  Findings.
+- **FR-17 Saved views (MVP, shared).** `system-views` named filter sets, visible to every signed-in user;
+  only the owner or an admin can change or delete one (M8e/C-6); deep-link into pre-filtered Findings.
 - **FR-18 Auth/RBAC (capability-based - D33; lifecycle - SEC-5).** Local users (`system-users`, argon2id) +
   **server-side sessions** (`system-sessions`: httpOnly+Secure+SameSite cookie, TTL, revoke-on-role-change;
   one session per browser, **shared across tabs**) + **bootstrap admin** (mounted secret, seed-once,
