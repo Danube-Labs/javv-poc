@@ -87,6 +87,9 @@ def configure_logging(level: str | None = None) -> None:
         structlog.contextvars.merge_contextvars,
         structlog.processors.add_log_level,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
+        # exc_info → an `exception` traceback string. Must run before redaction: a raw exc_info
+        # renders as `true` (native) or an unwalked tuple repr (bridged) that redaction misses.
+        structlog.processors.format_exc_info,
         redact_processor,
         order_keys,
     ]
