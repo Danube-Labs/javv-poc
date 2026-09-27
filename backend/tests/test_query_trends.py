@@ -13,7 +13,11 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from backend.query.trends import build_findings_trend_body, build_scans_trend_body
+from backend.query.trends import (
+    build_findings_trend_body,
+    build_ingest_failures_trend_body,
+    build_scans_trend_body,
+)
 
 
 def _gte(days: int) -> str:
@@ -98,3 +102,44 @@ def test_findings_trend_scanner_scope_is_a_query_filter() -> None:
     assert "query" not in unscoped or not any(
         "scanner" in str(f) for f in unscoped.get("query", {}).get("bool", {}).get("filter", [])
     )
+
+
+def test_ingest_failures_trend_counts_refused_pushes_per_scanner_per_day() -> None:
+    """Issue 575: the strip under Scan ingest. Every refused push is one doc written once under
+    its own id, so the doc count IS the refusal count — and it matches the failed-ingests
+    table's total for the same window."""
+    body = build_ingest_failures_trend_body(days=30)
+    assert body["size"] == 0
+    by_scanner = body["aggs"]["by_scanner"]
+    assert by_scanner["terms"]["field"] == "scanner"  # one series per scanner, never merged
+    timeline = by_scanner["aggs"]["timeline"]
+    assert timeline["date_histogram"]["field"] == "@timestamp"  # stamped by the server here
+    assert timeline["date_histogram"]["min_doc_count"] == 0
+    assert "aggs" not in timeline  # a plain doc count, no sub-aggregation
+    assert body["query"]["bool"]["filter"] == [{"range": {"@timestamp": {"gte": _gte(30)}}}]
+
+
+@pytest.mark.parametrize("interval", ["day", "hour"])
+def test_ingest_failures_trend_shares_the_scan_ingest_axis(interval: str) -> None:
+    """Stacked under Scan ingest, a day must line up vertically across both strips: the same
+    bounds and bucket size for the same window, live or rewound."""
+    t = datetime(2026, 9, 20, 15, 30, tzinfo=UTC)
+    for anchor in (None, t):
+        fails = build_ingest_failures_trend_body(days=2, anchor=anchor, interval=interval)
+        scans = build_scans_trend_body(days=2, anchor=anchor, interval=interval)
+        f_dh = fails["aggs"]["by_scanner"]["aggs"]["timeline"]["date_histogram"]
+        s_dh = scans["aggs"]["by_scanner"]["aggs"]["timeline"]["date_histogram"]
+        assert {k: v for k, v in f_dh.items() if k != "field"} == {
+            k: v for k, v in s_dh.items() if k != "field"
+        }
+
+
+def test_ingest_failures_trend_anchored_window_ends_at_t() -> None:
+    t = datetime(2026, 9, 20, 15, 30, tzinfo=UTC)
+    body = build_ingest_failures_trend_body(days=7, anchor=t)
+    window = body["query"]["bool"]["filter"][0]["range"]["@timestamp"]
+    assert window == {"gte": "2026-09-13", "lte": t.isoformat()}  # later refusals stay out
+    with pytest.raises(ValueError):
+        build_ingest_failures_trend_body(days=0)
+    with pytest.raises(ValueError):
+        build_ingest_failures_trend_body(days=1, interval="minute")
