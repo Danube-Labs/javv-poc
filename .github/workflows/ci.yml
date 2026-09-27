@@ -430,3 +430,18 @@ jobs:
       - name: Backend log on failure
         if: failure() && steps.detect.outputs.present == 'true'
         run: tail -100 /tmp/backend.log
+
+  dependency-audit:
+    # Issue 552: pip-audit (backend, scanner, libs) and npm audit (frontend) on every PR and push.
+    # REPORT-ONLY by operator ruling: the findings land in this job's summary, split production vs
+    # dev-only, and the job never fails (development/standards/dependency-policy.md). The same
+    # script runs locally.
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+      - name: Audit dependencies (report-only)
+        run: development/scripts/dependency-audit.sh >> "$GITHUB_STEP_SUMMARY"
