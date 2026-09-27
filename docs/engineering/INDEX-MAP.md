@@ -380,10 +380,10 @@ expires_at        date          TTL
 revoked           boolean       revoke-on-role-change / logout-all
 ```
 
-### `system-config` · `system-tags` (planned) · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks` · `system-jobs`
+### `system-config` · `system-tags` · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks` · `system-jobs`
 ```
 # system-config        : SLA policy, rollover/retention/staleness settings, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c)
-# system-tags          : { tag, kind: team|app|org, ... }   (planned: not created by bootstrap yet)
+# system-tags          : { tag, kind: team|app|org, ... }
 # system-views         : { view_id, name, description, preset, workbench, owner, created_at,
 #                          updated_at, schema_version }
 #                          (schema v2, M9f slice 4: `workbench` = the findings-table capture —
