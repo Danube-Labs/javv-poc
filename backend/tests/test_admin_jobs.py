@@ -2,7 +2,9 @@
 (409 while a fresh lease runs, reclaim past a stale one), the journaled trigger, and a real
 staleness run to a `done` doc with counts, and the lifecycle dry run (issue 459 — inline 200,
 no lease, journaled). Real OpenSearch; only the light, convergent staleness sweep and the
-write-nothing dry run ever actually execute here."""
+write-nothing dry run ever actually execute here, and the sweep runs over a private prefixed store
+(`private_sweep`): unscoped, it walked every tenant in the shared dev store and wrote real `stale`
+states into its findings (issue 550)."""
 
 import asyncio
 import contextlib
@@ -17,6 +19,7 @@ from opensearchpy import AsyncOpenSearch
 from opensearchpy.exceptions import ConnectionError as OpenSearchConnectionError
 
 from backend.auth.passwords import hash_password
+from backend.jobs.staleness import run_staleness_sweep
 from backend.main import create_app
 from backend.routers import admin_jobs
 from os_env import OS_URL, requires_opensearch
@@ -41,6 +44,19 @@ async def env():
             await client.delete(index=JOBS, id=kind, params={"refresh": "true"})
     await http.aclose()
     await client.close()
+
+
+@pytest.fixture
+def private_sweep(real_os, monkeypatch):
+    """The route, lease and journal stay real; only the sweep's DATA moves to the test's own
+    prefixed store, so a trigger never touches another tenant's findings."""
+    _, prefix = real_os
+    capability = admin_jobs.JOB_KINDS["staleness_sweep"][0]
+
+    async def _run(client: AsyncOpenSearch) -> dict[str, Any]:
+        return dict(await run_staleness_sweep(client, prefix=prefix))
+
+    monkeypatch.setitem(admin_jobs.JOB_KINDS, "staleness_sweep", (capability, _run))
 
 
 async def _login(http: httpx.AsyncClient, client: AsyncOpenSearch, capabilities: list[str]) -> str:
@@ -78,7 +94,7 @@ def _running_doc(heartbeat_at: str) -> dict[str, Any]:
     }
 
 
-async def test_staleness_trigger_runs_to_done_and_is_journaled(env):
+async def test_staleness_trigger_runs_to_done_and_is_journaled(env, private_sweep):
     http, client = env
     actor = await _login(http, client, ["can_manage_settings"])
     r = await http.post("/api/v1/admin/jobs/staleness_sweep/run")
@@ -125,7 +141,7 @@ async def test_fresh_lease_409s_a_second_trigger(env):
     assert "already running" in r.json()["title"]
 
 
-async def test_stale_lease_is_reclaimable(env):
+async def test_stale_lease_is_reclaimable(env, private_sweep):
     http, client = env
     await _login(http, client, ["can_manage_settings"])
     old = (datetime.now(UTC) - timedelta(hours=1)).isoformat()

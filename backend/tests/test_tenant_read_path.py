@@ -10,7 +10,7 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.core.bootstrap import bootstrap
 from backend.tenancy.read_path import tenant_query, tenant_search
-from os_env import OS_URL, requires_opensearch
+from os_env import OS_URL, drop_prefix, requires_opensearch
 
 FILTER = {"term": {"cluster_id": "c-1"}}
 
@@ -101,5 +101,5 @@ async def test_tenant_search_never_returns_another_clusters_rows() -> None:
         assert keys == {"f-a"}  # c-b's row is structurally unreachable
     finally:
         with contextlib.suppress(Exception):
-            await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
+            await drop_prefix(client, prefix)
         await client.close()

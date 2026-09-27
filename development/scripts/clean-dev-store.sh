@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 #
 # Dev-store test-residue sweep (#410 §5, second-bite rule). The backend pytest suite runs against
-# the shared dev OpenSearch and leaves debris that poisons later suites and demos: `t-<hex>-*`
-# prefix-isolated indices (only on fixture crashes), `javv-*-c-*` series for throwaway `c-*` test
+# the shared dev OpenSearch and leaves debris that poisons later suites and demos: `t-<hex>-*` and
+# `pytest-<hex>-*` prefix-isolated indices and index templates (only on fixture crashes since
+# issue 550; before it every run leaked ~1,236 templates, and 51k of them made the store ~5x
+# slower per test), `javv-*-c-*` series for throwaway `c-*` test
 # clusters, `nu-*`/`ext-*`/`0-list-*`/`u-*` users, `rt-*` saved-view docs, cluster-scoped config
 # docs for test clusters, and `c-*`-tenant rows in the mutable caches.
 #
@@ -22,7 +24,7 @@ APPLY=0
 say() { printf '%s\n' "$*"; }
 
 # --- 1. whole residue indices -------------------------------------------------------------
-for pattern in "t-*" "javv-*-c-*"; do
+for pattern in "t-*" "pytest-*" "restored-pytest-*" "javv-*-c-*"; do
   hits=$(curl -s "$OS_URL/_cat/indices/$pattern?h=index" 2>/dev/null | grep -v '^\.' || true)
   if [ -n "$hits" ]; then
     say "indices matching $pattern:"
@@ -34,6 +36,16 @@ for pattern in "t-*" "javv-*-c-*"; do
     fi
   else
     say "indices matching $pattern: none"
+  fi
+done
+
+# --- 1b. prefix-isolated index templates (the real ones are javv-* and system-*) -----------
+for pattern in "t-*" "pytest-*"; do
+  n=$(curl -s "$OS_URL/_index_template" | jq --arg p "${pattern%\*}" \
+    '[.index_templates[].name | select(startswith($p))] | length')
+  say "index templates matching $pattern: $n"
+  if [ "$APPLY" = 1 ] && [ "$n" -gt 0 ]; then
+    curl -s -XDELETE "$OS_URL/_index_template/$pattern" >/dev/null && say "  deleted $n"
   fi
 done
 

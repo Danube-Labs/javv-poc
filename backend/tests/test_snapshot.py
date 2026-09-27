@@ -19,7 +19,7 @@ from backend.admin.snapshot import (
     write_snapshot_repo_ref,
 )
 from backend.core.bootstrap import MUTABLE_INDEXES, bootstrap
-from os_env import OS_URL, requires_opensearch
+from os_env import OS_URL, drop_prefix, requires_opensearch
 
 # --- unit: the ref model can't carry credentials ----------------------------
 
@@ -98,17 +98,14 @@ def test_system_config_is_bootstrapped() -> None:
 
 @pytest.fixture
 async def client():
-    from opensearchpy import AsyncOpenSearch, NotFoundError
+    from opensearchpy import AsyncOpenSearch
 
     c = AsyncOpenSearch(hosts=[OS_URL])
     p = f"pytest-{uuid4().hex[:8]}-"
     try:
         yield c, p
     finally:
-        import contextlib
-
-        with contextlib.suppress(NotFoundError):
-            await c.indices.delete(index=f"{p}*")
+        await drop_prefix(c, p)
         await c.close()
 
 

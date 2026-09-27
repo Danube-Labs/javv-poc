@@ -106,10 +106,17 @@ paging/filtering asserted on the NETWORK — cursor + filter params must ride ba
 - A bug fix starts with a **failing test that reproduces it**, then the fix (TDD).
 - Tests assert **behavior/contract**, not internal call shapes, except for DSL-builder unit tests (whose
   contract *is* the emitted body).
-- **Suite budget (#221):** full backend suite **< 90 s local / < 3 min in CI**. Bootstrap runs ONCE per
-  session (`tests/conftest.py`); a new test file must not re-run `bootstrap()`/`seed_default_roles()` per
-  test on the shared indices. If the suite drifts past the bar, that's a named regression — profile with
-  `--durations=25` before adding capacity.
+- **Suite budget (#221, re-set from measurements in issue 550):** the backend Pytest step **< 5 min in
+  CI** (162–257 s on `main`, 2026-09-27) and CI's own command locally (`pytest -n 2 -m "not serial"`,
+  then `-m serial`) **< 7 min** (347 s on the dev store after the issue 550 fix). The old "< 90 s local"
+  was never met. Bootstrap runs ONCE per session (`tests/conftest.py`); a new test file must not re-run
+  `bootstrap()`/`seed_default_roles()` per test on the shared indices. If the suite drifts past the bar,
+  that's a named regression — profile with `--durations=25` before adding capacity.
+- **A prefixed bootstrap tears down with `drop_prefix` (`tests/os_env.py`, issue 550).** It removes
+  the prefix's indices AND its index templates; templates outlive their indices. Teardowns that
+  dropped only indices leaked ~1,236 templates per local run into the shared dev store, and 51k of
+  them made every later test ~5× slower there while CI (always an empty store) never noticed.
+  `real_os` already does this; a hand-rolled prefix fixture must call it too.
 - **Store-exclusive tests get `@pytest.mark.serial`.** A test that mutates GLOBAL store state other
   tests depend on (disabling every enabled admin, wiping a shared index) poisons concurrent tests
   under `-n N` — this broke main's CI 2026-07-07 (an admin demote-race test 401'd a concurrent

@@ -25,7 +25,7 @@ from backend.admin.snapshot import (
     write_snapshot_repo_ref,
 )
 from backend.core.bootstrap import bootstrap
-from os_env import OS_URL, requires_opensearch
+from os_env import OS_URL, drop_prefix, requires_opensearch
 
 # fs repo root configured via path.repo on the cluster; each drill uses a unique subdir under it
 PATH_REPO = os.environ.get("JAVV_SNAPSHOT_PATH_REPO", "/usr/share/opensearch/data/snapshots")
@@ -47,9 +47,9 @@ async def drill():
             await c.snapshot.delete(repository=repo, snapshot="_all")
         with contextlib.suppress(NotFoundError):
             await c.snapshot.delete_repository(repository=repo)
-        for pattern in (f"{prefix}*", f"restored-{prefix}*"):
-            with contextlib.suppress(NotFoundError):
-                await c.indices.delete(index=pattern)
+        await drop_prefix(c, prefix)
+        with contextlib.suppress(NotFoundError):  # restores bring indices back, never templates
+            await c.indices.delete(index=f"restored-{prefix}*")
         await c.close()
 
 

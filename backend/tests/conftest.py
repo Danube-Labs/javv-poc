@@ -20,7 +20,7 @@ from uuid import uuid4
 import httpx
 import pytest
 
-from os_env import OS_URL, opensearch_up
+from os_env import OS_URL, drop_prefix, opensearch_up
 
 
 async def _bootstrap_once() -> None:
@@ -47,9 +47,9 @@ def shared_bootstrap() -> None:
 
 @pytest.fixture
 async def real_os():
-    """A prefix-isolated store: private `t-*` indices bootstrapped for this test alone, deleted
-    on teardown. The suite-wide convention for anything that mutates index-level state (#368
-    dedup — this was copy-pasted into 23 files)."""
+    """A prefix-isolated store: private `t-*` indices and templates bootstrapped for this test
+    alone, both dropped on teardown. The suite-wide convention for anything that mutates
+    index-level state (#368 dedup — this was copy-pasted into 23 files)."""
     from opensearchpy import AsyncOpenSearch
 
     from backend.core.bootstrap import bootstrap
@@ -59,7 +59,7 @@ async def real_os():
     await bootstrap(client, prefix=prefix)
     yield client, prefix
     with contextlib.suppress(Exception):
-        await client.indices.delete(index=f"{prefix}*", params={"expand_wildcards": "all"})
+        await drop_prefix(client, prefix)
     await client.close()
 
 
