@@ -21,9 +21,13 @@ BRANCH="main"
 REVIEWS=0                       # required approving reviews. 0 while solo/2-dev (CI + PR only;
                                 # you can't approve your own PR) — raise to 1 with a second reviewer.
 ENFORCE_ADMINS=false            # true = even admins must go through PRs (no break-glass).
-# Must match the job `name:` fields in ci.yml exactly. All six always run (detect-step
-# pattern), so all six can be required.
-REQUIRED_CHECKS=("Backend" "Backend static" "Frontend" "Scanner" "javv-common (shared lib)" "Commitlint")
+# Must match the job `name:` fields in ci.yml exactly. All seven always run (detect-step
+# pattern), so all seven can be required. "Frontend smoke" joined on issue 552 (2026-09-27): it
+# had passed on every PR without blocking a merge.
+REQUIRED_CHECKS=(
+  "Backend" "Backend static" "Frontend" "Frontend smoke" "Scanner" "javv-common (shared lib)"
+  "Commitlint"
+)
 # ----------------------------------------------------------------------------
 
 if ! gh auth status >/dev/null 2>&1; then
