@@ -28,13 +28,16 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
 
 ### CI enforcement gaps (from the 2026-06-24 dev-process review)
 
-- [ ] **C3 — coverage ratchet.** Still a TODO comment in `.github/workflows/ci.yml`. Add
+- [x] **C3 — coverage ratchet.** Add
   `pytest --cov --cov-fail-under=<current>` (+ Vitest `coverage.thresholds` when `frontend/`
   exists); ideally patch coverage (≥ ~85% on changed lines) so new code must be tested while
-  legacy gaps don't block.
-- [ ] **I7 — FE↔BE contract gate.** CI step that regenerates the `@hey-api/openapi-ts` client and
-  fails on non-empty `git diff`. **Owner: M9a** (already a named deliverable there; the ci.yml TODO
-  is the reminder).
+  legacy gaps don't block. **Done (#383, checked 2026-09-27):** the backend Pytest step runs
+  `--cov-fail-under=90` (`.github/workflows/ci.yml`), and `frontend/vitest.config.ts` sets
+  `coverage.thresholds.lines`. Patch coverage (the "ideally" part) was not built.
+- [x] **I7 — FE↔BE contract gate.** CI step that regenerates the `@hey-api/openapi-ts` client and
+  fails on non-empty `git diff`. **Done (checked 2026-09-27):** the Frontend job in
+  `.github/workflows/ci.yml` re-exports `frontend/openapi.json` from the backend and re-runs
+  `npm run gen:api`, failing with a named error if either differs from what is committed.
 - [ ] **I8 — OpenAPI breaking-change check.** `oasdiff`-style classifier on PRs (fail only on
   breaking deltas, not additive). Unowned; lands naturally alongside I7 in M9a.
 - [ ] **I9 (residual) — `_reindex` migration test.** Mapping-vs-INDEX-MAP drift *is* covered by the
@@ -52,8 +55,11 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
 ### Missing standards docs (N1 residue)
 
 - [ ] `code-review.md` — DoD §7 mandates a review pass but defines no rubric.
-- [ ] `security.md` — threat model for the untrusted ingest surface, secret handling, dep-vuln SLA.
-- [ ] `dependency-policy.md` — how fast a security bump merges; auto-merge rules for grouped dev deps.
+- [x] `security.md` — threat model for the untrusted ingest surface, secret handling, dep-vuln SLA.
+  **Done (issue 552):** `development/standards/security.md`; the SLA is in `dependency-policy.md`.
+- [x] `dependency-policy.md` — how fast a security bump merges; auto-merge rules for grouped dev deps.
+  **Done (issue 552):** `development/standards/dependency-policy.md` (7 days for critical/high in
+  production dependencies; nothing auto-merges).
 
 ### Standing process (tracked live on [#134 risk register](https://github.com/Danube-Labs/javv-poc/issues/134) — OPEN)
 
