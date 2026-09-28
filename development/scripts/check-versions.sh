@@ -25,7 +25,7 @@ uv=$(yq -r '.toolchain.uv' "$V")
 node=$(yq -r '.toolchain.node' "$V")
 # Python has no versions.yaml entry: Renovate bumps the .python-version files and the Dockerfile
 # ARG in one PR, so backend/.python-version is the reference the other copies must equal.
-# --fix drops a Dockerfile's base-image digest (it belongs to the old tag); Renovate re-pins it.
+# --fix drops a Dockerfile image's digest (it belongs to the old tag); Renovate re-pins it.
 python=$(cat backend/.python-version)
 
 fail=0
@@ -52,10 +52,10 @@ check "Dockerfile.trivy ARG" "$trivy" scanner/Dockerfile.trivy \
   'ARG TRIVY_VERSION=\K[0-9.]+' "s/^ARG TRIVY_VERSION=.*/ARG TRIVY_VERSION=$trivy/"
 check "Dockerfile.grype ARG" "$grype" scanner/Dockerfile.grype \
   'ARG GRYPE_VERSION=\K[0-9.]+' "s/^ARG GRYPE_VERSION=.*/ARG GRYPE_VERSION=$grype/"
-check "Dockerfile.trivy uv ARG" "$uv" scanner/Dockerfile.trivy \
-  'ARG UV_VERSION=\K[0-9.]+' "s/^ARG UV_VERSION=.*/ARG UV_VERSION=$uv/"
-check "Dockerfile.grype uv ARG" "$uv" scanner/Dockerfile.grype \
-  'ARG UV_VERSION=\K[0-9.]+' "s/^ARG UV_VERSION=.*/ARG UV_VERSION=$uv/"
+check "Dockerfile.trivy uv image" "$uv" scanner/Dockerfile.trivy \
+  'astral-sh/uv:\K[0-9.]+' "s#astral-sh/uv:[^ ]+#astral-sh/uv:$uv#"
+check "Dockerfile.grype uv image" "$uv" scanner/Dockerfile.grype \
+  'astral-sh/uv:\K[0-9.]+' "s#astral-sh/uv:[^ ]+#astral-sh/uv:$uv#"
 check "opensearch dev compose" "$opensearch" development/setup/opensearch-dev.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 check "opensearch CI service" "$opensearch" .github/workflows/ci.yml \

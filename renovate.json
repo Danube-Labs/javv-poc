@@ -24,14 +24,6 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+\\S+:\\s*\"(?<currentValue>[^\"]+)\""
       ]
-    },
-    {
-      "description": "Annotated ARG pins in the scanner Dockerfiles (uv); same depName as versions.yaml, so both move in one PR",
-      "customType": "regex",
-      "managerFilePatterns": ["/^scanner/Dockerfile\\.[a-z]+$/"],
-      "matchStrings": [
-        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+ARG \\S+=(?<currentValue>\\S+)"
-      ]
     }
   ],
   "packageRules": [
@@ -45,6 +37,11 @@
       "matchUpdateTypes": ["minor", "patch"],
       "matchDepTypes": ["devDependencies"],
       "groupName": "dev-dependencies (non-major)"
+    },
+    {
+      "description": "uv moves as one PR: versions.yaml (GitHub release) plus the uv image the scanner Dockerfiles copy from, which check-versions.sh holds equal",
+      "matchPackageNames": ["astral-sh/uv", "ghcr.io/astral-sh/uv"],
+      "groupName": "uv"
     },
     {
       "description": "Node moves as one PR: versions.yaml plus each CI setup-node, which check-versions.sh holds equal and the github-actions group would otherwise take",
@@ -73,9 +70,9 @@
       "allowedVersions": "<3.13"
     },
     {
-      "description": "The scanner images' python base stays pinned by digest; Renovate re-pins it if an edit (check-versions.sh --fix) drops the digest",
+      "description": "The scanner images' python base and uv image stay pinned by digest; Renovate re-pins one if an edit (check-versions.sh --fix) drops the digest",
       "matchDatasources": ["docker"],
-      "matchPackageNames": ["python"],
+      "matchPackageNames": ["python", "ghcr.io/astral-sh/uv"],
       "pinDigests": true
     },
     {

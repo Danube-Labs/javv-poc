@@ -48,16 +48,24 @@ jobs:
         include: ${{ fromJson(needs.matrix.outputs.include) }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      # Binaries come out of the vendors' official images (what the scanner Dockerfiles copy
+      # from), not a piped install script.
       - name: Install trivy ${{ matrix.version }}
         if: matrix.scanner == 'trivy'
+        env:
+          VERSION: ${{ matrix.version }}
         run: |
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-            | sh -s -- -b /usr/local/bin "v${{ matrix.version }}"
+          cid=$(docker create "aquasec/trivy:${VERSION}")
+          docker cp "$cid:/usr/local/bin/trivy" trivy && docker rm "$cid" >/dev/null
+          sudo install -m 0755 trivy /usr/local/bin/trivy && rm trivy
       - name: Install grype ${{ matrix.version }}
         if: matrix.scanner == 'grype'
+        env:
+          VERSION: ${{ matrix.version }}
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh \
-            | sh -s -- -b /usr/local/bin "v${{ matrix.version }}"
+          cid=$(docker create "anchore/grype:v${VERSION}")
+          docker cp "$cid:/grype" grype && docker rm "$cid" >/dev/null
+          sudo install -m 0755 grype /usr/local/bin/grype && rm grype
       - name: Read uv pin from versions.yaml (D42)
         id: uv
         run: echo "version=$(yq -r '.toolchain.uv' versions.yaml)" >> "$GITHUB_OUTPUT"
@@ -151,14 +159,17 @@ jobs:
           GIT_SHA: ${{ steps.vars.outputs.sha }}
 
       # Supply-chain (M0b DoD): SBOM + a scan of our OWN published images. Report-only (never blocks the
-      # publish); both are uploaded as a CI artifact. Signing (cosign) is deliberately deferred until the
-      # repo/images are public — tracked on #60.
-      - name: Install syft + grype (versions.yaml)
+      # publish); both are uploaded as a CI artifact. Signing (cosign) is not wired yet — issue 74.
+      - name: Install syft + grype (versions.yaml, from their official images)
         run: |
           syft=$(yq -r '.supply_chain.syft' versions.yaml)
           grype=$(yq -r '.scanners.grype.current' versions.yaml)
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh  | sh -s -- -b /usr/local/bin "v$syft"
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin "v$grype"
+          for pair in "syft:anchore/syft:v$syft" "grype:anchore/grype:v$grype"; do
+            bin=${pair%%:*}; img=${pair#*:}
+            cid=$(docker create "$img")
+            docker cp "$cid:/$bin" "$bin" && docker rm "$cid" >/dev/null
+            sudo install -m 0755 "$bin" "/usr/local/bin/$bin" && rm "$bin"
+          done
 
       - name: SBOM + self-scan (report-only)
         env:
