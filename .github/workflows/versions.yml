@@ -1,8 +1,10 @@
 name: Versions drift
 
 # D42: versions.yaml is the single source of truth for externally-owned tool/service versions.
-# Consumers (scanner Dockerfiles, dev OpenSearch compose) keep a literal pin so they work
-# standalone; this gate fails if any consumer drifts from versions.yaml. Fix: check-versions.sh --fix.
+# Consumers (scanner Dockerfiles, dev OpenSearch compose, CI service images and setup-node, the
+# pyproject ruff/pyright pins) keep a literal pin so they work standalone; this gate fails if any
+# consumer drifts from versions.yaml, or a Python copy from backend/.python-version.
+# Fix: check-versions.sh --fix.
 
 on:
   pull_request:
@@ -14,12 +16,25 @@ on:
       - 'development/scripts/check-scanner-db-policy.sh'
       - '.github/workflows/versions.yml'
       - '.github/workflows/clock-drift.yml'
+      - '.github/workflows/ci.yml'
+      - 'backend/pyproject.toml'
+      - 'scanner/pyproject.toml'
+      - 'libs/javv-common/pyproject.toml'
+      - 'backend/.python-version'
+      - 'scanner/.python-version'
   push:
     branches: [main]
     paths:
       - 'versions.yaml'
       - 'scanner/Dockerfile.*'
       - 'development/setup/opensearch-dev.yml'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/clock-drift.yml'
+      - 'backend/pyproject.toml'
+      - 'scanner/pyproject.toml'
+      - 'libs/javv-common/pyproject.toml'
+      - 'backend/.python-version'
+      - 'scanner/.python-version'
 
 permissions:
   contents: read

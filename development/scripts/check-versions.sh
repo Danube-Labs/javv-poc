@@ -21,20 +21,26 @@ grype=$(yq -r '.scanners.grype.current' "$V")
 opensearch=$(yq -r '.datastore.opensearch' "$V")
 ruff=$(yq -r '.toolchain.ruff' "$V")
 pyright=$(yq -r '.toolchain.pyright' "$V")
+node=$(yq -r '.toolchain.node' "$V")
+# Python has no versions.yaml entry: Renovate bumps the .python-version files and the Dockerfile
+# ARG in one PR, so backend/.python-version is the reference the other copies must equal.
+python=$(cat backend/.python-version)
 
 fail=0
+src=$V  # what the DRIFT line names as the reference
 # name | source-of-truth value | file | sed-match (extract) | sed-replace (for --fix)
 check() {
   local name="$1" want="$2" file="$3" extract="$4" replace="$5"
   local have
-  have=$(grep -oPm1 "$extract" "$file" || true)
+  # Every match, not just the first: a file can repeat a pin (two OpenSearch services in ci.yml).
+  have=$(grep -oP "$extract" "$file" | sort -u | paste -sd, || true)
   if [ "$have" = "$want" ]; then
     printf '  \033[1;32mok\033[0m   %-26s %s\n' "$name" "$want"
   elif [ "$FIX" -eq 1 ]; then
     sed -i -E "$replace" "$file"
     printf '  \033[1;33mfixed\033[0m %-26s %s -> %s\n' "$name" "$have" "$want"
   else
-    printf '  \033[1;31mDRIFT\033[0m %-26s versions.yaml=%s but %s has %s\n' "$name" "$want" "$file" "$have"
+    printf '  \033[1;31mDRIFT\033[0m %-26s %s=%s but %s has %s\n' "$name" "$src" "$want" "$file" "$have"
     fail=1
   fi
 }
@@ -63,6 +69,19 @@ check "javv-common ruff pin" "$ruff" libs/javv-common/pyproject.toml \
   'ruff==\K[0-9.]+' "s/ruff==[0-9.]+/ruff==$ruff/"
 check "javv-common pyright pin" "$pyright" libs/javv-common/pyproject.toml \
   'pyright==\K[0-9.]+' "s/pyright==[0-9.]+/pyright==$pyright/"
+# Node is a manual major-only bump (no Renovate annotation in versions.yaml). frontend/package.json
+# `engines` is a range, not a pin, so it isn't checked here.
+check "ci.yml setup-node" "$node" .github/workflows/ci.yml \
+  "node-version: '\K[0-9]+" "s/node-version: '[0-9]+'/node-version: '$node'/"
+check "clock-drift setup-node" "$node" .github/workflows/clock-drift.yml \
+  "node-version: '\K[0-9]+" "s/node-version: '[0-9]+'/node-version: '$node'/"
+src=backend/.python-version
+check "scanner .python-version" "$python" scanner/.python-version \
+  '^\K[0-9.]+' "s/^[0-9.]+$/$python/"
+check "Dockerfile.trivy python" "$python" scanner/Dockerfile.trivy \
+  'ARG PYTHON_VERSION=\K[0-9.]+' "s/^ARG PYTHON_VERSION=.*/ARG PYTHON_VERSION=$python/"
+check "Dockerfile.grype python" "$python" scanner/Dockerfile.grype \
+  'ARG PYTHON_VERSION=\K[0-9.]+' "s/^ARG PYTHON_VERSION=.*/ARG PYTHON_VERSION=$python/"
 
 if [ "$fail" -ne 0 ]; then
   echo
