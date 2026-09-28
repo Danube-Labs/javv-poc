@@ -262,6 +262,8 @@ async def test_the_file_carries_the_lens_and_only_this_tenant(env) -> None:
     assert r.status_code == 422
 
 
+# serial: counts every open PIT in the store, so another worker's live PIT breaks the equality
+@pytest.mark.serial
 async def test_over_the_cap_is_413_before_any_pit_and_the_sweep_cleans_up(env, monkeypatch) -> None:
     """The pre-count runs before a PIT opens (audit A-M6), so an oversized lens costs one count
     and no sweep. Ops parity: the 413 logs a warning AND bumps LIMIT_REJECTIONS."""
