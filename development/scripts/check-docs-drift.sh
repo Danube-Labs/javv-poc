@@ -6,6 +6,8 @@
 #   2. docs/CONFIGURATION.md env rows vs backend/src/backend/core/settings.py — every
 #      `JAVV_<FIELD>` named in the doc corresponds to a settings field or a literal in code;
 #      every settings field is mentioned in the doc.
+#   3. REPO-MAP.md inventory — every workflow file, every ci.yml job name, and every file in
+#      development/scripts/ and development/standards/ is named in it.
 #
 # Usage: development/scripts/check-docs-drift.sh [path-to-openapi.json]
 # Without an argument it exports a fresh spec via the backend venv (needs deps installed).
@@ -63,9 +65,27 @@ if phantom:
 if undocumented:
     failures.append('settings.py fields with no CONFIGURATION.md row:\n  ' + '\n  '.join(undocumented))
 
+import os
+repo_map = open('REPO-MAP.md').read()
+norm = lambda t: re.sub(r'[\s-]+', ' ', t).strip().lower()
+repo_map_norm = norm(repo_map)
+unmapped = [f'.github/workflows/{f}' for f in sorted(os.listdir('.github/workflows'))
+            if f.endswith(('.yml', '.yaml')) and f not in repo_map]
+# a job's display name, minus any "(...)" note: "javv-common (shared lib)" -> "javv-common"
+for name in re.findall(r'^  [\w-]+:\n(?:    .*\n)*?    name: (.+)$', open('.github/workflows/ci.yml').read(), re.M):
+    name = re.sub(r'\s*\(.*\)$', '', name).strip()
+    if norm(name) not in repo_map_norm:
+        unmapped.append(f'ci.yml job "{name}"')
+for folder in ('development/scripts', 'development/standards'):
+    for f in sorted(os.listdir(folder)):
+        if f != 'README.md' and f.removesuffix('.md') not in repo_map:
+            unmapped.append(f'{folder}/{f}')
+if unmapped:
+    failures.append('in the repo but not named in REPO-MAP.md:\n  ' + '\n  '.join(unmapped))
+
 if failures:
     print('DOCS DRIFT DETECTED\n')
     print('\n\n'.join(failures))
     sys.exit(1)
-print(f'docs in sync: {len(live)} routes documented, {len(fields)} settings fields tracked')
+print(f'docs in sync: {len(live)} routes documented, {len(fields)} settings fields tracked, REPO-MAP inventory complete')
 EOF

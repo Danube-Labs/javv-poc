@@ -155,7 +155,8 @@ jobs:
         working-directory: backend
         run: uv run pyright
 
-      # Docs-drift gate (#410): API.md route table + CONFIGURATION.md env rows vs code
+      # Docs-drift gate (#410): API.md route table + CONFIGURATION.md env rows vs code, and
+      # REPO-MAP.md naming every workflow, ci.yml job, script and standard
       - name: Docs drift
         if: steps.detect.outputs.present == 'true'
         run: bash development/scripts/check-docs-drift.sh
