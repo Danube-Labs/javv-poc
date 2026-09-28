@@ -49,5 +49,15 @@ toolchain:
   pyright: "1.1.411"
   # renovate: datasource=pypi depName=pre-commit
   pre-commit: "4.6.0"
-  # major-only LTS — manual bump (no Renovate annotation); CI's setup-node repeats it, drift-checked
+  # major-only LTS; CI's setup-node repeats it (drift-checked). Majors wait for dashboard approval.
+  # renovate: datasource=node-version depName=node
   node: "22"
+
+# CI supply-chain tools: the Secret scan job's gitleaks (ci.yml) and the scanner-images SBOM step's
+# syft. CI reads these directly. A gitleaks bump also needs GITLEAKS_SHA256 in ci.yml, from the
+# release's checksums.txt; the Secret scan job fails until it matches.
+supply_chain:
+  # renovate: datasource=github-releases depName=gitleaks/gitleaks extractVersion=^v(?<version>.+)$
+  gitleaks: "8.30.1"
+  # renovate: datasource=github-releases depName=anchore/syft extractVersion=^v(?<version>.+)$
+  syft: "1.52.0"

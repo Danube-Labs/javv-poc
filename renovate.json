@@ -23,6 +23,14 @@
       "matchStrings": [
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\s+\\S+:\\s*\"(?<currentValue>[^\"]+)\""
       ]
+    },
+    {
+      "description": "Annotated ARG pins in the scanner Dockerfiles (uv); same depName as versions.yaml, so both move in one PR",
+      "customType": "regex",
+      "managerFilePatterns": ["/^scanner/Dockerfile\\.[a-z]+$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\s+ARG \\S+=(?<currentValue>\\S+)"
+      ]
     }
   ],
   "packageRules": [
@@ -36,6 +44,11 @@
       "matchUpdateTypes": ["minor", "patch"],
       "matchDepTypes": ["devDependencies"],
       "groupName": "dev-dependencies (non-major)"
+    },
+    {
+      "description": "Node moves as one PR: versions.yaml plus each CI setup-node, which check-versions.sh holds equal and the github-actions group would otherwise take",
+      "matchPackageNames": ["node"],
+      "groupName": "node"
     },
     {
       "description": "OpenSearch moves as one PR: versions.yaml plus every consumer check-versions.sh checks, including the CI service images the github-actions group would otherwise take",
