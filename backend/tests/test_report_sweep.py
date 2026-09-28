@@ -24,7 +24,9 @@ from backend.reports.models import (
 )
 from os_env import OS_URL, requires_opensearch
 
-pytestmark = requires_opensearch
+# serial: sweep() deletes every expired report in the shared store, including ones another
+# worker's test just seeded (test_report_download's expired-report 410 case read a 404).
+pytestmark = [requires_opensearch, pytest.mark.serial]
 
 
 @pytest.fixture
