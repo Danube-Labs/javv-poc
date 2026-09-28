@@ -100,6 +100,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write   # keyless cosign: the signing certificate comes from this job's OIDC token
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -151,15 +152,17 @@ jobs:
 
       - name: Push the smoked matrix
         working-directory: scanner
-        run: docker buildx bake --allow=fs.read=.. -f docker-bake.hcl --push   # cache hit — just pushes the smoked layers
+        # cache hit — just pushes the smoked layers; the metadata file records each pushed digest
+        run: docker buildx bake --allow=fs.read=.. -f docker-bake.hcl --push --metadata-file "$RUNNER_TEMP/bake-meta.json"
         env:
           REGISTRY: ${{ steps.vars.outputs.registry }}
           TRIVY_VERSIONS: ${{ steps.vars.outputs.trivy }}
           GRYPE_VERSIONS: ${{ steps.vars.outputs.grype }}
           GIT_SHA: ${{ steps.vars.outputs.sha }}
 
-      # Supply-chain (M0b DoD): SBOM + a scan of our OWN published images. Report-only (never blocks the
-      # publish); both are uploaded as a CI artifact. Signing (cosign) is not wired yet — issue 74.
+      # Supply-chain (M0b DoD, issue 74): an SBOM + a report-only self-scan of each pushed image, then a
+      # keyless cosign signature + signed SBOM attestation. Everything works on the pushed DIGEST
+      # (from the bake metadata), never a tag, so what is signed is exactly what was pushed.
       - name: Install syft + grype (versions.yaml, from their official images)
         run: |
           syft=$(yq -r '.supply_chain.syft' versions.yaml)
@@ -171,22 +174,36 @@ jobs:
             sudo install -m 0755 "$bin" "/usr/local/bin/$bin" && rm "$bin"
           done
 
-      - name: SBOM + self-scan (report-only)
-        env:
-          REGISTRY: ${{ steps.vars.outputs.registry }}
+      - name: SBOM + self-scan (report-only) of each pushed digest
+        id: sbom
         run: |
           mkdir -p sbom scan
-          json=$(yq -o=json versions.yaml)
-          for scanner in trivy grype; do
-            for v in $(echo "$json" | jq -r "([.scanners.$scanner.current] + (.scanners.$scanner.also_supported // []))[]"); do
-              ref="$REGISTRY/javv-scanner-$scanner:$v"
-              tag="$scanner-$v"
-              echo "::group::SBOM + scan $ref"
-              syft "$ref" -o spdx-json="sbom/$tag.spdx.json"
-              grype "sbom:sbom/$tag.spdx.json" -o table -o "json=scan/$tag.grype.json" || true  # report-only
-              echo "::endgroup::"
-            done
-          done
+          : > "$RUNNER_TEMP/to-sign.txt"
+          # one row per bake target: its first (moving) tag and the digest it was pushed as
+          jq -r 'to_entries[] | [(.value["image.name"] | split(",")[0]), .value["containerimage.digest"]] | @tsv' \
+            "$RUNNER_TEMP/bake-meta.json" > "$RUNNER_TEMP/pushed.tsv"
+          [ -s "$RUNNER_TEMP/pushed.tsv" ] || { echo "::error::bake metadata lists no pushed images"; exit 1; }
+          while IFS=$'\t' read -r name digest; do
+            repo=${name%:*}; ver=${name##*:}; scanner=${repo##*javv-scanner-}
+            ref="$repo@$digest"; tag="$scanner-$ver"
+            echo "::group::SBOM + scan $ref"
+            syft "$ref" -o spdx-json="sbom/$tag.spdx.json"
+            grype "sbom:sbom/$tag.spdx.json" -o table -o "json=scan/$tag.grype.json" || true  # report-only
+            echo "::endgroup::"
+            echo "$ref sbom/$tag.spdx.json" >> "$RUNNER_TEMP/to-sign.txt"
+          done < "$RUNNER_TEMP/pushed.tsv"
+          {
+            echo "images<<EOF_IMAGES"
+            cat "$RUNNER_TEMP/to-sign.txt"
+            echo "EOF_IMAGES"
+          } >> "$GITHUB_OUTPUT"
+          echo "cosign=$(yq -r '.supply_chain.cosign' versions.yaml)" >> "$GITHUB_OUTPUT"
+
+      - name: Sign + attest each pushed image (cosign keyless)
+        uses: ./.github/actions/sign-image
+        with:
+          images: ${{ steps.sbom.outputs.images }}
+          cosign-version: ${{ steps.sbom.outputs.cosign }}
 
       - name: Upload SBOM + scan reports
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2

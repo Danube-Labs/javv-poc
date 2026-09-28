@@ -73,6 +73,12 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   - **Publish-smoke (point 3):** runs **before** publish — bake `--load` → run each built image's entrypoint
     (`scanner.compat`, exercising the image's real binary + package + wiring, which the runner-side compat gate
     does *not*) → only `--push` if green, so a broken image never gets a public tag.
+- **2026-09-28** — **Signing shipped (issue 74)**, the one item deferred above until the repo was public. After the
+  push, each image's digest comes from the bake metadata; `syft` makes the SBOM of that digest, and the reusable
+  `.github/actions/sign-image` runs keyless `cosign sign` + `cosign attest --type spdxjson` on it. The publish job
+  alone has `id-token: write`; any signing error fails the job. cosign is pinned in `versions.yaml`
+  `supply_chain.cosign`. Verify steps: `scanner/README.md` § *Verify a published image*. The app images (#452)
+  reuse the same action.
   - **`docker build --check` (point 4):** new `lint-dockerfiles` job on both Dockerfiles; `publish` now
     `needs: [compat, lint-dockerfiles]`.
 

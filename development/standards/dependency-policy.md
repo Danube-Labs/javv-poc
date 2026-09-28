@@ -16,7 +16,7 @@ by the operator on issue 552 (2026-09-27).
 | Frontend packages | `frontend/package.json` + `package-lock.json` | Renovate (npm) |
 | pre-commit hooks | `.pre-commit-config.yaml` `rev:`; the ruff hook is drift-checked against `versions.yaml` `toolchain.ruff` by `check-versions.sh` | Renovate (pre-commit manager); the ruff hook comes in the same PR as the other ruff pins |
 | GitHub Actions | the workflow files, by **full commit SHA** with the release in a comment | Renovate (`helpers:pinGitHubActionDigests`) |
-| CI supply-chain tools: gitleaks (Secret scan) and syft (scanner-images SBOM) | `versions.yaml` `supply_chain:`, read directly by the workflows. gitleaks's checksum stays in `ci.yml` as `GITLEAKS_SHA256` | Renovate; a gitleaks PR fails the Secret scan until `GITLEAKS_SHA256` is updated from the release's `checksums.txt` |
+| CI supply-chain tools: gitleaks (Secret scan), syft (scanner-images SBOM) and cosign (image signing) | `versions.yaml` `supply_chain:`, read directly by the workflows. gitleaks's checksum stays in `ci.yml` as `GITLEAKS_SHA256` | Renovate; a gitleaks PR fails the Secret scan until `GITLEAKS_SHA256` is updated from the release's `checksums.txt` |
 
 ## Updates
 

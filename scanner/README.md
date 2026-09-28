@@ -58,10 +58,31 @@ are scanned **sequentially** (stateless; intra-run parallelism is a possible lat
   incompatible vuln DB — e.g. Grype < 0.88.0 (schema v5, EOL 2026-03-06, runs silently).
 - **Publish pipeline** (`.github/workflows/scanner-images.yml`, dispatch/tag): builds locally → **publish-smoke**
   (runs each image's entrypoint before pushing) → pushes → **SBOM (`syft`) + self-scan (`grype`, report-only)**
-  uploaded as a CI artifact. Cosign signing is not wired yet; the repo is public now, so #74 can start.
+  uploaded as a CI artifact → **cosign keyless signature + signed SBOM attestation**, both by the pushed digest
+  ([verify one](#verify-a-published-image)).
 - **Published images:** `ghcr.io/danube-labs/javv-scanner-{trivy,grype}:<ver>` (moving) + `:<ver>-<git-sha>`
   (immutable) with OCI labels. **Scanner image release ≠ JAVV release** — versions are changed by swapping the
   published image tag in your deploy; JAVV never changes versions in a running cluster (D41).
+
+### Verify a published image
+Every image the publish pipeline pushes is signed with **cosign keyless**: the certificate comes from the
+workflow's GitHub OIDC identity and is logged in the public Rekor transparency log. Each image also carries
+a **signed SPDX SBOM attestation**. Both bind to the image digest, not a tag. To check one with cosign 3.x
+(the version CI signs with, `versions.yaml` `supply_chain.cosign`):
+
+```bash
+IMAGE=ghcr.io/danube-labs/javv-scanner-trivy:0.71.2
+IDENTITY='^https://github\.com/Danube-Labs/javv-poc/\.github/workflows/scanner-images\.yml@refs/(heads/main|tags/scanner-v.+)$'
+ISSUER=https://token.actions.githubusercontent.com
+
+cosign verify "$IMAGE" --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
+cosign verify-attestation "$IMAGE" --type spdxjson \
+  --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER" > /dev/null && echo "SBOM attestation OK"
+```
+
+The identity accepts only builds from this repo's `main` or a `scanner-v*` tag, so an image built from any
+other branch fails verification. Images published before signing started (issue 74) carry no signature; the
+next publish signs forward, it never re-pushes old tags.
 
 ## Runtime & failure modes
 Status: ✅ implemented (M0/M0b) · 🏗 M10 (Helm/CronJob hygiene, PVC vuln-DB cache, RBAC).

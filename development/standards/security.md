@@ -70,6 +70,7 @@ JAVV never writes to the clusters it monitors; the scanners push to it.
 | GitHub vulnerability alerts → Renovate security PRs | repo settings + Renovate | a PR, fixed within the [policy's](dependency-policy.md) deadline |
 | RBAC/IDOR registry | backend tests | CI fails |
 | SBOM + report-only Grype pass over the scanner images | `.github/workflows/scanner-images.yml` | reported, not blocking |
+| cosign keyless signature + signed SBOM attestation of each published image, by digest | `scanner-images.yml` via `.github/actions/sign-image` | the publish fails; an image is never left pushed and unsigned by a green run |
 
 ## When something is found
 
