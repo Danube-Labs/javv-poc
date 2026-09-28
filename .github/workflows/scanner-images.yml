@@ -153,10 +153,12 @@ jobs:
       # Supply-chain (M0b DoD): SBOM + a scan of our OWN published images. Report-only (never blocks the
       # publish); both are uploaded as a CI artifact. Signing (cosign) is deliberately deferred until the
       # repo/images are public — tracked on #60.
-      - name: Install syft + grype
+      - name: Install syft + grype (versions.yaml)
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh  | sh -s -- -b /usr/local/bin
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          syft=$(yq -r '.supply_chain.syft' versions.yaml)
+          grype=$(yq -r '.scanners.grype.current' versions.yaml)
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh  | sh -s -- -b /usr/local/bin "v$syft"
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin "v$grype"
 
       - name: SBOM + self-scan (report-only)
         env:

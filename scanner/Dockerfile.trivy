@@ -14,7 +14,10 @@ COPY --from=trivy /usr/local/bin/trivy /usr/local/bin/trivy
 WORKDIR /app
 ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1
-RUN pip install --no-cache-dir uv
+# = versions.yaml toolchain.uv (check-versions.sh); Renovate bumps both in one PR
+# renovate: datasource=github-releases depName=astral-sh/uv
+ARG UV_VERSION=0.11.25
+RUN pip install --no-cache-dir "uv==${UV_VERSION}"
 # /app is the project; the shared lib lands at /libs so the lock's ../libs/javv-common resolves
 COPY libs /libs
 COPY scanner/pyproject.toml scanner/uv.lock ./

@@ -9,14 +9,14 @@ by the operator on issue 552 (2026-09-27).
 | What | Pinned in | Updated by |
 |---|---|---|
 | Scanners (Trivy, Grype) and OpenSearch | `versions.yaml` (D42), drift-checked into the scanner Dockerfiles, the dev compose file and the CI service images by `development/scripts/check-versions.sh` | Renovate's `versions.yaml` custom manager |
-| Gate toolchain (uv, ruff, pyright, pre-commit) | `versions.yaml` `toolchain:`. CI's `setup-uv` and `development/setup/setup-dev.sh` read it directly; ruff and pyright are also pinned in each `pyproject.toml` dev-deps, drift-checked by `check-versions.sh` | Renovate's `versions.yaml` custom manager; ruff and pyright come in the same PR as their `pyproject.toml` pins |
-| Node (major only) | `versions.yaml` `toolchain.node`, repeated in each CI `setup-node` `node-version` (drift-checked by `check-versions.sh`) and as a range in `frontend/package.json` `engines` (not checked) | **by hand**: bump `versions.yaml` and CI together. Renovate's GitHub Actions major group offers only the CI half, so it fails the drift check until `versions.yaml` joins it |
+| Gate toolchain (uv, ruff, pyright, pre-commit) | `versions.yaml` `toolchain:`. CI's `setup-uv` and `development/setup/setup-dev.sh` read it directly; ruff and pyright are also pinned in each `pyproject.toml` dev-deps and uv in the scanner Dockerfiles' `UV_VERSION` ARG, all drift-checked by `check-versions.sh` | Renovate's `versions.yaml` custom manager; each tool's other pins come in the same PR |
+| Node (major only) | `versions.yaml` `toolchain.node`, repeated in each CI `setup-node` `node-version` (drift-checked by `check-versions.sh`) and as a range in `frontend/package.json` `engines` (not checked) | Renovate, one PR for `versions.yaml` and CI; a major waits for approval on the dashboard |
 | Python (minor) | `.python-version` in `backend/` and `scanner/`, and the `PYTHON_VERSION` ARG in both scanner Dockerfiles; `requires-python` in each `pyproject.toml` is only the floor. `check-versions.sh` holds the other copies to `backend/.python-version` | Renovate, one PR for the `.python-version` files and the Dockerfile ARG (held on 3.12, see Updates) |
 | Python libraries (backend, scanner, `libs/javv-common`) | each `pyproject.toml` + `uv.lock` | Renovate (uv) |
 | Frontend packages | `frontend/package.json` + `package-lock.json` | Renovate (npm) |
 | pre-commit hooks | `.pre-commit-config.yaml` `rev:`; the ruff hook is drift-checked against `versions.yaml` `toolchain.ruff` by `check-versions.sh` | Renovate (pre-commit manager); the ruff hook comes in the same PR as the other ruff pins |
 | GitHub Actions | the workflow files, by **full commit SHA** with the release in a comment | Renovate (`helpers:pinGitHubActionDigests`) |
-| gitleaks (the Secret scan CI job) | `GITLEAKS_VERSION` + `GITLEAKS_SHA256` in `.github/workflows/ci.yml` | **by hand**: bump both, the checksum from the release's `checksums.txt` |
+| CI supply-chain tools: gitleaks (Secret scan) and syft (scanner-images SBOM) | `versions.yaml` `supply_chain:`, read directly by the workflows. gitleaks's checksum stays in `ci.yml` as `GITLEAKS_SHA256` | Renovate; a gitleaks PR fails the Secret scan until `GITLEAKS_SHA256` is updated from the release's `checksums.txt` |
 
 ## Updates
 

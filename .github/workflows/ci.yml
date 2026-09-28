@@ -59,7 +59,7 @@ jobs:
     permissions:
       contents: read
     env:
-      GITLEAKS_VERSION: 8.30.1
+      # the checksum of versions.yaml supply_chain.gitleaks's linux_x64 tarball; bump them together
       GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -67,6 +67,7 @@ jobs:
           fetch-depth: 0
       - name: Install gitleaks (checksum-verified)
         run: |
+          GITLEAKS_VERSION=$(yq -r '.supply_chain.gitleaks' versions.yaml)
           tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           curl -sSfL -o "$tarball" \
             "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
