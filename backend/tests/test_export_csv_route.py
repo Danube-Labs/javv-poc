@@ -115,6 +115,8 @@ async def _pit_count(client: AsyncOpenSearch) -> int:
     return len(resp.get("pits") or [])
 
 
+# serial: counts every open PIT in the store, so another worker's live PIT breaks the equality
+@pytest.mark.serial
 async def test_export_streams_sanitized_lens_and_cleans_pits(env, monkeypatch) -> None:
     login, client = env
     monkeypatch.setattr(sweep_mod, "_PAGE_SIZE", 2)  # force a real multi-page sweep

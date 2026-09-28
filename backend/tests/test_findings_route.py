@@ -135,6 +135,8 @@ async def test_tenant_isolation_and_default_grid(env) -> None:
     assert r.status_code == 422
 
 
+# serial: counts every open PIT in the store, so another worker's live PIT breaks the equality
+@pytest.mark.serial
 async def test_deep_paging_leaves_zero_pits_behind(env) -> None:
     login, client = env
     cid = f"c-srch-{uuid.uuid4().hex[:8]}"
@@ -225,6 +227,8 @@ async def test_tampered_but_decodable_cursor_is_422_not_500(env) -> None:
     assert r.status_code == 422
 
 
+# serial: deletes every PIT in the store, which would kill another worker's walk mid-page
+@pytest.mark.serial
 async def test_expired_pit_cursor_is_410_and_a_fresh_walk_is_unaffected(env) -> None:
     """A-m1 (audit #191): a client that idled past keep_alive gets a clear 410 "restart", not a
     500 — and a brand-new walk (its own fresh PIT) still works."""
