@@ -58,6 +58,11 @@
       "description": "Stay on Python 3.12 (requires-python, the scanner images, .python-version) until a deliberate upgrade",
       "matchPackageNames": ["python"],
       "allowedVersions": "<3.13"
+    },
+    {
+      "description": "Majors wait for a tick on the Dependency Dashboard: the MVP ships on the current majors, and they are taken one at a time before 1.0. Minor, patch, lockfile and security updates still open on their own",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
     }
   ]
 }
