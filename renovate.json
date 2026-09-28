@@ -11,6 +11,7 @@
   "automerge": false,
   "vulnerabilityAlerts": { "labels": ["security", "dependencies"] },
   "osvVulnerabilityAlerts": true,
+  "pre-commit": { "enabled": true },
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 4am on monday"]
@@ -41,6 +42,11 @@
       "description": "OpenSearch moves as one PR: versions.yaml plus every consumer check-versions.sh checks, including the CI service images the github-actions group would otherwise take",
       "matchPackageNames": ["opensearchproject/opensearch"],
       "groupName": "opensearch"
+    },
+    {
+      "description": "ruff moves as one PR: versions.yaml, each pyproject.toml pin and the pre-commit hook, which check-versions.sh holds equal",
+      "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit"],
+      "groupName": "ruff"
     },
     {
       "description": "Grype is bumped in versions.yaml only: the Dockerfile writes it v-prefixed in FROM, so after the bump run check-versions.sh --fix on the PR",

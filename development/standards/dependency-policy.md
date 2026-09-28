@@ -14,6 +14,7 @@ by the operator on issue 552 (2026-09-27).
 | Python (minor) | `.python-version` in `backend/` and `scanner/`, and the `PYTHON_VERSION` ARG in both scanner Dockerfiles; `requires-python` in each `pyproject.toml` is only the floor. `check-versions.sh` holds the other copies to `backend/.python-version` | Renovate, one PR for the `.python-version` files and the Dockerfile ARG (held on 3.12, see Updates) |
 | Python libraries (backend, scanner, `libs/javv-common`) | each `pyproject.toml` + `uv.lock` | Renovate (uv) |
 | Frontend packages | `frontend/package.json` + `package-lock.json` | Renovate (npm) |
+| pre-commit hooks | `.pre-commit-config.yaml` `rev:`; the ruff hook is drift-checked against `versions.yaml` `toolchain.ruff` by `check-versions.sh` | Renovate (pre-commit manager); the ruff hook comes in the same PR as the other ruff pins |
 | GitHub Actions | the workflow files, by **full commit SHA** with the release in a comment | Renovate (`helpers:pinGitHubActionDigests`) |
 | gitleaks (the Secret scan CI job) | `GITLEAKS_VERSION` + `GITLEAKS_SHA256` in `.github/workflows/ci.yml` | **by hand**: bump both, the checksum from the release's `checksums.txt` |
 
