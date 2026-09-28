@@ -36,7 +36,7 @@ wave (#450). **Next: M10** (polish + Helm deploy, #41). There is no `deploy/` ye
 | `development/` | How to build it: bolts, standards, setup, e2e | see below |
 | `handoff/` | UI/UX reference - **`docs/` current**, `v4/` frozen trail | **reference only**, not a contract |
 | `design/` | Brand source of record (logos, tokens, brand guide) | binding for brand |
-| `.github/` | CI + release automation workflows; issue forms, PR template, `CODEOWNERS` | — |
+| `.github/` | CI + release automation workflows; `actions/sign-image` (cosign keyless signing, for every image publish); issue forms, PR template, `CODEOWNERS` | — |
 | `.claude/` | Repo-scoped Claude config: `settings.json` (team allowlist + hook setup), `rules/` (path-scoped instructions that auto-load with matching files — CLAUDE.md's other half), `hooks/` (the PreToolUse Bash guard + its cases), `commands/`, `skills/`, and `sessions/` infra (snapshots are local-only) | `rules/` binding |
 | `.deprecated/` | Frozen archive - superseded V1/V2/V3 docs, the v1 UI handoff, archived v1 UI guidelines, finished audit guides, the v4 design brief, the logo prompt | history only |
 | root configs | `commitlint.config.mjs`, `renovate.json`, `release-please-config.json`, `.release-please-manifest.json`, `.pre-commit-config.yaml` | — |
@@ -121,7 +121,7 @@ is archived under `.deprecated/handoff/v1/`.
 lint/test + the contract gate + Frontend smoke + Scanner + javv-common + commitlint + the gitleaks
 Secret scan + the report-only Dependency audit; detect-step jobs always run for branch protection) ·
 `workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
-(batched release PRs) · `workflows/scanner-images.yml` (publish the pinned scanner images) ·
+(batched release PRs) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both
 test suites with the clock shifted forward, to catch date bombs before they fire on main).
 

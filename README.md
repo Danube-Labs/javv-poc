@@ -187,7 +187,8 @@ the Dockerfiles + dev compose in step. To change support, edit `versions.yaml`.
 
 Scanner images are published per supported version as
 `ghcr.io/danube-labs/javv-scanner-{trivy,grype}:<ver>`; an operator pins/swaps a tag in their own
-deploy (JAVV never changes versions in a running cluster).
+deploy (JAVV never changes versions in a running cluster). Each published image is signed (cosign
+keyless) with a signed SBOM attestation: [how to verify one](scanner/README.md#verify-a-published-image).
 
 ## License
 
