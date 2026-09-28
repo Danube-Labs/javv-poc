@@ -238,7 +238,7 @@ _REPORTS_PROPERTIES: dict[str, Any] = {
     "run_mode": _KW,  # now|offpeak
     "params": {"type": "object", "enabled": False},  # opaque request lens/format — not indexed
     "scheduled_for": _DATE,
-    "as_of_t": _DATE,  # export-at-past-T seam (parked until M8b/#34)
+    "as_of_t": _DATE,  # export at a past T (M8b); absent = current state
     "created_at": _DATE,
     "attempt_id": _KW,  # fencing token — heartbeat + done CAS on it (D38/D40)
     "worker": _KW,  # claim diagnostics: which drain holds the lease

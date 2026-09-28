@@ -90,7 +90,7 @@ class EnqueueReport(BaseModel):
     params: ExportParams = Field(default_factory=ExportParams)
     bulk_params: BulkTriageParams | None = None  # required iff kind=bulk_triage
     scheduled_for: datetime | None = None
-    as_of_t: datetime | None = None  # export-at-past-T seam — the drain 501s/parks until M8b (#34)
+    as_of_t: datetime | None = None  # export at a past T (M8b); the drain reads it via AsOfTQuery
 
     @model_validator(mode="after")
     def _kind_shapes(self) -> "EnqueueReport":
