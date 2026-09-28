@@ -8,7 +8,10 @@ by the operator on issue 552 (2026-09-27).
 
 | What | Pinned in | Updated by |
 |---|---|---|
-| Scanners (Trivy, Grype) and OpenSearch | `versions.yaml` (D42), drift-checked into the Dockerfiles and compose by `development/scripts/check-versions.sh` | Renovate's `versions.yaml` custom manager |
+| Scanners (Trivy, Grype) and OpenSearch | `versions.yaml` (D42), drift-checked into the scanner Dockerfiles, the dev compose file and the CI service images by `development/scripts/check-versions.sh` | Renovate's `versions.yaml` custom manager |
+| Gate toolchain (uv, ruff, pyright, pre-commit) | `versions.yaml` `toolchain:`. CI's `setup-uv` and `development/setup/setup-dev.sh` read it directly; ruff and pyright are also pinned in each `pyproject.toml` dev-deps, drift-checked by `check-versions.sh` | Renovate's `versions.yaml` custom manager; ruff and pyright come in the same PR as their `pyproject.toml` pins |
+| Node (major only) | `versions.yaml` `toolchain.node`, repeated in each CI `setup-node` `node-version` and in `frontend/package.json` `engines`. **Not** drift-checked | **by hand**: bump all of them together. Renovate's GitHub Actions major group also offers the CI one; merge it only with the others |
+| Python (minor) | `.python-version` in `backend/` and `scanner/`, and the `PYTHON_VERSION` ARG in both scanner Dockerfiles; `requires-python` in each `pyproject.toml` is only the floor. **Not** drift-checked | Renovate, one PR for the `.python-version` files and the Dockerfile ARG |
 | Python libraries (backend, scanner, `libs/javv-common`) | each `pyproject.toml` + `uv.lock` | Renovate (uv) |
 | Frontend packages | `frontend/package.json` + `package-lock.json` | Renovate (npm) |
 | GitHub Actions | the workflow files, by **full commit SHA** with the release in a comment | Renovate (`helpers:pinGitHubActionDigests`) |
