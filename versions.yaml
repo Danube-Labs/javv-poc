@@ -49,5 +49,5 @@ toolchain:
   pyright: "1.1.411"
   # renovate: datasource=pypi depName=pre-commit
   pre-commit: "4.6.0"
-  # major-only LTS — manual bump (no Renovate annotation; CI's setup-node pins '22' too)
+  # major-only LTS — manual bump (no Renovate annotation); CI's setup-node repeats it, drift-checked
   node: "22"

@@ -23,7 +23,14 @@ by the operator on issue 552 (2026-09-27).
   vulnerability *alerts* stay on, and Renovate turns them into PRs.
 - **Regular updates run daily.** Renovate opens them grouped as `renovate.json` defines (GitHub
   Actions in one PR, non-major dev dependencies in one PR).
-- **Security fixes open immediately**, outside any schedule, labelled `security`.
+- **Security fixes open immediately**, outside any schedule, labelled `security`. That covers
+  dependencies we list ourselves; one that only a library pulls in (a *transitive* one, in the
+  lockfile but in no `package.json` / `pyproject.toml`) gets no security PR from Renovate.
+- **Lockfiles are refreshed weekly** (lock file maintenance, Monday before 4am UTC): one PR that
+  moves every transitive dependency in every lockfile to the newest version its ranges allow. That is
+  how a transitive fix lands within the 7-day window; the dashboard checkbox runs it early.
+- **Python stays on 3.12** (images, `.python-version`) until a deliberate upgrade;
+  Renovate is held below 3.13.
 - **Nothing merges itself.** Every Renovate PR is merged by the operator like any other PR,
   after CI is green. No automerge rule exists and none is added without a new ruling.
 
