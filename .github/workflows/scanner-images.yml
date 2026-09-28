@@ -159,8 +159,7 @@ jobs:
           GIT_SHA: ${{ steps.vars.outputs.sha }}
 
       # Supply-chain (M0b DoD): SBOM + a scan of our OWN published images. Report-only (never blocks the
-      # publish); both are uploaded as a CI artifact. Signing (cosign) is deliberately deferred until the
-      # repo/images are public — tracked on #60.
+      # publish); both are uploaded as a CI artifact. Signing (cosign) is not wired yet — issue 74.
       - name: Install syft + grype (versions.yaml, from their official images)
         run: |
           syft=$(yq -r '.supply_chain.syft' versions.yaml)
