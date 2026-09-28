@@ -11,6 +11,7 @@
   "automerge": false,
   "vulnerabilityAlerts": { "labels": ["security", "dependencies"] },
   "osvVulnerabilityAlerts": true,
+  "pre-commit": { "enabled": true },
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 4am on monday"]
@@ -56,6 +57,11 @@
       "groupName": "opensearch"
     },
     {
+      "description": "ruff moves as one PR: versions.yaml, each pyproject.toml pin and the pre-commit hook, which check-versions.sh holds equal",
+      "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit"],
+      "groupName": "ruff"
+    },
+    {
       "description": "Grype is bumped in versions.yaml only: the Dockerfile writes it v-prefixed in FROM, so after the bump run check-versions.sh --fix on the PR",
       "matchManagers": ["dockerfile"],
       "matchPackageNames": ["anchore/grype"],
@@ -65,6 +71,11 @@
       "description": "Stay on Python 3.12 (requires-python, the scanner images, .python-version) until a deliberate upgrade",
       "matchPackageNames": ["python"],
       "allowedVersions": "<3.13"
+    },
+    {
+      "description": "Majors wait for a tick on the Dependency Dashboard: the MVP ships on the current majors, and they are taken one at a time before 1.0. Minor, patch, lockfile and security updates still open on their own",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
     }
   ]
 }

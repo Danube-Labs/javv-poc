@@ -2,8 +2,9 @@ name: Versions drift
 
 # D42: versions.yaml is the single source of truth for externally-owned tool/service versions.
 # Consumers (scanner Dockerfiles, dev OpenSearch compose, CI service images and setup-node, the
-# pyproject ruff/pyright pins) keep a literal pin so they work standalone; this gate fails if any
-# consumer drifts from versions.yaml, or a Python copy from backend/.python-version.
+# pyproject ruff/pyright pins, the pre-commit ruff hook) keep a literal pin so they work
+# standalone; this gate fails if any consumer drifts from versions.yaml, or a Python copy from
+# backend/.python-version.
 # Fix: check-versions.sh --fix.
 
 on:
@@ -22,6 +23,7 @@ on:
       - 'libs/javv-common/pyproject.toml'
       - 'backend/.python-version'
       - 'scanner/.python-version'
+      - '.pre-commit-config.yaml'
   push:
     branches: [main]
     paths:
@@ -35,6 +37,7 @@ on:
       - 'libs/javv-common/pyproject.toml'
       - 'backend/.python-version'
       - 'scanner/.python-version'
+      - '.pre-commit-config.yaml'
 
 permissions:
   contents: read
