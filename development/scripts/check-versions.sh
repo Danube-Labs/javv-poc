@@ -33,7 +33,8 @@ check() {
   local name="$1" want="$2" file="$3" extract="$4" replace="$5"
   local have
   # Every match, not just the first: a file can repeat a pin (two OpenSearch services in ci.yml).
-  have=$(grep -oP "$extract" "$file" | sort -u | paste -sd, || true)
+  # -z reads the file as one record so a pattern can span lines (the pre-commit hook's rev).
+  have=$(grep -ozP "$extract" "$file" | tr '\0' '\n' | sort -u | paste -sd, || true)
   if [ "$have" = "$want" ]; then
     printf '  \033[1;32mok\033[0m   %-26s %s\n' "$name" "$want"
   elif [ "$FIX" -eq 1 ]; then
@@ -69,6 +70,8 @@ check "javv-common ruff pin" "$ruff" libs/javv-common/pyproject.toml \
   'ruff==\K[0-9.]+' "s/ruff==[0-9.]+/ruff==$ruff/"
 check "javv-common pyright pin" "$pyright" libs/javv-common/pyproject.toml \
   'pyright==\K[0-9.]+' "s/pyright==[0-9.]+/pyright==$pyright/"
+check "pre-commit ruff hook" "$ruff" .pre-commit-config.yaml \
+  'ruff-pre-commit\s+rev: v\K[0-9.]+' "/ruff-pre-commit/{n;s/rev: v[0-9.]+/rev: v$ruff/}"
 # Node is a manual major-only bump (no Renovate annotation in versions.yaml). frontend/package.json
 # `engines` is a range, not a pin, so it isn't checked here.
 check "ci.yml setup-node" "$node" .github/workflows/ci.yml \
