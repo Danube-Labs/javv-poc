@@ -73,6 +73,12 @@
       "allowedVersions": "<3.13"
     },
     {
+      "description": "The scanner images' python base stays pinned by digest; Renovate re-pins it if an edit (check-versions.sh --fix) drops the digest",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["python"],
+      "pinDigests": true
+    },
+    {
       "description": "Majors wait for a tick on the Dependency Dashboard: the MVP ships on the current majors, and they are taken one at a time before 1.0. Minor, patch, lockfile and security updates still open on their own",
       "matchUpdateTypes": ["major"],
       "dependencyDashboardApproval": true

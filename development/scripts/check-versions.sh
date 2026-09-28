@@ -25,6 +25,7 @@ uv=$(yq -r '.toolchain.uv' "$V")
 node=$(yq -r '.toolchain.node' "$V")
 # Python has no versions.yaml entry: Renovate bumps the .python-version files and the Dockerfile
 # ARG in one PR, so backend/.python-version is the reference the other copies must equal.
+# --fix drops a Dockerfile's base-image digest (it belongs to the old tag); Renovate re-pins it.
 python=$(cat backend/.python-version)
 
 fail=0
@@ -87,9 +88,9 @@ src=backend/.python-version
 check "scanner .python-version" "$python" scanner/.python-version \
   '^\K[0-9.]+' "s/^[0-9.]+$/$python/"
 check "Dockerfile.trivy python" "$python" scanner/Dockerfile.trivy \
-  'ARG PYTHON_VERSION=\K[0-9.]+' "s/^ARG PYTHON_VERSION=.*/ARG PYTHON_VERSION=$python/"
+  'FROM python:\K[0-9.]+(?=-slim)' "s/^FROM python:[^ ]+/FROM python:$python-slim/"
 check "Dockerfile.grype python" "$python" scanner/Dockerfile.grype \
-  'ARG PYTHON_VERSION=\K[0-9.]+' "s/^ARG PYTHON_VERSION=.*/ARG PYTHON_VERSION=$python/"
+  'FROM python:\K[0-9.]+(?=-slim)' "s/^FROM python:[^ ]+/FROM python:$python-slim/"
 
 if [ "$fail" -ne 0 ]; then
   echo
