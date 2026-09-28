@@ -58,7 +58,7 @@ are scanned **sequentially** (stateless; intra-run parallelism is a possible lat
   incompatible vuln DB — e.g. Grype < 0.88.0 (schema v5, EOL 2026-03-06, runs silently).
 - **Publish pipeline** (`.github/workflows/scanner-images.yml`, dispatch/tag): builds locally → **publish-smoke**
   (runs each image's entrypoint before pushing) → pushes → **SBOM (`syft`) + self-scan (`grype`, report-only)**
-  uploaded as a CI artifact. Cosign signing is deferred until the repo is public (#74).
+  uploaded as a CI artifact. Cosign signing is not wired yet; the repo is public now, so #74 can start.
 - **Published images:** `ghcr.io/danube-labs/javv-scanner-{trivy,grype}:<ver>` (moving) + `:<ver>-<git-sha>`
   (immutable) with OCI labels. **Scanner image release ≠ JAVV release** — versions are changed by swapping the
   published image tag in your deploy; JAVV never changes versions in a running cluster (D41).
