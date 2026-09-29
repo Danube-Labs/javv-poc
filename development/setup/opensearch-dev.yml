@@ -10,13 +10,13 @@
 # Equivalent throwaway one-liner (no persistence):
 #   docker run -d --name javv-opensearch -p 9200:9200 -p 9600:9600 \
 #     -e discovery.type=single-node -e DISABLE_SECURITY_PLUGIN=true \
-#     -e "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g" opensearchproject/opensearch:3.7.0
+#     -e "OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g" opensearchproject/opensearch:3.8.0
 #
 # Prereq: vm.max_map_count >= 262144  (sudo sysctl -w vm.max_map_count=262144)
 
 services:
   opensearch:
-    image: opensearchproject/opensearch:3.7.0
+    image: opensearchproject/opensearch:3.8.0
     container_name: javv-opensearch
     restart: unless-stopped  # survive VM crashes/reboots (2026-07-04 power cut left it Exited)
     environment:
