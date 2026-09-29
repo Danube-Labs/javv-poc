@@ -123,7 +123,9 @@ Secret scan + the report-only Dependency audit; detect-step jobs always run for 
 `workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
 (batched release PRs) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both
-test suites with the clock shifted forward, to catch date bombs before they fire on main).
+test suites with the clock shifted forward, to catch date bombs before they fire on main) ·
+`workflows/compat-fixture.yml` (manual: copies the compat gate's fixture image into GHCR by digest,
+so the gate doesn't depend on Docker Hub).
 
 ---
 ## `frontend/` - the Vue 3 SPA (M9a-f)
