@@ -40,11 +40,16 @@ type RunningVersions = {
 }
 const running = ref<RunningVersions | null>(null)
 const versionFailed = ref(false)
-/* two lines, not one: the full string wraps mid-phrase at the sidebar's width */
+/* one fact per line: at the footer's 10px mono the sidebar fits ~30 characters, so a joined line
+   wraps mid-phrase */
 const versionLines = computed((): string[] => {
   const r = running.value
   if (!r) return versionFailed.value ? ['version unavailable'] : []
-  return [`v${r.version}`, `mapping ${r.mapping_version} · envelope v${Math.max(...r.envelope_versions)}`]
+  return [
+    `v${r.version}`,
+    `store schema v${r.mapping_version}`,
+    `scanner schema v${Math.max(...r.envelope_versions)}`,
+  ]
 })
 onMounted(async () => {
   const { data, response } = await getMetaApiV1MetaGet({ client })
@@ -103,7 +108,7 @@ onMounted(async () => {
       <div
         v-if="!collapsed && versionLines.length"
         class="side-version"
-        title="Backend release · store mapping version · newest scanner envelope accepted"
+        title="JAVV release · store schema (index layout) · newest scanner schema accepted"
       >
         <span v-for="line in versionLines" :key="line">{{ line }}</span>
       </div>

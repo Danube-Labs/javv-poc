@@ -47,12 +47,12 @@ beforeEach(() => {
 })
 
 describe('SideNav version line', () => {
-  it('shows the release, the mapping version and the newest envelope the backend accepts', async () => {
+  it('shows the release, the store schema and the newest scanner schema, one per line', async () => {
     metaMock.mockResolvedValue({
       data: { version: '0.6.0', mapping_version: 18, envelope_versions: [3, 4] },
       response: { ok: true, status: 200 },
     } as never)
-    expect(await versionLines()).toEqual(['v0.6.0', 'mapping 18 · envelope v4'])
+    expect(await versionLines()).toEqual(['v0.6.0', 'store schema v18', 'scanner schema v4'])
     expect(logger.warn).not.toHaveBeenCalled()
   })
 
