@@ -121,7 +121,7 @@ is archived under `.deprecated/handoff/v1/`.
 lint/test + the contract gate + Frontend smoke + Scanner + javv-common + commitlint + the gitleaks
 Secret scan + the report-only Dependency audit; detect-step jobs always run for branch protection) ·
 `workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
-(batched release PRs) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images) ·
+(batched release PRs) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both
 test suites with the clock shifted forward, to catch date bombs before they fire on main).
 

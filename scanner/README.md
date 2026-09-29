@@ -56,7 +56,10 @@ are scanned **sequentially** (stateless; intra-run parallelism is a possible lat
 - **DB-compat policy:** `versions.yaml` records each scanner's factual `vuln_db` compatibility (no invented
   EOL). `development/scripts/check-scanner-db-policy.sh` fails CI if a supported version would run a frozen/
   incompatible vuln DB — e.g. Grype < 0.88.0 (schema v5, EOL 2026-03-06, runs silently).
-- **Publish pipeline** (`.github/workflows/scanner-images.yml`, dispatch/tag): builds locally → **publish-smoke**
+- **Publish pipeline** (`.github/workflows/scanner-images.yml`): runs on **every merge to `main` that changes an
+  image's inputs** (`versions.yaml`, the Dockerfiles/bake file, scanner source and dependencies, the shared lib),
+  so a merged scanner bump has its signed image minutes later; also on a `scanner-v*` tag or manual dispatch.
+  Builds locally → **publish-smoke**
   (runs each image's entrypoint before pushing) → pushes → **SBOM (`syft`) + self-scan (`grype`, report-only)**
   uploaded as a CI artifact → **cosign keyless signature + signed SBOM attestation**, both by the pushed digest
   ([verify one](#verify-a-published-image)).
