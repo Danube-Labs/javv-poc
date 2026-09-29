@@ -79,6 +79,11 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   alone has `id-token: write`; any signing error fails the job. cosign is pinned in `versions.yaml`
   `supply_chain.cosign`. Verify steps: `scanner/README.md` § *Verify a published image*. The app images (#452)
   reuse the same action.
+- **2026-09-29** — **Publish on merge** (operator ruling, option A of three). `scanner-images.yml` now also
+  publishes on a push to `main` that changes an image's inputs, so every version `versions.yaml` lists as supported
+  has a signed image; tag and manual dispatch still work. A job-level concurrency group keeps two merges from
+  interleaving their pushes of the moving `:<ver>` tags. Deploys should pin the fixed `:<ver>-<sha>` tag, because
+  a scanner-code merge moves `:<ver>` (M10's chart).
   - **`docker build --check` (point 4):** new `lint-dockerfiles` job on both Dockerfiles; `publish` now
     `needs: [compat, lint-dockerfiles]`.
 

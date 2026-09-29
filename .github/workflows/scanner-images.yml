@@ -2,8 +2,10 @@ name: Scanner images
 
 # M0b / D41: build the self-built, pinned scanner images across the compatible version matrix,
 # gate each on the compatibility check (real binary → JAVV adapters), and publish the green ones
-# to GHCR. The compatibility check runs on PRs touching the scanner; publish only on a tag or
-# manual dispatch (deliberate releases). Versions come from versions.yaml (single source, D42).
+# to GHCR. The compatibility check runs on PRs touching the scanner. Publish runs on every merge
+# to main that changes what goes into an image, so every version versions.yaml lists as supported
+# has a signed image (operator, 2026-09-29), plus a `scanner-v*` tag or manual dispatch.
+# Versions come from versions.yaml (single source, D42).
 
 on:
   pull_request:
@@ -18,6 +20,20 @@ on:
   workflow_dispatch:
   push:
     tags: ['scanner-v*']
+    branches: [main]
+    # what ends up inside an image, or decides how it is built and signed (GitHub skips path
+    # filters for tag pushes, so a scanner-v* tag always publishes)
+    paths:
+      - 'versions.yaml'
+      - 'scanner/Dockerfile.*'
+      - 'scanner/docker-bake.hcl'
+      - 'scanner/src/**'
+      - 'scanner/pyproject.toml'
+      - 'scanner/uv.lock'
+      - 'libs/javv-common/src/**'
+      - 'libs/javv-common/pyproject.toml'
+      - '.github/workflows/scanner-images.yml'
+      - '.github/actions/sign-image/**'
 
 permissions:
   contents: read
@@ -95,7 +111,15 @@ jobs:
   publish:
     name: Build + publish compatible images
     needs: [compat, lint-dockerfiles]
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+    if: >-
+      github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/')
+      || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    # one publish at a time: two merges in a row must not interleave their pushes of the moving
+    # :<ver> tags. A running publish is never cancelled; of the runs waiting behind it GitHub keeps
+    # only the newest, so the tags always end on the last merge's build.
+    concurrency:
+      group: scanner-images-publish
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: read
