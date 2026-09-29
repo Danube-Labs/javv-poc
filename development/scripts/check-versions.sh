@@ -18,6 +18,8 @@ FIX=0
 V=versions.yaml
 trivy=$(yq -r '.scanners.trivy.current' "$V")
 grype=$(yq -r '.scanners.grype.current' "$V")
+trivy_also=$(yq -r '.scanners.trivy.also_supported | join(", ")' "$V")
+grype_also=$(yq -r '.scanners.grype.also_supported | join(", ")' "$V")
 opensearch=$(yq -r '.datastore.opensearch' "$V")
 ruff=$(yq -r '.toolchain.ruff' "$V")
 pyright=$(yq -r '.toolchain.pyright' "$V")
@@ -64,6 +66,26 @@ check "opensearch compat svc" "$opensearch" .github/workflows/scanner-images.yml
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 check "opensearch clock-drift svc" "$opensearch" .github/workflows/clock-drift.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
+# The docs that state the supported versions, and the bake defaults. Renovate doesn't edit these,
+# so a scanner or OpenSearch bump PR needs --fix, the same as for the Grype Dockerfile.
+check "README trivy row" "$trivy | $trivy_also" README.md \
+  '\| Trivy \| \K[0-9.]+ \| [0-9., ]+(?= \|)' "s/^\| Trivy \| [0-9.]+ \| [0-9., ]+ \|/| Trivy | $trivy | $trivy_also |/"
+check "README grype row" "$grype | $grype_also" README.md \
+  '\| Grype \| \K[0-9.]+ \| [0-9., ]+(?= \|)' "s/^\| Grype \| [0-9.]+ \| [0-9., ]+ \|/| Grype | $grype | $grype_also |/"
+check "README opensearch row" "$opensearch" README.md \
+  '\| OpenSearch \| \K[0-9][0-9.]*' "s/^\| OpenSearch \| [0-9][0-9.]* \|/| OpenSearch | $opensearch |/"
+check "CONFIGURATION trivy row" "$trivy" docs/CONFIGURATION.md \
+  '\*\*Trivy version\*\* \| .\K[0-9.]+' "s/(\*\*Trivy version\*\* \| .)[0-9.]+/\1$trivy/"
+check "CONFIGURATION grype row" "$grype" docs/CONFIGURATION.md \
+  '\*\*Grype version\*\* \| .\K[0-9.]+' "s/(\*\*Grype version\*\* \| .)[0-9.]+/\1$grype/"
+check "CONFIGURATION opensearch" "$opensearch" docs/CONFIGURATION.md \
+  'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
+check "scanner README verify" "$trivy" scanner/README.md \
+  'javv-scanner-trivy:\K[0-9.]+' "s#javv-scanner-trivy:[0-9.]+#javv-scanner-trivy:$trivy#"
+check "bake trivy defaults" "$trivy,${trivy_also//, /,}" scanner/docker-bake.hcl \
+  'TRIVY_VERSIONS" \{\s+default = "\K[0-9.,]+' "/TRIVY_VERSIONS/{n;s/default = \"[0-9.,]+\"/default = \"$trivy,${trivy_also//, /,}\"/}"
+check "bake grype defaults" "$grype,${grype_also//, /,}" scanner/docker-bake.hcl \
+  'GRYPE_VERSIONS" \{\s+default = "\K[0-9.,]+' "/GRYPE_VERSIONS/{n;s/default = \"[0-9.,]+\"/default = \"$grype,${grype_also//, /,}\"/}"
 # Gate toolchain (D42 phase 2): ruff/pyright are pinned exactly in each pyproject.toml dev-deps
 # (what CI runs via `uv run`); setup-dev.sh reads versions.yaml directly so it can't drift.
 check "backend ruff pin" "$ruff" backend/pyproject.toml \
