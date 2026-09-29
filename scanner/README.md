@@ -58,7 +58,8 @@ are scanned **sequentially** (stateless; intra-run parallelism is a possible lat
 - **Supported versions** live in [`/versions.yaml`](../versions.yaml) (single source of truth) — `current` +
   a small set of prior versions per scanner. Edit there; Renovate watches it.
 - **Compatibility gate:** `python -m scanner.compat --scanner trivy` drives the real binary against a
-  CVE-bearing image (`python:3.9.16-slim`, pinned by digest) and asserts the JAVV adapter contracts
+  CVE-bearing image (`python:3.9.16-slim`, pinned by digest and served from our own GHCR copy, made by
+  `.github/workflows/compat-fixture.yml`) and asserts the JAVV adapter contracts
   (provenance present, findings parse, severities canonical, envelope builds). CI runs it per supported
   version; green → publishable.
   - **`--push`** (issue 631) runs that image through the **real cycle** instead of stopping at a local
