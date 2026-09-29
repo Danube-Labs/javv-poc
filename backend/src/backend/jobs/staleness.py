@@ -28,6 +28,7 @@ from typing import Any
 from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.core.stored_settings import parse_stored_setting
 from backend.query.paging import search_to_exhaustion
 
 STALENESS_KEY = (
@@ -53,7 +54,7 @@ async def _read_one(client: AsyncOpenSearch, doc_id: str, prefix: str) -> Stalen
         got = await client.get(index=f"{prefix}system-config", id=doc_id)
     except NotFoundError:
         return None
-    return StalenessTimers.model_validate(got["_source"]["value"])
+    return parse_stored_setting(StalenessTimers, got["_source"]["value"], key=doc_id)
 
 
 async def has_staleness_override(

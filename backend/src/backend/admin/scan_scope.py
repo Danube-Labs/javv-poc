@@ -12,6 +12,8 @@ from datetime import UTC, datetime
 from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict
 
+from backend.core.stored_settings import parse_stored_setting
+
 
 def _doc_id(cluster_id: str) -> str:
     return f"scan_scope:{cluster_id}"
@@ -38,7 +40,7 @@ async def read_scan_scope(
         got = await client.get(index=f"{prefix}system-config", id=_doc_id(cluster_id))
     except NotFoundError:
         return ScanScope()
-    return ScanScope.model_validate(got["_source"]["value"])
+    return parse_stored_setting(ScanScope, got["_source"]["value"], key=_doc_id(cluster_id))
 
 
 async def write_scan_scope(

@@ -12,6 +12,7 @@ from typing import Any
 from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.core.stored_settings import parse_stored_setting
 from backend.models.envelope import canonical_severity
 
 SLA_KEY = "sla"  # the fleet-wide system-config doc _id
@@ -51,7 +52,7 @@ async def read_sla_policy(client: AsyncOpenSearch, *, prefix: str = "") -> SlaPo
         got = await client.get(index=f"{prefix}system-config", id=SLA_KEY)
     except NotFoundError:
         return SlaPolicy()
-    return SlaPolicy.model_validate(got["_source"]["value"])
+    return parse_stored_setting(SlaPolicy, got["_source"]["value"], key=SLA_KEY)
 
 
 async def write_sla_policy(

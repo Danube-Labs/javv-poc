@@ -71,12 +71,14 @@ list everything as `unchanged`.
 - **Rolling the backend back is safe for the indices.** The index setup only moves forward. An older
   release finds indices already at a newer schema version and leaves them alone. The fields the newer
   release added stay in place, unused.
-- **Settings saved after the upgrade can break a rollback.** If the newer release added a field to a
-  setting and you saved that setting, the older release can't read it back. The settings routes and
-  jobs that read it then fail, and a broken scan scope stops scanners from scanning. No release so far
-  has added such a field. A release that does will say so under [*Version notes*](#version-notes). The
-  fix (reading stored settings leniently) is planned for the hardening phase
-  ([#640](https://github.com/Danube-Labs/javv-poc/issues/640)).
+- **Settings saved by the newer release still read after a rollback.** If the newer release added a
+  field to a setting and you saved it, the older release ignores that field. The backend logs
+  `stored setting has unknown keys` once per setting and counts every such read in
+  `javv_stored_setting_unknown_fields_total` ([`API.md` § Metrics](API.md#metrics-metrics-prometheus)).
+  If you **save** that setting while the older release runs, it stores only the fields it knows, so
+  after you upgrade again the newer field is back at its default. This holds for rollbacks to any
+  release that includes [#640](https://github.com/Danube-Labs/javv-poc/issues/640), which is every
+  release from the MVP (0.6) on.
 - **Roll the scanners back first** when you roll back across a report-format change, so they don't send
   a format the older backend rejects.
 - **A snapshot is not a one-step rollback.** Restoring one creates `restored-*` copies next to the live
@@ -89,8 +91,7 @@ A release gets an entry here when it needs something from you. That covers:
 
 - a store schema change (`mapping_version`);
 - a change in the report formats the backend accepts (`envelope_versions`);
-- scanner images that must be republished or swapped with it;
-- a new field in a stored setting (see *Rolling back*).
+- scanner images that must be republished or swapped with it.
 
 Entries start with the MVP release (0.6). All schema changes before it only add fields and are applied
 automatically on the first start.

@@ -65,6 +65,13 @@ SLA_CLOCK_MISSING = Counter(
     "Findings pages hitting rows without a materialized sla_clock_at (issue 363) — the agg"
     " fallback served them; a sustained rate means run rebuild-state to backfill",
 )
+STORED_SETTING_UNKNOWN_FIELDS = Counter(
+    "javv_stored_setting_unknown_fields_total",
+    "Stored-setting reads that dropped fields this release doesn't know (issue 640) — non-zero"
+    " after a rollback means a newer release saved that setting; `setting` is the kind, not the"
+    " per-cluster doc id, so the series stay bounded",
+    ["setting"],
+)
 
 # --- M-3: concurrency-control churn ----------------------------------------------
 

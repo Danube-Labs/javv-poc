@@ -89,24 +89,24 @@ new backend has removed. Keeping a removed route alive for one release is a hard
 - **Mappings are rollback-safe.** Bootstrap only moves forward: an older pod finds `_meta.version`
   above its own `MAPPING_VERSION` and leaves the index `unchanged`. The newer fields stay mapped and
   unused. `helm rollback` needs no data step for an additive release.
-- **Stored settings are not, yet.** Seven readers parse a `system-config` value with `extra="forbid"`:
-  `ScanScope` (`admin/scan_scope.py`), `SnapshotRepoRef` (`admin/snapshot.py`), `ReportTtl`
-  (`admin/report_ttl.py`), `LifecycleSettings` (`jobs/lifecycle.py`), `SlaPolicy` (`sla/policy.py`),
-  `FindingsCleanupSetting` (`jobs/findings_cleanup.py`) and `StalenessTimers` (`jobs/staleness.py`).
-  Suppose a release adds a key to one of these models and an operator saves that setting. The older
-  release then raises `ValidationError` on every read of it. Nothing catches it, so the app's
-  catch-all handler (`core/errors.py`) turns it into a 500:
-  - every route that reads the setting returns 500. For example, `SlaPolicy` is read by the SLA
-    settings, the findings search's overdue filter, time-travel reads and exports. The lifecycle, TTL,
-    cleanup and snapshot settings are read by the Data settings panel;
-  - the job that owns the setting fails;
-  - for the scan scope, `GET /api/v1/scan-scope` returns 500 and every scanner skips its cycle
-    (fail-closed).
+- **Stored settings are rollback-safe (#640).** The seven settings models stay `extra="forbid"`,
+  because they also validate request bodies. Every read of a stored `system-config` value goes
+  through `core/stored_settings.py` `parse_stored_setting`, which drops the top-level fields the
+  running release doesn't declare and validates the rest with the strict model. It covers
+  `ScanScope`, `SnapshotRepoRef`, `ReportTtl`, `LifecycleSettings`, `SlaPolicy`,
+  `FindingsCleanupSetting` and `StalenessTimers`.
+  - A drop logs `stored setting has unknown keys` (field names only) once per setting doc per
+    process, and bumps `javv_stored_setting_unknown_fields_total{setting}` on every such read.
+  - A bad value on a field the release *does* know still fails; that's corrupt data, not a version
+    gap.
+  - Writes stay strict. An older release that saves the setting stores only its own fields, so the
+    newer field returns to its default after the next upgrade (operator decision on #640).
+  - A guard test (`tests/test_stored_settings_readers.py`) fails the build if code outside the
+    helper validates a stored `_source` value directly.
 
-  No shipped release has added such a key, so no rollback today can hit this. The fix is to read
-  stored settings leniently and keep writes strict. It is tracked for the hardening phase (#640); until it
-  lands, a release that adds a settings key must say so in the version notes of
-  [`UPGRADING.md`](../UPGRADING.md).
+  Before this, the older release raised `ValidationError` on every read of such a setting, and
+  `core/errors.py` turned it into a 500. For the scan scope, that meant every scanner skipped its
+  cycle. Rollbacks to a release without the fix still behave that way.
 - **Decisions are safe.** Editing a decision copies only the fields `DecisionPayload` declares from the
   stored document (`decisions/lifecycle.py`), so unknown stored keys are dropped, not rejected.
 
@@ -130,5 +130,5 @@ The scanner CronJobs' security context is set out in the M10 bolt README (`## Up
   it.
 - **Pinning "additive only":** a CI check that a release's mappings are a superset of the previous
   tag's.
-- **A tested rollback:** a CI run that upgrades, writes, rolls back and reads. This includes the
-  lenient settings reads above, and keeping a route for one release before removing it.
+- **A tested rollback:** a CI run that upgrades, writes, rolls back and reads. It would exercise the
+  lenient settings reads above end to end, plus keeping a route for one release before removing it.

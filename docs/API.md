@@ -257,6 +257,7 @@ table cannot show its own gaps.
 | `javv_pits_open` | gauge | — | Open PIT slots (per pod, like the guard) |
 | `javv_export_rows_total` / `javv_export_bytes_total` | counter | `format` | What was **actually** streamed (a disconnected client counts what it got) |
 | `javv_auth_failures_total` | counter | `reason` | `bad_credentials`, `locked_out`, `expired_session`, `missing_capability` — never a username label (M-5) |
+| `javv_stored_setting_unknown_fields_total` | counter | `setting` | Stored-setting reads that dropped fields this release doesn't know (issue 640). Non-zero after a rollback means a newer release saved that setting; the log warns once per setting doc per process, and this keeps counting. `setting` is the kind (`sla`, `scan_scope`, `snapshot_repo`, `report_ttl`, `lifecycle`, `findings_cleanup`, `staleness`), never the per-cluster doc id |
 
 Plus the default `prometheus_client` process/GC gauges. The scrape is **storage-free** (no
 OpenSearch call) — it keeps working during an outage, exactly when it's needed. Single-process

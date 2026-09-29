@@ -35,6 +35,7 @@ from opensearchpy import AsyncOpenSearch, ConflictError, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.audit.writer import append_field_change
+from backend.core.stored_settings import parse_stored_setting
 from backend.services.watermarks import INDEX as WATERMARKS_INDEX
 
 log = structlog.get_logger()
@@ -64,7 +65,7 @@ async def _read_one(
         got = await client.get(index=f"{prefix}system-config", id=doc_id)
     except NotFoundError:
         return None
-    return FindingsCleanupSetting.model_validate(got["_source"]["value"])
+    return parse_stored_setting(FindingsCleanupSetting, got["_source"]["value"], key=doc_id)
 
 
 async def read_findings_cleanup_setting(
