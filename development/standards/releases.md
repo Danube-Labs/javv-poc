@@ -26,8 +26,7 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
   with `Unreleased` in the release column:
   - bumps `MAPPING_VERSION`;
   - changes the envelope versions the backend accepts;
-  - needs the scanner images republished;
-  - adds a field to a stored `system-config` setting.
+  - needs the scanner images republished.
 
   Whoever merges the release PR renames `Unreleased` to the version. The changelog lists every
   change; this table lists only what an upgrade needs from the operator. The rollout mechanics
