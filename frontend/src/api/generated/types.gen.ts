@@ -3126,6 +3126,26 @@ export type CommitInventoryApiV1InventoryRunsPostResponses = {
 
 export type CommitInventoryApiV1InventoryRunsPostResponse = CommitInventoryApiV1InventoryRunsPostResponses[keyof CommitInventoryApiV1InventoryRunsPostResponses];
 
+export type GetMetaApiV1MetaGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/meta';
+};
+
+export type GetMetaApiV1MetaGetResponses = {
+    /**
+     * Response Get Meta Api V1 Meta Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetMetaApiV1MetaGetResponse = GetMetaApiV1MetaGetResponses[keyof GetMetaApiV1MetaGetResponses];
+
 export type ListNotificationsApiV1NotificationsGetData = {
     body?: never;
     path?: never;
