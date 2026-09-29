@@ -22,5 +22,15 @@ COPY scanner/pyproject.toml scanner/uv.lock ./
 COPY scanner/src ./src
 RUN uv sync --frozen --no-dev
 
-ENV JAVV_SCANNER=trivy
-ENTRYPOINT ["uv", "run", "--no-sync", "python", "-m", "scanner"]
+# A fixed non-root user (issue 632). The process writes only the vuln-DB cache (the M10 PVC mount
+# point), the dead-letter file and /tmp, so the root filesystem can run read-only. The venv's
+# python is the entrypoint: `uv run` creates a cache directory at start even with --no-sync.
+RUN groupadd --system --gid 65532 javv \
+ && useradd --system --uid 65532 --gid 65532 --no-create-home --home-dir /nonexistent javv \
+ && install -d -o 65532 -g 65532 /var/cache/javv/trivy /var/lib/javv
+ENV JAVV_SCANNER=trivy \
+    TRIVY_CACHE_DIR=/var/cache/javv/trivy \
+    JAVV_DEAD_LETTER=/var/lib/javv/trivy.dead-letter.jsonl \
+    PATH=/app/.venv/bin:$PATH
+USER 65532:65532
+ENTRYPOINT ["python", "-m", "scanner"]
