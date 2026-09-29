@@ -181,9 +181,9 @@ the Dockerfiles + dev compose in step. To change support, edit `versions.yaml`.
 
 | Component | Current | Also supported |
 |---|---|---|
-| Trivy | 0.71.2 | 0.70.0 |
-| Grype | 0.115.0 | 0.114.0 |
-| OpenSearch | 3.7.0 | n/a |
+| Trivy | 0.74.0 | 0.70.0 |
+| Grype | 0.119.0 | 0.114.0 |
+| OpenSearch | 3.8.0 | n/a |
 
 Scanner images are published per supported version as
 `ghcr.io/danube-labs/javv-scanner-{trivy,grype}:<ver>`; an operator pins/swaps a tag in their own

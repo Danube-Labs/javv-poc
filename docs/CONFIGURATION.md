@@ -137,7 +137,7 @@ severities ∈ `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`, pkg-types ∈ `os,library`, t
 | `JAVV_TRIVY_PKG_TYPES` | *(unset)* | `--pkg-types os,library` | read-only display (C-4) |
 | `JAVV_TRIVY_TIMEOUT` | *(unset)* | `--timeout 5m0s` (unset = trivy's own default) | read-only display (C-4) |
 | Output format | `json` | fixed — parser depends on it | n/a |
-| **Trivy version** | `0.71.2` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
+| **Trivy version** | `0.74.0` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; DB pulled at scan time; stamped per envelope via a per-cycle `trivy version --format json` (#96) | ⚙️ read-only display |
 
 ---
@@ -153,7 +153,7 @@ env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (pa
 | `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers\|deep-squashed` (validated, #97; unset = grype default) | read-only display (C-4) |
 | `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag); non-integer → fail-fast with a clear error (#97) | read-only display (C-4) |
 | Output format | `json` | fixed — parser depends on it | n/a |
-| **Grype version** | `0.115.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
+| **Grype version** | `0.119.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; DB pulled at scan time | ⚙️ read-only display |
 
 ---
@@ -165,7 +165,7 @@ M10 (Helm). Version pin: `versions.yaml` → `datastore.opensearch`.
 
 | Setting | Dev/CI value | Meaning | Prod note |
 |---|---|---|---|
-| image | `opensearchproject/opensearch:3.7.0` | pinned in `versions.yaml` (D42) | same pin |
+| image | `opensearchproject/opensearch:3.8.0` | pinned in `versions.yaml` (D42) | same pin |
 | `discovery.type` | `single-node` | single-node dev cluster | multi-node in prod |
 | `DISABLE_SECURITY_PLUGIN` | `true` | **DEV ONLY** — no TLS/auth on :9200 | **off** in prod: security plugin + TLS (SEC-8) |
 | `OPENSEARCH_JAVA_OPTS` | dev `-Xms1g -Xmx1g` · CI `-Xms512m -Xmx512m` | JVM heap. Dev was raised off 512m: the parent circuit breaker is 95% of heap and the e2e corpus rested at ~83% of it, so bulk ingest tripped it. CI keeps 512m — a fresh store per run has no resting corpus. | sized per node |
