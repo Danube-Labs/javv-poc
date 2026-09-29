@@ -3,14 +3,17 @@ output still satisfies the JAVV adapter contracts — version provenance present
 a known-vulnerable image, severities canonicalize, and the envelope builds. CI runs the real
 binary per compatible version; these unit tests prove the checker bites on format drift."""
 
+import gzip
 import json
 import os
 from pathlib import Path
 
+import httpx
 import pytest
 
 from scanner.adapters.grype import parse_grype, parse_grype_provenance
-from scanner.compat import contract_violations
+from scanner.compat import COMPAT_IMAGE, contract_violations, push_compat
+from scanner.config import GrypeConfig
 from scanner.models import Provenance, ScanResult
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -57,3 +60,114 @@ def test_installed_binary_is_compatible(scanner: str) -> None:
     result, violations = run_compat(scanner, "python:3.9.16-slim")  # type: ignore[arg-type]
     assert violations == [], violations
     assert result.provenance.scanner_version
+
+
+# --- --push: the real cycle over the compat image (issue 631) ----------------------------------
+
+CLUSTER = "compat-cluster-01"
+
+
+def _grype_scan(ref: str) -> ScanResult:
+    data = load("grype-python-3.9.16-slim.json")
+    return ScanResult(findings=parse_grype(data), provenance=parse_grype_provenance(data))
+
+
+def _backend(ingest_status: int = 202, inventory: str = "committed", order_status: int = 200):
+    """A fake backend for the three calls a cycle makes; records what it was sent."""
+    seen: dict[str, list[httpx.Request]] = {"orders": [], "ingest": [], "inventory": []}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/v1/scan-scope":
+            return httpx.Response(200, json={})
+        if request.url.path == "/api/v1/scan-runs":
+            seen["orders"].append(request)
+            return httpx.Response(order_status, json={"scan_order": 7})
+        if request.url.path == "/api/v1/ingest/scan":
+            seen["ingest"].append(request)
+            return httpx.Response(ingest_status, json={})
+        seen["inventory"].append(request)
+        return httpx.Response(200, json={"status": inventory})
+
+    client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://backend")
+    return client, seen
+
+
+def _push(http: httpx.Client, tmp_path: Path, **kw):
+    return push_compat(
+        "grype",
+        kw.pop("image", COMPAT_IMAGE),
+        cluster_id=CLUSTER,
+        scan_fn=kw.pop("scan_fn", _grype_scan),
+        tuning=GrypeConfig(),
+        http=http,
+        token="tok-secret",
+        dead_letter=tmp_path / "grype.dead-letter.jsonl",
+    )
+
+
+def test_push_runs_the_real_cycle_and_reports_what_it_sent(tmp_path: Path) -> None:
+    http, seen = _backend()
+    with http:
+        result, summary, violations = _push(http, tmp_path)
+
+    assert violations == []
+    assert result is not None and summary is not None
+    [ingest] = seen["ingest"]
+    sent = json.loads(gzip.decompress(ingest.content))
+    assert ingest.headers["Authorization"] == "Bearer tok-secret"
+    assert sent["scan_order"] == 7 and sent["cluster_id"] == CLUSTER
+    assert sent["image_digest"] == COMPAT_IMAGE.partition("@")[2]
+    # the summary is exactly what went over the wire, so CI compares the store with the truth
+    assert summary.counts == sent["counts"]
+    assert summary.scan_run_id == sent["scan_run_id"]
+    assert summary.counts["total"] == len(result.findings) > 0
+    assert summary.delivered and summary.inventory_committed
+    # envelope v4 requires what the cycle ran with (D44) — the compat envelope once lacked it
+    assert set(sent["effective_config"]) == {"tuning", "scope"}
+    assert sent["effective_config"]["scope"]["include_namespaces"] == []
+    [inventory] = seen["inventory"]
+    assert json.loads(inventory.content)["expected_count"] == 1
+
+
+def test_a_refused_push_is_a_violation_and_dead_letters(tmp_path: Path) -> None:
+    http, _ = _backend(ingest_status=422)
+    with http:
+        _, summary, violations = _push(http, tmp_path)
+    assert summary is not None and not summary.delivered
+    assert any("did not accept" in v for v in violations)
+    assert (tmp_path / "grype.dead-letter.jsonl").exists()
+
+
+def test_an_uncommitted_inventory_run_is_a_violation(tmp_path: Path) -> None:
+    http, _ = _backend(inventory="partial")
+    with http:
+        _, _, violations = _push(http, tmp_path)
+    assert violations == ["the inventory run was not committed"]
+
+
+def test_no_scan_order_means_nothing_is_scanned_or_pushed(tmp_path: Path) -> None:
+    http, seen = _backend(order_status=500)
+    scans: list[str] = []
+    with http:
+        _, summary, violations = _push(http, tmp_path, scan_fn=lambda r: scans.append(r))
+    assert summary is None and scans == [] and seen["ingest"] == []
+    assert any("scan_order" in v for v in violations)
+
+
+def test_push_refuses_an_image_without_a_digest(tmp_path: Path) -> None:
+    http, seen = _backend()
+    with http:
+        _, summary, violations = _push(http, tmp_path, image="python:3.9.16-slim")
+    assert summary is None and seen["orders"] == []
+    assert any("digest-pinned" in v for v in violations)
+
+
+def test_a_failed_scan_is_a_violation_not_a_crash(tmp_path: Path) -> None:
+    def broken(ref: str) -> ScanResult:
+        raise RuntimeError("scanner exited 1")
+
+    http, seen = _backend()
+    with http:
+        _, summary, violations = _push(http, tmp_path, scan_fn=broken)
+    assert summary is None and seen["ingest"] == []
+    assert any("scan failed" in v for v in violations)

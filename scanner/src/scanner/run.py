@@ -7,13 +7,15 @@ cycle is unit-testable; `main()` wires the real kube client, scanner binaries, a
 import os
 import re
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
 import structlog
 
+from scanner.config import GrypeConfig, TrivyConfig
 from scanner.discovery import ImageTarget, discover
 from scanner.envelope import EffectiveConfig, Envelope, Scanner, build_envelope, new_scan_run
 from scanner.inventory import commit_inventory
@@ -93,6 +95,43 @@ def scan_all(
     return results
 
 
+@dataclass(frozen=True)
+class BackendTarget:
+    url: str
+    token: str | None
+    cluster_id: str | None  # set = asserted against the cluster reached (see resolve_cluster_id)
+
+
+def read_backend_env(environ: Mapping[str, str]) -> BackendTarget | None:
+    """`JAVV_BACKEND_URL`, `JAVV_TOKEN` and `JAVV_CLUSTER_ID`, validated for a push. `None` = a
+    value is garbage (logged with the variable's name); the caller exits 2 rather than push."""
+    url = environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
+    if not url.startswith(("http://", "https://")):  # else httpx fails as a silent skip
+        log.error("invalid JAVV_BACKEND_URL", value=url, want="http(s)://…")
+        return None
+    cluster_id = environ.get("JAVV_CLUSTER_ID")
+    if cluster_id and not re.fullmatch(r"[a-z0-9-]{8,64}", cluster_id):
+        # mirrors the backend's shape rule — garbage here would 422 on every push
+        log.error("invalid JAVV_CLUSTER_ID", value=cluster_id, want="lowercase alnum/hyphen, 8-64")
+        return None
+    # bearer token — effectively required: without it the scope fetch 401s and every cycle skips
+    return BackendTarget(url=url, token=environ.get("JAVV_TOKEN"), cluster_id=cluster_id or None)
+
+
+def scan_wiring(scanner: Scanner) -> tuple[ScanFn, TrivyConfig | GrypeConfig]:
+    """The scan function and tuning a cycle runs with: `JAVV_TRIVY_*`/`JAVV_GRYPE_*` (#91), whose
+    defaults are the pinned command. The tuning is stamped into every envelope (D44)."""
+    from scanner.adapters.grype import scan_grype
+    from scanner.adapters.trivy import scan_trivy, trivy_db_info
+
+    if scanner == "trivy":
+        trivy_cfg = TrivyConfig.from_env()
+        trivy_db = trivy_db_info()  # once per cycle, best-effort vuln-DB provenance (#96)
+        return (lambda ref: scan_trivy(ref, config=trivy_cfg, db=trivy_db)), trivy_cfg
+    grype_cfg = GrypeConfig.from_env()
+    return (lambda ref: scan_grype(ref, config=grype_cfg)), grype_cfg
+
+
 def resolve_cluster_id(live_uid: str, env_cluster_id: str | None) -> str | None:
     """`JAVV_CLUSTER_ID` asserts which cluster this cycle is for; it does not relabel one.
 
@@ -117,10 +156,6 @@ def main() -> int:
     from javv_common.logging import configure_logging
     from kubernetes import client, config
 
-    from scanner.adapters.grype import scan_grype
-    from scanner.adapters.trivy import scan_trivy, trivy_db_info
-    from scanner.config import GrypeConfig, TrivyConfig
-
     configure_logging()  # JAVV_LOG_LEVEL, same pipeline as the backend (#156)
 
     scanner_env = os.environ.get("JAVV_SCANNER", "trivy")
@@ -128,19 +163,10 @@ def main() -> int:
         log.error("unknown JAVV_SCANNER", value=scanner_env, want="trivy|grype")
         return 2
     scanner: Scanner = cast(Scanner, scanner_env)
-    backend = os.environ.get("JAVV_BACKEND_URL", "http://localhost:8000")
-    if not backend.startswith(("http://", "https://")):  # else httpx fails as a silent skip
-        log.error("invalid JAVV_BACKEND_URL", value=backend, want="http(s)://…")
+    target = read_backend_env(os.environ)
+    if target is None:
         return 2
-    env_cluster_id = os.environ.get("JAVV_CLUSTER_ID")
-    if env_cluster_id and not re.fullmatch(r"[a-z0-9-]{8,64}", env_cluster_id):
-        # mirrors the backend's shape rule — garbage here would 422 on every push
-        log.error(
-            "invalid JAVV_CLUSTER_ID", value=env_cluster_id, want="lowercase alnum/hyphen, 8-64"
-        )
-        return 2
-    # bearer token — effectively required: without it the scope fetch 401s and every cycle skips
-    token = os.environ.get("JAVV_TOKEN")
+    backend, token, env_cluster_id = target.url, target.token, target.cluster_id
     dead_letter = Path(os.environ.get("JAVV_DEAD_LETTER", f"{scanner}.dead-letter.jsonl"))
 
     # `or None` — an empty value (a blank Helm value, an exported-but-unset var) means "current
@@ -175,16 +201,7 @@ def main() -> int:
         api_server=cast(Any, api.api_client.configuration).host,
     )
 
-    # scan-behaviour config from JAVV_TRIVY_*/JAVV_GRYPE_* env (#91); defaults = the pinned command.
-    scan_fn: ScanFn
-    tuning: TrivyConfig | GrypeConfig
-    if scanner == "trivy":
-        tuning = trivy_cfg = TrivyConfig.from_env()
-        trivy_db = trivy_db_info()  # once per cycle, best-effort vuln-DB provenance (#96)
-        scan_fn = lambda ref: scan_trivy(ref, config=trivy_cfg, db=trivy_db)  # noqa: E731
-    else:
-        tuning = grype_cfg = GrypeConfig.from_env()
-        scan_fn = lambda ref: scan_grype(ref, config=grype_cfg)  # noqa: E731
+    scan_fn, tuning = scan_wiring(scanner)
 
     with httpx.Client(base_url=backend, timeout=30.0) as http:
         # D43/FR-24: fetch the cluster's scan scope first. Fail-closed — if the backend is
