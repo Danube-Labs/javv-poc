@@ -25,6 +25,7 @@ from backend.routers import (
     ingest,
     inspect,
     inventory_runs,
+    meta,
     metrics,
     notifications,
     reports,
@@ -39,17 +40,19 @@ from backend.routers import (
 )
 from backend.sla import routes as sla_routes
 from backend.triage import bulk_routes
+from backend.version import APP_VERSION
 
 
 def create_app() -> FastAPI:
     configure_logging()
-    app = FastAPI(title="JAVV backend", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="JAVV backend", version=APP_VERSION, lifespan=lifespan)
     install_request_context(app)
     install_http_metrics(app)  # M-1 (#220): route-template request histogram
     register_error_handlers(app)
     app.include_router(health.router)
     app.include_router(auth.router)
     app.include_router(metrics.router)
+    app.include_router(meta.router)
     app.include_router(ingest.router)
     app.include_router(scan_scope.router)
     app.include_router(scan_runs.router)

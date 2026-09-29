@@ -1922,7 +1922,7 @@
   },
   "info": {
     "title": "JAVV backend",
-    "version": "0.1.0"
+    "version": "0.4.7"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -7599,6 +7599,29 @@
         "summary": "Commit Inventory",
         "tags": [
           "inventory-runs"
+        ]
+      }
+    },
+    "/api/v1/meta": {
+      "get": {
+        "operationId": "get_meta_api_v1_meta_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Meta Api V1 Meta Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Meta",
+        "tags": [
+          "meta"
         ]
       }
     },

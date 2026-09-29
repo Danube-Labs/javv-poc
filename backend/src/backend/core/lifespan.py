@@ -18,10 +18,11 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.auth.bootstrap_admin import seed_bootstrap_admin
 from backend.auth.capabilities import seed_default_roles
-from backend.core.bootstrap import bootstrap, summarize_actions
+from backend.core.bootstrap import MAPPING_VERSION, bootstrap, summarize_actions
 from backend.core.settings import assert_production_ready, get_settings
 from backend.query.as_of import register_as_of_t
 from backend.query.as_of_t import AsOfTQuery
+from backend.version import APP_VERSION
 
 log = structlog.get_logger()
 
@@ -43,7 +44,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             ) from exc
         results = await bootstrap(client)  # idempotent + version-gated
         # names as list values keyed by action — as keys, `system-tokens` gets redacted (#156)
-        log.info("bootstrap complete", **summarize_actions(results))
+        log.info(
+            "bootstrap complete",
+            app_version=APP_VERSION,
+            mapping_version=MAPPING_VERSION,
+            **summarize_actions(results),
+        )
         # M5a/D33+SEC-6: default role bundles + the bootstrap admin — both seed-once
         # (op_type=create), so customized roles / a live admin are never overwritten
         roles_created = await seed_default_roles(client)
