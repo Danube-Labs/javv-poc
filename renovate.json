@@ -12,6 +12,9 @@
   "vulnerabilityAlerts": { "labels": ["security", "dependencies"] },
   "osvVulnerabilityAlerts": true,
   "pre-commit": { "enabled": true },
+  "docker-compose": {
+    "managerFilePatterns": ["/(^|/)development/setup/opensearch-dev\\.yml$/"]
+  },
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 4am on monday"]
