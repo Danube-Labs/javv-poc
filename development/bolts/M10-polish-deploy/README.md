@@ -77,6 +77,12 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-09-29 — M10 ends in the MVP release, not 1.0 (operator):** the release that closes this
+  bolt is `0.6.0` or `0.7.0` (a `Release-As:` footer). `1.0.0` follows a hardening phase: plug-and-play
+  install, the rest of the upgrade story (issue 261), bug burn-down, then the Renovate majors last.
+  From issue 261 this bolt needs only the version endpoint, `UPGRADING.md`, and how bootstrap runs
+  during a Helm upgrade. The Definition-of-Done line on the **`_reindex` migration runbook** moves to
+  the hardening phase; the `helm rollback` half of that line stays here.
 - **2026-07-12 — settled visual contracts (v0.3.9, PRs #348/#350) — polish must not re-litigate:**
   chip language A (derived hues, severity escalation, the one depth treatment), the chart
   escalation ramp (`--sev-*-chart`, critical/high test-pinned to the solids), the cursor
