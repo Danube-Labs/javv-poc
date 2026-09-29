@@ -8,6 +8,7 @@ import structlog
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from backend.core import stored_settings
+from backend.core.metrics import STORED_SETTING_UNKNOWN_FIELDS
 from backend.core.stored_settings import parse_stored_setting
 
 
@@ -67,3 +68,13 @@ def test_a_bad_value_on_a_known_field_still_fails(captured) -> None:
 def test_the_model_itself_stays_strict_for_request_bodies() -> None:
     with pytest.raises(ValidationError):
         _Timers.model_validate({"freshness_days": 10, "added_later": 5})
+
+
+def test_every_dropping_read_bumps_the_counter_by_setting_kind(captured) -> None:
+    per_cluster = STORED_SETTING_UNKNOWN_FIELDS.labels("staleness")
+    before = per_cluster._value.get()
+    for cluster in ("a", "b", "b"):
+        parse_stored_setting(_Timers, {"added_later": 1}, key=f"staleness:{cluster}")
+    parse_stored_setting(_Timers, {"freshness_days": 5}, key="staleness:c")  # nothing dropped
+    assert per_cluster._value.get() - before == 3
+    assert len(captured) == 2  # still one warning per doc
