@@ -26,7 +26,8 @@ from opensearchpy import AsyncOpenSearch, RequestError
 #   1. Edit the `_*_PROPERTIES` dict here (ADDITIVE only — `dynamic:false` means new fields must
 #      be mapped here first; never retype/remove a field, that's a reindex-migration, D-post-MVP).
 #   2. Bump MAPPING_VERSION by 1 and extend the history comment below.
-#   3. Keep INDEX-MAP.md in the same change (it's the spec of record for every mapping).
+#   3. Keep INDEX-MAP.md in the same change (it's the spec of record for every mapping), and add
+#      an `Unreleased` row to docs/UPGRADING.md § Version notes (operators read that, not this).
 #   4. Done — on next startup bootstrap() sees version < MAPPING_VERSION and applies an additive
 #      `put_mapping` (mutable indices) / template overwrite (append series); already-current
 #      clusters are untouched. Existing DOCS are never rewritten — new fields are simply absent

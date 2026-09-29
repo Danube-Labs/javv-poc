@@ -77,6 +77,21 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-09-29 — how the chart runs the upgrade (issue 261):** the backend keeps bootstrapping the
+  indices in its own startup; there is no Helm pre-upgrade hook Job. The chart (issue 452) must set:
+  - the backend `strategy` to `RollingUpdate` with `maxUnavailable: 0` and `maxSurge: 1`;
+  - `readinessProbe` → `/readyz`, `livenessProbe` → `/healthz`;
+  - a `startupProbe` whose budget covers bootstrap against a slow store;
+  - `JAVV_BOOTSTRAP_ON_STARTUP` left at its default.
+
+  The reasons and the full table are in
+  [`docs/engineering/UPGRADES.md`](../../../docs/engineering/UPGRADES.md). The chart PR fills in the
+  Helm section of [`docs/UPGRADING.md`](../../../docs/UPGRADING.md) with the real commands.
+- **2026-09-29 — the operator docs site joins this bolt (issue 639, operator):** MkDocs Material on
+  GitHub Pages, built from the repo's markdown, with one docs version per release. A GitHub Wiki was
+  rejected because it sits outside PR review and has no versions. The site uses the `github.io` address
+  until the move to `javv` after 1.0. A `dev` version publishes from `main` once the site PR merges,
+  and `0.6` is the first numbered version.
 - **2026-09-29 — the scanner CronJobs' security context (issue 632):** the images now run as
   `65532:65532` and write only to `/var/cache/javv/<scanner>` (vuln-DB cache), `/var/lib/javv` (dead
   letter) and `/tmp`. The chart sets `runAsNonRoot: true`, `runAsUser/runAsGroup: 65532`,

@@ -62,9 +62,10 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 
 | Path | Contents |
 |---|---|
-| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D46, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) |
+| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D46, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `UPGRADES` (how a rollout runs the index bootstrap, rollback, what the Helm chart must do) |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
 | **`docs/CONFIGURATION.md`** | Every configuration setting: default, tier, UI-controllability. **New setting → same PR** |
+| **`docs/UPGRADING.md`** | The operator upgrade runbook: before, order (backend → frontend → scanners), how to check what's running, rollback, per-release version notes |
 | **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; archived point-in-time reports, and the finished 2026-07-07 hygiene audit (`major_audit/`), in `.deprecated/docs/audits/` |
 | **`docs/research/`** | Backing research. `STACK-BEST-PRACTICES` (day-one engineering rules) · `TOOLING-AND-MCP` (MCP servers + install) · `K8S-DEV-CLUSTER` (k3d/remote options) · `INDEPENDENT-AUDIT-v3` · `SNAPSHOT-MODEL-VALIDATION` · `OPENSEARCH-DYNAMIC-CONFIG` |
 | `.deprecated/` | Frozen V1/V2/V3 docs + original notes (evolution trail; `.deprecated/docs/deprecated/original_notes_for_app.md` is **read-only**) |
