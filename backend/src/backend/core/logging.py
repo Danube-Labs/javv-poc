@@ -42,6 +42,9 @@ def install_request_context(app: FastAPI) -> None:
         rid = inbound if inbound and _REQUEST_ID.match(inbound) else uuid.uuid4().hex[:16]
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(request_id=rid)
+        # the error handlers read it here: the catch-all runs outside this middleware, where the
+        # bound log context isn't visible (issue 644)
+        request.state.request_id = rid
         tenant = (
             {"cluster_id": request.query_params["cluster_id"]}
             if "cluster_id" in request.query_params

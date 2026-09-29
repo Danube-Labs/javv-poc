@@ -1,8 +1,8 @@
 """The single error envelope (RFC 9457 problem-details) every non-2xx response uses.
 
 Routers never hand-roll error bodies — they raise, and the handlers here render the envelope so a
-client error maps 1:1 to logs via `request_id`. `request_id` binding into structlog lands with the
-observability slice; for now it's threaded through the response shape so the contract is set early.
+client error maps 1:1 to logs via `request_id`: the id the request-line middleware chose (the
+inbound `X-Request-ID` if well-formed, else minted) and logged the request under.
 """
 
 from collections.abc import Mapping
@@ -41,7 +41,7 @@ def problem_response(
 
 
 def _request_id(request: Request) -> str | None:
-    return request.headers.get("x-request-id")
+    return getattr(request.state, "request_id", None)
 
 
 def register_error_handlers(app: FastAPI) -> None:

@@ -6,7 +6,9 @@ from typing import Any
 
 import httpx
 import pytest
+import structlog
 
+from backend.core import logging as core_logging
 from backend.core.lifespan import lifespan
 from backend.core.logging import REDACTED, redact_processor
 from backend.core.settings import get_settings
@@ -67,6 +69,38 @@ async def test_request_id_is_clamped_or_replaced_when_malformed() -> None:
         assert echoed != "x" * 500 and len(echoed) <= 64
         assert re.fullmatch(r"[A-Za-z0-9-]+", echoed)  # a safe minted id
     assert good.headers["x-request-id"] == "trace-01"  # a valid inbound id is preserved
+
+
+@pytest.mark.parametrize("inbound", [None, "trace-err-01"])
+@pytest.mark.parametrize(
+    ("method", "path", "body", "status"),
+    [
+        ("GET", "/api/v1/scan-scope", None, 401),  # no bearer: rejected before any store call
+        ("GET", "/api/v1/no-such-route", None, 404),
+        ("POST", "/auth/login", {}, 422),
+    ],
+)
+async def test_every_error_body_carries_the_requests_id(
+    monkeypatch, method: str, path: str, body: Any, status: int, inbound: str | None
+) -> None:
+    """observability.md §4/§6 (issue 644): an error body's `request_id` is the id the request
+    was logged under and echoed with, minted when the client sent none. It used to be the raw
+    inbound header, so without one every error body said null."""
+    monkeypatch.setattr(core_logging, "log", structlog.get_logger())
+    app = create_app()
+    headers = {"X-Request-ID": inbound} if inbound else {}
+    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        with structlog.testing.capture_logs(
+            processors=[structlog.contextvars.merge_contextvars]
+        ) as logs:
+            r = await c.request(method, path, json=body, headers=headers)
+    assert r.status_code == status
+    rid = r.headers["x-request-id"]
+    assert r.json()["request_id"] == rid
+    if inbound:
+        assert rid == inbound
+    (line,) = [e for e in logs if e["event"] == "request" and e["path"] == path]
+    assert line["request_id"] == rid
 
 
 # --- startup contract -------------------------------------------------------
