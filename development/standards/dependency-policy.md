@@ -27,7 +27,7 @@ by the operator on issue 552 (2026-09-27).
 - **Security fixes open immediately**, outside any schedule, labelled `security`.
 - **Major updates wait for approval.** Renovate lists them under "Pending Approval" on the
   Dependency Dashboard and opens one only when its box is ticked. The MVP ships on the current
-  majors; they are taken one at a time before 1.0. Security fixes never wait. That covers
+  majors; they are taken one at a time as the last step before 1.0. Security fixes never wait. That covers
   dependencies we list ourselves; one that only a library pulls in (a *transitive* one, in the
   lockfile but in no `package.json` / `pyproject.toml`) gets no security PR from Renovate.
 - **Lockfiles are refreshed weekly** (lock file maintenance, Monday before 4am UTC): one PR that

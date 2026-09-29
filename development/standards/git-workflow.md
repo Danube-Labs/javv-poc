@@ -109,5 +109,6 @@ Hand-authored chore PRs follow the convention; the agent included.
 
 ## main
 - Protected. No direct pushes; PR + green CI + review to merge.
-- First tag (`v0.1.0`) is cut at **M0/M1** (first runnable code); `1.0.0`/GA ~ the deploy bolt (M10).
+- First tag (`v0.1.0`) is cut at **M0/M1** (first runnable code). The MVP release (`0.6`/`0.7`) closes
+  the deploy bolt (M10); `1.0.0` follows a hardening phase (see [releases.md](releases.md)).
 - Versioning + release/dependency automation (release-please, Renovate): see [releases.md](releases.md).
