@@ -317,3 +317,32 @@ disjoint (insert points 171 / 240 / 603) and their helpers do not collide (`ce_p
 
 Pre-existing phases held on the same run: trivy=22869 / grype=10978, disagree=5859, CSV rows 22794
 == present trivy findings, completed reads leaked 0 PITs (before=5 after=5).
+
+---
+
+# #520 slice 4 — the browser→log beacon proof (2026-09-29)
+
+`frontend/tests/e2e/beacon.spec.ts`, run locally against a CI-shaped throwaway stack (OpenSearch
+3.7.0 on :9201, backend on :8001 appending to `logs/backend.log`, `seed-smoke.sh`, the production
+build served by `vite preview`), then in CI's **Frontend smoke** job.
+
+The one seam no earlier layer covered: the unit tests mock `sendBeacon`, and section 6c POSTs with
+curl. Here a real call site in the BUILT app (`InspectView`'s `inspect_rejected`, from a 422 on a
+three-segment path carrying a per-run marker) is flushed by dispatching `pagehide`, the beacon POST
+is observed leaving the browser, and the spec then reads the line back out of the backend's log:
+
+```
+{"level": "warning", "event": "client.inspect_rejected", "client_event": true, "username": "admin",
+ "fields": {"path": "beacon-1790670447476-bckxgi/_search/x", "status": 422}, ...}
+```
+
+| Run | Result |
+|---|---|
+| beacon spec, production build | **1 passed** (4.9 s) |
+| full Playwright suite with it | **exit 0** |
+| mutation: built with `VITE_CLIENT_EVENTS=false` | **fails** as it must (`waitForRequest` timeout) |
+
+**Finding (test-side, not product):** Chromium does not expose a `sendBeacon` body to Playwright;
+`request.postData()` reads `""` even though the event arrived intact. The first draft asserted the
+marker in the request body and failed on exactly that. The spec now observes that the request
+left, and proves the content from the log line.
