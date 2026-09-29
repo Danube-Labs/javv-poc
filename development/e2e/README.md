@@ -17,7 +17,7 @@ these are operator-driven rigs for proving the whole pipe and for measure-first 
 | [`bench_refresh.py`](bench_refresh.py) | The **#117 refresh-cost bench**: synthetic schema-v3 envelopes at fleet scale (clusters × scanners × digests, concurrent senders) straight at `/api/v1/ingest/scan`, sampling `findings/_stats/refresh` per cycle. Answered #117 (verdict: the per-envelope refresh is flat, ~10–13 ms — keep it). Re-run if M6+ read load changes the picture. Settings: `BENCH_CLUSTERS/BENCH_DIGESTS/BENCH_FINDINGS/BENCH_CONCURRENCY`. |
 | [`bench_read.py`](bench_read.py) | The read-under-ingest contention bench (#134 item 4 read side): read latency while a write load runs. |
 | [`results.md`](results.md) | Findings log of the runs — what worked, what didn't, and the numbers. |
-| `logs/` | Per-run artifacts — **gitignored**, refreshed on every run: `backend.log`, `scanner-*.log`, `cluster.log`, `jobs.log`, `opensearch.log` (smoke); `api-capture/*.jsonl`, `loadbreak-*.jsonl`, `loadbreak-summary.md`, `metrics-capture.txt` (loadbreak). |
+| `logs/` | Per-run artifacts — **gitignored**, refreshed on every run: `backend.log`, `scanner-*.log`, `cluster.log`, `jobs.log`, `opensearch.log` (smoke); `api-capture/*.jsonl`, `loadbreak-*.jsonl`, `loadbreak-summary.md`, `metrics-capture.txt` (loadbreak). `backend.log` is also where CI's **Frontend smoke** job writes the backend's stdout, because `frontend/tests/e2e/beacon.spec.ts` (#520 slice 4) reads the browser's beacon events back out of it. |
 
 ## Running
 
