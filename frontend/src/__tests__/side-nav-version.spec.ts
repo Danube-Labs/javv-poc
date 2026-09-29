@@ -1,0 +1,64 @@
+/**
+ * The sidebar footer's version line (issue 261): every number comes from `/api/v1/meta`, none is
+ * typed into the template. A failed read says so on screen and in the log, instead of showing a stale
+ * or blank version.
+ */
+import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
+
+import SideNav from '@/components/chrome/SideNav.vue'
+
+vi.mock('@/api/generated', () => ({
+  getMetaApiV1MetaGet: vi.fn<() => Promise<unknown>>(),
+}))
+vi.mock('@/api/client', () => ({ client: {} }))
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    debug: vi.fn<() => void>(),
+    info: vi.fn<() => void>(),
+    warn: vi.fn<() => void>(),
+    error: vi.fn<() => void>(),
+  },
+}))
+
+import { getMetaApiV1MetaGet } from '@/api/generated'
+import { logger } from '@/lib/logger'
+
+const metaMock = vi.mocked(getMetaApiV1MetaGet)
+
+const router = createRouter({
+  history: createMemoryHistory(),
+  routes: [{ path: '/:any(.*)*', component: { template: '<div />' } }],
+})
+
+async function versionLines(): Promise<string[]> {
+  const wrapper = mount(SideNav, { global: { plugins: [router] } })
+  await flushPromises()
+  return wrapper.findAll('.side-version span').map((s) => s.text())
+}
+
+beforeEach(() => {
+  setActivePinia(createPinia())
+  localStorage.clear()
+  metaMock.mockReset()
+  vi.mocked(logger.warn).mockReset()
+})
+
+describe('SideNav version line', () => {
+  it('shows the release, the mapping version and the newest envelope the backend accepts', async () => {
+    metaMock.mockResolvedValue({
+      data: { version: '0.6.0', mapping_version: 18, envelope_versions: [3, 4] },
+      response: { ok: true, status: 200 },
+    } as never)
+    expect(await versionLines()).toEqual(['v0.6.0', 'mapping 18 · envelope v4'])
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+
+  it('says the version is unavailable when the read fails, and logs why', async () => {
+    metaMock.mockResolvedValue({ data: undefined, response: { ok: false, status: 503 } } as never)
+    expect(await versionLines()).toEqual(['version unavailable'])
+    expect(logger.warn).toHaveBeenCalledWith('meta_read_failed', { status: 503 })
+  })
+})

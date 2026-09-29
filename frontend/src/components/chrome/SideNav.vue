@@ -3,20 +3,21 @@
  * The slate sidebar (issue 384 split — extracted from AppShell, no behavior change): 226px,
  * collapsible to a 64px icon rail (Nuxt UI sidebar grammar, state persisted per browser) —
  * brand block, grouped nav with the javv stroke icons + coral active bar, sweep-health footer
- * + version line. Nav items whose screen is capability-gated are HIDDEN without the
+ * + the running versions from `/api/v1/meta` (issue 261). Nav items whose screen is capability-gated are HIDDEN without the
  * capability (A-4).
  */
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
+import { client } from '@/api/client'
+import { getMetaApiV1MetaGet } from '@/api/generated'
 import iconSvg from '@/assets/brand/icon.svg'
 import { visibleNav } from '@/components/chrome/navModel'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
+import { logger } from '@/lib/logger'
 import { useHealthStore } from '@/stores/health'
-
-const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? 'dev'
 
 const auth = useAuthStore()
 const clusterStore = useClusterStore()
@@ -31,6 +32,29 @@ function toggleSidebar() {
   collapsed.value = !collapsed.value
   localStorage.setItem(SIDEBAR_KEY, collapsed.value ? '1' : '0')
 }
+
+type RunningVersions = {
+  version: string
+  mapping_version: number
+  envelope_versions: number[]
+}
+const running = ref<RunningVersions | null>(null)
+const versionFailed = ref(false)
+/* two lines, not one: the full string wraps mid-phrase at the sidebar's width */
+const versionLines = computed((): string[] => {
+  const r = running.value
+  if (!r) return versionFailed.value ? ['version unavailable'] : []
+  return [`v${r.version}`, `mapping ${r.mapping_version} · envelope v${Math.max(...r.envelope_versions)}`]
+})
+onMounted(async () => {
+  const { data, response } = await getMetaApiV1MetaGet({ client })
+  if (response?.ok && data) {
+    running.value = data as RunningVersions
+  } else {
+    versionFailed.value = true
+    logger.warn('meta_read_failed', { status: response?.status })
+  }
+})
 </script>
 
 <template>
@@ -76,7 +100,13 @@ function toggleSidebar() {
           <span>{{ clusterStore.clusters.length }} cluster{{ clusterStore.clusters.length === 1 ? '' : 's' }} · live</span>
         </div>
       </div>
-      <div v-if="!collapsed" class="side-version">v{{ APP_VERSION }} · schema 4 · MVP</div>
+      <div
+        v-if="!collapsed && versionLines.length"
+        class="side-version"
+        title="Backend release · store mapping version · newest scanner envelope accepted"
+      >
+        <span v-for="line in versionLines" :key="line">{{ line }}</span>
+      </div>
     </div>
   </nav>
 </template>
@@ -280,6 +310,9 @@ function toggleSidebar() {
   box-shadow: none;
 }
 .side-version {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   font-family: var(--font-mono);
   font-size: var(--text-facet-label);
   color: var(--side-version);
