@@ -70,7 +70,8 @@
       "allowedVersions": "<3.13"
     },
     {
-      "description": "The scanner images' python base and uv image stay pinned by digest; Renovate re-pins one if an edit (check-versions.sh --fix) drops the digest",
+      "description": "The scanner images' python base and uv image stay pinned by digest; Renovate re-pins one if an edit (check-versions.sh --fix) drops the digest. Dockerfiles only: the pyenv manager reads .python-version with the same datasource, and a digest there would break it",
+      "matchManagers": ["dockerfile"],
       "matchDatasources": ["docker"],
       "matchPackageNames": ["python", "ghcr.io/astral-sh/uv"],
       "pinDigests": true
