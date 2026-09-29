@@ -168,7 +168,7 @@ jobs:
       # Real OpenSearch so the ingest/bootstrap integration tests (golden round-trip) run in CI,
       # not just locally. Security off — dev/CI only. Image kept in sync with versions.yaml (D42).
       opensearch:
-        image: opensearchproject/opensearch:3.7.0
+        image: opensearchproject/opensearch:3.8.0
         env:
           discovery.type: single-node
           DISABLE_SECURITY_PLUGIN: "true"
@@ -352,7 +352,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       opensearch:
-        image: opensearchproject/opensearch:3.7.0
+        image: opensearchproject/opensearch:3.8.0
         env:
           discovery.type: single-node
           DISABLE_SECURITY_PLUGIN: "true"
