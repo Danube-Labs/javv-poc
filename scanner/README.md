@@ -24,6 +24,13 @@ JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://backend JAVV_TOKEN=<ingest token> pyt
 | `JAVV_KUBE_CONTEXT` | out-of-cluster only — which kubeconfig context to scan (default: the current one) |
 | `JAVV_DEAD_LETTER` | dead-letter sink path (default `<scanner>.dead-letter.jsonl`) |
 
+### The image runs as non-root
+Both images run as `65532:65532` with `python -m scanner` (the project venv) as the entrypoint, and
+write only to the vuln-DB cache (`/var/cache/javv/<scanner>`), the dead-letter file (`/var/lib/javv`) and
+`/tmp`. So they run with a read-only root filesystem (issue 632). Mounts there must be writable by that
+UID; a kubeconfig mounted for an out-of-cluster run must be readable by it. Paths and overrides:
+[`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md) §2.
+
 Scan tuning (`JAVV_TRIVY_*`: severities, scanners, package types, ignore-unfixed, timeout;
 `JAVV_GRYPE_*`: only-fixed, scope, scan timeout) and every default are in
 [`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md) §2–§4. Unset means the pinned default command; a
@@ -51,8 +58,15 @@ are scanned **sequentially** (stateless; intra-run parallelism is a possible lat
 - **Supported versions** live in [`/versions.yaml`](../versions.yaml) (single source of truth) — `current` +
   a small set of prior versions per scanner. Edit there; Renovate watches it.
 - **Compatibility gate:** `python -m scanner.compat --scanner trivy` drives the real binary against a
-  CVE-bearing image and asserts the JAVV adapter contracts (provenance present, findings parse, severities
-  canonical, envelope builds). CI runs it per supported version; green → publishable.
+  CVE-bearing image (`python:3.9.16-slim`, pinned by digest) and asserts the JAVV adapter contracts
+  (provenance present, findings parse, severities canonical, envelope builds). CI runs it per supported
+  version; green → publishable.
+  - **`--push`** (issue 631) runs that image through the **real cycle** instead of stopping at a local
+    envelope: scope fetch, backend-allocated `scan_order`, the push client, the inventory commit. It reads
+    `JAVV_BACKEND_URL`, `JAVV_TOKEN` and `JAVV_CLUSTER_ID` (required here, since there's no cluster to
+    derive it from) and fails if the backend refuses the envelope or the inventory run isn't committed.
+    `--summary out.json` writes what was sent (`scan_run_id`, per-severity `counts`, `scanner_version`),
+    so a check can compare the store against it.
 - **DB-compat policy:** `versions.yaml` records each scanner's factual `vuln_db` compatibility (no invented
   EOL). `development/scripts/check-scanner-db-policy.sh` fails CI if a supported version would run a frozen/
   incompatible vuln DB — e.g. Grype < 0.88.0 (schema v5, EOL 2026-03-06, runs silently).

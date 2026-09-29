@@ -77,6 +77,12 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-09-29 — the scanner CronJobs' security context (issue 632):** the images now run as
+  `65532:65532` and write only to `/var/cache/javv/<scanner>` (vuln-DB cache), `/var/lib/javv` (dead
+  letter) and `/tmp`. The chart sets `runAsNonRoot: true`, `runAsUser/runAsGroup: 65532`,
+  `readOnlyRootFilesystem: true`, `allowPrivilegeEscalation: false`, `capabilities.drop: [ALL]`; the
+  vuln-DB PVC (NFR-11) mounts at `/var/cache/javv`, with `emptyDir` for `/var/lib/javv` and `/tmp`.
+  A manifest test pins it, next to the scanner RBAC scope test.
 - **2026-09-29 — M10 ends in the MVP release, not 1.0 (operator):** the release that closes this
   bolt is `0.6.0` or `0.7.0` (a `Release-As:` footer). `1.0.0` follows a hardening phase: plug-and-play
   install, the rest of the upgrade story (issue 261), bug burn-down, then the Renovate majors last.
