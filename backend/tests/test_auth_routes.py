@@ -69,8 +69,13 @@ def _u() -> str:
     return f"u-{uuid.uuid4().hex[:12]}"
 
 
-async def _login(http, username: str, password: str = PASSWORD) -> httpx.Response:
-    return await http.post("/auth/login", json={"username": username, "password": password})
+async def _login(
+    http, username: str, password: str = PASSWORD, *, request_id: str | None = None
+) -> httpx.Response:
+    headers = {"X-Request-ID": request_id} if request_id else {}
+    return await http.post(
+        "/auth/login", json={"username": username, "password": password}, headers=headers
+    )
 
 
 # --- login ------------------------------------------------------------------------
@@ -99,11 +104,12 @@ async def test_wrong_password_and_unknown_user_are_the_same_generic_401(auth_cli
     user = _u()
     await _seed_user(client, user)
 
-    wrong = await _login(http, user, "not the password xx")
-    unknown = await _login(http, _u())  # never seeded
+    # one request id for both: the body carries it (issue 644), and it's the only per-request part
+    wrong = await _login(http, user, "not the password xx", request_id="oracle-check")
+    unknown = await _login(http, _u(), request_id="oracle-check")  # never seeded
 
     assert wrong.status_code == unknown.status_code == 401
-    assert wrong.json() == unknown.json()  # byte-identical — no existence oracle
+    assert wrong.content == unknown.content  # byte-identical — no existence oracle
 
 
 async def test_disabled_user_gets_the_same_generic_401(auth_client) -> None:
