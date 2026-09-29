@@ -11,7 +11,7 @@ dependencies = [
 dev = [
     # ruff/pyright pinned exactly — single source is versions.yaml (D42 phase 2),
     # drift-checked by development/scripts/check-versions.sh. Bump there, then --fix.
-    "pyright==1.1.411",
+    "pyright==1.1.414",
     "pytest>=8",
     "ruff==0.15.20",
 ]
