@@ -40,6 +40,7 @@ the query layer (tenant read path), not per-user grants (post-MVP).
 | GET | `/healthz` | none | Liveness — 200 while the process runs; **no OpenSearch dependency** |
 | GET | `/readyz` | none | Readiness — `200 {ready}` if OpenSearch reachable, `503 {degraded}` if not |
 | GET | `/metrics` | none | Prometheus exposition (see below) |
+| GET | `/api/v1/meta` | session | What this backend runs: `{version, mapping_version, envelope_versions}` (issue 261). `version` is the release (`backend/version.py`, bumped by release-please); `mapping_version` is `MAPPING_VERSION`; `envelope_versions` are the ingest `schema_version`s accepted. Behind login because `/readyz` is anonymous; the `bootstrap complete` log line carries the same versions for operators |
 
 ### Machine surface (M1/M3, scanner-facing)
 

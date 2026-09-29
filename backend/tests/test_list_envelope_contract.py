@@ -216,6 +216,7 @@ REGISTRY: tuple[ListEndpoint, ...] = (
 EXEMPT_GET_ROUTES: dict[str, str] = {
     "/healthz": "liveness scalar",
     "/readyz": "readiness scalar",
+    "/api/v1/meta": "one object: the running versions",
     "/metrics": "Prometheus text exposition, not JSON",
     "/auth/me": "one principal",
     "/api/v1/settings/sla": "one policy object",
