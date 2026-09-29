@@ -97,7 +97,7 @@ jobs:
         run: uv run python -m scanner.compat --scanner "${{ matrix.scanner }}"
 
   lint-dockerfiles:
-    name: Lint Dockerfiles (build --check)
+    name: Dockerfiles (lint, non-root, read-only smoke)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
@@ -107,6 +107,18 @@ jobs:
         run: |
           docker build --check -f Dockerfile.trivy ..
           docker build --check -f Dockerfile.grype ..
+      # publish only runs on main, so this is the PR-time proof the images run as the chart will:
+      # the fixed non-root user, a read-only root, and writes only where the Dockerfiles allow
+      - name: Non-root user + read-only smoke (both images)
+        run: |
+          for scanner in trivy grype; do
+            docker build -q -f "scanner/Dockerfile.$scanner" -t "smoke-$scanner" . >/dev/null
+            user=$(docker image inspect -f '{{.Config.User}}' "smoke-$scanner")
+            [ "$user" = "65532:65532" ] || { echo "::error::javv-scanner-$scanner runs as '$user', want 65532:65532"; exit 1; }
+            docker run --rm --read-only --tmpfs /tmp \
+              --tmpfs /var/cache/javv:uid=65532,gid=65532 --tmpfs /var/lib/javv:uid=65532,gid=65532 \
+              --entrypoint python "smoke-$scanner" -m scanner.compat --scanner "$scanner"
+          done
 
   publish:
     name: Build + publish compatible images
@@ -167,9 +179,11 @@ jobs:
             for v in $(echo "$json" | jq -r "([.scanners.$scanner.current] + (.scanners.$scanner.also_supported // []))[]"); do
               ref="$REGISTRY/javv-scanner-$scanner:$v"
               echo "::group::smoke $ref"
-              # override the exec-form ENTRYPOINT (uv run … -m scanner) to run the compat check instead
-              docker run --rm --entrypoint uv "$ref" \
-                run --no-sync python -m scanner.compat --scanner "$scanner"
+              # the compat check instead of a cycle, as the image user on a read-only root
+              # filesystem: the chart's security context (issue 632)
+              docker run --rm --read-only --tmpfs /tmp \
+                --tmpfs /var/cache/javv:uid=65532,gid=65532 --tmpfs /var/lib/javv:uid=65532,gid=65532 \
+                --entrypoint python "$ref" -m scanner.compat --scanner "$scanner"
               echo "::endgroup::"
             done
           done
