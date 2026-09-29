@@ -21,6 +21,17 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
 - JAVV is a **deployed app** (FastAPI + Vue, shipped via Helm/k3s), **not a published library**.
   A "release" here is a tag + changelog + GitHub Release that a deploy can pin to — not a
   registry publish.
+- **Version notes for operators.** A change that does any of the following adds a row to
+  [`docs/UPGRADING.md` § Version notes](../../docs/UPGRADING.md#version-notes) in the same PR,
+  with `Unreleased` in the release column:
+  - bumps `MAPPING_VERSION`;
+  - changes the envelope versions the backend accepts;
+  - needs the scanner images republished;
+  - adds a field to a stored `system-config` setting.
+
+  Whoever merges the release PR renames `Unreleased` to the version. The changelog lists every
+  change; this table lists only what an upgrade needs from the operator. The rollout mechanics
+  are in [`docs/engineering/UPGRADES.md`](../../docs/engineering/UPGRADES.md).
 
 ## Release automation — `release-please` (not `semantic-release`)
 We use **[release-please](https://github.com/googleapis/release-please)**, run as a GitHub Action.
