@@ -36,10 +36,13 @@ from scanner.scope import fetch_scan_scope
 
 _DRIVERS = {"trivy": scan_trivy, "grype": scan_grype}
 
-# A deliberately old image with known vulnerabilities. Pinned by digest so the gate scans the same
-# bytes every run, and a push carries a real image_digest.
+# A deliberately old image with known vulnerabilities (python:3.9.16-slim). Pinned by digest so the
+# gate scans the same bytes every run, and a push carries a real image_digest. Served from our own
+# registry, copied there by digest (.github/workflows/compat-fixture.yml), so the gate doesn't
+# depend on Docker Hub still serving it.
 COMPAT_IMAGE = (
-    "python:3.9.16-slim@sha256:5cde4e147c4165ad8dbf8a4df9631863766eeb0b79b890fafe6885b3b127af74"
+    "ghcr.io/danube-labs/javv-compat-fixture:python-3.9.16-slim"
+    "@sha256:5cde4e147c4165ad8dbf8a4df9631863766eeb0b79b890fafe6885b3b127af74"
 )
 
 log = structlog.get_logger()

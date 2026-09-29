@@ -1,8 +1,9 @@
 name: Scanner images
 
 # M0b / D41: build the self-built, pinned scanner images across the compatible version matrix,
-# gate each on the compatibility check (real binary → JAVV adapters), and publish the green ones
-# to GHCR. The compatibility check runs on PRs touching the scanner. Publish runs on every merge
+# gate each on the compatibility check (real binary → JAVV adapters) and the ingest round trip
+# (the same scan pushed through a real backend, the store checked against it; issue 631), and
+# publish the green ones to GHCR. Both run on PRs touching the scanner or the ingest path. Publish runs on every merge
 # to main that changes what goes into an image, so every version versions.yaml lists as supported
 # has a signed image (operator, 2026-09-29), plus a `scanner-v*` tag or manual dispatch.
 # Versions come from versions.yaml (single source, D42).
@@ -13,10 +14,19 @@ on:
       - 'versions.yaml'
       - 'scanner/Dockerfile.*'
       - 'scanner/docker-bake.hcl'
-      - 'scanner/src/scanner/adapters/**'
-      - 'scanner/src/scanner/compat.py'
+      - 'scanner/src/**'
       - 'libs/**'
       - '.github/workflows/scanner-images.yml'
+      - 'development/scripts/check-ingest-roundtrip.sh'
+      # the backend side of the round trip; PR-only, so a backend merge never republishes images
+      - 'backend/src/backend/models/envelope.py'
+      - 'backend/src/backend/routers/ingest.py'
+      - 'backend/src/backend/services/ingest.py'
+      - 'backend/src/backend/routers/scan_runs.py'
+      - 'backend/src/backend/routers/inventory_runs.py'
+      - 'backend/src/backend/core/bootstrap.py'
+      - 'backend/pyproject.toml'
+      - 'backend/uv.lock'
   workflow_dispatch:
   push:
     tags: ['scanner-v*']
@@ -62,6 +72,18 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJson(needs.matrix.outputs.include) }}
+    services:
+      opensearch:
+        image: opensearchproject/opensearch:3.8.0
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl -sf http://localhost:9200/_cluster/health || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 20 --health-start-period 40s
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       # Binaries come out of the vendors' official images (what the scanner Dockerfiles copy
@@ -95,6 +117,33 @@ jobs:
       - name: Compatibility gate (real binary → JAVV adapters)
         working-directory: scanner
         run: uv run python -m scanner.compat --scanner "${{ matrix.scanner }}"
+      # issue 631: the gate above stops at a locally built envelope. Push the same scan through the
+      # real cycle into a real backend, then check the store holds exactly what was sent.
+      - name: Start the backend
+        working-directory: backend
+        env:
+          JAVV_OPENSEARCH_URL: http://localhost:9200
+        run: |
+          uv sync --frozen
+          nohup uv run --no-sync uvicorn backend.main:app --port 8000 > "$RUNNER_TEMP/backend.log" 2>&1 &
+          for _ in $(seq 1 60); do curl -sf localhost:8000/readyz >/dev/null && exit 0; sleep 2; done
+          echo "::error::backend never became ready"; exit 1
+      - name: Ingest round trip (real cycle → backend → store)
+        env:
+          JAVV_OPENSEARCH_URL: http://localhost:9200
+          JAVV_BACKEND_URL: http://localhost:8000
+          JAVV_CLUSTER_ID: javv-compat-ci
+          SCANNER: ${{ matrix.scanner }}
+        run: |
+          token=$(cd backend && uv run --no-sync python -m backend.core.tokens \
+            --cluster "$JAVV_CLUSTER_ID" --scanner "$SCANNER" | tail -1)
+          echo "::add-mask::$token"
+          (cd scanner && JAVV_TOKEN="$token" JAVV_DEAD_LETTER="$RUNNER_TEMP/dead-letter.jsonl" \
+            uv run python -m scanner.compat --scanner "$SCANNER" --push --summary "$RUNNER_TEMP/summary.json")
+          development/scripts/check-ingest-roundtrip.sh "$RUNNER_TEMP/summary.json" http://localhost:9200
+      - name: Backend log
+        if: failure()
+        run: tail -n 60 "$RUNNER_TEMP/backend.log" || true
 
   lint-dockerfiles:
     name: Dockerfiles (lint, non-root, read-only smoke)

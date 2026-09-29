@@ -58,7 +58,8 @@ are scanned **sequentially** (stateless; intra-run parallelism is a possible lat
 - **Supported versions** live in [`/versions.yaml`](../versions.yaml) (single source of truth) — `current` +
   a small set of prior versions per scanner. Edit there; Renovate watches it.
 - **Compatibility gate:** `python -m scanner.compat --scanner trivy` drives the real binary against a
-  CVE-bearing image (`python:3.9.16-slim`, pinned by digest) and asserts the JAVV adapter contracts
+  CVE-bearing image (`python:3.9.16-slim`, pinned by digest and served from our own GHCR copy, made by
+  `.github/workflows/compat-fixture.yml`) and asserts the JAVV adapter contracts
   (provenance present, findings parse, severities canonical, envelope builds). CI runs it per supported
   version; green → publishable.
   - **`--push`** (issue 631) runs that image through the **real cycle** instead of stopping at a local
@@ -66,7 +67,8 @@ are scanned **sequentially** (stateless; intra-run parallelism is a possible lat
     `JAVV_BACKEND_URL`, `JAVV_TOKEN` and `JAVV_CLUSTER_ID` (required here, since there's no cluster to
     derive it from) and fails if the backend refuses the envelope or the inventory run isn't committed.
     `--summary out.json` writes what was sent (`scan_run_id`, per-severity `counts`, `scanner_version`),
-    so a check can compare the store against it.
+    so a check can compare the store against it. CI does this per supported version: the compat job starts a
+    backend on an OpenSearch service and runs `development/scripts/check-ingest-roundtrip.sh`.
 - **DB-compat policy:** `versions.yaml` records each scanner's factual `vuln_db` compatibility (no invented
   EOL). `development/scripts/check-scanner-db-policy.sh` fails CI if a supported version would run a frozen/
   incompatible vuln DB — e.g. Grype < 0.88.0 (schema v5, EOL 2026-03-06, runs silently).

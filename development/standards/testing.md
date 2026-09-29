@@ -20,6 +20,10 @@ For anything that depends on OpenSearch behavior (merge semantics, `update_by_qu
 - `pytest-asyncio` + `httpx.AsyncClient` against the actual FastAPI app + ingest path.
 - Each test isolates by a unique `cluster_id` (and cleans up its indices).
 - Covers: ingest round-trips, partial-doc merge, reconcile-on-commit, watermark guard, PIT two-step queries.
+- **The cross-stack round trip** (issue 631) runs in `scanner-images.yml`'s compat job, per supported scanner
+  version: the real binary scans the compat fixture, `scanner.compat --push` sends it through the real cycle
+  to a real backend, and `development/scripts/check-ingest-roundtrip.sh` checks the run's stored
+  per-severity counts, scan-event version and committed inventory against what was sent.
 
 ### 3. Golden fixtures - checked-in real data + expected output
 The anti-regression backbone for the data model. A real scanner envelope (or sequence of scans) in, the
