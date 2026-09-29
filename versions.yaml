@@ -17,14 +17,14 @@
 scanners:
   trivy:
     # renovate: datasource=docker depName=aquasec/trivy
-    current: "0.71.2"
+    current: "0.74.0"
     also_supported: ["0.70.0"]
     vuln_db:
       schema: 2  # trivy-db schema these versions speak (current). Trivy REFUSES a schema-incompatible
                  # DB at runtime (errors, won't scan) — it fails loud, so there's no silent-stale risk.
   grype:
     # renovate: datasource=docker depName=anchore/grype extractVersion=^v(?<version>.+)$
-    current: "0.115.0"
+    current: "0.119.0"
     also_supported: ["0.114.0"]
     vuln_db:
       schema: 6  # Grype DB schema v6 (used since grype 0.88.0, Mar 2025).
@@ -42,9 +42,9 @@ datastore:
 # dev-deps (what CI runs via `uv run`) and drift-checked here.
 toolchain:
   # renovate: datasource=github-releases depName=astral-sh/uv
-  uv: "0.11.25"
+  uv: "0.12.20"
   # renovate: datasource=pypi depName=ruff
-  ruff: "0.15.20"
+  ruff: "0.16.9"
   # renovate: datasource=npm depName=pyright
   pyright: "1.1.414"
   # renovate: datasource=pypi depName=pre-commit
