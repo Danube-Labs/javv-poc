@@ -252,6 +252,7 @@ table cannot show its own gaps.
 | `javv_http_request_duration_seconds` | histogram | `method`, `route`, `status` | Route-TEMPLATE labels (unrouted → one `unmatched` series); `/metrics` + probes excluded (#220 M-1) |
 | `javv_opensearch_request_errors_total` | counter | `kind` | `conn`, `timeout`, `429`, `503` — dependency failures on read + bulk paths (M-2) |
 | `javv_opensearch_backoff_retries_total` | counter | — | Per-item 429/503 bulk retries — the saturation signal (the only flow control without a broker) |
+| `javv_sla_clock_missing_total` | counter | — | Findings pages that held at least one row without a materialized `sla_clock_at` (issue 363). Those rows' SLA clock is computed by the per-pair aggregation instead, and the page also logs a `warning`. A sustained rate means the store needs the `rebuild_state` job to backfill the field |
 | `javv_cas_conflicts_total` | counter | `site` | `watermarks`, `scan_orders`, `reproject` (+ `report_claim`, M7 slice 2) — multi-writer contention early warning (M-3) |
 | `javv_limit_rejections_total` | counter | `limit` | `pit_cap`, `export_rows`, `bulk_targets`, `bulk_inline` (M-4) |
 | `javv_pits_open` | gauge | — | Open PIT slots (per pod, like the guard) |
