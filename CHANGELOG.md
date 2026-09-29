@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.7](https://github.com/Danube-Labs/javv-poc/compare/v0.4.6...v0.4.7) (2026-09-29)
+
+
+### Features
+
+* sign the published scanner images with cosign keyless and attest their sboms ([#611](https://github.com/Danube-Labs/javv-poc/issues/611)) ([ab0e6d4](https://github.com/Danube-Labs/javv-poc/commit/ab0e6d4c9e6e79f759056dfbe6d7521ef076f995)), closes [#74](https://github.com/Danube-Labs/javv-poc/issues/74)
+
 ## [0.4.6](https://github.com/Danube-Labs/javv-poc/compare/v0.4.5...v0.4.6) (2026-09-27)
 
 
