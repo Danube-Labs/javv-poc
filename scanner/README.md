@@ -24,6 +24,13 @@ JAVV_SCANNER=trivy JAVV_BACKEND_URL=http://backend JAVV_TOKEN=<ingest token> pyt
 | `JAVV_KUBE_CONTEXT` | out-of-cluster only — which kubeconfig context to scan (default: the current one) |
 | `JAVV_DEAD_LETTER` | dead-letter sink path (default `<scanner>.dead-letter.jsonl`) |
 
+### The image runs as non-root
+Both images run as `65532:65532` with `python -m scanner` (the project venv) as the entrypoint, and
+write only to the vuln-DB cache (`/var/cache/javv/<scanner>`), the dead-letter file (`/var/lib/javv`) and
+`/tmp`. So they run with a read-only root filesystem (issue 632). Mounts there must be writable by that
+UID; a kubeconfig mounted for an out-of-cluster run must be readable by it. Paths and overrides:
+[`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md) §2.
+
 Scan tuning (`JAVV_TRIVY_*`: severities, scanners, package types, ignore-unfixed, timeout;
 `JAVV_GRYPE_*`: only-fixed, scope, scan timeout) and every default are in
 [`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md) §2–§4. Unset means the pinned default command; a

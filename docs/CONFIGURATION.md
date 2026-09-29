@@ -90,7 +90,17 @@ fallback or a per-image error loop. Unset always means the documented default.
 | `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). **Effectively required** — since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed). | 🔒 secret |
 | `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity = the immutable `kube-system` namespace UID (never `cluster_name`). Setting it **asserts** which cluster the cycle is for rather than relabelling one: if it does not equal the UID of the cluster the kube client actually reached, the cycle is refused with exit 2 (issue 470). | n/a (deploy) |
 | `JAVV_KUBE_CONTEXT` | *(current context)* | Out-of-cluster only — names the kubeconfig context to scan. In-cluster this is ignored (`load_incluster_config()` wins). Unset, the scanner follows whatever the current context happens to be, which is why the `JAVV_CLUSTER_ID` assertion above exists. | n/a (dev) |
-| `JAVV_DEAD_LETTER` | `<scanner>.dead-letter.jsonl` | Path for per-image scan failures (isolate + continue) | n/a (deploy) |
+| `JAVV_DEAD_LETTER` | `<scanner>.dead-letter.jsonl` (the images set `/var/lib/javv/<scanner>.dead-letter.jsonl`) | Path for per-image scan failures (isolate + continue) | n/a (deploy) |
+
+**The published images run as a fixed non-root user, `65532:65532`** (issue 632), with `python -m scanner` from the project venv as the entrypoint. The process writes to three places only, so the root filesystem can be mounted read-only:
+
+| Path | Set by | What |
+|---|---|---|
+| `/var/cache/javv/<scanner>` | `TRIVY_CACHE_DIR` / `GRYPE_DB_CACHE_DIR` (the vendors' own variables, image `ENV`) | the vuln-DB cache; M10's vuln-DB PVC mounts here (NFR-11) |
+| `/var/lib/javv` | `JAVV_DEAD_LETTER` (image `ENV`) | the dead-letter file |
+| `/tmp` | the scanners | image layers pulled during a scan |
+
+Override any of them per CronJob; whatever is mounted there must be writable by UID 65532. Out of a cluster, a mounted kubeconfig must be readable by that UID too.
 
 ---
 
