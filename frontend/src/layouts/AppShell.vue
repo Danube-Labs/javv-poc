@@ -25,6 +25,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useHealthStore } from '@/stores/health'
 import { useTimeTravelStore } from '@/stores/timeTravel'
+import { isColdStart } from '@/system/coldStart'
 import { lastDataAt } from '@/system/freshness'
 import { clusterFromQuery, ttFromQuery, ttToQuery } from '@/system/globalUrl'
 
@@ -75,15 +76,14 @@ watch(
   },
 )
 
-/** Zero-clusters cold start (M9f): the registry answered fine but is EMPTY — no scanner has
- * ever enrolled, so every data screen would fetch nothing forever. Data sections show the
- * onboarding state instead; `configure` stays live because Settings → Tokens IS the way out. */
-const coldStart = computed(
-  () =>
-    clusterStore.loaded &&
-    !clusterStore.failed &&
-    clusterStore.clusters.length === 0 &&
-    route.meta.section !== 'configure',
+/** Zero-clusters cold start (M9f) — which sections stay live lives in `isColdStart`. */
+const coldStart = computed(() =>
+  isColdStart({
+    loaded: clusterStore.loaded,
+    failed: clusterStore.failed,
+    clusterCount: clusterStore.clusters.length,
+    section: route.meta.section as string | undefined,
+  }),
 )
 
 /** Section identity echo (§8.5 specimen): the route's sidebar-group accent, exposed as a CSS

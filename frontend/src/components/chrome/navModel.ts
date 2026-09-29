@@ -54,6 +54,8 @@ export const NAV: NavGroup[] = [
       { label: 'Data inspector', to: '/inspect', icon: 'search', capability: 'can_inspect_store' },
     ],
   },
+  // a utility, not a work area: ungated, and its dot is the neutral alias (issue 341)
+  { group: 'Help', accent: 'var(--sect-help)', items: [{ label: 'About & guide', to: '/about', icon: 'info' }] },
 ]
 
 export function visibleNav(hasCapability: (cap: string) => boolean): NavGroup[] {

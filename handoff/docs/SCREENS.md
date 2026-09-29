@@ -562,6 +562,35 @@ endpoint; package group conditional.
 
 ---
 
+## 16. About & guide (issue 341)
+
+**No prototype screen.** Grammar sources (DESIGN.md §8 source 2):
+- ui.nuxt.com `PageHeader` + `PageAnchors` (a table of contents) + `PageFeature` (icon, title,
+  description);
+- Framework7 grouped list rows (a name, a right-aligned mono value, a footer hint).
+
+The built specimen goes to a live operator ruling (§8.5), with an A/B on width (wide vs narrow).
+**Nav:** a last group **Help** → *About & guide* (`info` icon), ungated. Its dot is
+`--sect-help`, an alias of `--side-label` (neutral by operator ruling, 2026-09-29). The sidebar
+footer's version lines link here too. The route is live before any cluster enrolls
+(`isColdStart` exempts `help`).
+**Data (PR 1):**
+- `GET /api/v1/meta`: the release, store schema, report formats accepted, OpenSearch version
+  (live) and Python version;
+- the frontend's own version from `src/version.ts`;
+- `GET /api/v1/scanners/provenance` for the selected cluster: Trivy/Grype version, vuln-DB version
+  and build time.
+
+**Actions:** *Copy diagnostics*, a plain-text block of every version plus the browser and the
+time (the toast confirms). **Links:** `UPGRADING.md`, verifying the signed images, `docs/API.md`;
+the docs site once #639 lands.
+**Content (PR 2):** the issue's seven concept sections plus the data dictionary, each claim
+fact-checked against the spec.
+**States:** loading (skeleton); `/meta` failed (visible error); OpenSearch version `null` →
+"unavailable"; no committed scanner run for the cluster (empty); no cluster selected.
+
+---
+
 ## Cross-cutting (unchanged rules, restated)
 
 - Deep-links pass presets into `useFilters` — presets now serialize **lowercase** severities and

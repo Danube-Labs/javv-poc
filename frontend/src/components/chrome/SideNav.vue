@@ -3,7 +3,8 @@
  * The slate sidebar (issue 384 split — extracted from AppShell, no behavior change): 226px,
  * collapsible to a 64px icon rail (Nuxt UI sidebar grammar, state persisted per browser) —
  * brand block, grouped nav with the javv stroke icons + coral active bar, sweep-health footer
- * + the running versions from `/api/v1/meta` (issue 261). Nav items whose screen is capability-gated are HIDDEN without the
+ * + the running versions from `/api/v1/meta` (issue 261), which link to the About page's full
+ * stack (issue 341). Nav items whose screen is capability-gated are HIDDEN without the
  * capability (A-4).
  */
 import { computed, onMounted, ref } from 'vue'
@@ -105,13 +106,14 @@ onMounted(async () => {
           <span>{{ clusterStore.clusters.length }} cluster{{ clusterStore.clusters.length === 1 ? '' : 's' }} · live</span>
         </div>
       </div>
-      <div
+      <RouterLink
         v-if="!collapsed && versionLines.length"
+        to="/about"
         class="side-version"
-        title="JAVV release · store schema (index layout) · newest scanner schema accepted"
+        title="JAVV release · store schema (index layout) · newest scanner schema accepted — the full stack is on About & guide"
       >
         <span v-for="line in versionLines" :key="line">{{ line }}</span>
-      </div>
+      </RouterLink>
     </div>
   </nav>
 </template>
@@ -321,8 +323,30 @@ onMounted(async () => {
   font-family: var(--font-mono);
   font-size: var(--text-facet-label);
   color: var(--side-version);
-  margin-top: 12px;
-  padding: 0 2px;
+  margin-top: 8px;
+  padding: 4px 6px;
+  border-radius: 7px;
   letter-spacing: 0.04em;
+  text-decoration: none;
+  transition:
+    background var(--dur-quick),
+    color var(--dur-quick);
+}
+/* the side-item grammar: the sidebar's own wash, pressed and focus ring */
+.side-version:hover {
+  background: var(--side-hover-bg);
+  color: var(--side-fg-hover);
+}
+.side-version:active {
+  background: var(--side-active-bg);
+}
+.side-version:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .side-version {
+    transition: none;
+  }
 }
 </style>
