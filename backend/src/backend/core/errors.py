@@ -1,12 +1,13 @@
 """The single error envelope (RFC 9457 problem-details) every non-2xx response uses.
 
 Routers never hand-roll error bodies — they raise, and the handlers here render the envelope so a
-client error maps 1:1 to logs via `request_id`. `request_id` binding into structlog lands with the
-observability slice; for now it's threaded through the response shape so the contract is set early.
+client error maps 1:1 to logs via `request_id`: the id the request-line middleware chose (the
+inbound `X-Request-ID` if well-formed, else minted) and logged the request under.
 """
 
 from collections.abc import Mapping
 
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -14,6 +15,8 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 PROBLEM_MEDIA_TYPE = "application/problem+json"
+
+log = structlog.get_logger()
 
 
 class Problem(BaseModel):
@@ -41,7 +44,7 @@ def problem_response(
 
 
 def _request_id(request: Request) -> str | None:
-    return request.headers.get("x-request-id")
+    return getattr(request.state, "request_id", None)
 
 
 def register_error_handlers(app: FastAPI) -> None:
@@ -64,4 +67,20 @@ def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
         # Runtime errors must not crash the app — return the envelope (D9 / observability).
-        return problem_response(500, title="Internal server error", request_id=_request_id(request))
+        # This runs outside the request-line middleware: its bound log context and its response
+        # header don't reach here, so both are set explicitly (issue 644). The stack is logged
+        # here, once; uvicorn's duplicate traceback is filtered in core/logging.py.
+        request_id = _request_id(request)
+        log.error(
+            "unhandled error",
+            exc_info=exc,
+            request_id=request_id,
+            method=request.method,
+            path=request.url.path,  # never the query string, like the request line
+        )
+        return problem_response(
+            500,
+            title="Internal server error",
+            request_id=request_id,
+            headers={"X-Request-ID": request_id} if request_id else None,
+        )

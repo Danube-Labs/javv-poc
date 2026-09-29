@@ -7,7 +7,8 @@ structured per-request line (observability.md §1): `event="request"` with `meth
 (query param, or whatever the endpoint bound into the context — ingest binds it from the
 token). The query string never rides along: filter values don't belong in logs; redaction is
 the backstop, not the excuse. uvicorn's own plain-text access line is silenced — requests
-never double-log."""
+never double-log — and so is its crash traceback: the app's error handler logs the crash once,
+with the request's id (issue 644)."""
 
 import logging
 import re
@@ -27,11 +28,27 @@ log = structlog.get_logger()
 # id shape so a megabyte or control-char header can't ride the whole log stream (audit A-n)
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")
 
+# uvicorn's crash line (protocols/http/{h11,httptools}_impl.py); a test pins the wording
+_UVICORN_CRASH_MESSAGE = "Exception in ASGI application\n"
+
+
+class _DropUvicornCrashTraceback(logging.Filter):
+    """uvicorn logs every unhandled exception again after the app's handler has, without the
+    request's id. Drops exactly that message; every other uvicorn.error line passes."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        return record.getMessage() != _UVICORN_CRASH_MESSAGE
+
+
+# one instance, so repeated create_app() calls (tests) don't stack filters
+_DROP_UVICORN_CRASH_TRACEBACK = _DropUvicornCrashTraceback()
+
 
 def install_request_context(app: FastAPI) -> None:
     """Bind a request_id per request + emit the structured request line."""
     # this middleware owns the request line now — uvicorn's plain-text one would double-log
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").addFilter(_DROP_UVICORN_CRASH_TRACEBACK)
 
     @app.middleware("http")
     async def _request_line(
@@ -42,6 +59,9 @@ def install_request_context(app: FastAPI) -> None:
         rid = inbound if inbound and _REQUEST_ID.match(inbound) else uuid.uuid4().hex[:16]
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(request_id=rid)
+        # the error handlers read it here: the catch-all runs outside this middleware, where the
+        # bound log context isn't visible (issue 644)
+        request.state.request_id = rid
         tenant = (
             {"cluster_id": request.query_params["cluster_id"]}
             if "cluster_id" in request.query_params
@@ -51,7 +71,7 @@ def install_request_context(app: FastAPI) -> None:
         try:
             response = await call_next(request)
         except BaseException:
-            log.info(  # a crash is never a silent request (the error handler logs the stack)
+            log.info(  # a crash is never a silent request (core/errors.py logs the stack)
                 "request",
                 method=request.method,
                 path=request.url.path,

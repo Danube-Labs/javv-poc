@@ -477,12 +477,13 @@ async def test_a_failed_record_leaves_the_rejection_byte_identical(
     """Bookkeeping on a decided rejection must never turn it into something else (a 500)."""
     t = mint_token()
     doc, body = _rejected_push(case, t, monkeypatch)
+    # one request id for both: the body carries it (issue 644), and it's the only per-request part
     async with app_with(FakeOS(doc)) as c:
-        recorded = await post(c, body, t)
+        recorded = await post(c, body, t, **{"X-Request-ID": "record-check"})
     missed = INGEST_FAILURES_UNRECORDED.labels(reason=reason)
     before = missed._value.get()
     async with app_with(_RecordingBroken(doc)) as c:
-        unrecorded = await post(c, body, t)
+        unrecorded = await post(c, body, t, **{"X-Request-ID": "record-check"})
     assert unrecorded.status_code == recorded.status_code == status
     assert unrecorded.content == recorded.content
     assert missed._value.get() == before + 1  # the miss is counted, not just logged
