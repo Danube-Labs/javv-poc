@@ -147,7 +147,7 @@ async function copyDiagnostics() {
 
     <div class="stack-group stack-scanners">
       <div class="stack-group-title">
-        Scanners<template v-if="clusterLabel"> · <span class="mono">{{ clusterLabel }}</span></template>
+        Scanners<template v-if="clusterLabel"> · <span class="stack-cluster">{{ clusterLabel }}</span></template>
       </div>
       <p v-if="!clusterId" class="stack-empty">Select a cluster in the top bar to see its scanners.</p>
       <UiSkeleton v-else-if="provLoading" :height="96" label="Loading the scanner versions" />
@@ -186,6 +186,11 @@ async function copyDiagnostics() {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--soft);
+}
+/* a cluster id or name is data: shown as stored, never uppercased by the group label */
+.stack-cluster {
+  text-transform: none;
+  letter-spacing: 0.02em;
 }
 .stack-value {
   font-family: var(--font-mono);
