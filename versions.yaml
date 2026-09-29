@@ -34,7 +34,7 @@ scanners:
 
 datastore:
   # renovate: datasource=docker depName=opensearchproject/opensearch
-  opensearch: "3.7.0"
+  opensearch: "3.8.0"
 
 # Gate toolchain (D42 phase 2): tools whose version decides lint/type results, so local MUST
 # match CI. Consumers read these directly (can't drift): development/setup/setup-dev.sh, and CI's
