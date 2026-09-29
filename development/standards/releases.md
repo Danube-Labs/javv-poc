@@ -13,7 +13,9 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
   `1.0.0`, so the config pins it with **`release-as: "0.1.0"`** (plus `bump-minor-pre-major` +
   `bump-patch-for-minor-pre-major` for bumps after that). The **first tag (`v0.1.0`) is cut when M0/M1 lands
   the first runnable code** — not now (the tree is docs-only) and not as late as M10; `0.x` = pre-stable dev,
-  so an early dev milestone is exactly when to tag. `1.0.0`/GA is roughly the deploy bolt (M10). The standing
+  so an early dev milestone is exactly when to tag. The **MVP release** closes the deploy bolt (M10) and
+  ships as `0.6.0` or `0.7.0`, set with a `Release-As:` footer. **`1.0.0`** comes after a hardening phase,
+  once JAVV installs plug-and-play and is as close to bug-free as we can make it. The standing
   release PR just accumulates until then. **After that first `0.1.0` tag, remove `release-as`** from
   `release-please-config.json` so later versions compute from commits.
 - JAVV is a **deployed app** (FastAPI + Vue, shipped via Helm/k3s), **not a published library**.
