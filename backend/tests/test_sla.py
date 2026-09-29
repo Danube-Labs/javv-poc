@@ -156,6 +156,9 @@ async def test_sla_read_for_all_write_admin_gated_and_journaled(env) -> None:
     assert (await triager.put("/api/v1/settings/sla", json=body)).status_code == 403
 
     admin = await login_with(["can_manage_settings"])
+    # the stored read is lenient (issue 640); the request body stays strict
+    extra = await admin.put("/api/v1/settings/sla", json={**body, "added_later": 1})
+    assert extra.status_code == 422
     r = await admin.put("/api/v1/settings/sla", json=body)
     assert r.status_code == 200
     assert (await triager.get("/api/v1/settings/sla")).json()["sla"]["critical_days"] == 1
@@ -222,3 +225,25 @@ async def test_sla_put_not_left_unjournaled_on_audit_failure(env, monkeypatch) -
     from backend.sla.policy import SlaPolicy, write_sla_policy  # restore defaults for other suites
 
     await write_sla_policy(client, SlaPolicy(), updated_by="test-restore")
+
+
+@requires_opensearch
+async def test_a_stored_policy_with_a_field_this_release_lacks_still_reads(env) -> None:
+    """The rollback case (issue 640): a newer release saved the policy with a field this one
+    doesn't know. The read drops it instead of 500ing every overdue query and the SLA page."""
+    from backend.sla.policy import SLA_KEY, SlaPolicy, write_sla_policy
+
+    login_with, client = env
+    triager = await login_with(["can_triage"])
+    await client.index(
+        index="system-config",
+        id=SLA_KEY,
+        body={"key": SLA_KEY, "value": {**SlaPolicy().model_dump(), "added_later": 3}},
+        params={"refresh": "true"},
+    )
+    try:
+        r = await triager.get("/api/v1/settings/sla")
+        assert r.status_code == 200
+        assert r.json()["sla"] == SlaPolicy().model_dump()
+    finally:
+        await write_sla_policy(client, SlaPolicy(), updated_by="test-restore")

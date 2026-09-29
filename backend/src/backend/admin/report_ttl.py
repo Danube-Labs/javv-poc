@@ -11,6 +11,7 @@ from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.core.settings import get_settings
+from backend.core.stored_settings import parse_stored_setting
 
 REPORT_TTL_KEY = "report_ttl"
 
@@ -27,7 +28,7 @@ async def read_report_ttl_hours(client: AsyncOpenSearch, *, prefix: str = "") ->
         got = await client.get(index=f"{prefix}system-config", id=REPORT_TTL_KEY)
     except NotFoundError:
         return get_settings().export_ttl_hours
-    return ReportTtl.model_validate(got["_source"]["value"]).hours
+    return parse_stored_setting(ReportTtl, got["_source"]["value"], key=REPORT_TTL_KEY).hours
 
 
 async def write_report_ttl(

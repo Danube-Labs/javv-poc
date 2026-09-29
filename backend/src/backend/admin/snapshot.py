@@ -15,6 +15,8 @@ from typing import Any, Literal
 from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from backend.core.stored_settings import parse_stored_setting
+
 SNAPSHOT_REPO_KEY = "snapshot_repo"  # the system-config doc _id holding the repo ref
 
 # the durability set — current-state + config indices snapshotted on schedule (NFR-6). The bulky
@@ -117,7 +119,7 @@ async def read_snapshot_repo_ref(
         got = await client.get(index=f"{prefix}system-config", id=SNAPSHOT_REPO_KEY)
     except NotFoundError:
         return None
-    return SnapshotRepoRef.model_validate(got["_source"]["value"])
+    return parse_stored_setting(SnapshotRepoRef, got["_source"]["value"], key=SNAPSHOT_REPO_KEY)
 
 
 async def take_snapshot(
