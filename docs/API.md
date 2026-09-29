@@ -296,7 +296,10 @@ anonymous, 403 on a `must_change` session, the rate cap) is asserted in `test_cl
 
 Structured JSON via the **shared `libs/javv-common` structlog pipeline only** (observability.md
 §1). Every request binds a `request_id` (from `X-Request-ID` if well-formed — `[A-Za-z0-9-]{1,64}`
-— else minted; echoed in the response header); ingest also binds `cluster_id`/`scanner`. The
+— else minted; echoed in the `X-Request-ID` response header and, on every non-2xx including a
+500, in the error body's `request_id`); ingest also binds `cluster_id`/`scanner`. An unhandled
+exception logs one `error` line, `unhandled error`, with the stack, `method`, `path` and the same
+`request_id`. uvicorn's own duplicate traceback is filtered out (issue 644). The
 redaction processor masks token/secret/password/authorization/pepper/session/cookie keys and
 scrubs `Bearer …` substrings from every event — tokens never reach a log line (tested at both
 layers). OpenSearch client request/response **bodies never log at any level**.
