@@ -569,7 +569,7 @@ endpoint; package group conditional.
   description);
 - Framework7 grouped list rows (a name, a right-aligned mono value, a footer hint).
 
-The built specimen goes to a live operator ruling (§8.5), with an A/B on width (wide vs narrow).
+**Width: wide**, ruled by the operator on the built specimen (2026-09-29, an A/B at 1920px: A wide vs B narrow; at 1366 and 1024 the two are identical).
 **Nav:** a last group **Help** → *About & guide* (`info` icon), ungated. Its dot is
 `--sect-help`, an alias of `--side-label` (neutral by operator ruling, 2026-09-29). The sidebar
 footer's version lines link here too. The route is live before any cluster enrolls
