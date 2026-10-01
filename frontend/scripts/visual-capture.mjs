@@ -8,7 +8,8 @@
  *   JAVV_USER=admin JAVV_PASS=… node scripts/visual-capture.mjs [outDir]
  *   node ../.claude/skills/impeccable/scripts/detect.mjs <outDir>/*.html
  *
- * Exit: 1 on console/page errors or DESKTOP layout violations (same law as CI). Phone layout
+ * Exit: 1 on console/page errors or DESKTOP layout violations (same law as CI, plus the text and
+ * control checks at 1024, 1366 and 1920 that CI doesn't run, issue 652). Phone layout
  * findings are WARN-ONLY by ruling (#387): no phone layout exists yet — flip them gating
  * when a responsive pass lands. Phone screenshots are captured for authoring regardless.
  *
@@ -18,7 +19,19 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { chromium } from 'playwright'
 
-import { VIEWPORTS, ROUTES, collectPageIssues, layoutIssues, login, clickDetail } from './walk.mjs'
+import {
+  VIEWPORTS,
+  ROUTES,
+  collectPageIssues,
+  layoutIssues,
+  login,
+  clickDetail,
+  textLayoutIssues,
+} from './walk.mjs'
+
+// issue 652: text/control layout is checked at the 1024 design floor and at 1366 as well as at
+// the full desktop width; these extra passes take screenshots but no HTML dumps
+const NARROW_DESKTOPS = { 'desktop-1024': { width: 1024, height: 800 }, 'desktop-1366': { width: 1366, height: 860 } }
 
 const BASE = process.env.JAVV_BASE ?? 'http://localhost:5173'
 // default output anchors to the REPO-ROOT tmp/screenshots (the one screenshot home) — a
@@ -56,6 +69,7 @@ async function walkAndCapture(page, vpName) {
     }
     await page.waitForLoadState('networkidle')
     sink.push(...(await layoutIssues(page, `${route.name} ${vpName}`)))
+    if (vpName !== 'phone') sink.push(...(await textLayoutIssues(page, `${route.name} ${vpName}`)))
     await shot(page, `${n++}-${route.name}-${vpName}`, { dump: vpName === 'desktop' })
     await page.waitForTimeout(250)
   }
@@ -152,9 +166,12 @@ async function forcedStates(page) {
     await page.keyboard.press('Escape')
   }
 
-  // FORCED STATE: a disagreeing finding (severity or zero-vs-nonzero surfaces differ)
+  // FORCED STATE: a disagreeing finding (severity or zero-vs-nonzero surfaces differ). The empty
+  // grid still renders one row, PrimeVue's "no findings" message: that row is not a finding.
   await page.goto(`${BASE}/findings?attr=disagree`)
-  const hasRows = await page.waitForSelector('.tbl tbody tr', { timeout: 10_000 }).catch(() => null)
+  const hasRows = await page
+    .waitForSelector('.tbl tbody tr:not(.p-datatable-empty-message)', { timeout: 10_000 })
+    .catch(() => null)
   if (hasRows) {
     await page.locator('.tbl tbody tr td').first().click()
     await page.waitForSelector('.detail-head', { timeout: 10_000 })
@@ -162,6 +179,48 @@ async function forcedStates(page) {
     await shot(page, '48-finding-detail-disagree', { dump: true })
   } else {
     console.log('  (no disagreeing findings in this corpus — 48 skipped)')
+  }
+
+  // FORCED STATE: a long unbroken value in a rail (issue 652). The corpus has none, so one
+  // image row's repository is lengthened in the browser; hovering it reveals the row's action,
+  // which must stay inside the rail.
+  const LONG_REPO = 'docker.io/rancher/mirrored-library-traefik'
+  const imagesApi = /\/api\/v1\/images(\?|$)/
+  await page.route(imagesApi, async (route) => {
+    const res = await route.fetch()
+    const body = await res.json()
+    const rows = Object.values(body).find((v) => Array.isArray(v) && v[0]?.image_repo) ?? []
+    if (rows[0]) rows[0].image_repo = LONG_REPO
+    await route.fulfill({ response: res, json: body })
+  })
+  await page.goto(`${BASE}/images`)
+  const longRow = page.locator('.facet-row', { hasText: 'mirrored-library-traefik' }).first()
+  if (await longRow.waitFor({ timeout: 10_000 }).then(() => true, () => false)) {
+    await page.waitForLoadState('networkidle')
+    await longRow.hover()
+    issues.push(...(await textLayoutIssues(page, 'images-rail-long-value')))
+    await shot(page, '49-rail-long-value')
+  } else {
+    issues.push('[route images-rail-long-value] the lengthened image row never rendered')
+  }
+  await page.unroute(imagesApi)
+}
+
+/** The text/control layout pass at the narrower desktop widths: every route, no dumps. */
+async function walkNarrow(page, vpName) {
+  let n = 10
+  for (const route of ROUTES) {
+    await page.goto(`${BASE}${route.path}`)
+    const ready = await page.waitForSelector(route.ready, { timeout: 15_000 }).catch(() => null)
+    if (!ready) {
+      issues.push(`[route ${route.name} ${vpName}] never became ready (${route.ready})`)
+      continue
+    }
+    await page.waitForLoadState('networkidle')
+    issues.push(...(await layoutIssues(page, `${route.name} ${vpName}`)))
+    issues.push(...(await textLayoutIssues(page, `${route.name} ${vpName}`)))
+    await shot(page, `${n++}-${route.name}-${vpName}`)
+    await page.waitForTimeout(250)
   }
 }
 
@@ -179,6 +238,15 @@ async function main() {
     collectPageIssues(page, issues)
     await walkAndCapture(page, vpName)
     if (vpName === 'desktop') await forcedStates(page)
+    await page.close()
+  }
+
+  for (const [vpName, viewport] of Object.entries(NARROW_DESKTOPS)) {
+    console.log(`— ${vpName} (${viewport.width}×${viewport.height})`)
+    const page = await browser.newPage({ viewport })
+    await login(page, BASE, USER, PASS)
+    collectPageIssues(page, issues)
+    await walkNarrow(page, vpName)
     await page.close()
   }
 

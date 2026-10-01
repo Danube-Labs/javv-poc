@@ -123,6 +123,111 @@ export async function layoutIssues(page, routeName) {
   return found.map((f) => `[layout ${routeName}] ${f}`)
 }
 
+/**
+ * Text and control layout (issue 652), evaluated in-page. The authoring rig runs it at the 1024
+ * floor, 1366 and 1920; CI's smoke keeps `layoutIssues` only. Fails on:
+ *  - text that overflows its box without a deliberate ellipsis (`text-overflow: ellipsis` on a
+ *    clipping box) and outside any scroller;
+ *  - an interactive control that sticks out of its nearest bordered box (a card, the rail);
+ *  - two interactive controls that overlap (>2px both axes), neither inside the other;
+ *  - a button whose label wraps onto a second line.
+ * Floating layers (absolute/fixed: menus, popovers, tooltips) are their own boxes and skipped.
+ */
+export async function textLayoutIssues(page, routeName) {
+  const found = await page.evaluate(() => {
+    const out = []
+    const sig = (el) =>
+      `${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''}`
+    const visible = (el) => {
+      const r = el.getBoundingClientRect()
+      return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'
+    }
+    const floating = (el) => {
+      for (let p = el; p && p !== document.body; p = p.parentElement) {
+        const pos = getComputedStyle(p).position
+        if (pos === 'absolute' || pos === 'fixed') return true
+      }
+      return false
+    }
+    const inScroller = (el) => {
+      for (let p = el; p; p = p.parentElement) {
+        if (/(auto|scroll)/.test(getComputedStyle(p).overflowX)) return true
+      }
+      return false
+    }
+    const ownText = (el) =>
+      [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim() !== '')
+
+    // 1. overflowing text with no ellipsis
+    for (const el of document.querySelectorAll('main *, header *')) {
+      if (!ownText(el) || !visible(el) || floating(el) || inScroller(el)) continue
+      if (el.scrollWidth <= el.clientWidth + 1 || el.clientWidth === 0) continue
+      const s = getComputedStyle(el)
+      if (s.display === 'inline') continue
+      const ellipsis = s.textOverflow === 'ellipsis' && s.overflowX !== 'visible'
+      if (!ellipsis) out.push(`text overflows its box: ${sig(el)} (${el.scrollWidth}px in ${el.clientWidth}px)`)
+    }
+
+    const controls = [...document.querySelectorAll('main button, main a[href], main [role=button], main input, main select, header button, header a[href]')]
+      .filter((el) => visible(el) && !floating(el))
+
+    // 2. a control outside its nearest bordered box
+    for (const el of controls) {
+      if (inScroller(el.parentElement ?? el)) continue
+      let box = el.parentElement
+      while (box && box !== document.body) {
+        const s = getComputedStyle(box)
+        if (parseFloat(s.borderLeftWidth) > 0 && parseFloat(s.borderRightWidth) > 0) break
+        box = box.parentElement
+      }
+      if (!box || box === document.body) continue
+      const a = el.getBoundingClientRect()
+      const b = box.getBoundingClientRect()
+      if (a.right > b.right + 1 || a.left < b.left - 1) {
+        out.push(`control outside its box: ${sig(el)} in ${sig(box)} (${Math.round(a.left)}–${Math.round(a.right)} vs ${Math.round(b.left)}–${Math.round(b.right)})`)
+      }
+    }
+
+    // 3. overlapping controls
+    for (let i = 0; i < controls.length; i++) {
+      for (let j = i + 1; j < controls.length; j++) {
+        const [p, q] = [controls[i], controls[j]]
+        if (p.contains(q) || q.contains(p)) continue
+        const a = p.getBoundingClientRect()
+        const b = q.getBoundingClientRect()
+        const x = Math.min(a.right, b.right) - Math.max(a.left, b.left)
+        const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)
+        if (x > 2 && y > 2) out.push(`controls overlap: ${sig(p)} × ${sig(q)} (${Math.round(x)}×${Math.round(y)}px)`)
+      }
+    }
+
+    // 4. a button label that wraps (each text node's line boxes share one top). A button whose
+    //    text sits in rows stacked one above another (a stat cell: label, number, caption) is a
+    //    card, not a label: skipped.
+    const stacked = (el) => {
+      const boxes = [...el.querySelectorAll('*')].filter(ownText).map((d) => d.getBoundingClientRect())
+      return boxes.some((a) => boxes.some((b) => b.top >= a.bottom - 1))
+    }
+    for (const el of controls) {
+      if (el.tagName !== 'BUTTON' && el.getAttribute('role') !== 'button') continue
+      if (stacked(el)) continue
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+        if (!n.textContent.trim()) continue
+        const range = document.createRange()
+        range.selectNodeContents(n)
+        const tops = new Set([...range.getClientRects()].filter((r) => r.width > 0).map((r) => Math.round(r.top)))
+        if (tops.size > 1) {
+          out.push(`button label wraps: ${sig(el)} "${n.textContent.trim().slice(0, 40)}"`)
+          break
+        }
+      }
+    }
+    return [...new Set(out)]
+  })
+  return found.map((f) => `[text-layout ${routeName}] ${f}`)
+}
+
 /** Walk every route: navigate, wait for readiness, run the layout asserts. */
 export async function walkRoutes(page, base, issues, { onRoute } = {}) {
   for (const route of ROUTES) {
