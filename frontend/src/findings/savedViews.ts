@@ -121,7 +121,7 @@ export function presetSummary(fields: readonly FilterField[], preset: ViewPreset
       else if (typeof inc === 'string' && inc !== '') parts.push(`${field.label} "${inc}"`)
     }
   }
-  return parts.join(' · ') || 'No filters — everything'
+  return parts.join(' · ') || 'No filters: everything'
 }
 
 /** The API query for the card's live server count (SCREENS §6): the preset params verbatim

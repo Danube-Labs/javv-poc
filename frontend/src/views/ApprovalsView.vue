@@ -98,12 +98,12 @@ const { exporting, run: runExport } = useCsvExport({
   path: '/api/v1/decisions/approvals/export.csv',
   filename: (stamp) => `javv-approvals-${stamp}.csv`,
   event: 'approvals_export_failed',
-  onCapped: () => toast.info('Over the inline export cap — narrow the filters first.'),
+  onCapped: () => toast.info('Over the inline export cap. Narrow the filters first.'),
   onFailed: (status) =>
     toast.error(
       status
-        ? `Export failed (${status}) — check the backend connection.`
-        : 'Export failed — check the backend connection.',
+        ? `Export failed (${status}). Check the backend connection.`
+        : 'Export failed. Check the backend connection.',
     ),
   onDone: (name) => toast.success(`Export downloaded · ${name}`),
 })
@@ -212,11 +212,11 @@ async function revoke(row: ApprovalRow) {
   busy.value = false
   if (response.response?.ok) {
     logger.info('decision_revoked', { decision_id: row.decision_id })
-    toast.success('Acceptance revoked — its findings return to open on the next projection')
+    toast.success('Acceptance revoked. Its findings return to open on the next projection')
     await fetchQueue()
   } else {
     logger.warn('decision_revoke_failed', { status: response.response?.status })
-    toast.error('Revoke failed — check the backend connection')
+    toast.error('Revoke failed. Check the backend connection')
   }
 }
 
@@ -235,7 +235,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         <h1>Approvals</h1>
         <p class="head-stat">
           <template v-if="timeTravel.isNow">{{ fmt(total) }}</template
-          ><template v-else>—</template
+          ><span v-else class="muted-dash">-</span
           ><span class="head-unit"> standing acceptance{{ total === 1 && timeTravel.isNow ? '' : 's' }}</span>
         </p>
         <p class="head-note">review queue · active risk-accepts, soonest expiry first · revoked never listed</p>
@@ -243,14 +243,14 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <AuditLens
         :query="lensQuery"
         title="Decision activity"
-        sub="risk-accept creates + revokes journaled in this range — the queue below is current state"
+        sub="risk-accept creates + revokes journaled in this range. The queue below is current state"
       />
     </div>
 
     <LimitedHistoricalNotice
       v-if="!timeTravel.isNow"
       title="The approvals queue answers for now"
-      body="Standing acceptances are current state — the endpoint has no historical seam yet.
+      body="Standing acceptances are current state: the endpoint has no historical seam yet.
         The decision-activity lens above still rewinds; return to now to review the queue."
     />
 
@@ -302,7 +302,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 
       <UiSkeleton v-if="!settled" :height="220" label="Loading approvals" class="skel-gap" />
       <p v-else-if="failed" class="load-error" role="alert">
-        Could not load the queue — check the backend connection.
+        Could not load the queue. Check the backend connection.
       </p>
       <section v-else class="card queue-card">
         <div class="tbl-scroll-pin">
@@ -357,7 +357,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                 </td>
                 <td class="fit">
                   <span class="mono-cell sm nowrap" :title="row.expiry ?? 'no expiry set'">
-                    {{ row.expiry ? lastDataAt(row.expiry) : '—' }}
+                    <template v-if="row.expiry">{{ lastDataAt(row.expiry) }}</template><span v-else class="muted-dash">-</span>
                   </span>
                 </td>
                 <td class="fit">
@@ -396,7 +396,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           {{
             Object.values(filters.selections).some((v) => v.length > 0)
               ? 'No acceptances match these filters.'
-              : 'No standing risk-acceptances — accepted findings land here for review.'
+              : 'No standing risk-acceptances. Accepted findings land here for review.'
           }}
         </div>
         <GridPager

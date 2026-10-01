@@ -14,7 +14,7 @@ export function useApi() {
   function withGlobals<T extends Record<string, unknown>>(
     params?: T,
   ): T & { cluster_id: string } & { as_of?: string } {
-    if (!clusterStore.selectedId) throw new Error('no cluster selected — data reads need cluster_id')
+    if (!clusterStore.selectedId) throw new Error('no cluster selected: data reads need cluster_id')
     return {
       ...(params ?? ({} as T)),
       cluster_id: clusterStore.selectedId,

@@ -104,7 +104,7 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
         param: 'overdue',
         label: 'SLA breached',
         hint:
-          'Findings past their SLA deadline under the current policy — the same rows whose ' +
+          'Findings past their SLA deadline under the current policy: the same rows whose ' +
           'SLA column shows overdue. Handled findings (risk-accepted, not-affected, resolved) ' +
           'are never counted.',
       },
@@ -113,7 +113,7 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
         param: 'unassigned',
         label: 'Unassigned',
         hint:
-          'Findings nobody owns yet — the untriaged backlog. This is absence, not exclusion: ' +
+          'Findings nobody owns yet: the untriaged backlog. This is absence, not exclusion: ' +
           '"assignee is not <someone>" keeps unowned rows too, so it can never ask this.',
       },
       // first_seen_at within the global range — the event view of the state table
@@ -123,7 +123,7 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
         label: 'New in range',
         window: true,
         hint:
-          'Only findings first seen inside the selected time range — a quiet range shows 0. ' +
+          'Only findings first seen inside the selected time range. A quiet range shows 0. ' +
           'Off, the table shows everything currently present.',
       },
     ],

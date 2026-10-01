@@ -9,7 +9,7 @@ const health = useHealthStore()
   <Transition name="t-fade">
     <div v-if="health.bannerVisible" class="banner" role="alert">
       <AppIcon name="alert" :size="15" />
-      <span>Search backend unavailable — check OpenSearch health.</span>
+      <span>Search backend unavailable. Check OpenSearch health.</span>
       <button class="dismiss" aria-label="Dismiss" @click="health.dismiss()">
         ×
       </button>

@@ -69,7 +69,7 @@ async function snapshotNow() {
     logger.warn('snapshot_take_failed', { status: response?.status })
     toast.error(
       response?.status === 409
-        ? 'No snapshot repository configured — register one via the deploy first.'
+        ? 'No snapshot repository configured. Register one via the deploy first.'
         : 'Taking the snapshot failed.',
     )
     return
@@ -93,11 +93,11 @@ async function confirmRestore() {
     toast.error(
       response?.status === 403
         ? 'Restore needs the can_restore_snapshot capability.'
-        : 'Restore failed — the live indices are untouched.',
+        : 'Restore failed. The live indices are untouched.',
     )
     return
   }
-  toast.success(`Restoring ${name} into restored-* copies — nothing live is overwritten`)
+  toast.success(`Restoring ${name} into restored-* copies: nothing live is overwritten`)
 }
 
 function tone(state: string | null): 'ok' | 'warn' | 'down' | 'muted' {
@@ -111,7 +111,7 @@ function tone(state: string | null): 'ok' | 'warn' | 'down' | 'muted' {
 <template>
   <SettingsCard
     title="Snapshots"
-    subtitle="native OpenSearch snapshot/restore — the durability set (NFR-6)"
+    subtitle="native OpenSearch snapshot/restore: the durability set (NFR-6)"
   >
     <template v-if="!configured">
       <p class="snap-unconfigured">

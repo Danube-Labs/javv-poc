@@ -54,9 +54,9 @@ export function actorTone(actor: string): string {
   return CHART_PTYPE_RAMP[h % CHART_PTYPE_RAMP.length]!
 }
 
-/** "1.5d" / "18h" / "<1h" / "—" — the median-TTR cell, coarse on purpose. */
+/** "1.5d" / "18h" / "<1h" / "-": the median-TTR cell, coarse on purpose. */
 export function fmtMedian(seconds: number | null): string {
-  if (seconds === null) return '—'
+  if (seconds === null) return '-'
   const days = seconds / 86_400
   if (days >= 1) {
     const d = Math.round(days * 10) / 10

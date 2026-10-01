@@ -69,7 +69,7 @@ function detail(e: AuditEvent): string {
     const patch = Object.entries(bulk.patch ?? {})
       .map(([k, v]) => `${k} → ${String(v)}`)
       .join(' · ')
-    return `${patch} — ${bulk.result_count ?? '?'} findings (frozen set)`
+    return `${patch}: ${bulk.result_count ?? '?'} findings (frozen set)`
   }
   if (e.field == null) return ''
   if (e.old_value == null && e.new_value == null) return ''
@@ -165,7 +165,7 @@ function onRowClick(row: AuditEvent) {
         <div class="empty-row">
           {{ props.loading ? 'Loading events…'
             : filtered ? 'No events match these filters.'
-            : 'No journaled activity for this cluster yet — triage actions, decisions and config edits will land here.' }}
+            : 'No journaled activity for this cluster yet. Triage actions, decisions and config edits will land here.' }}
         </div>
       </template>
     </DataTable>

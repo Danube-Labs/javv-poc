@@ -89,7 +89,7 @@ describe('saved views — the golden capture ⇄ apply round-trip (SCREENS §6)'
     expect(s).toContain('Severity is none of low, negligible')
     expect(s).toContain('Namespace is payments')
     expect(s).toContain('KEV')
-    expect(presetSummary(FINDINGS_FIELDS, {} as never)).toBe('No filters — everything')
+    expect(presetSummary(FINDINGS_FIELDS, {} as never)).toBe('No filters: everything')
   })
 
   it('an empty workbench captures an empty preset — "everything" is a valid view', () => {

@@ -86,7 +86,7 @@ function pretty() {
     bodyText.value = JSON.stringify(JSON.parse(bodyText.value), null, 2)
     errorText.value = ''
   } catch (e) {
-    errorText.value = `Body is not valid JSON — ${(e as Error).message}`
+    errorText.value = `Body is not valid JSON: ${(e as Error).message}`
   }
 }
 
@@ -98,7 +98,7 @@ async function run() {
     try {
       body = JSON.parse(bodyText.value)
     } catch (e) {
-      errorText.value = `Body is not valid JSON — ${(e as Error).message}`
+      errorText.value = `Body is not valid JSON: ${(e as Error).message}`
       return
     }
   }
@@ -120,7 +120,7 @@ async function run() {
     } else {
       // the backend's rejection reason, verbatim (problem+json carries it in `title`)
       const problem = (r.error ?? null) as { title?: string } | null
-      errorText.value = `${r.response?.status ?? '?'} — ${problem?.title ?? 'request failed'}`
+      errorText.value = `${r.response?.status ?? '?'}: ${problem?.title ?? 'request failed'}`
       logger.warn('inspect_rejected', { path: path.value, status: r.response?.status })
     }
   } finally {
@@ -146,9 +146,9 @@ const budgetPct = computed(() =>
       <div class="head-card head-card-fluid">
         <h1>Data inspector</h1>
         <p class="screen-sub">
-          Raw read-only queries against the OpenSearch store — verify mappings, debug ingest,
+          Raw read-only queries against the OpenSearch store: verify mappings, debug ingest,
           answer "what is actually in the index". Every query is journaled. Spans
-          <b>all clusters</b> — the topbar cluster picker does not scope this console; filter
+          <b>all clusters</b>. The topbar cluster picker does not scope this console; filter
           on <code>cluster_id</code> in the query itself.
         </p>
       </div>
@@ -197,8 +197,8 @@ const budgetPct = computed(() =>
               @keydown="onEditorKeydown"
             />
             <p v-if="errorText" class="reject" role="alert">
-              <b>{{ errorText.split(' — ')[0] }}</b>
-              <span>{{ errorText.split(' — ').slice(1).join(' — ') }}</span>
+              <b>{{ errorText.split(': ')[0] }}</b>
+              <span>{{ errorText.split(': ').slice(1).join(': ') }}</span>
             </p>
           </div>
           <div class="pane">
@@ -207,7 +207,7 @@ const budgetPct = computed(() =>
               <span v-if="tookMs !== null" class="quiet">took {{ tookMs }} ms</span>
             </div>
             <pre v-if="responseText" class="response">{{ responseText }}</pre>
-            <p v-else class="response-empty">Run a query — the untransformed store response lands here.</p>
+            <p v-else class="response-empty">Run a query. The untransformed store response lands here.</p>
             <div v-if="capBytes" class="budget">
               <div class="budget-row">
                 <span>response budget</span>
@@ -219,7 +219,7 @@ const budgetPct = computed(() =>
         </div>
 
         <p class="journal-note">
-          <b>recorded</b> Every query you run here lands in the audit log — who ran it, against
+          <b>recorded</b> Every query you run here lands in the audit log: who ran it, against
           what, and when. Nothing on this page is anonymous.
         </p>
       </section>

@@ -66,7 +66,7 @@ onMounted(async () => {
 <template>
   <nav class="sidebar" :class="{ collapsed }" aria-label="Primary">
     <div class="side-top">
-      <RouterLink to="/overview" class="side-brand" :title="collapsed ? 'javv — Overview' : undefined">
+      <RouterLink to="/overview" class="side-brand" :title="collapsed ? 'javv: Overview' : undefined">
         <img :src="iconSvg" alt="" width="32" height="32" />
         <span v-if="!collapsed" class="side-word"><b>javv</b><span>by Danube Labs</span></span>
       </RouterLink>

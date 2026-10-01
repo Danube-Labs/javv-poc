@@ -48,7 +48,7 @@ export interface TriagePatchBody {
 export function buildTriagePatch(d: TriageDraft): { body: TriagePatchBody | null; error: string | null } {
   const stateChanged = d.targetState !== null && d.targetState !== d.currentState
   if (d.targetState === 'stale') {
-    return { body: null, error: 'stale is system-set — it clears when the scanner reports again' }
+    return { body: null, error: 'stale is system-set: it clears when the scanner reports again' }
   }
   if (stateChanged && d.targetState === 'not_affected' && !d.vexJustification) {
     return { body: null, error: 'not_affected requires a justification (CISA five)' }

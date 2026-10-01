@@ -10,6 +10,8 @@
 import { describe, expect, it } from 'vitest'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative, resolve } from 'node:path'
+import ts from 'typescript'
+import { parse as parseSfc } from 'vue/compiler-sfc'
 
 const SRC = resolve(process.cwd(), 'src')
 
@@ -155,5 +157,154 @@ describe('style rules — no same-hue text on its own tint', () => {
       hits,
       `same-hue fg/bg pair(s) — prose on a tint is var(--ink), hue goes to icon/border/bg (DESIGN.md §2): ${hits.join('; ')}`,
     ).toEqual([])
+  })
+})
+
+/**
+ * No em dashes in anything the app can show (issue 652; operator ruling 2026-10-01: every string
+ * literal, developer messages included, because visible copy can't be told apart from developer
+ * text mechanically). Code comments are exempt. A real parser finds the copy: Vue's for template
+ * text, attributes and expressions, TypeScript's for string and template literals, so a dash in a
+ * comment never trips it and a dash in a `:title` binding never slips past.
+ */
+const EM_DASH = '\u2014'
+
+/** Vue template AST node types (compiler-core's NodeTypes, which compiler-sfc doesn't re-export). */
+const TEXT = 2
+const INTERPOLATION = 5
+const ATTRIBUTE = 6
+const DIRECTIVE = 7
+
+interface TplNode {
+  type: number
+  content?: string | { content: string; loc: { start: { offset: number } } }
+  loc: { start: { offset: number } }
+  props?: { type: number; name: string; value?: { content: string }; exp?: { content: string; loc: { start: { offset: number } } }; loc: { start: { offset: number } } }[]
+  children?: TplNode[]
+}
+
+interface EmDashHit {
+  line: number
+  where: 'template text' | 'template attribute' | 'template expression' | 'string' | 'css'
+}
+
+const lineAt = (source: string, offset: number) => source.slice(0, offset).split('\n').length
+
+function scanCode(code: string, offset: number, source: string, where: EmDashHit['where'], hits: EmDashHit[]) {
+  const sf = ts.createSourceFile('scan.ts', code, ts.ScriptTarget.Latest, true)
+  const visit = (node: ts.Node) => {
+    const literal =
+      ts.isStringLiteralLike(node) ||
+      node.kind === ts.SyntaxKind.TemplateHead ||
+      node.kind === ts.SyntaxKind.TemplateMiddle ||
+      node.kind === ts.SyntaxKind.TemplateTail
+    if (literal && node.getText(sf).includes(EM_DASH))
+      hits.push({ line: lineAt(source, offset + node.getStart(sf)), where })
+    ts.forEachChild(node, visit)
+  }
+  visit(sf)
+}
+
+function scanTemplate(node: TplNode, source: string, hits: EmDashHit[]) {
+  if (node.type === TEXT && typeof node.content === 'string' && node.content.includes(EM_DASH))
+    hits.push({ line: lineAt(source, node.loc.start.offset), where: 'template text' })
+  if (node.type === INTERPOLATION && typeof node.content === 'object')
+    scanCode(node.content.content, node.content.loc.start.offset, source, 'template expression', hits)
+  for (const prop of node.props ?? []) {
+    if (prop.type === ATTRIBUTE && prop.value?.content.includes(EM_DASH))
+      hits.push({ line: lineAt(source, prop.loc.start.offset), where: 'template attribute' })
+    if (prop.type === DIRECTIVE && prop.exp)
+      scanCode(prop.exp.content, prop.exp.loc.start.offset, source, 'template expression', hits)
+  }
+  for (const child of node.children ?? []) scanTemplate(child, source, hits)
+}
+
+const withoutCssComments = (css: string) => css.replace(/\/\*[\s\S]*?\*\//g, '')
+
+/** Every em dash in `source` outside a comment, by line. */
+function emDashes(source: string, kind: 'vue' | 'ts' | 'css'): EmDashHit[] {
+  const hits: EmDashHit[] = []
+  if (kind === 'ts') scanCode(source, 0, source, 'string', hits)
+  if (kind === 'css' && withoutCssComments(source).includes(EM_DASH)) hits.push({ line: 0, where: 'css' })
+  if (kind === 'vue') {
+    const { descriptor } = parseSfc(source)
+    const tpl = descriptor.template
+    // the template AST's offsets already count from the start of the file
+    if (tpl?.ast) scanTemplate(tpl.ast as unknown as TplNode, source, hits)
+    for (const block of [descriptor.script, descriptor.scriptSetup])
+      if (block) scanCode(block.content, block.loc.start.offset, source, 'string', hits)
+    for (const style of descriptor.styles)
+      if (withoutCssComments(style.content).includes(EM_DASH))
+        hits.push({ line: lineAt(source, style.loc.start.offset), where: 'css' })
+  }
+  return hits
+}
+
+describe('style rules: the em-dash scanner itself', () => {
+  const D = EM_DASH
+  it('finds an em dash in template text, attributes, expressions and script strings', () => {
+    const vue = [
+      '<template>',
+      `  <p title="a ${D} b">c ${D} d</p>`,
+      `  <i :title="'e ${D} f'">{{ \`g ${D} \${h}\` }}</i>`,
+      '</template>',
+      '<script setup lang="ts">',
+      `const s = 'i ${D} j'`,
+      '</script>',
+    ].join('\n')
+    expect(emDashes(vue, 'vue').map((h) => `${h.line} ${h.where}`)).toEqual([
+      '2 template attribute',
+      '2 template text',
+      '3 template expression',
+      '3 template expression',
+      '6 string',
+    ])
+  })
+
+  it('ignores every kind of comment', () => {
+    const vue = [
+      '<template>',
+      `  <!-- a ${D} b --><p>plain</p>`,
+      '</template>',
+      '<script setup lang="ts">',
+      `// c ${D} d`,
+      `/* e ${D} f */ const s = 'plain'`,
+      '</script>',
+      `<style scoped>/* g ${D} h */ .x { color: red; }</style>`,
+    ].join('\n')
+    expect(emDashes(vue, 'vue')).toEqual([])
+    expect(emDashes(`// a ${D} b\nconst s = \`c\` /* d ${D} e */`, 'ts')).toEqual([])
+    expect(emDashes(`/* a ${D} b */ .x {}`, 'css')).toEqual([])
+  })
+
+  it('finds an em dash in a .ts string and in CSS content outside comments', () => {
+    expect(emDashes(`const a = 1\nconst m = "x ${D} y"`, 'ts')).toEqual([{ line: 2, where: 'string' }])
+    expect(emDashes(`.x::after { content: '${D}'; }`, 'css')).toEqual([{ line: 0, where: 'css' }])
+  })
+})
+
+/** Known pre-existing violations. May only shrink. */
+const EM_DASH_BASELINE = new Set<string>([])
+
+describe('style rules: no em dashes in copy', () => {
+  const offenders = walk(SRC)
+    .map((p) => relative(SRC, p).split('\\').join('/'))
+    .map((rel) => {
+      const kind = rel.endsWith('.vue') ? 'vue' : rel.endsWith('.ts') ? 'ts' : 'css'
+      return { rel, hits: emDashes(readFileSync(join(SRC, rel), 'utf8'), kind) }
+    })
+    .filter((f) => f.hits.length > 0)
+
+  it('no em dash outside a comment: use a colon, a full stop or a comma', () => {
+    const added = offenders
+      .filter((f) => !EM_DASH_BASELINE.has(f.rel))
+      .map((f) => `${f.rel}:${f.hits.map((h) => h.line).join(',')}`)
+    expect(added, `em dash(es) in copy (issue 652): ${added.join('; ')}`).toEqual([])
+  })
+
+  it('baseline only shrinks (remove swept files)', () => {
+    const names = offenders.map((f) => f.rel)
+    const stale = [...EM_DASH_BASELINE].filter((f) => !names.includes(f))
+    expect(stale, `swept, delete from EM_DASH_BASELINE: ${stale.join(', ')}`).toEqual([])
   })
 })

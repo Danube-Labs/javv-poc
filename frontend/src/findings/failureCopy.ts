@@ -12,8 +12,8 @@ export function failureKind(status: number | null, rewound: boolean): FailureKin
 
 export const FAILURE_COPY: Record<FailureKind, string> = {
   past_t:
-    "This filter isn't answerable at a past point in time — return to now, or drop the search/attribute filters.",
-  bad_filter: "This search or filter isn't valid — searches need at least 2 characters.",
-  busy: 'The search backend is busy — try again in a few seconds.',
-  backend: 'Findings unavailable — check the backend connection.',
+    "This filter isn't answerable at a past point in time. Return to now, or drop the search/attribute filters.",
+  bad_filter: "This search or filter isn't valid: searches need at least 2 characters.",
+  busy: 'The search backend is busy. Try again in a few seconds.',
+  backend: 'Findings unavailable. Check the backend connection.',
 }

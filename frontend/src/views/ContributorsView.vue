@@ -114,12 +114,12 @@ const { exporting, run: runExport } = useCsvExport({
   path: '/api/v1/contributors/export.csv',
   filename: (stamp) => `javv-contributors-${stamp}.csv`,
   event: 'contributors_export_failed',
-  onCapped: () => toast.info('Over the inline export cap — narrow the window first.'),
+  onCapped: () => toast.info('Over the inline export cap. Narrow the window first.'),
   onFailed: (status) =>
     toast.error(
       status
-        ? `Export failed (${status}) — check the backend connection.`
-        : 'Export failed — check the backend connection.',
+        ? `Export failed (${status}). Check the backend connection.`
+        : 'Export failed. Check the backend connection.',
     ),
   onDone: (name) => toast.success(`Export downloaded · ${name}`),
 })
@@ -132,7 +132,7 @@ async function exportCsv() {
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 const teamSla = computed(() =>
-  totals.value?.sla_hit_pct == null ? '—' : `${Math.round(totals.value.sla_hit_pct)}%`,
+  totals.value?.sla_hit_pct == null ? '-' : `${Math.round(totals.value.sla_hit_pct)}%`,
 )
 const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
 </script>
@@ -162,7 +162,7 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
     </p>
 
     <div v-else-if="board.length === 0" class="not-found" role="status">
-      <p>No triage activity in this window — handled findings chart contributors here.</p>
+      <p>No triage activity in this window. Handled findings chart contributors here.</p>
     </div>
 
     <template v-else>
@@ -191,7 +191,7 @@ const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
           <span class="stat-num">{{ teamSla }}</span>
           <span class="stat-sub">of SLA-bearing handled findings</span>
         </div>
-        <button class="stat-cell" title="Open resolve actions in the audit log — all severities; this count is criticals only" @click="goAudit('resolve')">
+        <button class="stat-cell" title="Open resolve actions in the audit log: all severities. This count is criticals only" @click="goAudit('resolve')">
           <span class="stat-label"><i class="stat-dot" style="background: var(--sev-critical-solid)" />critical cleared<AppIcon class="cell-go" name="chevron" :size="11" /></span>
           <span class="stat-num">{{ fmt(totals.critical_cleared) }}</span>
           <span class="stat-sub">{{ windowLabel }}</span>

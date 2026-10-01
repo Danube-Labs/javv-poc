@@ -54,7 +54,7 @@ function scopeLabel(d: DecisionRow): string {
 <template>
   <DetailCard
     title="Decisions on this CVE"
-    sub="scoped risk-accept / not-affected RULES (immutable; edits revoke + re-create) — plain state changes are triage actions, listed under Activity"
+    sub="scoped risk-accept / not-affected RULES (immutable; edits revoke + re-create). Plain state changes are triage actions, listed under Activity"
     flush
   >
     <template #action>
@@ -78,8 +78,8 @@ function scopeLabel(d: DecisionRow): string {
               <span v-if="d.apply_both_scanners" class="both-tag">both</span>
               <ScannerTag v-else-if="d.scanner" :name="d.scanner" />
             </td>
-            <td class="sm">{{ d.approver ?? d.created_by ?? '—' }}</td>
-            <td class="mono-cell sm">{{ d.expiry ?? '—' }}</td>
+            <td class="sm"><template v-if="(d.approver ?? d.created_by) != null">{{ d.approver ?? d.created_by }}</template><span v-else class="muted-dash">-</span></td>
+            <td class="mono-cell sm"><template v-if="d.expiry != null">{{ d.expiry }}</template><span v-else class="muted-dash">-</span></td>
             <td>
               <span v-if="!d.revoked_at" class="dec-active">active</span>
               <span v-else class="dec-revoked">revoked</span>

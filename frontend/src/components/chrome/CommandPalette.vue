@@ -120,7 +120,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             ref="inputEl"
             v-model="text"
             type="text"
-            placeholder="Search CVE, image, namespace — or jump to a screen…"
+            placeholder="Search CVE, image, namespace, or jump to a screen…"
             aria-label="Global search"
           />
           <kbd>esc</kbd>
@@ -149,13 +149,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
           <p v-if="searching" class="cp-note" role="status">Searching…</p>
           <p v-else-if="failed" class="cp-error" role="alert">
-            Search unavailable — check the backend connection.
+            Search unavailable. Check the backend connection.
           </p>
           <p v-else-if="serverEmpty && rows.length === 0" class="cp-note" role="status">
             No matches for “{{ text.trim() }}” in this cluster.
           </p>
           <p v-else-if="text.trim().length < MIN_CHARS" class="cp-note">
-            Type {{ MIN_CHARS }}+ characters to search findings — results are scoped to the
+            Type {{ MIN_CHARS }}+ characters to search findings. Results are scoped to the
             selected cluster.
           </p>
         </div>

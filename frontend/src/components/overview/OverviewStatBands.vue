@@ -82,7 +82,7 @@ function goFindings(query: Record<string, string>) {
     </button>
     <button class="stat-cell" title="Open the untriaged queue" @click="goFindings({ state: 'open' })">
       <span class="stat-label"><i class="stat-dot" style="background: var(--state-resolved-fg)" />triage progress<AppIcon class="cell-go" name="chevron" :size="11" /></span>
-      <span class="stat-num">{{ triage.total === 0 ? '—' : `${Math.round(triage.pct(triage.handled + triage.ack))}%` }}</span>
+      <span class="stat-num"><span v-if="triage.total === 0" class="muted-dash">-</span><template v-else>{{ `${Math.round(triage.pct(triage.handled + triage.ack))}%` }}</template></span>
       <span class="progress-bar" aria-hidden="true">
         <i class="seg-open" :style="{ width: `${triage.pct(triage.open)}%` }" />
         <i class="seg-ack" :style="{ width: `${triage.pct(triage.ack)}%` }" />

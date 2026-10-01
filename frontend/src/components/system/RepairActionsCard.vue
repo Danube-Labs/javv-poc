@@ -39,7 +39,7 @@ const COPY: Record<string, { icon: IconName; label: string; sub: string; desc: s
     icon: 'rescan',
     label: 'Rebuild state',
     sub: 'findings cache · presence · sla clocks',
-    desc: 'Re-derives every materialized row from the append history — the crash self-heal. Safe to run any time; history is never touched.',
+    desc: 'Re-derives every materialized row from the append history: the crash self-heal. Safe to run any time; history is never touched.',
   },
   staleness_sweep: {
     icon: 'clock',
@@ -51,7 +51,7 @@ const COPY: Record<string, { icon: IconName; label: string; sub: string; desc: s
     icon: 'trash',
     label: 'Lifecycle sweep',
     sub: 'retention · whole-index drops',
-    desc: 'Applies retention by dropping whole aged indices — the only sanctioned delete in the system.',
+    desc: 'Applies retention by dropping whole aged indices, the only sanctioned delete in the system.',
   },
 }
 
@@ -128,8 +128,8 @@ async function dryRun(job: JobDoc) {
       const trouble = errors ? ` ${errors} series could not be checked.` : ''
       toast.info(
         rolled || dropped
-          ? `Dry run — the sweep would roll over ${rolled} and delete ${dropped} indices.${trouble} Nothing was changed.`
-          : `Dry run — nothing is due to roll over or be deleted.${trouble}`,
+          ? `Dry run: the sweep would roll over ${rolled} and delete ${dropped} indices.${trouble} Nothing was changed.`
+          : `Dry run: nothing is due to roll over or be deleted.${trouble}`,
       )
       logger.info('repair_job_dry_run', { kind: job.kind, rolled, dropped, errors })
     } else {
@@ -144,10 +144,10 @@ async function dryRun(job: JobDoc) {
 
 function statusMeta(job: JobDoc): string {
   if (job.status === 'running' && job.stale)
-    return `no heartbeat since ${fmtAt(job.started_at)} — reclaimable, run again`
+    return `no heartbeat since ${fmtAt(job.started_at)}. Reclaimable, run again`
   if (job.status === 'running') return `running · by ${job.requested_by} · since ${fmtAt(job.started_at)}`
   if (job.status === 'done') return `${fmtAt(job.finished_at)} · ${fmtJobResult(job.result)}`
-  if (job.status === 'failed') return `failed ${fmtAt(job.finished_at)} — ${job.error ?? 'see backend logs'}`
+  if (job.status === 'failed') return `failed ${fmtAt(job.finished_at)}: ${job.error ?? 'see backend logs'}`
   return 'never run on this store'
 }
 
@@ -160,12 +160,12 @@ function canRun(job: JobDoc): boolean {
   <section class="card repair">
     <h3 class="panel-band">Repair actions</h3>
     <p class="repair-sub">
-      If the data on screen looks wrong, these are the safe, built-in fixes — they recompute
+      If the data on screen looks wrong, these are the safe, built-in fixes. They recompute
       from the stored scan history instead of editing anything by hand. Every run is recorded
       in the audit log.
     </p>
     <p v-if="failed" class="load-error" role="alert">
-      Job status unavailable — the triggers are disabled until it loads.
+      Job status unavailable. The triggers are disabled until it loads.
     </p>
     <template v-else-if="loaded">
       <div v-for="job in jobs" :key="job.kind" class="repair-row">
@@ -186,7 +186,7 @@ function canRun(job: JobDoc): boolean {
             v-if="job.kind === 'lifecycle_sweep'"
             variant="control"
             :disabled="!canRun(job) || dryRunning"
-            :title="canRun(job) ? 'See what the sweep would delete — changes nothing' : `Requires ${job.capability}`"
+            :title="canRun(job) ? 'See what the sweep would delete. Changes nothing' : `Requires ${job.capability}`"
             @click="dryRun(job)"
           >
             {{ dryRunning ? 'Checking…' : 'Dry run' }}
@@ -205,10 +205,10 @@ function canRun(job: JobDoc): boolean {
 
     <ModalShell v-if="confirming" title="Run the lifecycle sweep?" @close="confirming = null">
       <p class="confirm-body">
-        This applies retention by <b>deleting whole aged indices</b> — findings history past each
+        This applies retention by <b>deleting whole aged indices</b>: findings history past each
         cluster's retention window is gone for good, and time-travel can no longer reach it.
         The sweep is journaled and follows the same rules as the scheduled run. Not sure?
-        Cancel and press <b>Dry run</b> first — it shows what would be deleted without
+        Cancel and press <b>Dry run</b> first: it shows what would be deleted without
         changing anything.
       </p>
       <template #actions>

@@ -56,12 +56,12 @@ async function save() {
     logger.warn('cluster_rename_failed', { status: response?.status })
     toast.error(
       response?.status === 503
-        ? 'The registry is contended — try again.'
-        : 'Renaming failed — the cluster keeps its current name.',
+        ? 'The registry is contended. Try again.'
+        : 'Renaming failed. The cluster keeps its current name.',
     )
     return
   }
-  toast.success('Cluster renamed — display only, queries still key on the immutable id')
+  toast.success('Cluster renamed: display only, queries still key on the immutable id')
   await clusterStore.fetchClusters()
 }
 
@@ -75,15 +75,15 @@ const ingestEndpoint = computed(() => `${window.location.origin}/api/v1/ingest/s
 <template>
   <div>
     <SettingsCard title="Cluster" subtitle="identity & ingest contract">
-      <SettingsRow label="cluster_id" hint="The immutable tenant key — indices and every query route on it." stack>
+      <SettingsRow label="cluster_id" hint="The immutable tenant key: indices and every query route on it." stack>
         <div class="static-row">
-          <span class="static-value mono-sm">{{ clusterStore.selectedId ?? '—' }}</span>
+          <span class="static-value mono-sm"><template v-if="clusterStore.selectedId != null">{{ clusterStore.selectedId }}</template><span v-else class="muted-dash">-</span></span>
           <span class="lock-tag">immutable</span>
         </div>
       </SettingsRow>
       <SettingsRow
         label="cluster_name"
-        hint="Relabelable display name — never a query key. Renames are journaled."
+        hint="Relabelable display name, never a query key. Renames are journaled."
         stack
       >
         <SettingsInput id="cluster-name" v-model="draft" :invalid="invalid && draft !== ''" />

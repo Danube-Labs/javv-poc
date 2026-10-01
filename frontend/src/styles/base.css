@@ -194,6 +194,11 @@ html [class*=' p-'] {
 .mono-cell {
   font-family: var(--font-mono);
 }
+/* an empty value, anywhere: a muted hyphen in the secondary-text grey, so one job has one look
+   (operator ruling 2026-10-01, issue 652). Components use this class instead of styling their own */
+.muted-dash {
+  color: var(--soft);
+}
 .tbl-wrap {
   overflow-x: auto;
   background: var(--card);

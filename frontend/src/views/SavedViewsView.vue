@@ -141,7 +141,7 @@ async function remove(v: ViewDoc) {
     toast.success(`View “${v.name}” deleted`)
   } else {
     logger.warn('view_delete_failed', { view_id: v.view_id, status: response?.status })
-    toast.error('Deleting the view failed — try again.')
+    toast.error('Deleting the view failed. Try again.')
   }
 }
 
@@ -163,14 +163,14 @@ function summary(v: ViewDoc): string {
     </div>
 
     <p v-if="failed" class="load-error" role="alert">
-      Saved views unavailable — check the backend, then reload.
+      Saved views unavailable. Check the backend, then reload.
     </p>
 
     <EmptyState
       v-else-if="loaded && views.length === 0"
       icon="layers"
       title="No saved views yet"
-      hint="Set up a lens on Findings — filters, columns, density, time window — then use “Save view” to keep it here for everyone."
+      hint="Set up a lens on Findings (filters, columns, density, time window), then use “Save view” to keep it here for everyone."
     >
       <UiButton variant="primary" @click="router.push('/findings')">Go to Findings</UiButton>
     </EmptyState>
@@ -194,7 +194,7 @@ function summary(v: ViewDoc): string {
         <div class="vc-foot">
           <span class="vc-count">
             <template v-if="counts[v.view_id] === undefined">…</template>
-            <template v-else-if="counts[v.view_id] === null">—</template>
+            <span v-else-if="counts[v.view_id] === null" class="muted-dash">-</span>
             <template v-else>{{ counts[v.view_id]!.toLocaleString('en-US') }} findings</template>
           </span>
           <span class="vc-owner mono">{{ v.owner }}</span>

@@ -30,11 +30,11 @@ const scopeUnrestricted = computed(
 )
 
 const fmtValue = (value: unknown) =>
-  value === null || value === undefined || value === '' ? '—' : String(value)
+  value === null || value === undefined || value === '' ? '-' : String(value)
 
 const fmtWhen = (iso: string | null) =>
   iso === null
-    ? '—'
+    ? '-'
     : new Date(iso).toLocaleString('en-GB', { hour12: false, dateStyle: 'medium', timeStyle: 'short' })
 
 const SCOPE_LABEL: Record<string, string> = {
@@ -52,13 +52,13 @@ const SCOPE_LABEL: Record<string, string> = {
         <ScannerTag :name="scanner" />
         <span v-if="version" class="mono-cell ver">v{{ version }}</span>
       </div>
-      <span class="gitops-tag" title="Version and tuning change by swapping the published image tag / env — never in-app (D41/C-4)">operator-managed (GitOps)</span>
+      <span class="gitops-tag" title="Version and tuning change by swapping the published image tag / env, never in-app (D41/C-4)">operator-managed (GitOps)</span>
     </div>
     <div class="card-body">
       <template v-if="config !== null">
         <div class="cfg-row">
           <span class="cfg-key mono-cell">vuln DB</span>
-          <span class="mono-cell sm">{{ dbVersion ?? '—' }} · built {{ fmtWhen(dbBuilt) }}</span>
+          <span class="mono-cell sm"><template v-if="dbVersion != null">{{ dbVersion }}</template><span v-else class="muted-dash">-</span> · built {{ fmtWhen(dbBuilt) }}</span>
         </div>
         <div v-for="(value, key) in config.tuning" :key="key" class="cfg-row">
           <span class="cfg-key mono-cell">{{ key }}</span>
@@ -75,12 +75,12 @@ const SCOPE_LABEL: Record<string, string> = {
             </div>
           </template>
           <p v-if="scopeUnrestricted" class="cfg-empty">
-            no restrictions — the whole cluster is scanned
+            no restrictions: the whole cluster is scanned
           </p>
         </div>
       </template>
       <p v-else class="cfg-empty">
-        No committed run carries a config stamp yet — the display fills after the scanner's next
+        No committed run carries a config stamp yet. The display fills after the scanner's next
         push (schema v3+).
       </p>
     </div>

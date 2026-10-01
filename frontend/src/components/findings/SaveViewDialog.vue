@@ -47,7 +47,7 @@ async function save() {
       open.value = false
     } else {
       logger.warn('view_save_failed', { status: response?.status })
-      toast.error(response?.status === 422 ? 'The current lens is not storable as a view.' : 'Saving the view failed — try again.')
+      toast.error(response?.status === 422 ? 'The current lens is not storable as a view.' : 'Saving the view failed. Try again.')
     }
   } finally {
     saving.value = false
@@ -57,7 +57,7 @@ async function save() {
 
 <template>
   <UiButton variant="control" @click="show">Save view</UiButton>
-  <ModalShell v-if="open" title="Save this view" subtitle="Filters, columns and time window — reusable by everyone" :width="440" @close="open = false">
+  <ModalShell v-if="open" title="Save this view" subtitle="Filters, columns and time window, reusable by everyone" :width="440" @close="open = false">
     <div class="svd-body">
       <p class="svd-summary">{{ summary }}</p>
       <UiField label="Name">

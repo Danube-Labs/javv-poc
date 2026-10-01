@@ -14,7 +14,7 @@ const tier = computed(() => slaTier(props.pct))
 
 <template>
   <span v-if="tier" class="sla-pct" :data-tier="tier">{{ Math.round(pct!) }}%</span>
-  <span v-else class="sla-none mono-cell sm">—</span>
+  <span v-else class="muted-dash mono-cell sm">-</span>
 </template>
 
 <style scoped>
@@ -36,8 +36,5 @@ const tier = computed(() => slaTier(props.pct))
 .sla-pct[data-tier='low'] {
   color: var(--state-open-fg);
   background: var(--state-open-bg);
-}
-.sla-none {
-  color: var(--muted);
 }
 </style>

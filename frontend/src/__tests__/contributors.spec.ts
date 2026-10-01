@@ -75,7 +75,7 @@ describe('actorTone', () => {
 
 describe('fmtMedian', () => {
   it('formats days, hours, sub-hour, and the no-sample dash', () => {
-    expect(fmtMedian(null)).toBe('—')
+    expect(fmtMedian(null)).toBe('-')
     expect(fmtMedian(3 * 86_400)).toBe('3d')
     expect(fmtMedian(1.5 * 86_400)).toBe('1.5d')
     expect(fmtMedian(18 * 3_600)).toBe('18h')

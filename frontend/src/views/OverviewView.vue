@@ -124,7 +124,7 @@ function onDonutClick(e: { name?: string }) {
       <div class="head-card head-card-fluid">
         <h1>Overview</h1>
         <p class="head-note">
-          Current state across <b class="mono-cell">{{ clusterStore.selected?.cluster_name ?? '—' }}</b>
+          Current state across <b class="mono-cell"><template v-if="clusterStore.selected?.cluster_name">{{ clusterStore.selected.cluster_name }}</template><span v-else class="muted-dash">-</span></b>
           <template v-if="lastSweep"> · last sweep <span class="mono-cell">{{ lastSweep }}</span></template>
         </p>
       </div>
@@ -183,7 +183,7 @@ function onDonutClick(e: { name?: string }) {
           <div class="card-body">
             <EChart :option="trendOption" :height="250" />
             <p v-if="subDayNote" class="chart-note">
-              Trend at daily resolution — chart covers the last 1 day.
+              Trend at daily resolution: chart covers the last 1 day.
             </p>
           </div>
         </section>
@@ -211,7 +211,7 @@ function onDonutClick(e: { name?: string }) {
               </div>
             </template>
             <p v-else class="empty-row">
-              Awaiting package-type data — populates as the next scan cycles re-observe images.
+              Awaiting package-type data. Populates as the next scan cycles re-observe images.
             </p>
           </div>
         </section>

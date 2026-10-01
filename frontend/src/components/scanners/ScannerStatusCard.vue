@@ -72,7 +72,7 @@ const dbAgeLabel = computed(() =>
     </div>
 
     <p v-if="!provenance" class="scan-none">
-      No committed run yet — this scanner has never reported for this cluster.
+      No committed run yet: this scanner has never reported for this cluster.
     </p>
     <template v-else>
       <div class="scan-stats">
@@ -113,12 +113,12 @@ const dbAgeLabel = computed(() =>
           <span
             v-if="dbStale"
             class="db-stale"
-            title="A running scanner with a stale vulnerability database quietly under-reports — refresh the published image"
+            title="A running scanner with a stale vulnerability database quietly under-reports. Refresh the published image"
             >· {{ dbAgeLabel }} old</span
           ></span
         >
         <span class="scan-gitops"
-          >operator-managed (GitOps) — versions change by swapping the published image tag</span
+          >operator-managed (GitOps): versions change by swapping the published image tag</span
         >
       </div>
     </template>

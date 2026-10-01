@@ -21,7 +21,4 @@ defineProps<{ on: boolean }>()
   border-radius: 5px;
   box-shadow: inset 0 1px 0 var(--chip-hi), 0 1px 2px var(--kev-drop);
 }
-.muted-dash {
-  color: var(--dash-muted);
-}
 </style>

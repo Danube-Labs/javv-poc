@@ -60,7 +60,7 @@ const invalid = computed(() => draft.value !== null && policyFromDraft(draft.val
 
 const SAVE_FAILURE: Record<number, string> = {
   403: 'Saving needs the can_manage_settings capability.',
-  422: 'The policy was rejected — every window must be a positive number of days.',
+  422: 'The policy was rejected. Every window must be a positive number of days.',
 }
 
 async function save() {
@@ -73,13 +73,13 @@ async function save() {
   if (!response?.ok) {
     logger.warn('sla_policy_save_failed', { status: response?.status })
     toast.error(
-      SAVE_FAILURE[response?.status ?? 0] ?? 'Saving the SLA policy failed — nothing was changed.',
+      SAVE_FAILURE[response?.status ?? 0] ?? 'Saving the SLA policy failed. Nothing was changed.',
     )
     return
   }
   saved.value = body
   draft.value = draftFromPolicy(body)
-  toast.success('SLA policy saved — deadlines recompute immediately')
+  toast.success('SLA policy saved. Deadlines recompute immediately')
 }
 
 function discard() {
@@ -91,7 +91,7 @@ function discard() {
   <div>
     <SettingsCard
       title="SLA policy"
-      subtitle="remediation deadlines per severity — drives the SLA column and overdue flags"
+      subtitle="remediation deadlines per severity: drives the SLA column and overdue flags"
     >
       <UiSkeleton
         v-if="loading"
@@ -126,7 +126,7 @@ function discard() {
         </SettingsRow>
         <SettingsRow
           label="KEV override"
-          hint="Known-exploited findings ignore the table above and get this tighter window. Fractions work — 0.5 is 12 hours."
+          hint="Known-exploited findings ignore the table above and get this tighter window. Fractions work: 0.5 is 12 hours."
         >
           <SettingsInput
             v-model="draft.kev_days"
@@ -139,7 +139,7 @@ function discard() {
         <div class="sla-note">
           <AppIcon name="info" :size="13" />
           <span>
-            Changes apply immediately — deadlines are computed live from this policy, existing
+            Changes apply immediately: deadlines are computed live from this policy, existing
             findings included. <b>negligible</b> and <b>unknown</b> severities carry no SLA.
           </span>
         </div>

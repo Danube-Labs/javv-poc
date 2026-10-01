@@ -138,12 +138,12 @@ onUnmounted(() => {
       <BackendHealthBanner />
       <ScannerFreshnessBanner />
       <p v-if="clusterStore.failed && clusterStore.clusters.length === 0" class="load-error" role="alert">
-        Cluster list unavailable — every read needs it. Check the backend, then reload.
+        Cluster list unavailable, and every read needs it. Check the backend, then reload.
       </p>
       <Transition name="t-fade">
         <div v-if="!timeTravel.isNow" class="history-banner" role="status">
           <AppIcon name="rewind" :size="15" />
-          Viewing history — as scanned at
+          Viewing history: as scanned at
           <span class="mono">{{ new Date(timeTravel.t as string).toLocaleString(undefined, { hour12: false }) }}</span>
           <button class="back-to-now" @click="timeTravel.backToNow()">Back to now</button>
         </div>

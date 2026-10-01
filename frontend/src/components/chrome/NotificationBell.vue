@@ -32,7 +32,7 @@ const COPY: Record<string, { icon: 'download' | 'clock' | 'shield'; label: strin
   report_ready: {
     icon: 'download',
     label: 'Export ready',
-    desc: 'Your scheduled export finished — open to download.',
+    desc: 'Your scheduled export finished. Open to download.',
   },
   sla_breach: {
     icon: 'clock',
@@ -68,7 +68,7 @@ async function openExport(item: NotificationItem) {
   } else {
     expired.value.add(item.notification_id)
     expired.value = new Set(expired.value)
-    toast.info('That export expired — re-run it from the Findings screen.')
+    toast.info('That export expired. Re-run it from the Findings screen.')
     logger.info('notification_export_expired', { report_id: item.ref })
     void bell.markRead(item.notification_id)
   }
@@ -104,7 +104,7 @@ function onRowClick(item: NotificationItem) {
           <UiButton variant="mini" @click="bell.clearAll()">× Clear all</UiButton>
         </div>
         <p v-if="bell.failed.value" class="bell-degraded" role="alert">
-          Notifications unavailable — the badge is paused, nothing here is stale.
+          Notifications unavailable. The badge is paused, nothing here is stale.
         </p>
         <p v-else-if="bell.loaded.value && bell.items.value.length === 0" class="bell-empty" role="status">
           Nothing yet. SLA breaches, new assignments and ready exports land here.
@@ -126,7 +126,7 @@ function onRowClick(item: NotificationItem) {
               <span class="bell-when">{{ fmtAt(item.created_at) }}</span>
             </span>
             <span class="bell-desc">
-              <template v-if="expired.has(item.notification_id)">Expired — re-run the export from Findings.</template>
+              <template v-if="expired.has(item.notification_id)">Expired. Re-run the export from Findings.</template>
               <template v-else>{{ meta(item).desc }}</template>
             </span>
           </span>

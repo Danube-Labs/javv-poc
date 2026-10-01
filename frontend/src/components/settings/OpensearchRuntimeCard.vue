@@ -95,9 +95,9 @@ function healthTone(status: string | null): 'ok' | 'warn' | 'down' | 'muted' {
         <tbody>
           <tr v-for="n in runtime.nodes" :key="n.name ?? ''">
             <td class="mono">{{ n.name }}</td>
-            <td>{{ n.roles.join(', ') || '—' }}</td>
+            <td><template v-if="n.roles.length">{{ n.roles.join(', ') }}</template><span v-else class="muted-dash">-</span></td>
             <td class="mono r">{{ n.heap_used_mb }} / {{ n.heap_max_mb }} MB</td>
-            <td class="mono">{{ n.discovery_type ?? '—' }}</td>
+            <td class="mono"><template v-if="n.discovery_type != null">{{ n.discovery_type }}</template><span v-else class="muted-dash">-</span></td>
             <td class="mono">{{ n.path_repo ?? 'unset' }}</td>
             <td>{{ n.security_enabled ? 'enabled' : 'disabled' }}</td>
           </tr>

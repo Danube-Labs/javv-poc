@@ -45,7 +45,4 @@ const days = computed(() => {
   font-size: var(--text-facet-label);
   box-shadow: inset 0 1px 0 var(--chip-hi), 0 1px 2px var(--chip-crit-drop);
 }
-.muted-dash {
-  color: var(--dash-muted);
-}
 </style>

@@ -1,7 +1,7 @@
 /** Display formatting shared by the finding-detail panels (24h everywhere, null-tolerant). */
 
 export function fmtAt(iso: unknown): string {
-  if (typeof iso !== 'string') return '—'
+  if (typeof iso !== 'string') return '-'
   return new Date(iso).toLocaleString('en-GB', {
     month: 'short',
     day: 'numeric',
@@ -12,5 +12,5 @@ export function fmtAt(iso: unknown): string {
 }
 
 export function num(v: unknown): string {
-  return typeof v === 'number' ? String(v) : '—'
+  return typeof v === 'number' ? String(v) : '-'
 }

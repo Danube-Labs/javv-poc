@@ -117,8 +117,8 @@ function openFinding(row: FindingRow) {
     <h2>No findings from {{ scanner }}</h2>
     <p>
       {{ timeTravel.isNow
-        ? `No committed ${scanner} findings for this digest — a clean scan or not scanned by ${scanner} yet.`
-        : `As scanned at this T: no committed ${scanner} findings for this digest — clean then, or not yet scanned.` }}
+        ? `No committed ${scanner} findings for this digest: a clean scan, or not scanned by ${scanner} yet.`
+        : `As scanned at this T: no committed ${scanner} findings for this digest: clean then, or not yet scanned.` }}
     </p>
   </div>
   <div v-else class="tbl-card">
