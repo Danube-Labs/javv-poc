@@ -11,6 +11,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { client } from '@/api/client'
 import { inspectStoreApiV1AdminOpensearchInspectPost } from '@/api/generated'
+import InspectHeadFacts from '@/components/system/InspectHeadFacts.vue'
 import InspectRail from '@/components/system/InspectRail.vue'
 import RepairActionsCard from '@/components/system/RepairActionsCard.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -151,21 +152,7 @@ const budgetPct = computed(() =>
           on <code>cluster_id</code> in the query itself.
         </p>
       </div>
-      <div class="head-facts">
-        <p class="head-stat">
-          <AppIcon name="layers" :size="15" class="fact-icon" />{{ indexCount ?? '—'
-          }}<span class="head-unit"> indices</span>
-        </p>
-        <p class="head-stat">
-          <AppIcon name="database" :size="15" class="fact-icon" />{{
-            storeBytes ? fmtBytes(storeBytes) : '—'
-          }}<span class="head-unit"> store</span>
-        </p>
-        <p class="head-stat" :class="health ? `health-${health}` : undefined">
-          <i v-if="health" class="health-dot" aria-hidden="true" />{{ health || '—'
-          }}<span class="head-unit"> health</span>
-        </p>
-      </div>
+      <InspectHeadFacts :index-count="indexCount" :store-bytes="storeBytes" :health="health" />
     </div>
 
     <div class="inspect-cols">
@@ -243,55 +230,20 @@ const budgetPct = computed(() =>
 </template>
 
 <style scoped>
-.head-facts {
-  display: flex;
-  align-items: stretch;
-  gap: 28px;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  padding: 12px 22px;
+/* the description gives way to the facts at any width, so long values (a four-digit index count,
+   "1023.9 GB") wrap it instead of running off the screen. Below 1340px even short facts no
+   longer fit in a row beside it, so they stack in a column (issue 652) */
+.screen-head-band > .head-card {
+  flex: 0 1 auto;
+  min-width: 0;
 }
-.head-facts .head-stat {
-  margin: auto 0;
-  text-align: right;
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
+@media (width < 1340px) {
+  .screen-head-band > .head-facts {
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 16px;
+  }
 }
-.fact-icon {
-  align-self: center;
-  color: var(--soft);
-}
-/* the store-health ramp on the ops tokens — hue on word + dot, never bare color-only
-   (the dot doubles the signal for the word) */
-.health-dot {
-  align-self: center;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: var(--health-none-dot);
-}
-.health-green {
-  color: var(--health-ok-fg);
-}
-.health-green .health-dot {
-  background: var(--health-ok-dot);
-}
-.health-yellow {
-  color: var(--health-degraded-fg);
-}
-.health-yellow .health-dot {
-  background: var(--health-degraded-dot);
-}
-.health-red {
-  color: var(--health-down-fg);
-}
-.health-red .health-dot {
-  background: var(--health-down-fg);
-}
-
 .inspect-cols {
   display: grid;
   grid-template-columns: var(--facet-rail-w) 1fr;

@@ -35,12 +35,12 @@ const only = computed(() => (counted.value.length === 1 ? counted.value[0] : und
 const fmt = (n: number) => n.toLocaleString('en-US')
 const title = computed(() => {
   if (delta.value !== null && delta.value !== 0) {
-    const sign = delta.value > 0 ? '+' : ''
-    return `Trivy found ${fmt(props.trivy!)}, Grype found ${fmt(props.grype!)} — Δ ${sign}${fmt(delta.value)}. Counts are never summed.`
+    const ahead = delta.value > 0 ? LABEL.trivy : LABEL.grype
+    return `Trivy found ${fmt(props.trivy!)}, Grype found ${fmt(props.grype!)}. ${ahead} found ${fmt(Math.abs(delta.value))} more.`
   }
   if (delta.value === 0) return `Trivy and Grype both report ${fmt(props.total)}`
   if (only.value)
-    return `Only ${LABEL[only.value]} has a committed scan of this digest — ${fmt(props.total)}`
+    return `Only ${LABEL[only.value]} has a committed scan of this digest: ${fmt(props.total)} findings`
   return `${fmt(props.total)} findings on this digest`
 })
 </script>

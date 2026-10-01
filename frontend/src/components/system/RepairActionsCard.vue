@@ -263,6 +263,32 @@ function canRun(job: JobDoc): boolean {
   gap: 8px;
   justify-self: end;
 }
+/* below 1280px the five columns no longer fit: the description moves under the name at full
+   width, so it stays readable and the buttons stay inside the card (issue 652) */
+@media (width < 1280px) {
+  .repair-row {
+    grid-template-columns: 34px minmax(0, 1fr) minmax(0, 260px) max-content;
+    grid-template-areas:
+      'tile name status buttons'
+      '. desc desc desc';
+    row-gap: 6px;
+  }
+  .repair-tile {
+    grid-area: tile;
+  }
+  .repair-name {
+    grid-area: name;
+  }
+  .repair-desc {
+    grid-area: desc;
+  }
+  .repair-status {
+    grid-area: status;
+  }
+  .repair-buttons {
+    grid-area: buttons;
+  }
+}
 .repair-row:hover {
   background: var(--panel);
 }

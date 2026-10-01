@@ -61,7 +61,9 @@ hover/pressed/focus states; reviews reject "border-shift-only" or feedback-less 
   passes AA only on `--sev-critical-solid` (5.9:1) — every other solid fill fails with both
   white and ink. Default to the tinted chip (its pairs are gate-tested); reach for `solid`
   only for critical-grade emphasis. Side-stripe accents (the prototype's 4px `border-left`)
-  stay banned — severity on a panel is carried by the chip, not a stripe.
+  stay banned — severity on a panel is carried by the chip, not a stripe. The same holds for
+  the Settings scope strip: its 3px scope-coloured stripe is gone and the coloured badge carries
+  the scope alone (operator ruling on A/B specimens, 2026-10-01, issue 652).
 
 **Interaction & spacing rulings (operator, 2026-07-10 — issue #306):**
 - **Arrow cursor everywhere** — never `cursor: pointer` (desktop-app convention: Linear/Notion;
@@ -195,7 +197,20 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
   operator B2 ruling 2026-07-16; supersedes both the `--panel` head and the short-lived
   settings "quiet sans head" — `tbl-quiet` is density only). On-band column dividers use
   `--table-head-line`, never the beige hairlines.
-- Desktop-first; single breakpoint ~1120px (KPI strips 2-up, grids stack, facet rail stacks above the table).
+- **A table card never clips its columns** (issue 652). A hand-built `.tbl` card whose
+  columns can outgrow it at the 1024 floor opts into `.tbl-scroll-pin` (base.css): the table
+  scrolls sideways inside the card and its first, identity column stays pinned (All clusters,
+  Approvals). Put it on the card, or on a wrapper around the table alone when the card also
+  holds a pager that must stay put (Approvals). `overflow: hidden` clipping the table is the bug
+  it replaces. Once the table is scrolled, a 1px line marks the pinned column's edge so the
+  columns sliding under it don't read as part of it; at rest, or when the table fits, there is no
+  line (operator ruling 2026-10-01: CSS only, so browsers without scroll timelines show none).
+- Desktop-first. The shared breakpoint is ~1100 to 1120px (KPI strips 2-up, grids stack, facet
+  rail stacks above the table).
+- **A component may add its own breakpoint** (operator ruling 2026-10-01) when its content stops
+  fitting at a width the shared one doesn't cover. It lives in that component's scoped styles, at
+  the width measured where the content breaks, with a comment saying what stops fitting. Today:
+  1180px (finding detail), 1280px (repair action rows) and 1340px (inspector facts).
 
 ## 5. Interaction
 

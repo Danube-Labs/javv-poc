@@ -106,7 +106,6 @@ const scopeNote = computed(() => {
   margin-bottom: 14px;
   border: 1px solid var(--line2);
   background: var(--panel);
-  border-left: 3px solid var(--sc);
 }
 .scope-badge {
   font-family: var(--font-mono);

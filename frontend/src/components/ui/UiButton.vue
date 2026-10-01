@@ -20,11 +20,14 @@ withDefaults(
 </template>
 
 <style scoped>
+/* a button label is one line: a wrapped label reads as two controls (issue 652). The space around
+   a button gives way instead */
 .ui-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  white-space: nowrap;
   border: 1px solid var(--line);
   background: var(--card);
   border-radius: var(--r-sm);

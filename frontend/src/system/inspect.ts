@@ -109,3 +109,14 @@ export function totalStoreBytes(rows: CatIndexRow[]): number {
   }
   return total
 }
+
+/**
+ * An index name split for middle truncation (issue 652): `head` truncates with an ellipsis and
+ * `tail`, its last 10 characters, always shows, because the ending is what tells similar names
+ * apart (a rollover date and run number, or the `-*` of a pattern). A short name keeps at
+ * least half of itself in `head`. The parts rejoin into the full name.
+ */
+export function splitMiddle(name: string, tailLength = 10): { head: string; tail: string } {
+  const n = Math.min(tailLength, Math.floor(name.length / 2))
+  return { head: name.slice(0, name.length - n), tail: name.slice(name.length - n) }
+}

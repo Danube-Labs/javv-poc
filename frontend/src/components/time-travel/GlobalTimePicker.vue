@@ -57,9 +57,10 @@ const buttonLabel = computed(() =>
     ? timeTravel.windowLabel
     : `At ${fmtD(new Date(timeTravel.t))}`,
 )
-// hover answers "which exact instant?" in the URL's own frame — the local↔UTC bridge
+// hover answers "which exact instant?" in the URL's own frame — the local↔UTC bridge. At now
+// it carries the range in full: a long custom range truncates on one line (issue 647).
 const buttonTitle = computed(() =>
-  timeTravel.t === null ? undefined : `Viewing state at ${timeTravel.t} (UTC)`,
+  timeTravel.t === null ? timeTravel.windowLabel : `Viewing state at ${timeTravel.t} (UTC)`,
 )
 
 function applyPreset(label: string, days: number) {
@@ -125,7 +126,7 @@ function backToNow() {
         @click="toggle"
       >
         <AppIcon :name="timeTravel.isNow ? 'calendar' : 'rewind'" :size="14" />
-        {{ buttonLabel }}
+        <span class="time-range-label">{{ buttonLabel }}</span>
         <AppIcon name="chevron" :size="13" />
       </button>
     </template>
@@ -203,8 +204,10 @@ function backToNow() {
 <style scoped>
 .time-range {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 7px;
+  white-space: nowrap;
   /* topbar control register (operator, 2026-07-17): same 40px height as the cluster switcher */
   height: 40px;
   border: 2px solid var(--line); /* topbar register: 2px per the keep-beige ruling */
@@ -215,6 +218,16 @@ function backToNow() {
   background: var(--panel);
   font-family: var(--font-ui);
   cursor: default;
+}
+/* one line always (issue 647); only a long custom range reaches the cap, and its full text is
+   in the button's title */
+.time-range-label {
+  max-width: 30ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.time-range svg {
+  flex: none;
 }
 .time-range:hover {
   background: var(--control-hover-bg); /* wash + border — border-only hover is invisible */

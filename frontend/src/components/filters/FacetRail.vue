@@ -85,8 +85,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         @click="emit('toggle', g.field.key, it.value)"
       >
         <span class="facet-check" />
-        <span class="facet-label">
-          <slot name="value" :field="g.field" :value="it.value" :label="it.label">{{ it.label }}</slot>
+        <span class="facet-label" :title="it.label">
+          <span class="facet-text">
+            <slot name="value" :field="g.field" :value="it.value" :label="it.label">{{ it.label }}</slot>
+          </span>
         </span>
         <span v-if="it.count !== null" class="facet-count">{{ fmt(it.count) }}</span>
         <!-- the row click already means include, so the action offers the other side only -->
@@ -234,13 +236,23 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   border-color: var(--fpill-not-op);
   background: transparent;
 }
+/* a long unbroken value truncates on one line (its full text in the title), so the count and
+   the action keep their place inside the row: EUI's facet button does the same (issue 652) */
 .facet-label {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 6px;
 }
+.facet-text {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
 .facet-count {
+  flex: none;
   font-family: var(--font-mono);
   font-size: var(--text-facet-count);
   color: var(--soft);

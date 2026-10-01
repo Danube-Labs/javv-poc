@@ -186,7 +186,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <span v-if="key === 'tag'">Tag</span>
           <span v-else-if="key === 'namespace'">Namespace</span>
           <span v-else-if="key === 'replicas'">Replicas<span class="th-note">at last sweep</span></span>
-          <span v-else-if="key === 'vulns'">Vulns<span class="th-note">Trivy / Grype · never summed</span></span>
+          <span v-else-if="key === 'vulns'">Vulns<span class="th-note">Trivy / Grype</span></span>
           <span v-else-if="key === 'mixTrivy'">Severity mix<span class="th-note">trivy</span></span>
           <span v-else-if="key === 'mixGrype'">Severity mix<span class="th-note">grype</span></span>
           <span v-else-if="key === 'seen'">Last seen</span>
