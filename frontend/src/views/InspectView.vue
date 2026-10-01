@@ -230,6 +230,14 @@ const budgetPct = computed(() =>
 </template>
 
 <style scoped>
+/* when the facts don't fit beside the description they move to their own row, at the right edge
+   where they sit when they fit, instead of running off the screen (issue 652) */
+.screen-head-band {
+  flex-wrap: wrap;
+}
+.screen-head-band > .head-facts {
+  margin-left: auto;
+}
 .inspect-cols {
   display: grid;
   grid-template-columns: var(--facet-rail-w) 1fr;

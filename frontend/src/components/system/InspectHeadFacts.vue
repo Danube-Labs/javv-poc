@@ -40,6 +40,7 @@ defineProps<{ indexCount: number | null; storeBytes: number; health: string }>()
 }
 .head-facts .head-stat {
   margin: auto 0;
+  white-space: nowrap;
   text-align: right;
   display: flex;
   align-items: baseline;

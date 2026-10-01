@@ -4,7 +4,7 @@
  * indices from `_cat/indices`; a click hands the pattern to the console. Credential indices
  * never reach this list (filtered in system/inspect.ts to mirror the backend denial).
  */
-import { fmtDocs, type RailEntry, type RailGroups } from '@/system/inspect'
+import { fmtDocs, splitMiddle, type RailEntry, type RailGroups } from '@/system/inspect'
 
 defineProps<{ groups: RailGroups; activePattern: string; failed: boolean }>()
 const emit = defineEmits<{ pick: [pattern: string] }>()
@@ -38,7 +38,11 @@ function entries(groups: RailGroups, key: keyof RailGroups): RailEntry[] {
             :class="{ on: activePattern === e.pattern }"
             @click="emit('pick', e.pattern)"
           >
-            {{ e.pattern }} <i>{{ fmtDocs(e.docs) }}</i>
+            <span class="idx-name" :title="e.pattern"
+              ><span class="idx-head">{{ splitMiddle(e.pattern).head }}</span
+              ><span class="idx-tail">{{ splitMiddle(e.pattern).tail }}</span></span
+            >
+            <i>{{ fmtDocs(e.docs) }}</i>
           </button>
         </template>
       </div>
@@ -115,7 +119,22 @@ function entries(groups: RailGroups, key: keyof RailGroups): RailEntry[] {
   background: var(--dd-on-bg);
   border-color: var(--coral);
 }
+/* a long name truncates in the middle and keeps its ending, its full text in the title (EUI's
+   middle truncation for identifiers, issue 652) */
+.idx-name {
+  display: flex;
+  min-width: 0;
+  white-space: nowrap;
+}
+.idx-head {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.idx-tail {
+  flex: none;
+}
 .idx i {
+  flex: none;
   font-style: normal;
   font-size: var(--text-facet-count);
   color: var(--soft);

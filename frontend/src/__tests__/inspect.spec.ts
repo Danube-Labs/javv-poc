@@ -5,7 +5,14 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { fmtBytes, fmtDocs, fmtJobResult, groupIndices, totalStoreBytes } from '@/system/inspect'
+import {
+  fmtBytes,
+  fmtDocs,
+  fmtJobResult,
+  groupIndices,
+  splitMiddle,
+  totalStoreBytes,
+} from '@/system/inspect'
 
 const rows = [
   // real corpus names (INDEX-MAP): rollover-suffixed per-cluster append indices
@@ -78,5 +85,25 @@ describe('formatting', () => {
       { index: 'b', 'store.size': '512kb' },
     ])
     expect(total).toBe(10 * 1024 ** 2 + 512 * 1024)
+  })
+})
+
+describe('splitMiddle (issue 652: long index names truncate in the middle)', () => {
+  it('keeps the ending, which tells similar names apart, in its own part', () => {
+    // the last 10 characters stay whole: the date and run number, or the `-*` pattern ending
+    expect(splitMiddle('top_queries-2026.10.01-59460')).toEqual({ head: 'top_queries-2026.1', tail: '0.01-59460' })
+    expect(splitMiddle('javv-finding-occurrences-*')).toEqual({ head: 'javv-finding-occ', tail: 'urrences-*' })
+  })
+
+  it('the two parts always rejoin into the full name', () => {
+    for (const n of ['findings', 'system-audit-log-*', 'javv-scan-watermarks', 'a']) {
+      const { head, tail } = splitMiddle(n)
+      expect(head + tail).toBe(n)
+    }
+  })
+
+  it('a short name keeps at least half of itself in the part that truncates', () => {
+    const { head, tail } = splitMiddle('findings')
+    expect(tail.length).toBeLessThanOrEqual(head.length)
   })
 })
