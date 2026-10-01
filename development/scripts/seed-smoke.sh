@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Seed the CI route smoke's backend (#383, testing.md §4): bootstrap-admin login + must_change
-# rotation, one ingest token, the GOLDEN trivy envelope (backend/tests/fixtures — the single
-# source of truth for the ingest contract; when the contract changes, the fixture PR updates
-# this seed for free), and the inventory-run commit so /images reads a committed run.
+# rotation, an ingest token per cluster, the GOLDEN trivy envelope (backend/tests/fixtures — the
+# single source of truth for the ingest contract; when the contract changes, the fixture PR
+# updates this seed for free), and the inventory-run commit so /images reads a committed run.
+# Two clusters carry it: the fixture's own and a second one (step 4).
 #
 #   BACKEND=http://localhost:8000 ADMIN_PW_INIT=… ADMIN_PW=… ./development/scripts/seed-smoke.sh
 #
@@ -59,20 +60,33 @@ else
   echo "seed: viewer $VIEWER_USER created + rotated (role viewer — no capabilities)"
 fi
 
-# 2. ingest token for the fixture's cluster + scanner
-CLUSTER_ID="$(jq -r .cluster_id "$FIXTURE")"
-SCANNER="$(jq -r .scanner "$FIXTURE")"
-TOKEN="$(curl -sf -b "$COOKIES" -X POST "$BACKEND/api/v1/admin/tokens" -H 'content-type: application/json' \
-  -d "{\"cluster_id\":\"$CLUSTER_ID\",\"scanner\":\"$SCANNER\"}" | jq -r .token)"
-[ -n "$TOKEN" ] && [ "$TOKEN" != null ] || fail "token mint"
+# 2+3. per cluster: an ingest token, the envelope, and the inventory-run commit (status must come
+# back committed)
+seed_cluster() {
+  local envelope="$1" cluster_id scanner token status
+  cluster_id="$(jq -r .cluster_id "$envelope")"
+  scanner="$(jq -r .scanner "$envelope")"
+  token="$(curl -sf -b "$COOKIES" -X POST "$BACKEND/api/v1/admin/tokens" -H 'content-type: application/json' \
+    -d "{\"cluster_id\":\"$cluster_id\",\"scanner\":\"$scanner\"}" | jq -r .token)"
+  [ -n "$token" ] && [ "$token" != null ] || fail "token mint ($cluster_id)"
+  curl -sf -X POST "$BACKEND/api/v1/ingest/scan" -H "Authorization: Bearer $token" \
+    -H 'content-type: application/json' --data-binary "@$envelope" >/dev/null || fail "envelope ingest ($cluster_id)"
+  status="$(curl -sf -X POST "$BACKEND/api/v1/inventory-runs" -H "Authorization: Bearer $token" \
+    -H 'content-type: application/json' \
+    -d "{\"scan_run_id\":\"$(jq -r .scan_run_id "$envelope")\",\"expected_count\":1,\"started_at\":\"$(jq -r .last_seen_at "$envelope")\"}" \
+    | jq -r .status)"
+  [ "$status" = committed ] || fail "inventory run not committed for $cluster_id (status=$status)"
+  echo "seed: cluster $cluster_id seeded — $(jq -r '.findings | length' "$envelope") findings, inventory committed"
+}
 
-# 3. the golden envelope + the inventory-run commit (status must come back committed)
-curl -sf -X POST "$BACKEND/api/v1/ingest/scan" -H "Authorization: Bearer $TOKEN" \
-  -H 'content-type: application/json' --data-binary "@$FIXTURE" >/dev/null || fail "envelope ingest"
-STATUS="$(curl -sf -X POST "$BACKEND/api/v1/inventory-runs" -H "Authorization: Bearer $TOKEN" \
-  -H 'content-type: application/json' \
-  -d "{\"scan_run_id\":\"$(jq -r .scan_run_id "$FIXTURE")\",\"expected_count\":1,\"started_at\":\"$(jq -r .last_seen_at "$FIXTURE")\"}" \
-  | jq -r .status)"
-[ "$STATUS" = committed ] || fail "inventory run not committed (status=$STATUS)"
+seed_cluster "$FIXTURE"
 
-echo "seed: cluster $CLUSTER_ID seeded — $(jq -r '.findings | length' "$FIXTURE") findings, inventory committed"
+# 4. a SECOND cluster (issue 666): the same golden envelope under another cluster_id, so the smoke
+# can click from one cluster to the other. It is rewritten here, never a second fixture file, so
+# a contract change still reaches both. The id sorts after the golden one: the registry lists
+# clusters by id and a fresh browser selects the first, so every other check stays on the golden
+# cluster.
+SECOND="$(mktemp)"
+trap 'rm -f "$COOKIES" "$SECOND"' EXIT
+jq '.cluster_id = "7e57c1a5-0000-4000-8000-000000000002" | .scan_run_id = "goldenrun0002"' "$FIXTURE" > "$SECOND"
+seed_cluster "$SECOND"

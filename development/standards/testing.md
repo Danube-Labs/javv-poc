@@ -75,6 +75,13 @@ backend stdout to `development/e2e/logs/backend.log` for it). Selectors and logi
   admin (rotating `must_change`), mints an ingest token and pushes
   `backend/tests/fixtures/envelope-trivy-golden.json` + the inventory-run commit. When the ingest
   contract changes, the fixture PR updates the smoke for free — never hand-edit a second envelope.
+  It pushes that envelope to **two clusters** (issue 666): the fixture's own and a second id the
+  script rewrites with `jq` at seed time (no second file), sorting after the first so a fresh
+  browser still selects the golden cluster.
+- **One click does what it says (issue 666).** After the walk, the smoke clicks every sidebar item,
+  a fleet row of the cluster that is not selected, and (with `--core-loop`, since it writes) a
+  saved view with a 7-day window, and requires each to land on its first click. A route walk by
+  URL can't see a click whose state change cancels its own navigation; this phase can.
 - **Desktop-only gate** (ruling on #387): no phone layout exists yet; phone runs in the rig as
   warn-only screenshots and flips to gating when a responsive pass lands.
 - **Determinism rules:** event-based waits only in the gate (no arbitrary sleeps beyond the
