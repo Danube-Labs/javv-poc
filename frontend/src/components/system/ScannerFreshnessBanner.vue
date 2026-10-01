@@ -9,6 +9,7 @@
  */
 import { computed, onUnmounted, ref, watch } from 'vue'
 
+import GuideLink from '@/components/about/GuideLink.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import { client } from '@/api/client'
 import { scannerFreshnessApiV1ScannersFreshnessGet } from '@/api/generated'
@@ -56,12 +57,13 @@ const clusterName = computed(() => clusterStore.selected?.cluster_name ?? cluste
     <div v-if="silent.length" class="banner" role="alert">
       <AppIcon name="alert" :size="15" />
       <span>
-        Data may be stale on <strong class="mono">{{ clusterName }}</strong> —
+        Data may be stale on <strong class="mono">{{ clusterName }}</strong>:
         <template v-for="(row, i) in silent" :key="row.scanner">
           <template v-if="i > 0"> · </template>
           <strong>{{ row.scanner }}</strong> silent {{ silentFor(row.silent_for_seconds) }}
-          (last data <span class="mono">{{ lastDataAt(row.last_ingest_at) }}</span>)
-        </template>
+          (last data <span class="mono">{{ lastDataAt(row.last_ingest_at) }}</span>)</template
+        >.
+        <GuideLink section="scans-and-freshness" label="What this means" />
       </span>
     </div>
   </Transition>

@@ -26,6 +26,7 @@ import {
 } from '@/charts/buildIngestLensOption'
 import type { ScanActivityData } from '@/charts/buildScanActivityOption'
 import { buildTrendQuery, isSubDayWindow } from '@/charts/buildTrendQuery'
+import GuideLink from '@/components/about/GuideLink.vue'
 import EChart from '@/components/charts/EChart.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { useBucketRewind } from '@/composables/useBucketRewind'
@@ -113,9 +114,11 @@ function onPointClick(params: { dataIndex: number }) {
       <h3 class="il-title">Scan ingest</h3>
       <span class="il-sub"
         >runs per {{ interval }} · {{ timeTravel.windowLabel.toLowerCase()
-        }}<template v-if="subDay"> (daily bars — covers the last 1 day)</template> ·
+        }}<template v-if="subDay"> (daily bars: covers the last 1 day)</template> ·
         {{ subject }} shows the state at the <b>end</b> of this range</span
       >
+      <!-- outside .il-sub: the explanation truncates, and the icon must never be clipped with it -->
+      <GuideLink class="il-help" section="time-range" variant="popover" />
       <span v-if="timeTravel.isNow && latest" class="il-last mono-cell">
         last ingest {{ latest.scanner }} · {{ lastDataAt(latest.last_ingest_at) }} ({{
           silentFor(latest.silent_for_seconds)
@@ -127,8 +130,8 @@ function onPointClick(params: { dataIndex: number }) {
     <UiSkeleton v-if="!settled" :height="84" radius="sm" label="Loading ingest activity" class="skel-gap" />
     <p v-else-if="failed" class="il-empty">Ingest activity unavailable.</p>
     <p v-else-if="totalRuns === 0" class="il-empty">
-      No scans committed in this range<template v-if="timeTravel.isNow && latest">
-        — {{ subject }} shows the state last updated {{ lastDataAt(latest.last_ingest_at) }},
+      No scans committed in this range<template v-if="timeTravel.isNow && latest"
+        >: {{ subject }} shows the state last updated {{ lastDataAt(latest.last_ingest_at) }},
         {{ silentFor(latest.silent_for_seconds) }} ago</template
       >.
     </p>
@@ -164,6 +167,8 @@ function onPointClick(params: { dataIndex: number }) {
   margin-bottom: 2px;
 }
 .il-title {
+  flex: none;
+  white-space: nowrap;
   margin: 0;
   font-size: var(--text-sm);
   font-weight: 700;
@@ -173,7 +178,11 @@ function onPointClick(params: { dataIndex: number }) {
 }
 /* one size, ink-dark (operator: the small soft text was unreadable) — only the explanatory
    clause stays soft */
+/* when the head runs out of room the explanation gives way first (it truncates, and the guide
+   popover beside it carries the same message); the last-ingest time wraps only past its floor */
 .il-sub {
+  flex: 0 1000 auto;
+  min-width: 12ch;
   font-size: var(--text-control);
   color: var(--ink);
   white-space: nowrap;
@@ -183,6 +192,10 @@ function onPointClick(params: { dataIndex: number }) {
 .il-sub b {
   font-weight: 700;
   color: var(--ink);
+}
+.il-help {
+  flex: none;
+  align-self: center;
 }
 .il-last {
   margin-left: auto;

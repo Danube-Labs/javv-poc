@@ -9,9 +9,9 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { GUIDE_SECTIONS, guideHref } from '@/about/guide'
-import { activeAt } from '@/about/useActiveSection'
+import { SPY_LINE_PX, activeAt } from '@/about/useActiveSection'
 import { restampLocation } from '@/system/globalUrl'
-import { hashScroll } from '@/system/hashScroll'
+import { HASH_SCROLL_TOP, hashScroll } from '@/system/hashScroll'
 import GuideView from '@/views/GuideView.vue'
 
 const router = createRouter({
@@ -107,5 +107,13 @@ describe('activeAt (On this page follows the scroll)', () => {
   })
   it('is null with no sections', () => {
     expect(activeAt([], 300, false)).toBeNull()
+  })
+  it('keeps a short section active when a link lands on it', () => {
+    // the next section starts 190px down: a line a third of the way down a 900px screen (300)
+    // had already passed it, so landing on Scans and freshness highlighted Images
+    expect(activeAt(tops(-1200, HASH_SCROLL_TOP, 190, 600), SPY_LINE_PX, false)).toBe('s1')
+  })
+  it('sits the line below where a section link lands', () => {
+    expect(SPY_LINE_PX).toBeGreaterThan(HASH_SCROLL_TOP)
   })
 })

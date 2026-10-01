@@ -5,11 +5,13 @@
  * as it did before this rule existed. The 16px offset is the page's top padding, so a
  * section's heading isn't flush with the viewport edge.
  */
+export const HASH_SCROLL_TOP = 16
+
 interface Place {
   path: string
   hash: string
 }
 
 export function hashScroll(to: Place, from: Place): { el: string; top: number } | false {
-  return to.hash && (to.hash !== from.hash || to.path !== from.path) ? { el: to.hash, top: 16 } : false
+  return to.hash && (to.hash !== from.hash || to.path !== from.path) ? { el: to.hash, top: HASH_SCROLL_TOP } : false
 }
