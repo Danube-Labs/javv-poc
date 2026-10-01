@@ -139,7 +139,8 @@ export const FAMILY_ROWS: FamilyRow[] = [
     pattern: 'javv-scan-orders',
     purpose: 'per-scanner order counters',
     kind: 'protected',
-    why: 'the authoritative scan-order counter (D45): deleting it would let an old scan overwrite newer state',
+    why:
+      'the counter that orders every scan. Deleting it could give a new scan the number already handed to one still in flight, and JAVV could no longer tell which is newer',
   },
   {
     pattern: 'system-*',

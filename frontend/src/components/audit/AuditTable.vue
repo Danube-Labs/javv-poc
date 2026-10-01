@@ -135,7 +135,7 @@ function onRowClick(row: AuditEvent) {
             <span
               v-if="data.revision != null && data.field != null"
               class="rev-badge"
-              title="Causal revision (D38): same-field edits replay by this, not arrival order"
+              title="Revision: same-field edits replay in this order, not by timestamp, because the revision is the finding's version when the edit landed, so a retried or near-simultaneous edit can't jump ahead."
               >rev {{ data.revision }}</span
             >
           </span>

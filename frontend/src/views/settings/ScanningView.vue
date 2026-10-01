@@ -196,7 +196,8 @@ function discard() {
             <b>{{ parsedN }}d</b> and <b>{{ parsedM }}d</b> of scanner silence the per-finding
             timer is <b>held</b> (a brief outage won't mass-stale everything) and the inventory
             shows a "scanner silent" banner; past <b>{{ parsedM }}d</b> every finding of that
-            scanner is stale. Editing timers never deletes anything (D37 owns deletion).
+            scanner is stale. Editing timers never deletes anything: stale is only a flag. Findings are deleted only by the
+            cleanup window in Data &amp; OpenSearch, once their image has been gone that long.
           </span>
           <span v-else>Both windows must be positive, with escalation ≥ freshness.</span>
         </div>
