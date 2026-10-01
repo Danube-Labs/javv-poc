@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.4.8](https://github.com/Danube-Labs/javv-poc/compare/v0.4.7...v0.4.8) (2026-10-01)
+
+
+### Features
+
+* add a push mode to the scanner compatibility gate ([#636](https://github.com/Danube-Labs/javv-poc/issues/636)) ([e57ee58](https://github.com/Danube-Labs/javv-poc/commit/e57ee5801687b0be197e7c6dca5cb115e5fca77f)), closes [#631](https://github.com/Danube-Labs/javv-poc/issues/631)
+* add the about page with the running stack, diagnostics and docs links ([#648](https://github.com/Danube-Labs/javv-poc/issues/648)) ([d2957f9](https://github.com/Danube-Labs/javv-poc/commit/d2957f96a971d3a55f289c89202c1f36cb7436c1))
+* add the guide page, how to read javv, and split it from about ([#653](https://github.com/Danube-Labs/javv-poc/issues/653)) ([83180f6](https://github.com/Danube-Labs/javv-poc/commit/83180f6b8f2e54219b092f19d85f48a216a70ac3))
+* check every scanner version's real push against the store in ci ([#638](https://github.com/Danube-Labs/javv-poc/issues/638)) ([77f3cfd](https://github.com/Danube-Labs/javv-poc/commit/77f3cfd70a0c4e2ea46cfe8a3cd274e7f65f208c)), closes [#631](https://github.com/Danube-Labs/javv-poc/issues/631)
+* link the freshness banner and the ingest strip to the guide ([#654](https://github.com/Danube-Labs/javv-poc/issues/654)) ([e4b8d61](https://github.com/Danube-Labs/javv-poc/commit/e4b8d61d07ad7c3aa52ac6be1811d567573b4a0c))
+* report the running version on /api/v1/meta and in the bootstrap log ([#629](https://github.com/Danube-Labs/javv-poc/issues/629)) ([77d5581](https://github.com/Danube-Labs/javv-poc/commit/77d558124e23d02bddfdbc919f33f12a723f5073)), closes [#261](https://github.com/Danube-Labs/javv-poc/issues/261)
+* show the running versions in the sidebar footer ([#635](https://github.com/Danube-Labs/javv-poc/issues/635)) ([d626230](https://github.com/Danube-Labs/javv-poc/commit/d62623027c60c44b937144a214a4962d28a7a220)), closes [#261](https://github.com/Danube-Labs/javv-poc/issues/261)
+
+
+### Bug Fixes
+
+* carry the request's id on every error response and crash log line ([#645](https://github.com/Danube-Labs/javv-poc/issues/645)) ([64a3d16](https://github.com/Danube-Labs/javv-poc/commit/64a3d168b56268703168814d7ac53923cfa99d25))
+* **deps:** update dependency fastapi to &gt;=0.141,&lt;0.142 ([#626](https://github.com/Danube-Labs/javv-poc/issues/626)) ([89240c7](https://github.com/Danube-Labs/javv-poc/commit/89240c795662ee6786e89fa89857a53859958370))
+* drift-check the docs that state the supported scanner versions ([#642](https://github.com/Danube-Labs/javv-poc/issues/642)) ([64f500f](https://github.com/Danube-Labs/javv-poc/commit/64f500ff585af7e84ceea44986c01e909996a0a8))
+* keep the release version out of the pinned openapi snapshot ([#655](https://github.com/Danube-Labs/javv-poc/issues/655)) ([8a81048](https://github.com/Danube-Labs/javv-poc/commit/8a810481c8408ca6c34bae71dddcf8e8dc02adf5))
+* pin docker digests in dockerfiles only, not in .python-version ([#618](https://github.com/Danube-Labs/javv-poc/issues/618)) ([69e3641](https://github.com/Danube-Labs/javv-poc/commit/69e36417c66d01a89a5fd05942515ff4ca623479))
+* read stored settings leniently so a rollback can read settings a newer release saved ([#643](https://github.com/Danube-Labs/javv-poc/issues/643)) ([88b595f](https://github.com/Danube-Labs/javv-poc/commit/88b595fb92d7ed4f86ebff0a94e82bd56f621b56))
+* run the scanner images as a non-root user on a read-only-ready filesystem ([#634](https://github.com/Danube-Labs/javv-poc/issues/634)) ([f21d81d](https://github.com/Danube-Labs/javv-poc/commit/f21d81dfefe8f95f108442306ae0308588b53393)), closes [#632](https://github.com/Danube-Labs/javv-poc/issues/632)
+
 ## [0.4.7](https://github.com/Danube-Labs/javv-poc/compare/v0.4.6...v0.4.7) (2026-09-29)
 
 
