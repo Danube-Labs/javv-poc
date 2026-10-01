@@ -83,19 +83,19 @@ async function save() {
     toast.error(
       response?.status === 403
         ? 'Saving needs the can_manage_settings capability.'
-        : 'Saving the scan scope failed — the scanner keeps the current one.',
+        : 'Saving the scan scope failed. The scanner keeps the current one.',
     )
     return
   }
   saved.value = cloneScope(draft.value)
-  toast.success('Scan scope saved — the scanner applies it at its next cycle start')
+  toast.success('Scan scope saved. The scanner applies it at its next cycle start')
 }
 
 function addIgnoreChip(value: string) {
   // the fail-closed footgun: with globs live, a bare '*' in ignore = scan NOTHING, silently.
   // The server rejects it too — this just keeps the mistake out of the draft.
   if (value.trim() === '*') {
-    toast.error("A bare '*' in the ignore list would stop all scanning — narrow the include list instead.")
+    toast.error("A bare '*' in the ignore list would stop all scanning. Narrow the include list instead.")
     return
   }
   draft.value.ignore_namespaces = addChip(draft.value.ignore_namespaces, value)
@@ -123,13 +123,13 @@ function discard() {
       <template v-else>
         <SettingsRow
           label="Running workloads only"
-          hint="Discovery is always live images from the k8s API, digest-deduped — never a registry crawl (D30)."
+          hint="Discovery is always live images from the k8s API, digest-deduped, never a registry crawl (D30)."
         >
           <span class="static-fact mono-cell">always on</span>
         </SettingsRow>
         <SettingsRow
           label="Included namespaces"
-          hint="Only matching namespaces are scanned — names or glob patterns (kube* covers every kube- namespace). Empty = every namespace."
+          hint="Only matching namespaces are scanned: names or glob patterns (kube* covers every kube- namespace). Empty = every namespace."
           stack
         >
           <ChipsInput
@@ -142,7 +142,7 @@ function discard() {
         </SettingsRow>
         <SettingsRow
           label="Ignored namespaces"
-          hint="Namespaces the scanner skips — names or globs. Ignore wins over include. A bare * is rejected: it would silently stop all scanning."
+          hint="Namespaces the scanner skips: names or globs. Ignore wins over include. A bare * is rejected: it would silently stop all scanning."
           stack
         >
           <ChipsInput

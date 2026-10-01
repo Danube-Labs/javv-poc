@@ -15,7 +15,7 @@ defineProps<{ roles: RoleRow[]; ready: boolean }>()
 </script>
 
 <template>
-  <SettingsCard title="Roles" subtitle="a role is a bundle of capabilities — endpoints check the capability, never the role name">
+  <SettingsCard title="Roles" subtitle="a role is a bundle of capabilities: endpoints check the capability, never the role name">
     <div v-if="ready" class="roles-list">
       <div v-for="r in roles" :key="r.role" class="role-row">
         <span class="role-name mono-cell sm">{{ r.role }}</span>
@@ -27,7 +27,7 @@ defineProps<{ roles: RoleRow[]; ready: boolean }>()
       </div>
     </div>
     <p class="evidence-note">
-      Disable, never delete — a departed user's rows stay attributable in the audit trail.
+      Disable, never delete: a departed user's rows stay attributable in the audit trail.
       New bundles are seeded as <span class="mono-cell sm">system-roles</span> data; they appear here without a release.
     </p>
   </SettingsCard>

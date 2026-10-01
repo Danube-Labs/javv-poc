@@ -156,7 +156,7 @@ async function save() {
   busy.value = false
   if (!allOk) {
     logger.warn('data_settings_save_failed', {})
-    toast.error('Saving failed — the store keeps the previous values. Reload to see what landed.')
+    toast.error('Saving failed. The store keeps the previous values. Reload to see what landed.')
     if (clusterId) void loadSettings(clusterId) // partial saves must not fake a clean state
     return
   }
@@ -168,7 +168,7 @@ async function save() {
     cleanup_days: p.cleanup_days!,
     report_ttl_hours: p.report_ttl_hours!,
   }
-  toast.success('Data settings saved — the daily sweeps apply them on their next run')
+  toast.success('Data settings saved. The daily sweeps apply them on their next run')
 }
 
 function discard() {
@@ -236,15 +236,15 @@ function discard() {
         <p class="fam-why-note">
           <b>Why one window, not per-family?</b> Time-travel rebuilds any past moment from
           occurrences, images and inventory runs <em>together</em>, so the app only reaches as
-          far back as the <em>shortest</em> window — separate per-family windows would silently
+          far back as the <em>shortest</em> window. Separate per-family windows would silently
           truncate reach to the minimum while still paying storage for the rest. They are
-          planned post-MVP. Protected families take no retention window at all — hover a
+          planned post-MVP. Protected families take no retention window at all: hover a
           <em>protected</em> tag for why.
         </p>
         <p class="scope-src">
           {{
             override
-              ? "Editing THIS cluster's override — the fleet default stays untouched."
+              ? "Editing THIS cluster's override. The fleet default stays untouched."
               : 'Editing the fleet-wide default (no override exists for this cluster).'
           }}
         </p>
@@ -291,7 +291,7 @@ function discard() {
       >
         <SettingsRow
           label="Findings cleanup window"
-          hint="Cache rows whose image has been gone this long are deleted (history is untouched). Follows the per-cluster override toggle — each cluster can carry its own window."
+          hint="Cache rows whose image has been gone this long are deleted (history is untouched). Follows the per-cluster override toggle: each cluster can carry its own window."
         >
           <SettingsInput
             id="cleanup-days"

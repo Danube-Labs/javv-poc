@@ -125,14 +125,14 @@ async function save() {
     toast.error(
       response?.status === 403
         ? 'Saving needs the can_manage_settings capability.'
-        : 'Saving the timers failed — the sweep keeps the current ones.',
+        : 'Saving the timers failed. The sweep keeps the current ones.',
     )
     return
   }
   savedTimers.value = { freshness_days: parsedN.value, scanner_down_days: parsedM.value }
   // the freshness banner thresholds on these timers live — drop its cache so it re-reads
   useStalenessStore().invalidate()
-  toast.success('Staleness timers saved — the next daily sweep applies them')
+  toast.success('Staleness timers saved. The next daily sweep applies them')
 }
 
 function discard() {
@@ -146,13 +146,13 @@ function discard() {
   <div class="stack">
     <div class="scanner-banner">
       <AppIcon name="layers" :size="14" />
-      Both scanners run every cycle, results kept <b>per-scanner</b> and never merged —
+      Both scanners run every cycle, results kept <b>per-scanner</b> and never merged:
       dashboards facet by scanner to avoid double-counting.
     </div>
 
     <SettingsCard
       title="Staleness timers"
-      subtitle="the two-timer model — drives the stale state and the inventory banners"
+      subtitle="the two-timer model: drives the stale state and the inventory banners"
     >
       <UiSkeleton
         v-if="loading"
@@ -192,7 +192,7 @@ function discard() {
         <div class="stale-note">
           <AppIcon name="info" :size="13" />
           <span v-if="parsedN !== null && parsedM !== null && parsedM >= parsedN">
-            Preview: a finding unseen for <b>{{ parsedN }}d</b> goes stale — but between
+            Preview: a finding unseen for <b>{{ parsedN }}d</b> goes stale, but between
             <b>{{ parsedN }}d</b> and <b>{{ parsedM }}d</b> of scanner silence the per-finding
             timer is <b>held</b> (a brief outage won't mass-stale everything) and the inventory
             shows a "scanner silent" banner; past <b>{{ parsedM }}d</b> every finding of that
@@ -203,7 +203,7 @@ function discard() {
         <p class="scope-src">
           {{
             override
-              ? 'Editing THIS cluster\'s override — the fleet default stays untouched.'
+              ? 'Editing THIS cluster\'s override. The fleet default stays untouched.'
               : 'Editing the fleet-wide default (no override exists for this cluster).'
           }}
         </p>

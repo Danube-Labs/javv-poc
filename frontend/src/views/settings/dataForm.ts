@@ -94,7 +94,7 @@ export interface FamilyRow {
 export const FAMILY_ROWS: FamilyRow[] = [
   {
     pattern: 'javv-finding-occurrences-*',
-    purpose: 'per-scan CVE snapshots — the history; bounds how far back time-travel reaches',
+    purpose: 'per-scan CVE snapshots: the history, which bounds how far back time-travel reaches',
     kind: 'append',
   },
   {
@@ -104,7 +104,7 @@ export const FAMILY_ROWS: FamilyRow[] = [
   },
   {
     pattern: 'javv-images-*',
-    purpose: 'inventory snapshots — running-images history',
+    purpose: 'inventory snapshots: running-images history',
     kind: 'append',
   },
   {
@@ -121,13 +121,13 @@ export const FAMILY_ROWS: FamilyRow[] = [
     pattern: 'system-audit-log-*',
     purpose: 'who-did-what journal',
     kind: 'protected',
-    why: 'rolls on the fleet thresholds but is NEVER dropped — audit history has no expiry in MVP',
+    why: 'rolls on the fleet thresholds but is NEVER dropped: audit history has no expiry in MVP',
   },
   {
     pattern: 'findings',
     purpose: 'the mutable "now" cache',
     kind: 'protected',
-    why: 'rebuildable cache, not history — cleaned only by the long cleanup window below, never a retention drop',
+    why: 'rebuildable cache, not history: cleaned only by the long cleanup window below, never a retention drop',
   },
   {
     pattern: 'javv-scan-watermarks',
@@ -139,12 +139,12 @@ export const FAMILY_ROWS: FamilyRow[] = [
     pattern: 'javv-scan-orders',
     purpose: 'per-scanner order counters',
     kind: 'protected',
-    why: 'the authoritative scan-order counter (D45) — deleting it would let an old scan overwrite newer state',
+    why: 'the authoritative scan-order counter (D45): deleting it would let an old scan overwrite newer state',
   },
   {
     pattern: 'system-*',
     purpose: 'config · users · tokens · decisions · views · reports',
     kind: 'protected',
-    why: 'small mutable state — snapshotted for durability, never expired (reports TTL-swept separately)',
+    why: 'small mutable state: snapshotted for durability, never expired (reports TTL-swept separately)',
   },
 ]

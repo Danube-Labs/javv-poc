@@ -121,12 +121,12 @@ async function submitInvite() {
     logger.warn('user_create_failed', { status: response?.status })
     inviteError.value = detailOr(
       error,
-      'Rejected — usernames are 3–64 chars (letters, digits, . _ -); system and fleet are reserved.',
+      'Rejected: usernames are 3–64 chars (letters, digits, . _ -); system and fleet are reserved.',
     )
     return
   }
   inviteOpen.value = false
-  toast.success(`${inviteName.value.trim()} created — they must change the temp password at first login`)
+  toast.success(`${inviteName.value.trim()} created. They must change the temp password at first login`)
   await load()
 }
 
@@ -154,13 +154,13 @@ async function submitRoleChange() {
     logger.warn('role_change_failed', { status: response?.status })
     rowError.value = {
       username: change.user.username,
-      message: detailOr(error, 'Role change failed — nothing was changed.'),
+      message: detailOr(error, 'Role change failed. Nothing was changed.'),
     }
     await load() // resets the select to the server truth
     return
   }
   rowError.value = null
-  toast.success(`${change.user.username} is now ${change.to} — their sessions were revoked`)
+  toast.success(`${change.user.username} is now ${change.to}. Their sessions were revoked`)
   await load()
 }
 
@@ -180,12 +180,12 @@ async function setDisabled(user: UserRow, disabled: boolean) {
     logger.warn('user_disable_failed', { status: response?.status })
     rowError.value = {
       username: user.username,
-      message: detailOr(error, 'The change failed — nothing was changed.'),
+      message: detailOr(error, 'The change failed. Nothing was changed.'),
     }
     return
   }
   rowError.value = null
-  toast.success(disabled ? `${user.username} disabled — their sessions were revoked` : `${user.username} re-enabled`)
+  toast.success(disabled ? `${user.username} disabled. Their sessions were revoked` : `${user.username} re-enabled`)
   await load()
 }
 
@@ -211,7 +211,7 @@ async function submitReset() {
   busy.value = false
   if (!response?.ok) {
     logger.warn('pwd_reset_failed', { status: response?.status })
-    resetError.value = detailOr(error, 'The reset failed — the old password still works.')
+    resetError.value = detailOr(error, 'The reset failed. The old password still works.')
     return
   }
   toast.success(`${resetTarget.value.username} must change the new temp password at next login`)
@@ -225,7 +225,7 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
   <div class="stack">
     <SettingsCard
       title="Users"
-      subtitle="role is granted per user — enforced on every API call, not just hidden in the UI"
+      subtitle="role is granted per user, enforced on every API call, not just hidden in the UI"
     >
       <template #action>
         <span class="head-actions">
@@ -343,7 +343,7 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
       <p class="confirm-copy">
         <span class="mono-cell sm">{{ roleChange.user.username }}</span> becomes
         <b>{{ roleChange.to }}</b>. Their capabilities change immediately and
-        <b>every active session is signed out</b> — a new role never rides an old session.
+        <b>every active session is signed out</b>: a new role never rides an old session.
       </p>
       <template #actions>
         <UiButton variant="ghost" @click="roleChange = null; void load()">Cancel</UiButton>
@@ -357,7 +357,7 @@ const isSelf = (user: UserRow) => user.username === auth.user?.username
     <ModalShell v-if="disableTarget" title="Disable this user?" @close="disableTarget = null">
       <p class="confirm-copy">
         <span class="mono-cell sm">{{ disableTarget.username }}</span> is signed out everywhere and can no
-        longer log in. Nothing is deleted — their triage history stays attributable, and you can
+        longer log in. Nothing is deleted: their triage history stays attributable, and you can
         re-enable them any time.<template v-if="isSelf(disableTarget)"> <b>This is your own account.</b></template>
       </p>
       <template #actions>

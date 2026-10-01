@@ -30,7 +30,7 @@ const scopeNote = computed(() => {
   const copy = SCOPE_COPY[active.value.scope]
   const name = clusterStore.selected?.cluster_name
   return active.value.scope === 'cluster' && name
-    ? { ...copy, note: `Applies to ${name} only — other clusters keep their own settings.` }
+    ? { ...copy, note: `Applies to ${name} only. Other clusters keep their own settings.` }
     : copy
 })
 </script>

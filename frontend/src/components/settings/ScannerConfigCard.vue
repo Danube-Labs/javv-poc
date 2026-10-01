@@ -52,7 +52,7 @@ const SCOPE_LABEL: Record<string, string> = {
         <ScannerTag :name="scanner" />
         <span v-if="version" class="mono-cell ver">v{{ version }}</span>
       </div>
-      <span class="gitops-tag" title="Version and tuning change by swapping the published image tag / env — never in-app (D41/C-4)">operator-managed (GitOps)</span>
+      <span class="gitops-tag" title="Version and tuning change by swapping the published image tag / env, never in-app (D41/C-4)">operator-managed (GitOps)</span>
     </div>
     <div class="card-body">
       <template v-if="config !== null">
@@ -75,12 +75,12 @@ const SCOPE_LABEL: Record<string, string> = {
             </div>
           </template>
           <p v-if="scopeUnrestricted" class="cfg-empty">
-            no restrictions — the whole cluster is scanned
+            no restrictions: the whole cluster is scanned
           </p>
         </div>
       </template>
       <p v-else class="cfg-empty">
-        No committed run carries a config stamp yet — the display fills after the scanner's next
+        No committed run carries a config stamp yet. The display fills after the scanner's next
         push (schema v3+).
       </p>
     </div>

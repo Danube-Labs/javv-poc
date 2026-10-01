@@ -124,7 +124,7 @@ async function submitMint() {
     mintError.value =
       response?.status === 403
         ? 'Minting needs the can_manage_tokens capability.'
-        : 'Minting failed — no token was created.'
+        : 'Minting failed. No token was created.'
     return
   }
   mintOpen.value = false
@@ -153,14 +153,14 @@ async function runConfirmed() {
   confirmAction.value = null
   if (!response?.ok) {
     logger.warn('token_mutation_failed', { kind: action.kind, status: response?.status })
-    toast.error(`Token ${action.kind} failed — nothing was changed.`)
+    toast.error(`Token ${action.kind} failed. Nothing was changed.`)
     return
   }
   if (action.kind === 'rotate') {
     copied.value = false
     minted.value = data as { id: string; token: string }
   } else {
-    toast.success('Token revoked — its next push will be rejected')
+    toast.success('Token revoked. Its next push will be rejected')
   }
   await load()
 }
@@ -175,7 +175,7 @@ const fmt = (iso: string | null) =>
   <div class="stack">
     <SettingsCard
       title="Access & tokens"
-      subtitle="one scoped push token per (cluster, scanner) — HTTPS ingest is the only credential surface"
+      subtitle="one scoped push token per (cluster, scanner). HTTPS ingest is the only credential surface"
     >
       <template #action>
         <UiButton :disabled="busy" @click="openMint"><AppIcon name="plus" :size="13" />Mint token</UiButton>
@@ -192,7 +192,7 @@ const fmt = (iso: string | null) =>
         Token list unavailable. Check the backend connection.
       </p>
       <p v-else-if="rows.length === 0" class="empty-note" role="status">
-        No push tokens yet — mint one per scanner so the cluster can start pushing scans.
+        No push tokens yet. Mint one per scanner so the cluster can start pushing scans.
       </p>
       <p v-else-if="total > rows.length" class="cap-note">
         Showing the {{ rows.length }} newest of {{ total }} tokens.
@@ -259,10 +259,10 @@ const fmt = (iso: string | null) =>
           </option>
         </select>
       </UiField>
-      <UiField label="Scanner" hint="per-scanner is sacred — one token each">
+      <UiField label="Scanner" hint="per-scanner is sacred: one token each">
         <UiSegControl v-model="mintScanner" :options="SCANNER_OPTS" />
       </UiField>
-      <UiField label="Expiry" hint="optional — must be in the future; ingest rejects the token past it">
+      <UiField label="Expiry" hint="optional: must be in the future; ingest rejects the token past it">
         <UiDateTime v-model="mintExpiryParts" id-prefix="mint-expiry" :invalid="mintExpiryInvalid" />
       </UiField>
       <p class="fld-hint">Leave both fields empty for a non-expiring token. Time is 24h, your local zone.</p>
@@ -279,7 +279,7 @@ const fmt = (iso: string | null) =>
     <ModalShell
       v-if="minted"
       title="Copy this token now"
-      subtitle="it is shown once and cannot be recovered — a lost token is a rotate"
+      subtitle="it is shown once and cannot be recovered: a lost token is a rotate"
       @close="minted = null"
     >
       <div class="raw-token mono-cell sm">{{ minted.token }}</div>
@@ -297,12 +297,12 @@ const fmt = (iso: string | null) =>
     >
       <p class="confirm-copy">
         <template v-if="confirmAction.kind === 'rotate'">
-          A replacement is minted first (inheriting the expiry), then this token is disabled —
-          the scanner is never token-less. You'll get the new raw token once.
+          A replacement is minted first (inheriting the expiry), then this token is disabled,
+          so the scanner is never token-less. You'll get the new raw token once.
         </template>
         <template v-else>
           The scanner's next push with this token will be rejected. Revocation is journaled and
-          cannot be undone — a revoked token stays listed for the audit trail.
+          cannot be undone. A revoked token stays listed for the audit trail.
         </template>
       </p>
       <template #actions>

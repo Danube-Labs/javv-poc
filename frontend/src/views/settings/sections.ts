@@ -18,11 +18,11 @@ export interface SettingsSection {
 export const SCOPE_COPY: Record<SettingsScope, { label: string; note: string }> = {
   cluster: {
     label: 'Per cluster',
-    note: 'Applies to the selected cluster only — other clusters keep their own settings.',
+    note: 'Applies to the selected cluster only. Other clusters keep their own settings.',
   },
   scanner: {
     label: 'Per scanner',
-    note: 'Shown independently for each scanner (Trivy and Grype) — results stay per-scanner, never merged.',
+    note: 'Shown independently for each scanner (Trivy and Grype). Results stay per-scanner, never merged.',
   },
   org: {
     label: 'Organization',

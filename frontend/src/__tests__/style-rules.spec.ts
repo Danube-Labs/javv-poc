@@ -306,9 +306,6 @@ const EM_DASH_BASELINE = new Set<string>([
   'components/images/ImageFindingsPanel.vue',
   'components/overview/TopComponentsCard.vue',
   'components/scanners/ScannerStatusCard.vue',
-  'components/settings/RolesCard.vue',
-  'components/settings/ScannerConfigCard.vue',
-  'components/settings/SnapshotsCard.vue',
   'components/system/BackendHealthBanner.vue',
   'components/system/InspectRail.vue',
   'components/system/RepairActionsCard.vue',
@@ -336,16 +333,6 @@ const EM_DASH_BASELINE = new Set<string>([
   'views/OverviewView.vue',
   'views/SavedViewsView.vue',
   'views/ScannerStatusView.vue',
-  'views/settings/ClusterView.vue',
-  'views/settings/dataForm.ts',
-  'views/settings/DataOpenSearchView.vue',
-  'views/settings/ScanningView.vue',
-  'views/settings/ScanScopeView.vue',
-  'views/settings/sections.ts',
-  'views/settings/SettingsLayout.vue',
-  'views/settings/SlaPolicyView.vue',
-  'views/settings/TokensView.vue',
-  'views/settings/UsersRolesView.vue',
 ])
 
 describe('style rules: no em dashes in copy', () => {
