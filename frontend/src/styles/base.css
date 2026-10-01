@@ -231,6 +231,42 @@ html [class*=' p-'] {
     transition: none;
   }
 }
+/* the pinned column's edge appears only once the table is scrolled: cells sliding under it
+   would otherwise show their cut text right against it. A scroll-driven animation on the
+   scroller sets how strong the line is, in CSS alone. The line is a 1px pseudo-element inside the
+   cell, not a box-shadow: any shadow on a pinned cell, even a transparent one, makes Chrome drop
+   the column's subpixel text, so it would render differently at rest. A table that fits has no
+   scroll timeline and keeps no line; browsers without scroll timelines (Firefox today) skip the
+   whole block. */
+@property --tbl-pin-edge {
+  syntax: '<percentage>';
+  inherits: true;
+  initial-value: 0%;
+}
+@supports (animation-timeline: scroll()) {
+  .tbl-scroll-pin {
+    animation: tbl-pin-edge linear both;
+    animation-timeline: scroll(self x);
+    animation-range: 0 8px;
+  }
+  .tbl-scroll-pin .tbl th:first-child::after,
+  .tbl-scroll-pin .tbl td:first-child::after {
+    content: '';
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 1px;
+    background: color-mix(in srgb, var(--line) var(--tbl-pin-edge), transparent);
+    pointer-events: none;
+  }
+  .tbl-scroll-pin .tbl th:first-child::after {
+    background: color-mix(in srgb, var(--table-head-line) var(--tbl-pin-edge), transparent);
+  }
+}
+@keyframes tbl-pin-edge {
+  to {
+    --tbl-pin-edge: 100%;
+  }
+}
 /* table + its GridPager as ONE card (operator ruling 2026-07-13): views whose table component
    owns .tbl-wrap wrap both in .tbl-card — the inner wrap sheds its chrome, the pager row sits
    flush at the card's foot */

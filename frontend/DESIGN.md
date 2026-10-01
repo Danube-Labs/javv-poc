@@ -202,7 +202,9 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
   scrolls sideways inside the card and its first, identity column stays pinned (All clusters,
   Approvals). Put it on the card, or on a wrapper around the table alone when the card also
   holds a pager that must stay put (Approvals). `overflow: hidden` clipping the table is the bug
-  it replaces.
+  it replaces. Once the table is scrolled, a 1px line marks the pinned column's edge so the
+  columns sliding under it don't read as part of it; at rest, or when the table fits, there is no
+  line (operator ruling 2026-10-01: CSS only, so browsers without scroll timelines show none).
 - Desktop-first; single breakpoint ~1120px (KPI strips 2-up, grids stack, facet rail stacks above the table).
 
 ## 5. Interaction
