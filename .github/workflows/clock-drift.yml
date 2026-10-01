@@ -38,7 +38,7 @@ jobs:
     services:
       # same service as ci.yml's Backend job; the image is kept in sync with versions.yaml (D42)
       opensearch:
-        image: opensearchproject/opensearch:3.8.0
+        image: opensearchproject/opensearch:3.9.0
         env:
           discovery.type: single-node
           DISABLE_SECURITY_PLUGIN: "true"

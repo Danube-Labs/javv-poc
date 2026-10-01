@@ -17,7 +17,7 @@
 
 services:
   opensearch:
-    image: opensearchproject/opensearch:3.8.0
+    image: opensearchproject/opensearch:3.9.0
     container_name: javv-opensearch
     restart: unless-stopped  # survive VM crashes/reboots (2026-07-04 power cut left it Exited)
     environment:

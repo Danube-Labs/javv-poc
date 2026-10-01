@@ -165,7 +165,7 @@ M10 (Helm). Version pin: `versions.yaml` → `datastore.opensearch`.
 
 | Setting | Dev/CI value | Meaning | Prod note |
 |---|---|---|---|
-| image | `opensearchproject/opensearch:3.8.0` | pinned in `versions.yaml` (D42) | same pin |
+| image | `opensearchproject/opensearch:3.9.0` | pinned in `versions.yaml` (D42) | same pin |
 | `discovery.type` | `single-node` | single-node dev cluster | multi-node in prod |
 | `DISABLE_SECURITY_PLUGIN` | `true` | **DEV ONLY** — no TLS/auth on :9200 | **off** in prod: security plugin + TLS (SEC-8) |
 | `OPENSEARCH_JAVA_OPTS` | dev `-Xms1g -Xmx1g` · CI `-Xms512m -Xmx512m` | JVM heap. Dev was raised off 512m: the parent circuit breaker is 95% of heap and the e2e corpus rested at ~83% of it, so bulk ingest tripped it. CI keeps 512m — a fresh store per run has no resting corpus. | sized per node |

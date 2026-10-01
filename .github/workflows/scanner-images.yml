@@ -74,7 +74,7 @@ jobs:
         include: ${{ fromJson(needs.matrix.outputs.include) }}
     services:
       opensearch:
-        image: opensearchproject/opensearch:3.8.0
+        image: opensearchproject/opensearch:3.9.0
         env:
           discovery.type: single-node
           DISABLE_SECURITY_PLUGIN: "true"
