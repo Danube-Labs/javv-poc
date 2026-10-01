@@ -598,7 +598,8 @@ the docs site once #639 lands.
 reading card with the contents on the right, C an accordion, D overview tiles):** "On this page"
 is the shared `SectionNav` (Settings' left menu, moved into the kit so both screens use one
 component), sticky on the left; one card per section beside it. **Width: wide.** **Nav:**
-*Help → Guide* (`list` icon), before *About*.
+*Help → Guide* (`book` icon, an open book drawn for JAVV by operator ruling 2026-10-01: no
+licensed icon sets), before *About*.
 **Content:** seven sections: the time range, now vs new, two scanners never merged, scans and
 freshness, images are digests, triage, and a glossary that carries the data dictionary (#351
 §6). Written for the people using the app: plain words, no internal decision codes, no

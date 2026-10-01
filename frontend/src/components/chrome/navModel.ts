@@ -59,7 +59,7 @@ export const NAV: NavGroup[] = [
     group: 'Help',
     accent: 'var(--sect-help)',
     items: [
-      { label: 'Guide', to: '/guide', icon: 'list' },
+      { label: 'Guide', to: '/guide', icon: 'book' },
       { label: 'About', to: '/about', icon: 'info' },
     ],
   },

@@ -40,6 +40,8 @@ const PATHS = {
   trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
   sidebar: 'M3 5a2 2 0 012-2h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM9 3v18',
   grip: 'M9 6h.01M15 6h.01M9 12h.01M15 12h.01M9 18h.01M15 18h.01',
+  // drawn for JAVV, not taken from the prototype or any third-party icon set
+  book: 'M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13',
 } as const
 
 export type IconName = keyof typeof PATHS

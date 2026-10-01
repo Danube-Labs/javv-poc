@@ -113,7 +113,7 @@ describe('navModel — capability gating shared by SideNav + palette', () => {
     const help = visibleNav(() => false).find((g) => g.group === 'Help')
     expect(help?.accent).toBe('var(--sect-help)')
     expect(help?.items).toEqual([
-      { label: 'Guide', to: '/guide', icon: 'list' },
+      { label: 'Guide', to: '/guide', icon: 'book' },
       { label: 'About', to: '/about', icon: 'info' },
     ])
   })
