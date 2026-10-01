@@ -6,8 +6,8 @@
  * banners and the routed content column. Owns the global range ⇄ URL sync and the
  * health-polling lifecycle.
  */
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { RouterLink, RouterView, useRoute } from 'vue-router'
 
 import ClusterSwitcher from '@/components/chrome/ClusterSwitcher.vue'
 import CommandPalette from '@/components/chrome/CommandPalette.vue'
@@ -21,19 +21,19 @@ import BackendHealthBanner from '@/components/system/BackendHealthBanner.vue'
 import ScannerFreshnessBanner from '@/components/system/ScannerFreshnessBanner.vue'
 import GlobalTimePicker from '@/components/time-travel/GlobalTimePicker.vue'
 import ToastStack from '@/components/ui/ToastStack.vue'
+import { useGlobalUrlStamp } from '@/composables/useGlobalUrlStamp'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 import { useHealthStore } from '@/stores/health'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { isColdStart } from '@/system/coldStart'
 import { lastDataAt } from '@/system/freshness'
-import { clusterFromQuery, restampLocation, ttFromQuery, ttToQuery } from '@/system/globalUrl'
+import { clusterFromQuery, ttFromQuery } from '@/system/globalUrl'
 
 const auth = useAuthStore()
 const clusterStore = useClusterStore()
 const health = useHealthStore()
 const timeTravel = useTimeTravelStore()
-const router = useRouter()
 const route = useRoute()
 
 /* ---- the global range ⇄ URL (restorable-state rule, audit 343) ---- */
@@ -58,23 +58,7 @@ if (fromUrl) {
 // deep link's tenant (issue 433) — resolved against the registry once fetchClusters lands
 const urlCluster = clusterFromQuery(route.query)
 
-// re-stamp on NAVIGATION too — a bare next-page URL would lose the range on ITS refresh
-// (operator bug report: set 24h → navigate → refresh → back to 30 days). One watcher stamps
-// ALL global keys in a single replace — two racing replaces could overwrite each other.
-watch(
-  () => [timeTravel.t, timeTravel.windowDays, clusterStore.selectedId, route.path] as const,
-  ([t, win, cid]) => {
-    const tt = ttToQuery(t, win)
-    const cluster = cid ?? undefined
-    if (
-      route.query.t === (tt.t ?? undefined) &&
-      route.query.win === (tt.win ?? undefined) &&
-      route.query.cluster === cluster
-    )
-      return
-    void router.replace(restampLocation(route.query, route.hash, tt, cluster))
-  },
-)
+useGlobalUrlStamp()
 
 /** Zero-clusters cold start (M9f) — which sections stay live lives in `isColdStart`. */
 const coldStart = computed(() =>
