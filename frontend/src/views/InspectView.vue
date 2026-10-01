@@ -230,13 +230,19 @@ const budgetPct = computed(() =>
 </template>
 
 <style scoped>
-/* when the facts don't fit beside the description they move to their own row, at the right edge
-   where they sit when they fit, instead of running off the screen (issue 652) */
-.screen-head-band {
-  flex-wrap: wrap;
+/* the description gives way to the facts at any width, so long values (a four-digit index count,
+   "1023.9 GB") wrap it instead of running off the screen. Below 1340px even short facts no
+   longer fit in a row beside it, so they stack in a column (issue 652) */
+.screen-head-band > .head-card {
+  flex: 0 1 auto;
+  min-width: 0;
 }
-.screen-head-band > .head-facts {
-  margin-left: auto;
+@media (width < 1340px) {
+  .screen-head-band > .head-facts {
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 16px;
+  }
 }
 .inspect-cols {
   display: grid;
