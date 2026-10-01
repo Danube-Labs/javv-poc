@@ -1,9 +1,12 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { createMemoryHistory, createRouter } from 'vue-router'
+import { defineComponent, h } from 'vue'
+import { createMemoryHistory, createRouter, RouterView } from 'vue-router'
 
 import LimitedHistoricalNotice from '@/components/dashboards/LimitedHistoricalNotice.vue'
+import { useGlobalUrlStamp } from '@/composables/useGlobalUrlStamp'
+import { useClusterStore } from '@/stores/cluster'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import AllClustersView from '@/views/AllClustersView.vue'
 
@@ -102,5 +105,52 @@ describe('AllClustersView (M9c slice 2)', () => {
     await flushPromises()
     expect(w.find('.first-run').exists()).toBe(true)
     expect(w.find('table').exists()).toBe(false)
+  })
+
+  // issue 666: the row click selects the cluster and opens Overview in one handler; with the
+  // shell's URL stamp mounted beside the view, the stamp must not cancel that navigation
+  it('one click on a cluster that is not selected opens its Overview, with that cluster', async () => {
+    listMock.mockResolvedValue(
+      ok({
+        clusters: [
+          { cluster_id: 'c-1', cluster_name: 'prod' },
+          { cluster_id: 'c-2', cluster_name: 'beta' },
+        ],
+      }) as never,
+    )
+    facetsMock.mockResolvedValue(ok({ facets: {} }) as never)
+    freshMock.mockResolvedValue(ok({ scanners: [] }) as never)
+    imagesMock.mockResolvedValue(ok({ inventory: { inventory_run_id: 'r1' }, images: [] }) as never)
+    useClusterStore().selectedId = 'c-1'
+
+    const shellRouter = createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { path: '/clusters', component: AllClustersView },
+        // lazy + an async guard, like the app: the navigation spans several ticks
+        { path: '/overview', component: () => Promise.resolve({ render: () => h('div') }) },
+      ],
+    })
+    shellRouter.beforeEach(async () => {
+      await Promise.resolve()
+      return true
+    })
+    await shellRouter.push('/clusters?cluster=c-1')
+    const Shell = defineComponent({
+      setup() {
+        useGlobalUrlStamp()
+        return () => h(RouterView)
+      },
+    })
+    const w = mount(Shell, { global: { plugins: [shellRouter] } })
+    await flushPromises()
+
+    const beta = w.findAll('tbody tr').find((r) => r.text().includes('beta'))
+    expect(beta).toBeDefined()
+    await beta!.trigger('click')
+    await flushPromises()
+
+    expect(shellRouter.currentRoute.value.path).toBe('/overview')
+    expect(shellRouter.currentRoute.value.query.cluster).toBe('c-2')
   })
 })

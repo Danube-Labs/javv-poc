@@ -80,6 +80,27 @@ describe('useGlobalUrlStamp: the global range and cluster ride the URL', () => {
     expect(where(router).query).toEqual({ cluster: 'c-1', win: '7' })
   })
 
+  // issue 666: the stamp must never cancel a navigation the same click started
+  it('picking a cluster and then navigating lands on the target, with the new cluster', async () => {
+    useClusterStore().selectedId = 'c-1'
+    const router = await mountAt('/clusters?cluster=c-1')
+    useClusterStore().select('c-2')
+    void router.push('/overview')
+    await flushPromises()
+    expect(where(router).path).toBe('/overview')
+    expect(where(router).query.cluster).toBe('c-2')
+  })
+
+  it('changing the window and then navigating lands on the target, with the new window', async () => {
+    useClusterStore().selectedId = 'c-1'
+    const router = await mountAt('/views?cluster=c-1')
+    useTimeTravelStore().setWindow(7, 'Last 7 days')
+    void router.push({ path: '/findings', query: { severity: 'critical' } })
+    await flushPromises()
+    expect(where(router).path).toBe('/findings')
+    expect(where(router).query).toEqual({ severity: 'critical', cluster: 'c-1', win: '7' })
+  })
+
   it('replaces nothing when the URL already carries the globals', async () => {
     useClusterStore().selectedId = 'c-1'
     const router = await mountAt('/clusters?cluster=c-1')
