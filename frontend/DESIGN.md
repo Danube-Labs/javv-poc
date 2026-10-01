@@ -200,7 +200,9 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 - **A table card never clips its columns** (issue 652). A hand-built `.tbl` card whose
   columns can outgrow it at the 1024 floor opts into `.tbl-scroll-pin` (base.css): the table
   scrolls sideways inside the card and its first, identity column stays pinned (All clusters,
-  Approvals). `overflow: hidden` on a table card is the bug it replaces.
+  Approvals). Put it on the card, or on a wrapper around the table alone when the card also
+  holds a pager that must stay put (Approvals). `overflow: hidden` clipping the table is the bug
+  it replaces.
 - Desktop-first; single breakpoint ~1120px (KPI strips 2-up, grids stack, facet rail stacks above the table).
 
 ## 5. Interaction

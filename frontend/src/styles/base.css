@@ -204,7 +204,9 @@ html [class*=' p-'] {
 /* a table card whose columns can outgrow it (issue 652): below the width they need, the table
    scrolls sideways inside the card instead of being cut off, with the first (identity) column
    pinned so each row stays recognisable. Pinned cells paint their own background, the row's
-   wash included, so scrolled cells never show through. Opt in on the card. */
+   wash included, so scrolled cells never show through. Opt in on what holds the table: the card
+   itself, or a wrapper around the table alone when the card also holds a pager or an empty line
+   that must not scroll. */
 .tbl-scroll-pin {
   overflow-x: auto;
 }
