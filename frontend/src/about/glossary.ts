@@ -1,5 +1,5 @@
 /**
- * The About page glossary (issue 341): the short labels people meet in tables and filters, in
+ * The Guide page's glossary (issue 341): the short labels people meet in tables and filters, in
  * plain words. A term that is also a findings filter takes its label from `FINDINGS_FIELDS` by
  * key, so renaming the filter renames the glossary entry instead of leaving it describing a
  * label nobody sees any more.

@@ -22,7 +22,7 @@ describe('GUIDE_SECTIONS', () => {
   })
 
   it('gives every section a body', () => {
-    for (const s of GUIDE_SECTIONS) expect(SECTION_BODY[s.id], s.id).toBeDefined()
+    expect(GUIDE_SECTIONS.filter((s) => SECTION_BODY[s.id] === undefined)).toEqual([])
   })
 
   it('has no em dashes in titles or summaries', () => {

@@ -32,11 +32,9 @@ describe('filterLabel', () => {
 
 describe('GLOSSARY', () => {
   it('every filter term resolves to a live findings filter label', () => {
-    for (const entry of GLOSSARY) {
-      if ('filter' in entry.term) {
-        expect(filterLabel(FINDINGS_FIELDS, entry.term.filter), entry.term.filter).not.toBeNull()
-      }
-    }
+    const keys = GLOSSARY.flatMap((e) => ('filter' in e.term ? [e.term.filter] : []))
+    expect(keys.length).toBeGreaterThan(0)
+    expect(keys.filter((k) => filterLabel(FINDINGS_FIELDS, k) === null)).toEqual([])
   })
 
   it('shows the filter labels the findings screen shows', () => {

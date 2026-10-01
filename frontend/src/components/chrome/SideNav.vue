@@ -110,7 +110,7 @@ onMounted(async () => {
         v-if="!collapsed && versionLines.length"
         to="/about"
         class="side-version"
-        title="JAVV release · store schema (index layout) · newest scanner schema accepted — the full stack is on About & guide"
+        title="JAVV release · store schema (index layout) · newest scanner schema accepted. The full stack is on About."
       >
         <span v-for="line in versionLines" :key="line">{{ line }}</span>
       </RouterLink>

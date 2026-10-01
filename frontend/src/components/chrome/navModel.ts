@@ -55,7 +55,14 @@ export const NAV: NavGroup[] = [
     ],
   },
   // a utility, not a work area: ungated, and its dot is the neutral alias (issue 341)
-  { group: 'Help', accent: 'var(--sect-help)', items: [{ label: 'About & guide', to: '/about', icon: 'info' }] },
+  {
+    group: 'Help',
+    accent: 'var(--sect-help)',
+    items: [
+      { label: 'Guide', to: '/guide', icon: 'list' },
+      { label: 'About', to: '/about', icon: 'info' },
+    ],
+  },
 ]
 
 export function visibleNav(hasCapability: (cap: string) => boolean): NavGroup[] {

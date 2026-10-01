@@ -1,9 +1,10 @@
 <script setup lang="ts">
 /**
- * About & guide (issue 341): what this install runs, and how to read JAVV. Reachable from the
- * Help nav group and from the sidebar footer's version lines, by every signed-in user, and live
- * even before any cluster enrolls (`isColdStart` exempts the `help` section). Each card is
- * self-contained; this view only lays them out and passes the selected cluster.
+ * About (issue 341): what this install runs; how to read JAVV is the Guide, its own page.
+ * Reachable from the Help nav group and from the sidebar footer's version lines, by every
+ * signed-in user, and live even before any cluster enrolls (`isColdStart` exempts the `help`
+ * section). Each card is self-contained; this view only lays them out and passes the selected
+ * cluster.
  */
 import AboutLinksCard from '@/components/about/AboutLinksCard.vue'
 import RunningStackCard from '@/components/about/RunningStackCard.vue'
@@ -16,8 +17,8 @@ const clusterStore = useClusterStore()
   <div class="screen">
     <div class="screen-head">
       <div class="head-card head-card-fluid">
-        <h1>About &amp; guide</h1>
-        <p class="head-note">what this install runs, and how to read JAVV</p>
+        <h1>About</h1>
+        <p class="head-note">what this install runs</p>
       </div>
     </div>
     <div class="about-grid">

@@ -1,5 +1,5 @@
 /**
- * The About page guide's sections (issue 341): one list drives the table of contents, the
+ * The Guide page's sections (issue 341): one list drives the table of contents, the
  * rendered section ids and every "learn more" link elsewhere in the app. A link takes a
  * `GuideSectionId`, so pointing at a section that doesn't exist fails the type check.
  */
@@ -59,4 +59,4 @@ export const GUIDE_SECTIONS = [
 
 export type GuideSectionId = (typeof GUIDE_SECTIONS)[number]['id']
 
-export const guideHref = (id: GuideSectionId): string => `/about#${id}`
+export const guideHref = (id: GuideSectionId): string => `/guide#${id}`
