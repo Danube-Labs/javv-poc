@@ -1,6 +1,7 @@
 <script setup lang="ts">
-/** Reading text for one guide section: a readable measure and paragraph rhythm, so every
- * layout that hosts a section sets its words the same way. */
+/** Reading text for one guide section: paragraph and list rhythm, so every section sets its
+ * words the same way. No measure cap: the text fills its card at any window width (operator
+ * ruling 2026-10-01, the 72ch column left most of a wide card empty). */
 </script>
 
 <template>
@@ -9,7 +10,6 @@
 
 <style scoped>
 .guide-prose {
-  max-width: 72ch;
   color: var(--ink);
   font-size: var(--text-body);
   line-height: 1.6;

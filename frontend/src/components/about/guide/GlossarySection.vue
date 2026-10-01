@@ -27,7 +27,7 @@ import StateTag from '@/components/chips/StateTag.vue'
 }
 .gl-row {
   display: grid;
-  grid-template-columns: minmax(150px, 220px) minmax(0, 72ch);
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
   gap: var(--space-4);
   padding: 10px 0;
   border-top: 1px solid var(--line2);
