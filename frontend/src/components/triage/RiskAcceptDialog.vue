@@ -75,7 +75,7 @@ async function submit() {
     error.value =
       response.response?.status === 403
         ? 'Risk-accept needs the can_accept_audit_final capability.'
-        : 'Could not create the decision — check the backend connection.'
+        : 'Could not create the decision. Check the backend connection.'
     logger.warn('decision_create_failed', { status: response.response?.status })
   }
 }
@@ -131,7 +131,7 @@ async function submit() {
         </div>
 
         <div class="fld-2">
-          <UiField label="Expiry" hint="immutable — change = revoke + new" for="ra-expiry">
+          <UiField label="Expiry" hint="immutable: change = revoke + new" for="ra-expiry">
             <input id="ra-expiry" v-model="expiry" class="fld" type="date" />
           </UiField>
           <UiField label="Apply to">

@@ -59,12 +59,12 @@ const { page, size, shown, hasNext, setSize } = usePagedSlice(() => props.affect
     />
     <div class="card-notes">
       <p v-if="truncated" class="evidence-note">
-        Showing the first {{ affected.length }} components — more exist. Narrow via the
+        Showing the first {{ affected.length }} components. More exist. Narrow via the
         Findings grid (search the CVE id).
       </p>
       <p class="evidence-note">
         A package listed by one scanner only, or twice with different versions, is a scanner
-        disagreement — not a clean bill. Workload names land with the envelope (v1.1).
+        disagreement, not a clean bill. Workload names land with the envelope (v1.1).
       </p>
     </div>
   </DetailCard>

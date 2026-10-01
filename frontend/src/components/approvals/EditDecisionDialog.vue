@@ -50,8 +50,8 @@ async function submit() {
   } else {
     error.value =
       response.response?.status === 409
-        ? 'This decision was already revoked — refresh the queue.'
-        : 'Could not apply the edit — check the backend connection.'
+        ? 'This decision was already revoked. Refresh the queue.'
+        : 'Could not apply the edit. Check the backend connection.'
     logger.warn('decision_edit_failed', { status: response.response?.status })
   }
 }

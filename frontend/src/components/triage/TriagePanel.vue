@@ -74,11 +74,11 @@ function save() {
     <div class="triage-body">
       <div v-if="historical" class="triage-locked">
         <AppIcon name="clock" :size="13" />
-        Viewing history — reconstructed state is read-only. Return to now to triage.
+        Viewing history: reconstructed state is read-only. Return to now to triage.
       </div>
       <div v-else-if="!canTriage" class="triage-locked">
         <AppIcon name="key" :size="13" />
-        Read-only — you don't hold <b>can_triage</b>. Ask an Operator or Security Lead.
+        Read-only: you don't hold <b>can_triage</b>. Ask an Operator or Security Lead.
       </div>
 
       <UiField label="Assigned to" first>
@@ -114,7 +114,7 @@ function save() {
         <AppIcon name="shield" :size="13" />
         <div>
           <b>Set by a scoped decision</b>
-          <span>Risk-accept isn't toggled here — it comes from a decision (scope + approver + expiry). Manage it below.</span>
+          <span>Risk-accept isn't toggled here: it comes from a decision (scope + approver + expiry). Manage it below.</span>
         </div>
       </div>
       <div v-if="finding.state === 'stale'" class="ro-state ro-stale">

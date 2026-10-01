@@ -160,12 +160,12 @@ async function saveTriage(body: TriagePatchBody) {
     logger.info('triage_saved', { finding_key: key, state: updated.state })
     toast.success('Triage saved')
   } else if (response.response?.status === 409) {
-    triageError.value = 'Changed by someone else — reload and retry.'
+    triageError.value = 'Changed by someone else. Reload and retry.'
   } else if (response.response?.status === 422) {
-    triageError.value = 'The server rejected this transition — reload and retry.'
+    triageError.value = 'The server rejected this transition. Reload and retry.'
     logger.warn('triage_rejected', { status: 422 })
   } else {
-    triageError.value = 'Save failed — check the backend connection.'
+    triageError.value = 'Save failed. Check the backend connection.'
     logger.warn('triage_failed', { status: response.response?.status })
   }
 }

@@ -86,11 +86,11 @@ async function apply() {
     logger.info('bulk_triage_applied', { count })
     emit('applied', count)
   } else if (response.response?.status === 413) {
-    error.value = 'Selection too broad for an inline bulk — narrow the lens further.'
+    error.value = 'Selection too broad for an inline bulk. Narrow the lens further.'
   } else if (response.response?.status === 422) {
-    error.value = 'The server rejected this patch — check the state/justification pairing.'
+    error.value = 'The server rejected this patch. Check the state/justification pairing.'
   } else {
-    error.value = 'Bulk failed — check the backend connection.'
+    error.value = 'Bulk failed. Check the backend connection.'
     logger.warn('bulk_triage_failed', { status: response.response?.status })
   }
 }
@@ -141,7 +141,7 @@ async function apply() {
             <p v-if="draft.error" class="bulk-error" role="alert">{{ draft.error }}</p>
             <p v-if="error" class="bulk-error" role="alert">{{ error }}</p>
             <p v-if="done !== null" class="bulk-done">
-              <AppIcon name="check" :size="13" /> Applied to {{ done }} finding(s) — one audit row.
+              <AppIcon name="check" :size="13" /> Applied to {{ done }} finding(s), one audit row.
             </p>
           </template>
       </div>

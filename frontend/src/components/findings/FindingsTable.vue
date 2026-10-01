@@ -309,7 +309,7 @@ const cellActive = (key: string, value: string): FilterMode | null =>
         <div class="empty-row">
           {{ props.loading || props.settled === false ? 'Loading findings…'
             : filtered ? 'No findings match these filters.'
-            : 'No findings yet — the first committed scan populates this grid.' }}
+            : 'No findings yet. The first committed scan populates this grid.' }}
         </div>
       </template>
     </DataTable>

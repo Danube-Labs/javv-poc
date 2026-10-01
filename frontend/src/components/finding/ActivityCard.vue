@@ -27,7 +27,7 @@ const { page, size, shown, hasNext, setSize } = usePagedSlice(() => props.activi
 </script>
 
 <template>
-  <DetailCard title="Activity on this finding" sub="the audit trail — every triage action, who &amp; when" flush dark-head>
+  <DetailCard title="Activity on this finding" sub="the audit trail: every triage action, who &amp; when" flush dark-head>
     <div class="act-body">
     <p v-if="activity.length === 0" class="empty-row">No triage actions yet.</p>
     <ul v-else class="act-list">
@@ -36,10 +36,10 @@ const { page, size, shown, hasNext, setSize } = usePagedSlice(() => props.activi
         <span class="act-what">
           <b>{{ a.actor }}</b> · {{ a.action }}
           <template v-if="a.field === 'state' && a.new_value">
-            — <StateTag :state="a.new_value" />
+            · <StateTag :state="a.new_value" />
           </template>
           <template v-else-if="a.new_value">
-            — {{ a.field }}: <span class="mono-cell sm">{{ a.new_value }}</span>
+            · {{ a.field }}: <span class="mono-cell sm">{{ a.new_value }}</span>
           </template>
         </span>
       </li>

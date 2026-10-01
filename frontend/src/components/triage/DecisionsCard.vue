@@ -54,7 +54,7 @@ function scopeLabel(d: DecisionRow): string {
 <template>
   <DetailCard
     title="Decisions on this CVE"
-    sub="scoped risk-accept / not-affected RULES (immutable; edits revoke + re-create) — plain state changes are triage actions, listed under Activity"
+    sub="scoped risk-accept / not-affected RULES (immutable; edits revoke + re-create). Plain state changes are triage actions, listed under Activity"
     flush
   >
     <template #action>

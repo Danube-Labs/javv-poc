@@ -58,19 +58,19 @@ export function lensToSelector(
       selector: null,
       blocked:
         `${inexpressible.join(', ')} ${inexpressible.length === 1 ? 'is' : 'are'} not part of ` +
-        'the bulk selector — bulk would apply wider than what you see. Clear those filters first.',
+        'the bulk selector, so bulk would apply wider than what you see. Clear those filters first.',
     }
   }
   if (multi) {
     return {
       selector: null,
-      blocked: `bulk takes exactly one ${multi} value — narrow to a single selection`,
+      blocked: `bulk takes exactly one ${multi} value. Narrow to a single selection`,
     }
   }
   if (Object.keys(selector).length === 0) {
     return {
       selector: null,
-      blocked: 'no filters active — bulk over the whole cluster is refused. Filter first.',
+      blocked: 'no filters active: bulk over the whole cluster is refused. Filter first.',
     }
   }
   return { selector, blocked: null }
