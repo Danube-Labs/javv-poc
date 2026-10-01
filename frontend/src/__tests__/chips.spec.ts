@@ -84,7 +84,13 @@ describe('CountDisagree', () => {
     expect(w.text()).toContain('1,234')
     expect(w.text()).toContain('1,200')
     expect(w.text()).toContain('Δ +34')
-    expect(w.attributes('title')).toContain('never summed')
+    expect(w.attributes('title')).toBe('Trivy found 1,234, Grype found 1,200. Trivy found 34 more.')
+  })
+
+  it('the hover names whichever scanner found more', () => {
+    const w = mount(CountDisagree, { props: { trivy: 41, grype: 57, total: 57 } })
+    expect(w.text()).toContain('Δ -16')
+    expect(w.attributes('title')).toBe('Trivy found 41, Grype found 57. Grype found 16 more.')
   })
 
   it('agreement wears both marks over the one shared count', () => {
@@ -98,7 +104,7 @@ describe('CountDisagree', () => {
   it('a lone scanner is not dressed as agreement', () => {
     const w = mount(CountDisagree, { props: { total: 55, scanners: ['grype'] } })
     expect(marks(w)).toEqual(['grype'])
-    expect(w.attributes('title')).toContain('Only Grype')
+    expect(w.attributes('title')).toBe('Only Grype has a committed scan of this digest: 55 findings')
     const agreed = mount(CountDisagree, { props: { trivy: 55, grype: 55, total: 55 } })
     expect(w.text()).not.toBe(agreed.text())
   })
