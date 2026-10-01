@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { GUIDE_SECTIONS, guideHref } from '@/about/guide'
+import { activeAt } from '@/about/useActiveSection'
 import { restampLocation } from '@/system/globalUrl'
 import { hashScroll } from '@/system/hashScroll'
 import GuideView from '@/views/GuideView.vue'
@@ -85,5 +86,26 @@ describe('hashScroll', () => {
   })
   it('leaves every other navigation where it was', () => {
     expect(hashScroll(at('/findings'), at('/guide', '#triage'))).toBe(false)
+  })
+})
+
+describe('activeAt (On this page follows the scroll)', () => {
+  const tops = (...t: number[]) => t.map((top, i) => ({ id: `s${i}`, top }))
+
+  it('is the first section before any crosses the line', () => {
+    expect(activeAt(tops(40, 600, 1200), 300, false)).toBe('s0')
+  })
+  it('is the last section whose top has crossed the line', () => {
+    expect(activeAt(tops(-900, -300, 120, 800), 300, false)).toBe('s2')
+  })
+  it("isn't fooled by the previous section's last pixel still showing above", () => {
+    // the bug the specimen showed: Images' bottom edge 1px into view, Triage at the top
+    expect(activeAt(tops(-1200, -400, 16, 700), 300, false)).toBe('s2')
+  })
+  it('is the last section once the page cannot scroll further', () => {
+    expect(activeAt(tops(-2000, -900, 100, 500), 300, true)).toBe('s3')
+  })
+  it('is null with no sections', () => {
+    expect(activeAt([], 300, false)).toBeNull()
   })
 })

@@ -1,35 +1,58 @@
 /**
- * Which guide section is in view, for the table of contents' active row: the first section whose
- * top has crossed the upper third of the viewport. Observes the rendered section ids once mounted.
+ * Which guide section is in view, for "On this page": the last section whose top has crossed a
+ * line a third of the way down the viewport, or the last section once the page can't scroll
+ * any further (a short closing section never reaches the line). Recomputed on scroll and resize.
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { GUIDE_SECTIONS, type GuideSectionId } from '@/about/guide'
 
+export interface SectionTop<T extends string = string> {
+  id: T
+  top: number
+}
+
+/** The scroll-spy rule, pure: `tops` in page order, `line` in viewport pixels. */
+export function activeAt<T extends string>(
+  tops: readonly SectionTop<T>[],
+  line: number,
+  atBottom: boolean,
+): T | null {
+  if (tops.length === 0) return null
+  if (atBottom) return tops[tops.length - 1]!.id
+  let current = tops[0]!.id
+  for (const t of tops) if (t.top <= line) current = t.id
+  return current
+}
+
 export function useActiveSection() {
   const active = ref<GuideSectionId | null>(null)
-  let observer: IntersectionObserver | null = null
-  const visible = new Set<GuideSectionId>()
+  let frame = 0
+
+  function measure() {
+    frame = 0
+    const tops = GUIDE_SECTIONS.flatMap((s) => {
+      const el = document.getElementById(s.id)
+      return el ? [{ id: s.id, top: el.getBoundingClientRect().top }] : []
+    })
+    const doc = document.documentElement
+    const atBottom = window.scrollY > 0 && window.innerHeight + window.scrollY >= doc.scrollHeight - 2
+    active.value = activeAt(tops, window.innerHeight / 3, atBottom)
+  }
+  function schedule() {
+    if (!frame) frame = requestAnimationFrame(measure)
+  }
 
   onMounted(() => {
-    if (typeof IntersectionObserver === 'undefined') return
-    observer = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          const id = e.target.id as GuideSectionId
-          if (e.isIntersecting) visible.add(id)
-          else visible.delete(id)
-        }
-        active.value = GUIDE_SECTIONS.find((s) => visible.has(s.id))?.id ?? active.value
-      },
-      { rootMargin: '0px 0px -66% 0px' },
-    )
-    for (const s of GUIDE_SECTIONS) {
-      const el = document.getElementById(s.id)
-      if (el) observer.observe(el)
-    }
+    measure()
+    window.addEventListener('scroll', schedule, { passive: true })
+    window.addEventListener('resize', schedule)
   })
-  onBeforeUnmount(() => observer?.disconnect())
+  onBeforeUnmount(() => {
+    window.removeEventListener('scroll', schedule)
+    window.removeEventListener('resize', schedule)
+    if (frame) cancelAnimationFrame(frame)
+  })
 
   return active
 }
