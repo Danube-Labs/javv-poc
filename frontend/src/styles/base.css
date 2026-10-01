@@ -213,7 +213,6 @@ html [class*=' p-'] {
   position: sticky;
   left: 0;
   z-index: 1;
-  box-shadow: inset -1px 0 var(--line2);
 }
 .tbl-scroll-pin .tbl td:first-child {
   background: var(--card);
