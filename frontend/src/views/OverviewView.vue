@@ -242,8 +242,15 @@ function onDonutClick(e: { name?: string }) {
   gap: 16px;
   margin-bottom: 18px;
 }
+/* at the 1024 floor the title card gives way (its sentence wraps) and the actions stay whole on
+   the title's row; the shared head-card is `flex: none`, so this screen opts in (issue 652) */
+.screen-head .head-card {
+  flex: 0 1 auto;
+  min-width: 0;
+}
 .head-actions {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 10px;
 }
