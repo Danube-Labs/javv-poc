@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import type { BarSeriesOption } from 'echarts'
 
+import { scannerFreshnessApiV1ScannersFreshnessGet, scansTrendApiV1TrendsScansGet } from '@/api/generated'
 import {
   bucketEndT,
   buildIngestLensOption,
@@ -8,7 +12,14 @@ import {
   ingestLensDates,
 } from '@/charts/buildIngestLensOption'
 import type { ScanActivityData } from '@/charts/buildScanActivityOption'
+import IngestLens from '@/components/dashboards/IngestLens.vue'
+import { useTimeTravelStore } from '@/stores/timeTravel'
 import { CHART_SCANNER } from '@/styles/tokens'
+
+vi.mock('@/api/generated', () => ({
+  scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
+  scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
+}))
 
 const pts = (scans: number[]) =>
   scans.map((n, i) => ({ date: `2026-07-0${i + 1}T00:00:00.000Z`, scans: n }))
@@ -72,5 +83,56 @@ describe('ingestInterval (short live ranges bucket hourly)', () => {
     const series = { trivy: [{ date: '2026-07-10T08:00:00.000Z', scans: 2 }] }
     const opt = buildIngestLensOption(series, 'hour')
     expect((opt.xAxis as { data: string[] }).data.every((l) => /^\d{2}:\d{2}$/.test(l))).toBe(true)
+  })
+})
+
+describe('IngestLens head (issue 341: the guide popover, plain copy)', () => {
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/:any(.*)*', component: { template: '<div />' } }],
+  })
+  const ok = <T,>(data: T) => ({ data, response: { ok: true, status: 200 } })
+
+  async function mountLens(series: ScanActivityData) {
+    vi.mocked(scansTrendApiV1TrendsScansGet).mockResolvedValue(ok({ series }) as never)
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(
+      ok({
+        scanners: [{ scanner: 'trivy', last_ingest_at: '2026-10-01T08:30:00Z', silent_for_seconds: 600 }],
+      }) as never,
+    )
+    const w = mount(IngestLens, {
+      props: { clusterId: 'c-1' },
+      global: { plugins: [router], stubs: { EChart: true } },
+    })
+    await flushPromises()
+    return w
+  }
+
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('puts the guide popover beside the explanation, outside the part that truncates', async () => {
+    const w = await mountLens({ trivy: pts([1]) })
+    const help = w.find('.il-head > .il-help')
+    expect(help.exists()).toBe(true)
+    expect(w.find('.il-sub .il-help').exists()).toBe(false)
+    await help.find('button').trigger('click')
+    expect(help.find('a.gl-pop-link').attributes('href')).toBe('/guide#time-range')
+  })
+
+  it('a past sub-day range notes its daily bars without an em dash', async () => {
+    const tt = useTimeTravelStore()
+    tt.rewindTo('2026-09-30T12:00:00.000Z')
+    tt.setWindow(0.25, 'Last 6 hours')
+    const w = await mountLens({ trivy: pts([1]) })
+    const sub = w.find('.il-sub').text()
+    expect(sub).toContain('daily bars: covers the last 1 day')
+    expect(sub).not.toContain('—')
+  })
+
+  it('a quiet range at now says when the table was last updated, without an em dash', async () => {
+    const w = await mountLens({})
+    const empty = w.find('.il-empty').text()
+    expect(empty).toMatch(/^No scans committed in this range: the table shows the state last updated/)
+    expect(empty).not.toContain('—')
   })
 })
