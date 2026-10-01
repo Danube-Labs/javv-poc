@@ -201,6 +201,35 @@ html [class*=' p-'] {
   border-radius: var(--r);
   box-shadow: var(--shadow);
 }
+/* a table card whose columns can outgrow it (issue 652): below the width they need, the table
+   scrolls sideways inside the card instead of being cut off, with the first (identity) column
+   pinned so each row stays recognisable. Pinned cells paint their own background, the row's
+   wash included, so scrolled cells never show through. Opt in on the card. */
+.tbl-scroll-pin {
+  overflow-x: auto;
+}
+.tbl-scroll-pin .tbl th:first-child,
+.tbl-scroll-pin .tbl td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  box-shadow: inset -1px 0 var(--line2);
+}
+.tbl-scroll-pin .tbl td:first-child {
+  background: var(--card);
+  transition: background 0.12s ease-out;
+}
+.tbl-scroll-pin .tbl-hover tbody tr:hover td:first-child {
+  background: var(--row-hover);
+}
+.tbl-scroll-pin .tbl-hover tbody tr:active td:first-child {
+  background: var(--line2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tbl-scroll-pin .tbl td:first-child {
+    transition: none;
+  }
+}
 /* table + its GridPager as ONE card (operator ruling 2026-07-13): views whose table component
    owns .tbl-wrap wrap both in .tbl-card — the inner wrap sheds its chrome, the pager row sits
    flush at the card's foot */

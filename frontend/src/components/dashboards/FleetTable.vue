@@ -80,7 +80,7 @@ function open(row: ClusterRow) {
 
 <template>
   <!-- flush table card (prototype fleet-card): no head, no inner panel — the table IS the card -->
-  <section class="card fleet-card">
+  <section class="card fleet-card tbl-scroll-pin">
       <table class="tbl tbl-hover">
         <thead>
           <tr>
@@ -167,9 +167,6 @@ function open(row: ClusterRow) {
   border-radius: var(--r);
   box-shadow: var(--shadow);
   margin-top: 16px;
-}
-.fleet-card {
-  overflow: hidden;
 }
 .fleet-card .tbl th:first-child,
 .fleet-card .tbl td:first-child {

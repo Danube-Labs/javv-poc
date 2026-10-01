@@ -197,6 +197,10 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
   operator B2 ruling 2026-07-16; supersedes both the `--panel` head and the short-lived
   settings "quiet sans head" — `tbl-quiet` is density only). On-band column dividers use
   `--table-head-line`, never the beige hairlines.
+- **A table card never clips its columns** (issue 652). A hand-built `.tbl` card whose
+  columns can outgrow it at the 1024 floor opts into `.tbl-scroll-pin` (base.css): the table
+  scrolls sideways inside the card and its first, identity column stays pinned (All clusters,
+  Approvals). `overflow: hidden` on a table card is the bug it replaces.
 - Desktop-first; single breakpoint ~1120px (KPI strips 2-up, grids stack, facet rail stacks above the table).
 
 ## 5. Interaction

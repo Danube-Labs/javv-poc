@@ -304,7 +304,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <p v-else-if="failed" class="load-error" role="alert">
         Could not load the queue — check the backend connection.
       </p>
-      <section v-else class="card queue-card">
+      <section v-else class="card queue-card tbl-scroll-pin">
         <table class="tbl tbl-hover">
           <thead>
             <tr>
@@ -427,7 +427,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   border: 1px solid var(--line);
   border-radius: var(--r);
   box-shadow: var(--shadow);
-  overflow: hidden;
   margin-top: 16px;
 }
 .queue-card .tbl th:first-child,
