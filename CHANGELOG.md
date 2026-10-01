@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.10](https://github.com/Danube-Labs/javv-poc/compare/v0.4.9...v0.4.10) (2026-10-01)
+
+
+### Bug Fixes
+
+* drop internal decision codes from ui copy and say why instead ([#665](https://github.com/Danube-Labs/javv-poc/issues/665)) ([c97d998](https://github.com/Danube-Labs/javv-poc/commit/c97d998ea2cd7522643af40a4ef98dd9e8b07693))
+* no em dashes in copy, one muted hyphen for empty values, and a test that keeps it so ([#661](https://github.com/Danube-Labs/javv-poc/issues/661)) ([0b283f5](https://github.com/Danube-Labs/javv-poc/commit/0b283f59c6c8a8e012b7da327313c525c9c95281)), closes [#652](https://github.com/Danube-Labs/javv-poc/issues/652)
+
 ## [0.4.9](https://github.com/Danube-Labs/javv-poc/compare/v0.4.8...v0.4.9) (2026-10-01)
 
 
