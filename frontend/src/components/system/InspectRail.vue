@@ -41,8 +41,7 @@ function entries(groups: RailGroups, key: keyof RailGroups): RailEntry[] {
             <span class="idx-name" :title="e.pattern"
               ><span class="idx-head">{{ splitMiddle(e.pattern).head }}</span
               ><span class="idx-tail">{{ splitMiddle(e.pattern).tail }}</span></span
-            >
-            <i>{{ fmtDocs(e.docs) }}</i>
+            >{{ ' ' }}<i>{{ fmtDocs(e.docs) }}</i>
           </button>
         </template>
       </div>
