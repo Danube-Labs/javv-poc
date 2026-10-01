@@ -37,7 +37,7 @@ describe('AboutView', () => {
     await flushPromises()
     const card = w.findComponent({ name: 'RunningStackCard' })
     expect(card.props()).toEqual({ clusterId: 'c-1', clusterName: 'prod-eu' })
-    expect(w.find('h1').text()).toBe('About & guide')
+    expect(w.find('h1').text()).toBe('About')
   })
 })
 

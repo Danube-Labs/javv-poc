@@ -27,7 +27,7 @@ import { useHealthStore } from '@/stores/health'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { isColdStart } from '@/system/coldStart'
 import { lastDataAt } from '@/system/freshness'
-import { clusterFromQuery, ttFromQuery, ttToQuery } from '@/system/globalUrl'
+import { clusterFromQuery, restampLocation, ttFromQuery, ttToQuery } from '@/system/globalUrl'
 
 const auth = useAuthStore()
 const clusterStore = useClusterStore()
@@ -72,7 +72,7 @@ watch(
       route.query.cluster === cluster
     )
       return
-    void router.replace({ query: { ...route.query, t: tt.t, win: tt.win, cluster } })
+    void router.replace(restampLocation(route.query, route.hash, tt, cluster))
   },
 )
 

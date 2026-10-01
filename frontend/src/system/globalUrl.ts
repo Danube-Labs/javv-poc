@@ -7,7 +7,7 @@
  * everyday URLs stay clean; the cluster always serializes once selected. Pure + unit-tested;
  * the AppShell owns the setup. (Formerly timeTravelUrl.ts — grew the cluster key.)
  */
-import type { LocationQuery } from 'vue-router'
+import type { LocationQuery, LocationQueryRaw } from 'vue-router'
 
 const DEFAULT_WIN = 30
 
@@ -57,4 +57,15 @@ export function ownQuery(query: LocationQuery, ownKeys: readonly string[]): Reco
     if (typeof v === 'string' && v !== '') out[k] = v
   }
   return out
+}
+
+/** The shell's re-stamp target: the route's own query with the global keys set, and its hash
+ * kept, so an in-page `#section` deep link (the Guide's anchors) survives the replace. */
+export function restampLocation(
+  query: LocationQuery,
+  hash: string,
+  tt: Record<string, string>,
+  cluster: string | undefined,
+): { query: LocationQueryRaw; hash: string } {
+  return { query: { ...query, t: tt.t, win: tt.win, cluster }, hash }
 }

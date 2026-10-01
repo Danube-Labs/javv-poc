@@ -562,19 +562,19 @@ endpoint; package group conditional.
 
 ---
 
-## 16. About & guide (issue 341)
+## 16. About (issue 341)
 
 **No prototype screen.** Grammar sources (DESIGN.md §8 source 2):
-- ui.nuxt.com `PageHeader` + `PageAnchors` (a table of contents) + `PageFeature` (icon, title,
-  description);
+- ui.nuxt.com `PageHeader`;
 - Framework7 grouped list rows (a name, a right-aligned mono value, a footer hint).
 
 **Width: wide**, ruled by the operator on the built specimen (2026-09-29, an A/B at 1920px: A wide vs B narrow; at 1366 and 1024 the two are identical).
-**Nav:** a last group **Help** → *About & guide* (`info` icon), ungated. Its dot is
-`--sect-help`, an alias of `--side-label` (neutral by operator ruling, 2026-09-29). The sidebar
-footer's version lines link here too. The route is live before any cluster enrolls
-(`isColdStart` exempts `help`).
-**Data (PR 1):**
+**Nav:** the last group **Help**: *Guide* (§17), then *About* (`info` icon), both ungated. The
+group's dot is `--sect-help`, an alias of `--side-label` (neutral by operator ruling,
+2026-09-29). The sidebar footer's version lines link here too. Both routes are live before any
+cluster enrolls (`isColdStart` exempts `help`). About and the guide were one page until the
+operator split them on the built specimens (2026-10-01).
+**Data:**
 - `GET /api/v1/meta`: the release, store schema, report formats accepted, OpenSearch version
   (live) and Python version;
 - the frontend's own version from `src/version.ts`;
@@ -584,10 +584,31 @@ footer's version lines link here too. The route is live before any cluster enrol
 **Actions:** *Copy diagnostics*, a plain-text block of every version plus the browser and the
 time (the toast confirms). **Links:** `UPGRADING.md`, verifying the signed images, `docs/API.md`;
 the docs site once #639 lands.
-**Content (PR 2):** the issue's seven concept sections plus the data dictionary, each claim
-fact-checked against the spec.
 **States:** loading (skeleton); `/meta` failed (visible error); OpenSearch version `null` →
 "unavailable"; no committed scanner run for the cluster (empty); no cluster selected.
+
+## 17. Guide: How to read JAVV (issue 341)
+
+**No prototype screen.** Grammar sources (DESIGN.md §8 source 2):
+- ui.nuxt.com docs page: `ContentToc` ("On this page", the active row following the scroll);
+- CloudNativePG "Before you start" for the glossary: a bold term, then one to four plain
+  sentences.
+
+**Layout (operator ruling on built specimens, 2026-10-01, A of four: A rail + cards, B one
+reading card with the contents on the right, C an accordion, D overview tiles):** "On this page"
+is the shared `SectionNav` (Settings' left menu, moved into the kit so both screens use one
+component), sticky on the left; one card per section beside it. **Width: wide.** **Nav:**
+*Help → Guide* (`book` icon, an open book drawn for JAVV by operator ruling 2026-10-01: no
+licensed icon sets), before *About*.
+**Content:** seven sections: the time range, now vs new, two scanners never merged, scans and
+freshness, images are digests, triage, and a glossary that carries the data dictionary (#351
+§6). Written for the people using the app: plain words, no internal decision codes, no
+diagrams, no em dashes (operator rulings, 2026-10-01). Filter labels, the states a person can
+set and the VEX reasons are read from the app's own definitions, not retyped.
+**Links in:** `/guide#<section>`. The shell's URL re-stamp keeps the hash, and the router
+scrolls only on arriving at a section, so changing the range or cluster on the page doesn't jump.
+The "learn more" links from the ingest strip and the freshness banner come in the next PR.
+**States:** static content, no reads, so no loading, empty or error state.
 
 ---
 

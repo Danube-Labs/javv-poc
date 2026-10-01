@@ -7,7 +7,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
-import AppIcon from '@/components/ui/AppIcon.vue'
+import SectionNav from '@/components/ui/SectionNav.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
 
@@ -18,6 +18,10 @@ const clusterStore = useClusterStore()
 const route = useRoute()
 
 const sections = computed(() => SETTINGS_SECTIONS.filter((s) => auth.hasCapability(s.capability)))
+const scopeOf = (key: string) => SETTINGS_SECTIONS.find((s) => s.key === key)!.scope
+const navItems = computed(() =>
+  sections.value.map((s) => ({ key: s.key, label: s.label, icon: s.icon, to: `/settings/${s.key}` })),
+)
 const active = computed(
   () => SETTINGS_SECTIONS.find((s) => route.path.startsWith(`/settings/${s.key}`)) ?? null,
 )
@@ -43,19 +47,15 @@ const scopeNote = computed(() => {
     </div>
 
     <div class="set-layout">
-      <aside class="set-nav" aria-label="Settings sections">
-        <RouterLink
-          v-for="s in sections"
-          :key="s.key"
-          :to="`/settings/${s.key}`"
-          class="set-nav-item"
-          :class="{ 'set-nav-on': active?.key === s.key }"
-        >
-          <AppIcon :name="s.icon" :size="15" />
-          <span>{{ s.label }}</span>
-          <i class="scope-dot" :data-scope="s.scope" :title="SCOPE_COPY[s.scope].label" />
-        </RouterLink>
-      </aside>
+      <SectionNav :items="navItems" :active="active?.key ?? null" label="Settings sections">
+        <template #trail="{ item }">
+          <i
+            class="scope-dot"
+            :data-scope="scopeOf(item.key)"
+            :title="SCOPE_COPY[scopeOf(item.key)].label"
+          />
+        </template>
+      </SectionNav>
 
       <div class="set-panel">
         <div v-if="active && scopeNote" class="scope-strip" :data-scope="active.scope">
@@ -69,64 +69,12 @@ const scopeNote = computed(() => {
 </template>
 
 <style scoped>
-/* prototype .set-layout / .set-nav / .scope-* ported onto tokens */
+/* prototype .set-layout / .scope-* ported onto tokens; the .set-nav menu is SectionNav */
 .set-layout {
   display: grid;
-  grid-template-columns: 198px 1fr;
+  grid-template-columns: var(--section-nav-w) 1fr;
   gap: 18px;
   align-items: stretch;
-}
-/* the nav rides in a card track (Nuxt UI pill-tabs grammar, inverted for our darker canvas:
-   the container is the card, selection takes the coral wash — the time-preset idiom) */
-.set-nav {
-  position: sticky;
-  top: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  align-self: start;
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  padding: 6px;
-}
-.set-nav-item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  border: 0;
-  background: transparent;
-  color: var(--soft);
-  padding: 9px 11px;
-  border-radius: 9px;
-  font-size: var(--text-body);
-  text-align: left;
-  text-decoration: none;
-  transition:
-    background var(--dur-quick) var(--ease-out),
-    color var(--dur-quick) var(--ease-out);
-}
-.set-nav-item:hover {
-  background: var(--panel);
-  color: var(--ink);
-}
-.set-nav-item:active {
-  background: var(--control-active-bg);
-}
-.set-nav-item:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: 1px;
-}
-.set-nav-on,
-.set-nav-on:hover {
-  background: var(--dd-on-bg);
-  color: var(--coral-text);
-  font-weight: 600;
-}
-.set-nav-on svg {
-  color: var(--coral);
 }
 .scope-dot {
   position: absolute;
@@ -184,11 +132,6 @@ const scopeNote = computed(() => {
 @media (width <= 1100px) {
   .set-layout {
     grid-template-columns: 1fr;
-  }
-  .set-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    position: static;
   }
 }
 </style>

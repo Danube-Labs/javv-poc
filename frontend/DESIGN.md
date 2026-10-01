@@ -178,7 +178,8 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 ## 4. Layout & density
 
 - Sidebar `var(--sidebar-w)` (226px, slate) collapsible to `var(--sidebar-w-rail)` (64px);
-  facet rail `var(--facet-rail-w)` (218px).
+  facet rail `var(--facet-rail-w)` (218px); section menu `var(--section-nav-w)` (198px,
+  `SectionNav`: Settings' sub-pages and the Guide's sections).
 - Motion: `var(--ease-out)` with `var(--dur-quick)` (120ms) / `var(--dur-panel)` (200ms) —
   the only durations/curves (see §5 "Motion").
 - Content: max `var(--screen-max-w)` (1380px) centered, padding `var(--content-pad)`; grid gap `var(--grid-gap)`.
@@ -240,6 +241,7 @@ the raw markup/CSS they encapsulate is a review failure — extend the component
 | `UiSkeleton` | the one loading pulse (`.skel` + `skel-shimmer` in base.css) and its reduced-motion off-switch; `height` is a prop because a skeleton mirrors the panel it stands in for, `label` only when it is its own loading region | every loading placeholder. The style rules test fails any view that grows its own shimmer |
 | `AppIcon` | the stroke icon set | every icon |
 | `ToastStack` + `useToastStore` | the confirmation channel: `success/error/info` from ANY component/store, auto-dismiss, capped stack, t-toast motion, ink text + hue on the icon | every action outcome the user would otherwise hunt for; inline contextual errors stay inline |
+| `SectionNav` | a screen's left section menu: the sticky card, icon + label rows, hover wash + border, the coral active row, `aria-current`; a `trail` slot for a row's extra mark | Settings' sub-pages and the Guide's in-page sections; any future screen with a section list |
 
 ## 6. Do / Don't
 

@@ -40,6 +40,10 @@ export const ROUTES = [
   { name: 'settings-cluster', path: '/settings/cluster', ready: '.set-row' },
   { name: 'findings', path: '/findings', ready: '.tbl tbody tr' },
   { name: 'images', path: '/images', ready: '.tbl tbody tr' },
+  // static content: the last section's card is the page fully rendered
+  { name: 'guide', path: '/guide', ready: '#glossary .gl-row' },
+  // the install rows, or the visible error when /meta failed
+  { name: 'about', path: '/about', ready: '.stack-install .stack-row, .stack-error' },
 ]
 
 /** Log in through the real form (never an API shortcut — the form IS part of the smoke). */

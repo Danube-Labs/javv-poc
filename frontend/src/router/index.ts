@@ -8,6 +8,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 import { resolveGate } from '@/router/guards'
 import { useAuthStore } from '@/stores/auth'
+import { hashScroll } from '@/system/hashScroll'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -92,6 +93,12 @@ const router = createRouter({
           meta: { section: 'configure', capability: 'can_inspect_store', wide: true },
         },
         {
+          path: 'guide',
+          name: 'guide',
+          component: () => import('@/views/GuideView.vue'),
+          meta: { section: 'help', wide: true },
+        },
+        {
           path: 'about',
           name: 'about',
           component: () => import('@/views/AboutView.vue'),
@@ -151,6 +158,7 @@ const router = createRouter({
       ],
     },
   ],
+  scrollBehavior: hashScroll,
 })
 
 router.beforeEach(async (to) => {

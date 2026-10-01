@@ -275,6 +275,7 @@
   --sidebar-w: 226px;
   --sidebar-w-rail: 64px;
   --facet-rail-w: 218px;
+  --section-nav-w: 198px; /* SectionNav: Settings' sub-pages, the Guide's sections */
   --screen-max-w: 1380px;
   --content-pad: 28px clamp(26px, 3.2vw, 56px);
   --grid-gap: 16px;
