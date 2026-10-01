@@ -104,11 +104,36 @@ describe('ScannerFreshnessBanner when the read fails (issue 651)', () => {
     w.unmount()
   })
 
-  it('a failed first read logs once with its status', async () => {
-    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(failed(503) as never)
+  it('a failed first read logs once with its status and says the check failed', async () => {
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(failed(500) as never)
     const w = await mountBanner()
     expect(logger.warn).toHaveBeenCalledTimes(1)
-    expect(logger.warn).toHaveBeenCalledWith('scanner_freshness_fetch_failed', { status: 503 })
+    expect(logger.warn).toHaveBeenCalledWith('scanner_freshness_fetch_failed', { status: 500 })
+    expect(w.find('[role=alert]').exists()).toBe(false)
+    const line = w.find('[role=status]')
+    expect(line.text()).toMatch(/^Couldn't check scanner freshness on c-1\. JAVV retries every 10 minutes\.$/)
+    expect(line.text()).not.toContain('—')
+    w.unmount()
+  })
+
+  it('a failed later poll while the scanners were fresh says when it last checked', async () => {
+    vi.useFakeTimers()
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValueOnce(freshness(2) as never)
+    const w = await mountBanner()
+    expect(w.find('[role=status]').exists()).toBe(false)
+
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValueOnce(failed(500) as never)
+    await vi.advanceTimersByTimeAsync(POLL_MS)
+    await flushPromises()
+    const line = w.find('[role=status]')
+    expect(line.text()).toMatch(/^Scanner freshness last checked .+; the latest check failed\./)
+    expect(line.text()).not.toContain('—')
+
+    // the next good read clears it
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValueOnce(freshness(2) as never)
+    await vi.advanceTimersByTimeAsync(POLL_MS)
+    await flushPromises()
+    expect(w.find('[role=status]').exists()).toBe(false)
     w.unmount()
   })
 
@@ -129,7 +154,10 @@ describe('ScannerFreshnessBanner when the read fails (issue 651)', () => {
     await vi.advanceTimersByTimeAsync(POLL_MS)
     await flushPromises()
     expect(logger.warn).toHaveBeenCalledWith('scanner_freshness_fetch_failed', { status: 502 })
-    expect(w.find('[role=alert]').text()).toContain('trivy silent 4 days')
+    const banner = w.find('[role=alert]')
+    expect(banner.text()).toContain('trivy silent 4 days')
+    expect(banner.text()).toMatch(/Last checked .+; the latest check failed\./)
+    expect(w.find('[role=status]').exists()).toBe(false)
     w.unmount()
   })
 

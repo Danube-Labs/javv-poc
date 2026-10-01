@@ -72,6 +72,10 @@ watch(
 )
 
 const silent = computed(() => silentRows(checkRows(check.value), staleness.bannerThresholdS))
+/** When the kept result was last current; set only while a later read has failed. */
+const lastChecked = computed(() =>
+  check.value.kind === 'outdated' ? lastDataAt(new Date(check.value.checkedAt).toISOString()) : null,
+)
 const clusterName = computed(() => clusterStore.selected?.cluster_name ?? clusterStore.selectedId)
 </script>
 
@@ -86,8 +90,22 @@ const clusterName = computed(() => clusterStore.selected?.cluster_name ?? cluste
           <strong>{{ row.scanner }}</strong> silent {{ silentFor(row.silent_for_seconds) }}
           (last data <span class="mono">{{ lastDataAt(row.last_ingest_at) }}</span>)</template
         >.
+        <template v-if="lastChecked"> Last checked {{ lastChecked }}; the latest check failed.</template>
         <GuideLink section="scans-and-freshness" label="What this means" />
       </span>
+    </div>
+    <!-- freshness unknown is a degraded state, not a note: the health ramp's amber step between
+         fine (no line) and down (the red banner), operator ruling on built specimens 2026-10-01 -->
+    <div v-else-if="check.kind === 'failed' || lastChecked" class="check-line" role="status">
+      <AppIcon name="alert" :size="15" />
+      <span v-if="check.kind === 'failed'"
+        >Couldn't check scanner freshness on <strong class="mono">{{ clusterName }}</strong>. JAVV retries
+        every 10 minutes.</span
+      >
+      <span v-else
+        >Scanner freshness last checked {{ lastChecked }}; the latest check failed. JAVV retries every 10
+        minutes.</span
+      >
     </div>
   </Transition>
 </template>
@@ -106,6 +124,20 @@ const clusterName = computed(() => clusterStore.selected?.cluster_name ?? cluste
 }
 .banner svg {
   color: var(--health-down-fg);
+  flex: none;
+}
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  background: var(--health-degraded-bg);
+  font-size: var(--text-body);
+}
+.check-line svg {
+  color: var(--health-degraded-fg);
   flex: none;
 }
 </style>
