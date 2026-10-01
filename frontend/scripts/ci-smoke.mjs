@@ -9,7 +9,11 @@
  *   - layout sanity per route (no horizontal scroll, no off-viewport bleed, no sibling overlap);
  *   - server-side-everything: the findings grid got its rows from a backend query;
  *   - with --core-loop (CI sets it; keep local runs read-only): a triage action persists
- *     across a reload, then is reverted (the store is left as found).
+ *     across a reload, then is reverted (the store is left as found);
+ *   - one click does what it says (issue 666): every sidebar item lands on its first click, a
+ *     fleet row of the cluster that is NOT selected opens that cluster's Overview (the seed
+ *     carries two clusters), and with --core-loop a saved view with a 7-day window opens
+ *     Findings (the view is created for the check and deleted after it).
  *
  *   JAVV_BASE=http://localhost:4173 JAVV_USER=… JAVV_PASS=… node scripts/ci-smoke.mjs [--core-loop]
  *
@@ -18,7 +22,7 @@
  */
 import { chromium } from 'playwright'
 
-import { VIEWPORTS, collectPageIssues, walkRoutes, clickDetail, login } from './walk.mjs'
+import { ROUTES, VIEWPORTS, collectPageIssues, walkRoutes, clickDetail, login } from './walk.mjs'
 
 const BASE = process.env.JAVV_BASE ?? 'http://localhost:4173'
 const USER = process.env.JAVV_USER
@@ -84,6 +88,68 @@ async function coreLoop(page, issues) {
   await page.waitForLoadState('networkidle')
 }
 
+/** Navigations that change no global state first, then the two that change it on the way. */
+async function oneClick(page, issues) {
+  const pathIs = (want, extra = () => true) => (url) => url.pathname === want && extra(url)
+  const step = async (name, fn) => {
+    try {
+      await fn()
+    } catch (e) {
+      issues.push(`[one-click] ${name}: ${e.message.split('\n')[0]} (at ${page.url().replace(BASE, '')})`)
+    }
+  }
+
+  await page.goto(`${BASE}/overview`)
+  await page.waitForSelector(ROUTES.find((r) => r.name === 'overview').ready, { timeout: 15_000 })
+  const hrefs = await page.locator('.side-item').evaluateAll((els) => els.map((e) => e.getAttribute('href')))
+  for (const href of hrefs) {
+    // /settings is a redirect to its first section by design
+    const want = href === '/settings' ? '/settings/scan-scope' : href
+    await step(`sidebar ${href}`, async () => {
+      await page.locator(`.side-item[href="${href}"]`).click()
+      await page.waitForURL(pathIs(want), { timeout: 10_000 })
+    })
+  }
+
+  await step('fleet row of the cluster that is not selected', async () => {
+    await page.goto(`${BASE}/clusters`)
+    await page.waitForSelector('.fleet-card tbody tr')
+    await page.waitForURL((url) => url.searchParams.has('cluster'))
+    const selected = new URL(page.url()).searchParams.get('cluster')
+    // an unnamed cluster shows its id as the name and no separate id line
+    const ids = await page
+      .locator('.fleet-card tbody tr')
+      .evaluateAll((rows) => rows.map((r) => (r.querySelector('.cl-id') ?? r.querySelector('.cl-name'))?.textContent?.trim()))
+    const other = ids.findIndex((id) => id && id !== selected)
+    if (other < 0) throw new Error(`needs two clusters, the fleet lists ${ids.length}`)
+    await page.locator('.fleet-card tbody tr').nth(other).locator('.cl-name').click()
+    await page.waitForURL(pathIs('/overview', (url) => url.searchParams.get('cluster') === ids[other]), {
+      timeout: 10_000,
+    })
+  })
+
+  if (!CORE_LOOP) return
+  await step('saved view with a 7-day window', async () => {
+    const created = await page.evaluate(async () => {
+      const r = await fetch('/api/v1/views', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ name: 'smoke one-click 7d', workbench: { window_days: 7 } }),
+      })
+      return { status: r.status, id: r.ok ? (await r.json()).view_id : null }
+    })
+    if (!created.id) throw new Error(`could not create the view (${created.status})`)
+    try {
+      await page.goto(`${BASE}/views`)
+      const card = page.locator('.view-card', { hasText: 'smoke one-click 7d' })
+      await card.getByRole('button', { name: 'Open in Findings' }).click()
+      await page.waitForURL(pathIs('/findings', (url) => url.searchParams.get('win') === '7'), { timeout: 10_000 })
+    } finally {
+      await page.evaluate((id) => fetch(`/api/v1/views/${id}`, { method: 'DELETE' }), created.id)
+    }
+  })
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true })
   const issues = []
@@ -106,6 +172,8 @@ async function main() {
   await clickDetail(page, BASE, '/findings', '.detail-head', 'finding-detail', issues)
   await clickDetail(page, BASE, '/images', '.back-btn', 'image-detail', issues)
   if (CORE_LOOP) await coreLoop(page, issues)
+  // after the core loop: the fleet click moves this browser's selection off the golden cluster
+  await oneClick(page, issues)
 
   await browser.close()
   if (issues.length) {
