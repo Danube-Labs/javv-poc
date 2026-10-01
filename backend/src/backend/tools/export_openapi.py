@@ -14,9 +14,17 @@ from pathlib import Path
 
 from backend.main import app
 
+# The snapshot pins the API's shape, not its release: the live schema carries APP_VERSION, which
+# release-please bumps on every release PR, and nothing regenerates the snapshot there, so a
+# version in it would fail the contract gate on each one.
+SNAPSHOT_VERSION = "snapshot"
+
 
 def export() -> str:
-    return json.dumps(app.openapi(), indent=2, sort_keys=True) + "\n"
+    schema = app.openapi()
+    # a copy: app.openapi() is the cached schema the running app serves
+    pinned = {**schema, "info": {**schema["info"], "version": SNAPSHOT_VERSION}}
+    return json.dumps(pinned, indent=2, sort_keys=True) + "\n"
 
 
 if __name__ == "__main__":  # operator interface — print/write is the point (observability.md A-n)

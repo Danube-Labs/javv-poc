@@ -1922,7 +1922,7 @@
   },
   "info": {
     "title": "JAVV backend",
-    "version": "0.4.7"
+    "version": "snapshot"
   },
   "openapi": "3.1.0",
   "paths": {
