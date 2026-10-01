@@ -111,7 +111,7 @@ function tone(state: string | null): 'ok' | 'warn' | 'down' | 'muted' {
 <template>
   <SettingsCard
     title="Snapshots"
-    subtitle="native OpenSearch snapshot/restore: the durability set (NFR-6)"
+    subtitle="native OpenSearch snapshot/restore of the current findings, running images and settings (not the scan history)"
   >
     <template v-if="!configured">
       <p class="snap-unconfigured">

@@ -123,7 +123,7 @@ function discard() {
       <template v-else>
         <SettingsRow
           label="Running workloads only"
-          hint="Discovery is always live images from the k8s API, digest-deduped, never a registry crawl (D30)."
+          hint="Only running images are scanned. Discovery lists running pods through the Kubernetes API and scans each image digest once, however many pods run it."
         >
           <span class="static-fact mono-cell">always on</span>
         </SettingsRow>
