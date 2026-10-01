@@ -123,7 +123,7 @@ function discard() {
       <template v-else>
         <SettingsRow
           label="Running workloads only"
-          hint="Discovery lists running pods through the Kubernetes API and scans each image digest once, however many pods run it. It never crawls a registry, because JAVV reports what is actually running, not what is stored."
+          hint="Only running images are scanned. Discovery lists running pods through the Kubernetes API and scans each image digest once, however many pods run it."
         >
           <span class="static-fact mono-cell">always on</span>
         </SettingsRow>
