@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.9](https://github.com/Danube-Labs/javv-poc/compare/v0.4.8...v0.4.9) (2026-10-01)
+
+
+### Bug Fixes
+
+* fit every screen at 1024, 1366 and 1920, and check it in the visual rig ([#658](https://github.com/Danube-Labs/javv-poc/issues/658)) ([af5d9ff](https://github.com/Danube-Labs/javv-poc/commit/af5d9ff64bfeec7c72ca5bb2f2104d3c396a4b2a))
+* say when the scanner freshness check fails instead of staying silent ([#656](https://github.com/Danube-Labs/javv-poc/issues/656)) ([4940288](https://github.com/Danube-Labs/javv-poc/commit/49402888f881cc2c734697e9f758c1c0e43f031a))
+
 ## [0.4.8](https://github.com/Danube-Labs/javv-poc/compare/v0.4.7...v0.4.8) (2026-10-01)
 
 
