@@ -15,22 +15,45 @@ import { client } from '@/api/client'
 import { scannerFreshnessApiV1ScannersFreshnessGet } from '@/api/generated'
 import { useClusterStore } from '@/stores/cluster'
 import { useStalenessStore } from '@/stores/staleness'
-import { lastDataAt, silentFor, silentRows, type FreshnessRow } from '@/system/freshness'
+import { logger } from '@/lib/logger'
+import {
+  checkRows,
+  lastDataAt,
+  nextFreshnessCheck,
+  silentFor,
+  silentRows,
+  type FreshnessCheck,
+  type FreshnessRow,
+} from '@/system/freshness'
 
 const POLL_MS = 10 * 60_000
 
 const clusterStore = useClusterStore()
 const staleness = useStalenessStore()
-const rows = ref<FreshnessRow[]>([])
+const check = ref<FreshnessCheck>({ kind: 'pending' })
 
 async function fetchFreshness() {
   const id = clusterStore.selectedId
   if (!id) return
-  const { data, response } = await scannerFreshnessApiV1ScannersFreshnessGet({
-    client,
-    query: { cluster_id: id },
-  })
-  if (response?.ok && data) rows.value = (data as { scanners: FreshnessRow[] }).scanners ?? []
+  // null = no response at all: the request never reached the server
+  let status: number | null = null
+  try {
+    const { data, response } = await scannerFreshnessApiV1ScannersFreshnessGet({
+      client,
+      query: { cluster_id: id },
+    })
+    if (clusterStore.selectedId !== id) return
+    if (response?.ok && data) {
+      const rows = (data as { scanners: FreshnessRow[] }).scanners ?? []
+      check.value = nextFreshnessCheck(check.value, { rows, at: Date.now() })
+      return
+    }
+    status = response?.status ?? null
+  } catch {
+    if (clusterStore.selectedId !== id) return
+  }
+  logger.warn('scanner_freshness_fetch_failed', { status })
+  check.value = nextFreshnessCheck(check.value, null)
 }
 
 const timer = setInterval(() => void fetchFreshness(), POLL_MS)
@@ -39,7 +62,7 @@ onUnmounted(() => clearInterval(timer))
 watch(
   () => clusterStore.selectedId,
   (id) => {
-    rows.value = []
+    check.value = { kind: 'pending' }
     void fetchFreshness()
     // the live window (FR-6/D20): the banner thresholds on the cluster's EFFECTIVE timers —
     // what the settings panel edits — never a build-time constant
@@ -48,7 +71,11 @@ watch(
   { immediate: true },
 )
 
-const silent = computed(() => silentRows(rows.value, staleness.bannerThresholdS))
+const silent = computed(() => silentRows(checkRows(check.value), staleness.bannerThresholdS))
+/** When the kept result was last current; set only while a later read has failed. */
+const lastChecked = computed(() =>
+  check.value.kind === 'outdated' ? lastDataAt(new Date(check.value.checkedAt).toISOString()) : null,
+)
 const clusterName = computed(() => clusterStore.selected?.cluster_name ?? clusterStore.selectedId)
 </script>
 
@@ -63,8 +90,22 @@ const clusterName = computed(() => clusterStore.selected?.cluster_name ?? cluste
           <strong>{{ row.scanner }}</strong> silent {{ silentFor(row.silent_for_seconds) }}
           (last data <span class="mono">{{ lastDataAt(row.last_ingest_at) }}</span>)</template
         >.
+        <template v-if="lastChecked"> Last checked {{ lastChecked }}; the latest check failed.</template>
         <GuideLink section="scans-and-freshness" label="What this means" />
       </span>
+    </div>
+    <!-- freshness unknown is a degraded state, not a note: the health ramp's amber step between
+         fine (no line) and down (the red banner), operator ruling on built specimens 2026-10-01 -->
+    <div v-else-if="check.kind === 'failed' || lastChecked" class="check-line" role="status">
+      <AppIcon name="alert" :size="15" />
+      <span v-if="check.kind === 'failed'"
+        >Couldn't check scanner freshness on <strong class="mono">{{ clusterName }}</strong>. JAVV retries
+        every 10 minutes.</span
+      >
+      <span v-else
+        >Scanner freshness last checked {{ lastChecked }}; the latest check failed. JAVV retries every 10
+        minutes.</span
+      >
     </div>
   </Transition>
 </template>
@@ -83,6 +124,20 @@ const clusterName = computed(() => clusterStore.selected?.cluster_name ?? cluste
 }
 .banner svg {
   color: var(--health-down-fg);
+  flex: none;
+}
+.check-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  color: var(--ink);
+  border-bottom: 1px solid var(--line);
+  background: var(--health-degraded-bg);
+  font-size: var(--text-body);
+}
+.check-line svg {
+  color: var(--health-degraded-fg);
   flex: none;
 }
 </style>

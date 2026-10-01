@@ -55,6 +55,15 @@ banner + Back to now) and the **trend window** (relative to `T`, scopes charts +
 
 **States:** degraded (banner, chrome stays up, data areas show degraded placeholders — never
 blank); scanner-silent (freshness banner); must_change (locked to password change).
+The freshness check itself is never silent (issue 651):
+- if the read fails before any good answer, an amber degraded line says freshness couldn't be
+  checked;
+- if a later read fails, the last good result stays and says when it was last checked, either
+  inside the red banner or as the amber line when no scanner is silent;
+- the next good read clears it.
+
+The amber is the health ramp's step between fine and down (operator ruling on built specimens,
+2026-10-01). A 503 is covered by the degraded banner instead.
 
 **Changed vs SCREENS.md**
 - Capability gating replaces the 5-role matrix everywhere (A-4).

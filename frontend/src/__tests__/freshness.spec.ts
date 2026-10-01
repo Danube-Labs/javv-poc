@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { DB_AGE_WARN_AFTER_S, dbAgeSeconds, lastDataAt, silentFor, silentRows } from '@/system/freshness'
+import {
+  DB_AGE_WARN_AFTER_S,
+  checkRows,
+  dbAgeSeconds,
+  lastDataAt,
+  nextFreshnessCheck,
+  silentFor,
+  silentRows,
+  type FreshnessCheck,
+} from '@/system/freshness'
 
 const row = (scanner: string, silent: number | null) => ({
   scanner,
@@ -45,5 +54,37 @@ describe('vuln-DB age flag (M9d slice 2)', () => {
     expect(DB_AGE_WARN_AFTER_S).toBe(7 * 86_400)
     expect(dbAgeSeconds('2026-07-03T12:00:00Z', now)! > DB_AGE_WARN_AFTER_S).toBe(true)
     expect(dbAgeSeconds('2026-07-08T12:00:00Z', now)! > DB_AGE_WARN_AFTER_S).toBe(false)
+  })
+})
+
+describe('freshness check state (issue 651: a failed read is never silent)', () => {
+  const rows = [row('trivy', 60)]
+  const pending: FreshnessCheck = { kind: 'pending' }
+
+  it('a good read is current, with its rows and when it landed', () => {
+    expect(nextFreshnessCheck(pending, { rows, at: 1000 })).toEqual({ kind: 'ok', rows, checkedAt: 1000 })
+  })
+
+  it('a failed read with nothing known yet is a failure, with no rows to show', () => {
+    const next = nextFreshnessCheck(pending, null)
+    expect(next).toEqual({ kind: 'failed' })
+    expect(checkRows(next)).toEqual([])
+    expect(nextFreshnessCheck(next, null)).toEqual({ kind: 'failed' })
+  })
+
+  it('a failed later read keeps the last good result, marked out of date', () => {
+    const ok = nextFreshnessCheck(pending, { rows, at: 1000 })
+    const outdated = nextFreshnessCheck(ok, null)
+    expect(outdated).toEqual({ kind: 'outdated', rows, checkedAt: 1000 })
+    expect(checkRows(outdated)).toBe(rows)
+    // a second failure keeps the same last good moment
+    expect(nextFreshnessCheck(outdated, null)).toEqual(outdated)
+  })
+
+  it('a good read after a failure is current again', () => {
+    const failed = nextFreshnessCheck(pending, null)
+    expect(nextFreshnessCheck(failed, { rows, at: 2000 }).kind).toBe('ok')
+    const outdated = nextFreshnessCheck(nextFreshnessCheck(pending, { rows, at: 1000 }), null)
+    expect(nextFreshnessCheck(outdated, { rows: [], at: 3000 })).toEqual({ kind: 'ok', rows: [], checkedAt: 3000 })
   })
 })
