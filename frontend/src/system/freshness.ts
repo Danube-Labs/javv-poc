@@ -29,6 +29,31 @@ export function silentRows(
   return rows.filter((r) => (r.silent_for_seconds ?? 0) > thresholdS)
 }
 
+/**
+ * What the banner knows (issue 651: a failed read is never silent): nothing yet, a current good
+ * read, a failed read with nothing known before it, or the last good read kept after a later
+ * read failed. Kept rows still drive the banner; they are just no longer current.
+ */
+export type FreshnessCheck =
+  | { kind: 'pending' }
+  | { kind: 'ok'; rows: FreshnessRow[]; checkedAt: number }
+  | { kind: 'failed' }
+  | { kind: 'outdated'; rows: FreshnessRow[]; checkedAt: number }
+
+/** The next state after one read: `read` is the good answer, or null when the read failed. */
+export function nextFreshnessCheck(
+  prev: FreshnessCheck,
+  read: { rows: FreshnessRow[]; at: number } | null,
+): FreshnessCheck {
+  if (read) return { kind: 'ok', rows: read.rows, checkedAt: read.at }
+  if (prev.kind === 'ok' || prev.kind === 'outdated') return { ...prev, kind: 'outdated' }
+  return { kind: 'failed' }
+}
+
+export function checkRows(check: FreshnessCheck): FreshnessRow[] {
+  return check.kind === 'ok' || check.kind === 'outdated' ? check.rows : []
+}
+
 /** Vuln-DB age flag (M9d slice 2): a running scanner with a stale database quietly under-reports
  * — flag `scanner_db_built` older than `VITE_DB_AGE_WARN_DAYS` (build-time; default 7: both
  * scanners refresh their DBs daily, a week behind is a real smell). */

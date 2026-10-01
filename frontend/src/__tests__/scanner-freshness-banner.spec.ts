@@ -2,6 +2,8 @@
  * The scanner freshness banner (FR-6/D20, issue 341): it appears only when a scanner has been
  * silent past the cluster's freshness window, and then carries a "What this means" link to
  * the Guide's freshness section. The copy stays plain: no em dash (operator ruling 2026-10-01).
+ * A read that fails is never silent (issue 651): it logs, and a later failure keeps the last
+ * good result rather than dropping it.
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -10,6 +12,7 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import { scannerFreshnessApiV1ScannersFreshnessGet } from '@/api/generated'
 import ScannerFreshnessBanner from '@/components/system/ScannerFreshnessBanner.vue'
+import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 
 vi.mock('@/api/generated', () => ({
@@ -18,6 +21,15 @@ vi.mock('@/api/generated', () => ({
     data: { staleness: { freshness_days: 3, scanner_down_days: 7 }, per_cluster_override: false },
     response: { ok: true, status: 200 },
   }),
+}))
+
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    debug: vi.fn<() => void>(),
+    info: vi.fn<() => void>(),
+    warn: vi.fn<() => void>(),
+    error: vi.fn<() => void>(),
+  },
 }))
 
 const router = createRouter({
@@ -47,7 +59,14 @@ beforeEach(() => {
   const clusters = useClusterStore()
   clusters.selectedId = 'c-1'
 })
-afterEach(() => vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockReset())
+afterEach(() => {
+  vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockReset()
+  vi.mocked(logger.warn).mockReset()
+  vi.useRealTimers()
+})
+
+const failed = (status: number) => ({ data: undefined, response: { ok: false, status } })
+const POLL_MS = 10 * 60_000
 
 describe('ScannerFreshnessBanner', () => {
   it('stays hidden while every scanner is inside the freshness window', async () => {
@@ -73,6 +92,58 @@ describe('ScannerFreshnessBanner', () => {
     vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(freshness(4) as never)
     const w = await mountBanner()
     expect(w.find('[role=alert]').text()).not.toContain('—')
+    w.unmount()
+  })
+})
+
+describe('ScannerFreshnessBanner when the read fails (issue 651)', () => {
+  it('a good read logs nothing', async () => {
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(freshness(2) as never)
+    const w = await mountBanner()
+    expect(logger.warn).not.toHaveBeenCalled()
+    w.unmount()
+  })
+
+  it('a failed first read logs once with its status', async () => {
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(failed(503) as never)
+    const w = await mountBanner()
+    expect(logger.warn).toHaveBeenCalledTimes(1)
+    expect(logger.warn).toHaveBeenCalledWith('scanner_freshness_fetch_failed', { status: 503 })
+    w.unmount()
+  })
+
+  it('a read that never reaches the server logs with no status, never an unhandled rejection', async () => {
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockRejectedValue(new TypeError('Failed to fetch'))
+    const w = await mountBanner()
+    expect(logger.warn).toHaveBeenCalledWith('scanner_freshness_fetch_failed', { status: null })
+    w.unmount()
+  })
+
+  it('a failed later poll keeps the last good result on screen', async () => {
+    vi.useFakeTimers()
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValueOnce(freshness(4) as never)
+    const w = await mountBanner()
+    expect(w.find('[role=alert]').text()).toContain('trivy silent 4 days')
+
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValueOnce(failed(502) as never)
+    await vi.advanceTimersByTimeAsync(POLL_MS)
+    await flushPromises()
+    expect(logger.warn).toHaveBeenCalledWith('scanner_freshness_fetch_failed', { status: 502 })
+    expect(w.find('[role=alert]').text()).toContain('trivy silent 4 days')
+    w.unmount()
+  })
+
+  it("ignores an answer for a cluster that's no longer selected", async () => {
+    let answer: (v: unknown) => void = () => {}
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet)
+      .mockImplementationOnce(() => new Promise((r) => (answer = r)) as never)
+      .mockResolvedValue(freshness(2) as never)
+    const w = await mountBanner()
+    useClusterStore().selectedId = 'c-2'
+    await flushPromises()
+    answer(failed(503))
+    await flushPromises()
+    expect(logger.warn).not.toHaveBeenCalled()
     w.unmount()
   })
 })

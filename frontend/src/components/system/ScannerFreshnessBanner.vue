@@ -15,22 +15,45 @@ import { client } from '@/api/client'
 import { scannerFreshnessApiV1ScannersFreshnessGet } from '@/api/generated'
 import { useClusterStore } from '@/stores/cluster'
 import { useStalenessStore } from '@/stores/staleness'
-import { lastDataAt, silentFor, silentRows, type FreshnessRow } from '@/system/freshness'
+import { logger } from '@/lib/logger'
+import {
+  checkRows,
+  lastDataAt,
+  nextFreshnessCheck,
+  silentFor,
+  silentRows,
+  type FreshnessCheck,
+  type FreshnessRow,
+} from '@/system/freshness'
 
 const POLL_MS = 10 * 60_000
 
 const clusterStore = useClusterStore()
 const staleness = useStalenessStore()
-const rows = ref<FreshnessRow[]>([])
+const check = ref<FreshnessCheck>({ kind: 'pending' })
 
 async function fetchFreshness() {
   const id = clusterStore.selectedId
   if (!id) return
-  const { data, response } = await scannerFreshnessApiV1ScannersFreshnessGet({
-    client,
-    query: { cluster_id: id },
-  })
-  if (response?.ok && data) rows.value = (data as { scanners: FreshnessRow[] }).scanners ?? []
+  // null = no response at all: the request never reached the server
+  let status: number | null = null
+  try {
+    const { data, response } = await scannerFreshnessApiV1ScannersFreshnessGet({
+      client,
+      query: { cluster_id: id },
+    })
+    if (clusterStore.selectedId !== id) return
+    if (response?.ok && data) {
+      const rows = (data as { scanners: FreshnessRow[] }).scanners ?? []
+      check.value = nextFreshnessCheck(check.value, { rows, at: Date.now() })
+      return
+    }
+    status = response?.status ?? null
+  } catch {
+    if (clusterStore.selectedId !== id) return
+  }
+  logger.warn('scanner_freshness_fetch_failed', { status })
+  check.value = nextFreshnessCheck(check.value, null)
 }
 
 const timer = setInterval(() => void fetchFreshness(), POLL_MS)
@@ -39,7 +62,7 @@ onUnmounted(() => clearInterval(timer))
 watch(
   () => clusterStore.selectedId,
   (id) => {
-    rows.value = []
+    check.value = { kind: 'pending' }
     void fetchFreshness()
     // the live window (FR-6/D20): the banner thresholds on the cluster's EFFECTIVE timers —
     // what the settings panel edits — never a build-time constant
@@ -48,7 +71,7 @@ watch(
   { immediate: true },
 )
 
-const silent = computed(() => silentRows(rows.value, staleness.bannerThresholdS))
+const silent = computed(() => silentRows(checkRows(check.value), staleness.bannerThresholdS))
 const clusterName = computed(() => clusterStore.selected?.cluster_name ?? clusterStore.selectedId)
 </script>
 
