@@ -607,7 +607,12 @@ diagrams, no em dashes (operator rulings, 2026-10-01). Filter labels, the states
 set and the VEX reasons are read from the app's own definitions, not retyped.
 **Links in:** `/guide#<section>`. The shell's URL re-stamp keeps the hash, and the router
 scrolls only on arriving at a section, so changing the range or cluster on the page doesn't jump.
-The "learn more" links from the ingest strip and the freshness banner come in the next PR.
+Two screens point in through the shared `GuideLink` (operator rulings, 2026-10-01: words on the
+banner, a popover on the strip, the filter-rail tooltips unchanged):
+- the freshness banner ends with the link *What this means* → `#scans-and-freshness`;
+- the ingest strip has an info icon beside its explanation (outside the truncating text, so it
+  is never clipped) that opens the time range's title and summary, then *Read more in the
+  guide* → `#time-range`.
 **States:** static content, no reads, so no loading, empty or error state.
 
 ---
