@@ -46,7 +46,14 @@ const glyph = (name: string) => (name[0] ?? '?').toUpperCase()
 </template>
 
 <style scoped>
+/* the switcher gives way at the 1024 floor (its name and id truncate) so the time picker keeps
+   one line, issue 647 */
+.cluster-dd {
+  flex: 0 1 auto;
+  min-width: 180px;
+}
 .cluster-btn {
+  width: 100%;
   display: flex;
   align-items: center;
   gap: 10px;

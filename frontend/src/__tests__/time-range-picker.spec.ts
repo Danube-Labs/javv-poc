@@ -112,11 +112,17 @@ describe('GlobalTimePicker (single range control)', () => {
     expect(chip.attributes('title')).toContain('UTC') // the local↔UTC bridge on hover
   })
 
-  it('at T=now the chip keeps the window label and carries no title', async () => {
+  it('at T=now the chip keeps the window label, and its title carries it in full', async () => {
+    // issue 647: a long custom range truncates on one line, so the title is where it stays whole
     const w = mount(GlobalTimePicker)
+    const store = useTimeTravelStore()
     const chip = w.find('.time-range')
-    expect(chip.text()).toContain('Last 30 days')
-    expect(chip.attributes('title')).toBeUndefined()
+    expect(chip.find('.time-range-label').text()).toBe('Last 30 days')
+    expect(chip.attributes('title')).toBe('Last 30 days')
+    store.setWindow(1, 'Sep 29, 13:26 → Oct 1, 23:59')
+    await w.vm.$nextTick()
+    expect(chip.find('.time-range-label').text()).toBe('Sep 29, 13:26 → Oct 1, 23:59')
+    expect(chip.attributes('title')).toBe('Sep 29, 13:26 → Oct 1, 23:59')
   })
 
   it('back-to-now clears as_of and restores the default window', async () => {

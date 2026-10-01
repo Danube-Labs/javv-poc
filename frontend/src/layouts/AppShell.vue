@@ -203,6 +203,8 @@ onUnmounted(() => {
 }
 .topbar-right {
   display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
   align-items: center;
   gap: 14px;
 }
@@ -220,7 +222,10 @@ onUnmounted(() => {
   border-radius: 10px;
   padding: 0 12px;
   color: var(--soft);
-  width: 240px;
+  /* gives way at the 1024 floor so the time picker keeps one line (issue 647); its hint already
+     truncates */
+  flex: 0 1 240px;
+  min-width: 150px;
   font-family: var(--font-ui);
   cursor: default;
 }
