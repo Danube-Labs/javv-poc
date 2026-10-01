@@ -235,7 +235,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         <h1>Approvals</h1>
         <p class="head-stat">
           <template v-if="timeTravel.isNow">{{ fmt(total) }}</template
-          ><template v-else>—</template
+          ><span v-else class="muted-dash">-</span
           ><span class="head-unit"> standing acceptance{{ total === 1 && timeTravel.isNow ? '' : 's' }}</span>
         </p>
         <p class="head-note">review queue · active risk-accepts, soonest expiry first · revoked never listed</p>
@@ -357,7 +357,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                 </td>
                 <td class="fit">
                   <span class="mono-cell sm nowrap" :title="row.expiry ?? 'no expiry set'">
-                    {{ row.expiry ? lastDataAt(row.expiry) : '—' }}
+                    <template v-if="row.expiry">{{ lastDataAt(row.expiry) }}</template><span v-else class="muted-dash">-</span>
                   </span>
                 </td>
                 <td class="fit">

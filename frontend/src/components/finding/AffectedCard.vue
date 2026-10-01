@@ -37,9 +37,9 @@ const { page, size, shown, hasNext, setSize } = usePagedSlice(() => props.affect
           <tr v-if="affected.length === 0"><td colspan="6" class="empty-row">No occurrences returned.</td></tr>
           <tr v-for="a in shown" :key="`${a.image}|${a.packageName}|${a.current}|${a.fixed}`">
             <td class="mono-cell strong">{{ a.image }}</td>
-            <td class="mono-cell sm">{{ a.namespaces.join(', ') || '—' }}</td>
+            <td class="mono-cell sm"><template v-if="a.namespaces.length">{{ a.namespaces.join(', ') }}</template><span v-else class="muted-dash">-</span></td>
             <td class="mono-cell sm">{{ a.packageName }}</td>
-            <td class="mono-cell sm">{{ a.current ?? '—' }}</td>
+            <td class="mono-cell sm"><template v-if="a.current != null">{{ a.current }}</template><span v-else class="muted-dash">-</span></td>
             <td class="mono-cell sm" :class="{ 'no-fix': !a.fixed }">{{ a.fixed ?? 'no fix' }}</td>
             <td><ScannerTag v-for="s in a.scanners" :key="s" :name="s" class="scn-gap" /></td>
           </tr>

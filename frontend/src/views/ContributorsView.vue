@@ -132,7 +132,7 @@ async function exportCsv() {
 
 const fmt = (n: number) => n.toLocaleString('en-US')
 const teamSla = computed(() =>
-  totals.value?.sla_hit_pct == null ? '—' : `${Math.round(totals.value.sla_hit_pct)}%`,
+  totals.value?.sla_hit_pct == null ? '-' : `${Math.round(totals.value.sla_hit_pct)}%`,
 )
 const windowLabel = computed(() => timeTravel.windowLabel.toLowerCase())
 </script>

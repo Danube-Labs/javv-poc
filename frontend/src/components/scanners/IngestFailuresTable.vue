@@ -117,7 +117,7 @@ function goPrev() {
                 <span v-if="row.image_ref" class="mono-cell sm clip" :title="row.image_ref">{{
                   row.image_ref
                 }}</span>
-                <span v-else class="soft" title="refused before the body could be read">—</span>
+                <span v-else class="muted-dash" title="refused before the body could be read">-</span>
               </td>
               <td class="fit">
                 <span class="mono-cell sm">{{ row.stage }}</span>
@@ -170,8 +170,5 @@ function goPrev() {
 .status {
   color: var(--ink);
   font-weight: 700;
-}
-.soft {
-  color: var(--soft);
 }
 </style>

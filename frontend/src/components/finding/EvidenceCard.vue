@@ -60,37 +60,37 @@ function verbatimDiffers(r: FindingRow): boolean {
           </tr>
           <tr>
             <td class="attr">CVSS</td>
-            <td v-for="c in columns" :key="c.scanner" class="mono-cell sm">{{ c.row ? num(c.row.cvss) : '—' }}</td>
+            <td v-for="c in columns" :key="c.scanner" class="mono-cell sm"><template v-if="c.row">{{ num(c.row.cvss) }}</template><span v-else class="muted-dash">-</span></td>
           </tr>
           <tr>
             <td class="attr">Package</td>
-            <td v-for="c in columns" :key="c.scanner" class="mono-cell sm">{{ c.row?.package_name ?? '—' }}</td>
+            <td v-for="c in columns" :key="c.scanner" class="mono-cell sm"><template v-if="c.row?.package_name">{{ c.row.package_name }}</template><span v-else class="muted-dash">-</span></td>
           </tr>
           <tr>
             <td class="attr">Fixed in</td>
             <td v-for="c in columns" :key="c.scanner">
               <span v-if="c.row?.fixed_version" class="mono-cell sm ver-fix">{{ c.row.fixed_version }}</span>
               <span v-else-if="c.row" class="ver-none">no fix</span>
-              <template v-else>—</template>
+              <span v-else class="muted-dash">-</span>
             </td>
           </tr>
           <tr>
             <td class="attr">EPSS</td>
             <td v-for="c in columns" :key="c.scanner">
               <EpssBar v-if="c.row" :v="c.row.epss" />
-              <template v-else>—</template>
+              <span v-else class="muted-dash">-</span>
             </td>
           </tr>
           <tr>
             <td class="attr">State</td>
             <td v-for="c in columns" :key="c.scanner">
               <StateTag v-if="c.row" :state="c.row.state" />
-              <template v-else>—</template>
+              <span v-else class="muted-dash">-</span>
             </td>
           </tr>
           <tr>
             <td class="attr">Last seen</td>
-            <td v-for="c in columns" :key="c.scanner" class="mono-cell sm">{{ c.row ? fmtAt(c.row.last_seen_at) : '—' }}</td>
+            <td v-for="c in columns" :key="c.scanner" class="mono-cell sm"><template v-if="c.row">{{ fmtAt(c.row.last_seen_at) }}</template><span v-else class="muted-dash">-</span></td>
           </tr>
         </tbody>
       </table>

@@ -77,7 +77,7 @@ const ingestEndpoint = computed(() => `${window.location.origin}/api/v1/ingest/s
     <SettingsCard title="Cluster" subtitle="identity & ingest contract">
       <SettingsRow label="cluster_id" hint="The immutable tenant key — indices and every query route on it." stack>
         <div class="static-row">
-          <span class="static-value mono-sm">{{ clusterStore.selectedId ?? '—' }}</span>
+          <span class="static-value mono-sm"><template v-if="clusterStore.selectedId != null">{{ clusterStore.selectedId }}</template><span v-else class="muted-dash">-</span></span>
           <span class="lock-tag">immutable</span>
         </div>
       </SettingsRow>

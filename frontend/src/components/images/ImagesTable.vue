@@ -281,9 +281,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 .mix-sized {
   min-width: 140px;
 }
-.muted-dash {
-  color: var(--dash-muted);
-}
 @media (prefers-reduced-motion: reduce) {
   :deep(.tbl-hover tbody tr),
   .img-link,

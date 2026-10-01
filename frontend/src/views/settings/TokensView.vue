@@ -167,7 +167,7 @@ async function runConfirmed() {
 
 const fmt = (iso: string | null) =>
   iso === null
-    ? '—'
+    ? '-'
     : new Date(iso).toLocaleString('en-GB', { hour12: false, dateStyle: 'medium', timeStyle: 'short' })
 </script>
 
@@ -221,7 +221,7 @@ const fmt = (iso: string | null) =>
                   clusterName(row.cluster_id)
                 }}</span>
               </td>
-              <td class="fit mono-cell sm">{{ row.scope ?? '—' }}</td>
+              <td class="fit mono-cell sm"><template v-if="row.scope != null">{{ row.scope }}</template><span v-else class="muted-dash">-</span></td>
               <td class="fit mono-cell sm nowrap" :title="row.created_at ?? undefined">{{ fmt(row.created_at) }}</td>
               <td class="fit mono-cell sm nowrap">{{ row.expiry === null ? 'never' : fmt(row.expiry) }}</td>
               <td class="fit mono-cell sm nowrap">{{ fmt(row.last_ingest_at) }}</td>

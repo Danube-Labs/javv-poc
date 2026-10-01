@@ -181,7 +181,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
       <div class="stat-cell">
         <span class="stat-label"><i class="stat-dot" style="background: var(--teal)" />running {{ timeTravel.isNow ? 'now' : 'at T' }}?</span>
         <span class="stat-num tq-ans">
-          <template v-if="inventoryKnown === null">—</template>
+          <span v-if="inventoryKnown === null" class="muted-dash">-</span>
           <template v-else-if="inventoryKnown === false">unknown</template>
           <template v-else-if="inventoryRow"
             >yes · {{ fmt(inventoryRow.replicas ?? 0) }} replica{{

@@ -194,7 +194,7 @@ function summary(v: ViewDoc): string {
         <div class="vc-foot">
           <span class="vc-count">
             <template v-if="counts[v.view_id] === undefined">…</template>
-            <template v-else-if="counts[v.view_id] === null">—</template>
+            <span v-else-if="counts[v.view_id] === null" class="muted-dash">-</span>
             <template v-else>{{ counts[v.view_id]!.toLocaleString('en-US') }} findings</template>
           </span>
           <span class="vc-owner mono">{{ v.owner }}</span>

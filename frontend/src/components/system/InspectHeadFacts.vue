@@ -12,17 +12,18 @@ defineProps<{ indexCount: number | null; storeBytes: number; health: string }>()
 <template>
   <div class="head-facts">
     <p class="head-stat">
-      <AppIcon name="layers" :size="15" class="fact-icon" />{{ indexCount ?? '—'
-      }}<span class="head-unit"> indices</span>
+      <AppIcon name="layers" :size="15" class="fact-icon" /><template v-if="indexCount != null">{{ indexCount }}</template
+      ><span v-else class="muted-dash">-</span><span class="head-unit"> indices</span>
     </p>
     <p class="head-stat">
-      <AppIcon name="database" :size="15" class="fact-icon" />{{
-        storeBytes ? fmtBytes(storeBytes) : '—'
-      }}<span class="head-unit"> store</span>
+      <AppIcon name="database" :size="15" class="fact-icon" /><template v-if="storeBytes">{{
+        fmtBytes(storeBytes)
+      }}</template
+      ><span v-else class="muted-dash">-</span><span class="head-unit"> store</span>
     </p>
     <p class="head-stat" :class="health ? `health-${health}` : undefined">
-      <i v-if="health" class="health-dot" aria-hidden="true" />{{ health || '—'
-      }}<span class="head-unit"> health</span>
+      <i v-if="health" class="health-dot" aria-hidden="true" /><template v-if="health">{{ health }}</template
+      ><span v-else class="muted-dash">-</span><span class="head-unit"> health</span>
     </p>
   </div>
 </template>

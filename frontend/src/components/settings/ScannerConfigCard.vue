@@ -30,11 +30,11 @@ const scopeUnrestricted = computed(
 )
 
 const fmtValue = (value: unknown) =>
-  value === null || value === undefined || value === '' ? '—' : String(value)
+  value === null || value === undefined || value === '' ? '-' : String(value)
 
 const fmtWhen = (iso: string | null) =>
   iso === null
-    ? '—'
+    ? '-'
     : new Date(iso).toLocaleString('en-GB', { hour12: false, dateStyle: 'medium', timeStyle: 'short' })
 
 const SCOPE_LABEL: Record<string, string> = {
@@ -58,7 +58,7 @@ const SCOPE_LABEL: Record<string, string> = {
       <template v-if="config !== null">
         <div class="cfg-row">
           <span class="cfg-key mono-cell">vuln DB</span>
-          <span class="mono-cell sm">{{ dbVersion ?? '—' }} · built {{ fmtWhen(dbBuilt) }}</span>
+          <span class="mono-cell sm"><template v-if="dbVersion != null">{{ dbVersion }}</template><span v-else class="muted-dash">-</span> · built {{ fmtWhen(dbBuilt) }}</span>
         </div>
         <div v-for="(value, key) in config.tuning" :key="key" class="cfg-row">
           <span class="cfg-key mono-cell">{{ key }}</span>

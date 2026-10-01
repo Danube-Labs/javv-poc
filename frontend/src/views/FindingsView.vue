@@ -259,8 +259,8 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
         <h1>Findings</h1>
         <p class="head-stat">
           <!-- a count before the first read is not zero, it is unknown -->
-          {{ grid.settled ? grid.total.toLocaleString('en-US') : '—'
-          }}<span class="head-unit"> findings</span>
+          <template v-if="grid.settled">{{ grid.total.toLocaleString('en-US') }}</template
+          ><span v-else class="muted-dash">-</span><span class="head-unit"> findings</span>
         </p>
         <p class="head-note">kept per-scanner, no cross-merge</p>
       </div>

@@ -127,12 +127,12 @@ function open(row: ClusterRow) {
               </template>
               <span v-else class="row-degraded">unavailable</span>
             </td>
-            <td class="r mono-cell"><b>{{ row.failed ? '—' : fmt(presentCount(row)) }}</b></td>
+            <td class="r mono-cell"><span v-if="row.failed" class="muted-dash">-</span><b v-else>{{ fmt(presentCount(row)) }}</b></td>
             <td class="r mono-cell">
-              <b :class="{ 'kev-alarm': kevCount(row) > 0 }">{{ row.failed ? '—' : fmt(kevCount(row)) }}</b>
+              <span v-if="row.failed" class="muted-dash">-</span><b v-else :class="{ 'kev-alarm': kevCount(row) > 0 }">{{ fmt(kevCount(row)) }}</b>
             </td>
-            <td class="r mono-cell">{{ row.failed ? '—' : `${fixPct(row)}%` }}</td>
-            <td class="r mono-cell">{{ row.failed ? '—' : fmt(disagreeCount(row)) }}</td>
+            <td class="r mono-cell"><span v-if="row.failed" class="muted-dash">-</span><template v-else>{{ `${fixPct(row)}%` }}</template></td>
+            <td class="r mono-cell"><span v-if="row.failed" class="muted-dash">-</span><template v-else>{{ fmt(disagreeCount(row)) }}</template></td>
             <td class="r triage-cell">
               <template v-if="!row.failed && triage(row).total > 0">
                 <span class="progress-bar" aria-hidden="true">
@@ -145,8 +145,8 @@ function open(row: ClusterRow) {
               </template>
               <span v-else class="muted-dash">-</span>
             </td>
-            <td class="r mono-cell">{{ row.imagesCount === null ? '—' : fmt(row.imagesCount) }}</td>
-            <td class="r mono-cell">{{ row.replicas === null ? '—' : fmt(row.replicas) }}</td>
+            <td class="r mono-cell"><span v-if="row.imagesCount === null" class="muted-dash">-</span><template v-else>{{ fmt(row.imagesCount) }}</template></td>
+            <td class="r mono-cell"><span v-if="row.replicas === null" class="muted-dash">-</span><template v-else>{{ fmt(row.replicas) }}</template></td>
             <td class="r mono-cell sweep-cell">{{ lastSweep(row) ?? 'never' }}</td>
           </tr>
         </tbody>
@@ -292,9 +292,6 @@ function open(row: ClusterRow) {
 /* wider than MixBar's own bar→counts gap, so each scanner's bar and counts read as one unit */
 .mix-stack + .mix-stack {
   margin-top: 12px;
-}
-.muted-dash {
-  color: var(--dash-muted);
 }
 
 /* per-row signals (A/B under review) — same seg colors as the Overview triage bar */

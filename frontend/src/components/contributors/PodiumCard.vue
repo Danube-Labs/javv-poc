@@ -18,7 +18,7 @@ const props = defineProps<{ row: BoardRow; rank: 1 | 2 | 3 }>()
 const fmt = (n: number) => n.toLocaleString('en-US')
 const resolved = computed(() => resolvedOf(props.row))
 const sla = computed(() =>
-  props.row.sla_hit_pct === null ? '—' : `${Math.round(props.row.sla_hit_pct)}%`,
+  props.row.sla_hit_pct === null ? '-' : `${Math.round(props.row.sla_hit_pct)}%`,
 )
 </script>
 

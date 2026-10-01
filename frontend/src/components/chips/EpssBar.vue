@@ -54,7 +54,4 @@ const heat = computed(() => (props.v == null ? '' : props.v >= 0.7 ? 'hot' : pro
   min-width: 30px;
   text-align: right;
 }
-.muted-dash {
-  color: var(--dash-muted);
-}
 </style>

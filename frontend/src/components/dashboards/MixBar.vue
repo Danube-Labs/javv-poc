@@ -115,7 +115,4 @@ const title = computed(() => {
   border-radius: 2px;
   flex: none;
 }
-.muted-dash {
-  color: var(--dash-muted);
-}
 </style>

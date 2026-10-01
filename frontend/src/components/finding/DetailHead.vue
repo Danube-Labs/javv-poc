@@ -87,7 +87,7 @@ const slaTier = computed(() => {
       </div>
       <div class="risk-cell">
         <span class="risk-label">EPSS</span>
-        <span class="risk-num">{{ epss ? Math.round(epss.value * 100) + '%' : '—' }}</span>
+        <span class="risk-num"><template v-if="epss">{{ Math.round(epss.value * 100) + '%' }}</template><span v-else class="muted-dash">-</span></span>
         <span class="risk-sub">{{ epss ? `via ${epss.scanner}` : 'not scored' }}</span>
       </div>
       <div class="risk-cell">
@@ -97,7 +97,7 @@ const slaTier = computed(() => {
           <span class="risk-sub">{{ primary.overdue ? 'Overdue' : 'by' }} {{ fmtAt(primary.due_at) }}</span>
         </template>
         <template v-else>
-          <span class="risk-num risk-num-quiet">—</span>
+          <span class="risk-num risk-num-quiet">-</span>
           <span class="risk-sub">{{
             ['resolved', 'not_affected', 'risk_accepted'].includes(primary?.state ?? '')
               ? `no deadline · ${primary?.state === 'not_affected' ? 'not affected' : primary?.state === 'risk_accepted' ? 'risk accepted' : 'resolved'}`
