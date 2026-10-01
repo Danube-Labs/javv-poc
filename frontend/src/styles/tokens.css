@@ -229,6 +229,8 @@
   --sect-audit: #9c5273;
   --sect-insights: #b3803e;
   --sect-configure: #64788c;
+  /* Help (issue 341): an alias, not a hue — a utility, not a work area, so it reads neutral */
+  --sect-help: var(--side-label);
 
   --scanner-trivy-fg: #17685f;
   --scanner-trivy-bg: #e8f0ef;

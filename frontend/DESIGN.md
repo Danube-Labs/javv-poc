@@ -35,7 +35,8 @@ row hover      var(--row-hover)   dark chrome  var(--slate)
 meter track    var(--meter-track) — the unfilled part of ANY bar/gauge, never --line2
 save-bar dirty var(--save-dirty-bg) + var(--save-dirty-line)  (M9e unsaved-changes surface)
 table head     var(--table-head-bg) + var(--table-head-fg) + dividers var(--table-head-line)
-section accent var(--sect-monitor|inventory|audit|insights|configure)  (decorative only)
+section accent var(--sect-monitor|inventory|audit|insights|configure|help)  (decorative only;
+               --sect-help aliases --side-label: neutral by ruling 2026-09-29, issue 341)
 ```
 `--soft` is the CONTRAST FLOOR for text — AA (≥4.5:1) on every light surface. `--muted` is
 decorative/disabled only (dashes, gauge fills, placeholder glyphs): it fails AA and must never

@@ -109,6 +109,12 @@ describe('navModel — capability gating shared by SideNav + palette', () => {
     expect(none.some((g) => g.group === 'Configure')).toBe(false)
   })
 
+  it('Help → About & guide shows to every user, with the neutral accent (issue 341)', () => {
+    const help = visibleNav(() => false).find((g) => g.group === 'Help')
+    expect(help?.accent).toBe('var(--sect-help)')
+    expect(help?.items).toEqual([{ label: 'About & guide', to: '/about', icon: 'info' }])
+  })
+
   it('everything shows for the admin bundle', () => {
     const all = visibleNav(() => true)
     const flat = all.flatMap((g) => g.items.map((i) => i.label))

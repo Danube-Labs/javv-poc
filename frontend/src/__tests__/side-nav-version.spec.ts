@@ -56,6 +56,19 @@ describe('SideNav version line', () => {
     expect(logger.warn).not.toHaveBeenCalled()
   })
 
+  it('links the version lines to the About page, where the full stack is listed (issue 341)', async () => {
+    metaMock.mockResolvedValue({
+      data: { version: '0.6.0', mapping_version: 18, envelope_versions: [3, 4] },
+      response: { ok: true, status: 200 },
+    } as never)
+    const wrapper = mount(SideNav, { global: { plugins: [router] } })
+    await flushPromises()
+    const link = wrapper.find('a.side-version')
+    expect(link.exists()).toBe(true)
+    expect(link.attributes('href')).toBe('/about')
+    expect(link.attributes('title')).toContain('About')
+  })
+
   it('says the version is unavailable when the read fails, and logs why', async () => {
     metaMock.mockResolvedValue({ data: undefined, response: { ok: false, status: 503 } } as never)
     expect(await versionLines()).toEqual(['version unavailable'])

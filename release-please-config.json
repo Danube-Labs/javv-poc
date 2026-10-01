@@ -11,6 +11,10 @@
         {
           "type": "generic",
           "path": "backend/src/backend/version.py"
+        },
+        {
+          "type": "generic",
+          "path": "frontend/src/version.ts"
         }
       ]
     }
