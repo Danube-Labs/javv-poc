@@ -162,7 +162,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <p v-if="repo" class="screen-sub mono-cell">{{ repo }}{{ tag ? `:${tag}` : '' }}</p>
           <p class="digest-line mono-cell" :title="digest">
             <AppIcon name="key" :size="11" />{{ digest }}
-            <i class="digest-note">identity is the content digest — repo:tag is just a handle</i>
+            <i class="digest-note">identity is the content digest: repo:tag is just a handle</i>
           </p>
           <div v-if="inventoryRow" class="img-meta">
             <span class="mono-cell"><b>{{ fmt(inventoryRow.replicas ?? 0) }}</b> replica{{ (inventoryRow.replicas ?? 0) === 1 ? '' : 's' }} at last sweep</span>
@@ -192,7 +192,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
         </span>
         <span class="stat-sub"
           >runtime inventory<template v-if="inventoryKnown === false">
-            — none committed at this T</template
+            · none committed at this T</template
           ><template v-else-if="inventoryAt"> · committed {{ lastDataAt(inventoryAt) }}</template></span
         >
       </div>

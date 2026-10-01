@@ -62,7 +62,7 @@ const needAttention = computed(
       <div class="head-card head-card-fluid">
         <h1>All clusters</h1>
         <p class="head-note">
-          <template v-if="fleet.limited">Historical fleet view — limited until the v1.1 rollup</template>
+          <template v-if="fleet.limited">Historical fleet view, limited until the v1.1 rollup</template>
           <template v-else>
             Fleet current state · <b class="mono-cell">{{ fleet.rows.length }}</b>
             cluster{{ fleet.rows.length === 1 ? '' : 's' }}

@@ -97,7 +97,7 @@ function goFindings(pkg: string) {
       </div>
     </div>
     <p v-if="!timeTravel.isNow" class="empty-row">
-      Component ranking is a current-state read — unavailable at a rewound T.
+      Component ranking is a current-state read, unavailable at a rewound T.
     </p>
     <p v-else-if="failed" class="empty-row" role="alert">Component ranking unavailable.</p>
     <p v-else-if="ordered.length === 0" class="empty-row">No component data yet.</p>

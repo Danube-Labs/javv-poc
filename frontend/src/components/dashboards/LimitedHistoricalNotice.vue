@@ -9,7 +9,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 withDefaults(defineProps<{ title?: string; body?: string }>(), {
   title: 'Historical all-clusters view is limited until the v1.1 metrics rollup',
   body:
-    'Single-cluster screens rewind fully — pick a cluster and travel from its Overview. ' +
+    'Single-cluster screens rewind fully. Pick a cluster and travel from its Overview. ' +
     'Fleet-wide numbers at a past T need the metrics rollup (v1.1); until then this screen ' +
     'only answers for now.',
 })

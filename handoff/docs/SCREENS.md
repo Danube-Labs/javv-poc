@@ -47,7 +47,7 @@ Place the real brand SVGs (`brand/lockup.svg`, dark variants in dark chrome) —
   an error.
 
 **Time picker (C-1, D28/FR-23).** Two visibly distinct controls in one group (V4-DELTA conflict 4):
-the **time-travel `T`** (Now / rewind / jump-to-date → amber "Viewing history — as scanned at T"
+the **time-travel `T`** (Now / rewind / jump-to-date → amber "Viewing history: as scanned at T"
 banner + Back to now) and the **trend window** (relative to `T`, scopes charts + Contributors).
 - State: **picker-set-but-unsupported** — if M8b hasn't landed, `T<now` reads return `501`; show
   the banner "History available after M8b", keep `T=now` fully working. (Check milestone order at

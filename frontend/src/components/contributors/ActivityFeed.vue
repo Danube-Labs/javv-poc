@@ -86,7 +86,7 @@ function detail(row: AuditEvent): string {
     Recent activity unavailable. Check the backend connection.
   </p>
   <p v-else-if="rows.length === 0" class="feed-empty" role="status">
-    No journaled activity yet — triage actions land here as they happen.
+    No journaled activity yet. Triage actions land here as they happen.
   </p>
   <div v-else class="feed">
     <component

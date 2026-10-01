@@ -53,7 +53,7 @@ function onPointClick(params: { dataIndex: number }) {
     <UiSkeleton v-if="!settled" :height="84" radius="sm" label="Loading handled findings" class="skel-gap" />
     <p v-else-if="failed" class="il-empty">Handled-findings activity unavailable.</p>
     <p v-else-if="totalHandled === 0" class="il-empty">
-      No findings were handled in this window — the board below is empty too.
+      No findings were handled in this window. The board below is empty too.
     </p>
     <div v-else title="Click a bucket to view the whole app as of its end">
       <EChart :option="option" :height="84" @point-click="onPointClick" />

@@ -154,7 +154,7 @@ function open(row: ClusterRow) {
   </section>
   <p class="fleet-note">
     <AppIcon name="layers" :size="13" />
-    Each cluster's scanner module pushes independently over HTTPS with its own API token —
+    Each cluster's scanner module pushes independently over HTTPS with its own API token:
     a cluster going quiet shows up here, not as missing data downstream.
   </p>
 </template>

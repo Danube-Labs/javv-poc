@@ -24,7 +24,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 <template>
   <div class="subtl">
     <p v-if="notYet" class="subtl-empty">
-      Not yet scanned then — this T predates {{ scanner }}'s first committed scan of this tag.
+      Not yet scanned then: this T predates {{ scanner }}'s first committed scan of this tag.
     </p>
     <p v-else-if="eras.length === 0" class="subtl-empty">
       No committed {{ scanner }} scans of this tag yet.

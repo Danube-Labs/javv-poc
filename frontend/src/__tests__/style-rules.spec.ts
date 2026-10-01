@@ -283,40 +283,8 @@ describe('style rules: the em-dash scanner itself', () => {
   })
 })
 
-/** Files that still carry an em dash, swept file by file under issue 652. May only shrink. */
-const EM_DASH_BASELINE = new Set<string>([
-  'components/audit/AuditTable.vue',
-  'components/chrome/CommandPalette.vue',
-  'components/chrome/NotificationBell.vue',
-  'components/chrome/SideNav.vue',
-  'components/contributors/ActivityFeed.vue',
-  'components/contributors/ContributorsLens.vue',
-  'components/contributors/ProgressPanel.vue',
-  'components/dashboards/AuditLens.vue',
-  'components/dashboards/FleetTable.vue',
-  'components/dashboards/LimitedHistoricalNotice.vue',
-  'components/dashboards/MixBar.vue',
-  'components/images/DigestSubTimeline.vue',
-  'components/images/ImageFindingsPanel.vue',
-  'components/overview/TopComponentsCard.vue',
-  'components/scanners/ScannerStatusCard.vue',
-  'components/system/BackendHealthBanner.vue',
-  'components/system/InspectRail.vue',
-  'components/system/RepairActionsCard.vue',
-  'composables/useApi.ts',
-  'composables/useNotifications.ts',
-  'layouts/AppShell.vue',
-  'stores/auth.ts',
-  'stores/cluster.ts',
-  'views/AllClustersView.vue',
-  'views/ApprovalsView.vue',
-  'views/AuditTrailView.vue',
-  'views/ContributorsView.vue',
-  'views/ImageDetailView.vue',
-  'views/InspectView.vue',
-  'views/OverviewView.vue',
-  'views/ScannerStatusView.vue',
-])
+/** Known pre-existing violations. May only shrink. */
+const EM_DASH_BASELINE = new Set<string>([])
 
 describe('style rules: no em dashes in copy', () => {
   const offenders = walk(SRC)

@@ -24,7 +24,7 @@ function entries(groups: RailGroups, key: keyof RailGroups): RailEntry[] {
   <aside class="card rail" aria-label="Indices">
     <h3 class="panel-band">Indices</h3>
     <p v-if="failed" class="load-error" role="alert">
-      Index list unavailable — the console still works with a typed path.
+      Index list unavailable. The console still works with a typed path.
     </p>
     <template v-else>
       <div v-for="s in SECTIONS" :key="s.key" class="rail-group">

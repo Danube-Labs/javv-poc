@@ -50,9 +50,9 @@ export function useNotifications() {
         const known = new Set(items.value.map((i) => i.notification_id))
         const fresh = (body.items ?? []).filter((i) => !i.read && !known.has(i.notification_id))
         if (fresh.length === 1) {
-          useToastStore().info(`${ECHO_COPY[fresh[0]!.type] ?? 'New notification'} — open the bell.`)
+          useToastStore().info(`${ECHO_COPY[fresh[0]!.type] ?? 'New notification'}. Open the bell.`)
         } else if (fresh.length > 1) {
-          useToastStore().info(`${fresh.length} new notifications — open the bell.`)
+          useToastStore().info(`${fresh.length} new notifications. Open the bell.`)
         }
       }
       unread.value = body.unread

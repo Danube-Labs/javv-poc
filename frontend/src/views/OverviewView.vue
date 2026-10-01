@@ -183,7 +183,7 @@ function onDonutClick(e: { name?: string }) {
           <div class="card-body">
             <EChart :option="trendOption" :height="250" />
             <p v-if="subDayNote" class="chart-note">
-              Trend at daily resolution — chart covers the last 1 day.
+              Trend at daily resolution: chart covers the last 1 day.
             </p>
           </div>
         </section>
@@ -211,7 +211,7 @@ function onDonutClick(e: { name?: string }) {
               </div>
             </template>
             <p v-else class="empty-row">
-              Awaiting package-type data — populates as the next scan cycles re-observe images.
+              Awaiting package-type data. Populates as the next scan cycles re-observe images.
             </p>
           </div>
         </section>

@@ -97,7 +97,7 @@ function openLeft(severity: string) {
     Triage progress unavailable. Check the backend connection.
   </p>
   <p v-else-if="rows.length === 0" class="prog-empty" role="status">
-    No findings in the store yet — progress appears after the first committed scan.
+    No findings in the store yet. Progress appears after the first committed scan.
   </p>
   <div v-else class="prog">
     <button

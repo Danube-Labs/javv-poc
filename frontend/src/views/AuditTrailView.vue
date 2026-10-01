@@ -166,12 +166,12 @@ const { exporting, run: runExport } = useCsvExport({
   path: '/api/v1/audit/export.csv',
   filename: (stamp) => `javv-audit-${stamp}.csv`,
   event: 'audit_export_failed',
-  onCapped: () => toast.info('Over the inline export cap — narrow the filters first.'),
+  onCapped: () => toast.info('Over the inline export cap. Narrow the filters first.'),
   onFailed: (status) =>
     toast.error(
       status
-        ? `Export failed (${status}) — check the backend connection.`
-        : 'Export failed — check the backend connection.',
+        ? `Export failed (${status}). Check the backend connection.`
+        : 'Export failed. Check the backend connection.',
     ),
   onDone: (name) => toast.success(`Export downloaded · ${name}`),
 })

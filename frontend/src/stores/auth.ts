@@ -40,7 +40,7 @@ export const useAuthStore = defineStore('auth', {
     /** Returns null on success, or user-facing error copy (generic — no user-existence hints). */
     async login(username: string, password: string): Promise<string | null> {
       const { response } = await loginAuthLoginPost({ client, body: { username, password } })
-      if (response?.status === 429) return 'Too many attempts — try again later.'
+      if (response?.status === 429) return 'Too many attempts. Try again later.'
       if (!response?.ok) return 'Invalid username or password.'
       logger.info('login', { username })
       await this.fetchMe()
@@ -51,7 +51,7 @@ export const useAuthStore = defineStore('auth', {
         client,
         body: { current_password: currentPassword, new_password: newPassword },
       })
-      if (!response?.ok) return 'Password change failed — check the current password and policy.'
+      if (!response?.ok) return 'Password change failed. Check the current password and policy.'
       logger.info('password changed')
       await this.fetchMe()
       return null

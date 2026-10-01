@@ -126,7 +126,7 @@ const laneOptions = computed(() =>
     <LimitedHistoricalNotice
       v-if="timeTravel.t !== null"
       title="Historical scanner status is limited until the v1.1 metrics rollup"
-      body="Freshness and provenance answer for now — the committed-run history you can rewind
+      body="Freshness and provenance answer for now. The committed-run history you can rewind
         lives in the ingest lens above. Return to now for live scanner health."
     />
 
@@ -141,7 +141,7 @@ const laneOptions = computed(() =>
       </p>
 
       <div v-else-if="scanners.length === 0" class="not-found" role="status">
-        <p>No scanner has reported for this cluster yet — the first committed run lands here.</p>
+        <p>No scanner has reported for this cluster yet. The first committed run lands here.</p>
       </div>
 
       <template v-else>
