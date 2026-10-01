@@ -1,11 +1,20 @@
 /**
  * Which guide section is in view, for "On this page": the last section whose top has crossed a
- * line a third of the way down the viewport, or the last section once the page can't scroll
- * any further (a short closing section never reaches the line). Recomputed on scroll and resize.
+ * line near the top of the viewport, or the last section once the page can't scroll any
+ * further (a short closing section never reaches the line). Recomputed on scroll and resize.
  */
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 import { GUIDE_SECTIONS, type GuideSectionId } from '@/about/guide'
+import { HASH_SCROLL_TOP } from '@/system/hashScroll'
+
+/**
+ * The line sits just below where a section link lands, never a fraction of the viewport: on a
+ * tall screen a third of the way down is past the start of the section after a short one, so
+ * landing on Scans and freshness highlighted Images. 80px clears the landing and stays above
+ * the next section, since every section's card is taller than that.
+ */
+export const SPY_LINE_PX = HASH_SCROLL_TOP + 80
 
 export interface SectionTop<T extends string = string> {
   id: T
@@ -37,7 +46,7 @@ export function useActiveSection() {
     })
     const doc = document.documentElement
     const atBottom = window.scrollY > 0 && window.innerHeight + window.scrollY >= doc.scrollHeight - 2
-    active.value = activeAt(tops, window.innerHeight / 3, atBottom)
+    active.value = activeAt(tops, SPY_LINE_PX, atBottom)
   }
   function schedule() {
     if (!frame) frame = requestAnimationFrame(measure)
