@@ -85,6 +85,26 @@ list everything as `unchanged`.
   indices, never on top of them (`POST /api/v1/admin/snapshots/{snapshot_name}/restore`). Promoting a
   copy is a manual step.
 
+## The first run of the background jobs
+
+From the release that carries issue 691, **the backend starts its own background jobs**. An install where
+those jobs were only ever run by hand, or never, will see their first scheduled runs do everything at once:
+
+- **The lifecycle sweep** (03:00 by default) drops all scan history older than each cluster's retention
+  (90 days by default). Time-travel can no longer reach it. Before the first night, look at what it would
+  do: **Data inspector → Repair actions → Lifecycle sweep → Dry run**, and raise the retention in
+  **Settings → Data & OpenSearch** if that is more than you want to lose.
+- **The staleness sweep** (02:00) marks every finding no scan has confirmed for 3 days as stale, and all of a
+  scanner's findings when it has been silent for 7.
+- **The findings cleanup** (04:00) removes findings absent from every scan for longer than its window
+  (180 days).
+
+Nothing runs because the backend started: each job waits for its next scheduled time. To hold them off
+entirely, start the backend with `JAVV_SCHEDULER_ENABLED=false`, or empty one job's `JAVV_JOB_<KIND>_CRON`.
+The schedules, and the timezone they are read in, are in [`CONFIGURATION.md` §1](CONFIGURATION.md). If you
+ran these jobs from your own cron or from CronJobs, remove those: the backend's scheduler replaces them
+(running both is safe, since a job that is already running is skipped, but it is wasted work).
+
 ## Version notes
 
 A release gets an entry here when it needs something from you. That covers:

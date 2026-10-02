@@ -4,11 +4,12 @@ Every job kind in `jobs/registry.py` runs under it (issue 691), not only the thr
 start: the claim is what keeps a kind to one run at a time, and the doc it leaves is the record
 of when the kind last ran and how it ended.
 
-The card's HTTP trigger (`routers/admin_jobs.py`) and the scheduled CronJob `__main__` paths
-run the SAME sweeps, so they must contend for the SAME lease: one doc per kind (`_id` = kind),
+The card's HTTP trigger (`routers/admin_jobs.py`), the backend's scheduler
+(`jobs/scheduler.py`) and the command-line `__main__` paths run the SAME sweeps, so they must
+contend for the SAME lease: one doc per kind (`_id` = kind),
 OCC claim (seq_no CAS — a racing trigger loses instead of double-running), fencing `attempt_id`
-on heartbeat/finalize exactly like the reports lease (D39/D40). `concurrencyPolicy: Forbid`
-only prevents CronJob-vs-CronJob — before this module, a card-triggered lifecycle sweep could
+on heartbeat/finalize exactly like the reports lease (D39/D40). Before this
+module nothing stopped two doors at once: a card-triggered lifecycle sweep could
 overlap a scheduled one (two concurrent rollover/drop passes on the same alias series).
 
 A scheduled run that finds the lease held skips + logs (the CLI mirror of the card's 409); its
@@ -33,7 +34,8 @@ log = structlog.get_logger()
 
 JOBS_INDEX = "system-jobs"
 HEARTBEAT_EVERY_S = 15.0
-SCHEDULED_ACTOR = "scheduled"  # status-doc requested_by + audit actor for CronJob-door runs
+# status-doc requested_by + audit actor for scheduled and command-line runs
+SCHEDULED_ACTOR = "scheduled"
 
 
 def utcnow() -> datetime:

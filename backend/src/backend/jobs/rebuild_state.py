@@ -21,8 +21,8 @@ cycle (D30), and pre-M8a findings with no occurrence history are left untouched.
 by running the incremental path's own per-digest recompute over every cached digest (parity
 by construction); one run doubles as the backfill for a pre-363 store.
 
-All arms write exactly nothing over a healthy cache. On-demand + after a detected crash;
-k8s CronJob `Forbid`.
+All arms write exactly nothing over a healthy cache. On-demand + after a detected crash: it has
+no schedule (the Data inspector's button or the command line), and its lease keeps it to one run.
 """
 
 import asyncio
@@ -424,7 +424,7 @@ async def run_rebuild_state(client: AsyncOpenSearch, *, prefix: str = "") -> dic
     }
 
 
-if __name__ == "__main__":  # manual/self-heal entrypoint (CronJob-shaped, like the sweeps)
+if __name__ == "__main__":  # manual/self-heal entrypoint (under the lease, like the sweeps)
     from backend.core.settings import get_settings
     from backend.jobs.lease import run_under_lease
 

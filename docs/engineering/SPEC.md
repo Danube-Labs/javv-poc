@@ -123,7 +123,7 @@ from an env/secret and must change the password on first login - FR-18.)
   is stored **in OpenSearch**, chunked into `system-report-chunks` (un-indexed slices; amended 2026-07-07,
   #32/#212 - supersedes the earlier object-storage model, single-store constraint honored), downloaded via a
   backend endpoint gated by the tenant read path + a short-lived token, and **TTL-expired** (`expires_at`,
-  default 24 h - 410 after); user is notified via the **bell**. Broker-free (CronJob drain). **Each job is
+  default 24 h - 410 after); user is notified via the **bell**. Broker-free (the drain is a job the backend runs on a schedule, issue 691). **Each job is
   claimed by optimistic concurrency** (`pending→running` via `seq_no`/`primary_term` CAS + `heartbeat_at` +
   `lease_expires_at` + `retry_count` - D38/M17) plus a **fencing `attempt_id`** (heartbeat + `done` CAS on it,
   result chunks + the report doc include it - D39/M7-r2) so neither API replicas/retries nor an
@@ -237,8 +237,10 @@ from an env/secret and must change the password on first login - FR-18.)
   safe - risk is field-names/`query_string`/`script`); bearer tokens 256-bit random, **peppered
   SHA-256**-hashed, `hmac.compare_digest`, rotatable (D38/M14).
 - **NFR-8 Observability first** (FR-20) - M1.
-- **NFR-9 No extra infrastructure.** **No Redis/Kafka/RabbitMQ/broker** (hard constraint). Jobs are k8s
-  CronJobs (`Forbid`); coordination via OpenSearch. **HA & multi-pod (D23):** at `replicas > 1` the in-proc
+- **NFR-9 No extra infrastructure.** **No Redis/Kafka/RabbitMQ/broker** (hard constraint). The backend
+  runs its own background jobs on cron schedules (issue 691: no CronJob per job, one backend container and
+  one frontend container); scanners stay CronJobs (`Forbid`) in the monitored clusters; coordination via
+  OpenSearch. **HA & multi-pod (D23):** at `replicas > 1` the in-proc
   rate-limit is per-pod (global limit ≈ configured × replicas; exact at `replicas:1`). The point-in-time
   snapshot **history** is **pure-append with deterministic `_id`, so it has no close-event race** at any
   replica count (designed out). The **current cache** (`findings`) does a **guarded read-modify-write** -

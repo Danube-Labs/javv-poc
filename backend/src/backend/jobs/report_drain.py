@@ -1,6 +1,6 @@
 """M7 slice 3 (#32) — the throttled report drain: claim → stream the export → chunk → publish.
 
-Broker-free queue worker, run as a k8s CronJob (`concurrencyPolicy: Forbid`; Helm in M10) or by
+Broker-free queue worker, run by the backend's scheduler (`jobs/scheduler.py`, issue 691) or by
 hand: `uv run python -m backend.jobs.report_drain`. Each cycle drains due jobs one at a time:
 
   claim (OCC, fresh fencing `attempt_id`) → stream via M6's constant-memory export engine,
