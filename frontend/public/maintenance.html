@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <!-- no script: the page asks again every minute, so it leaves on its own once the app is back -->
+    <meta http-equiv="refresh" content="60" />
+    <title>JAVV: down for maintenance</title>
+    <!--
+      The maintenance page (SCREENS §18). One self-contained file: no script, no stylesheet, no
+      font and no request to the backend, so it can be served while the backend is switched off.
+      The app's fonts ship as hashed files this page cannot name, so it falls back to system
+      fonts. The colors mirror src/styles/tokens.css (maintenance-page.spec.ts checks they still
+      exist there).
+    -->
+    <style>
+      :root {
+        --bg: #efeadf;
+        --card: #ffffff;
+        --line: #e7e0d3;
+        --ink: #1b2935;
+        --soft: #5d6a74;
+        --coral-text: #a8481f;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: 'Hanken Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .mono {
+        font-family: 'Space Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 23px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      p {
+        margin: 0;
+        color: var(--soft);
+      }
+      main {
+        text-align: center;
+        max-width: 56ch;
+      }
+      .code {
+        margin: 0 0 6px;
+        font-size: 26px;
+        font-weight: 700;
+        color: var(--coral-text);
+      }
+      .brand {
+        margin-top: 22px;
+        font-size: 11px;
+        letter-spacing: 0.04em;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="code mono" aria-hidden="true">Maintenance</p>
+      <h1>JAVV is down for maintenance</h1>
+      <p>The app is being updated and will be back shortly. Nothing is lost. This page checks again every minute.</p>
+      <p class="brand mono">javv by Danube Labs</p>
+    </main>
+  </body>
+</html>

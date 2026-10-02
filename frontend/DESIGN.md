@@ -273,6 +273,10 @@ the raw markup/CSS they encapsulate is a review failure — extend the component
 | `ToastStack` + `useToastStore` | the confirmation channel: `success/error/info` from ANY component/store, auto-dismiss, capped stack, t-toast motion, ink text + hue on the icon | every action outcome the user would otherwise hunt for; inline contextual errors stay inline |
 | `SectionNav` | a screen's left section menu: the sticky card, icon + label rows, hover wash + border, the coral active row, `aria-current`; a `trail` slot for a row's extra mark | Settings' sub-pages and the Guide's in-page sections; any future screen with a section list |
 
+One layout lives outside the kit folder and is owned once the same way:
+`components/system/ErrorPage.vue`, the page for anything that cannot be shown (not found, a page
+that failed while it was drawn). A new "this could not be shown" page uses it; SCREENS §18.
+
 ## 6. Do / Don't
 
 **Do**
