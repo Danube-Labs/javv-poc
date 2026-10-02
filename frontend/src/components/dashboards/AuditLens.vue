@@ -88,7 +88,7 @@ function onPointClick(params: { dataIndex: number }) {
 <template>
   <section class="ingest-lens" :class="{ 'il-quiet': quiet }" :aria-label="props.title">
     <div class="il-head">
-      <h3 class="il-title">{{ props.title }}</h3>
+      <h2 class="il-title">{{ props.title }}</h2>
       <span v-if="props.sub" class="il-sub">{{ props.sub }}</span>
       <span v-else class="il-sub"
         >events per {{ interval }} · {{ timeTravel.windowLabel.toLowerCase() }} · under the

@@ -43,7 +43,7 @@ function onPointClick(params: { dataIndex: number }) {
 <template>
   <section class="ingest-lens" :class="{ 'il-quiet': quiet }" aria-label="Handled findings">
     <div class="il-head">
-      <h3 class="il-title">Handled findings</h3>
+      <h2 class="il-title">Handled findings</h2>
       <span class="il-sub"
         >settling actions per day · {{ timeTravel.windowLabel.toLowerCase() }} · resolved ·
         not affected · risk accepted · acknowledged</span

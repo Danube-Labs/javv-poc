@@ -111,7 +111,7 @@ function onPointClick(params: { dataIndex: number }) {
 <template>
   <section class="ingest-lens" :class="{ 'il-quiet': quiet }" aria-label="Scan ingest activity">
     <div class="il-head">
-      <h3 class="il-title">Scan ingest</h3>
+      <h2 class="il-title">Scan ingest</h2>
       <span class="il-sub"
         >runs per {{ interval }} · {{ timeTravel.windowLabel.toLowerCase()
         }}<template v-if="subDay"> (daily bars: covers the last 1 day)</template> ·

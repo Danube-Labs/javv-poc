@@ -158,7 +158,7 @@ function canRun(job: JobDoc): boolean {
 
 <template>
   <section class="card repair">
-    <h3 class="panel-band">Repair actions</h3>
+    <h2 class="panel-band">Repair actions</h2>
     <p class="repair-sub">
       If the data on screen looks wrong, these are the safe, built-in fixes. They recompute
       from the stored scan history instead of editing anything by hand. Every run is recorded

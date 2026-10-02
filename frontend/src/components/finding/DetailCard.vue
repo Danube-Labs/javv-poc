@@ -15,7 +15,7 @@ defineProps<{ title: string; sub?: string; flush?: boolean; darkHead?: boolean }
   <section class="card">
     <div class="card-head" :class="{ dark: darkHead }">
       <div>
-        <h3><slot name="title">{{ title }}</slot></h3>
+        <h2><slot name="title">{{ title }}</slot></h2>
         <p v-if="sub" class="card-sub">{{ sub }}</p>
       </div>
       <slot name="action" />
@@ -55,8 +55,10 @@ defineProps<{ title: string; sub?: string; flush?: boolean; darkHead?: boolean }
   color: inherit;
   opacity: 0.75;
 }
-.card-head h3 {
+.card-head h2 {
   margin: 0;
+  font-size: var(--text-card-title);
+  font-weight: 600;
 }
 .card-sub {
   margin: 2px 0 0;
