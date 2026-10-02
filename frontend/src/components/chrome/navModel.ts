@@ -42,7 +42,9 @@ export const NAV: NavGroup[] = [
         icon: 'shield',
         capability: 'can_accept_audit_final',
       },
-      { label: 'Audit log', to: '/audit', icon: 'clock' },
+      // opens without sign-ins, which otherwise fill the first page; the filter rides the
+      // address, so it shows as a removable chip and a bare /audit still lists every event
+      { label: 'Audit log', to: '/audit?action=!login', icon: 'clock' },
     ],
   },
   { group: 'Insights', accent: 'var(--sect-insights)', items: [{ label: 'Contributors', to: '/contributors', icon: 'award' }] },

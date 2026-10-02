@@ -383,6 +383,11 @@ Task column dropped (no field; Jira linkage is v1.1 — V4-DELTA-1).
 **States:** loading; empty; degraded; retention note ("audit window bounded by
 `system-audit-log` retention").
 
+**Default view (issue 681):** the sidebar and command palette open the log at
+`/audit?action=!login`, so it starts with a removable "Action is not Login" pill and the first
+page is not all sign-ins. The filter lives in the address, never as a hidden default: a bare
+`/audit` lists every event, and links that carry their own filters are untouched.
+
 **Changed vs SCREENS.md:** A-5 (structured entity_type+action replaces the 8-string enum;
 click-through rule; Task column dropped); endpoint scheduled (M8c).
 
