@@ -65,6 +65,7 @@ export JAVV_TOKEN_PEPPER='local-dev-pepper-change-me'          # peppers ingest 
 export JAVV_BOOTSTRAP_ADMIN_USERNAME='admin'
 export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'  # >= 12 chars (password policy)
 export JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50   # default 10 starves UI navigation/rigs with 429s
+export JAVV_SCHEDULER_ENABLED=false                # dev: no automatic sweeps on a store you want to keep
 uv run python -m backend.core.bootstrap            # idempotent, versioned (MAPPING_VERSION)
 uv run uvicorn backend.main:app --port 8000        # /docs = live API reference
 

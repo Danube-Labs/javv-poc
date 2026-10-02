@@ -325,3 +325,85 @@ async def test_the_scheduler_reports_its_zone_and_schedules(real_os, clock) -> N
     sch = make(real_os, clock)
     assert sch.zone == RO and sch.zone_source == "given"
     assert set(sch.schedules) == set(SCHEDULED)
+
+
+async def test_a_finished_job_is_counted_and_its_last_success_recorded(
+    real_os, clock, runs
+) -> None:
+    from backend.core.metrics import JOB_LAST_SUCCESS
+
+    done_before = JOB_RUNS.labels("staleness_sweep", "done")._value.get()
+    sch = make(real_os, clock, only("staleness_sweep"))
+    clock.to(2026, 6, 10, 2, 0)
+
+    assert await drain(sch) == ["staleness_sweep"]
+
+    assert sch.last_outcome is None  # the last tick found nothing due
+    assert JOB_RUNS.labels("staleness_sweep", "done")._value.get() == done_before + 1
+    assert JOB_LAST_SUCCESS.labels("staleness_sweep")._value.get() > 0
+
+
+async def test_a_job_held_by_another_backend_is_counted_as_skipped(
+    real_os, clock, runs, monkeypatch
+) -> None:
+    async def held(*_: Any, **__: Any) -> None:
+        return None  # what the lease answers when a live run holds it
+
+    monkeypatch.setattr(scheduler, "run_job", held)
+    skipped_before = JOB_RUNS.labels("staleness_sweep", "skipped")._value.get()
+    sch = make(real_os, clock, only("staleness_sweep"))
+    clock.to(2026, 6, 10, 2, 0)
+
+    assert await sch.tick() == "staleness_sweep"
+
+    assert sch.last_outcome == "skipped" and runs == []
+    assert JOB_RUNS.labels("staleness_sweep", "skipped")._value.get() == skipped_before + 1
+
+
+async def test_the_loop_runs_everything_that_is_due_without_waiting_a_tick_between(
+    real_os, clock, runs, monkeypatch
+) -> None:
+    monkeypatch.setattr(scheduler, "TICK_SECONDS", 3600.0)  # a wait would never end in this test
+    sch = make(real_os, clock, only("staleness_sweep", "lifecycle_sweep", "findings_cleanup"))
+    clock.to(2026, 6, 10, 5, 0)  # all three became due
+
+    loop = asyncio.create_task(sch.run_forever())
+    for _ in range(200):
+        if len(runs) == 3:
+            break
+        await asyncio.sleep(0.05)
+    await stop_scheduler(loop)
+
+    assert runs == ["staleness_sweep", "lifecycle_sweep", "findings_cleanup"]
+
+
+async def test_the_app_starts_the_scheduler_and_stops_it_on_shutdown(monkeypatch) -> None:
+    from backend.core.settings import get_settings
+    from backend.main import create_app
+
+    monkeypatch.setenv("JAVV_SCHEDULER_ENABLED", "true")
+    for kind in SCHEDULED:  # no schedule at all: the loop runs but has nothing to start
+        monkeypatch.setenv(f"JAVV_JOB_{kind.upper()}_CRON", "")
+    get_settings.cache_clear()
+    try:
+        app = create_app()
+        async with app.router.lifespan_context(app):
+            running = [t for t in asyncio.all_tasks() if t.get_name() == "job-scheduler"]
+            assert len(running) == 1 and not running[0].done()
+        assert running[0].cancelled()
+    finally:
+        get_settings.cache_clear()
+
+
+async def test_the_app_starts_no_scheduler_when_the_switch_is_off(monkeypatch) -> None:
+    from backend.core.settings import get_settings
+    from backend.main import create_app
+
+    monkeypatch.setenv("JAVV_SCHEDULER_ENABLED", "false")
+    get_settings.cache_clear()
+    try:
+        app = create_app()
+        async with app.router.lifespan_context(app):
+            assert [t for t in asyncio.all_tasks() if t.get_name() == "job-scheduler"] == []
+    finally:
+        get_settings.cache_clear()

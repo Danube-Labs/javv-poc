@@ -64,6 +64,7 @@ export JAVV_TOKEN_PEPPER='local-dev-pepper-change-me'      # peppers ingest toke
 export JAVV_BOOTSTRAP_ADMIN_USERNAME='admin'
 export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'   # ≥12 chars (password policy)
 export JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50   # default 10 starves rapid UI navigation/rigs with 429s
+export JAVV_SCHEDULER_ENABLED=false                # the backend runs its own jobs (A9); off keeps a dev store as you left it
 
 # create/upgrade every index + template (idempotent, versioned — MAPPING_VERSION 16 today)
 uv run python -m backend.core.bootstrap
@@ -197,7 +198,7 @@ curl -s "localhost:9200/system-audit-log-*/_search?size=5" -H 'content-type: app
   -d "{\"query\":{\"term\":{\"finding_key\":\"$FK\"}}}" | jq '.hits.hits[]._source | {action, field, old_value, new_value, revision}'
 ```
 
-### A9. Run the background jobs by hand
+### A9. The background jobs
 
 The backend starts these itself on the schedules in `JAVV_JOB_<KIND>_CRON` (`docs/CONFIGURATION.md` §1).
 On a dev store you want to keep, start the backend with `JAVV_SCHEDULER_ENABLED=false`: the lifecycle
