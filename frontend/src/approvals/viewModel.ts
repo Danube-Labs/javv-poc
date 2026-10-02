@@ -63,3 +63,11 @@ export function scopeLabel(scope: ApprovalRow['scope']): string {
 export function scannerLabel(row: Pick<ApprovalRow, 'apply_both_scanners' | 'scanner'>): string {
   return row.apply_both_scanners || !row.scanner ? 'both' : row.scanner
 }
+
+/** The findings a decision row opens: the CVE, narrowed to the image when the scope names
+ * exactly one. The row click pushes it and the row's link carries it as its address. */
+export function findingsRoute(row: Pick<ApprovalRow, 'cve_id' | 'scope'>) {
+  const query: Record<string, string> = { q: row.cve_id }
+  if (row.scope.images.length === 1) query.image = row.scope.images[0] as string
+  return { name: 'findings', query }
+}

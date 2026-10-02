@@ -123,12 +123,15 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
   if (next) setColOrder(next)
 }
 
-function openImage(row: ImageRow) {
-  void router.push({
+function imageRoute(row: ImageRow) {
+  return {
     name: 'image-detail',
     params: { digest: row.image_digest },
     query: { repo: row.image_repo, tag: row.tag },
-  })
+  }
+}
+function openImage(row: ImageRow) {
+  void router.push(imageRoute(row))
 }
 
 /** The list export — inventory rows already served; findings exports stay M6/M7's. */
@@ -257,6 +260,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           :modes="filters.modes"
           reorderable
           :dense="dense"
+          :row-to="imageRoute"
           @pick-value="filters.pickValue"
           @sort="onSort"
           @row-click="openImage"

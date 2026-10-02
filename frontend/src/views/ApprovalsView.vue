@@ -17,6 +17,7 @@ import { APPROVAL_FIELDS } from '@/approvals/fields.config'
 import {
   EXPIRY_WARN_DAYS,
   expiryStatus,
+  findingsRoute,
   scannerLabel,
   scopeLabel,
   type ApprovalRow,
@@ -31,6 +32,7 @@ import FacetRail from '@/components/filters/FacetRail.vue'
 import FilterBar from '@/components/filters/FilterBar.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import RowLink from '@/components/ui/RowLink.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSkeleton from '@/components/ui/UiSkeleton.vue'
 import { useCsvExport } from '@/composables/useCsvExport'
@@ -189,9 +191,7 @@ const lensQuery = computed(() =>
    cluster-wide, so the grid (not a single finding) is the correct landing */
 function openFindings(row: ApprovalRow) {
   logger.debug('approval_row_clicked', { decision_id: row.decision_id })
-  const query: Record<string, string> = { q: row.cve_id }
-  if (row.scope.images.length === 1) query.image = row.scope.images[0] as string
-  void router.push({ name: 'findings', query })
+  void router.push(findingsRoute(row))
 }
 
 /* ---- actions: revoke (confirm-in-row) + edit (revoke+new dialog) ---- */
@@ -322,7 +322,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
             </thead>
             <tbody>
               <tr v-for="row in rows" :key="row.decision_id" @click="openFindings(row)">
-                <td><span class="mono-cell strong nowrap cve-link">{{ row.cve_id }}</span></td>
+                <td>
+                  <RowLink :to="findingsRoute(row)" @open="openFindings(row)"><span class="mono-cell strong nowrap cve-link">{{ row.cve_id }}</span></RowLink>
+                </td>
                 <td>
                   <span class="scope-cell" :class="{ 'scope-wide': scopeLabel(row.scope) === 'cluster-wide' }">
                     {{ scopeLabel(row.scope) }}

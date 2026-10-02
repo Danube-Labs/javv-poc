@@ -140,11 +140,10 @@ watch(
 )
 
 /* ---- click-through (A-5): the row's decoration carries the finding's identity ---- */
-function openFinding(row: AuditEvent) {
+function findingRoute(row: AuditEvent) {
   const f = row.finding
-  if (!f) return
-  logger.debug('audit_row_clicked', { finding_key: row.entity_id })
-  void router.push({
+  if (!f) return null
+  return {
     name: 'finding',
     params: { cveId: f.cve_id },
     query: {
@@ -152,7 +151,13 @@ function openFinding(row: AuditEvent) {
       scanner: f.scanner ?? '',
       pkg: f.package_name ?? '',
     },
-  })
+  }
+}
+function openFinding(row: AuditEvent) {
+  const to = findingRoute(row)
+  if (!to) return
+  logger.debug('audit_row_clicked', { finding_key: row.entity_id })
+  void router.push(to)
 }
 
 const totalLabel = computed(
@@ -238,6 +243,7 @@ async function exportCsv() {
           :filtered="filters.hasFilters"
           :selections="filters.selections"
           :modes="filters.modes"
+          :row-to="findingRoute"
           @row-click="openFinding"
           @pick-value="filters.pickValue"
         />

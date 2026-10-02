@@ -9,6 +9,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 import AppIcon from '@/components/ui/AppIcon.vue'
+import RowLink from '@/components/ui/RowLink.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { useOverviewStore } from '@/stores/overview'
 import { countOf, fmt, type ScannerLens } from '@/lib/scannerLens'
@@ -25,8 +26,9 @@ const namespaces = computed(() =>
     .slice(0, 10),
 )
 
+const findingsRoute = (query: Record<string, string>) => ({ path: '/findings', query })
 function goFindings(query: Record<string, string>) {
-  void router.push({ path: '/findings', query })
+  void router.push(findingsRoute(query))
 }
 </script>
 
@@ -55,7 +57,11 @@ function goFindings(query: Record<string, string>) {
             :title="`Open findings in ${n.key}`"
             @click="goFindings({ namespace: n.key })"
           >
-            <td class="mono-cell ns-link">{{ n.key }}<AppIcon class="cell-go" name="chevron" :size="11" /></td>
+            <td class="mono-cell ns-link">
+              <RowLink :to="findingsRoute({ namespace: n.key })" @open="goFindings({ namespace: n.key })">
+                {{ n.key }}<AppIcon class="cell-go" name="chevron" :size="11" />
+              </RowLink>
+            </td>
             <td class="r fit mono-cell sm strong">{{ fmt(n.count) }}</td>
           </tr>
         </tbody>

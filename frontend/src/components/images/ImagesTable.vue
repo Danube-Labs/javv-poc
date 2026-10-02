@@ -11,11 +11,13 @@ import DataTable, {
   type DataTableSortEvent,
 } from 'primevue/datatable'
 import { computed, nextTick, ref, watch } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 
 import CountDisagree from '@/components/chips/CountDisagree.vue'
 import MixBar from '@/components/dashboards/MixBar.vue'
 import ValueActions from '@/components/filters/ValueActions.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import RowLink from '@/components/ui/RowLink.vue'
 import { activeMode, type Selections } from '@/filters/fields.config'
 import { IMAGES_COLUMNS, type ImagesColumnKey } from '@/images/fields.config'
 import type { FilterMode, Modes } from '@/stores/filters'
@@ -42,6 +44,8 @@ const props = withDefaults(
     /** active selections + modes, so a cell action shows which side it already sits on */
     selections?: Selections
     modes?: Modes
+    /** where a row leads: its identifier renders as a real link, so the keyboard can open it */
+    rowTo?: (row: ImageRow) => RouteLocationRaw
   }>(),
   {
     hidden: () => new Set<string>(),
@@ -158,7 +162,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
                row (issue 349 §2) -->
           <div class="cell-actionable">
             <div class="img-id">
-              <span class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+              <RowLink v-if="props.rowTo" :to="props.rowTo(data)" @open="emit('rowClick', data)">
+                <span class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+              </RowLink>
+              <span v-else class="img-name img-link">{{ shortRepo(data) }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
               <span v-if="registryOf(data)" class="mono-cell sm img-reg">{{ registryOf(data) }}</span>
             </div>
             <!-- the cell shortens the repo for display, so the action filters on the FULL

@@ -20,6 +20,7 @@ import DataTable, {
   type DataTableSortEvent,
 } from 'primevue/datatable'
 import { computed, nextTick, ref, watch } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 
 import DisagreementBadge from '@/components/chips/DisagreementBadge.vue'
 import EpssBar from '@/components/chips/EpssBar.vue'
@@ -29,6 +30,7 @@ import SlaCell from '@/components/chips/SlaCell.vue'
 import StateTag from '@/components/chips/StateTag.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import ValueActions from '@/components/filters/ValueActions.vue'
+import RowLink from '@/components/ui/RowLink.vue'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS, type FindingsColumnKey } from '@/findings/columns'
 import { activeMode, type Selections } from '@/filters/fields.config'
@@ -58,6 +60,8 @@ const props = withDefaults(
     /** active selections + modes, so a cell action can show which side it already sits on */
     selections?: Selections
     modes?: Modes
+    /** where a row leads: its identifier renders as a real link, so the keyboard can open it */
+    rowTo?: (row: FindingRow) => RouteLocationRaw
   }>(),
   {
     hidden: () => new Set<string>(),
@@ -220,7 +224,10 @@ const cellActive = (key: string, value: string): FilterMode | null =>
       <Column column-key="cve" header="Vulnerability" :reorderable-column="false">
         <template #body="{ data }">
           <span class="cell-actionable">
-            <span class="mono-cell strong nowrap cve-link">{{ data.cve_id }}</span>
+            <RowLink v-if="props.rowTo" :to="props.rowTo(data)" @open="emit('rowClick', data)">
+              <span class="mono-cell strong nowrap cve-link">{{ data.cve_id }}</span>
+            </RowLink>
+            <span v-else class="mono-cell strong nowrap cve-link">{{ data.cve_id }}</span>
             <ValueActions
               v-if="cellValue('cve', data)"
               class="val-act-reveal"
