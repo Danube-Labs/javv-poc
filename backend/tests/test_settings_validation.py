@@ -99,3 +99,70 @@ async def test_broken_env_aborts_startup(monkeypatch) -> None:
     with pytest.raises(ValidationError, match="session_ttl_hours"):
         async with lifespan(app):
             pass
+
+
+# --- background job schedules (issue 691) ----------------------------------------------
+
+SCHEDULED_KINDS = (
+    "report_drain",
+    "report_sweep",
+    "staleness_sweep",
+    "lifecycle_sweep",
+    "findings_cleanup",
+    "session_sweep",
+)
+
+
+def test_every_scheduled_kind_in_the_registry_has_a_schedule_setting() -> None:
+    from backend.jobs.registry import JOBS
+
+    settings = Settings()
+    assert {kind for kind in JOBS if settings.job_cron(kind)} == set(SCHEDULED_KINDS)
+    assert settings.job_cron("rebuild_state") == ""  # only ever run by hand
+
+
+def test_the_default_schedules_are_the_ruled_ones() -> None:
+    settings = Settings()
+    assert settings.scheduler_enabled is True
+    assert {kind: settings.job_cron(kind) for kind in SCHEDULED_KINDS} == {
+        "report_drain": "*/5 * * * *",
+        "report_sweep": "15 * * * *",
+        "staleness_sweep": "0 2 * * *",
+        "lifecycle_sweep": "0 3 * * *",
+        "findings_cleanup": "0 4 * * *",
+        "session_sweep": "30 4 * * *",
+    }
+
+
+@pytest.mark.parametrize("kind", SCHEDULED_KINDS)
+def test_a_malformed_schedule_is_refused_and_names_its_variable(monkeypatch, kind: str) -> None:
+    var = f"JAVV_JOB_{kind.upper()}_CRON"
+    monkeypatch.setenv(var, "every night")
+    with pytest.raises(ValidationError, match=var):
+        Settings()
+
+
+@pytest.mark.parametrize("value", ["", "   "])
+def test_an_empty_schedule_switches_the_job_off(monkeypatch, value: str) -> None:
+    monkeypatch.setenv("JAVV_JOB_LIFECYCLE_SWEEP_CRON", value)
+    settings = Settings()
+    assert settings.job_cron("lifecycle_sweep") == ""
+    assert settings.job_cron("staleness_sweep") == "0 2 * * *"  # the others are untouched
+
+
+def test_a_schedule_can_be_overridden_and_the_scheduler_switched_off(monkeypatch) -> None:
+    monkeypatch.setenv("JAVV_JOB_REPORT_DRAIN_CRON", "* * * * *")
+    monkeypatch.setenv("JAVV_SCHEDULER_ENABLED", "false")
+    settings = Settings()
+    assert settings.job_cron("report_drain") == "* * * * *"
+    assert settings.scheduler_enabled is False
+
+
+async def test_a_malformed_schedule_aborts_startup(monkeypatch) -> None:
+    from backend.main import create_app
+
+    monkeypatch.setenv("JAVV_JOB_STALENESS_SWEEP_CRON", "61 * * * *")
+    app = create_app()
+    with pytest.raises(ValidationError, match="JAVV_JOB_STALENESS_SWEEP_CRON"):
+        async with app.router.lifespan_context(app):
+            pass

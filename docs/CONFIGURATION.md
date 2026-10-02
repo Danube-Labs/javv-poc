@@ -69,9 +69,26 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 | `JAVV_BOOTSTRAP_ADMIN_USERNAME` | `admin` | Bootstrap admin username (M5a/SEC-6) | n/a (deploy) |
 | `JAVV_BOOTSTRAP_ADMIN_PASSWORD` | *(empty = don't seed)* | 🔒 Initial admin password from a mounted k8s Secret. **Seed-once**: consumed only when the admin doesn't exist yet — rotating the mounted value later has NO effect (change the password in-app); the seeded account is forced through `must_change` on first login | 🔒 secret |
 | `JAVV_TOKEN_PEPPER` *(shared)* | — | Also peppers **session-id hashes** (domain-separated `session:` prefix) since M5a | 🔒 secret |
+| `JAVV_SCHEDULER_ENABLED` ⏳ | `true` | Background-job scheduler (issue 691): the backend runs its own jobs, so a deployment is one backend container and one frontend container, with no CronJob per job. `false` stops the scheduler and leaves the schedules below untouched; the jobs can still be run by hand (`python -m backend.jobs.<name>`) or from the Data inspector. The test suite and CI run with it off. **⏳ the settings are read and validated now; the scheduler that follows them ships in the next PR of issue 691.** | n/a (deploy) |
+| `JAVV_JOB_REPORT_DRAIN_CRON` ⏳ | `*/5 * * * *` | When the report drain runs (builds queued exports and bulk actions). A five-field cron expression, read on the **local wall clock** of the backend process (see the timezone note below). Empty = never on a schedule. A malformed expression stops the backend at boot and names this variable. When several jobs are due this one starts first. | read-only display |
+| `JAVV_JOB_REPORT_SWEEP_CRON` ⏳ | `15 * * * *` | When the report sweep runs (deletes expired exports, old failures and leftover chunks). Same format and rules as above. | read-only display |
+| `JAVV_JOB_STALENESS_SWEEP_CRON` ⏳ | `0 2 * * *` | When the staleness sweep runs (marks findings stale on the two timers of §6, and returns findings to open when a risk acceptance expires). Same format and rules. | read-only display |
+| `JAVV_JOB_LIFECYCLE_SWEEP_CRON` ⏳ | `0 3 * * *` | When the lifecycle sweep runs (rolls the append series over and drops whole indices past each cluster's retention, §6). Same format and rules. | read-only display |
+| `JAVV_JOB_FINDINGS_CLEANUP_CRON` ⏳ | `0 4 * * *` | When the findings cleanup runs (removes long-absent rows from the `findings` cache, window in §6). Same format and rules. | read-only display |
+| `JAVV_JOB_SESSION_SWEEP_CRON` ⏳ | `30 4 * * *` | When the session sweep runs (deletes sessions expired longer than `JAVV_SESSION_SWEEP_GRACE_HOURS`). Same format and rules. | read-only display |
 
 > These are deployment/ops settings, tuned per environment (a Helm values file will inject them — M10).
 > Not user-facing settings.
+
+**Job schedules and the timezone (issue 691).** The schedules are cron expressions with five fields
+(minute, hour, day of month, month, day of week); shortcuts such as `@daily` are not accepted.
+`rebuild_state` has no schedule: it is only ever run by hand. The expressions are read in the
+backend's **local timezone**, which is the `TZ` environment variable (for example
+`TZ=Europe/Bucharest`), or else the zone `/etc/localtime` links to, or else **UTC**. A container has
+no zone unless it is given one, so set `TZ` if `0 3 * * *` should mean 03:00 local. Backends that
+share a store must share one timezone. On the night clocks go back, a local time that happens twice
+runs once; on the night they go forward, a local time that does not exist runs at the first valid
+time after the gap, so a daily job never misses a day (`backend/tests/test_job_schedule.py`).
 
 ---
 
