@@ -1,72 +1,33 @@
 <script setup lang="ts">
 /**
- * Repair actions (issue 406 — the mockup's third card, backed by /api/v1/admin/jobs):
- * "something looks broken" never means raw writes — the three sanctioned, journaled jobs are
- * the fix. Rows: icon tile · name + capability sub · description · status (state chip, the
- * in-flight bar, last-result counts, stale-lease status) · the run button. Lifecycle DROPS
- * whole indices, so its button confirms through ModalShell first — and carries the mockup's
- * Dry run (issue 459): an inline would-roll/would-drop answer that changes nothing, so the
- * operator can see what the sweep WOULD delete before confirming the real one. Polls while
- * anything runs.
+ * The two job cards of the Data inspector, both fed by /api/v1/admin/jobs (one fetch, one poll
+ * while anything runs) and both drawn with JobsTable.
  *
- * The same route lists the jobs the backend only ever runs on its schedule (issue 556), so this
- * component also draws their card, Scheduled jobs: the same rows, read-only, with a status chip
- * in place of the button. One fetch and one poll feed both cards.
+ * Repair actions (issue 406): "something looks broken" never means raw writes. The three
+ * sanctioned, journaled jobs are the fix, each with a Run button. Lifecycle DROPS whole indices,
+ * so its button confirms through ModalShell first, and it carries a Dry run (issue 459): an
+ * inline would-roll/would-drop answer that changes nothing.
+ *
+ * Scheduled jobs (issue 556): the jobs the backend only ever runs on its schedule. The same
+ * table, read-only.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { client } from '@/api/client'
 import { listJobsApiV1AdminJobsGet, triggerJobApiV1AdminJobsKindRunPost } from '@/api/generated'
-import DotWord from '@/components/chips/DotWord.vue'
-import AppIcon, { type IconName } from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
 import UiButton from '@/components/ui/UiButton.vue'
-import { fmtAt } from '@/findings/format'
 import { logger } from '@/lib/logger'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
-import { jobFlag, jobLastRun, jobNextRun, type JobDoc } from '@/system/inspect'
+import type { JobDoc } from '@/system/inspect'
 
-const COPY: Record<string, { icon: IconName; label: string; sub?: string; desc: string }> = {
-  rebuild_state: {
-    icon: 'rescan',
-    label: 'Rebuild state',
-    sub: 'findings cache · presence · sla clocks',
-    desc: 'Re-derives every materialized row from the append history: the crash self-heal. Safe to run any time; history is never touched.',
-  },
-  staleness_sweep: {
-    icon: 'clock',
-    label: 'Staleness sweep',
-    sub: 'two-timer pass',
-    desc: 'Re-evaluates stale flags now instead of waiting for the scheduled run.',
-  },
-  lifecycle_sweep: {
-    icon: 'trash',
-    label: 'Lifecycle sweep',
-    sub: 'retention · whole-index drops',
-    desc: 'Applies retention by dropping whole aged indices, the only sanctioned delete in the system.',
-  },
-  // the scheduled-only jobs: their second line is the schedule itself
-  report_drain: {
-    icon: 'download',
-    label: 'Export queue',
-    desc: 'Builds the exports people have asked for.',
-  },
-  report_sweep: {
-    icon: 'clock',
-    label: 'Export cleanup',
-    desc: 'Deletes export files past their expiry and retries exports that got stuck.',
-  },
-  findings_cleanup: {
-    icon: 'trash',
-    label: 'Old findings cleanup',
-    desc: 'Removes findings that have been gone for longer than the retention window.',
-  },
-  session_sweep: {
-    icon: 'key',
-    label: 'Expired sessions',
-    desc: 'Removes sign-in sessions that have expired.',
-  },
+import JobsTable from './JobsTable.vue'
+
+const LABEL: Record<string, string> = {
+  rebuild_state: 'Rebuild state',
+  staleness_sweep: 'Staleness sweep',
+  lifecycle_sweep: 'Lifecycle sweep',
 }
 
 const auth = useAuthStore()
@@ -126,7 +87,7 @@ async function run(job: JobDoc) {
     await refresh()
   } else {
     const problem = (r.error ?? null) as { title?: string } | null
-    toast.info(problem?.title ?? `${COPY[job.kind]?.label ?? job.kind} could not start.`)
+    toast.info(problem?.title ?? `${LABEL[job.kind] ?? job.kind} could not start.`)
     logger.warn('repair_job_rejected', { kind: job.kind, status: r.response?.status })
     await refresh() // a 409 means someone else is running it — show that truth
   }
@@ -161,18 +122,13 @@ async function dryRun(job: JobDoc) {
   }
 }
 
-/** a scheduled job in Repair actions also says when it runs on its own */
-function scheduleLine(job: JobDoc): string {
-  return [job.schedule, jobNextRun(job, fmtAt)].filter(Boolean).join(' · ')
-}
-
 function canRun(job: JobDoc): boolean {
   return job.capability !== null && auth.hasCapability(job.capability)
 }
 </script>
 
 <template>
-  <section class="card repair">
+  <section class="tbl-card repair">
     <h2 class="panel-band">Repair actions</h2>
     <p class="repair-sub">
       If the data on screen looks wrong, these are the safe, built-in fixes. They recompute
@@ -182,22 +138,8 @@ function canRun(job: JobDoc): boolean {
     <p v-if="failed" class="load-error" role="alert">
       Job status unavailable. The triggers are disabled until it loads.
     </p>
-    <template v-else-if="loaded">
-      <div v-for="job in jobs" :key="job.kind" class="repair-row">
-        <span class="repair-tile"><AppIcon :name="COPY[job.kind]?.icon ?? 'gear'" :size="16" /></span>
-        <div class="repair-name">
-          <b>{{ COPY[job.kind]?.label ?? job.kind }}</b>
-          <span>{{ COPY[job.kind]?.sub }}</span>
-        </div>
-        <p class="repair-desc">{{ COPY[job.kind]?.desc }}</p>
-        <div class="repair-status">
-          <DotWord v-if="job.schedule" class="job-flag" v-bind="jobFlag(job)" />
-          <div v-if="job.status === 'running' && !job.stale" class="job-runbar" aria-hidden="true" />
-          <p class="job-meta" :class="{ 'job-failed': job.status === 'failed' || job.stale }">
-            {{ jobLastRun(job, fmtAt) }}
-          </p>
-          <p v-if="job.schedule" class="job-when">{{ scheduleLine(job) }}</p>
-        </div>
+    <JobsTable v-else-if="loaded" :jobs="jobs">
+      <template #actions="{ job }">
         <div class="repair-buttons">
           <UiButton
             v-if="job.kind === 'lifecycle_sweep'"
@@ -217,8 +159,8 @@ function canRun(job: JobDoc): boolean {
             {{ job.status === 'running' && !job.stale ? 'Running…' : 'Run' }}
           </UiButton>
         </div>
-      </div>
-    </template>
+      </template>
+    </JobsTable>
 
     <ModalShell v-if="confirming" title="Run the lifecycle sweep?" @close="confirming = null">
       <p class="confirm-body">
@@ -235,46 +177,21 @@ function canRun(job: JobDoc): boolean {
     </ModalShell>
   </section>
 
-  <section v-if="loaded && !failed && scheduled.length" class="card repair scheduled">
+  <section v-if="loaded && !failed && scheduled.length" class="tbl-card repair scheduled">
     <h2 class="panel-band">Scheduled jobs</h2>
     <p class="repair-sub">
-      The backend runs these on its own. Each row shows the schedule, the last run and the next
-      one. Schedules are cron expressions set in the deployment<template v-if="scheduler">
-        and read in the server timezone ({{ scheduler.timezone }})</template
+      The backend runs these on its own. Schedules are cron expressions set in the
+      deployment<template v-if="scheduler"> and read in the server timezone ({{ scheduler.timezone }})</template
       >.
       <b v-if="scheduler && !scheduler.enabled">
         The scheduler is switched off on this backend, so nothing here runs on its own.
       </b>
     </p>
-    <div v-for="job in scheduled" :key="job.kind" class="repair-row">
-      <span class="repair-tile"><AppIcon :name="COPY[job.kind]?.icon ?? 'gear'" :size="16" /></span>
-      <div class="repair-name">
-        <b>{{ COPY[job.kind]?.label ?? job.kind }}</b>
-        <span>{{ job.schedule ?? 'no schedule' }}</span>
-      </div>
-      <p class="repair-desc">{{ COPY[job.kind]?.desc }}</p>
-      <div class="repair-status">
-        <div v-if="job.status === 'running' && !job.stale" class="job-runbar" aria-hidden="true" />
-        <p class="job-meta" :class="{ 'job-failed': job.status === 'failed' || job.stale }">
-          {{ jobLastRun(job, fmtAt) }}
-        </p>
-        <p v-if="jobNextRun(job, fmtAt)" class="job-when">{{ jobNextRun(job, fmtAt) }}</p>
-      </div>
-      <div class="repair-buttons">
-        <DotWord v-bind="jobFlag(job)" />
-      </div>
-    </div>
+    <JobsTable :jobs="scheduled" />
   </section>
 </template>
 
 <style scoped>
-.card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--r);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
 .repair {
   margin-top: var(--space-6);
 }
@@ -289,135 +206,22 @@ function canRun(job: JobDoc): boolean {
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
+.repair-sub {
+  color: var(--soft);
+  font-size: var(--text-body);
+  margin: 12px 16px;
+  max-width: 88ch;
+}
 .repair-sub b {
   color: var(--ink);
   font-weight: 600;
 }
-.job-flag {
-  margin-bottom: 4px;
-}
-.repair-sub {
-  color: var(--soft);
-  font-size: var(--text-body);
-  margin: 12px 16px 8px;
-  max-width: 88ch;
-}
 .load-error {
   margin: 4px 16px 12px;
 }
-.repair-row {
-  display: grid;
-  grid-template-columns: 34px 200px 1fr 300px max-content;
-  gap: 16px;
-  align-items: center;
-  padding: 12px 16px;
-  border-top: 1px solid var(--line2);
-}
 .repair-buttons {
-  display: flex;
+  display: inline-flex;
   gap: 8px;
-  justify-self: end;
-}
-/* below 1280px the five columns no longer fit: the description moves under the name at full
-   width, so it stays readable and the buttons stay inside the card (issue 652) */
-@media (width < 1280px) {
-  .repair-row {
-    grid-template-columns: 34px minmax(0, 1fr) minmax(0, 260px) max-content;
-    grid-template-areas:
-      'tile name status buttons'
-      '. desc desc desc';
-    row-gap: 6px;
-  }
-  .repair-tile {
-    grid-area: tile;
-  }
-  .repair-name {
-    grid-area: name;
-  }
-  .repair-desc {
-    grid-area: desc;
-  }
-  .repair-status {
-    grid-area: status;
-  }
-  .repair-buttons {
-    grid-area: buttons;
-  }
-}
-.repair-row:hover {
-  background: var(--panel);
-}
-.repair-tile {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--r-sm);
-  background: var(--panel);
-  border: 1px solid var(--line2);
-  color: var(--soft);
-}
-.repair-name b {
-  display: block;
-  font-size: var(--text-body);
-}
-.repair-name span {
-  font-family: var(--font-mono);
-  font-size: var(--text-facet-label);
-  color: var(--soft);
-}
-.repair-desc {
-  margin: 0;
-  color: var(--soft);
-  font-size: var(--text-body);
-}
-/* the in-flight indicator — the same infinite-bar grammar as the console's runbar; result
-   counts land the moment the run finishes (no per-row percentage: the jobs report counts,
-   not progress — accurate over decorative) */
-.job-runbar {
-  height: 4px;
-  border-radius: 2px;
-  background: var(--line2);
-  overflow: hidden;
-  position: relative;
-  margin-bottom: 5px;
-}
-.job-runbar::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: 38%;
-  background: var(--coral);
-  border-radius: 2px;
-  animation: repair-sweep 1.1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-@keyframes repair-sweep {
-  from {
-    transform: translateX(-110%);
-  }
-  to {
-    transform: translateX(300%);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .job-runbar::after {
-    animation: none;
-    width: 100%;
-    opacity: 0.45;
-  }
-}
-/* .job-meta is the row's status, one per row (the e2e walk reads it); .job-when is the
-   schedule line under it */
-.job-meta,
-.job-when {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-control);
-  color: var(--soft);
-  overflow-wrap: anywhere;
-}
-.job-failed {
-  color: var(--health-down-fg);
 }
 .confirm-body {
   margin: 0;

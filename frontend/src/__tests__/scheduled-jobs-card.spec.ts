@@ -1,6 +1,6 @@
 /**
- * The Scheduled jobs card (issue 556): the jobs the backend only runs on its schedule, as
- * read-only rows with a status chip, and the same chip on the scheduled rows of Repair actions.
+ * The Scheduled jobs card (issue 556): the jobs the backend only runs on its schedule, in the
+ * same table as Repair actions, read-only, with a status chip on every row.
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -67,29 +67,39 @@ const ON = { enabled: true, timezone: 'Europe/Bucharest' }
 describe('the Scheduled jobs card', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('lists the scheduled-only jobs with their schedule, last run, next run and chip, and no button', async () => {
+  it('lists the scheduled-only jobs in the table with schedule, last run, next run and chip, and no button', async () => {
     const w = await card(ON)
     const rows = w.findAll('section.scheduled .repair-row')
-    expect(rows.map((r) => r.find('.repair-name b').text())).toEqual([
+    expect(rows.map((r) => r.find('.job-id b').text())).toEqual([
       'Export queue',
       'Old findings cleanup',
       'Expired sessions',
     ])
-    expect(rows[0]!.find('.repair-name span').text()).toBe('*/5 * * * *')
-    expect(rows[0]!.text()).toContain('jobs 2')
-    expect(rows[0]!.text()).toContain('next run')
+    const cells = rows[0]!.findAll('td').map((c) => c.text())
+    expect(cells[1]).toBe('*/5 * * * *')
+    expect(cells[2]).toContain('jobs 2')
+    expect(cells[3]).not.toBe('-')
     expect(rows[0]!.find('.dw').text()).toBe('on schedule')
     expect(rows[1]!.find('.dw').text()).toBe('failed')
     expect(rows[1]!.find('.job-failed').text()).toContain('ConnectionTimeout')
     expect(w.find('section.scheduled').findAll('button')).toHaveLength(0)
+    expect(w.find('section.scheduled').findAll('th').map((t) => t.text())).toEqual([
+      'Job',
+      'Schedule',
+      'Last run',
+      'Next run',
+      'Status',
+    ])
   })
 
-  it('a job switched off says so: no schedule, no next run, an "off" chip', async () => {
+  it('a job switched off says so: no schedule, no next run, a "not scheduled" chip', async () => {
     const w = await card(ON)
     const off = w.findAll('section.scheduled .repair-row')[2]!
-    expect(off.find('.repair-name span').text()).toBe('no schedule')
-    expect(off.text()).not.toContain('next run')
-    expect(off.find('.dw').text()).toBe('off')
+    const cells = off.findAll('td').map((c) => c.text())
+    expect(cells[1]).toBe('switched off')
+    expect(cells[2]).toBe('never')
+    expect(cells[3]).toBe('-')
+    expect(off.find('.dw').text()).toBe('not scheduled')
   })
 
   it('names the timezone the schedules are read in', async () => {
@@ -112,12 +122,17 @@ describe('the Scheduled jobs card', () => {
 describe('Repair actions, the scheduled rows', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('a scheduled job carries the chip, its schedule and its next run; an unscheduled one does not', async () => {
+  it('the same table, with the Run buttons in a last column', async () => {
     const w = await card(ON)
-    const [rebuild, staleness] = w.findAll('section:not(.scheduled) .repair-row')
+    const repair = w.findAll('section')[0]!
+    expect(repair.findAll('th')).toHaveLength(6)
+    const [rebuild, staleness] = repair.findAll('.repair-row')
+    const cells = (row: typeof rebuild) => row!.findAll('td').map((c) => c.text())
+    expect(cells(staleness)[1]).toBe('0 2 * * *')
     expect(staleness!.find('.dw').text()).toBe('late')
-    expect(staleness!.text()).toContain('0 2 * * * · next run')
-    expect(rebuild!.find('.dw').exists()).toBe(false)
-    expect(rebuild!.text()).not.toContain('next run')
+    expect(cells(rebuild)[1]).toBe('by hand only')
+    expect(cells(rebuild)[3]).toBe('-')
+    expect(rebuild!.find('.dw').text()).toBe('not scheduled')
+    expect(cells(rebuild)[5]).toBe('Run')
   })
 })

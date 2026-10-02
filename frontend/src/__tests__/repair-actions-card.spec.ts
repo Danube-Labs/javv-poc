@@ -45,7 +45,7 @@ describe('RepairActionsCard', () => {
     } as never)
     const w = mount(RepairActionsCard)
     await flushPromises()
-    const names = w.findAll('section')[0]!.findAll('.repair-name b').map((b) => b.text())
+    const names = w.findAll('section')[0]!.findAll('.job-id b').map((b) => b.text())
     expect(names).toEqual(['Rebuild state', 'Staleness sweep', 'Lifecycle sweep'])
   })
 })
