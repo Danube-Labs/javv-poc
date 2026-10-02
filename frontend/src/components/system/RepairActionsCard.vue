@@ -196,7 +196,7 @@ function canRun(job: JobDoc): boolean {
           <p class="job-meta" :class="{ 'job-failed': job.status === 'failed' || job.stale }">
             {{ jobLastRun(job, fmtAt) }}
           </p>
-          <p v-if="job.schedule" class="job-meta">{{ scheduleLine(job) }}</p>
+          <p v-if="job.schedule" class="job-when">{{ scheduleLine(job) }}</p>
         </div>
         <div class="repair-buttons">
           <UiButton
@@ -258,7 +258,7 @@ function canRun(job: JobDoc): boolean {
         <p class="job-meta" :class="{ 'job-failed': job.status === 'failed' || job.stale }">
           {{ jobLastRun(job, fmtAt) }}
         </p>
-        <p v-if="jobNextRun(job, fmtAt)" class="job-meta">{{ jobNextRun(job, fmtAt) }}</p>
+        <p v-if="jobNextRun(job, fmtAt)" class="job-when">{{ jobNextRun(job, fmtAt) }}</p>
       </div>
       <div class="repair-buttons">
         <DotWord v-bind="jobFlag(job)" />
@@ -406,7 +406,10 @@ function canRun(job: JobDoc): boolean {
     opacity: 0.45;
   }
 }
-.job-meta {
+/* .job-meta is the row's status, one per row (the e2e walk reads it); .job-when is the
+   schedule line under it */
+.job-meta,
+.job-when {
   margin: 0;
   font-family: var(--font-mono);
   font-size: var(--text-control);
