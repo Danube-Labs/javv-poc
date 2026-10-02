@@ -90,7 +90,7 @@ async function submitChange() {
         <input id="confirm" v-model="confirm" type="password" autocomplete="new-password" required />
       </template>
 
-      <p v-if="auth.unreachable" class="notice down" role="alert">{{ SERVER_DOWN_COPY }}</p>
+      <p v-if="auth.unreachable" class="error" role="alert">{{ SERVER_DOWN_COPY }}</p>
       <p v-else-if="error" class="error" role="alert">{{ error }}</p>
       <button type="submit" :disabled="busy">
         {{ mode === 'login' ? 'Sign in' : 'Change password' }}
@@ -151,11 +151,6 @@ async function submitChange() {
   border: 1px solid var(--hist-line);
   border-radius: var(--r-chip);
   font-size: var(--text-body);
-}
-.notice.down {
-  margin: 14px 0 0;
-  background: var(--health-down-bg);
-  border-color: var(--health-down-bg);
 }
 label {
   font-family: var(--font-mono);

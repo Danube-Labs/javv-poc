@@ -141,7 +141,7 @@ describe('LoginView with a server that does not answer', () => {
   it('says the server is not answering, in place of any password error', () => {
     const { w } = mountDown()
     expect(w.get('[role="alert"]').text()).toBe(SERVER_DOWN_COPY)
-    expect(w.find('.error').exists()).toBe(false)
+    expect(w.findAll('[role="alert"]')).toHaveLength(1)
   })
 
   it('shows nothing of the kind when the server answers', () => {
