@@ -5,6 +5,7 @@
  * `image_repo`/`assignee` are single-valued; KEV / fix-available / disagree are boolean flags
  * (grouped as one "Attribute" facet, as in the prototype).
  */
+import { stateLabel } from '@/findings/stateLabels'
 import { SEVERITIES } from '@/styles/tokens'
 
 interface BaseField {
@@ -24,6 +25,10 @@ export interface TermsField extends BaseField {
   /** The backend has an `exclude_<param>` mirror (issue 349) — the bar offers is/is not and
    * the URL carries `!`-prefixed values. Only findings fields today. */
   negatable?: boolean
+  /** What a stored value is called on screen. The value itself (URL, API param, saved view)
+   * never changes; only the rail, the pills and summaries print this. Omit for values that
+   * are already the real name of a thing (a scanner, a namespace). */
+  valueLabel?: (value: string) => string
 }
 
 /** A group of independent boolean params rendered as one facet group. A `window` flag emits
@@ -57,6 +62,14 @@ export type FilterField = TermsField | FlagsField | TextField
 /** Does this field have an `exclude_<param>` twin to negate into? Flags never do — absence
  * and negation are different questions (issue 349 §1). One helper so the six places that ask
  * cannot drift apart. */
+/** The display name of one value of a field: a flag's label, a terms field's `valueLabel`,
+ * else the value as stored. The rail, the pills and the saved-view summary all print this. */
+export function valueLabel(field: FilterField, value: string): string {
+  if (field.type === 'flags') return field.values.find((v) => v.key === value)?.label ?? value
+  if (field.type === 'terms' && field.valueLabel) return field.valueLabel(value)
+  return value
+}
+
 export const isNegatable = (field: FilterField): boolean =>
   field.type !== 'flags' && field.negatable === true
 
@@ -128,7 +141,7 @@ export const FINDINGS_FIELDS: readonly FilterField[] = [
       },
     ],
   },
-  { key: 'state', label: 'State', type: 'terms', param: 'state', multi: true, facetKey: 'state', values: ['open', 'acknowledged', 'not_affected', 'risk_accepted', 'resolved', 'stale'], negatable: true },
+  { key: 'state', label: 'State', type: 'terms', param: 'state', multi: true, facetKey: 'state', values: ['open', 'acknowledged', 'not_affected', 'risk_accepted', 'resolved', 'stale'], negatable: true, valueLabel: stateLabel },
   { key: 'ptype', label: 'Package type', type: 'terms', param: 'ptype', facetKey: 'ptype', negatable: true },
   // rail dims are top-N by count (server caps at 32); the value-search in Add-filter still
   // reaches anything the rail's cap hides

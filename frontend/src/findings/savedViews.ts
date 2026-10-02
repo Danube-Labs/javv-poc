@@ -8,6 +8,7 @@
 import type { ViewPreset, ViewWorkbench } from '@/api/generated'
 import {
   isNegatable,
+  valueLabel,
   type FilterField,
   type Selections,
   type TermsField,
@@ -93,6 +94,9 @@ export function presetToRouteQuery(
   return query
 }
 
+const names = (field: FilterField, values: unknown[]): string =>
+  values.map((v) => valueLabel(field, String(v))).join(', ')
+
 /** One-line human summary of a preset for the card ("severity is none of low, negligible ·
  * KEV"). Field labels come from the same config that renders the pills. */
 export function presetSummary(fields: readonly FilterField[], preset: ViewPreset): string {
@@ -104,10 +108,10 @@ export function presetSummary(fields: readonly FilterField[], preset: ViewPreset
       const inc = p[field.param]
       if (exc !== undefined && exc !== null) {
         const values = Array.isArray(exc) ? exc : [exc]
-        parts.push(`${field.label} is ${values.length > 1 ? 'none of' : 'not'} ${values.join(', ')}`)
+        parts.push(`${field.label} is ${values.length > 1 ? 'none of' : 'not'} ${names(field, values)}`)
       } else if (inc !== undefined && inc !== null) {
         const values = Array.isArray(inc) ? inc : [inc]
-        parts.push(`${field.label} ${values.length > 1 ? 'is one of' : 'is'} ${values.join(', ')}`)
+        parts.push(`${field.label} ${values.length > 1 ? 'is one of' : 'is'} ${names(field, values)}`)
       }
     } else if (field.type === 'flags') {
       for (const flag of field.values) {

@@ -193,11 +193,11 @@ function discard() {
     <template v-else>
       <SettingsCard
         title="Retention"
-        subtitle="one per-cluster window over the append families: how far back history and time-travel reach"
+        subtitle="one window per cluster for the history data: how far back history and time travel reach"
       >
         <SettingsRow
-          label="Append-family retention"
-          hint="Applies to the five append families below; expired indices are dropped whole by the daily sweep."
+          label="History retention"
+          hint="Applies to the five history indices below. The daily sweep drops whole indices once they expire."
         >
           <SettingsInput
             id="ret-days"

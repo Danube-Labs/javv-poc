@@ -96,7 +96,7 @@ function save() {
         </div>
       </UiField>
 
-      <UiField label="State · VEX lifecycle">
+      <UiField label="State">
         <TriageStateControl :current="finding.state" :target="target" :disabled="locked" @select="pickState" />
       </UiField>
 
@@ -130,7 +130,7 @@ function save() {
         &nbsp;&nbsp;<i class="pn-dot pn-stale" /><b>Stale</b>&nbsp;· scanner silent, flagged
       </p>
 
-      <UiField label="Note" hint="escaped, never rendered as HTML" for="triage-notes">
+      <UiField label="Note" for="triage-notes">
         <textarea
           id="triage-notes"
           v-model="notes"
