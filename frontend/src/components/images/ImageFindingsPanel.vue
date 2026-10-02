@@ -98,13 +98,16 @@ function goPrev() {
   if (pager.prev()) void loadRows()
 }
 
-function openFinding(row: FindingRow) {
-  logger.debug('image_finding_row_clicked', { finding_key: row.finding_key })
-  void router.push({
+function findingRoute(row: FindingRow) {
+  return {
     name: 'finding',
     params: { cveId: row.cve_id },
     query: { digest: props.digest, scanner: row.scanner, package: row.package_name ?? '' },
-  })
+  }
+}
+function openFinding(row: FindingRow) {
+  logger.debug('image_finding_row_clicked', { finding_key: row.finding_key })
+  void router.push(findingRoute(row))
 }
 </script>
 
@@ -128,6 +131,7 @@ function openFinding(row: FindingRow) {
       :order="order"
       :loading="loading"
       :hidden="HIDDEN_COLUMNS"
+      :row-to="findingRoute"
       @sort="onSort"
       @row-click="openFinding"
     />
