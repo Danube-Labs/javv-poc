@@ -634,9 +634,10 @@ is the shared `SectionNav` (Settings' left menu, moved into the kit so both scre
 component), sticky on the left; one card per section beside it. **Width: wide.** **Nav:**
 *Help → Guide* (`book` icon, an open book drawn for JAVV by operator ruling 2026-10-01: no
 licensed icon sets), before *About*.
-**Content:** seven sections: the time range, now vs new, two scanners never merged, scans and
-freshness, images are digests, triage, and a glossary that carries the data dictionary (#351
-§6). Written for the people using the app: plain words, no internal decision codes, no
+**Content:** eight sections: the time range, now vs new, two scanners never merged, scans and
+freshness, images are digests, triage, a state or a risk acceptance (issue 698: the two side by
+side, what the Approval list shows, and two worked examples, written in Simplified Technical
+English), and a glossary that carries the data dictionary (#351 §6). Written for the people using the app: plain words, no internal decision codes, no
 diagrams, no em dashes (operator rulings, 2026-10-01). Filter labels, the states a person can
 set and the VEX reasons are read from the app's own definitions, not retyped.
 **Links in:** `/guide#<section>`. The shell's URL re-stamp keeps the hash, and the router

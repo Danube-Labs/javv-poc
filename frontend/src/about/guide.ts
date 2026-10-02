@@ -50,6 +50,12 @@ export const GUIDE_SECTIONS = [
     icon: 'shield',
   },
   {
+    id: 'state-or-acceptance',
+    title: 'A state or a risk acceptance',
+    summary: 'Two ways to handle a finding, and what the Approval list shows.',
+    icon: 'layers',
+  },
+  {
     id: 'glossary',
     title: 'Glossary',
     summary: 'The short labels in tables and filters.',

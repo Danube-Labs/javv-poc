@@ -17,12 +17,17 @@
 .guide-prose :slotted(p) {
   margin: 0 0 var(--space-3);
 }
-.guide-prose :slotted(ul) {
+.guide-prose :slotted(ul),
+.guide-prose :slotted(ol) {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   margin: 0 0 var(--space-3);
   padding-left: 18px;
+}
+/* numbers need more room than bullets once a list reaches ten steps */
+.guide-prose :slotted(ol) {
+  padding-left: 24px;
 }
 .guide-prose :slotted(:last-child) {
   margin-bottom: 0;
