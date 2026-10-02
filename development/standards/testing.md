@@ -81,7 +81,9 @@ backend stdout to `development/e2e/logs/backend.log` for it). Selectors and logi
 - **One click does what it says (issue 666).** After the walk, the smoke clicks every sidebar item,
   a fleet row of the cluster that is not selected, and (with `--core-loop`, since it writes) a
   saved view with a 7-day window, and requires each to land on its first click. A route walk by
-  URL can't see a click whose state change cancels its own navigation; this phase can.
+  URL can't see a click whose state change cancels its own navigation; this phase can. It also
+  opens an address no route matches and requires the not-found page inside the shell, with a
+  working way back (issue 674: that address used to render an empty body).
 - **Desktop-only gate** (ruling on #387): no phone layout exists yet; phone runs in the rig as
   warn-only screenshots and flips to gating when a responsive pass lands.
 - **Determinism rules:** event-based waits only in the gate (no arbitrary sleeps beyond the

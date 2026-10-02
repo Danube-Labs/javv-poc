@@ -128,6 +128,15 @@ async function oneClick(page, issues) {
     })
   })
 
+  // an address no route matches used to render an empty body (issue 674)
+  await step('unknown address shows the not-found page inside the shell', async () => {
+    await page.goto(`${BASE}/no-such-page`)
+    await page.getByRole('heading', { name: 'Page not found' }).waitFor({ timeout: 10_000 })
+    await page.locator('.side-item').first().waitFor({ timeout: 5_000 })
+    await page.getByRole('button', { name: 'Back to Overview' }).click()
+    await page.waitForURL(pathIs('/overview'), { timeout: 10_000 })
+  })
+
   if (!CORE_LOOP) return
   await step('saved view with a 7-day window', async () => {
     const created = await page.evaluate(async () => {

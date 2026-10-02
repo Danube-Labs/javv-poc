@@ -146,11 +146,12 @@ async function apply() {
           </template>
       </div>
       <template #actions>
-          <UiButton variant="ghost" @click="open = false">{{ done !== null ? 'Close' : 'Cancel' }}</UiButton>
+          <!-- a blocked dialog has nothing to apply: one way out, not a dead primary beside it -->
+          <UiButton variant="ghost" @click="open = false">{{ done !== null || lens.blocked ? 'Close' : 'Cancel' }}</UiButton>
           <UiButton
-            v-if="done === null"
+            v-if="done === null && !lens.blocked"
             variant="primary"
-            :disabled="!!lens.blocked || !draft.body || submitting"
+            :disabled="!draft.body || submitting"
             @click="apply"
           >
             {{ submitting ? 'Applying…' : 'Apply to lens' }}

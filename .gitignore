@@ -64,3 +64,6 @@ notes/
 
 # local dev scratch (uvicorn.log, throwaway scripts) — never staged
 tmp/
+
+# the design-review skill's local snapshots — one developer's score history, not the repo's
+.impeccable/critique/
