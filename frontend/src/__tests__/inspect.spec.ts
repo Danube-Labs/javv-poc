@@ -10,6 +10,10 @@ import {
   fmtDocs,
   fmtJobResult,
   groupIndices,
+  jobFlag,
+  jobLastRun,
+  jobNextRun,
+  type JobDoc,
   splitMiddle,
   totalStoreBytes,
 } from '@/system/inspect'
@@ -105,5 +109,49 @@ describe('splitMiddle (issue 652: long index names truncate in the middle)', () 
   it('a short name keeps at least half of itself in the part that truncates', () => {
     const { head, tail } = splitMiddle('findings')
     expect(tail.length).toBeLessThanOrEqual(head.length)
+  })
+})
+
+describe('the job rows (issue 556)', () => {
+  const fmt = (iso: unknown) => `<${iso}>`
+  const job = (over: Partial<JobDoc>): JobDoc => ({
+    kind: 'report_sweep',
+    status: 'done',
+    capability: null,
+    runnable: false,
+    stale: false,
+    schedule: '15 * * * *',
+    next_run_at: 'N',
+    health: 'ok',
+    finished_at: 'F',
+    started_at: 'S',
+    ...over,
+  })
+
+  it('jobLastRun says how the last run ended', () => {
+    expect(jobLastRun(job({ result: { expired: 0, retried: 2 } }), fmt)).toBe('<F> · expired 0 · retried 2')
+    expect(jobLastRun(job({ result: null }), fmt)).toBe('<F>')
+    expect(jobLastRun(job({ status: 'failed', error: 'boom' }), fmt)).toBe('failed <F>: boom')
+    expect(jobLastRun(job({ status: 'failed' }), fmt)).toBe('failed <F>: see backend logs')
+    expect(jobLastRun(job({ status: 'running', requested_by: 'scheduled' }), fmt)).toBe(
+      'running · by scheduled · since <S>',
+    )
+    expect(jobLastRun(job({ status: 'running', stale: true }), fmt)).toBe(
+      'no heartbeat since <S>. Reclaimable, run again',
+    )
+    expect(jobLastRun(job({ status: 'idle' }), fmt)).toBe('never run on this store')
+  })
+
+  it('jobFlag names each health state, with a tone from the health ramp', () => {
+    expect(jobFlag(job({ health: 'ok' }))).toEqual({ tone: 'ok', label: 'on schedule' })
+    expect(jobFlag(job({ health: 'overdue' }))).toEqual({ tone: 'warn', label: 'late' })
+    expect(jobFlag(job({ health: 'failed' }))).toEqual({ tone: 'down', label: 'failed' })
+    expect(jobFlag(job({ health: 'never_ran' }))).toEqual({ tone: 'muted', label: 'not run yet' })
+    expect(jobFlag(job({ health: 'off' }))).toEqual({ tone: 'muted', label: 'off' })
+  })
+
+  it('jobNextRun is empty when nothing is going to run it', () => {
+    expect(jobNextRun(job({}), fmt)).toBe('next run <N>')
+    expect(jobNextRun(job({ next_run_at: null }), fmt)).toBe('')
   })
 })

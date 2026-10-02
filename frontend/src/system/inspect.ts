@@ -98,6 +98,55 @@ export function fmtJobResult(result: Record<string, unknown> | null | undefined)
   return parts.join(' · ')
 }
 
+export type JobHealth = 'ok' | 'failed' | 'overdue' | 'never_ran' | 'off'
+
+/** one entry of `GET /api/v1/admin/jobs` (docs/API.md) */
+export interface JobDoc {
+  kind: string
+  status: 'idle' | 'running' | 'done' | 'failed'
+  /** null on a job that cannot be started from the Data inspector */
+  capability: string | null
+  runnable: boolean
+  stale: boolean
+  /** the job's cron expression; null when it has none */
+  schedule: string | null
+  next_run_at: string | null
+  health: JobHealth
+  requested_by?: string | null
+  started_at?: string | null
+  finished_at?: string | null
+  result?: Record<string, unknown> | null
+  error?: string | null
+}
+
+/** a job's last run as one line; `fmt` turns a timestamp into the words on screen */
+export function jobLastRun(job: JobDoc, fmt: (iso: unknown) => string): string {
+  if (job.status === 'running' && job.stale)
+    return `no heartbeat since ${fmt(job.started_at)}. Reclaimable, run again`
+  if (job.status === 'running') return `running · by ${job.requested_by} · since ${fmt(job.started_at)}`
+  if (job.status === 'done') return [fmt(job.finished_at), fmtJobResult(job.result)].filter(Boolean).join(' · ')
+  if (job.status === 'failed') return `failed ${fmt(job.finished_at)}: ${job.error ?? 'see backend logs'}`
+  return 'never run on this store'
+}
+
+const JOB_FLAG: Record<JobHealth, { tone: 'ok' | 'warn' | 'down' | 'muted'; label: string }> = {
+  ok: { tone: 'ok', label: 'on schedule' },
+  overdue: { tone: 'warn', label: 'late' },
+  failed: { tone: 'down', label: 'failed' },
+  never_ran: { tone: 'muted', label: 'not run yet' },
+  off: { tone: 'muted', label: 'off' },
+}
+
+/** the status chip for a job against its schedule */
+export function jobFlag(job: JobDoc): { tone: 'ok' | 'warn' | 'down' | 'muted'; label: string } {
+  return JOB_FLAG[job.health]
+}
+
+/** "next run 3 Oct, 04:00", or nothing when the job or the scheduler is switched off */
+export function jobNextRun(job: JobDoc, fmt: (iso: unknown) => string): string {
+  return job.next_run_at ? `next run ${fmt(job.next_run_at)}` : ''
+}
+
 /** total store bytes from `_cat/indices` rows (pri.store.size strings like "1.2gb") */
 export function totalStoreBytes(rows: CatIndexRow[]): number {
   const UNIT: Record<string, number> = { b: 1, kb: 1024, mb: 1024 ** 2, gb: 1024 ** 3, tb: 1024 ** 4 }
