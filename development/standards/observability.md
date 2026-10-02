@@ -50,6 +50,12 @@ Two distinct failure modes, deliberately handled differently:
   data endpoints return the **503 error envelope** (below), and the **frontend shows a global banner**
   ("Search backend unavailable — check OpenSearch health") instead of blank screens or cryptic errors.
   Recovers automatically when `/readyz` returns `200` again.
+- **The backend itself gone** (the process is down, or the proxy in front of it answers `502`/`504`):
+  the frontend cannot get a `503` from a backend that is not there, so it reads the failure's shape
+  (`downReason` in `frontend/src/stores/health.ts`). A `503` means the store; no answer or any other
+  failure means the backend. The banner then says "The backend is not answering" rather than
+  pointing at OpenSearch, and the login page says the server is not answering rather than rejecting
+  the password (issue 675).
 
 ## 4. Error envelope (one shape, everywhere)
 Every non-2xx JSON response uses **one** problem-details-style body — routers never hand-roll error shapes:

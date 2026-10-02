@@ -39,8 +39,12 @@ Place the real brand SVGs (`brand/lockup.svg`, dark variants in dark chrome) —
 - `GET /auth/me` — `username`, `role`, `capabilities`, `must_change`. All gating flows from
   `capabilities` (A-4). Nav items whose screen is capability-gated (Approvals, admin Settings
   sections) are **hidden** without the capability.
-- `GET /readyz` (polled) — drives the global **degraded banner** ("Search backend unavailable —
-  check OpenSearch health"); any API `503` envelope raises it too; auto-clears on `200`.
+- `GET /readyz` (polled) — drives the global **degraded banner**; any API `503` envelope raises it
+  too, as does a proxy's `502` or `504`; auto-clears on `200`. The banner and the sidebar footer
+  say what is down (issue 675): a `503` is the backend reporting its store ("Search backend
+  unavailable. Check OpenSearch health.", footer "Store degraded"); no answer or a proxy error is
+  the backend itself ("The backend is not answering. Screens cannot load until it is back.",
+  footer "Backend not answering").
 - `GET /api/v1/scanners/freshness?cluster_id=…` — per-(cluster, scanner) `last_ingest_at` +
   `silent_for_seconds`; drives the **ScannerFreshnessBanner** ("data as of T; scanner silent
   since T′") and the sidebar sweep-health chip. Never-ingested → nulls → "no data yet" chip, not
@@ -79,7 +83,16 @@ The amber is the health ramp's step between fine and down (operator ruling on bu
 `JAVV_LOGIN_MAX_ATTEMPTS`), `POST /auth/password` (the only mutating route a `must_change` session
 may call), `POST /auth/logout`, `GET /auth/me`.
 **States:** bad-credentials (generic copy), locked-out (429 — "try again later", no countdown
-oracle), forced password change (SEC-6: bootstrap admin / temp password).
+oracle), forced password change (SEC-6: bootstrap admin / temp password), **server not answering**
+(issue 675: no answer or a `5xx` from the session check, the sign-in or the password change shows
+"The server is not answering. This page checks again on its own." in place of any credential
+error; the page asks `/readyz` every 30 seconds, and when the server returns it re-checks the
+session, so a visitor whose session is still good goes straight to Overview. A failed session
+check is not remembered as signed out: the next navigation asks again).
+**Rulings (operator, on built specimens, 2026-10-02):** the server-down message on the login page
+is the form's plain red line (A of two; B was a tinted box). The banner for a backend that is gone
+reads "The backend is not answering. Screens cannot load until it is back." (A of two; B ended
+"Check that the JAVV backend is running.").
 **Changed:** copy states capability-based access; SSO/OIDC removed (post-MVP, per V4-DELTA).
 
 ---

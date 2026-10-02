@@ -22,8 +22,24 @@ export interface SessionUser {
   must_change: boolean
 }
 
+/** No answer, or a 5xx: the server, or the proxy in front of it, failed. That says nothing about
+ * the session or the password, so it must never be reported as either (issue 675). */
+export function serverFailed(status: number | undefined): boolean {
+  return status === undefined || status >= 500
+}
+
+export const SERVER_DOWN_COPY = 'The server is not answering. This page checks again on its own.'
+
+/** The sign-in form's message for a failed answer, or null on success. A wrong password stays
+ * generic: no hint about whether the user exists. */
+export function loginFailure(status: number | undefined): string | null {
+  if (serverFailed(status)) return SERVER_DOWN_COPY
+  if (status === 429) return 'Too many attempts. Try again later.'
+  return status! >= 200 && status! < 300 ? null : 'Invalid username or password.'
+}
+
 export const useAuthStore = defineStore('auth', {
-  state: () => ({ user: null as SessionUser | null, checked: false }),
+  state: () => ({ user: null as SessionUser | null, checked: false, unreachable: false }),
   getters: {
     isAuthed: (s) => s.user !== null,
     mustChange: (s) => s.user?.must_change === true,
@@ -33,6 +49,14 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     async fetchMe(): Promise<void> {
       const { data, response } = await meAuthMeGet({ client })
+      if (serverFailed(response?.status)) {
+        // not "signed out": `checked` stays false, so the next navigation asks again
+        logger.warn('session check failed', { status: response?.status ?? null })
+        this.user = null
+        this.unreachable = true
+        return
+      }
+      this.unreachable = false
       this.user =
         response?.ok && data ? ((data as { user: SessionUser }).user ?? null) : null
       this.checked = true
@@ -40,8 +64,9 @@ export const useAuthStore = defineStore('auth', {
     /** Returns null on success, or user-facing error copy (generic — no user-existence hints). */
     async login(username: string, password: string): Promise<string | null> {
       const { response } = await loginAuthLoginPost({ client, body: { username, password } })
-      if (response?.status === 429) return 'Too many attempts. Try again later.'
-      if (!response?.ok) return 'Invalid username or password.'
+      this.unreachable = serverFailed(response?.status)
+      const failure = loginFailure(response?.status)
+      if (failure !== null) return failure
       logger.info('login', { username })
       await this.fetchMe()
       return null
@@ -51,6 +76,8 @@ export const useAuthStore = defineStore('auth', {
         client,
         body: { current_password: currentPassword, new_password: newPassword },
       })
+      this.unreachable = serverFailed(response?.status)
+      if (this.unreachable) return SERVER_DOWN_COPY
       if (!response?.ok) return 'Password change failed. Check the current password and policy.'
       logger.info('password changed')
       await this.fetchMe()
