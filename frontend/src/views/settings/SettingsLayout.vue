@@ -22,6 +22,8 @@ const scopeOf = (key: string) => SETTINGS_SECTIONS.find((s) => s.key === key)!.s
 const navItems = computed(() =>
   sections.value.map((s) => ({ key: s.key, label: s.label, icon: s.icon, to: `/settings/${s.key}` })),
 )
+/** The scopes the visible sections use, in the order they first appear: the legend's rows. */
+const legend = computed(() => [...new Set(sections.value.map((s) => s.scope))])
 const active = computed(
   () => SETTINGS_SECTIONS.find((s) => route.path.startsWith(`/settings/${s.key}`)) ?? null,
 )
@@ -51,9 +53,18 @@ const scopeNote = computed(() => {
         <template #trail="{ item }">
           <i
             class="scope-dot"
+            role="img"
             :data-scope="scopeOf(item.key)"
+            :aria-label="SCOPE_COPY[scopeOf(item.key)].label"
             :title="SCOPE_COPY[scopeOf(item.key)].label"
           />
+        </template>
+        <template #footer>
+          <ul class="scope-legend" aria-label="What the dots mean">
+            <li v-for="scope in legend" :key="scope">
+              <i :data-scope="scope" aria-hidden="true" />{{ SCOPE_COPY[scope].label }}
+            </li>
+          </ul>
         </template>
       </SectionNav>
 
@@ -97,6 +108,29 @@ const scopeNote = computed(() => {
 .scope-dot {
   background: var(--sc);
 }
+.scope-legend {
+  list-style: none;
+  margin: 6px 4px 2px;
+  padding: 8px 0 0;
+  border-top: 1px solid var(--line2);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: var(--text-control);
+  color: var(--soft);
+}
+.scope-legend li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.scope-legend i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--sc);
+  flex: none;
+}
 .scope-strip {
   display: flex;
   align-items: center;
@@ -138,6 +172,12 @@ const scopeNote = computed(() => {
     position: static;
     transform: none;
     flex: none;
+  }
+  /* under the wrapped tabs, as one row */
+  .scope-legend {
+    flex: 1 0 100%;
+    flex-direction: row;
+    gap: 16px;
   }
 }
 </style>
