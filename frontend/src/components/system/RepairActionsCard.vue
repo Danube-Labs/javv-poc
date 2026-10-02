@@ -8,11 +8,16 @@
  * Dry run (issue 459): an inline would-roll/would-drop answer that changes nothing, so the
  * operator can see what the sweep WOULD delete before confirming the real one. Polls while
  * anything runs.
+ *
+ * The same route lists the jobs the backend only ever runs on its schedule (issue 556), so this
+ * component also draws their card, Scheduled jobs: the same rows, read-only, with a status chip
+ * in place of the button. One fetch and one poll feed both cards.
  */
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 import { client } from '@/api/client'
 import { listJobsApiV1AdminJobsGet, triggerJobApiV1AdminJobsKindRunPost } from '@/api/generated'
+import DotWord from '@/components/chips/DotWord.vue'
 import AppIcon, { type IconName } from '@/components/ui/AppIcon.vue'
 import ModalShell from '@/components/ui/ModalShell.vue'
 import UiButton from '@/components/ui/UiButton.vue'
@@ -20,22 +25,9 @@ import { fmtAt } from '@/findings/format'
 import { logger } from '@/lib/logger'
 import { useAuthStore } from '@/stores/auth'
 import { useToastStore } from '@/stores/toast'
-import { fmtJobResult } from '@/system/inspect'
+import { jobFlag, jobLastRun, jobNextRun, type JobDoc } from '@/system/inspect'
 
-interface JobDoc {
-  kind: string
-  status: 'idle' | 'running' | 'done' | 'failed'
-  capability: string
-  runnable: boolean
-  stale: boolean
-  requested_by?: string | null
-  started_at?: string | null
-  finished_at?: string | null
-  result?: Record<string, unknown> | null
-  error?: string | null
-}
-
-const COPY: Record<string, { icon: IconName; label: string; sub: string; desc: string }> = {
+const COPY: Record<string, { icon: IconName; label: string; sub?: string; desc: string }> = {
   rebuild_state: {
     icon: 'rescan',
     label: 'Rebuild state',
@@ -54,11 +46,35 @@ const COPY: Record<string, { icon: IconName; label: string; sub: string; desc: s
     sub: 'retention · whole-index drops',
     desc: 'Applies retention by dropping whole aged indices, the only sanctioned delete in the system.',
   },
+  // the scheduled-only jobs: their second line is the schedule itself
+  report_drain: {
+    icon: 'download',
+    label: 'Export queue',
+    desc: 'Builds the exports people have asked for.',
+  },
+  report_sweep: {
+    icon: 'clock',
+    label: 'Export cleanup',
+    desc: 'Deletes export files past their expiry and retries exports that got stuck.',
+  },
+  findings_cleanup: {
+    icon: 'trash',
+    label: 'Old findings cleanup',
+    desc: 'Removes findings that have been gone for longer than the retention window.',
+  },
+  session_sweep: {
+    icon: 'key',
+    label: 'Expired sessions',
+    desc: 'Removes sign-in sessions that have expired.',
+  },
 }
 
 const auth = useAuthStore()
 const toast = useToastStore()
-const jobs = ref<JobDoc[]>([])
+const all = ref<JobDoc[]>([])
+const scheduler = ref<{ enabled: boolean; timezone: string } | null>(null)
+const jobs = computed(() => all.value.filter((j) => j.runnable))
+const scheduled = computed(() => all.value.filter((j) => !j.runnable))
 const loaded = ref(false)
 const failed = ref(false)
 const confirming = ref<JobDoc | null>(null)
@@ -67,8 +83,9 @@ let timer: ReturnType<typeof setInterval> | null = null
 async function refresh() {
   const r = await listJobsApiV1AdminJobsGet({ client })
   if (r.response?.ok && r.data) {
-    // the route lists every background job; this card is only the ones with a Run button
-    jobs.value = (r.data as { jobs: JobDoc[] }).jobs.filter((j) => j.runnable)
+    const body = r.data as { jobs: JobDoc[]; scheduler?: { enabled: boolean; timezone: string } }
+    all.value = body.jobs
+    scheduler.value = body.scheduler ?? null
     failed.value = false
   } else {
     failed.value = true
@@ -77,7 +94,7 @@ async function refresh() {
   syncPolling()
 }
 
-const anyRunning = computed(() => jobs.value.some((j) => j.status === 'running' && !j.stale))
+const anyRunning = computed(() => all.value.some((j) => j.status === 'running' && !j.stale))
 
 function syncPolling() {
   if (anyRunning.value && timer === null) {
@@ -144,17 +161,13 @@ async function dryRun(job: JobDoc) {
   }
 }
 
-function statusMeta(job: JobDoc): string {
-  if (job.status === 'running' && job.stale)
-    return `no heartbeat since ${fmtAt(job.started_at)}. Reclaimable, run again`
-  if (job.status === 'running') return `running · by ${job.requested_by} · since ${fmtAt(job.started_at)}`
-  if (job.status === 'done') return `${fmtAt(job.finished_at)} · ${fmtJobResult(job.result)}`
-  if (job.status === 'failed') return `failed ${fmtAt(job.finished_at)}: ${job.error ?? 'see backend logs'}`
-  return 'never run on this store'
+/** a scheduled job in Repair actions also says when it runs on its own */
+function scheduleLine(job: JobDoc): string {
+  return [job.schedule, jobNextRun(job, fmtAt)].filter(Boolean).join(' · ')
 }
 
 function canRun(job: JobDoc): boolean {
-  return auth.hasCapability(job.capability)
+  return job.capability !== null && auth.hasCapability(job.capability)
 }
 </script>
 
@@ -178,10 +191,12 @@ function canRun(job: JobDoc): boolean {
         </div>
         <p class="repair-desc">{{ COPY[job.kind]?.desc }}</p>
         <div class="repair-status">
+          <DotWord v-if="job.schedule" class="job-flag" v-bind="jobFlag(job)" />
           <div v-if="job.status === 'running' && !job.stale" class="job-runbar" aria-hidden="true" />
           <p class="job-meta" :class="{ 'job-failed': job.status === 'failed' || job.stale }">
-            {{ statusMeta(job) }}
+            {{ jobLastRun(job, fmtAt) }}
           </p>
+          <p v-if="job.schedule" class="job-meta">{{ scheduleLine(job) }}</p>
         </div>
         <div class="repair-buttons">
           <UiButton
@@ -219,6 +234,37 @@ function canRun(job: JobDoc): boolean {
       </template>
     </ModalShell>
   </section>
+
+  <section v-if="loaded && !failed && scheduled.length" class="card repair scheduled">
+    <h2 class="panel-band">Scheduled jobs</h2>
+    <p class="repair-sub">
+      The backend runs these on its own. Each row shows the schedule, the last run and the next
+      one. Schedules are cron expressions set in the deployment<template v-if="scheduler">
+        and read in the server timezone ({{ scheduler.timezone }})</template
+      >.
+      <b v-if="scheduler && !scheduler.enabled">
+        The scheduler is switched off on this backend, so nothing here runs on its own.
+      </b>
+    </p>
+    <div v-for="job in scheduled" :key="job.kind" class="repair-row">
+      <span class="repair-tile"><AppIcon :name="COPY[job.kind]?.icon ?? 'gear'" :size="16" /></span>
+      <div class="repair-name">
+        <b>{{ COPY[job.kind]?.label ?? job.kind }}</b>
+        <span>{{ job.schedule ?? 'no schedule' }}</span>
+      </div>
+      <p class="repair-desc">{{ COPY[job.kind]?.desc }}</p>
+      <div class="repair-status">
+        <div v-if="job.status === 'running' && !job.stale" class="job-runbar" aria-hidden="true" />
+        <p class="job-meta" :class="{ 'job-failed': job.status === 'failed' || job.stale }">
+          {{ jobLastRun(job, fmtAt) }}
+        </p>
+        <p v-if="jobNextRun(job, fmtAt)" class="job-meta">{{ jobNextRun(job, fmtAt) }}</p>
+      </div>
+      <div class="repair-buttons">
+        <DotWord v-bind="jobFlag(job)" />
+      </div>
+    </div>
+  </section>
 </template>
 
 <style scoped>
@@ -242,6 +288,13 @@ function canRun(job: JobDoc): boolean {
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+.repair-sub b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.job-flag {
+  margin-bottom: 4px;
 }
 .repair-sub {
   color: var(--soft);

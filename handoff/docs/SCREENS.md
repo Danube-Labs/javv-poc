@@ -697,6 +697,25 @@ on is `development/RUNNING-THE-STACK.md` § R1.
 
 ---
 
+## 19. Data inspector: the job cards (issue 556)
+
+Two cards under the console, both fed by `GET /api/v1/admin/jobs` (one fetch, one poll while
+anything runs). Ruled on built specimens, 2026-10-02.
+
+- **Repair actions**: the three jobs that have a Run button. The Staleness and Lifecycle rows are
+  also scheduled, so their status column carries the status chip, then the last run, then the cron
+  expression and the next run. Rebuild state has no schedule and no chip.
+- **Scheduled jobs**: the four jobs the backend only runs on its schedule (export queue, export
+  cleanup, old findings cleanup, expired sessions). Read-only rows: name with the cron expression
+  under it, what the job does, the last run with its counts and the next run, and a status chip in
+  place of the button. The intro names the timezone the schedules are read in, and says so when the
+  scheduler is switched off on this backend.
+- **The status chip** is the kit's dot-and-word chip on every row, never only on the bad ones:
+  `on schedule` (ok), `late` (warn), `failed` (down), `not run yet` and `off` (muted). `late` means
+  the job missed a whole scheduled run (docs/API.md, `health`).
+- Schedules are shown as the cron expressions the operator set, not rewritten in words. They are
+  not editable here: they belong to the deployment (`docs/CONFIGURATION.md` §1).
+
 ## Cross-cutting (unchanged rules, restated)
 
 - Deep-links pass presets into `useFilters` — presets now serialize **lowercase** severities and
