@@ -1,0 +1,53 @@
+<script setup lang="ts">
+/**
+ * Wraps the routed page inside the shell (SCREENS §18): when the page fails while it is drawn,
+ * the error page takes its place and the sidebar and top bar stay usable. Every caught error is
+ * logged; `replacesPage` decides which ones replace the page.
+ */
+import { onErrorCaptured, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+
+import ErrorPage from '@/components/system/ErrorPage.vue'
+import UiButton from '@/components/ui/UiButton.vue'
+import { logger } from '@/lib/logger'
+import { errorMessage, pageCrashed, replacesPage } from '@/system/crash'
+
+const route = useRoute()
+const router = useRouter()
+
+onErrorCaptured((err, _instance, info) => {
+  const replaces = replacesPage(info)
+  logger.error(replaces ? 'page crashed' : 'page error', {
+    route: route.path,
+    info,
+    message: errorMessage(err),
+  })
+  if (replaces) pageCrashed.value = true
+  return false
+})
+
+watch(
+  () => route.fullPath,
+  () => {
+    pageCrashed.value = false
+  },
+)
+
+function toOverview() {
+  pageCrashed.value = false
+  void router.push({ name: 'overview' })
+}
+</script>
+
+<template>
+  <ErrorPage
+    v-if="pageCrashed"
+    code="Error"
+    title="This page could not be shown"
+    hint="Something went wrong while showing this page. Your data is not affected. Try again, or go back to Overview."
+  >
+    <UiButton variant="primary" @click="pageCrashed = false">Try again</UiButton>
+    <UiButton variant="control" @click="toOverview">Back to Overview</UiButton>
+  </ErrorPage>
+  <slot v-else />
+</template>
