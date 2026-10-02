@@ -2,13 +2,16 @@
 /**
  * Login + forced password change (SCREENS §0). Error copy is GENERIC — never a
  * user-existence hint; 429 lockout copy gives no countdown oracle. A must_change session is
- * locked here (mode 'change') until the password is rotated (SEC-6).
+ * locked here (mode 'change') until the password is rotated (SEC-6). A server that does not
+ * answer is said as such, never as a wrong password; the page keeps asking, and a visitor whose
+ * session is still good goes straight back in when the server returns (issue 675).
  */
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import icon from '@/assets/brand/icon.svg'
-import { useAuthStore } from '@/stores/auth'
+import { SERVER_DOWN_COPY, useAuthStore } from '@/stores/auth'
+import { POLL_MS, useHealthStore } from '@/stores/health'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -21,6 +24,26 @@ const error = ref<string | null>(null)
 const busy = ref(false)
 
 const mode = computed(() => (auth.mustChange ? 'change' : 'login'))
+
+const health = useHealthStore()
+let recheck: ReturnType<typeof setInterval> | 0 = 0
+async function checkAgain() {
+  await health.check()
+  if (health.degraded) return
+  await auth.fetchMe()
+  if (auth.isAuthed && !auth.mustChange) await router.push('/overview')
+}
+watch(
+  () => auth.unreachable,
+  (down) => {
+    if (recheck) clearInterval(recheck)
+    recheck = down ? setInterval(() => void checkAgain(), POLL_MS) : 0
+  },
+  { immediate: true },
+)
+onUnmounted(() => {
+  if (recheck) clearInterval(recheck)
+})
 
 async function submitLogin() {
   busy.value = true
@@ -67,7 +90,8 @@ async function submitChange() {
         <input id="confirm" v-model="confirm" type="password" autocomplete="new-password" required />
       </template>
 
-      <p v-if="error" class="error" role="alert">{{ error }}</p>
+      <p v-if="auth.unreachable" class="notice down" role="alert">{{ SERVER_DOWN_COPY }}</p>
+      <p v-else-if="error" class="error" role="alert">{{ error }}</p>
       <button type="submit" :disabled="busy">
         {{ mode === 'login' ? 'Sign in' : 'Change password' }}
       </button>
@@ -127,6 +151,11 @@ async function submitChange() {
   border: 1px solid var(--hist-line);
   border-radius: var(--r-chip);
   font-size: var(--text-body);
+}
+.notice.down {
+  margin: 14px 0 0;
+  background: var(--health-down-bg);
+  border-color: var(--health-down-bg);
 }
 label {
   font-family: var(--font-mono);
