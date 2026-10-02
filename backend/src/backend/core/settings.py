@@ -13,6 +13,8 @@ from functools import lru_cache
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.jobs.schedule import validate_cron
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="JAVV_", extra="ignore")
@@ -74,6 +76,22 @@ class Settings(BaseSettings):
     inspect_max_hits: int = Field(default=500, ge=1)
     inspect_max_response_bytes: int = Field(default=2 * 1024 * 1024, ge=1)
     inspect_timeout_seconds: float = Field(default=10.0, gt=0)
+    # background jobs (issue 691): the backend runs its own jobs. One cron expression per job,
+    # read on the LOCAL wall clock of the process (`TZ`); empty = that job never runs on a
+    # schedule. The master switch stops the scheduler without touching the schedules. The field
+    # names are `job_<kind>_cron` for the kinds in `jobs/registry.py`, so the lookup is mechanical.
+    scheduler_enabled: bool = True
+    job_report_drain_cron: str = "*/5 * * * *"
+    job_report_sweep_cron: str = "15 * * * *"
+    job_staleness_sweep_cron: str = "0 2 * * *"
+    job_lifecycle_sweep_cron: str = "0 3 * * *"
+    job_findings_cleanup_cron: str = "0 4 * * *"
+    job_session_sweep_cron: str = "30 4 * * *"
+
+    def job_cron(self, kind: str) -> str:
+        """The kind's schedule, or "" when it has none (switched off, or `rebuild_state`, which
+        is only ever run by hand)."""
+        return str(getattr(self, f"job_{kind}_cron", "")).strip()
 
     @model_validator(mode="after")
     def _cap_pairs_are_ordered(self) -> "Settings":
@@ -89,6 +107,15 @@ class Settings(BaseSettings):
                 "bulk_inline_limit must be ≤ bulk_max_targets — the freeze cap bounds what the"
                 " inline path may ever be offered"
             )
+        # a schedule the scheduler cannot follow would fail silently at 03:00, not at boot
+        for name in type(self).model_fields:
+            if name.startswith("job_") and name.endswith("_cron"):
+                expression = str(getattr(self, name)).strip()
+                if expression:
+                    try:
+                        validate_cron(expression)
+                    except ValueError as exc:
+                        raise ValueError(f"JAVV_{name.upper()}: {exc}") from exc
         return self
 
 

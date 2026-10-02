@@ -256,7 +256,9 @@ async def _main() -> int:
     settings = get_settings()
     client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
     try:
-        await run_findings_cleanup(client)
+        from backend.jobs.registry import run_job
+
+        await run_job(client, "findings_cleanup")
         return 0
     finally:
         await client.close()

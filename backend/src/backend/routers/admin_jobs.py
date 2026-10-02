@@ -26,28 +26,17 @@ from backend.audit.writer import append_auth_event
 from backend.auth.principal import Principal, get_current_principal
 from backend.jobs.lease import JOBS_INDEX, claim_job, finalize_job, heartbeat_loop, lease_fresh
 from backend.jobs.lifecycle import run_lifecycle_sweep
-from backend.jobs.rebuild_state import run_rebuild_state
-from backend.jobs.staleness import run_staleness_sweep
+from backend.jobs.registry import JOBS
 
 log = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/admin/jobs", tags=["admin-jobs"])
 
 
-async def _run_staleness(client: AsyncOpenSearch) -> dict[str, Any]:
-    return dict(await run_staleness_sweep(client))
-
-
-async def _run_lifecycle(client: AsyncOpenSearch) -> dict[str, Any]:
-    return dict(await run_lifecycle_sweep(client))
-
-
-# kind → (its D33 capability, the runner). Lifecycle DROPS whole indices → can_drop_index;
-# rebuild has its own destructive-tier capability; the staleness pass is a settings-tier rerun.
+# kind → (its D33 capability, the runner), for the kinds the Data inspector may start. The table
+# of every kind is `jobs/registry.py`; the scheduled-only ones have no capability and no trigger.
 JOB_KINDS: dict[str, tuple[str, Callable[[AsyncOpenSearch], Awaitable[dict[str, Any]]]]] = {
-    "rebuild_state": ("can_rebuild_state", run_rebuild_state),
-    "staleness_sweep": ("can_manage_settings", _run_staleness),
-    "lifecycle_sweep": ("can_drop_index", _run_lifecycle),
+    job.kind: (job.capability, job.runner) for job in JOBS.values() if job.capability is not None
 }
 
 

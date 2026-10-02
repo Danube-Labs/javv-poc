@@ -33,7 +33,7 @@
 | `system-notifications` | mutable | none | **no** | bounded delete (old/read) |
 | `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h) |
 | `system-report-chunks` | mutable | none | **no** | TTL sweep with its parent report |
-| `system-jobs` | mutable (repair-actions lease/status, issue 406) | none | **no** | none — bounded at one doc per job kind |
+| `system-jobs` | mutable (one lease/status doc per background job kind: the three repair actions, issue 406, and since issue 691 the four scheduled-only jobs too) | none | **no** | none — bounded at one doc per job kind |
 
 **Time-travel horizon = per-cluster, "as far back as the data in OpenSearch allows"** - i.e. the oldest
 retained `javv-finding-occurrences-<cluster_id>-*` / `javv-images-<cluster_id>-*` window, paired with
@@ -411,7 +411,8 @@ revoked           boolean       revoke-on-role-change / logout-all
 #                          slices) so a large export never exceeds http.max_content_length / bloats heap;
 #                          `data` is an {enabled:false} un-indexed _source field (never analysed). Written
 #                          under the drain's attempt_id; only the `done` attempt_id's chunks are canonical.
-# system-jobs           : { kind: rebuild_state|staleness_sweep|lifecycle_sweep, status:
+# system-jobs           : { kind: rebuild_state|staleness_sweep|lifecycle_sweep|findings_cleanup|
+#                          session_sweep|report_sweep|report_drain (jobs/registry.py), status:
 #                          idle|running|done|failed, requested_by, attempt_id, started_at,
 #                          finished_at, heartbeat_at, result {enabled:false}, error }   the repair-
 #                          actions surface (issue 406): _id = kind, so the index is bounded at #kinds

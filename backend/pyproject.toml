@@ -16,6 +16,8 @@ dependencies = [
     "prometheus-client>=0.25.0",
     "argon2-cffi>=25.1.0",
     "javv-common",
+    "cronsim>=2.7",
+    "tzdata>=2026.4",
 ]
 
 [tool.uv.sources]
