@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.13](https://github.com/Danube-Labs/javv-poc/compare/v0.4.12...v0.4.13) (2026-10-02)
+
+
+### Bug Fixes
+
+* three layout glitches (settings tabs and image detail at 1024, empty trend chart) ([#682](https://github.com/Danube-Labs/javv-poc/issues/682)) ([0b86ea5](https://github.com/Danube-Labs/javv-poc/commit/0b86ea51b54838b9e88b5eada07ae8090894a742))
+
 ## [0.4.12](https://github.com/Danube-Labs/javv-poc/compare/v0.4.11...v0.4.12) (2026-10-02)
 
 
