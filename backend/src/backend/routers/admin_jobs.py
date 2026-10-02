@@ -1,5 +1,5 @@
 """Repair actions (issue 406 follow-up) — HTTP triggers for the three sanctioned maintenance
-jobs, never raw store writes.
+jobs, never raw store writes — and the status of every background job (issue 556).
 
 One `system-jobs` doc per kind (_id = kind) is the whole surface, and the lease grammar lives
 in `jobs/lease.py` shared with the scheduled door (issue 459): OCC claim (seq_no CAS)
@@ -15,18 +15,21 @@ inline (200, not 202) without the lease or the status doc: a read has nothing to
 
 import asyncio
 from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 from typing import Annotated, Any
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
-from opensearchpy import AsyncOpenSearch, NotFoundError
+from opensearchpy import AsyncOpenSearch
 
 from backend.audit.writer import append_auth_event
 from backend.auth.principal import Principal, get_current_principal
+from backend.core.settings import Settings, get_settings
 from backend.jobs.lease import JOBS_INDEX, claim_job, finalize_job, heartbeat_loop, lease_fresh
 from backend.jobs.lifecycle import run_lifecycle_sweep
 from backend.jobs.registry import JOBS
+from backend.jobs.schedule import job_health, local_zone, next_slot
 
 log = structlog.get_logger()
 
@@ -86,25 +89,48 @@ def result_flat(result: dict[str, Any]) -> dict[str, Any]:
     return flat
 
 
+def job_view(
+    kind: str, record: dict[str, Any] | None, settings: Settings, now: datetime
+) -> dict[str, Any]:
+    """One job as the route returns it: its `system-jobs` record (or an idle stand-in) plus
+    whether it can be started here, its schedule, its next run and how it is doing against that
+    schedule. `now` is aware, in the zone schedules are read in."""
+    doc: dict[str, Any] = dict(record) if record else {"kind": kind, "status": "idle"}
+    fresh = lease_fresh(doc)
+    capability = JOBS[kind].capability
+    schedule = settings.job_cron(kind)
+    scheduled = bool(schedule) and settings.scheduler_enabled
+    doc["stale"] = bool(doc.get("status") == "running" and not fresh)
+    doc["capability"] = capability
+    doc["runnable"] = capability is not None
+    doc["schedule"] = schedule or None
+    doc["next_run_at"] = next_slot(schedule, now).astimezone(UTC).isoformat() if scheduled else None
+    doc["health"] = job_health(
+        record, schedule, now=now, enabled=settings.scheduler_enabled, lease_fresh=fresh
+    )
+    return doc
+
+
 @router.get("")
 async def list_jobs(
     request: Request,
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> dict[str, Any]:
-    """Status of every job kind — running/idle/done/failed + last result. A running doc whose
-    heartbeat went silent past the lease TTL reports `stale: true` (reclaimable, not lying)."""
+    """Every background job: running/idle/done/failed + last result, whether it can be started
+    here (`runnable`), its cron `schedule`, its `next_run_at` and its `health` (`ok`, `failed`,
+    `overdue`, `never_ran` or `off`). A running doc whose heartbeat went silent past the lease
+    TTL reports `stale: true` (reclaimable, not lying). `scheduler` says whether the backend is
+    running the schedules and which timezone they are read in."""
     client = request.app.state.opensearch
-    jobs: list[dict[str, Any]] = []
-    for kind, (capability, _) in JOB_KINDS.items():
-        doc: dict[str, Any]
-        try:
-            doc = (await client.get(index=JOBS_INDEX, id=kind))["_source"]
-        except NotFoundError:
-            doc = {"kind": kind, "status": "idle"}
-        doc["stale"] = bool(doc.get("status") == "running" and not lease_fresh(doc))
-        doc["capability"] = capability
-        jobs.append(doc)
-    return {"jobs": jobs}
+    settings = get_settings()
+    zone, _ = local_zone()
+    now = datetime.now(zone)
+    got = await client.mget(index=JOBS_INDEX, body={"ids": list(JOBS)})
+    records = {d["_id"]: d["_source"] for d in got["docs"] if d.get("found")}
+    return {
+        "jobs": [job_view(kind, records.get(kind), settings, now) for kind in JOBS],
+        "scheduler": {"enabled": settings.scheduler_enabled, "timezone": str(zone)},
+    }
 
 
 @router.post("/{kind}/run", status_code=202)

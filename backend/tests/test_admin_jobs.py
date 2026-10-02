@@ -11,6 +11,7 @@ import contextlib
 import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
@@ -19,6 +20,8 @@ from opensearchpy import AsyncOpenSearch
 from opensearchpy.exceptions import ConnectionError as OpenSearchConnectionError
 
 from backend.auth.passwords import hash_password
+from backend.core.settings import Settings
+from backend.jobs.schedule import local_zone
 from backend.jobs.staleness import run_staleness_sweep
 from backend.main import create_app
 from backend.routers import admin_jobs
@@ -230,14 +233,99 @@ async def test_dry_run_still_needs_the_lifecycle_capability(env):
     assert r.status_code == 403
 
 
-async def test_status_lists_every_kind_with_capability(env):
+SCHEDULED_ONLY = {"findings_cleanup", "session_sweep", "report_sweep", "report_drain"}
+RO = ZoneInfo("Europe/Bucharest")
+NOON = datetime(2026, 6, 10, 12, 0, tzinfo=RO)
+
+
+async def test_status_lists_every_kind_with_capability(env, monkeypatch):
     http, client = env
+    monkeypatch.setattr(admin_jobs, "get_settings", lambda: Settings(scheduler_enabled=True))
     await _login(http, client, [])  # any authenticated user may LOOK
     s = await http.get("/api/v1/admin/jobs")
     assert s.status_code == 200
-    jobs = {j["kind"]: j for j in s.json()["jobs"]}
-    assert set(jobs) == {"rebuild_state", "staleness_sweep", "lifecycle_sweep"}
+    body = s.json()
+    jobs = {j["kind"]: j for j in body["jobs"]}
+    assert set(jobs) == {"rebuild_state", "staleness_sweep", "lifecycle_sweep"} | SCHEDULED_ONLY
     assert jobs["lifecycle_sweep"]["capability"] == "can_drop_index"
+    assert {k for k, j in jobs.items() if j["runnable"]} == set(admin_jobs.JOB_KINDS)
+    for kind in SCHEDULED_ONLY:
+        assert jobs[kind]["capability"] is None
+    assert jobs["report_drain"]["schedule"] == "*/5 * * * *"
+    assert jobs["rebuild_state"]["schedule"] is None
+    for job in jobs.values():
+        assert job["health"] in {"ok", "failed", "overdue", "never_ran", "off"}
+        assert (job["next_run_at"] is None) == (job["schedule"] is None)
+    assert body["scheduler"] == {"enabled": True, "timezone": str(local_zone()[0])}
+
+
+async def test_the_scheduler_switched_off_is_reported(env):
+    http, client = env  # the suite runs with JAVV_SCHEDULER_ENABLED=false
+    await _login(http, client, [])
+    body = (await http.get("/api/v1/admin/jobs")).json()
+    assert body["scheduler"]["enabled"] is False
+    for job in body["jobs"]:
+        assert job["next_run_at"] is None
+        assert job["health"] in {"off", "failed"}
+
+
+@pytest.mark.parametrize("kind", sorted(SCHEDULED_ONLY))
+async def test_a_scheduled_only_kind_cannot_be_triggered(env, kind):
+    http, client = env
+    await _login(http, client, ["*"])
+    r = await http.post(f"/api/v1/admin/jobs/{kind}/run")
+    assert r.status_code == 404
+
+
+def _record(status: str, started: datetime) -> dict[str, Any]:
+    stamp = started.astimezone(UTC).isoformat()
+    return {"kind": "x", "status": status, "started_at": stamp, "heartbeat_at": stamp}
+
+
+def test_a_job_view_carries_its_schedule_next_run_and_health():
+    on = Settings(scheduler_enabled=True)
+    ran = _record("done", datetime(2026, 6, 10, 4, 0, 3, tzinfo=RO))
+    view = admin_jobs.job_view("findings_cleanup", ran, on, NOON)
+    assert view["status"] == "done"
+    assert view["runnable"] is False and view["capability"] is None
+    assert view["schedule"] == "0 4 * * *"
+    # 04:00 in Bucharest on the 11th, said in UTC like every other stamp in the record
+    assert view["next_run_at"] == "2026-06-11T01:00:00+00:00"
+    assert view["health"] == "ok"
+    assert view["stale"] is False
+
+
+def test_a_job_view_for_a_kind_that_never_ran():
+    view = admin_jobs.job_view("session_sweep", None, Settings(scheduler_enabled=True), NOON)
+    assert view["kind"] == "session_sweep" and view["status"] == "idle"
+    assert view["health"] == "never_ran"
+    assert view["next_run_at"] == "2026-06-11T01:30:00+00:00"
+
+
+def test_a_job_view_flags_a_missed_run_and_a_failed_one():
+    on = Settings(scheduler_enabled=True)
+    missed = _record("done", datetime(2026, 6, 8, 2, 0, 3, tzinfo=RO))
+    assert admin_jobs.job_view("staleness_sweep", missed, on, NOON)["health"] == "overdue"
+    failed = _record("failed", datetime(2026, 6, 10, 2, 0, 3, tzinfo=RO))
+    assert admin_jobs.job_view("staleness_sweep", failed, on, NOON)["health"] == "failed"
+
+
+def test_a_job_view_for_a_kind_switched_off_or_never_scheduled():
+    one_off = Settings(scheduler_enabled=True, job_report_sweep_cron="")
+    view = admin_jobs.job_view("report_sweep", None, one_off, NOON)
+    assert (view["schedule"], view["next_run_at"], view["health"]) == (None, None, "off")
+    view = admin_jobs.job_view("rebuild_state", None, one_off, NOON)
+    assert (view["schedule"], view["next_run_at"], view["health"]) == (None, None, "off")
+    assert view["runnable"] is True
+    # the master switch off: the schedule is still shown, nothing is going to run it
+    view = admin_jobs.job_view("report_drain", None, Settings(scheduler_enabled=False), NOON)
+    assert (view["schedule"], view["next_run_at"], view["health"]) == ("*/5 * * * *", None, "off")
+
+
+def test_a_job_view_marks_a_running_record_with_a_dead_heartbeat_stale():
+    old = _record("running", datetime(2026, 1, 1, 0, 0, tzinfo=UTC))
+    view = admin_jobs.job_view("report_drain", old, Settings(scheduler_enabled=True), NOON)
+    assert view["stale"] is True
 
 
 @pytest.mark.parametrize("outcome", ["done", "failed"])

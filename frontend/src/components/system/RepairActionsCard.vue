@@ -26,6 +26,7 @@ interface JobDoc {
   kind: string
   status: 'idle' | 'running' | 'done' | 'failed'
   capability: string
+  runnable: boolean
   stale: boolean
   requested_by?: string | null
   started_at?: string | null
@@ -66,7 +67,8 @@ let timer: ReturnType<typeof setInterval> | null = null
 async function refresh() {
   const r = await listJobsApiV1AdminJobsGet({ client })
   if (r.response?.ok && r.data) {
-    jobs.value = (r.data as { jobs: JobDoc[] }).jobs
+    // the route lists every background job; this card is only the ones with a Run button
+    jobs.value = (r.data as { jobs: JobDoc[] }).jobs.filter((j) => j.runnable)
     failed.value = false
   } else {
     failed.value = true
