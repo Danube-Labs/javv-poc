@@ -7,6 +7,7 @@
  */
 import { useRoute, useRouter } from 'vue-router'
 
+import ErrorPage from '@/components/system/ErrorPage.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 
 const route = useRoute()
@@ -17,63 +18,13 @@ const cameFromApp = typeof window.history.state?.back === 'string'
 </script>
 
 <template>
-  <section class="screen not-found">
-    <div class="nf-body">
-      <p class="nf-code" aria-hidden="true">404</p>
-      <h1>Page not found</h1>
-      <p class="nf-hint">There is no page at this address. It may have moved, or the link may be mistyped.</p>
-      <p class="nf-path mono-cell">{{ route.path }}</p>
-      <div class="nf-actions">
-        <UiButton variant="primary" @click="router.push({ name: 'overview' })">Back to Overview</UiButton>
-        <UiButton v-if="cameFromApp" variant="control" @click="router.back()">Go back</UiButton>
-      </div>
-    </div>
-  </section>
+  <ErrorPage
+    code="404"
+    title="Page not found"
+    hint="There is no page at this address. It may have moved, or the link may be mistyped."
+    :detail="route.path"
+  >
+    <UiButton variant="primary" @click="router.push({ name: 'overview' })">Back to Overview</UiButton>
+    <UiButton v-if="cameFromApp" variant="control" @click="router.back()">Go back</UiButton>
+  </ErrorPage>
 </template>
-
-<style scoped>
-.not-found {
-  display: grid;
-  place-items: center;
-  min-height: 62vh;
-}
-.nf-body {
-  text-align: center;
-  max-width: 56ch;
-}
-.nf-code {
-  margin: 0 0 6px;
-  font-family: var(--font-mono);
-  font-size: var(--text-detail-mono);
-  font-weight: 700;
-  color: var(--coral-text);
-}
-.nf-body h1 {
-  margin: 0 0 8px;
-  font-size: var(--text-page-title);
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-}
-.nf-hint {
-  margin: 0;
-  color: var(--soft);
-  font-size: var(--text-body);
-}
-.nf-path {
-  display: inline-block;
-  max-width: 100%;
-  margin: 12px 0 0;
-  padding: 3px 8px;
-  border-radius: var(--r-chip);
-  background: var(--line2);
-  color: var(--soft);
-  overflow-wrap: anywhere;
-}
-.nf-actions {
-  margin-top: 18px;
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-}
-</style>
