@@ -16,13 +16,13 @@ const route = useRoute()
 const router = useRouter()
 
 onErrorCaptured((err, _instance, info) => {
-  const replaces = replacesPage(info)
-  logger.error(replaces ? 'page crashed' : 'page error', {
-    route: route.path,
-    info,
-    message: errorMessage(err),
-  })
-  if (replaces) pageCrashed.value = true
+  const fields = { route: route.path, info, message: errorMessage(err) }
+  if (replacesPage(info)) {
+    logger.error('page crashed', fields)
+    pageCrashed.value = true
+  } else {
+    logger.error('page error', fields)
+  }
   return false
 })
 
