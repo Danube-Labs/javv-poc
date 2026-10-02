@@ -17,6 +17,7 @@ import DataTable from 'primevue/datatable'
 import { computed } from 'vue'
 import type { RouteLocationRaw } from 'vue-router'
 
+import { actionLabel } from '@/audit/actionLabels'
 import { causalOrder } from '@/audit/causalOrder'
 import ActionTag from '@/components/chips/ActionTag.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
@@ -126,6 +127,7 @@ function onRowClick(row: AuditEvent) {
               class="val-act-reveal"
               field="Action"
               :value="data.action"
+              :shown="actionLabel(data.action)"
               :active="cellActive('action', data.action)"
               @pick="(m) => emit('pickValue', 'action', data.action, m)"
             />

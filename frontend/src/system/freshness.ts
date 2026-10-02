@@ -67,12 +67,15 @@ export function dbAgeSeconds(builtIso: string | null, nowMs: number = Date.now()
   return Number.isFinite(built) ? Math.max(0, (nowMs - built) / 1000) : null
 }
 
-/** "4 days" / "1 day" / "26 hours" — the urgency number, coarse on purpose. */
+/** "4 days" / "1 day" / "5 hours" / "12 minutes" — the urgency number, coarse on purpose: the
+ * largest whole unit only. */
 export function silentFor(seconds: number | null): string {
   const s = seconds ?? 0
-  const days = Math.floor(s / 86_400)
-  if (days >= 1) return `${days} day${days === 1 ? '' : 's'}`
-  return `${Math.floor(s / 3600)} hours`
+  const count = (n: number, unit: string) => `${n} ${unit}${n === 1 ? '' : 's'}`
+  if (s >= 86_400) return count(Math.floor(s / 86_400), 'day')
+  if (s >= 3600) return count(Math.floor(s / 3600), 'hour')
+  if (s >= 60) return count(Math.floor(s / 60), 'minute')
+  return 'less than a minute'
 }
 
 /** 24h, app-wide fmtAt convention — never locale-default AM/PM. */

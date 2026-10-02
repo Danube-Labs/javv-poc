@@ -111,13 +111,12 @@ function onPointClick(params: { dataIndex: number }) {
 <template>
   <section class="ingest-lens" :class="{ 'il-quiet': quiet }" aria-label="Scan ingest activity">
     <div class="il-head">
-      <h3 class="il-title">Scan ingest</h3>
+      <h2 class="il-title">Scan ingest</h2>
       <span class="il-sub"
         >runs per {{ interval }} · {{ timeTravel.windowLabel.toLowerCase()
         }}<template v-if="subDay"> (daily bars: covers the last 1 day)</template> ·
         {{ subject }} shows the state at the <b>end</b> of this range</span
       >
-      <!-- outside .il-sub: the explanation truncates, and the icon must never be clipped with it -->
       <GuideLink class="il-help" section="time-range" variant="popover" />
       <span v-if="timeTravel.isNow && latest" class="il-last mono-cell">
         last ingest {{ latest.scanner }} · {{ lastDataAt(latest.last_ingest_at) }} ({{
@@ -178,16 +177,13 @@ function onPointClick(params: { dataIndex: number }) {
 }
 /* one size, ink-dark (operator: the small soft text was unreadable) — only the explanatory
    clause stays soft */
-/* when the head runs out of room the explanation gives way first (it truncates, and the guide
-   popover beside it carries the same message); the last-ingest time wraps only past its floor */
+/* when the head runs out of room the explanation wraps onto a second line: cut short, it ended
+   at "the state at the…", which says nothing (issue 681) */
 .il-sub {
-  flex: 0 1000 auto;
+  flex: 1 1 0;
   min-width: 12ch;
   font-size: var(--text-control);
   color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 .il-sub b {
   font-weight: 700;

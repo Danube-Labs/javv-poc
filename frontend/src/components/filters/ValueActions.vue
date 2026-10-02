@@ -29,6 +29,8 @@ const props = defineProps<{
   field: string
   /** The value these actions act on. */
   value: string
+  /** What the screen calls that value, when it differs from the stored one ("Not affected"). */
+  shown?: string
   /** The mode this value is already selected under — that side reads as pressed. */
   active?: FilterMode | null
   /** The host already owns include (the rail row's own click), so show exclude only. */
@@ -88,8 +90,8 @@ onBeforeUnmount(() => host?.removeEventListener('mouseenter', snapToPixelGrid))
 /** Clicking the side that is already active clears it — the same toggle the row/pill offer. */
 const label = (mode: FilterMode) =>
   props.active === mode
-    ? `Clear ${mode === 'not' ? 'exclusion of' : 'filter on'} ${props.field} ${props.value}`
-    : `Filter ${mode === 'not' ? 'out' : 'to'} ${props.field} ${props.value}`
+    ? `Clear ${mode === 'not' ? 'exclusion of' : 'filter on'} ${props.field} ${props.shown ?? props.value}`
+    : `Filter ${mode === 'not' ? 'out' : 'to'} ${props.field} ${props.shown ?? props.value}`
 </script>
 
 <template>

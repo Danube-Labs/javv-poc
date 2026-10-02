@@ -22,7 +22,7 @@ function entries(groups: RailGroups, key: keyof RailGroups): RailEntry[] {
 
 <template>
   <aside class="card rail" aria-label="Indices">
-    <h3 class="panel-band">Indices</h3>
+    <h2 class="panel-band">Indices</h2>
     <p v-if="failed" class="load-error" role="alert">
       Index list unavailable. The console still works with a typed path.
     </p>

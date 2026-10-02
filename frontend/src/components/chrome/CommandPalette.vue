@@ -12,7 +12,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { visibleNav, type NavItem } from '@/components/chrome/navModel'
-import AppIcon from '@/components/ui/AppIcon.vue'
+import AppIcon, { type IconName } from '@/components/ui/AppIcon.vue'
 import { MIN_CHARS, useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
@@ -31,7 +31,7 @@ onMounted(() => void nextTick(() => inputEl.value?.focus()))
 /* ---- the flattened, keyboard-walkable row list ---- */
 interface Row {
   group: string
-  icon: 'grid' | 'alert' | 'cube' | 'layers'
+  icon: IconName
   label: string
   count?: number
   go: () => void
@@ -46,7 +46,7 @@ const screens = computed<NavItem[]>(() => {
 const rows = computed<Row[]>(() => [
   ...screens.value.map((s) => ({
     group: 'Screens',
-    icon: 'grid' as const,
+    icon: s.icon, // the sidebar's own icon for the screen: one nav model, one picture
     label: s.label,
     go: () => void router.push(s.to),
   })),

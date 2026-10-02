@@ -185,6 +185,12 @@ IDs. No third family, no ad-hoc sizes — the scale tokens:
 --text-quiet-action 11.5px (clear-all/clear-field text buttons)
 ```
 
+**Heading level follows the page's outline, not the look.** A page has one `h1`. A card or strip
+title that sits straight under it is an `h2`, styled by its own class (`.card-head h2` sets
+`--text-card-title`); a title nested inside such a section is an `h3`. Never pick the tag for
+its default size. `tests/e2e/headings.spec.ts` walks every screen and fails on a skipped level
+(issue 681).
+
 ## 4. Layout & density
 
 - Sidebar `var(--sidebar-w)` (226px, slate) collapsible to `var(--sidebar-w-rail)` (64px);
@@ -321,7 +327,7 @@ Focus:          outline: var(--focus-ring); outline-offset: 1px
 ```vue
 <template>
   <section class="card">
-    <h3>Findings by severity</h3>
+    <h2>Findings by severity</h2>
     <span class="chip" :data-sev="sev">{{ sev }}</span>
   </section>
 </template>

@@ -178,7 +178,7 @@ function summary(v: ViewDoc): string {
     <div v-else class="views-grid">
       <article v-for="v in pager.shown.value" :key="v.view_id" class="view-card">
         <div class="vc-head">
-          <h3>{{ v.name }}</h3>
+          <h2>{{ v.name }}</h2>
           <button
             v-if="mayDelete(v)"
             type="button"
@@ -262,9 +262,10 @@ function summary(v: ViewDoc): string {
   justify-content: space-between;
   gap: 10px;
 }
-.vc-head h3 {
+.vc-head h2 {
   margin: 0;
   font-size: var(--text-body);
+  font-weight: 600;
 }
 .vc-x {
   border: 0;

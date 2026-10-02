@@ -171,7 +171,7 @@ const { exporting, run: runExport } = useCsvExport({
   path: '/api/v1/audit/export.csv',
   filename: (stamp) => `javv-audit-${stamp}.csv`,
   event: 'audit_export_failed',
-  onCapped: () => toast.info('Over the inline export cap. Narrow the filters first.'),
+  onCapped: () => toast.info('Too many rows to export at once. Narrow the filters first.'),
   onFailed: (status) =>
     toast.error(
       status

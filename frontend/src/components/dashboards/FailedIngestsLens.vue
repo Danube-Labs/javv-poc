@@ -75,7 +75,7 @@ function onPointClick(params: { dataIndex: number }) {
 <template>
   <section class="fail-lens" aria-label="Failed ingest activity">
     <div class="fl-head">
-      <h3 class="fl-title">Failed ingests</h3>
+      <h2 class="fl-title">Failed ingests</h2>
       <span class="fl-sub">pushes the backend refused per {{ interval }}</span>
       <span v-if="settled && !failed && refused > 0" class="fl-total mono-cell"
         >{{ refused }} in this range</span

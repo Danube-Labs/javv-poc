@@ -171,7 +171,7 @@ function onDonutClick(e: { name?: string }) {
         <section class="card">
           <div class="card-head">
             <div>
-              <h3>Vulnerabilities over time</h3>
+              <h2>Vulnerabilities over time</h2>
               <p class="card-sub">
                 new per day · {{ timeTravel.windowLabel.toLowerCase() }}<template
                   v-if="trendLens === 'scanner'"
@@ -196,7 +196,7 @@ function onDonutClick(e: { name?: string }) {
         <section class="card">
           <div class="card-head">
             <div>
-              <h3>Package type</h3>
+              <h2>Package type</h2>
               <p class="card-sub">share of findings</p>
             </div>
           </div>
@@ -297,8 +297,10 @@ function onDonutClick(e: { name?: string }) {
   gap: 12px;
   padding: 14px 16px 0;
 }
-.card-head h3 {
+.card-head h2 {
   margin: 0;
+  font-size: var(--text-card-title);
+  font-weight: 600;
 }
 .card-sub {
   margin: 2px 0 0;

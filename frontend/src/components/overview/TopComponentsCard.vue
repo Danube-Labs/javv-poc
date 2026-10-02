@@ -94,7 +94,7 @@ function goFindings(pkg: string) {
   <section class="tbl-card">
     <div class="card-head">
       <div>
-        <h3>Top components</h3>
+        <h2>Top components</h2>
         <p class="card-sub">by unique vulnerabilities</p>
       </div>
     </div>
@@ -152,8 +152,10 @@ function goFindings(pkg: string) {
   gap: 12px;
   padding: 14px 16px 10px;
 }
-.card-head h3 {
+.card-head h2 {
   margin: 0;
+  font-size: var(--text-card-title);
+  font-weight: 600;
 }
 .card-sub {
   margin: 2px 0 0;

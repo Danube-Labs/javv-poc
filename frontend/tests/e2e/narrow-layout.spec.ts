@@ -39,3 +39,24 @@ test('Image detail: the page does not scroll sideways, and the scanner switch is
   expect(doc).toBeLessThanOrEqual(win)
   expect(switchRight).toBeLessThanOrEqual(win)
 })
+
+test.describe('at 1366, the common laptop width', () => {
+  test.use({ viewport: { width: 1366, height: 800 } })
+
+  test('Findings: the ingest strip subtitle shows its whole sentence', async ({ page }) => {
+    await page.goto(`${BASE}/findings`)
+    const sub = page.locator('.ingest-lens .il-sub')
+    await expect(sub).toBeVisible({ timeout: 20_000 })
+    await expect(sub).toContainText('of this range')
+    const { needs, has } = await sub.evaluate((el) => ({ needs: el.scrollWidth, has: el.clientWidth }))
+    expect(needs).toBeLessThanOrEqual(has)
+  })
+
+  test('Top bar: the search hint shows its whole text', async ({ page }) => {
+    await page.goto(`${BASE}/findings`)
+    const hint = page.locator('.gs-hint')
+    await expect(hint).toBeVisible({ timeout: 20_000 })
+    const { needs, has } = await hint.evaluate((el) => ({ needs: el.scrollWidth, has: el.clientWidth }))
+    expect(needs).toBeLessThanOrEqual(has)
+  })
+})
