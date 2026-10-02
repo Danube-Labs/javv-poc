@@ -18,7 +18,7 @@ from scanner.discovery import ImageTarget, Location
 from scanner.envelope import EffectiveConfig, Envelope
 from scanner.models import Finding, Provenance, ScanResult
 from scanner.push import PushResult
-from scanner.run import scan_all
+from scanner.run import PushFn, ScanFn, scan_all
 from scanner.scope import ScanScope
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -429,8 +429,9 @@ def test_cycle_lines_render_as_json_with_the_standard_keys(
 
 
 def test_scan_all_certifies_the_cycle_inventory_at_the_end() -> None:
-    # M8a slice 2: commit_fn fires once with the cycle's shared run id and the DISCOVERED count —
-    # a failing image still counts as expected (its envelope never lands → the run stays partial)
+    # commit_fn fires once with the cycle's shared run id and the SCANNED count: an image that
+    # could not be scanned is left out, so one image its registry no longer serves cannot keep
+    # every run partial (issue 633)
     targets = [
         target("sha256:a", "good-1:1"),
         target("sha256:boom", "broken:1"),
@@ -460,7 +461,56 @@ def test_scan_all_certifies_the_cycle_inventory_at_the_end() -> None:
     assert len(commits) == 1
     run_id, expected, started = commits[0]
     assert run_id == pushed[0].scan_run_id  # the cycle's ONE shared identity
-    assert (
-        expected == 2
-    )  # discovered, not delivered — the broken image keeps the run's count accurate
+    assert expected == 1  # scanned, not discovered: the broken image is not expected
     assert started.tzinfo is not None
+
+
+def _expected_count(scan_fn: ScanFn, push_fn: PushFn, refs: list[str]) -> int:
+    commits: list[int] = []
+    scan_all(
+        [target(f"sha256:{i}", ref) for i, ref in enumerate(refs)],
+        scanner="trivy",
+        cluster_id="c",
+        scan_fn=scan_fn,
+        push_fn=push_fn,
+        scan_order=1,
+        commit_fn=lambda run_id, expected, started: commits.append(expected),
+    )
+    [expected] = commits
+    return expected
+
+
+def _ok_scan(ref: str) -> ScanResult:
+    return ScanResult(provenance=Provenance(scanner_version="0.71.2"))
+
+
+def _delivered(env: Envelope) -> PushResult:
+    return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+
+def test_a_cycle_with_no_failure_expects_every_discovered_image() -> None:
+    assert _expected_count(_ok_scan, _delivered, ["a:1", "b:1", "c:1"]) == 3
+
+
+def test_a_dead_lettered_push_still_counts_as_expected() -> None:
+    # the image scanned, so its doc SHOULD land; it did not, and the run must stay partial
+    def dead_letter(env: Envelope) -> PushResult:
+        return PushResult(delivered=False, attempts=5, dead_lettered=True)
+
+    assert _expected_count(_ok_scan, dead_letter, ["a:1", "b:1"]) == 2
+
+
+def test_a_timed_out_scan_is_not_expected_either() -> None:
+    def scan_fn(ref: str) -> ScanResult:
+        if ref == "slow:1":
+            raise subprocess.TimeoutExpired(["trivy"], 600)
+        return _ok_scan(ref)
+
+    assert _expected_count(scan_fn, _delivered, ["a:1", "slow:1", "b:1"]) == 2
+
+
+def test_a_cycle_where_every_scan_fails_expects_nothing() -> None:
+    def scan_fn(ref: str) -> ScanResult:
+        raise subprocess.CalledProcessError(1, ["trivy"], stderr="no route to registry")
+
+    assert _expected_count(scan_fn, _delivered, ["a:1", "b:1"]) == 0

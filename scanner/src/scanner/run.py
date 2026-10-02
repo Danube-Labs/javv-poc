@@ -89,9 +89,12 @@ def scan_all(
         )
         results.append(push_fn(envelope))
     if commit_fn is not None:
-        # cycle-end inventory certification (M8a slice 2, D39): expected = every DISCOVERED image
-        # — a scan failure or dead-letter leaves the run partial, deliberately never "committed"
-        commit_fn(run.scan_run_id, len(targets), cycle_started_at)
+        # cycle-end inventory certification (M8a slice 2, D39): expected = every image that was
+        # SCANNED, one push result each. A dead-lettered push still counts, so lost data leaves
+        # the run partial. A failed scan does not: an image its registry no longer serves would
+        # otherwise make every run partial and freeze the running-images view for good (issue
+        # 633). That image leaves the inventory and its findings go stale on the normal timer.
+        commit_fn(run.scan_run_id, len(results), cycle_started_at)
     return results
 
 
@@ -241,7 +244,9 @@ def main() -> int:
     delivered = sum(1 for r in results if r.delivered)
     log.info(
         "cycle complete",
+        discovered=len(targets),
         scanned=len(results),
+        scan_failed=len(targets) - len(results),
         delivered=delivered,
         dead_lettered=len(results) - delivered,
     )

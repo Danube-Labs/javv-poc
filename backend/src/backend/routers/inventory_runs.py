@@ -1,5 +1,5 @@
 """POST /api/v1/inventory-runs (M8a slice 2, D39/H4-r2) — the scanner certifies its cycle's
-inventory at cycle END: "these `expected_count` discovered images should all have landed."
+inventory at cycle END: "these `expected_count` scanned images should all have landed."
 The backend counts what actually landed (never trusting a client-reported written count),
 allocates `inventory_order`, and writes the immutable manifest — `committed` iff complete.
 
@@ -23,7 +23,7 @@ class CommitInventoryRun(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     scan_run_id: str = Field(min_length=1, max_length=128)  # = the cycle's inventory_run_id
-    expected_count: int = Field(ge=0, le=1_000_000)  # images discovered this cycle
+    expected_count: int = Field(ge=0, le=1_000_000)  # images scanned this cycle
     started_at: datetime
 
 

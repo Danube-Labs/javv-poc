@@ -134,7 +134,9 @@ schema_version    short
 scan-events). Written **last**, after the `javv-images` bulk for that run succeeds. "Running images now / at T"
 reads only `status=committed` runs **ordered by `inventory_order`** (not `@timestamp` - D40/F-r3), so a partial
 or zero-image run is never mistaken for the live inventory (a partial run falls back to the prior committed run
-+ the staleness banner). `_id = inventory_run_id`. 1 primary shard, monthly rollover.
++ the staleness banner). A run is partial when an image that **was scanned** did not land (a dead-lettered
+push). An image the scanner could not scan at all is not expected, so it does not make the run partial: it is
+absent from that run's inventory. `_id = inventory_run_id`. 1 primary shard, monthly rollover.
 ```
 @timestamp        date          run completion time (display)
 inventory_run_id  keyword       = the run's id
@@ -142,7 +144,7 @@ inventory_order   long          backend-allocated (D45 basis) monotonic per clus
 cluster_id        keyword       tenant + routing
 started_at        date
 completed_at      date
-expected_count    integer       images discovered this run
+expected_count    integer       images the scanner scanned this run (one it could not scan is left out, issue 633)
 written_count     integer       image docs successfully appended (== expected_count when committed)
 status            keyword        committed | partial | failed   (only committed is read)
 schema_version    short
