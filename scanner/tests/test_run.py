@@ -3,6 +3,7 @@ the orchestrator runs one scan cycle — discover → drive → envelope → pus
 ScanRun across all images (one scan_run_id/scan_order per cycle). The subprocess runner is
 injected so this is unit-testable without invoking real trivy/grype."""
 
+import json
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,7 +19,14 @@ from scanner.discovery import ImageTarget, Location
 from scanner.envelope import EffectiveConfig, Envelope
 from scanner.models import Finding, Provenance, ScanResult
 from scanner.push import PushResult
-from scanner.run import PushFn, ScanFn, scan_all
+from scanner.run import (
+    STDERR_TAIL_CHARS,
+    STDERR_TAIL_LINES,
+    PushFn,
+    ScanFn,
+    failure_detail,
+    scan_all,
+)
 from scanner.scope import ScanScope
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -426,6 +434,9 @@ def test_cycle_lines_render_as_json_with_the_standard_keys(
     failed = lines[-1]
     assert failed["level"] == "warning" and "exc_info" not in failed
     assert "CalledProcessError" in failed["exception"]
+    # the scanner's own words, not just "exit status 1" (issue 633)
+    assert failed["reason"] == "scanner_exit" and failed["exit_code"] == 1
+    assert failed["scanner_stderr"] == "image not found"
 
 
 def test_scan_all_certifies_the_cycle_inventory_at_the_end() -> None:
@@ -514,3 +525,44 @@ def test_a_cycle_where_every_scan_fails_expects_nothing() -> None:
         raise subprocess.CalledProcessError(1, ["trivy"], stderr="no route to registry")
 
     assert _expected_count(scan_fn, _delivered, ["a:1", "b:1"]) == 0
+
+
+def test_failure_detail_carries_the_exit_code_and_the_scanners_last_lines() -> None:
+    stderr = "pulling layers\nFATAL image scan error\nUNAUTHORIZED: authentication required\n"
+    detail = failure_detail(subprocess.CalledProcessError(1, ["trivy"], stderr=stderr))
+    assert detail == {
+        "reason": "scanner_exit",
+        "exit_code": 1,
+        "scanner_stderr": stderr.strip(),
+    }
+
+
+def test_failure_detail_keeps_only_the_tail_of_a_long_stderr() -> None:
+    lines = [f"line {i}" for i in range(40)]
+    detail = failure_detail(subprocess.CalledProcessError(2, ["grype"], stderr="\n".join(lines)))
+    assert detail["scanner_stderr"] == "\n".join(lines[-STDERR_TAIL_LINES:])
+
+
+def test_failure_detail_caps_one_enormous_line() -> None:
+    detail = failure_detail(
+        subprocess.CalledProcessError(1, ["trivy"], stderr="x" * 50_000 + "END")
+    )
+    tail = detail["scanner_stderr"]
+    assert isinstance(tail, str) and len(tail) == STDERR_TAIL_CHARS and tail.endswith("END")
+
+
+@pytest.mark.parametrize("stderr", [None, "", "   \n", b"bytes, not text"])
+def test_failure_detail_with_no_usable_stderr_is_an_empty_tail(
+    stderr: str | bytes | None,
+) -> None:
+    detail = failure_detail(subprocess.CalledProcessError(1, ["trivy"], stderr=stderr))
+    assert detail == {"reason": "scanner_exit", "exit_code": 1, "scanner_stderr": ""}
+
+
+def test_failure_detail_names_a_timeout() -> None:
+    detail = failure_detail(subprocess.TimeoutExpired(["trivy"], 600))
+    assert detail == {"reason": "timeout", "timeout_s": 600}
+
+
+def test_failure_detail_for_any_other_error_claims_nothing_about_the_scanner() -> None:
+    assert failure_detail(json.JSONDecodeError("bad", "", 0)) == {"reason": "error"}

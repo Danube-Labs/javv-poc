@@ -6,6 +6,7 @@ cycle is unit-testable; `main()` wires the real kube client, scanner binaries, a
 
 import os
 import re
+import subprocess
 import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
@@ -30,6 +31,27 @@ PushFn = Callable[[Envelope], PushResult]
 CommitFn = Callable[[str, int, datetime], object]
 
 log = structlog.get_logger()
+
+# Bounds one log line. The scanner prints its final error last; what precedes it is progress.
+STDERR_TAIL_LINES = 5
+STDERR_TAIL_CHARS = 1000
+
+
+def failure_detail(exc: BaseException) -> dict[str, object]:
+    """Why a scan failed, in the scanner's own words. The exception alone says "exit status 1";
+    the reason (the registry refused the pull, the image is gone) is only on the scanner's
+    stderr, which nothing else records (issue 633)."""
+    if isinstance(exc, subprocess.TimeoutExpired):
+        return {"reason": "timeout", "timeout_s": exc.timeout}
+    if isinstance(exc, subprocess.CalledProcessError):
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        tail = "\n".join(stderr.strip().splitlines()[-STDERR_TAIL_LINES:])
+        return {
+            "reason": "scanner_exit",
+            "exit_code": exc.returncode,
+            "scanner_stderr": tail[-STDERR_TAIL_CHARS:],
+        }
+    return {"reason": "error"}
 
 
 def scan_all(
@@ -61,11 +83,12 @@ def scan_all(
         started = time.monotonic()
         try:
             scanned = scan_fn(t.image_ref)
-        except Exception:
+        except Exception as exc:
             log.warning(
                 "scan failed, image skipped",
                 image_ref=t.image_ref,
                 image_digest=t.image_digest,
+                **failure_detail(exc),
                 exc_info=True,
             )
             continue
