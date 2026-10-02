@@ -22,7 +22,7 @@ from backend.core.settings import get_settings
 from backend.decisions.lifecycle import DECISIONS_INDEX
 from backend.export.approvals_csv import APPROVALS_CSV_COLUMNS
 from backend.main import create_app
-from os_env import OS_URL, requires_opensearch
+from os_env import OS_URL, clear_pits, requires_opensearch
 
 PASSWORD = "approvals-export-password"
 LEAD = ["can_triage", "can_accept_audit_final"]
@@ -274,7 +274,7 @@ async def test_over_the_cap_is_413_before_any_pit_and_the_sweep_cleans_up(env, m
     lead = await login_with(LEAD)
 
     before = LIMIT_REJECTIONS.labels("export_rows")._value.get()
-    pits_before = await _pit_count(client)
+    await clear_pits(client)
     params = {"cluster_id": cid}
 
     monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "2")  # 3 acceptances > cap 2
@@ -283,7 +283,7 @@ async def test_over_the_cap_is_413_before_any_pit_and_the_sweep_cleans_up(env, m
     assert r.status_code == 413
     assert "inline export limit" in r.json()["title"]
     assert LIMIT_REJECTIONS.labels("export_rows")._value.get() == before + 1
-    assert await _pit_count(client) == pits_before  # the 413 landed BEFORE any PIT opened
+    assert await _pit_count(client) == 0  # the 413 landed BEFORE any PIT opened
 
     monkeypatch.setenv("JAVV_EXPORT_MAX_ROWS", "50")
     get_settings.cache_clear()
@@ -294,7 +294,7 @@ async def test_over_the_cap_is_413_before_any_pit_and_the_sweep_cleans_up(env, m
     assert len(r.text.splitlines()) == 1 + 3
     assert EXPORT_ROWS.labels("approvals_csv")._value.get() == rows_before + 3  # header excluded
     assert EXPORT_BYTES.labels("approvals_csv")._value.get() == bytes_before + len(r.text)
-    assert await _pit_count(client) == pits_before  # the sweep deleted its PIT (D38)
+    assert await _pit_count(client) == 0  # the sweep deleted its PIT (D38)
 
 
 async def test_the_sweep_pages_past_one_batch_without_losing_rows(env) -> None:
