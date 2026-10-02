@@ -119,32 +119,44 @@ export interface JobDoc {
   error?: string | null
 }
 
-/** a job's last run as one line; `fmt` turns a timestamp into the words on screen */
-export function jobLastRun(job: JobDoc, fmt: (iso: unknown) => string): string {
+/** a job's last run for its table cell: what happened, the detail under it, and whether it
+ * went wrong. `fmt` turns a timestamp into the words on screen */
+export function jobLastRun(
+  job: JobDoc,
+  fmt: (iso: unknown) => string,
+): { line: string; detail: string; bad: boolean } {
   if (job.status === 'running' && job.stale)
-    return `no heartbeat since ${fmt(job.started_at)}. Reclaimable, run again`
-  if (job.status === 'running') return `running · by ${job.requested_by} · since ${fmt(job.started_at)}`
-  if (job.status === 'done') return [fmt(job.finished_at), fmtJobResult(job.result)].filter(Boolean).join(' · ')
-  if (job.status === 'failed') return `failed ${fmt(job.finished_at)}: ${job.error ?? 'see backend logs'}`
-  return 'never run on this store'
+    return { line: `no heartbeat since ${fmt(job.started_at)}`, detail: 'Reclaimable, run again', bad: true }
+  if (job.status === 'running')
+    return { line: `running since ${fmt(job.started_at)}`, detail: `by ${job.requested_by}`, bad: false }
+  if (job.status === 'done') return { line: fmt(job.finished_at), detail: fmtJobResult(job.result), bad: false }
+  if (job.status === 'failed')
+    return { line: `failed ${fmt(job.finished_at)}`, detail: job.error ?? 'see backend logs', bad: true }
+  return { line: 'never', detail: '', bad: false }
 }
 
-const JOB_FLAG: Record<JobHealth, { tone: 'ok' | 'warn' | 'down' | 'muted'; label: string }> = {
+const JOB_FLAG: Record<Exclude<JobHealth, 'off'>, { tone: 'ok' | 'warn' | 'down' | 'muted'; label: string }> = {
   ok: { tone: 'ok', label: 'on schedule' },
   overdue: { tone: 'warn', label: 'late' },
   failed: { tone: 'down', label: 'failed' },
   never_ran: { tone: 'muted', label: 'not run yet' },
-  off: { tone: 'muted', label: 'off' },
 }
 
-/** the status chip for a job against its schedule */
+/** the status chip for a job against its schedule. `off` says which thing is off: the job has
+ * no schedule, or it has one and the scheduler is not running */
 export function jobFlag(job: JobDoc): { tone: 'ok' | 'warn' | 'down' | 'muted'; label: string } {
+  if (job.health === 'off') return { tone: 'muted', label: job.schedule ? 'scheduler off' : 'not scheduled' }
   return JOB_FLAG[job.health]
 }
 
-/** "next run 3 Oct, 04:00", or nothing when the job or the scheduler is switched off */
+/** the Schedule cell: the cron expression, or why there is none */
+export function jobSchedule(job: JobDoc): string {
+  return job.schedule ?? (job.runnable ? 'by hand only' : 'switched off')
+}
+
+/** the Next run cell; a dash when the job or the scheduler is switched off */
 export function jobNextRun(job: JobDoc, fmt: (iso: unknown) => string): string {
-  return job.next_run_at ? `next run ${fmt(job.next_run_at)}` : ''
+  return job.next_run_at ? fmt(job.next_run_at) : '-'
 }
 
 /** total store bytes from `_cat/indices` rows (pri.store.size strings like "1.2gb") */

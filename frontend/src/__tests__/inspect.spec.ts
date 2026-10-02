@@ -13,6 +13,7 @@ import {
   jobFlag,
   jobLastRun,
   jobNextRun,
+  jobSchedule,
   type JobDoc,
   splitMiddle,
   totalStoreBytes,
@@ -128,18 +129,30 @@ describe('the job rows (issue 556)', () => {
     ...over,
   })
 
-  it('jobLastRun says how the last run ended', () => {
-    expect(jobLastRun(job({ result: { expired: 0, retried: 2 } }), fmt)).toBe('<F> · expired 0 · retried 2')
-    expect(jobLastRun(job({ result: null }), fmt)).toBe('<F>')
-    expect(jobLastRun(job({ status: 'failed', error: 'boom' }), fmt)).toBe('failed <F>: boom')
-    expect(jobLastRun(job({ status: 'failed' }), fmt)).toBe('failed <F>: see backend logs')
-    expect(jobLastRun(job({ status: 'running', requested_by: 'scheduled' }), fmt)).toBe(
-      'running · by scheduled · since <S>',
-    )
-    expect(jobLastRun(job({ status: 'running', stale: true }), fmt)).toBe(
-      'no heartbeat since <S>. Reclaimable, run again',
-    )
-    expect(jobLastRun(job({ status: 'idle' }), fmt)).toBe('never run on this store')
+  it('jobLastRun says how the last run ended, with the detail under it', () => {
+    expect(jobLastRun(job({ result: { expired: 0, retried: 2 } }), fmt)).toEqual({
+      line: '<F>',
+      detail: 'expired 0 · retried 2',
+      bad: false,
+    })
+    expect(jobLastRun(job({ result: null }), fmt)).toEqual({ line: '<F>', detail: '', bad: false })
+    expect(jobLastRun(job({ status: 'failed', error: 'boom' }), fmt)).toEqual({
+      line: 'failed <F>',
+      detail: 'boom',
+      bad: true,
+    })
+    expect(jobLastRun(job({ status: 'failed' }), fmt).detail).toBe('see backend logs')
+    expect(jobLastRun(job({ status: 'running', requested_by: 'scheduled' }), fmt)).toEqual({
+      line: 'running since <S>',
+      detail: 'by scheduled',
+      bad: false,
+    })
+    expect(jobLastRun(job({ status: 'running', stale: true }), fmt)).toEqual({
+      line: 'no heartbeat since <S>',
+      detail: 'Reclaimable, run again',
+      bad: true,
+    })
+    expect(jobLastRun(job({ status: 'idle' }), fmt)).toEqual({ line: 'never', detail: '', bad: false })
   })
 
   it('jobFlag names each health state, with a tone from the health ramp', () => {
@@ -147,11 +160,21 @@ describe('the job rows (issue 556)', () => {
     expect(jobFlag(job({ health: 'overdue' }))).toEqual({ tone: 'warn', label: 'late' })
     expect(jobFlag(job({ health: 'failed' }))).toEqual({ tone: 'down', label: 'failed' })
     expect(jobFlag(job({ health: 'never_ran' }))).toEqual({ tone: 'muted', label: 'not run yet' })
-    expect(jobFlag(job({ health: 'off' }))).toEqual({ tone: 'muted', label: 'off' })
   })
 
-  it('jobNextRun is empty when nothing is going to run it', () => {
-    expect(jobNextRun(job({}), fmt)).toBe('next run <N>')
-    expect(jobNextRun(job({ next_run_at: null }), fmt)).toBe('')
+  it('jobFlag says what is off: the scheduler, or the job has no schedule', () => {
+    expect(jobFlag(job({ health: 'off' }))).toEqual({ tone: 'muted', label: 'scheduler off' })
+    expect(jobFlag(job({ health: 'off', schedule: null }))).toEqual({ tone: 'muted', label: 'not scheduled' })
+  })
+
+  it('jobSchedule is the cron expression, or why there is none', () => {
+    expect(jobSchedule(job({}))).toBe('15 * * * *')
+    expect(jobSchedule(job({ schedule: null, runnable: true }))).toBe('by hand only')
+    expect(jobSchedule(job({ schedule: null, runnable: false }))).toBe('switched off')
+  })
+
+  it('jobNextRun is a dash when nothing is going to run it', () => {
+    expect(jobNextRun(job({}), fmt)).toBe('<N>')
+    expect(jobNextRun(job({ next_run_at: null }), fmt)).toBe('-')
   })
 })

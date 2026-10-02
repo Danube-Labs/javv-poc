@@ -128,13 +128,13 @@ test('the repair card triggers a job that settles to done with counts, and it la
   // that the row LEAVES idle and SETTLES to done-with-counts; the bar is checked only if the
   // running state was actually caught.
   const meta = row.locator('.job-meta')
-  await expect(meta).not.toHaveText('never run on this store', { timeout: 20_000 })
+  await expect(meta).not.toHaveText('never', { timeout: 20_000 })
   if (await row.locator('.job-runbar').count()) {
     await expect(runButton).toBeDisabled()
     await expect(runButton).toHaveText('Running…')
   }
-  // `statusMeta` renders a done row as "<when> · <counts>", so the separator proves counts came
-  // back rather than an empty result blob
+  // a done row's last-run cell is the time with its counts under it ("staled 0 · reverted 0"),
+  // so the separator proves counts came back rather than an empty result blob
   await expect(meta).toContainText('·', { timeout: 40_000 })
   await expect(row.locator('.job-failed')).toHaveCount(0)
 
