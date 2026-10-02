@@ -676,8 +676,10 @@ own failure state stay as they are.
 
 `frontend/public/maintenance.html`, served by the proxy in front of the app, not by the app: one
 static file with no script, no font and no request to the backend, so it shows with the backend
-switched off. It has no shell (there is no session to draw one for), falls back to system fonts,
-and asks again every minute. **No in-app switch** (operator ruling, 2026-10-02): how to switch it
+switched off. **Look (operator ruling on built specimens, 2026-10-02, B of two: A the not-found
+layout, B a card):** a white card on the canvas with the brand mark, like the login page. It has
+no shell (there is no session to draw one for), falls back to system fonts, and asks again every
+minute. **No in-app switch** (operator ruling, 2026-10-02): how to switch it
 on is `development/RUNNING-THE-STACK.md` § R1.
 
 ---

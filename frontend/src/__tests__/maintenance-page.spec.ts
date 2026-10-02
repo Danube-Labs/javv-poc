@@ -15,9 +15,14 @@ describe('public/maintenance.html', () => {
     expect(page).not.toMatch(/<script/i)
     expect(page).not.toMatch(/<link/i)
     expect(page).not.toMatch(/<img/i)
-    expect(page).not.toMatch(/url\(/i)
+    // the inline mark fills from its own gradients, `url(#sky)`: a reference inside this file
+    expect(page).not.toMatch(/url\((?!#)/i)
     expect(page).not.toMatch(/@import/i)
     expect(page).not.toMatch(/(src|href)\s*=/i)
+  })
+
+  it('draws the brand mark inline, hidden from assistive tech', () => {
+    expect(page.match(/<svg[^>]*>/)![0]).toContain('aria-hidden="true"')
   })
 
   it('has one h1 and a title', () => {
@@ -42,7 +47,8 @@ describe('public/maintenance.html', () => {
       )
     }
     // and no color outside that copied list
-    const body = page.replace(/:root\s*\{[^}]*\}/, '')
+    // the brand mark carries its own brand colors
+    const body = page.replace(/:root\s*\{[^}]*\}/, '').replace(/<svg[\s\S]*<\/svg>/, '')
     expect(body).not.toMatch(/#[0-9a-f]{3,8}\b/i)
   })
 })
