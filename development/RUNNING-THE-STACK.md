@@ -345,6 +345,31 @@ test that drills it — these can't drift from the code:
 | Token rotation | Settings → Access & tokens (rotate = new secret, same scope), or `POST /api/v1/admin/tokens/{id}/rotate` | `backend/tests/test_token_admin.py` |
 | Retention / rollover changes | Settings → Data & OpenSearch (applies at the next lifecycle sweep) | `backend/tests/test_lifecycle.py` |
 | Findings cache cleanup | setting in the same panel; `uv run python -m backend.jobs.findings_cleanup` | `backend/tests/test_findings_cleanup.py` |
+| Maintenance page | point the proxy in front of the app at `maintenance.html` (§ R1 below) | `frontend/src/__tests__/maintenance-page.spec.ts` |
+
+### R1. The maintenance page
+
+`frontend/public/maintenance.html` ships in the built frontend at `/maintenance.html`. It is one
+static file with no script and no request to the backend, so it can be shown while the backend
+and OpenSearch are switched off (an upgrade, a restore, an index migration). There is no in-app
+switch: an in-app switch needs the backend running, which is the case it could not cover.
+
+To switch it on, make whatever serves the app answer **every path** with that file and status
+`503`, and switch it off by restoring the normal routes. The page asks again every minute, so an
+open tab returns to the app on its own. With nginx in front (tried against `nginx:alpine`):
+
+```nginx
+error_page 503 /maintenance.html;
+location = /maintenance.html {
+  internal;
+  add_header Cache-Control "no-store" always;
+  add_header Retry-After "60" always;
+}
+location / { return 503; }
+```
+
+The `503` matters: API callers and scanners see a retryable failure rather than a `200` HTML
+body. The Helm chart does not exist yet, so the ingress wiring for a deployed cluster is M10 work.
 
 ---
 

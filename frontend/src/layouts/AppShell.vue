@@ -17,6 +17,7 @@ import UserMenu from '@/components/chrome/UserMenu.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
 import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
+import CrashBoundary from '@/components/system/CrashBoundary.vue'
 import BackendHealthBanner from '@/components/system/BackendHealthBanner.vue'
 import ScannerFreshnessBanner from '@/components/system/ScannerFreshnessBanner.vue'
 import GlobalTimePicker from '@/components/time-travel/GlobalTimePicker.vue'
@@ -144,7 +145,9 @@ onUnmounted(() => {
             <UiButton variant="primary">Create a scanner token</UiButton>
           </RouterLink>
         </EmptyState>
-        <RouterView v-else />
+        <CrashBoundary v-else>
+          <RouterView />
+        </CrashBoundary>
       </main>
     </div>
 
