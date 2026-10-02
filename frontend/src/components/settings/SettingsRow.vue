@@ -4,14 +4,25 @@
  * on the right; `stack` flips to label-above for wide controls (chips lists, tables).
  * The label slot takes rich labels (severity chips); the `label` prop is the plain-text case.
  */
-defineProps<{ label?: string; hint?: string; stack?: boolean }>()
+import { provide, useId } from 'vue'
+
+import { SETTINGS_ROW_LABEL } from '@/components/settings/rowLabel'
+
+const props = defineProps<{ label?: string; hint?: string; stack?: boolean }>()
+
+// the row's title and hint name and describe the input inside it: the label sits beside the
+// control, not around it, so without this a screen reader announces a bare text field
+const id = useId()
+const labelId = `${id}-label`
+const hintId = `${id}-hint`
+provide(SETTINGS_ROW_LABEL, { labelId, hintId: () => (props.hint ? hintId : undefined) })
 </script>
 
 <template>
   <div class="set-row" :class="{ 'set-row-stack': stack }">
     <div class="set-row-label">
-      <span class="set-row-title"><slot name="label">{{ label }}</slot></span>
-      <span v-if="hint" class="set-hint">{{ hint }}</span>
+      <span :id="labelId" class="set-row-title"><slot name="label">{{ label }}</slot></span>
+      <span v-if="hint" :id="hintId" class="set-hint">{{ hint }}</span>
     </div>
     <div class="set-row-ctrl"><slot /></div>
   </div>

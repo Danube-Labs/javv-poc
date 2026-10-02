@@ -57,20 +57,23 @@ export function lensToSelector(
     return {
       selector: null,
       blocked:
-        `${inexpressible.join(', ')} ${inexpressible.length === 1 ? 'is' : 'are'} not part of ` +
-        'the bulk selector, so bulk would apply wider than what you see. Clear those filters first.',
+        `Remove ${inexpressible.length === 1 ? 'this filter' : 'these filters'} first: ` +
+        `${inexpressible.join(', ')}. Bulk triage only follows Severity, State and Assignee, ` +
+        'so it would change more findings than you see.',
     }
   }
   if (multi) {
     return {
       selector: null,
-      blocked: `bulk takes exactly one ${multi} value. Narrow to a single selection`,
+      blocked: `Pick a single ${multi} value. Bulk triage works on exactly one at a time.`,
     }
   }
   if (Object.keys(selector).length === 0) {
     return {
       selector: null,
-      blocked: 'no filters active: bulk over the whole cluster is refused. Filter first.',
+      blocked:
+        'Add a filter first. Bulk triage changes every finding that matches your filters, ' +
+        'so it needs a severity, a state or an assignee to work on.',
     }
   }
   return { selector, blocked: null }

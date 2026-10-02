@@ -155,6 +155,14 @@ const router = createRouter({
             },
           ],
         },
+        {
+          // last, so it only catches what nothing above matched; inside the shell so the
+          // sidebar and the auth gate still apply
+          path: ':pathMatch(.*)*',
+          name: 'not-found',
+          component: () => import('@/views/NotFoundView.vue'),
+          meta: { wide: true },
+        },
       ],
     },
   ],
