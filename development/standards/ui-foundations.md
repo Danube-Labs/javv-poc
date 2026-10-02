@@ -13,7 +13,8 @@ How JAVV keeps **one** visual system instead of a thousand ad-hoc fonts, sizes, 
 - **Provenance:** the *values* come from [`.deprecated/docs/engineering/UI-GUIDELINES.md`](../../.deprecated/docs/engineering/UI-GUIDELINES.md)
   (the original v1 UI target, archived) + [`handoff/v4/docs/DESIGN_SYSTEM.md`](../../handoff/v4/docs/DESIGN_SYSTEM.md)
   (reference fidelity). They are **promoted into the tokens once**; this doc does **not** re-host hex values
-  (re-hosting drifts - point, don't copy). Tokens carry light **and** dark variants.
+  (re-hosting drifts - point, don't copy). There is one light theme with dark-slate chrome; a dark
+  theme is not part of the contract (`tokens.css` says where one would go).
 - PrimeVue is themed **through** the tokens (theme bridge), so component chrome and custom CSS share one scale.
 
 ## Typography - two families, fixed scale
@@ -39,7 +40,8 @@ Three **separate** buckets; using one where another belongs is a bug:
    map (`fg/bg/line/solid` + chart series). Never brand chrome.
 3. **Status / semantic** - finding state (open/stale/acknowledged/resolved), **health (ok/degraded/down -
    the same ramp the OpenSearch-degraded banner uses, see [`observability.md`](observability.md))**, KEV tag,
-   scanner tags (Trivy/Grype).
+   scanner tags (Trivy/Grype). Status has hues of its own: a status colour is never a copy of a severity
+   colour (the tokens test fails one).
 
 ## Enforcement (the actual guardrail)
 - **stylelint** in the frontend CI job (the `Frontend` gate in `.github/workflows/ci.yml`), with rules that
@@ -55,7 +57,7 @@ Three **separate** buckets; using one where another belongs is a bug:
 - **Tested:** a component using a raw hex or a non-token font fails lint; the severity token map round-trips
   to the six buckets.
 - **Agent-facing condensation:** `frontend/DESIGN.md` (an M9a deliverable) is the one file a session reads
-  before writing FE code - token tables (light+dark), do's/don'ts, quick reference, example patterns. It
+  before writing FE code - token tables, do's/don'ts, quick reference, example patterns. It
   *derives from* the tokens and this doc; on disagreement, `tokens.css` + this doc win.
 
 ## Visual feedback — a MUST (operator ruling, 2026-07-10)

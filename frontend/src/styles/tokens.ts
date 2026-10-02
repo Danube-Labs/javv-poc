@@ -34,14 +34,15 @@ export const SEV_COLOR: Record<Severity, SeverityTokens> = Object.fromEntries(
  * literals — same hexes as the `--sev-*-chart` tokens, pinned equal by the tokens unit test).
  * Language A (operator 2026-07-12): the ramp ESCALATES — critical/high keep the full
  * solids, the tail (low/negligible/unknown) recedes. Chips keep the `-solid` family.
+ * Each level is a lightness step lighter than the last, so the bands separate in grayscale.
  */
 export const CHART_SEV: Record<Severity, string> = {
   critical: '#c0271d',
   high: '#e2640f',
-  medium: '#d9a637',
-  low: '#8fb3cb',
-  negligible: '#b2c0ba',
-  unknown: '#bcc4ca',
+  medium: '#dba839',
+  low: '#a5cae2',
+  negligible: '#cbdad4',
+  unknown: '#dfe7ee',
 }
 
 export const STATES = ['open', 'stale', 'ack', 'resolved'] as const

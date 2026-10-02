@@ -215,6 +215,20 @@ describe('contrast gate — every text pair computed ≥4.5:1 (AA)', () => {
     }
   })
 
+  it('dark chrome: the collapse toggle icon on its resting and hover fills (issue 659)', () => {
+    expect
+      .soft(ratio('side-fg', 'side-control-bg', tokens['slate']), 'toggle icon at rest')
+      .toBeGreaterThanOrEqual(AA)
+    expect
+      .soft(ratio('side-fg-hover', 'side-control-hover-bg', tokens['slate']), 'toggle icon on hover')
+      .toBeGreaterThanOrEqual(AA)
+    expect
+      .soft(ratio('side-fg-hover', 'side-control-active-bg', tokens['slate']), 'toggle icon pressed')
+      .toBeGreaterThanOrEqual(AA)
+    // the active nav icon is coral: a MARK beside its label, so the 3:1 floor
+    expect.soft(ratio('coral', 'side-on-bg', tokens['slate']), 'active nav icon').toBeGreaterThanOrEqual(NON_TEXT)
+  })
+
   it('documents the ruled exceptions instead of testing them', () => {
     // DESIGN.md §9: white-on-coral action/selected chips (login button, tt-on) are a recorded
     // brand-contract exception (≈2.7:1) — deliberately NOT asserted here.

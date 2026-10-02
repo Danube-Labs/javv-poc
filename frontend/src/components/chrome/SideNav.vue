@@ -169,18 +169,18 @@ onMounted(async () => {
   margin-top: 6px;
   border: none;
   border-radius: 7px;
-  background: none;
-  color: var(--side-label);
+  background: var(--side-control-bg);
+  color: var(--side-fg);
   transition:
     background var(--dur-quick),
     color var(--dur-quick);
 }
 .side-collapse:hover {
-  background: var(--side-hover-bg);
+  background: var(--side-control-hover-bg);
   color: var(--side-fg-hover);
 }
 .side-collapse:active {
-  background: var(--side-active-bg);
+  background: var(--side-control-active-bg);
 }
 .side-collapse:focus-visible {
   outline: var(--focus-ring);
@@ -271,7 +271,7 @@ onMounted(async () => {
   left: -10px;
 }
 .side-item.router-link-active svg {
-  color: var(--amber);
+  color: var(--coral);
 }
 .side-foot {
   border-top: 1px solid var(--side-foot-line);
