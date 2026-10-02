@@ -624,6 +624,24 @@ banner, a popover on the strip, the filter-rail tooltips unchanged):
   guide* → `#time-range`.
 **States:** static content, no reads, so no loading, empty or error state.
 
+## 18. Page not found (issue 674)
+
+**No prototype screen**, and the app had none: an address no route matched rendered an empty
+body. Grammar source (DESIGN.md §8 source 2): ui.nuxt.com `Error`: the shell stays, and the
+centre holds a status code, a title, a message and one primary way out. Framework7 documents no
+error page.
+
+**Layout (operator ruling on built specimens, 2026-10-02, A of two: A the status-code layout on
+the page ground, B the kit's empty-state card with no code):** centred on the canvas, no card:
+"404" in mono coral, the title *Page not found*, one plain sentence, the address that failed in a
+mono chip, then *Back to Overview* (primary) and, only when the visitor came from inside the app,
+*Go back*. **Width: wide.** **Nav:** none; it is the router's catch-all, the last child of the
+shell, so the sidebar and the auth gate still apply (a signed-out visitor lands on login).
+**States:** static, no reads.
+
+Not covered here: a page that crashes while drawing, and a backend that cannot be reached. The
+app has no page for either yet.
+
 ---
 
 ## Cross-cutting (unchanged rules, restated)

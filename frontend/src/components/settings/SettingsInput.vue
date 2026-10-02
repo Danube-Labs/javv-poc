@@ -5,6 +5,10 @@
  * mono suffix ("days", "GB"); `num` narrows to the numeric width. Value stays a string —
  * parsing/validation is the consumer's form logic (contract guards live there).
  */
+import { inject } from 'vue'
+
+import { SETTINGS_ROW_LABEL } from '@/components/settings/rowLabel'
+
 withDefaults(
   defineProps<{
     modelValue: string
@@ -17,6 +21,9 @@ withDefaults(
   { num: false, invalid: false },
 )
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
+// inside a SettingsRow the row's title names this input; outside one (a UiField in a dialog)
+// the caller binds a <label for> to `id` instead
+const row = inject(SETTINGS_ROW_LABEL, null)
 </script>
 
 <template>
@@ -26,6 +33,8 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
       class="set-input"
       :class="{ 'set-input--num': num, 'set-input--invalid': invalid }"
       :value="modelValue"
+      :aria-labelledby="row?.labelId"
+      :aria-describedby="row?.hintId()"
       :aria-invalid="invalid || undefined"
       :disabled="disabled"
       inputmode="decimal"
