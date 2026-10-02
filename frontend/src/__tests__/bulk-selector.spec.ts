@@ -35,7 +35,8 @@ describe('lensToSelector (bulk never widens the lens)', () => {
     for (const active of lenses) {
       const r = lensToSelector(FINDINGS_FIELDS, sel({ severity: ['critical'], ...active }))
       expect(r.selector).toBeNull()
-      expect(r.blocked).toMatch(/wider|Clear those filters/)
+      expect(r.blocked).toMatch(/^Remove (this filter|these filters) first: /)
+      expect(r.blocked).toMatch(/more findings than you see/)
     }
   })
 
@@ -48,6 +49,6 @@ describe('lensToSelector (bulk never widens the lens)', () => {
   it('refuses an empty lens — whole-cluster bulk is never offered', () => {
     const r = lensToSelector(FINDINGS_FIELDS, sel())
     expect(r.selector).toBeNull()
-    expect(r.blocked).toMatch(/whole cluster|Filter first/)
+    expect(r.blocked).toMatch(/^Add a filter first\./)
   })
 })
