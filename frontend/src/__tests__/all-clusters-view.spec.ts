@@ -107,9 +107,8 @@ describe('AllClustersView (M9c slice 2)', () => {
     expect(w.find('table').exists()).toBe(false)
   })
 
-  // issue 666: the row click selects the cluster and opens Overview in one handler; with the
-  // shell's URL stamp mounted beside the view, the stamp must not cancel that navigation
-  it('one click on a cluster that is not selected opens its Overview, with that cluster', async () => {
+  /** two clusters with c-1 selected, mounted beside the shell's URL stamp, like the app */
+  async function mountFleetInShell() {
     listMock.mockResolvedValue(
       ok({
         clusters: [
@@ -145,11 +144,34 @@ describe('AllClustersView (M9c slice 2)', () => {
     const w = mount(Shell, { global: { plugins: [shellRouter] } })
     await flushPromises()
 
+    return { w, shellRouter }
+  }
+
+  // issue 666: the row click selects the cluster and opens Overview in one handler; with the
+  // shell's URL stamp mounted beside the view, the stamp must not cancel that navigation
+  it('one click on a cluster that is not selected opens its Overview, with that cluster', async () => {
+    const { w, shellRouter } = await mountFleetInShell()
+
     const beta = w.findAll('tbody tr').find((r) => r.text().includes('beta'))
     expect(beta).toBeDefined()
     await beta!.trigger('click')
     await flushPromises()
 
+    expect(shellRouter.currentRoute.value.path).toBe('/overview')
+    expect(shellRouter.currentRoute.value.query.cluster).toBe('c-2')
+  })
+  // issue 674: the name is a real link, so the keyboard reaches the row. Enter on it is a
+  // click on the link, and it must open exactly as the row does: select first, then navigate
+  it('the cluster name is a link: activating it opens that cluster, and it carries a new-tab address', async () => {
+    const { w, shellRouter } = await mountFleetInShell()
+
+    const link = w.findAll('tbody tr a').find((a) => a.text().includes('beta'))
+    expect(link).toBeDefined()
+    expect(link!.attributes('href')).toBe('/overview?cluster=c-2')
+    await link!.trigger('click')
+    await flushPromises()
+
+    expect(useClusterStore().selectedId).toBe('c-2')
     expect(shellRouter.currentRoute.value.path).toBe('/overview')
     expect(shellRouter.currentRoute.value.query.cluster).toBe('c-2')
   })

@@ -9,6 +9,7 @@ import {
   EXPIRY_WARN_DAYS,
   daysUntil,
   expiryStatus,
+  findingsRoute,
   scannerLabel,
   scopeLabel,
 } from '@/approvals/viewModel'
@@ -60,5 +61,27 @@ describe('scope + scanner labels', () => {
     expect(scannerLabel({ apply_both_scanners: true, scanner: 'trivy' })).toBe('both')
     expect(scannerLabel({ apply_both_scanners: false, scanner: 'grype' })).toBe('grype')
     expect(scannerLabel({ apply_both_scanners: false, scanner: null })).toBe('both')
+  })
+})
+
+describe('findingsRoute (where a decision row leads)', () => {
+  const scope = (images: string[]) => ({ namespaces: [], images })
+
+  it('searches the CVE', () => {
+    expect(findingsRoute({ cve_id: 'CVE-2024-1', scope: scope([]) })).toEqual({
+      name: 'findings',
+      query: { q: 'CVE-2024-1' },
+    })
+  })
+
+  it('narrows to the image when the scope names exactly one', () => {
+    expect(findingsRoute({ cve_id: 'CVE-2024-1', scope: scope(['nginx']) }).query).toEqual({
+      q: 'CVE-2024-1',
+      image: 'nginx',
+    })
+  })
+
+  it('does not narrow when the scope names several images', () => {
+    expect(findingsRoute({ cve_id: 'CVE-2024-1', scope: scope(['nginx', 'redis']) }).query).toEqual({ q: 'CVE-2024-1' })
   })
 })

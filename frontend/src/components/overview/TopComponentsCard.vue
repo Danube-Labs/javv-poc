@@ -15,6 +15,7 @@ import { client } from '@/api/client'
 import { topComponentsFindingsApiV1FindingsTopComponentsGet } from '@/api/generated'
 import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import RowLink from '@/components/ui/RowLink.vue'
 import { fmt, type ScannerLens } from '@/lib/scannerLens'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
@@ -83,8 +84,9 @@ function setSize(next: number) {
   page.value = 0
 }
 
+const findingsRoute = (pkg: string) => ({ path: '/findings', query: { q: pkg } })
 function goFindings(pkg: string) {
-  void router.push({ path: '/findings', query: { q: pkg } })
+  void router.push(findingsRoute(pkg))
 }
 </script>
 
@@ -118,7 +120,9 @@ function goFindings(pkg: string) {
               @click="goFindings(x.row.package_name)"
             >
               <td class="mono-cell pkg-link">
-                {{ x.row.package_name }}<AppIcon class="cell-go" name="chevron" :size="11" />
+                <RowLink :to="findingsRoute(x.row.package_name)" @open="goFindings(x.row.package_name)">
+                  {{ x.row.package_name }}<AppIcon class="cell-go" name="chevron" :size="11" />
+                </RowLink>
               </td>
               <td class="r fit mono-cell sm strong">{{ fmt(x.uniq) }}</td>
             </tr>

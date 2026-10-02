@@ -77,6 +77,11 @@ hover/pressed/focus states; reviews reject "border-shift-only" or feedback-less 
   `--coral-text` + underline on row hover. Transitions ~120ms ease-out with a reduced-motion
   fallback; pressed state = `--line2` wash. **Never dress a cell whose destination doesn't
   exist yet** — a false affordance is worse than a missing one.
+  **That identifier is a real link** (`RowLink`, operator ruling on built specimens 2026-10-02,
+  issue 674, A of two: A the identifier as a link, B the whole row taking focus): Tab reaches
+  it, Enter opens the row, a ctrl or middle click opens a new tab. A row answering the mouse
+  only cannot be opened from the keyboard at all; `row-links-guard.spec.ts` fails a clickable
+  row with no link.
 - **Every interactive control has a VISIBLE hover** (operator, 2026-07-10): the wash
   (`--control-hover-bg`) + border shift together — a border-color shift alone cannot be seen.
   Pressed = `--control-active-bg`. One global rule in `base.css` covers the control classes;
@@ -258,6 +263,7 @@ the raw markup/CSS they encapsulate is a review failure — extend the component
 | `ModalShell` | backdrop + card + head/✕/actions, Escape + outside-click dismiss | every dialog |
 | `UiSkeleton` | the one loading pulse (`.skel` + `skel-shimmer` in base.css) and its reduced-motion off-switch; `height` is a prop because a skeleton mirrors the panel it stands in for, `label` only when it is its own loading region | every loading placeholder. The style rules test fails any view that grows its own shimmer |
 | `AppIcon` | the stroke icon set | every icon |
+| `RowLink` | the identifier of a row that opens something, as a real `<a>`: focusable, the focus ring, Enter and plain click hand off to the row's own open handler, modified clicks left to the browser | the identifier cell of every clickable row (the grids take a `rowTo` prop; hand-built rows wrap the cell) |
 | `ToastStack` + `useToastStore` | the confirmation channel: `success/error/info` from ANY component/store, auto-dismiss, capped stack, t-toast motion, ink text + hue on the icon | every action outcome the user would otherwise hunt for; inline contextual errors stay inline |
 | `SectionNav` | a screen's left section menu: the sticky card, icon + label rows, hover wash + border, the coral active row, `aria-current`; a `trail` slot for a row's extra mark | Settings' sub-pages and the Guide's in-page sections; any future screen with a section list |
 

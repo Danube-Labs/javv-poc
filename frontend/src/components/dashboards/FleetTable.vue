@@ -11,6 +11,7 @@ import { useRouter } from 'vue-router'
 import HealthChip from '@/components/chips/HealthChip.vue'
 import MixBar from '@/components/dashboards/MixBar.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import RowLink from '@/components/ui/RowLink.vue'
 import { useAllClustersStore, type ClusterRow } from '@/stores/allClusters'
 import { useClusterStore } from '@/stores/cluster'
 import type { Severity } from '@/styles/tokens'
@@ -76,6 +77,9 @@ function open(row: ClusterRow) {
   clusterStore.select(row.cluster_id)
   void router.push('/overview')
 }
+// the address a new tab needs: the shell restores the cluster from the query on a cold load.
+// A plain click still goes through `open`, which selects first and then navigates.
+const overviewRoute = (row: ClusterRow) => ({ path: '/overview', query: { cluster: row.cluster_id } })
 </script>
 
 <template>
@@ -108,7 +112,9 @@ function open(row: ClusterRow) {
               <div class="cluster-cell">
                 <span class="glyph" aria-hidden="true">{{ (row.cluster_name[0] ?? '?').toUpperCase() }}</span>
                 <div class="cluster-info">
-                  <span class="cl-name cl-link">{{ row.cluster_name }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+                  <RowLink :to="overviewRoute(row)" @open="open(row)">
+                    <span class="cl-name cl-link">{{ row.cluster_name }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
+                  </RowLink>
                   <span v-if="row.cluster_name !== row.cluster_id" class="cl-id mono-cell">{{ row.cluster_id }}</span>
                 </div>
               </div>

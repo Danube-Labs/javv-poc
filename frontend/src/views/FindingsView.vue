@@ -182,9 +182,9 @@ watch(
   },
 )
 
-function openFinding(row: FindingRow) {
-  logger.debug('finding_row_clicked', { finding_key: row.finding_key })
-  void router.push({
+/** One definition of where a row leads: the row click pushes it, the id link carries it as href. */
+function findingRoute(row: FindingRow) {
+  return {
     name: 'finding',
     params: { cveId: row.cve_id },
     // identity = (cve_id, image_digest); scanner + package keep continuity with the clicked row
@@ -194,7 +194,11 @@ function openFinding(row: FindingRow) {
       pkg: row.package_name,
       ver: row.installed_version ?? '',
     },
-  })
+  }
+}
+function openFinding(row: FindingRow) {
+  logger.debug('finding_row_clicked', { finding_key: row.finding_key })
+  void router.push(findingRoute(row))
 }
 
 /* ---- column visibility + density (Columns menu), persisted per browser ---- */
@@ -352,6 +356,7 @@ function onHeaderReorder(dragIndex: number, dropIndex: number) {
           @pick-value="filters.pickValue"
           :dense="dense"
           :filtered="Object.values(filters.selections).some((v) => v.length > 0)"
+          :row-to="findingRoute"
           @sort="grid.setSort"
           @row-click="openFinding"
           @reorder="onHeaderReorder"

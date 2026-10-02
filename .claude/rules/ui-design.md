@@ -52,7 +52,7 @@ no ad-hoc sizes — use the scale tokens (`--text-page-title`, `--text-card-titl
 
 **Reuse before building — the kit already solves most of it**
 `components/ui/` (UiButton · UiField · UiDropdown · UiSegControl · UiDateTime · ModalShell ·
-SlideoverShell · ToastStack · EmptyState · UiSkeleton · AppIcon · SectionNav), plus `components/chips/`, the M9a filter module,
+SlideoverShell · ToastStack · EmptyState · UiSkeleton · AppIcon · SectionNav · RowLink), plus `components/chips/`, the M9a filter module,
 the shared table skin + GridPager, and the stat-band skin (`.stat-band`/`.stat-cell` in base.css,
 composed by `components/overview/OverviewStatBands.vue` — it is a skin, not a kit component).
 Paging behind GridPager is two composables, never a hand-written stack: `useCursorPager`

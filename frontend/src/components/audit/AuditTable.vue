@@ -15,12 +15,14 @@
 import Column from 'primevue/column'
 import DataTable from 'primevue/datatable'
 import { computed } from 'vue'
+import type { RouteLocationRaw } from 'vue-router'
 
 import { causalOrder } from '@/audit/causalOrder'
 import ActionTag from '@/components/chips/ActionTag.vue'
 import ScannerTag from '@/components/chips/ScannerTag.vue'
 import SevChip from '@/components/chips/SevChip.vue'
 import ValueActions from '@/components/filters/ValueActions.vue'
+import RowLink from '@/components/ui/RowLink.vue'
 import { activeMode, type Selections } from '@/filters/fields.config'
 import { lastDataAt } from '@/system/freshness'
 import type { AuditEvent } from '@/stores/audit'
@@ -33,6 +35,8 @@ const props = defineProps<{
   /** active selections + modes, so a cell action shows which side it already sits on */
   selections?: Selections
   modes?: Modes
+  /** where a finding row leads: its CVE renders as a real link, so the keyboard can open it */
+  rowTo?: (row: AuditEvent) => RouteLocationRaw | null
 }>()
 const emit = defineEmits<{
   rowClick: [row: AuditEvent]
@@ -144,7 +148,10 @@ function onRowClick(row: AuditEvent) {
       <Column header="Target">
         <template #body="{ data }">
           <span v-if="data.finding" class="audit-target">
-            <span class="mono-cell strong sm nowrap" :class="{ 'cve-link': clickable(data) }">{{ data.finding.cve_id }}</span>
+            <RowLink v-if="clickable(data) && props.rowTo?.(data)" :to="props.rowTo(data)!" @open="onRowClick(data)">
+              <span class="mono-cell strong sm nowrap cve-link">{{ data.finding.cve_id }}</span>
+            </RowLink>
+            <span v-else class="mono-cell strong sm nowrap" :class="{ 'cve-link': clickable(data) }">{{ data.finding.cve_id }}</span>
             <SevChip v-if="data.finding.severity_canonical" :level="data.finding.severity_canonical" :dot="true" />
             <span class="mono-cell sm img-cell" :title="data.finding.image_repo ?? ''">{{ shortImage(data) }}</span>
             <ScannerTag v-if="data.finding.scanner" :name="data.finding.scanner" />

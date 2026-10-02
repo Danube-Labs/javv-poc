@@ -12,6 +12,7 @@ import { useRouter } from 'vue-router'
 
 import GridPager from '@/components/findings/GridPager.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
+import RowLink from '@/components/ui/RowLink.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { fmt, type ScannerLens } from '@/lib/scannerLens'
 import { useClusterStore } from '@/stores/cluster'
@@ -69,11 +70,12 @@ function setSize(next: number) {
   page.value = 0
 }
 
+const imageRoute = (row: ImageRow) => ({
+  path: `/images/${encodeURIComponent(row.image_digest)}`,
+  query: { repo: row.image_repo, tag: row.tag },
+})
 function open(row: ImageRow) {
-  void router.push({
-    path: `/images/${encodeURIComponent(row.image_digest)}`,
-    query: { repo: row.image_repo, tag: row.tag },
-  })
+  void router.push(imageRoute(row))
 }
 </script>
 
@@ -107,8 +109,10 @@ function open(row: ImageRow) {
               @click="open(x.row)"
             >
               <td class="mono-cell img-link">
-                {{ x.row.image_repo }}:{{ x.row.tag
-                }}<AppIcon class="cell-go" name="chevron" :size="11" />
+                <RowLink :to="imageRoute(x.row)" @open="open(x.row)">
+                  {{ x.row.image_repo }}:{{ x.row.tag
+                  }}<AppIcon class="cell-go" name="chevron" :size="11" />
+                </RowLink>
               </td>
               <td class="r fit mono-cell sm strong">
                 <span :class="{ 'crit-alarm': (x.rank[0] ?? 0) > 0 }">{{ fmt(x.rank[0] ?? 0) }}</span>
