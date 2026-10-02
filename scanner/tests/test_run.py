@@ -3,6 +3,7 @@ the orchestrator runs one scan cycle — discover → drive → envelope → pus
 ScanRun across all images (one scan_run_id/scan_order per cycle). The subprocess runner is
 injected so this is unit-testable without invoking real trivy/grype."""
 
+import json
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,7 +19,14 @@ from scanner.discovery import ImageTarget, Location
 from scanner.envelope import EffectiveConfig, Envelope
 from scanner.models import Finding, Provenance, ScanResult
 from scanner.push import PushResult
-from scanner.run import scan_all
+from scanner.run import (
+    STDERR_TAIL_CHARS,
+    STDERR_TAIL_LINES,
+    PushFn,
+    ScanFn,
+    failure_detail,
+    scan_all,
+)
 from scanner.scope import ScanScope
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -426,11 +434,15 @@ def test_cycle_lines_render_as_json_with_the_standard_keys(
     failed = lines[-1]
     assert failed["level"] == "warning" and "exc_info" not in failed
     assert "CalledProcessError" in failed["exception"]
+    # the scanner's own words, not just "exit status 1" (issue 633)
+    assert failed["reason"] == "scanner_exit" and failed["exit_code"] == 1
+    assert failed["scanner_stderr"] == "image not found"
 
 
 def test_scan_all_certifies_the_cycle_inventory_at_the_end() -> None:
-    # M8a slice 2: commit_fn fires once with the cycle's shared run id and the DISCOVERED count —
-    # a failing image still counts as expected (its envelope never lands → the run stays partial)
+    # commit_fn fires once with the cycle's shared run id and the SCANNED count: an image that
+    # could not be scanned is left out, so one image its registry no longer serves cannot keep
+    # every run partial (issue 633)
     targets = [
         target("sha256:a", "good-1:1"),
         target("sha256:boom", "broken:1"),
@@ -460,7 +472,104 @@ def test_scan_all_certifies_the_cycle_inventory_at_the_end() -> None:
     assert len(commits) == 1
     run_id, expected, started = commits[0]
     assert run_id == pushed[0].scan_run_id  # the cycle's ONE shared identity
-    assert (
-        expected == 2
-    )  # discovered, not delivered — the broken image keeps the run's count accurate
+    assert expected == 1  # scanned, not discovered: the broken image is not expected
     assert started.tzinfo is not None
+
+
+def _expected_count(scan_fn: ScanFn, push_fn: PushFn, refs: list[str]) -> int:
+    commits: list[int] = []
+    scan_all(
+        [target(f"sha256:{i}", ref) for i, ref in enumerate(refs)],
+        scanner="trivy",
+        cluster_id="c",
+        scan_fn=scan_fn,
+        push_fn=push_fn,
+        scan_order=1,
+        commit_fn=lambda run_id, expected, started: commits.append(expected),
+    )
+    [expected] = commits
+    return expected
+
+
+def _ok_scan(ref: str) -> ScanResult:
+    return ScanResult(provenance=Provenance(scanner_version="0.71.2"))
+
+
+def _delivered(env: Envelope) -> PushResult:
+    return PushResult(delivered=True, attempts=1, dead_lettered=False)
+
+
+def test_a_cycle_with_no_failure_expects_every_discovered_image() -> None:
+    assert _expected_count(_ok_scan, _delivered, ["a:1", "b:1", "c:1"]) == 3
+
+
+def test_a_dead_lettered_push_still_counts_as_expected() -> None:
+    # the image scanned, so its doc SHOULD land; it did not, and the run must stay partial
+    def dead_letter(env: Envelope) -> PushResult:
+        return PushResult(delivered=False, attempts=5, dead_lettered=True)
+
+    assert _expected_count(_ok_scan, dead_letter, ["a:1", "b:1"]) == 2
+
+
+def test_a_timed_out_scan_is_not_expected_either() -> None:
+    def scan_fn(ref: str) -> ScanResult:
+        if ref == "slow:1":
+            raise subprocess.TimeoutExpired(["trivy"], 600)
+        return _ok_scan(ref)
+
+    assert _expected_count(scan_fn, _delivered, ["a:1", "slow:1", "b:1"]) == 2
+
+
+def test_a_cycle_where_every_scan_fails_keeps_the_discovered_count() -> None:
+    # nothing landed, so the backend calls the run partial and the last good inventory keeps
+    # answering; expecting 0 would certify an empty inventory for a cluster that runs images
+    def scan_fn(ref: str) -> ScanResult:
+        raise subprocess.CalledProcessError(1, ["trivy"], stderr="no route to registry")
+
+    assert _expected_count(scan_fn, _delivered, ["a:1", "b:1"]) == 2
+
+
+def test_a_cluster_that_runs_nothing_expects_nothing() -> None:
+    # a real empty inventory is still certified as empty
+    assert _expected_count(_ok_scan, _delivered, []) == 0
+
+
+def test_failure_detail_carries_the_exit_code_and_the_scanners_last_lines() -> None:
+    stderr = "pulling layers\nFATAL image scan error\nUNAUTHORIZED: authentication required\n"
+    detail = failure_detail(subprocess.CalledProcessError(1, ["trivy"], stderr=stderr))
+    assert detail == {
+        "reason": "scanner_exit",
+        "exit_code": 1,
+        "scanner_stderr": stderr.strip(),
+    }
+
+
+def test_failure_detail_keeps_only_the_tail_of_a_long_stderr() -> None:
+    lines = [f"line {i}" for i in range(40)]
+    detail = failure_detail(subprocess.CalledProcessError(2, ["grype"], stderr="\n".join(lines)))
+    assert detail["scanner_stderr"] == "\n".join(lines[-STDERR_TAIL_LINES:])
+
+
+def test_failure_detail_caps_one_enormous_line() -> None:
+    detail = failure_detail(
+        subprocess.CalledProcessError(1, ["trivy"], stderr="x" * 50_000 + "END")
+    )
+    tail = detail["scanner_stderr"]
+    assert isinstance(tail, str) and len(tail) == STDERR_TAIL_CHARS and tail.endswith("END")
+
+
+@pytest.mark.parametrize("stderr", [None, "", "   \n", b"bytes, not text"])
+def test_failure_detail_with_no_usable_stderr_is_an_empty_tail(
+    stderr: str | bytes | None,
+) -> None:
+    detail = failure_detail(subprocess.CalledProcessError(1, ["trivy"], stderr=stderr))
+    assert detail == {"reason": "scanner_exit", "exit_code": 1, "scanner_stderr": ""}
+
+
+def test_failure_detail_names_a_timeout() -> None:
+    detail = failure_detail(subprocess.TimeoutExpired(["trivy"], 600))
+    assert detail == {"reason": "timeout", "timeout_s": 600}
+
+
+def test_failure_detail_for_any_other_error_claims_nothing_about_the_scanner() -> None:
+    assert failure_detail(json.JSONDecodeError("bad", "", 0)) == {"reason": "error"}

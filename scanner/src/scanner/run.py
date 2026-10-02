@@ -6,6 +6,7 @@ cycle is unit-testable; `main()` wires the real kube client, scanner binaries, a
 
 import os
 import re
+import subprocess
 import time
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
@@ -30,6 +31,27 @@ PushFn = Callable[[Envelope], PushResult]
 CommitFn = Callable[[str, int, datetime], object]
 
 log = structlog.get_logger()
+
+# Bounds one log line. The scanner prints its final error last; what precedes it is progress.
+STDERR_TAIL_LINES = 5
+STDERR_TAIL_CHARS = 1000
+
+
+def failure_detail(exc: BaseException) -> dict[str, object]:
+    """Why a scan failed, in the scanner's own words. The exception alone says "exit status 1";
+    the reason (the registry refused the pull, the image is gone) is only on the scanner's
+    stderr, which nothing else records (issue 633)."""
+    if isinstance(exc, subprocess.TimeoutExpired):
+        return {"reason": "timeout", "timeout_s": exc.timeout}
+    if isinstance(exc, subprocess.CalledProcessError):
+        stderr = exc.stderr if isinstance(exc.stderr, str) else ""
+        tail = "\n".join(stderr.strip().splitlines()[-STDERR_TAIL_LINES:])
+        return {
+            "reason": "scanner_exit",
+            "exit_code": exc.returncode,
+            "scanner_stderr": tail[-STDERR_TAIL_CHARS:],
+        }
+    return {"reason": "error"}
 
 
 def scan_all(
@@ -61,11 +83,12 @@ def scan_all(
         started = time.monotonic()
         try:
             scanned = scan_fn(t.image_ref)
-        except Exception:
+        except Exception as exc:
             log.warning(
                 "scan failed, image skipped",
                 image_ref=t.image_ref,
                 image_digest=t.image_digest,
+                **failure_detail(exc),
                 exc_info=True,
             )
             continue
@@ -89,9 +112,16 @@ def scan_all(
         )
         results.append(push_fn(envelope))
     if commit_fn is not None:
-        # cycle-end inventory certification (M8a slice 2, D39): expected = every DISCOVERED image
-        # — a scan failure or dead-letter leaves the run partial, deliberately never "committed"
-        commit_fn(run.scan_run_id, len(targets), cycle_started_at)
+        # cycle-end inventory certification (M8a slice 2, D39): expected = every image that was
+        # SCANNED, one push result each. A dead-lettered push still counts, so lost data leaves
+        # the run partial. A failed scan does not: an image its registry no longer serves would
+        # otherwise make every run partial and freeze the running-images view for good (issue
+        # 633). That image leaves the inventory and its findings go stale on the normal timer.
+        # The exception is a cycle in which NOTHING scanned (no registry reachable, a broken
+        # scanner): certifying it would publish an empty inventory, so it keeps the discovered
+        # count, stays partial, and the last good inventory keeps answering.
+        expected = len(results) if results else len(targets)
+        commit_fn(run.scan_run_id, expected, cycle_started_at)
     return results
 
 
@@ -241,7 +271,9 @@ def main() -> int:
     delivered = sum(1 for r in results if r.delivered)
     log.info(
         "cycle complete",
+        discovered=len(targets),
         scanned=len(results),
+        scan_failed=len(targets) - len(results),
         delivered=delivered,
         dead_lettered=len(results) - delivered,
     )

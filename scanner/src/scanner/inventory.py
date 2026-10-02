@@ -1,5 +1,5 @@
 """Inventory commit, scanner side (M8a slice 2, D39/H4-r2). At cycle END the scanner certifies
-its run: "I discovered `expected_count` images; every envelope has been pushed." The backend
+its run: "I scanned `expected_count` images; every envelope has been pushed." The backend
 counts what actually landed and writes the manifest — `committed` only when complete.
 
 Best-effort, unlike the fail-CLOSED cycle-start calls (scope/scan_order): by commit time every
@@ -41,7 +41,7 @@ def commit_inventory(
         return False
     committed = manifest.get("status") == "committed"
     if not committed:
-        # expected vs written mismatch: some image never landed (scan failure / dead letter)
+        # expected vs written mismatch: a scanned image never landed (a dead-lettered push)
         log.warning(
             "inventory run partial — not readable as live inventory",
             expected=manifest.get("expected_count"),

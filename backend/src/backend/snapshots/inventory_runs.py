@@ -129,7 +129,7 @@ async def commit_inventory_run(
     prefix: str = "",
 ) -> dict[str, Any]:
     """Certify one cycle's inventory: count what landed, allocate the order, write the manifest
-    (`_id = inventory_run_id`, written last — D39). `status=committed` iff every discovered image
+    (`_id = inventory_run_id`, written last — D39). `status=committed` iff every expected image
     doc landed; anything short stays `partial` and is never read as the live inventory.
 
     Immutable + idempotent: a retry of an already-committed run returns the EXISTING manifest
