@@ -30,6 +30,14 @@ requires_opensearch = pytest.mark.skipif(
 )
 
 
+async def clear_pits(client: Any) -> None:
+    """Close every point-in-time context in the store, so a test that counts them starts from
+    zero. OpenSearch drops an expired PIT in a periodic sweep, not at its keep-alive, so one left
+    by an earlier test can leave the list between a before-count and an after-count (issue 679).
+    Only for `serial` tests: it also kills any PIT another test is still using."""
+    await client.transport.perform_request("DELETE", "/_search/point_in_time/_all")
+
+
 async def drop_prefix(client: Any, prefix: str) -> None:
     """Tear down everything a `bootstrap(client, prefix=...)` made: its indices AND its index
     templates. Templates outlive their indices, and each one left behind grows the cluster state

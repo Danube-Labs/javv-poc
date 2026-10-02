@@ -19,7 +19,7 @@ from backend.auth.passwords import hash_password
 from backend.core.settings import get_settings
 from backend.main import create_app
 from backend.models.envelope import canonical_severity
-from os_env import OS_URL, requires_opensearch
+from os_env import OS_URL, clear_pits, requires_opensearch
 
 PASSWORD = "findings-route-password"
 
@@ -135,7 +135,7 @@ async def test_tenant_isolation_and_default_grid(env) -> None:
     assert r.status_code == 422
 
 
-# serial: counts every open PIT in the store, so another worker's live PIT breaks the equality
+# serial: clears and counts every open PIT in the store, so it cannot share it with a live walk
 @pytest.mark.serial
 async def test_deep_paging_leaves_zero_pits_behind(env) -> None:
     login, client = env
@@ -143,7 +143,7 @@ async def test_deep_paging_leaves_zero_pits_behind(env) -> None:
     await _seed(client, cid, _rows(5))
     http = await login()
 
-    pits_before = await _pit_count(client)
+    await clear_pits(client)
     seen: list[str] = []
     cursor: str | None = None
     for _ in range(10):
@@ -158,7 +158,7 @@ async def test_deep_paging_leaves_zero_pits_behind(env) -> None:
         if cursor is None:
             break
     assert len(seen) == 5 and len(set(seen)) == 5  # complete, no dup/skip across pages
-    assert await _pit_count(client) == pits_before  # the walk cleaned its PITs (D38)
+    assert await _pit_count(client) == 0  # the walk cleaned its PITs (D38)
 
     r = await http.get("/api/v1/findings", params={"cluster_id": cid, "cursor": "garbage!"})
     assert r.status_code == 422  # an unreadable cursor is a client error, not a 500

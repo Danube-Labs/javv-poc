@@ -18,7 +18,7 @@ import backend.export.sweep as sweep_mod
 from backend.auth.passwords import hash_password
 from backend.core.settings import get_settings
 from backend.main import create_app
-from os_env import OS_URL, requires_opensearch
+from os_env import OS_URL, clear_pits, requires_opensearch
 
 PASSWORD = "export-route-password"
 
@@ -115,7 +115,7 @@ async def _pit_count(client: AsyncOpenSearch) -> int:
     return len(resp.get("pits") or [])
 
 
-# serial: counts every open PIT in the store, so another worker's live PIT breaks the equality
+# serial: clears and counts every open PIT in the store, so it cannot share it with a live walk
 @pytest.mark.serial
 async def test_export_streams_sanitized_lens_and_cleans_pits(env, monkeypatch) -> None:
     login, client = env
@@ -126,7 +126,7 @@ async def test_export_streams_sanitized_lens_and_cleans_pits(env, monkeypatch) -
     await _seed(client, other, _rows(1, cve="CVE-2024-9666"))  # must never leak
     http = await login()
 
-    pits_before = await _pit_count(client)
+    await clear_pits(client)
     r = await http.get("/api/v1/findings/export.csv", params={"cluster_id": cid, "state": ["open"]})
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/csv")
@@ -139,7 +139,7 @@ async def test_export_streams_sanitized_lens_and_cleans_pits(env, monkeypatch) -
     assert all("'=cmd()|bait" in ln for ln in lines[1:])  # every bait cell left neutralized
     assert "\n=cmd" not in r.text and not any(ln.startswith("=") for ln in lines)
 
-    assert await _pit_count(client) == pits_before  # the sweep cleaned its PIT (D38)
+    assert await _pit_count(client) == 0  # the sweep cleaned its PIT (D38)
 
 
 async def test_export_over_row_cap_is_413_before_streaming(env, monkeypatch) -> None:
