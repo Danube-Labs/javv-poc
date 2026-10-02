@@ -84,7 +84,7 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 (minute, hour, day of month, month, day of week); shortcuts such as `@daily` are not accepted.
 `rebuild_state` has no schedule: it is only ever run by hand. One job runs at a time, the report drain first when several are due; a job with no run yet waits for its next scheduled time, so nothing runs because the backend started; a run cut off by a restart is picked up again once its lease goes stale (`JAVV_REPORT_LEASE_TTL_SECONDS`). The expressions are read in the
 backend's **local timezone**, which is the `TZ` environment variable (for example
-`TZ=Europe/Bucharest`), or else the zone `/etc/localtime` links to, or else **UTC**. A container has
+`TZ=Europe/Bucharest`), or else the zone `/etc/localtime` links to, or else **UTC**. A `TZ` name the zone database does not know also means UTC: the backend still starts (operator ruling on issue 691), and the scheduler's startup log line shows what it settled on (`scheduler started`, with `zone` and `zone_source`: `TZ`, `system` or `default`), so check that line after changing `TZ`. A container has
 no zone unless it is given one, so set `TZ` if `0 3 * * *` should mean 03:00 local. Backends that
 share a store must share one timezone. On the night clocks go back, a local time that happens twice
 runs once; on the night they go forward, a local time that does not exist runs at the first valid
