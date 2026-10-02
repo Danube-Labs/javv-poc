@@ -20,6 +20,16 @@ const SCANNERS = ['trivy', 'grype'] as const
 const dayLabel = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 
+/** What the card says instead of a chart with no lines. The route only returns days for a
+ * scanner or severity that has a finding in the range, so "nothing in range" arrives as no
+ * series at all, and an axis with no dates reads as a broken chart. */
+export function emptyTrendNote(option: EChartsOption, lens: 'scanner' | 'severity'): string | null {
+  if ((option.series as unknown[]).length > 0) return null
+  return lens === 'scanner'
+    ? 'No new or resolved findings in this range.'
+    : 'No new findings in this range.'
+}
+
 export function buildFindingsTrendOption(data: FindingsTrendData): EChartsOption {
   const dates = (SCANNERS.map((s) => data.new[s]).find((r) => r?.length) ?? []).map((p) =>
     dayLabel(p.date),
