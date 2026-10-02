@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.4.12](https://github.com/Danube-Labs/javv-poc/compare/v0.4.11...v0.4.12) (2026-10-02)
+
+
+### Bug Fixes
+
+* filters and labels say things by their display names, not the stored values ([#678](https://github.com/Danube-Labs/javv-poc/issues/678)) ([a3acb86](https://github.com/Danube-Labs/javv-poc/commit/a3acb86ec92e31a3510d71d501a220b49749f7da))
+* open any table row from the keyboard, through a real link on its identifier ([#677](https://github.com/Danube-Labs/javv-poc/issues/677)) ([f9fe4c1](https://github.com/Danube-Labs/javv-poc/commit/f9fe4c1bfe6938cd7a05b4147c84caa4a593e513)), closes [#674](https://github.com/Danube-Labs/javv-poc/issues/674)
+
 ## [0.4.11](https://github.com/Danube-Labs/javv-poc/compare/v0.4.10...v0.4.11) (2026-10-02)
 
 
