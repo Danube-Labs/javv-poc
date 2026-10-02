@@ -33,6 +33,7 @@ import ValueActions from '@/components/filters/ValueActions.vue'
 import RowLink from '@/components/ui/RowLink.vue'
 import type { SortField, SortOrder } from '@/findings/buildFindingsQuery'
 import { FINDINGS_COLUMNS, type FindingsColumnKey } from '@/findings/columns'
+import { stateLabel } from '@/findings/stateLabels'
 import { activeMode, type Selections } from '@/filters/fields.config'
 import type { FilterMode, Modes } from '@/stores/filters'
 import type { FindingRow } from '@/stores/findings'
@@ -304,6 +305,7 @@ const cellActive = (key: string, value: string): FilterMode | null =>
             class="val-act-reveal"
             :field="key === 'image' ? 'Image (all tags)' : COL_HEADER[key]"
             :value="cellValue(key, data)!"
+            :shown="key === 'state' ? stateLabel(cellValue(key, data)!) : undefined"
             :active="cellActive(key, cellValue(key, data)!)"
             @pick="(m) => emit('pickValue', CELL_FILTER_FIELD[key]!, cellValue(key, data)!, m)"
           />

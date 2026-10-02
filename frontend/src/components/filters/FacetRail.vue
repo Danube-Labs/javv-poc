@@ -98,6 +98,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           exclude-only
           :field="g.field.label"
           :value="it.value"
+          :shown="it.label"
           :active="activeMode(g.field, it.value)"
           @pick="(m) => emit('pick', g.field.key, it.value, m)"
         />
