@@ -232,6 +232,13 @@ explainer kept. Assignee (`assignee`, Assign to me / Reassign) + Notes (escaped,
 as HTML). **Removed:** Impact / Action / Approver / Task free-text fields (V4-DELTA conflict 1 —
 the model is state + justification + notes + structured decisions).
 
+**Undo (issue 681):** after a save that changed the state, the panel shows "Changed from X to Y
+just now" with an Undo button. Undo sends the earlier state back through the same triage PATCH
+(with the earlier justification for not_affected and a note "Undo: back to X"), so it is
+journaled like any change. Not offered when the earlier state was risk_accepted or stale, or
+when only a note or assignee was saved. It restores the state only, and goes away on undo, on
+the next state change, or on leaving the finding.
+
 **SLA box:** server-computed deadline + overdue flag from the findings read (B-5).
 
 **States:** loading; 403-capability-hidden (triage controls disabled-with-tooltip without
@@ -382,6 +389,11 @@ Task column dropped (no field; Jira linkage is v1.1 — V4-DELTA-1).
 
 **States:** loading; empty; degraded; retention note ("audit window bounded by
 `system-audit-log` retention").
+
+**Default view (issue 681):** the sidebar and command palette open the log at
+`/audit?action=!login`, so it starts with a removable "Action is not Login" pill and the first
+page is not all sign-ins. The filter lives in the address, never as a hidden default: a bare
+`/audit` lists every event, and links that carry their own filters are untouched.
 
 **Changed vs SCREENS.md:** A-5 (structured entity_type+action replaces the 8-string enum;
 click-through rule; Task column dropped); endpoint scheduled (M8c).

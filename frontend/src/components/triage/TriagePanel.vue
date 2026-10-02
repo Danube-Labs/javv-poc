@@ -4,7 +4,8 @@
  * user lacks can_triage, and when viewing history (T<now: reconstructed state is not editable).
  * risk_accepted and stale render explainer blocks instead of buttons; the presence explainer
  * (fixed vs stale) is kept verbatim from the prototype. Save emits the validated PATCH body —
- * the parent owns the network call and conflict surfacing.
+ * the parent owns the network call and conflict surfacing. After a saved state change the parent
+ * passes `undo`, and the panel offers the way back (issue 681).
  */
 import { computed, ref, watch } from 'vue'
 
@@ -14,6 +15,7 @@ import VexJustificationPicker from '@/components/triage/VexJustificationPicker.v
 import AppIcon from '@/components/ui/AppIcon.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiField from '@/components/ui/UiField.vue'
+import { stateLabel } from '@/findings/stateLabels'
 import { buildTriagePatch, type TriagePatchBody } from '@/findings/triageRules'
 import type { FindingRow } from '@/stores/findings'
 
@@ -25,8 +27,10 @@ const props = defineProps<{
   saving: boolean
   error: string | null
   currentUser: string | null
+  /** The last saved state change on this finding, while it can still be undone. */
+  undo?: { from: string; to: string } | null
 }>()
-const emit = defineEmits<{ save: [body: TriagePatchBody]; riskAccept: [] }>()
+const emit = defineEmits<{ save: [body: TriagePatchBody]; riskAccept: []; undo: [] }>()
 
 const target = ref<string | null>(null)
 const vexJustification = ref<string | null>(null)
@@ -63,6 +67,12 @@ function pickState(s: string) {
 function save() {
   if (draft.value.body) emit('save', draft.value.body)
 }
+function undoLast() {
+  // the picked target is the state being undone: left in place it would read as a pending change
+  target.value = null
+  vexJustification.value = null
+  emit('undo')
+}
 </script>
 
 <template>
@@ -80,6 +90,13 @@ function save() {
         <AppIcon name="key" :size="13" />
         Read-only: you don't hold <b>can_triage</b>. Ask an Operator or Security Lead.
       </div>
+
+      <p v-if="undo && !locked" class="triage-undo" role="status">
+        <span>
+          Changed from <b>{{ stateLabel(undo.from) }}</b> to <b>{{ stateLabel(undo.to) }}</b> just now.
+        </span>
+        <UiButton :disabled="saving" @click="undoLast">Undo</UiButton>
+      </p>
 
       <UiField label="Assigned to" first>
         <div class="assignee-row">
@@ -209,6 +226,20 @@ function save() {
   border-radius: var(--r-sm);
   padding: 8px 10px;
   margin-bottom: 12px;
+  line-height: 1.45;
+}
+.triage-undo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: var(--r-sm);
   line-height: 1.45;
 }
 .triage-locked svg {
