@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.11](https://github.com/Danube-Labs/javv-poc/compare/v0.4.10...v0.4.11) (2026-10-02)
+
+
+### Bug Fixes
+
+* a page for unknown addresses, named settings inputs, and a bulk triage dialog that helps ([#676](https://github.com/Danube-Labs/javv-poc/issues/676)) ([38c8a87](https://github.com/Danube-Labs/javv-poc/commit/38c8a8754860b9e9efa3d85de7debaec77131b7d)), closes [#674](https://github.com/Danube-Labs/javv-poc/issues/674)
+* give status its own colours, one caution amber, and ramps that read in grayscale ([#673](https://github.com/Danube-Labs/javv-poc/issues/673)) ([f9b9bfe](https://github.com/Danube-Labs/javv-poc/commit/f9b9bfef0302a956b081da771a22d0022c675fc8)), closes [#659](https://github.com/Danube-Labs/javv-poc/issues/659)
+* open the clicked cluster or saved view on the first click, and gate it in the smoke ([#668](https://github.com/Danube-Labs/javv-poc/issues/668)) ([60ff430](https://github.com/Danube-Labs/javv-poc/commit/60ff43093d2b52b4efdd7a6fd40e123de74aac40)), closes [#666](https://github.com/Danube-Labs/javv-poc/issues/666)
+
 ## [0.4.10](https://github.com/Danube-Labs/javv-poc/compare/v0.4.9...v0.4.10) (2026-10-01)
 
 
