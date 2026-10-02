@@ -72,6 +72,18 @@ describe('SectionNav', () => {
     await flushPromises()
     expect(w.findAll('a.snav-item .mark').map((m) => m.text())).toEqual(['one', 'two'])
   })
+
+  it('renders the footer slot once, after the rows and inside the menu', async () => {
+    const w = mount(SectionNav, {
+      props: { items: ITEMS, active: null, label: 'Sections' },
+      slots: { footer: '<p class="foot">key</p>' },
+      global: { plugins: [router] },
+    })
+    await flushPromises()
+    expect(w.findAll('nav > .foot')).toHaveLength(1)
+    expect(w.find('nav').element.lastElementChild!.className).toBe('foot')
+    expect(w.find('a.snav-item .foot').exists()).toBe(false)
+  })
 })
 
 describe('Settings on the shared menu', () => {
@@ -87,5 +99,31 @@ describe('Settings on the shared menu', () => {
     expect(rows.map((r) => r.text())).toEqual(allowed.map((s) => s.label))
     expect(rows.map((r) => r.find('.scope-dot').attributes('data-scope'))).toEqual(allowed.map((s) => s.scope))
     expect(w.find('a.snav-on').text()).toBe('Scanning')
+  })
+
+  it('says what each scope dot means: a name on the dot, and a legend under the menu', async () => {
+    const auth = useAuthStore()
+    auth.user = { username: 'a', role: 'admin', capabilities: ['can_manage_settings', 'can_manage_tokens', 'can_manage_users'], must_change: false } as never
+    await router.push('/settings/scanning')
+    const w = mount(SettingsLayout, { global: { plugins: [router], stubs: { RouterView: true } } })
+    await flushPromises()
+
+    const dots = w.findAll('a.snav-item .scope-dot')
+    expect(dots.every((d) => d.attributes('role') === 'img')).toBe(true)
+    expect(dots[0]!.attributes('aria-label')).toBe('Per cluster')
+    expect(dots[1]!.attributes('aria-label')).toBe('Per scanner')
+
+    const legend = w.findAll('nav .scope-legend li')
+    expect(legend.map((l) => l.text())).toEqual(['Per cluster', 'Per scanner', 'Organization'])
+    expect(legend.map((l) => l.find('i').attributes('data-scope'))).toEqual(['cluster', 'scanner', 'org'])
+  })
+
+  it('leaves a scope out of the legend when no visible section has it', async () => {
+    const auth = useAuthStore()
+    auth.user = { username: 'a', role: 'x', capabilities: ['can_manage_tokens'], must_change: false } as never
+    await router.push('/settings/tokens')
+    const w = mount(SettingsLayout, { global: { plugins: [router], stubs: { RouterView: true } } })
+    await flushPromises()
+    expect(w.findAll('nav .scope-legend li').map((l) => l.text())).toEqual(['Per cluster'])
   })
 })

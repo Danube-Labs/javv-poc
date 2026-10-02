@@ -3,7 +3,8 @@
  * A screen's left section menu (prototype screens-config.jsx `.set-nav`, ported onto tokens):
  * a sticky card of icon + label rows, the active row in the coral wash. Settings uses it for
  * its sub-pages and the Guide for its in-page sections; `to` is whatever RouterLink takes, a
- * path or a `{ hash }`. The `trail` slot carries a row's extra mark (Settings' scope dot).
+ * path or a `{ hash }`. The `trail` slot carries a row's extra mark (Settings' scope dot); the
+ * `footer` slot sits under the rows, inside the card (the key to those marks).
  */
 import type { RouteLocationRaw } from 'vue-router'
 
@@ -43,6 +44,7 @@ withDefaults(
       <span>{{ item.label }}</span>
       <slot name="trail" :item="item" />
     </RouterLink>
+    <slot name="footer" />
   </nav>
 </template>
 

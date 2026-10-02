@@ -83,7 +83,7 @@ function open(row: ImageRow) {
   <section class="tbl-card">
     <div class="card-head">
       <div>
-        <h3>Riskiest images</h3>
+        <h2>Riskiest images</h2>
         <p class="card-sub">ranked by critical, then high</p>
       </div>
       <UiButton variant="mini" @click="router.push('/images')">View inventory</UiButton>
@@ -145,8 +145,10 @@ function open(row: ImageRow) {
   gap: 12px;
   padding: 14px 16px 10px;
 }
-.card-head h3 {
+.card-head h2 {
   margin: 0;
+  font-size: var(--text-card-title);
+  font-weight: 600;
 }
 .card-sub {
   margin: 2px 0 0;

@@ -206,9 +206,9 @@ onUnmounted(() => {
   border-radius: 10px;
   padding: 0 12px;
   color: var(--soft);
-  /* gives way at the 1024 floor so the time picker keeps one line (issue 647); its hint already
-     truncates */
-  flex: 0 1 240px;
+  /* wide enough for the whole hint; gives way at the 1024 floor so the time picker keeps one
+     line (issue 647), and there the hint truncates */
+  flex: 0 1 290px;
   min-width: 150px;
   font-family: var(--font-ui);
   cursor: default;

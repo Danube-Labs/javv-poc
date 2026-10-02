@@ -36,7 +36,7 @@ function goFindings(query: Record<string, string>) {
   <section class="tbl-card">
     <div class="card-head">
       <div>
-        <h3>Per namespace</h3>
+        <h2>Per namespace</h2>
         <p class="card-sub">top 10 by findings</p>
       </div>
       <UiButton variant="mini" @click="router.push('/images')">View inventory</UiButton>
@@ -78,8 +78,10 @@ function goFindings(query: Record<string, string>) {
   gap: 12px;
   padding: 14px 16px 10px;
 }
-.card-head h3 {
+.card-head h2 {
   margin: 0;
+  font-size: var(--text-card-title);
+  font-weight: 600;
 }
 .card-sub {
   margin: 2px 0 0;

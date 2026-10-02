@@ -29,7 +29,8 @@ const fmt = (n: number) => n.toLocaleString('en-US')
 </script>
 
 <template>
-  <div class="pager">
+  <!-- nothing to page and nowhere to go back to: the table's own empty message stands alone -->
+  <div v-if="total > 0 || hasPrev" class="pager">
     <span class="pager-info">
       {{ range ? `Showing ${fmt(range.start)}–${fmt(range.end)} of ${fmt(total)}` : 'No results' }}
     </span>

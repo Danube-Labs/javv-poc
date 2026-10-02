@@ -213,7 +213,7 @@ const fmt = (n: number) => n.toLocaleString('en-US')
     <section class="card tl-card">
       <div class="card-head">
         <div>
-          <h3>Build history</h3>
+          <h2>Build history</h2>
           <p class="card-sub">{{ scanner }}'s committed scans of this tag · a rebuilt tag is a new digest</p>
         </div>
       </div>
@@ -376,8 +376,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   gap: 12px;
   padding: 14px 16px 0;
 }
-.card-head h3 {
+.card-head h2 {
   margin: 0;
+  font-size: var(--text-card-title);
+  font-weight: 600;
 }
 .card-sub {
   margin: 2px 0 0;

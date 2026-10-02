@@ -33,6 +33,17 @@ describe('freshness banner view-model (D20)', () => {
     expect(silentFor(23 * 3600)).toBe('23 hours')
   })
 
+  it('counts in the right unit and number: one hour is singular, under an hour is minutes', () => {
+    expect(silentFor(3600)).toBe('1 hour')
+    expect(silentFor(2 * 3600 - 1)).toBe('1 hour')
+    expect(silentFor(2 * 3600)).toBe('2 hours')
+    expect(silentFor(12 * 60 + 30)).toBe('12 minutes')
+    expect(silentFor(60)).toBe('1 minute')
+    expect(silentFor(59)).toBe('less than a minute')
+    expect(silentFor(0)).toBe('less than a minute')
+    expect(silentFor(null)).toBe('less than a minute')
+  })
+
   it('formats last-data time on the app-wide 24h convention (never AM/PM)', () => {
     const label = lastDataAt('2026-07-08T21:06:28.782Z')
     expect(label).not.toMatch(/AM|PM/i)
