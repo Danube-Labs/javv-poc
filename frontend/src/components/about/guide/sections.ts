@@ -7,6 +7,7 @@ import GlossarySection from './GlossarySection.vue'
 import ImagesSection from './ImagesSection.vue'
 import NowVsNewSection from './NowVsNewSection.vue'
 import ScansSection from './ScansSection.vue'
+import StateOrAcceptanceSection from './StateOrAcceptanceSection.vue'
 import TimeRangeSection from './TimeRangeSection.vue'
 import TriageSection from './TriageSection.vue'
 import TwoScannersSection from './TwoScannersSection.vue'
@@ -18,5 +19,6 @@ export const SECTION_BODY: Record<GuideSectionId, Component> = {
   'scans-and-freshness': ScansSection,
   images: ImagesSection,
   triage: TriageSection,
+  'state-or-acceptance': StateOrAcceptanceSection,
   glossary: GlossarySection,
 }
