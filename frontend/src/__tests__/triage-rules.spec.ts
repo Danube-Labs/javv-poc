@@ -4,7 +4,12 @@
  */
 import { describe, expect, it } from 'vitest'
 
-import { buildTriagePatch, CISA_JUSTIFICATIONS, PANEL_TARGETS } from '@/findings/triageRules'
+import {
+  buildTriagePatch,
+  CISA_JUSTIFICATIONS,
+  PANEL_TARGETS,
+  undoPatch,
+} from '@/findings/triageRules'
 
 const base = { currentState: 'open', targetState: null, vexJustification: null, notes: '', assignee: null }
 
@@ -47,5 +52,42 @@ describe('triage rules (FR-7 two-field VEX)', () => {
     expect(targets).not.toContain('risk_accepted')
     expect(CISA_JUSTIFICATIONS).toHaveLength(5)
     expect(CISA_JUSTIFICATIONS.filter((j) => j.maps === 'False positive')).toHaveLength(2)
+  })
+
+  describe('undoPatch (what Undo sends after a saved state change)', () => {
+    it('sends the earlier state back, with a note that says it is an undo', () => {
+      expect(undoPatch({ state: 'open' }, 'acknowledged')).toEqual({
+        state: 'open',
+        notes: 'Undo: back to Open',
+      })
+      expect(undoPatch({ state: 'acknowledged' }, 'resolved')).toEqual({
+        state: 'acknowledged',
+        notes: 'Undo: back to Acknowledged',
+      })
+    })
+
+    it('carries the earlier justification when going back to not_affected', () => {
+      expect(
+        undoPatch({ state: 'not_affected', vex_justification: 'component_not_present' }, 'open'),
+      ).toEqual({
+        state: 'not_affected',
+        vex_justification: 'component_not_present',
+        notes: 'Undo: back to Not affected',
+      })
+    })
+
+    it('offers nothing when the state did not change', () => {
+      expect(undoPatch({ state: 'open' }, 'open')).toBeNull()
+    })
+
+    it('offers nothing when the earlier state cannot be set by hand', () => {
+      expect(undoPatch({ state: 'risk_accepted' }, 'open')).toBeNull()
+      expect(undoPatch({ state: 'stale' }, 'acknowledged')).toBeNull()
+    })
+
+    it('offers nothing for not_affected with no justification to send back', () => {
+      expect(undoPatch({ state: 'not_affected' }, 'open')).toBeNull()
+      expect(undoPatch({ state: 'not_affected', vex_justification: null }, 'open')).toBeNull()
+    })
   })
 })

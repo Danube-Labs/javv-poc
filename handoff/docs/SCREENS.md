@@ -232,6 +232,13 @@ explainer kept. Assignee (`assignee`, Assign to me / Reassign) + Notes (escaped,
 as HTML). **Removed:** Impact / Action / Approver / Task free-text fields (V4-DELTA conflict 1 —
 the model is state + justification + notes + structured decisions).
 
+**Undo (issue 681):** after a save that changed the state, the panel shows "Changed from X to Y
+just now" with an Undo button. Undo sends the earlier state back through the same triage PATCH
+(with the earlier justification for not_affected and a note "Undo: back to X"), so it is
+journaled like any change. Not offered when the earlier state was risk_accepted or stale, or
+when only a note or assignee was saved. It restores the state only, and goes away on undo, on
+the next state change, or on leaving the finding.
+
 **SLA box:** server-computed deadline + overdue flag from the findings read (B-5).
 
 **States:** loading; 403-capability-hidden (triage controls disabled-with-tooltip without

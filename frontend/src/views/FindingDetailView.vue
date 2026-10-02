@@ -38,7 +38,7 @@ import {
   severityDisagrees,
   type AffectedComponentRow,
 } from '@/findings/detailViewModel'
-import type { TriagePatchBody } from '@/findings/triageRules'
+import { undoPatch, type TriagePatchBody } from '@/findings/triageRules'
 import { logger } from '@/lib/logger'
 import { useAuthStore } from '@/stores/auth'
 import { useClusterStore } from '@/stores/cluster'
@@ -144,8 +144,20 @@ const saving = ref(false)
 const triageError = ref<string | null>(null)
 const historical = computed(() => timeTravel.t !== null)
 
-async function saveTriage(body: TriagePatchBody) {
-  const key = primary.value?.finding_key
+/** The last saved state change, with the body that takes it back. Offered while the finding is
+ * still in the state that change left it in. */
+const lastChange = ref<{ key: string; from: string; to: string; body: TriagePatchBody } | null>(null)
+const undoOffer = computed(() => {
+  const c = lastChange.value
+  return c && c.key === primary.value?.finding_key && c.to === primary.value.state ? c : null
+})
+function undoTriage() {
+  if (undoOffer.value) void saveTriage(undoOffer.value.body, true)
+}
+
+async function saveTriage(body: TriagePatchBody, undoing = false) {
+  const before = primary.value
+  const key = before?.finding_key
   if (!key) return
   saving.value = true
   triageError.value = null
@@ -157,8 +169,17 @@ async function saveTriage(body: TriagePatchBody) {
   if (response.response?.ok && response.data) {
     const updated = (response.data as { finding: FindingRow }).finding
     rows.value = rows.value.map((r) => (r.finding_key === key ? { ...r, ...updated } : r))
-    logger.info('triage_saved', { finding_key: key, state: updated.state })
-    toast.success('Triage saved')
+    logger.info('triage_saved', { finding_key: key, state: updated.state, undo: undoing })
+    if (undoing) {
+      lastChange.value = null
+    } else if (updated.state !== before.state) {
+      const back = undoPatch(
+        { state: before.state, vex_justification: before.vex_justification as string | null },
+        updated.state,
+      )
+      lastChange.value = back ? { key, from: before.state, to: updated.state, body: back } : null
+    }
+    toast.success(undoing ? 'Change undone' : 'Triage saved')
   } else if (response.response?.status === 409) {
     triageError.value = 'Changed by someone else. Reload and retry.'
   } else if (response.response?.status === 422) {
@@ -293,7 +314,9 @@ watch([primary, () => clusterStore.selectedId], () => void fetchActivity(), { im
             :saving="saving"
             :error="triageError"
             :current-user="auth.user?.username ?? null"
+            :undo="undoOffer"
             @save="saveTriage"
+            @undo="undoTriage"
             @risk-accept="raOpen = true"
           />
         </div>

@@ -100,4 +100,39 @@ describe('TriagePanel (FR-7 gates)', () => {
     await save(w).trigger('click')
     expect(w.emitted('save')![0]![0]).toEqual({ notes: 'looked into it' })
   })
+
+  describe('Undo after a saved state change (issue 681)', () => {
+    it('shows nothing until the parent says there is a change to undo', () => {
+      expect(panel().find('.triage-undo').exists()).toBe(false)
+      expect(panel({ undo: null }).find('.triage-undo').exists()).toBe(false)
+    })
+
+    it('names both states by their display names and emits undo on the button', async () => {
+      const w = panel({
+        finding: { ...finding, state: 'not_affected' },
+        undo: { from: 'open', to: 'not_affected' },
+      })
+      const line = w.find('.triage-undo')
+      expect(line.text()).toContain('Changed from Open to Not affected just now.')
+      await line.find('button').trigger('click')
+      expect(w.emitted('undo')).toHaveLength(1)
+      expect(w.emitted('save')).toBeUndefined()
+    })
+
+    it('drops the picked target on undo, so the undone state does not read as a pending change', async () => {
+      const w = panel({ undo: { from: 'open', to: 'acknowledged' } })
+      const on = () => w.find('.state-opt-on').text()
+      await w.findAll('.state-opt').find((b) => b.text() === 'Resolve')!.trigger('click')
+      expect(on()).toBe('Resolve')
+      await w.find('.triage-undo button').trigger('click')
+      expect(on()).toBe('Open') // back to the finding's own state, nothing pending
+    })
+
+    it('is not offered on a read-only panel, and waits while a save is running', () => {
+      const offer = { from: 'open', to: 'acknowledged' }
+      expect(panel({ undo: offer, canTriage: false }).find('.triage-undo').exists()).toBe(false)
+      expect(panel({ undo: offer, historical: true }).find('.triage-undo').exists()).toBe(false)
+      expect(panel({ undo: offer, saving: true }).find('.triage-undo button').attributes('disabled')).toBeDefined()
+    })
+  })
 })
