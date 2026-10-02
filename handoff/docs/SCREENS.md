@@ -664,8 +664,36 @@ mono chip, then *Back to Overview* (primary) and, only when the visitor came fro
 shell, so the sidebar and the auth gate still apply (a signed-out visitor lands on login).
 **States:** static, no reads.
 
-Not covered here: a page that crashes while drawing, and a backend that cannot be reached. The
-app has no page for either yet.
+The layout is one component, `components/system/ErrorPage.vue`, shared with the crash page below.
+
+### A page that fails while it is drawn (issue 675)
+
+**Ruling (operator, 2026-10-02): the whole page is replaced, not the panel that failed.** Same
+layout as above, inside the shell: "Error" in mono coral, the title *This page could not be
+shown*, one sentence, then *Try again* (primary) and *Back to Overview*. The sidebar and the top
+bar keep working, and moving to another page clears it.
+- **What replaces the page:** an error raised while the page is set up or drawn, and a page whose
+  file fails to load. **What does not:** an error in a click handler or a watcher. The page on
+  screen still works, so the error is logged and the page stays.
+- **Where:** `components/system/CrashBoundary.vue` around the routed page in `AppShell`; the rule
+  is `replacesPage` in `system/crash.ts`. Every caught error is logged (`page crashed`,
+  `page error`, `page failed to load`, `app error`) and reaches the backend log through the
+  client-events beacon.
+
+### A backend that cannot be reached (issue 675)
+
+**Ruling (operator, 2026-10-02): no full-page replacement.** The health banner and each screen's
+own failure state stay as they are.
+
+### The maintenance page (issue 675)
+
+`frontend/public/maintenance.html`, served by the proxy in front of the app, not by the app: one
+static file with no script, no font and no request to the backend, so it shows with the backend
+switched off. **Look (operator ruling on built specimens, 2026-10-02, B of two: A the not-found
+layout, B a card):** a white card on the canvas with the brand mark, like the login page. It has
+no shell (there is no session to draw one for), falls back to system fonts, and asks again every
+minute. **No in-app switch** (operator ruling, 2026-10-02): how to switch it
+on is `development/RUNNING-THE-STACK.md` § R1.
 
 ---
 
