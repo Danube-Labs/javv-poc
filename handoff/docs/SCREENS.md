@@ -89,6 +89,10 @@ oracle), forced password change (SEC-6: bootstrap admin / temp password), **serv
 error; the page asks `/readyz` every 30 seconds, and when the server returns it re-checks the
 session, so a visitor whose session is still good goes straight to Overview. A failed session
 check is not remembered as signed out: the next navigation asks again).
+**Rulings (operator, on built specimens, 2026-10-02):** the server-down message on the login page
+is the form's plain red line (A of two; B was a tinted box). The banner for a backend that is gone
+reads "The backend is not answering. Screens cannot load until it is back." (A of two; B ended
+"Check that the JAVV backend is running.").
 **Changed:** copy states capability-based access; SSO/OIDC removed (post-MVP, per V4-DELTA).
 
 ---
