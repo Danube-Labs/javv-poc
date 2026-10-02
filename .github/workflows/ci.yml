@@ -396,6 +396,8 @@ jobs:
           JAVV_BOOTSTRAP_ADMIN_USERNAME: admin
           JAVV_BOOTSTRAP_ADMIN_PASSWORD: ci-smoke-initial-pw
           JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL: "50"
+          # the walk checks seeded data; a sweep landing mid-walk would change it (issue 691)
+          JAVV_SCHEDULER_ENABLED: "false"
         # the log goes where the e2e rigs read it: tests/e2e/beacon.spec.ts asserts on its lines
         run: |
           uv sync --all-extras --dev

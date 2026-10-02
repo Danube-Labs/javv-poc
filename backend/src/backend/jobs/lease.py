@@ -36,15 +36,20 @@ HEARTBEAT_EVERY_S = 15.0
 SCHEDULED_ACTOR = "scheduled"  # status-doc requested_by + audit actor for CronJob-door runs
 
 
+def utcnow() -> datetime:
+    """The lease's one clock: every stamp and every freshness check reads it."""
+    return datetime.now(UTC)
+
+
 def now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    return utcnow().isoformat()
 
 
 def lease_fresh(doc: dict[str, Any]) -> bool:
     beat = doc.get("heartbeat_at")
     if not beat:
         return False
-    age = datetime.now(UTC) - datetime.fromisoformat(beat)
+    age = utcnow() - datetime.fromisoformat(beat)
     return age.total_seconds() < get_settings().report_lease_ttl_seconds
 
 
@@ -173,12 +178,14 @@ async def run_under_lease(
     try:
         result = await runner(client)
     except Exception as exc:
-        beat.cancel()
         await finalize_job(
             client, kind, attempt_id, {"status": "failed", "error": str(exc)}, prefix=prefix
         )
         raise
-    beat.cancel()
+    finally:
+        # also on cancellation (the backend shutting down mid-job): a heartbeat left beating would
+        # keep the lease looking live for a run that is gone
+        beat.cancel()
     await finalize_job(
         client, kind, attempt_id, {"status": "done", "result": result}, prefix=prefix
     )

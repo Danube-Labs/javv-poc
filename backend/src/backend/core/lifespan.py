@@ -20,6 +20,7 @@ from backend.auth.bootstrap_admin import seed_bootstrap_admin
 from backend.auth.capabilities import seed_default_roles
 from backend.core.bootstrap import MAPPING_VERSION, bootstrap, summarize_actions
 from backend.core.settings import assert_production_ready, get_settings
+from backend.jobs.scheduler import start_scheduler, stop_scheduler
 from backend.query.as_of import register_as_of_t
 from backend.query.as_of_t import AsOfTQuery
 from backend.version import APP_VERSION
@@ -59,9 +60,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # protocol is fully implemented; before this, a past-T read was 501 at the seam)
     register_as_of_t(AsOfTQuery())
 
+    # issue 691: the backend runs its own background jobs, for as long as the app is up
+    scheduler = start_scheduler(client, settings)
+
     try:
         yield
     finally:
+        await stop_scheduler(scheduler)
         # the registry is process-global — unregister on shutdown so the reader's lifetime is
         # exactly the app's (a lifespan-running TEST otherwise leaves it registered for every
         # later test in the same worker: the #266 CI leak — 501-seam tests saw 200)

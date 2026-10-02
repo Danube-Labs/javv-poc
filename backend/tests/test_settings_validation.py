@@ -121,7 +121,8 @@ def test_every_scheduled_kind_in_the_registry_has_a_schedule_setting() -> None:
     assert settings.job_cron("rebuild_state") == ""  # only ever run by hand
 
 
-def test_the_default_schedules_are_the_ruled_ones() -> None:
+def test_the_default_schedules_are_the_ruled_ones(monkeypatch) -> None:
+    monkeypatch.delenv("JAVV_SCHEDULER_ENABLED", raising=False)  # the suite runs with it off
     settings = Settings()
     assert settings.scheduler_enabled is True
     assert {kind: settings.job_cron(kind) for kind in SCHEDULED_KINDS} == {
