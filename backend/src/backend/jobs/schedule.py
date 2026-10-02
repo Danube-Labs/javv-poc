@@ -108,6 +108,42 @@ def is_due(
     return slot > datetime.fromisoformat(started)
 
 
+def job_health(
+    record: Mapping[str, Any] | None,
+    expression: str,
+    *,
+    now: datetime,
+    enabled: bool,
+    lease_fresh: bool,
+) -> str:
+    """How one job is doing against its schedule, for the jobs route. Checked in this order:
+
+    - `failed`: its last run ended in failure, whatever the schedule says.
+    - `off`: it has no schedule (an empty expression), or the scheduler is switched off.
+    - `never_ran`: it has a schedule and no run on record.
+    - `overdue`: it missed a whole scheduled run, meaning two scheduled times have passed since
+      it last started. One passed time is a job waiting for its turn (`is_due`), not a late one,
+      so the window scales with the job's own schedule and needs no threshold.
+    - `ok`: everything else. A run in progress with a live heartbeat is `ok` however long it
+      takes; one that was cut off is judged by when it started.
+    """
+    status = record.get("status") if record else None
+    if status == "failed":
+        return "failed"
+    if not expression or not enabled:
+        return "off"
+    started = record.get("started_at") if record else None
+    if not started:
+        return "never_ran"
+    if status == "running" and lease_fresh:
+        return "ok"
+    latest = latest_slot(expression, now)
+    # step back in UTC so the second is a real one on a night the wall clock jumps
+    just_before = (latest.astimezone(UTC) - timedelta(seconds=1)).astimezone(now.tzinfo)
+    one_before = latest_slot(expression, just_before)
+    return "overdue" if datetime.fromisoformat(started) < one_before else "ok"
+
+
 def pick_next(due: Iterable[str], order: Iterable[str]) -> str | None:
     """Which due job starts: the export drain if it is due, else the first in `order`."""
     waiting = set(due)

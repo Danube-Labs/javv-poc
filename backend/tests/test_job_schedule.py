@@ -14,6 +14,7 @@ import pytest
 
 from backend.jobs.schedule import (
     is_due,
+    job_health,
     latest_slot,
     local_zone,
     next_slot,
@@ -222,6 +223,102 @@ def test_the_repeated_hour_does_not_run_a_daily_job_twice() -> None:
     ran = record("done", first_pass)
     second_pass = at(RO, 2026, 10, 25, 3, 31, fold=1)
     assert due(ran, expression="30 3 * * *", now=second_pass) is False
+
+
+# --- job_health --------------------------------------------------------------------------
+
+
+def health(
+    rec: dict[str, Any] | None, *, expression: str = DAILY_3, now: datetime = NOW, **kw: Any
+) -> str:
+    return job_health(
+        rec,
+        expression,
+        now=now,
+        enabled=kw.get("enabled", True),
+        lease_fresh=kw.get("lease_fresh", False),
+    )
+
+
+def test_a_job_that_ran_at_its_last_scheduled_time_is_ok() -> None:
+    assert health(record("done", at(RO, 2026, 6, 10, 3, 0, 4))) == "ok"
+
+
+def test_a_job_whose_last_run_failed_is_failed_even_with_the_scheduler_off() -> None:
+    failed = record("failed", at(RO, 2026, 6, 10, 3, 0, 4))
+    assert health(failed) == "failed"
+    assert health(failed, enabled=False) == "failed"
+    assert health(failed, expression="") == "failed"
+
+
+def test_a_job_with_no_schedule_or_a_scheduler_switched_off_is_off() -> None:
+    week_ago = record("done", at(RO, 2026, 6, 3, 3, 0, 4))
+    assert health(None, expression="") == "off"
+    assert health(week_ago, expression="") == "off"
+    assert health(week_ago, enabled=False) == "off"
+    assert health(None, enabled=False) == "off"
+
+
+def test_a_scheduled_job_with_no_run_on_record_never_ran() -> None:
+    assert health(None) == "never_ran"
+    assert health({"kind": "x", "status": "idle"}) == "never_ran"
+
+
+def test_a_job_waiting_for_its_turn_is_not_overdue() -> None:
+    # yesterday's run happened; today's 03:00 has passed and it has not started yet
+    assert health(record("done", at(RO, 2026, 6, 9, 3, 0, 4))) == "ok"
+
+
+def test_a_job_that_missed_a_whole_scheduled_run_is_overdue() -> None:
+    ran_on_the_8th = record("done", at(RO, 2026, 6, 8, 3, 0, 4))  # the 9th was missed
+    assert health(ran_on_the_8th) == "overdue"
+
+
+def test_the_edges_of_the_overdue_window() -> None:
+    ran = record("done", at(RO, 2026, 6, 9, 3, 0, 4))
+    assert health(ran, now=at(RO, 2026, 6, 11, 2, 59, 59)) == "ok"
+    assert health(ran, now=at(RO, 2026, 6, 11, 3, 0)) == "overdue"
+    # a run that started before its own scheduled time has missed that time, not kept it
+    early = record("done", at(RO, 2026, 6, 9, 2, 59, 59))
+    assert health(early, now=at(RO, 2026, 6, 10, 2, 59, 59)) == "ok"
+    assert health(early, now=at(RO, 2026, 6, 10, 3, 0)) == "overdue"
+
+
+def test_the_window_follows_each_job_s_own_schedule() -> None:
+    ran = record("done", at(RO, 2026, 6, 10, 11, 50, 2))
+    every_5 = "*/5 * * * *"
+    assert health(ran, expression=every_5, now=at(RO, 2026, 6, 10, 11, 59)) == "ok"
+    assert health(ran, expression=every_5, now=at(RO, 2026, 6, 10, 12, 0)) == "overdue"
+    assert health(ran, expression="15 * * * *", now=at(RO, 2026, 6, 10, 13, 14)) == "ok"
+    assert health(ran, expression="15 * * * *", now=at(RO, 2026, 6, 10, 13, 15)) == "overdue"
+
+
+def test_a_run_in_progress_is_ok_however_long_it_takes() -> None:
+    long_run = record("running", at(RO, 2026, 6, 8, 3, 0, 4))
+    assert health(long_run, lease_fresh=True) == "ok"
+
+
+def test_a_run_that_was_cut_off_is_judged_by_when_it_started() -> None:
+    assert health(record("running", at(RO, 2026, 6, 10, 3, 0, 4)), lease_fresh=False) == "ok"
+    assert health(record("running", at(RO, 2026, 6, 8, 3, 0, 4)), lease_fresh=False) == "overdue"
+
+
+def test_a_changed_schedule_is_judged_against_the_new_one() -> None:
+    ran_at_3 = record("done", at(RO, 2026, 6, 10, 3, 0, 4))
+    assert health(ran_at_3, expression="0 11 * * *") == "ok"  # only today's 11:00 has passed
+    assert health(ran_at_3, expression="0 * * * *") == "overdue"
+
+
+def test_the_night_the_clocks_go_forward_does_not_flag_a_daily_job() -> None:
+    # 29 March 2026 has no 03:30 in Bucharest: the run happens at 04:00, the first valid time
+    ran_the_night_before = record("done", at(RO, 2026, 3, 28, 3, 30, 4))
+    assert (
+        health(ran_the_night_before, expression="30 3 * * *", now=at(RO, 2026, 3, 29, 4, 0)) == "ok"
+    )
+    ran_after_the_gap = record("done", at(RO, 2026, 3, 29, 4, 0, 4))
+    assert (
+        health(ran_after_the_gap, expression="30 3 * * *", now=at(RO, 2026, 3, 30, 3, 29)) == "ok"
+    )
 
 
 # --- pick_next ---------------------------------------------------------------------------
