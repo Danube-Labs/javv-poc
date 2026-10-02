@@ -12,7 +12,7 @@ import AppIcon from '@/components/ui/AppIcon.vue'
 import UiDropdown from '@/components/ui/UiDropdown.vue'
 import UiSegControl from '@/components/ui/UiSegControl.vue'
 import { facetItems, type FacetsResponse } from '@/filters/facets'
-import { isNegatable, type FilterField, type Selections } from '@/filters/fields.config'
+import { isNegatable, valueLabel, type FilterField, type Selections } from '@/filters/fields.config'
 import type { FilterMode, Modes } from '@/stores/filters'
 
 const props = defineProps<{
@@ -59,13 +59,10 @@ const editItems = computed(() => {
   const items = facetItems(field, props.facets)
   if (!items) return null
   const q = valueQuery.value.toLowerCase()
-  return q ? items.filter((it) => it.label.toLowerCase().includes(q)) : items
+  // match the name on screen AND the stored value: someone who knows `not_affected` from a
+  // URL or the API finds it too
+  return q ? items.filter((it) => it.label.toLowerCase().includes(q) || it.value.toLowerCase().includes(q)) : items
 })
-
-function valueLabel(field: FilterField, value: string): string {
-  if (field.type === 'flags') return field.values.find((v) => v.key === value)?.label ?? value
-  return value
-}
 
 function pillText(field: FilterField): string {
   const vals = (props.selections[field.key] ?? []).map((v) => valueLabel(field, v))

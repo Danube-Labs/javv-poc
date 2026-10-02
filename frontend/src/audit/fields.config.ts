@@ -6,6 +6,7 @@
  * numbers, server-side). entity/action keep their static D32 vocabularies (writer call sites)
  * so quiet values still list; actor is data-driven from the facet buckets.
  */
+import { actionLabel } from '@/audit/actionLabels'
 import type { FilterField } from '@/filters/fields.config'
 
 /** entity_type vocabulary (D32): what kind of record the event touched. */
@@ -50,7 +51,7 @@ export const AUDIT_ACTIONS = [
 
 export const AUDIT_FIELDS: readonly FilterField[] = [
   { key: 'entity', label: 'Entity', type: 'terms', param: 'entity_type', facetKey: 'entity_type', values: AUDIT_ENTITY_TYPES, negatable: true },
-  { key: 'action', label: 'Action', type: 'terms', param: 'action', facetKey: 'action', values: AUDIT_ACTIONS, negatable: true },
+  { key: 'action', label: 'Action', type: 'terms', param: 'action', facetKey: 'action', values: AUDIT_ACTIONS, negatable: true, valueLabel: actionLabel },
   // data-driven from the facet buckets (exact keyword term on the backend)
   { key: 'actor', label: 'User', type: 'terms', param: 'actor', facetKey: 'actor', negatable: true },
 ]

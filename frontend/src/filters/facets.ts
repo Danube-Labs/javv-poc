@@ -5,7 +5,7 @@
  * Counts are passed through from the server verbatim — the per-scanner split is display data,
  * NEVER summed or otherwise combined client-side (FR-12, per-scanner sacred).
  */
-import type { FilterField } from './fields.config'
+import { valueLabel, type FilterField } from './fields.config'
 
 export interface FacetBucket {
   key: string
@@ -46,10 +46,10 @@ export function facetItems(field: FilterField, facets: FacetsResponse): FacetIte
   const buckets = field.facetKey ? (facets[field.facetKey] ?? []) : []
   if (field.values) {
     // static vocabulary: config order, counts filled in where the server aggregated
-    return field.values.map((v) => item(v, v, buckets.find((b) => b.key === v)))
+    return field.values.map((v) => item(v, valueLabel(field, v), buckets.find((b) => b.key === v)))
   }
   // dynamic vocabulary: the server's buckets, in server order
-  return buckets.map((b) => item(b.key, b.key, b))
+  return buckets.map((b) => item(b.key, valueLabel(field, b.key), b))
 }
 
 /** `trivy 791 · grype 854` — tooltip text for the per-scanner split. */

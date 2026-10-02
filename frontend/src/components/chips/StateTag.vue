@@ -5,22 +5,15 @@
  */
 import { computed } from 'vue'
 
-const LABELS: Record<string, string> = {
-  open: 'Open',
-  stale: 'Stale',
-  acknowledged: 'Acknowledged',
-  not_affected: 'Not affected',
-  risk_accepted: 'Risk accepted',
-  resolved: 'Resolved',
-}
+import { STATE_LABELS } from '@/findings/stateLabels'
 
 const props = defineProps<{ state: string }>()
 // computed, not a setup-time const — the state prop changes in place after a triage save
-const label = computed(() => LABELS[props.state] ?? props.state)
+const label = computed(() => STATE_LABELS[props.state] ?? props.state)
 </script>
 
 <template>
-  <span class="state-tag" :data-state="state in LABELS ? state : 'open'">
+  <span class="state-tag" :data-state="state in STATE_LABELS ? state : 'open'">
     <i class="st-dot" aria-hidden="true" />{{ label }}
   </span>
 </template>

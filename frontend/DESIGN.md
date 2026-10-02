@@ -269,6 +269,13 @@ the raw markup/CSS they encapsulate is a review failure — extend the component
 - Render per-scanner numbers side-by-side — **never summed, merged, or averaged** (per-scanner sacred).
 - Use the real brand SVGs from `design/brand/` (dark variants in dark chrome) — never redraw them.
 - Timestamps: relative text + absolute in the `title` tooltip; deadlines stay absolute.
+- Print a stored value by its display name wherever it has one: a filter field carries
+  `valueLabel` (finding states read `findings/stateLabels.ts`, audit actions
+  `audit/actionLabels.ts`), and the rail, the pills, the saved-view summary and the chips all
+  print through it. The value in the URL, the API and saved views never changes (operator
+  ruling 2026-10-02, issue 674; `value-labels.spec.ts` fails a rail option with an underscore).
+- Labels say what the user does or sees, not how it is built: no "lens", "selector", "append
+  family" or implementation notes in a label or a hint.
 
 **Don't**
 - No raw `#hex` / `rgb()` / `hsl()` anywhere outside `styles/tokens.*` + `theme/preset.ts` (CI-enforced).

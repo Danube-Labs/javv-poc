@@ -47,7 +47,7 @@ async function save() {
       open.value = false
     } else {
       logger.warn('view_save_failed', { status: response?.status })
-      toast.error(response?.status === 422 ? 'The current lens is not storable as a view.' : 'Saving the view failed. Try again.')
+      toast.error(response?.status === 422 ? 'These filters can\'t be saved as a view.' : 'Saving the view failed. Try again.')
     }
   } finally {
     saving.value = false
@@ -64,7 +64,7 @@ async function save() {
         <input v-model="name" maxlength="128" placeholder="e.g. Critical KEV backlog" @keydown.enter="save" />
       </UiField>
       <UiField label="Description (optional)">
-        <input v-model="description" maxlength="1024" placeholder="What this lens is for" @keydown.enter="save" />
+        <input v-model="description" maxlength="1024" placeholder="What this view is for" @keydown.enter="save" />
       </UiField>
       <div class="svd-actions">
         <UiButton variant="control" @click="open = false">Cancel</UiButton>

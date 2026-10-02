@@ -7,33 +7,7 @@
  */
 import { computed } from 'vue'
 
-const LABELS: Record<string, string> = {
-  reopen: 'Reopened',
-  acknowledge: 'Acknowledged',
-  not_affected: 'Not affected',
-  risk_accept: 'Risk accepted',
-  resolve: 'Resolved',
-  assign: 'Assigned',
-  note: 'Note',
-  bulk_triage: 'Bulk triage',
-  decision_create: 'Decision created',
-  decision_revoke: 'Decision revoked',
-  view_create: 'View created',
-  view_update: 'View updated',
-  view_delete: 'View deleted',
-  sla_policy_change: 'SLA policy',
-  cluster_rename: 'Cluster renamed',
-  pwd_change: 'Password changed',
-  pwd_reset: 'Password reset',
-  role_change: 'Role changed',
-  user_create: 'User created',
-  user_enable: 'User enabled',
-  user_disable: 'User disabled',
-  token_mint: 'Token minted',
-  token_revoke: 'Token revoked',
-  login: 'Login',
-  logout: 'Logout',
-}
+import { actionLabel } from '@/audit/actionLabels'
 
 /** triage verb → the state tone it lands the finding in */
 const TONES: Record<string, string> = {
@@ -45,7 +19,7 @@ const TONES: Record<string, string> = {
 }
 
 const props = defineProps<{ action: string }>()
-const label = computed(() => LABELS[props.action] ?? props.action.replace(/_/g, ' '))
+const label = computed(() => actionLabel(props.action))
 const tone = computed(() => TONES[props.action] ?? 'neutral')
 </script>
 

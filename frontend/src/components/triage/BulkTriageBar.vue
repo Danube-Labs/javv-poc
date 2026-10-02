@@ -86,7 +86,7 @@ async function apply() {
     logger.info('bulk_triage_applied', { count })
     emit('applied', count)
   } else if (response.response?.status === 413) {
-    error.value = 'Selection too broad for an inline bulk. Narrow the lens further.'
+    error.value = 'Too many findings match for one bulk action. Narrow the filters.'
   } else if (response.response?.status === 422) {
     error.value = 'The server rejected this patch. Check the state/justification pairing.'
   } else {
@@ -105,7 +105,7 @@ async function apply() {
     <ModalShell
       v-if="open"
       title="Bulk triage"
-      subtitle="one action · one audit row · applies to the current lens"
+      subtitle="one action, one audit row, for every finding that matches your filters"
       @close="open = false"
     >
       <div>
@@ -114,7 +114,7 @@ async function apply() {
           </p>
           <template v-else>
             <div class="lens-row">
-              <span class="lens-label">Lens</span>
+              <span class="lens-label">Filters</span>
               <span v-for="[k, v] in selectorChips" :key="k" class="lens-chip">
                 {{ k }} <b>{{ v }}</b>
               </span>
@@ -154,7 +154,7 @@ async function apply() {
             :disabled="!draft.body || submitting"
             @click="apply"
           >
-            {{ submitting ? 'Applying…' : 'Apply to lens' }}
+            {{ submitting ? 'Applying…' : 'Apply to matching findings' }}
           </UiButton>
       </template>
     </ModalShell>

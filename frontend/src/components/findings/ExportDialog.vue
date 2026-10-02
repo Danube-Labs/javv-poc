@@ -100,7 +100,7 @@ const { exporting, run: runExport } = useCsvExport({
   filename: (stamp) => `javv-findings-${stamp}.${format.value === 'csv' ? 'csv' : 'openvex.json'}`,
   event: 'export_failed',
   onCapped: () => {
-    error.value = 'Over the inline export cap. Narrow the lens, or schedule it off-peak.'
+    error.value = 'Too many rows for a direct export. Narrow the filters, or schedule it for a quiet time.'
     tab.value = 'schedule'
   },
   onFailed: (status) => {
@@ -209,7 +209,7 @@ const downloadHref = computed(() =>
     <ModalShell
       v-if="open"
       title="Export"
-      subtitle="the current lens · per-scanner sacred (VEX = one scanner per file)"
+      subtitle="what you are looking at now · scanners are never merged (a VEX file holds one scanner)"
       :width="480"
       @close="close"
     >

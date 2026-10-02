@@ -170,7 +170,7 @@ function summary(v: ViewDoc): string {
       v-else-if="loaded && views.length === 0"
       icon="layers"
       title="No saved views yet"
-      hint="Set up a lens on Findings (filters, columns, density, time window), then use “Save view” to keep it here for everyone."
+      hint="Set up Findings the way you want it (filters, columns, density, time window), then use “Save view” to keep it here for everyone."
     >
       <UiButton variant="primary" @click="router.push('/findings')">Go to Findings</UiButton>
     </EmptyState>
