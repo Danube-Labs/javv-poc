@@ -274,8 +274,9 @@ async def running_images_at(
     prefix: str = "",
 ) -> list[dict[str, Any]] | None:
     """ "Running images at T" = the image docs of the latest `status=committed` inventory run
-    ≤ T, ordered by `inventory_order` (D40/F-r3) — a partial or zero-image run is never the
-    answer; it falls back to the prior committed run. `None` = no committed inventory ≤ T."""
+    ≤ T, ordered by `inventory_order` (D40/F-r3) — a partial run is never the answer; it falls
+    back to the prior committed run. A committed run with zero images is an answer (`[]`).
+    `None` = no committed inventory ≤ T."""
     manifest = await latest_committed_inventory(client, cluster_id, t, prefix=prefix)
     if manifest is None:
         return None

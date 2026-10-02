@@ -520,11 +520,18 @@ def test_a_timed_out_scan_is_not_expected_either() -> None:
     assert _expected_count(scan_fn, _delivered, ["a:1", "slow:1", "b:1"]) == 2
 
 
-def test_a_cycle_where_every_scan_fails_expects_nothing() -> None:
+def test_a_cycle_where_every_scan_fails_keeps_the_discovered_count() -> None:
+    # nothing landed, so the backend calls the run partial and the last good inventory keeps
+    # answering; expecting 0 would certify an empty inventory for a cluster that runs images
     def scan_fn(ref: str) -> ScanResult:
         raise subprocess.CalledProcessError(1, ["trivy"], stderr="no route to registry")
 
-    assert _expected_count(scan_fn, _delivered, ["a:1", "b:1"]) == 0
+    assert _expected_count(scan_fn, _delivered, ["a:1", "b:1"]) == 2
+
+
+def test_a_cluster_that_runs_nothing_expects_nothing() -> None:
+    # a real empty inventory is still certified as empty
+    assert _expected_count(_ok_scan, _delivered, []) == 0
 
 
 def test_failure_detail_carries_the_exit_code_and_the_scanners_last_lines() -> None:

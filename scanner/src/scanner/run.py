@@ -117,7 +117,11 @@ def scan_all(
         # the run partial. A failed scan does not: an image its registry no longer serves would
         # otherwise make every run partial and freeze the running-images view for good (issue
         # 633). That image leaves the inventory and its findings go stale on the normal timer.
-        commit_fn(run.scan_run_id, len(results), cycle_started_at)
+        # The exception is a cycle in which NOTHING scanned (no registry reachable, a broken
+        # scanner): certifying it would publish an empty inventory, so it keeps the discovered
+        # count, stays partial, and the last good inventory keeps answering.
+        expected = len(results) if results else len(targets)
+        commit_fn(run.scan_run_id, expected, cycle_started_at)
     return results
 
 
