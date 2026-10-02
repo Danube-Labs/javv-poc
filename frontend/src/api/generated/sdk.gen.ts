@@ -21,8 +21,11 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * List Jobs
  *
- * Status of every job kind — running/idle/done/failed + last result. A running doc whose
- * heartbeat went silent past the lease TTL reports `stale: true` (reclaimable, not lying).
+ * Every background job: running/idle/done/failed + last result, whether it can be started
+ * here (`runnable`), its cron `schedule`, its `next_run_at` and its `health` (`ok`, `failed`,
+ * `overdue`, `never_ran` or `off`). A running doc whose heartbeat went silent past the lease
+ * TTL reports `stale: true` (reclaimable, not lying). `scheduler` says whether the backend is
+ * running the schedules and which timezone they are read in.
  */
 export const listJobsApiV1AdminJobsGet = <ThrowOnError extends boolean = false>(options?: Options<ListJobsApiV1AdminJobsGetData, ThrowOnError>): RequestResult<ListJobsApiV1AdminJobsGetResponses, unknown, ThrowOnError> => (options?.client ?? client).get<ListJobsApiV1AdminJobsGetResponses, unknown, ThrowOnError>({ url: '/api/v1/admin/jobs', ...options });
 
