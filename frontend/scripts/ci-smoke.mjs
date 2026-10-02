@@ -103,11 +103,15 @@ async function oneClick(page, issues) {
   await page.waitForSelector(ROUTES.find((r) => r.name === 'overview').ready, { timeout: 15_000 })
   const hrefs = await page.locator('.side-item').evaluateAll((els) => els.map((e) => e.getAttribute('href')))
   for (const href of hrefs) {
+    // a link may carry its own filter (the Audit log opens without sign-ins): the path must
+    // match, and every parameter the link names must arrive with it
+    const link = new URL(href, BASE)
     // /settings is a redirect to its first section by design
-    const want = href === '/settings' ? '/settings/scan-scope' : href
+    const want = link.pathname === '/settings' ? '/settings/scan-scope' : link.pathname
+    const carries = (url) => [...link.searchParams].every(([k, v]) => url.searchParams.get(k) === v)
     await step(`sidebar ${href}`, async () => {
       await page.locator(`.side-item[href="${href}"]`).click()
-      await page.waitForURL(pathIs(want), { timeout: 10_000 })
+      await page.waitForURL(pathIs(want, carries), { timeout: 10_000 })
     })
   }
 
