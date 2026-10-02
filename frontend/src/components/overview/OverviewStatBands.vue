@@ -117,13 +117,13 @@ function goFindings(query: Record<string, string>) {
   height: 100%;
 }
 .seg-open {
-  background: var(--state-open-fg);
+  background: var(--state-open-solid);
 }
 .seg-ack {
-  background: var(--state-ack-fg);
+  background: var(--triage-seg-ack);
 }
 .seg-handled {
-  background: var(--state-resolved-fg);
+  background: var(--triage-seg-handled);
 }
 .seg-stale {
   background: var(--state-stale-line);

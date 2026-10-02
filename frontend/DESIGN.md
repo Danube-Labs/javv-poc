@@ -13,7 +13,7 @@ chips are the listed exception).
 
 ## 1. Visual theme
 
-Warm, editorial, data-dense. Warm-paper background (`#F4F1EA`) with white cards, **dark-slate
+Warm, editorial, data-dense. Warm-paper background (`--bg`) with white cards, **dark-slate
 chrome** (sidebar/brand marks on `#16232F`), coral as the single brand accent. Single light theme
 by contract — no dark mode, no `prefers-color-scheme` styling (the slate sidebar is chrome, not a
 theme). High information density: subtle borders and panel tints, almost no decorative shadow.
@@ -23,8 +23,8 @@ theme). High information density: subtle borders and panel tints, almost no deco
 | Bucket | Tokens | Rule |
 |---|---|---|
 | **Brand** | `--coral` `--coral-d` `--amber` `--teal` `--slate*` | Chrome, buttons, active nav, focus, links. Coral/amber must **never** encode severity. Teal = info only. |
-| **Severity** | `--sev-<severity>-{fg,bg,line,solid}` | **DATA ONLY.** Six D46 canonicals: `critical high medium low negligible unknown`. `negligible` is muted, never red (A-1). From script use `SEV_COLOR` / `CHART_SEV` (`@/styles/tokens`). **Chip language A (operator 2026-07-11):** `-bg`/`-line` are DERIVED from the level's `-solid` (10% / 30% flattened on white — never hand-picked pastels); weight ESCALATES: critical renders solid + inner highlight (`--chip-hi`), high the heavy `--sev-high-ring`, tails near-neutral. State pills = soft 9% tint + `--state-*-solid` dot, no ring (workflow reads quieter than severity). Alarms (KEV `--kev-grad`, SLA overdue) + primary buttons carry the ONE depth treatment: `inset 0 1px 0 var(--chip-hi)` + a soft drop (`--chip-crit-drop`/`--kev-drop`/`--coral-drop`). |
-| **Status** | `--state-<open\|stale\|ack\|resolved>-*` · `--health-{ok,degraded,down}-*` · `--kev-*` · `--scanner-{trivy,grype}-*` · `--scope-{cluster,scanner,org}` | Finding state pills, health ramp (the same ramp as the degraded banner), KEV tag, scanner tags, settings scope dots/badges (M9e — darkened from the prototype so the white badge label computes AA). |
+| **Severity** | `--sev-<severity>-{fg,bg,line,solid}` | **DATA ONLY.** Six D46 canonicals: `critical high medium low negligible unknown`. `negligible` is muted, never red (A-1). From script use `SEV_COLOR` / `CHART_SEV` (`@/styles/tokens`). **Chip language A (operator 2026-07-11):** `-bg`/`-line` are DERIVED from the level's `-solid` (10% / 30% flattened on white — never hand-picked pastels); weight ESCALATES: critical renders solid + inner highlight (`--chip-hi`), high the heavy `--sev-high-ring`, tails near-neutral. State pills = soft 9% tint + `--state-*-solid` dot, no ring (workflow reads quieter than severity). Alarms (KEV `--kev-grad`, SLA overdue) carry the ONE depth treatment: `inset 0 1px 0 var(--chip-hi)` + a soft drop (`--chip-crit-drop`/`--kev-drop`). Primary buttons are flat (operator 2026-07-17); `--coral-drop` is defined but unused. **Chart ramp (issue 659):** `CHART_SEV` also steps lighter at every level, critical to unknown, so mix bars and charts keep their bands in grayscale; critical and high stay the full solids. |
+| **Status** | `--state-<open\|stale\|ack\|resolved>-*` · `--health-{ok,degraded,down}-*` · `--kev-*` · `--scanner-{trivy,grype}-*` · `--scope-{cluster,scanner,org}` | Finding state pills, health ramp (the same ramp as the degraded banner), KEV tag, scanner tags, settings scope dots/badges (M9e — darkened from the prototype so the white badge label computes AA). **Status has its own hues (operator rulings 2026-10-02 on built specimens, issue 659):** open is rose, acknowledged is indigo; a status token is never a copy of a severity token (`tokens.spec.ts` fails one; `--health-down-fg` is the one listed leftover). **One caution amber:** `--hist-*` (viewing history, picker and banner alike), `--health-degraded-fg/-bg` and `--sla-tight-fg` share one set of values. **Overdue** is `--sla-over-bg`, the KEV maroon, not critical's red. **Lightness carries it too:** the triage bar (`--triage-seg-handled`, `--state-open-solid`, `--triage-seg-ack`, `--state-stale-line`) and the health dots (`--health-ok-dot` / `--health-degraded-dot`) are a lightness step apart, so they read in grayscale. |
 
 ### Surfaces & text
 ```
@@ -100,6 +100,9 @@ hover/pressed/focus states; reviews reject "border-shift-only" or feedback-less 
 ### Sidebar chrome (dark slate — its own text/hover ramp, promoted from the prototype shell)
 ```
 nav text       var(--side-fg)  hover var(--side-fg-hover) on var(--side-on-fg)/(--side-on-bg)
+active item    coral bar + coral icon (one accent; ruled 2026-10-02, issue 659)
+collapse       var(--side-control-bg) at rest, -hover-bg, -active-bg; icon var(--side-fg)
+               (a resting fill so it reads as a button; ruled on specimens 2026-10-02)
 group label    var(--side-label)      brand word   var(--side-brand-fg)  credit var(--side-credit)
 hover wash     var(--side-hover-bg)   pressed      var(--side-active-bg) footer var(--side-foot-*)
 sweep dot      var(--health-ok-dot) + ring var(--sweep-ok-ring)          version var(--side-version)

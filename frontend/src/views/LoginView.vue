@@ -122,9 +122,9 @@ async function submitChange() {
 .notice {
   padding: 8px 10px;
   margin: 0 0 12px;
-  background: var(--state-open-bg);
+  background: var(--hist-bg);
   color: var(--ink);
-  border: 1px solid var(--state-open-line);
+  border: 1px solid var(--hist-line);
   border-radius: var(--r-chip);
   font-size: var(--text-body);
 }

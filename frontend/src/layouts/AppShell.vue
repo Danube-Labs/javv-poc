@@ -262,22 +262,22 @@ onUnmounted(() => {
   align-items: center;
   gap: 10px;
   padding: 8px 16px;
-  background: var(--state-open-bg);
+  background: var(--hist-bg);
   /* prose is ink — hue lives in the bg/border/icon, never same-hue words on a tint */
   color: var(--ink);
-  border-bottom: 1px solid var(--state-open-line);
+  border-bottom: 1px solid var(--hist-line);
   font-size: var(--text-body);
 }
 .history-banner svg {
-  color: var(--state-open-fg);
+  color: var(--hist-fg);
   flex: none;
 }
 .back-to-now {
   margin-left: auto;
-  border: 1px solid var(--state-open-line);
+  border: 1px solid var(--hist-line);
   border-radius: var(--r-chip);
   background: var(--card);
-  color: var(--state-open-fg);
+  color: var(--hist-fg);
   font-size: var(--text-sm);
   padding: 3px 10px;
   cursor: default;

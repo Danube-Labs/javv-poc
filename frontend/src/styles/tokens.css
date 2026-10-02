@@ -118,7 +118,9 @@
   --control-hover-bg: #f4eee2; /* the visible hover wash — border-shift alone is invisible */
   --control-active-bg: #ece4d3; /* pressed */
 
-  /* -- time-travel history state (the amber "viewing history" control) --- */
+  /* -- the caution amber: "viewing history" (picker AND banner), plus any quiet notice that
+     is neither an alarm nor a severity. --health-degraded-fg/-bg and --sla-tight-fg carry
+     these same values on purpose (issue 659: one caution amber, not three near-copies). */
   --hist-bg: #fbf0d9;
   --hist-line: #ead6a8;
   --hist-fg: #7a5a12;
@@ -158,29 +160,35 @@
   --chip-crit-drop: rgb(192 39 29 / 28%);
   /* chart AREA ramp (language A, operator 2026-07-12): critical/high keep the full-saturation
      solids, the tail recedes so the eye lands on what matters. Charts/MixBars/KPI dots read
-     CHART_SEV (pinned to THESE by the tokens test); chips keep the -solid family. */
+     CHART_SEV (pinned to THESE by the tokens test); chips keep the -solid family.
+     Each level is also a LIGHTNESS step lighter than the one before (issue 659): medium and low
+     shared one gray, so a mix bar lost two of its bands in grayscale and for anyone who can't
+     tell amber from blue. The tokens test holds the steps apart. */
   --sev-critical-chart: #c0271d;
   --sev-high-chart: #e2640f;
-  --sev-medium-chart: #d9a637;
-  --sev-low-chart: #8fb3cb;
-  --sev-negligible-chart: #b2c0ba;
-  --sev-unknown-chart: #bcc4ca;
+  --sev-medium-chart: #dba839;
+  --sev-low-chart: #a5cae2;
+  --sev-negligible-chart: #cbdad4;
+  --sev-unknown-chart: #dfe7ee;
 
   /* -- status / semantic ------------------------------------------------ */
   /* Language A: workflow reads QUIETER than severity — soft 9% tint + a solid dot,
-     no ring (the -solid dots are new; -bg re-derived from them; -line kept for legacy). */
-  --state-open-fg: #aa4a0a;
-  --state-open-bg: #fcf1e9;
-  --state-open-line: #efd3b7;
-  --state-open-solid: #e2640f;
+     no ring (the -solid dots are new; -bg re-derived from them; -line kept for legacy).
+     Status has hues of its OWN (issue 659): open was High's orange and ack was Low's blue, so
+     a state pill beside a severity chip said the same thing twice in one colour. Open is rose,
+     ack is indigo; the tokens test fails a status token that copies a severity one. */
+  --state-open-fg: #9a2f5c;
+  --state-open-bg: #faeef3;
+  --state-open-line: #edc8d7;
+  --state-open-solid: #c2477a;
   --state-stale-fg: #696358;
   --state-stale-bg: #f5f5f4;
   --state-stale-line: #ded9cf;
   --state-stale-solid: #9a927f;
-  --state-ack-fg: #2f6e96;
-  --state-ack-bg: #eef3f7;
-  --state-ack-line: #c5dde9;
-  --state-ack-solid: #3d7da6;
+  --state-ack-fg: #4553a8;
+  --state-ack-bg: #f0f2fa;
+  --state-ack-line: #ced3ed;
+  --state-ack-solid: #5b6bc4;
   --state-resolved-fg: #277146;
   --state-resolved-bg: #edf5f0;
   --state-resolved-line: #c3e2cc;
@@ -193,8 +201,14 @@
   --state-risk-bg: #f8f4ee;
   --state-risk-line: #e2cfb4;
   --state-risk-solid: #b3803e;
-  --sla-tight-fg: #aa4a0a;
-  --sla-over-bg: #c0271d;
+  /* the triage bar's segments differ in LIGHTNESS as well as hue (issue 659), so the bar still
+     reads in grayscale: handled darkest, then open (--state-open-solid), ack, stale lightest */
+  --triage-seg-ack: #9aa9e8;
+  --triage-seg-handled: #0a5c33;
+  /* due soon = the caution amber; overdue = the status bucket's own alarm (the KEV maroon),
+     not critical's red */
+  --sla-tight-fg: #7a5a12;
+  --sla-over-bg: #8b1e16;
   --dash-muted: #c3cad0;
   --ver-none-fg: #96604f;
   --note-info-bg: rgba(31, 142, 132, 0.06);
@@ -205,10 +219,13 @@
   --kev-drop: rgb(139 30 22 / 30%);
   --health-ok-fg: #277146;
   --health-ok-bg: #e3f1e7;
-  --health-ok-dot: #3fb37f;
-  --health-degraded-fg: #82590a;
-  --health-degraded-bg: #fbf1d6;
-  --health-degraded-dot: #c68a12;
+  --health-ok-dot: #52c48f;
+  /* ONE caution amber (issue 659): degraded takes the history control's values, where it used
+     to be a near-identical second set (and a copy of Medium's). The dot is a clear step darker
+     than the ok dot, so the two differ without relying on green versus amber. */
+  --health-degraded-fg: #7a5a12;
+  --health-degraded-bg: #fbf0d9;
+  --health-degraded-dot: #9d6400;
   --health-none-dot: #c4ccd2;
   --health-down-fg: #b5231a;
   --health-down-bg: #fbe7e4;
@@ -254,6 +271,11 @@
   --side-fg-hover: #e4eaef;
   --side-hover-bg: rgba(255, 255, 255, 0.05);
   --side-active-bg: rgba(255, 255, 255, 0.09); /* pressed state on dark-chrome controls */
+  /* a standalone control ON the slate (the collapse toggle): a resting fill, so it reads as a
+     button before the pointer reaches it; nav items stay flat */
+  --side-control-bg: rgba(255, 255, 255, 0.07);
+  --side-control-hover-bg: rgba(255, 255, 255, 0.12);
+  --side-control-active-bg: rgba(255, 255, 255, 0.16);
   --side-on-bg: rgba(236, 126, 84, 0.14); /* active item — coral wash */
   --side-on-fg: #fbe6d8;
   --side-label: #8494a1; /* group labels — AA on the slate */
@@ -264,7 +286,7 @@
   --side-foot-strong: #cfe3d8;
   --side-foot-dim: #8a97a3; /* AA on the slate */
   --side-version: #7d8d9a; /* AA on the slate */
-  --sweep-ok-ring: rgba(63, 179, 127, 0.18);
+  --sweep-ok-ring: rgba(82, 196, 143, 0.18);
 
   /* -- motion — one scale for every transition (reduced-motion callers zero it) */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);

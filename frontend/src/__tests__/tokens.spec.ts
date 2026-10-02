@@ -79,6 +79,64 @@ describe('chart literals stay pinned to the CSS tokens (M9c)', () => {
   })
 })
 
+/** OKLCH lightness (0 to 1) of a hex: what is left of a colour in grayscale. */
+function lightness(hex: string): number {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4
+  }) as [number, number, number]
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+  return 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
+}
+
+describe('colours that must differ without hue (issue 659)', () => {
+  const cssHex = (name: string): string => {
+    const hex = tokensCss.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, 'i'))?.[1]
+    if (!hex) throw new Error(`--${name} is not a hex token in tokens.css`)
+    return hex.toLowerCase()
+  }
+  // under this, two neighbours read as one gray (medium and low were 0.00 apart)
+  const STEP = 0.04
+
+  it('the severity chart ramp gets lighter at every level, critical to unknown', () => {
+    const ramp = SEVERITIES.map((s) => lightness(CHART_SEV[s]))
+    for (let i = 1; i < ramp.length; i++) {
+      expect(ramp[i]! - ramp[i - 1]!, `${SEVERITIES[i - 1]} → ${SEVERITIES[i]}`).toBeGreaterThanOrEqual(STEP)
+    }
+  })
+
+  it('the triage bar segments are a lightness step apart: handled, open, ack, stale', () => {
+    const segs = ['triage-seg-handled', 'state-open-solid', 'triage-seg-ack', 'state-stale-line'].map((t) =>
+      lightness(cssHex(t)),
+    )
+    for (let i = 1; i < segs.length; i++) expect(segs[i]! - segs[i - 1]!).toBeGreaterThanOrEqual(0.1)
+  })
+
+  it('the healthy and stale dots are a lightness step apart', () => {
+    expect(lightness(cssHex('health-ok-dot')) - lightness(cssHex('health-degraded-dot'))).toBeGreaterThanOrEqual(0.1)
+  })
+
+  it('no status colour is a copy of a severity colour', () => {
+    const all = [...tokensCss.matchAll(/--([\w-]+):\s*(#[0-9a-f]{6})\b/gi)].map((m) => [m[1]!, m[2]!.toLowerCase()] as const)
+    const severity = new Map(all.filter(([n]) => n.startsWith('sev-')).map(([n, hex]) => [hex, n]))
+    // --health-down-fg doubles as the app's error-text red in some 25 places; it is the one
+    // copy left (critical's fg) and moving it is its own ruling, not a side effect of this test
+    const KNOWN = new Set(['health-down-fg'])
+    const copies = all
+      .filter(([n]) => /^(state|health|sla|triage)-/.test(n) && !KNOWN.has(n) && severity.has(all.find(([x]) => x === n)![1]))
+      .map(([n, hex]) => `--${n} = --${severity.get(hex)}`)
+    expect(copies).toEqual([])
+  })
+
+  it('the caution amber is one set of values, whatever the token is called', () => {
+    expect(cssHex('health-degraded-fg')).toBe(cssHex('hist-fg'))
+    expect(cssHex('health-degraded-bg')).toBe(cssHex('hist-bg'))
+    expect(cssHex('sla-tight-fg')).toBe(cssHex('hist-fg'))
+  })
+})
+
 describe('state token map', () => {
   it.each(STATES)('%s round-trips to CSS custom properties that exist', (state) => {
     for (const part of ['fg', 'bg', 'line'] as const) {
