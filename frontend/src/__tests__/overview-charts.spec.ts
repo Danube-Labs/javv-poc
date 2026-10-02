@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { LineSeriesOption } from 'echarts'
 
-import { buildFindingsTrendOption, type FindingsTrendData } from '@/charts/buildFindingsTrendOption'
+import {
+  buildFindingsTrendOption,
+  emptyTrendNote,
+  type FindingsTrendData,
+} from '@/charts/buildFindingsTrendOption'
+import { buildSeverityTrendOption } from '@/charts/buildSeverityTrendOption'
 import { buildPtypeDonutOption } from '@/charts/buildPtypeDonutOption'
 import { buildScanActivityOption } from '@/charts/buildScanActivityOption'
 import { buildTrendQuery, isSubDayWindow } from '@/charts/buildTrendQuery'
@@ -115,5 +120,26 @@ describe('buildSeverityTrendOption (the 1b severity lens)', () => {
     expect(series.map((s) => s.name)).toEqual(['critical', 'high']) // rank order, empties dropped
     expect(series[0]!.lineStyle?.color).toBe(CHART_SEV.critical)
     expect(series[0]!.data).toEqual([1, 0, 0]) // verbatim server counts
+  })
+})
+
+describe('emptyTrendNote (a range with nothing in it says so)', () => {
+  const day = [{ date: '2026-09-03T00:00:00.000Z', count: 0 }]
+
+  it('names both series on the scanner lens when the route returned no scanner at all', () => {
+    const option = buildFindingsTrendOption({ new: {}, resolved: {} })
+    expect(emptyTrendNote(option, 'scanner')).toBe('No new or resolved findings in this range.')
+  })
+
+  it('names only new findings on the severity lens, which has no resolved series', () => {
+    expect(emptyTrendNote(buildSeverityTrendOption({}), 'severity')).toBe(
+      'No new findings in this range.',
+    )
+  })
+
+  it('stays out of the way when any line exists, even an all-zero one', () => {
+    expect(emptyTrendNote(buildFindingsTrendOption({ new: { grype: day }, resolved: {} }), 'scanner')).toBeNull()
+    expect(emptyTrendNote(buildFindingsTrendOption({ new: {}, resolved: { trivy: day } }), 'scanner')).toBeNull()
+    expect(emptyTrendNote(buildSeverityTrendOption({ high: day }), 'severity')).toBeNull()
   })
 })

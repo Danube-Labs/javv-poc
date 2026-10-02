@@ -25,6 +25,7 @@ export const useOverviewStore = defineStore('overview', {
     facets: {} as Facets,
     trend: { new: {}, resolved: {} } as FindingsTrendData,
     sevTrend: {} as Record<string, { date: string; count: number }[]>,
+    sevTrendLoading: false,
     lastIngestAt: null as string | null,
     loading: false,
     failed: false,
@@ -79,10 +80,12 @@ export const useOverviewStore = defineStore('overview', {
         split: 'severity',
         ...(scanner ? { scanner } : {}),
       }
+      this.sevTrendLoading = true
       const { data, response } = await findingsTrendApiV1TrendsFindingsGet({
         client,
         query: q as never,
       })
+      this.sevTrendLoading = false
       if (response?.ok && data) {
         this.sevTrend = (data as { new: Record<string, { date: string; count: number }[]> }).new ?? {}
       } else {

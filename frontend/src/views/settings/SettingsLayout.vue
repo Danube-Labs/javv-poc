@@ -132,5 +132,12 @@ const scopeNote = computed(() => {
   .set-layout {
     grid-template-columns: 1fr;
   }
+  /* the menu is a wrapping row here and each tab is only as wide as its label, so a dot pinned
+     to the tab's right edge lands on the last letter: it joins the row's flow instead */
+  .scope-dot {
+    position: static;
+    transform: none;
+    flex: none;
+  }
 }
 </style>

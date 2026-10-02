@@ -15,7 +15,7 @@
 import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
-import { buildFindingsTrendOption } from '@/charts/buildFindingsTrendOption'
+import { buildFindingsTrendOption, emptyTrendNote } from '@/charts/buildFindingsTrendOption'
 import { buildPtypeDonutOption } from '@/charts/buildPtypeDonutOption'
 import { buildSeverityTrendOption, type SeverityTrendData } from '@/charts/buildSeverityTrendOption'
 import { isSubDayWindow } from '@/charts/buildTrendQuery'
@@ -85,6 +85,11 @@ const trendOption = computed(() => {
     resolved: { [scanner.value]: overview.trend.resolved[scanner.value] },
   })
 })
+const trendNote = computed(() =>
+  trendLens.value === 'severity' && overview.sevTrendLoading
+    ? null
+    : emptyTrendNote(trendOption.value, trendLens.value),
+)
 
 /** ptype buckets minus a lone `unknown` (pre-M8d rows heal on the next sweep, D30). */
 const ptypeBuckets = computed(() => {
@@ -181,7 +186,8 @@ function onDonutClick(e: { name?: string }) {
             />
           </div>
           <div class="card-body">
-            <EChart :option="trendOption" :height="250" />
+            <p v-if="trendNote" class="empty-row trend-empty">{{ trendNote }}</p>
+            <EChart v-else :option="trendOption" :height="250" />
             <p v-if="subDayNote" class="chart-note">
               Trend at daily resolution: chart covers the last 1 day.
             </p>
@@ -301,6 +307,13 @@ function onDonutClick(e: { name?: string }) {
 }
 .card-body {
   padding: 10px 16px 14px;
+}
+/* holds the chart's height, so the card doesn't jump when a range turns up empty */
+.trend-empty {
+  display: grid;
+  place-items: center;
+  min-height: 250px;
+  margin: 0;
 }
 .chart-note {
   margin: 6px 0 0;
