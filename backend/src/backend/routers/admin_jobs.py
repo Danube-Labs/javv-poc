@@ -2,7 +2,7 @@
 jobs, never raw store writes.
 
 One `system-jobs` doc per kind (_id = kind) is the whole surface, and the lease grammar lives
-in `jobs/lease.py` shared with the scheduled CronJob door (issue 459): OCC claim (seq_no CAS)
+in `jobs/lease.py` shared with the scheduled door (issue 459): OCC claim (seq_no CAS)
 makes the trigger exactly-once across pods AND across doors; a fencing `attempt_id` guards
 heartbeat/finalize exactly like the reports lease (D39/D40); a run whose heartbeat goes silent
 past the lease TTL is correctly marked `stale` and reclaimable. The job itself executes in-process
@@ -60,7 +60,7 @@ async def _record_ending(
     """The status write can fail too, usually for the reason the job did (the store is gone).
     Nothing awaits this task after the 202, so a raise would surface only as asyncio's "never
     retrieved" line. Log it instead: the doc stays `running` until its lease goes stale, and the
-    existing reclaim takes over. The CronJob door (`run_under_lease`) keeps raising on purpose —
+    existing reclaim takes over. The scheduled door (`run_under_lease`) keeps raising on purpose —
     there, a non-zero pod exit is the signal."""
     try:
         await finalize_job(client, kind, attempt_id, updates)

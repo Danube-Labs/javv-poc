@@ -1,6 +1,6 @@
-"""Lifecycle sweep (M4, D8/D26) — a daily `Forbid` CronJob that rolls + retires the per-cluster
-append series (`SERIES` below: scan-events, images, occurrences, inventory runs, and the
-failed-ingest records of issue 357).
+"""Lifecycle sweep (M4, D8/D26) — a daily job the backend runs (issue 691). It rolls + retires
+the per-cluster append series (`SERIES` below: scan-events, images, occurrences, inventory
+runs, and the failed-ingest records of issue 357).
 
 Mechanism decision (#26): the D8 contract — numbered backing indices behind a write alias, rollover
 on doc/age/size, retention by **dropping whole indices**, never `delete_by_query` — is executed by
@@ -270,7 +270,7 @@ async def run_lifecycle_sweep(
     return {"rolled": rolled, "dropped": dropped, "errors": errors}
 
 
-if __name__ == "__main__":  # daily CronJob entrypoint + interim settings CLI (until M9e UI)
+if __name__ == "__main__":  # command-line entrypoint + interim settings CLI (until M9e UI)
     import argparse
     import asyncio
 

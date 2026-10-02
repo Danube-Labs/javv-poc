@@ -105,6 +105,25 @@ AUTH_FAILURES = Counter(
 )
 
 
+# --- M-6: background jobs (issue 691) ----------------------------------------------
+
+JOB_RUNS = Counter(
+    "javv_job_runs_total",
+    "Scheduled background-job runs by kind and outcome",
+    ["kind", "outcome"],  # kind: jobs/registry.py (closed set) · outcome: done | failed | skipped
+)
+JOB_LAST_SUCCESS = Gauge(
+    "javv_job_last_success_timestamp_seconds",
+    "Unix time of the kind's last successful scheduled run in this process (0 until one succeeds)",
+    ["kind"],
+)
+SCHEDULER_TICK_ERRORS = Counter(
+    "javv_scheduler_tick_errors_total",
+    "Scheduler ticks that failed before a job could start (the store was away); a sustained"
+    " rate means no job is running",
+)
+
+
 def install_http_metrics(app: FastAPI) -> None:
     """M-1 middleware. Route label = the matched route TEMPLATE (set in scope after routing);
     requests that match no route collapse into one `unmatched` series — never the raw path."""
@@ -137,10 +156,13 @@ __all__ = [
     "INGEST_ACCEPTED",
     "INGEST_FAILURES_UNRECORDED",
     "INGEST_REJECTED",
+    "JOB_LAST_SUCCESS",
+    "JOB_RUNS",
     "LIMIT_REJECTIONS",
     "OS_BACKOFF_RETRIES",
     "OS_REQUEST_ERRORS",
     "PITS_OPEN",
+    "SCHEDULER_TICK_ERRORS",
     "generate_latest",
     "install_http_metrics",
 ]

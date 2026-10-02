@@ -65,6 +65,7 @@ export JAVV_TOKEN_PEPPER='local-dev-pepper-change-me'          # peppers ingest 
 export JAVV_BOOTSTRAP_ADMIN_USERNAME='admin'
 export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'  # >= 12 chars (password policy)
 export JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50   # default 10 starves UI navigation/rigs with 429s
+export JAVV_SCHEDULER_ENABLED=false                # dev: no automatic sweeps on a store you want to keep
 uv run python -m backend.core.bootstrap            # idempotent, versioned (MAPPING_VERSION)
 uv run uvicorn backend.main:app --port 8000        # /docs = live API reference
 
@@ -80,7 +81,10 @@ curl -s localhost:8000/readyz | jq        # 200 = OpenSearch reachable
 rotated): `POST /auth/login` -> `POST /auth/password` -> `GET /auth/me` shows `must_change:false`.
 Same dance in the UI. Cookies land in `backend/cookies.txt` for curl work.
 
-**Background jobs** are k8s CronJobs in production; run them by hand from `backend/`:
+**Background jobs** are started by the backend itself, on the schedules in `JAVV_JOB_<KIND>_CRON`
+(`docs/CONFIGURATION.md` §1; `JAVV_SCHEDULER_ENABLED=false` stops that, which is what you want on a dev
+store whose data you care about: the lifecycle sweep drops history past retention and the staleness
+sweep marks old findings stale). They can also be run by hand from `backend/`:
 `staleness` · `lifecycle` · `findings_cleanup` · `report_drain` · `report_sweep` · `session_sweep` ·
 `rebuild_state` (`uv run python -m backend.jobs.<name>`). Every one of them takes the
 `system-jobs` lease for its kind (`jobs/registry.py` lists the seven), which also records the run;
@@ -104,7 +108,10 @@ process before debugging behaviour (`ps -o lstart -p <pid>`), and confirm what i
 `curl -s localhost:8000/openapi.json | jq '.paths["<route>"].get.parameters[].name'`.
 
 ## Hard constraints (do not violate)
-- **No Redis/Kafka/RabbitMQ/external broker.** Coordination via OpenSearch; jobs are k8s CronJobs.
+- **No Redis/Kafka/RabbitMQ/external broker.** Coordination via OpenSearch. The backend runs its own
+  background jobs on cron schedules from env vars (`jobs/scheduler.py`, issue 691): a deployment is one
+  backend container and one frontend container, with no CronJob and no second backend for jobs.
+  Scanners are the exception: they stay CronJobs in the monitored clusters.
 - **Server-side everything** - never ship raw findings to the client to compute counts; every number/page
   comes from an OpenSearch aggregation/query.
 - **Multi-tenant by immutable `cluster_id`** - every read/export query carries an explicit `cluster_id`

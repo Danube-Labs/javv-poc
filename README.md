@@ -79,7 +79,7 @@ Three things it does differently:
 - **Server-side everything**: every count and page comes from an OpenSearch aggregation, never computed on the client.
 - **Dashboards & exports**: overview, running-images inventory, scanner status, contributors, approvals, SLA tracking, one-click CSV.
 - **Data inspector + repair actions**: a read-only OpenSearch console and a small set of sanctioned, journaled maintenance jobs.
-- **No external broker**: coordination is OpenSearch; jobs are Kubernetes CronJobs. No Redis/Kafka/RabbitMQ.
+- **No external broker**: coordination is OpenSearch, and the backend runs its own background jobs on cron schedules. No Redis/Kafka/RabbitMQ, and no CronJob per job: one backend container and one frontend container.
 
 ## Architecture
 

@@ -76,6 +76,11 @@ logs explain *one* failure, metrics show the *trend*. The reverse holds too, wit
 rejection an unauthenticated sender can repeat with no budget is counted but not logged, and a
 rate-limit rejection keyed on unverified input logs once per key per window (`.claude/rules/logging.md`).
 
+**Background jobs (issue 691).** The scheduler runs inside the backend, so its failures follow the same
+rule: `job failed` and `scheduler tick failed` log at `error` and count in `javv_job_runs_total{outcome="failed"}`
+and `javv_scheduler_tick_errors_total`. A job that fails never stops the loop, and a store that is away never
+takes the backend down: the loop logs, counts and tries again on its next tick.
+
 ## 6. Tested, not assumed
 - **Redaction:** a log line built from a request carrying a token/password contains neither.
 - **`/readyz`:** returns `503 degraded` when the OpenSearch ping fails (mock the client), `200` when it passes.

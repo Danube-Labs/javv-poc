@@ -1,6 +1,7 @@
-"""Two-timer staleness sweep (D20, M3 slice 6) — a daily `Forbid` CronJob that flags data the
-scanner has stopped refreshing. `stale` is a **flag on `state`, never a delete** (D37/M12):
-`findings` rows are removed only after a separate long retention window, never on this timer.
+"""Two-timer staleness sweep (D20, M3 slice 6) — a daily job the backend runs (issue 691). It
+flags data the scanner has stopped refreshing. `stale` is a **flag on `state`, never a delete**
+(D37/M12): `findings` rows are removed only after a separate long retention window, never on
+this timer.
 
 Two independent, **UI-configurable** timers (tier-③ runtime config in `system-config`, edited via
 the M9e UI or the interim CLI below — NEVER hardcoded, D20):
@@ -283,7 +284,7 @@ async def run_staleness_sweep(
     return {"staled": staled, "reverted": reverted, "reprojected": reprojected}
 
 
-if __name__ == "__main__":  # daily CronJob entrypoint + interim timer-config CLI (until M9e UI)
+if __name__ == "__main__":  # command-line entrypoint + interim timer-config CLI (until M9e UI)
     import argparse
     import asyncio
 

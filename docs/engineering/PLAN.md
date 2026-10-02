@@ -420,6 +420,16 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   overdue). For every standard scanner word canonical == verbatim-lc, so the two vocabularies coincide on
   the normal path; the stored field is the correctness net for non-standard words. Dev-store ruling: past
   data disposable - hard renames, no aliases/backfills.
+- **D47 - the backend runs its own background jobs (issue 691, ruled 2026-10-02).** Staleness, lifecycle,
+  findings cleanup, session sweep, report drain and report sweep are started by a scheduler inside the
+  backend process, each on a cron expression from an env var read on the local wall clock. One job runs at
+  a time and the export drain goes first. This **supersedes "CronJob" for a backend job wherever this plan
+  says it**: there is no CronJob per job and no second backend for jobs, so a docker compose deployment
+  runs the same as a Kubernetes one. Why: nothing started the jobs outside Kubernetes, and the app could
+  not know a schedule that lived in a manifest. Accepted costs: a heavy job shares the process that serves
+  the UI and ingest, and a backend restart cuts a running job (every job is safe to run again). Scanners
+  are unaffected: they stay CronJobs (`Forbid`) in the monitored clusters, which is what keeps `scan_order`
+  monotonic.
 - **D45 - `scan_order` is backend-allocated (amends D40's *source*; the intent - never a clock - stands).**
   The M0 scanner minted `scan_order` from wall-clock `time.time_ns()`; monotonic on one host, but CronJob
   pods reschedule across nodes, and a skewed/stepped node clock could make a **newer** run's order regress -

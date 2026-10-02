@@ -39,10 +39,10 @@ flowchart TB
             PROJECT["Decision projection → state<br/>new findings only · precedence · scope × apply_both"]
             SWEEP["Two-timer staleness sweep + expiry re-project<br/>per-finding (N) + scanner-down escalation (M)"]
             REBUILD["Rebuild-state job (safety net)<br/>re-project cache from decisions + audit_log"]
-            EXPORT["Export drain (CronJob)<br/>system-reports · off-peak · throttled"]
-            LIFE["Lifecycle sweep (CronJob)<br/>rollover + drop-whole-index retention, per cluster"]
-            CLEAN["Findings cleanup (CronJob)<br/>deletes rows gone longer than cleanup_days"]
-            TTL["Report + session sweeps (CronJobs)<br/>report TTL + orphan chunks · expired sessions"]
+            EXPORT["Export drain (scheduled in the backend)<br/>system-reports · off-peak · throttled"]
+            LIFE["Lifecycle sweep (scheduled in the backend)<br/>rollover + drop-whole-index retention, per cluster"]
+            CLEAN["Findings cleanup (scheduled in the backend)<br/>deletes rows gone longer than cleanup_days"]
+            TTL["Report + session sweeps (scheduled in the backend)<br/>report TTL + orphan chunks · expired sessions"]
             TRIAGE["Triage API · VEX two-field · bulk<br/>every action → audit_log · refresh=wait_for"]
             SEARCH["Search/aggs · faceted by scanner · PIT+search_after (closed in finally)<br/>trends ← scan-events · contributors ← audit_log<br/>point-in-time ← R-CATALOG (latest committed run from scan-events, then occurrences)<br/>vuln-age computed at read time"]
             CSV["Streaming CSV (sanitized) → now | scheduled"]
@@ -286,7 +286,7 @@ reconcile** flips `present=false` on `findings` the run omitted (cache only - hi
    PIT+`search_after` (**closed in `finally`**, D38/M16), faceted by scanner, **tenant-filtered via the
    tenant read path** (SEC-4). **In MVP, historical all-clusters dashboards are limited/unavailable** until
    the `javv-metrics` rollup (v1.1); per-cluster rewind is fully supported (D39/M11-r2).
-7. **Maintain (CronJobs, idempotent)** - daily **two-timer staleness sweep** (per-finding N + scanner-down
+7. **Maintain (jobs the backend runs on cron schedules, idempotent; `jobs/scheduler.py`, issue 691)** - daily **two-timer staleness sweep** (per-finding N + scanner-down
    escalation M, banner between) + **decision-expiry re-projection**; the **lifecycle sweep** (rollover +
    per-cluster retention for the append series, D8/D26 - see step 8); **findings cleanup** (deletes `findings`
    rows whose image has been gone longer than `cleanup_days`, D37/M12); **export drain** (off-peak, throttled,
@@ -331,9 +331,9 @@ conflict/retry counts observed. The remaining multi-pod caveats:
   pods the global limit ≈ configured × replicas (exact at `replicas:1`). The per-request size/decompression
   caps and the per-pod semaphore still hold on every pod. A hard global cap would need shared state (out of
   scope). Documented, not "fixed."
-- **Job claiming is safe at any replica count (D38/M17).** The CronJob `Forbid` policy only serializes one
-  CronJob - it does **not** prevent N API replicas (or a retried drain) from grabbing the same
-  `system-reports` row. So job claim uses **optimistic concurrency** (`pending→running` via
+- **Job claiming is safe at any replica count (D38/M17).** Each backend runs its own scheduler (issue 691),
+  and the `system-jobs` lease keeps a job kind to one run across backends. That does **not** stop N API
+  replicas (or a retried drain) from grabbing the same `system-reports` row. So job claim uses **optimistic concurrency** (`pending→running` via
   `seq_no`/`primary_term` CAS) + `heartbeat_at` + `lease_expires_at` + `retry_count`: a lost race is a no-op,
   a dead worker's lease expires and is re-claimed. **A fencing `attempt_id` (D39/M7-r2)** closes the last gap -
   heartbeat and the `done` transition CAS on the current `attempt_id`, and the result object path includes it,

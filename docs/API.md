@@ -259,6 +259,9 @@ table cannot show its own gaps.
 | `javv_export_rows_total` / `javv_export_bytes_total` | counter | `format` | What was **actually** streamed (a disconnected client counts what it got) |
 | `javv_auth_failures_total` | counter | `reason` | `bad_credentials`, `locked_out`, `expired_session`, `missing_capability` — never a username label (M-5) |
 | `javv_stored_setting_unknown_fields_total` | counter | `setting` | Stored-setting reads that dropped fields this release doesn't know (issue 640). Non-zero after a rollback means a newer release saved that setting; the log warns once per setting doc per process, and this keeps counting. `setting` is the kind (`sla`, `scan_scope`, `snapshot_repo`, `report_ttl`, `lifecycle`, `findings_cleanup`, `staleness`), never the per-cluster doc id |
+| `javv_job_runs_total` | counter | `kind`, `outcome` | Background-job runs started by the scheduler (issue 691). `kind` is one of the seven in `jobs/registry.py`; `outcome` is `done`, `failed`, or `skipped` (another backend held the lease). A `failed` rate is a job that keeps failing; no `done` for a kind over its schedule is a job that is not running |
+| `javv_job_last_success_timestamp_seconds` | gauge | `kind` | Unix time of the kind's last successful scheduled run in this process; `0` until one succeeds after a restart. Alert on `time() - value` against the kind's schedule |
+| `javv_scheduler_tick_errors_total` | counter | — | Scheduler ticks that failed before a job could start, in practice the store being away. A sustained rate means no job is running |
 
 Plus the default `prometheus_client` process/GC gauges. The scrape is **storage-free** (no
 OpenSearch call) — it keeps working during an outage, exactly when it's needed. Single-process

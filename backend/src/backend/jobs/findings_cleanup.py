@@ -22,7 +22,8 @@ every scan cycle, so recency alone protects it; a digest with surviving rows (`p
 absent-but-younger) keeps its D40 out-of-order guard. The delete is seq-no-guarded: a commit
 racing the sweep bumps the doc and wins.
 
-Runnable `python -m backend.jobs.findings_cleanup` (k8s CronJob `Forbid` in M10). Each run appends
+Runnable `python -m backend.jobs.findings_cleanup`; the backend runs it daily (issue 691). Each
+run appends
 one `system-audit-log` row (`action=findings_cleanup_run`) with its counts — the destructive-op
 journal trail the D37 panel copy promises. Idempotent: a rerun on a clean store deletes nothing."""
 

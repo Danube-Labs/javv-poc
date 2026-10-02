@@ -15,12 +15,18 @@ stays as is."""
 
 import asyncio
 import contextlib
+import os
 from uuid import uuid4
 
 import httpx
 import pytest
 
 from os_env import OS_URL, drop_prefix, opensearch_up
+
+# The suite starts the app many times against a shared store. With the job scheduler running
+# (issue 691) a sweep could land in the middle of another test's data, so it is off for every
+# test; `test_scheduler.py` builds its own schedulers on a private prefix with a fixed clock.
+os.environ.setdefault("JAVV_SCHEDULER_ENABLED", "false")
 
 
 async def _bootstrap_once() -> None:

@@ -4,7 +4,8 @@ grace (`JAVV_SESSION_SWEEP_GRACE_HOURS`, default 24).
 Without it the index only grows: `auth/sessions.py` refuses an expired or revoked session on
 lookup, but nothing ever removed the row.
 
-Runnable `uv run python -m backend.jobs.session_sweep` (k8s CronJob in M10). One bounded
+Runnable `uv run python -m backend.jobs.session_sweep`; the backend runs it daily (issue 691).
+One bounded
 `delete_by_query` — the THIRD sanctioned site (operator ruling on issue 532, 2026-09-25), on the
 same reasoning `report_sweep.py` records for itself: `system-sessions` is a small mutable ops
 index, not the time-series append family the "drop whole indices" rule protects. Every row it

@@ -1,6 +1,7 @@
 """M7 slice 4 (#32) — the TTL + orphan sweep for the report queue (D40/I-r3).
 
-Runnable `uv run python -m backend.jobs.report_sweep` (k8s CronJob in M10). Three deletion classes,
+Runnable `uv run python -m backend.jobs.report_sweep`; the backend runs it hourly (issue 691).
+Three deletion classes,
 all via `delete_by_query` — sanctioned HERE because `system-reports`/`system-report-chunks` are
 small bounded ops indices (the "drop whole indices, never delete_by_query" day-one rule targets
 the huge occurrence/images time-series):

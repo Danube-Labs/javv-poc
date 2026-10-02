@@ -19,7 +19,7 @@ from backend.core.metrics import CAS_CONFLICTS
 from backend.core.settings import get_settings
 from backend.reports.models import PENDING, REPORTS_INDEX, RUNNING
 
-# one queue-scan page: plenty for a per-cluster ops queue drained by one CronJob (Forbid)
+# one queue-scan page: plenty for a per-cluster ops queue drained by one scheduled job at a time
 _CLAIM_CANDIDATES = 10
 log = structlog.get_logger()
 
