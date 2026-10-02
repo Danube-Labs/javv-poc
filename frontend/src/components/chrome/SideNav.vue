@@ -98,11 +98,11 @@ onMounted(async () => {
     <div class="side-foot">
       <div
         class="sweep"
-        :title="collapsed ? `${health.degraded ? 'Store degraded' : 'Store healthy'} · ${clusterStore.clusters.length} cluster(s)` : undefined"
+        :title="collapsed ? `${health.statusLabel} · ${clusterStore.clusters.length} cluster(s)` : undefined"
       >
         <span class="sweep-dot" :class="{ down: health.degraded }" aria-hidden="true" />
         <div v-if="!collapsed">
-          <b>{{ health.degraded ? 'Store degraded' : 'Store healthy' }}</b>
+          <b>{{ health.statusLabel }}</b>
           <span>{{ clusterStore.clusters.length }} cluster{{ clusterStore.clusters.length === 1 ? '' : 's' }} · live</span>
         </div>
       </div>
