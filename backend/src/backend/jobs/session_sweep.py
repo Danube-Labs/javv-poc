@@ -15,8 +15,9 @@ cookie (SEC-5), so it can't be replayed. The query is always the expiry range, n
 was, so a revoked row is deleted by this same range once its TTL plus the grace has passed. Don't
 add a second delete keyed on `revoked`.
 
-**No lease**, like `report_sweep` and `findings_cleanup`: overlapping runs are harmless (the delete
-is idempotent and runs with `conflicts: proceed`), and the M10 CronJob runs with `Forbid`.
+**Overlapping runs are harmless** (the delete is idempotent and runs with `conflicts: proceed`),
+like `report_sweep` and `findings_cleanup`. It still runs under the `system-jobs` lease like every
+kind (`jobs/registry.py`, issue 691): that records the run and keeps it to one at a time.
 
 Each run appends one `system-audit-log` row (`action=session_sweep_run`) with its counts and the
 grace, so an operator can see in the Audit screen that it ran. The row carries no `cluster_id`,
@@ -80,7 +81,9 @@ async def _main() -> int:
     settings = get_settings()
     client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
     try:
-        await sweep_sessions(client)
+        from backend.jobs.registry import run_job
+
+        await run_job(client, "session_sweep")
         return 0
     finally:
         await client.close()

@@ -258,7 +258,7 @@ _REPORTS_PROPERTIES: dict[str, Any] = {
 # system-jobs = the repair-actions surface (issue 406): ONE doc per job kind (_id = kind), so the
 # index is bounded by construction. Claim/heartbeat/finalize reuse the reports OCC grammar.
 _JOBS_PROPERTIES: dict[str, Any] = {
-    "kind": _KW,  # rebuild_state|staleness_sweep|lifecycle_sweep
+    "kind": _KW,  # one of the seven kinds in jobs/registry.py
     "status": _KW,  # idle|running|done|failed
     "requested_by": _KW,
     "attempt_id": _KW,  # fencing token — heartbeat + finalize CAS on it (D39/D40)

@@ -302,8 +302,11 @@ async def _main() -> int:
     settings = get_settings()
     client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
     try:
-        handled = await drain(client)
-        log.info("report drain: cycle complete", jobs=handled)
+        from backend.jobs.registry import run_job
+
+        result = await run_job(client, "report_drain")
+        if result is not None:
+            log.info("report drain: cycle complete", jobs=result["jobs"])
         return 0
     finally:
         await client.close()

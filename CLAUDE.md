@@ -82,10 +82,10 @@ Same dance in the UI. Cookies land in `backend/cookies.txt` for curl work.
 
 **Background jobs** are k8s CronJobs in production; run them by hand from `backend/`:
 `staleness` · `lifecycle` · `findings_cleanup` · `report_drain` · `report_sweep` · `session_sweep` ·
-`rebuild_state` (`uv run python -m backend.jobs.<name>`). `staleness`, `lifecycle` and
-`rebuild_state` take the `system-jobs` lease, same as their Settings buttons; `report_drain` claims
-report jobs under their own lease; `findings_cleanup`, `report_sweep` and `session_sweep` take no
-lease.
+`rebuild_state` (`uv run python -m backend.jobs.<name>`). Every one of them takes the
+`system-jobs` lease for its kind (`jobs/registry.py` lists the seven), which also records the run;
+`staleness`, `lifecycle` and `rebuild_state` share that lease with their Data inspector buttons,
+and `report_drain` additionally claims each report under the reports lease.
 
 **Stopping:** Ctrl-C the backend and vite, or kill by PID (`ss -ltnp`), **never `pkill -f`** (blocked
 by the hook — it matches the tool's own wrapper). `docker compose … down` keeps data, `down -v` wipes it.

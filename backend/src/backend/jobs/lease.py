@@ -1,5 +1,9 @@
 """The `system-jobs` lease (issue 459) — one claim/heartbeat/finalize grammar for BOTH doors.
 
+Every job kind in `jobs/registry.py` runs under it (issue 691), not only the three the card can
+start: the claim is what keeps a kind to one run at a time, and the doc it leaves is the record
+of when the kind last ran and how it ended.
+
 The card's HTTP trigger (`routers/admin_jobs.py`) and the scheduled CronJob `__main__` paths
 run the SAME sweeps, so they must contend for the SAME lease: one doc per kind (`_id` = kind),
 OCC claim (seq_no CAS — a racing trigger loses instead of double-running), fencing `attempt_id`
@@ -143,25 +147,28 @@ async def run_under_lease(
     kind: str,
     runner: Callable[[AsyncOpenSearch], Awaitable[dict[str, Any]]],
     *,
+    journal: bool = True,
     prefix: str = "",
 ) -> dict[str, Any] | None:
-    """The CronJob door: claim → journal → heartbeat → run → fenced finalize. `None` = the
+    """The scheduled door: claim → journal → heartbeat → run → fenced finalize. `None` = the
     lease is held by a live run (skipped, logged — the scheduled mirror of the card's 409).
-    A runner failure lands in the status doc AND re-raises, so the CronJob pod exits non-zero."""
+    A runner failure lands in the status doc AND re-raises, so a command-line run exits non-zero.
+    `journal=False` skips the `job_trigger` audit row, for the kinds `jobs/registry.py` marks so."""
     attempt_id = await claim_job(client, kind, requested_by=SCHEDULED_ACTOR, prefix=prefix)
     if attempt_id is None:
         log.info("job lease held — skipping scheduled run", kind=kind)
         return None
-    # journal AFTER the claim is won, strict — a lost race journals nothing (D17)
-    await append_auth_event(
-        client,
-        actor=SCHEDULED_ACTOR,
-        action="job_trigger",
-        entity_type="job",
-        entity_id=f"{kind} attempt:{attempt_id}",
-        strict=True,
-        prefix=prefix,
-    )
+    if journal:
+        # journal AFTER the claim is won, strict — a lost race journals nothing (D17)
+        await append_auth_event(
+            client,
+            actor=SCHEDULED_ACTOR,
+            action="job_trigger",
+            entity_type="job",
+            entity_id=f"{kind} attempt:{attempt_id}",
+            strict=True,
+            prefix=prefix,
+        )
     beat = asyncio.create_task(heartbeat_loop(client, kind, attempt_id, prefix=prefix))
     try:
         result = await runner(client)
