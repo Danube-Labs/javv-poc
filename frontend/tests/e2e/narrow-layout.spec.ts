@@ -25,3 +25,17 @@ test('Settings: a section tab shows its whole label, with the scope dot beside i
   expect(overlaps.length).toBeGreaterThan(0)
   expect(overlaps.filter((o) => o.overlap > 0)).toEqual([])
 })
+
+test('Image detail: the page does not scroll sideways, and the scanner switch is on screen', async ({ page }) => {
+  await page.goto(`${BASE}/images`)
+  await page.locator('.tbl tbody a.row-link').first().click({ timeout: 20_000 })
+  await expect(page.locator('.head-actions')).toBeVisible({ timeout: 15_000 })
+  await page.waitForLoadState('networkidle')
+  const { doc, win, switchRight } = await page.evaluate(() => ({
+    doc: document.documentElement.scrollWidth,
+    win: window.innerWidth,
+    switchRight: Math.round(document.querySelector('.head-actions')!.getBoundingClientRect().right),
+  }))
+  expect(doc).toBeLessThanOrEqual(win)
+  expect(switchRight).toBeLessThanOrEqual(win)
+})

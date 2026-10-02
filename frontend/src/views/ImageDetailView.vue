@@ -162,7 +162,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
           <p v-if="repo" class="screen-sub mono-cell">{{ repo }}{{ tag ? `:${tag}` : '' }}</p>
           <p class="digest-line mono-cell" :title="digest">
             <AppIcon name="key" :size="11" />{{ digest }}
-            <i class="digest-note">identity is the content digest: repo:tag is just a handle</i>
           </p>
           <div v-if="inventoryRow" class="img-meta">
             <span class="mono-cell"><b>{{ fmt(inventoryRow.replicas ?? 0) }}</b> replica{{ (inventoryRow.replicas ?? 0) === 1 ? '' : 's' }} at last sweep</span>
@@ -265,7 +264,9 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 16px;
+  /* the scanner switch drops under the identity block when the two don't fit side by side */
+  flex-wrap: wrap;
+  gap: 12px 16px;
   margin-bottom: 16px;
   background: var(--card);
   border: 1px solid var(--line);
@@ -288,6 +289,10 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   display: flex;
   gap: 14px;
   align-items: flex-start;
+  min-width: 0;
+}
+.img-id-head > div {
+  min-width: 0;
 }
 .img-cube {
   width: 44px;
@@ -311,11 +316,6 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.digest-note {
-  font-style: normal;
-  color: var(--soft);
-  font-family: var(--font-ui);
 }
 .img-meta {
   display: flex;
@@ -344,6 +344,8 @@ const fmt = (n: number) => n.toLocaleString('en-US')
   display: flex;
   align-items: center;
   gap: 10px;
+  /* cube (44px) + its gap (14px): a dropped switch lines up under the title, not the cube */
+  margin-left: 58px;
 }
 .lens-label {
   font-size: var(--text-sm);

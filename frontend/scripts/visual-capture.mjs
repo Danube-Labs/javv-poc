@@ -206,7 +206,7 @@ async function forcedStates(page) {
   await page.unroute(imagesApi)
 }
 
-/** The text/control layout pass at the narrower desktop widths: every route, no dumps. */
+/** The text/control layout pass at the narrower desktop widths: every route and both details, no dumps. */
 async function walkNarrow(page, vpName) {
   let n = 10
   for (const route of ROUTES) {
@@ -221,6 +221,12 @@ async function walkNarrow(page, vpName) {
     issues.push(...(await textLayoutIssues(page, `${route.name} ${vpName}`)))
     await shot(page, `${n++}-${route.name}-${vpName}`)
     await page.waitForTimeout(250)
+  }
+  // the two row-click details: they have their own heads, which no listed route exercises
+  for (const [list, ready, name] of [['/findings', '.detail-head', 'finding-detail'], ['/images', '.back-btn', 'image-detail']]) {
+    if (!(await clickDetail(page, BASE, list, ready, `${name} ${vpName}`, issues))) continue
+    issues.push(...(await textLayoutIssues(page, `${name} ${vpName}`)))
+    await shot(page, `${n++}-${name}-${vpName}`)
   }
 }
 
