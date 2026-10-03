@@ -1,9 +1,10 @@
 """Human auth routes (M5a slice 3, FR-18/SEC-6) — login/logout/me/password over the
 provider-agnostic session layer. Failure discipline: unknown user, wrong password, disabled
 account, and a dead session are all the SAME generic 401 (no oracle of any kind); lockout is 429
-before credentials are even looked at. The session cookie is `HttpOnly; Secure; SameSite=Lax`
-(localhost counts as a secure context in browsers, so dev works); its `Max-Age` mirrors the TTL
-but the server-side `expires_at` is what actually decides.
+before credentials are even looked at. The session cookie is `HttpOnly; SameSite=Lax`, plus
+`Secure` unless `JAVV_SESSION_COOKIE_SECURE` is false (a plain-http install; localhost counts as a
+secure context in browsers, so dev works either way); its `Max-Age` mirrors the TTL but the
+server-side `expires_at` is what actually decides.
 
 `must_change` (SEC-6): a fresh bootstrap admin can log in, read `/auth/me`, change its password,
 and log out — nothing else. The capability gate (slice 4, `require_capability`) rejects
@@ -65,7 +66,7 @@ def _set_session_cookie(response: Response, raw: str) -> None:
         COOKIE_NAME,
         raw,
         httponly=True,
-        secure=True,
+        secure=get_settings().session_cookie_secure,
         samesite="lax",
         path="/",
         max_age=int(get_settings().session_ttl_hours * 3600),  # advisory; expires_at decides
@@ -133,7 +134,13 @@ async def logout(request: Request, response: Response) -> None:
                 entity_type="user",
                 entity_id=session["user_id"],
             )
-    response.delete_cookie(COOKIE_NAME, path="/")
+    response.delete_cookie(
+        COOKIE_NAME,
+        path="/",
+        secure=get_settings().session_cookie_secure,
+        httponly=True,
+        samesite="lax",
+    )
 
 
 @router.get("/me")
