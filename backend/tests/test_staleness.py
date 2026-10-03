@@ -269,6 +269,8 @@ async def test_sweep_is_idempotent(real_os) -> None:
         state="stale",
         cve_id=legacy_cve,
     )
+    # created at the real clock and judged at the fixed NOW, so it is never active at NOW either
+    # way; only "expired at NOW" matters (the sweep's expiry query), so this is no date bomb
     await create_decision(
         client,
         actor="t",

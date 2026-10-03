@@ -17,7 +17,7 @@ stale finding. It writes the state saved under the flag (`pre_stale_status`) ins
 ownership by that saved state; a null one counts as `open`, since the sweep's revert restores it
 as `open` (issue 705). The revert then lands on the current projection.
 
-Writes go through the HUMAN_FIELDS family only (`state`, `vex_justification`,
+Writes go through the HUMAN_FIELDS family only (`state`, `pre_stale_status`, `vex_justification`,
 `state_decision_id`) so merge and rebuild can't diverge (CONTRACT §6). Callers must invoke this
 only AFTER a revoke+create pair fully lands (D40/G-r3) — `edit_decision` calls it once, at the
 end; mid-pair overlap is harmless (duplicate coverage) but a gap would not be.
