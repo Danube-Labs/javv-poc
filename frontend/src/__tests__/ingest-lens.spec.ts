@@ -16,10 +16,12 @@ import IngestLens from '@/components/dashboards/IngestLens.vue'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { CHART_SCANNER } from '@/styles/tokens'
 
-vi.mock('@/api/generated', () => ({
-  scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
-  scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
+    scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 
 const pts = (scans: number[]) =>
   scans.map((n, i) => ({ date: `2026-07-0${i + 1}T00:00:00.000Z`, scans: n }))

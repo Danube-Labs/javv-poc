@@ -10,7 +10,11 @@ import { visibleNav } from '@/components/chrome/navModel'
 import { useGlobalSearch, GROUP_SIZE, SEARCH_DIMS } from '@/composables/useGlobalSearch'
 
 const groupsMock = vi.hoisted(() => vi.fn<(opts: { query: Record<string, unknown> }) => unknown>())
-vi.mock('@/api/generated', () => ({ groupFindingsApiV1FindingsGroupsGet: groupsMock }))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    groupFindingsApiV1FindingsGroupsGet: groupsMock,
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 function ok(buckets: Array<{ key: string; count: number }>) {

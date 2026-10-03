@@ -15,14 +15,16 @@ import ScannerFreshnessBanner from '@/components/system/ScannerFreshnessBanner.v
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 
-vi.mock('@/api/generated', () => ({
-  scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
-  getStalenessApiV1SettingsStalenessGet: vi.fn<() => Promise<unknown>>().mockResolvedValue({
-    data: { staleness: { freshness_days: 3, scanner_down_days: 7 }, per_cluster_override: false },
-    response: { ok: true, status: 200 },
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
+    getStalenessApiV1SettingsStalenessGet: vi.fn<() => Promise<unknown>>().mockResolvedValue({
+      data: { staleness: { freshness_days: 3, scanner_down_days: 7 }, per_cluster_override: false },
+      response: { ok: true, status: 200 },
+    }),
+    listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
   }),
-  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
-}))
+)
 
 vi.mock('@/lib/logger', () => ({
   logger: {

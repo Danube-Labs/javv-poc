@@ -5,14 +5,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import IngestFailuresTable from '@/components/scanners/IngestFailuresTable.vue'
 import { buildIngestFailuresQuery, type IngestFailureRow } from '@/system/ingestFailures'
 
-vi.mock('@/api/generated', () => ({
-  scannerIngestFailuresApiV1ScannersIngestFailuresGet: vi.fn<() => Promise<unknown>>(),
-  scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
-  scannerProvenanceApiV1ScannersProvenanceGet: vi.fn<() => Promise<unknown>>(),
-  scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
-  ingestFailuresTrendApiV1TrendsIngestFailuresGet: vi.fn<() => Promise<unknown>>(),
-  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    scannerIngestFailuresApiV1ScannersIngestFailuresGet: vi.fn<() => Promise<unknown>>(),
+    scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
+    scannerProvenanceApiV1ScannersProvenanceGet: vi.fn<() => Promise<unknown>>(),
+    scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
+    ingestFailuresTrendApiV1TrendsIngestFailuresGet: vi.fn<() => Promise<unknown>>(),
+    listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 import {

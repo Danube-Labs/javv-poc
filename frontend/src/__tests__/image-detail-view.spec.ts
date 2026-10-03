@@ -8,16 +8,18 @@ import ImageDetailView from '@/views/ImageDetailView.vue'
 
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } })
 
-vi.mock('@/api/generated', () => ({
-  facetFindingsApiV1FindingsFacetsGet: vi.fn<() => Promise<unknown>>(),
-  searchFindingsApiV1FindingsGet: vi.fn<() => Promise<unknown>>(),
-  listRunningImagesApiV1ImagesGet: vi.fn<() => Promise<unknown>>(),
-  imageTimelineApiV1ImagesTimelineGet: vi.fn<() => Promise<unknown>>(),
-  // the ingest lens (audit 343) mounts inside the view and calls these two
-  scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
-  scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
-  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    facetFindingsApiV1FindingsFacetsGet: vi.fn<() => Promise<unknown>>(),
+    searchFindingsApiV1FindingsGet: vi.fn<() => Promise<unknown>>(),
+    listRunningImagesApiV1ImagesGet: vi.fn<() => Promise<unknown>>(),
+    imageTimelineApiV1ImagesTimelineGet: vi.fn<() => Promise<unknown>>(),
+    // the ingest lens (audit 343) mounts inside the view and calls these two
+    scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
+    scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
+    listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 import {
