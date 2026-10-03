@@ -12,6 +12,10 @@ import RepairActionsCard from '@/components/system/RepairActionsCard.vue'
 vi.mock('@/api/generated', () => ({
   listJobsApiV1AdminJobsGet: vi.fn<() => Promise<unknown>>(),
   triggerJobApiV1AdminJobsKindRunPost: vi.fn<() => Promise<unknown>>(),
+  changePasswordAuthPasswordPost: vi.fn<() => Promise<unknown>>(),
+  loginAuthLoginPost: vi.fn<() => Promise<unknown>>(),
+  logoutAuthLogoutPost: vi.fn<() => Promise<unknown>>(),
+  meAuthMeGet: vi.fn<() => Promise<unknown>>(),
 }))
 
 const idle = { status: 'idle', stale: false, next_run_at: null }

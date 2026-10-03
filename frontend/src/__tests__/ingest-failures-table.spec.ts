@@ -11,6 +11,7 @@ vi.mock('@/api/generated', () => ({
   scannerProvenanceApiV1ScannersProvenanceGet: vi.fn<() => Promise<unknown>>(),
   scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
   ingestFailuresTrendApiV1TrendsIngestFailuresGet: vi.fn<() => Promise<unknown>>(),
+  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 

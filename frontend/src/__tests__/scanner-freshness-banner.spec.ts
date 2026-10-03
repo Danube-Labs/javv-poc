@@ -21,6 +21,7 @@ vi.mock('@/api/generated', () => ({
     data: { staleness: { freshness_days: 3, scanner_down_days: 7 }, per_cluster_override: false },
     response: { ok: true, status: 200 },
   }),
+  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
 }))
 
 vi.mock('@/lib/logger', () => ({
