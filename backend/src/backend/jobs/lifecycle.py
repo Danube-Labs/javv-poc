@@ -31,6 +31,8 @@ cluster (task F m-5) — and never silently swept with DEFAULT settings, which c
 retention than the operator configured (fail-closed beats fail-default for a destructive op).
 """
 
+import argparse
+import asyncio
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -270,50 +272,49 @@ async def run_lifecycle_sweep(
     return {"rolled": rolled, "dropped": dropped, "errors": errors}
 
 
-if __name__ == "__main__":  # command-line entrypoint + interim settings CLI (until M9e UI)
-    import argparse
-    import asyncio
-
-    from backend.core.settings import get_settings
-    from backend.jobs.lease import run_under_lease
-
+def _parser() -> argparse.ArgumentParser:
+    """The command line: run the sweep, or set the D26 settings (interim, until the M9e UI)."""
     ap = argparse.ArgumentParser(description="Run the lifecycle sweep, or set the D26 settings")
     ap.add_argument("--set-max-age-days", type=float, help="rollover: max index age (default 30)")
     ap.add_argument("--set-max-docs", type=int, help="rollover: max docs (default 5,000,000)")
     ap.add_argument("--set-max-size-gb", type=float, help="rollover: max size (default 50)")
     ap.add_argument("--set-retention-days", type=float, help="retention window (default 90)")
     ap.add_argument("--cluster", help="set the per-cluster override (default: fleet-wide)")
-    args = ap.parse_args()
+    return ap
 
-    async def _main() -> None:
-        settings = get_settings()
-        client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
-        try:
-            updates = {
-                key: value
-                for key, value in (
-                    ("max_age_days", args.set_max_age_days),
-                    ("max_docs", args.set_max_docs),
-                    ("max_size_gb", args.set_max_size_gb),
-                    ("retention_days", args.set_retention_days),
-                )
-                if value is not None
-            }
-            if updates:
-                current = await read_lifecycle_settings(client, cluster_id=args.cluster)
-                new_settings = current.model_copy(update=updates)
-                await write_lifecycle_settings(
-                    client, new_settings, updated_by="cli", cluster_id=args.cluster
-                )
-                scope = f"cluster {args.cluster}" if args.cluster else "fleet-wide"
-                print(f"lifecycle settings set ({scope}): {new_settings.model_dump()}")
-            else:
-                result = await run_under_lease(client, "lifecycle_sweep", run_lifecycle_sweep)
-                print(
-                    f"lifecycle sweep: "
-                    f"{result if result is not None else 'skipped — already running'}"
-                )
-        finally:
-            await client.close()
 
-    asyncio.run(_main())
+async def _main(args: argparse.Namespace) -> str:
+    """Returns the line the command prints. A run goes through the job registry like a scheduled
+    one, so a run with errors raises here too and the command exits non-zero (issue 706)."""
+    from backend.core.settings import get_settings
+    from backend.jobs import registry
+
+    settings = get_settings()
+    client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+    try:
+        updates = {
+            key: value
+            for key, value in (
+                ("max_age_days", args.set_max_age_days),
+                ("max_docs", args.set_max_docs),
+                ("max_size_gb", args.set_max_size_gb),
+                ("retention_days", args.set_retention_days),
+            )
+            if value is not None
+        }
+        if updates:
+            current = await read_lifecycle_settings(client, cluster_id=args.cluster)
+            new_settings = current.model_copy(update=updates)
+            await write_lifecycle_settings(
+                client, new_settings, updated_by="cli", cluster_id=args.cluster
+            )
+            scope = f"cluster {args.cluster}" if args.cluster else "fleet-wide"
+            return f"lifecycle settings set ({scope}): {new_settings.model_dump()}"
+        result = await registry.run_job(client, "lifecycle_sweep")
+        return f"lifecycle sweep: {result if result is not None else 'skipped — already running'}"
+    finally:
+        await client.close()
+
+
+if __name__ == "__main__":
+    print(asyncio.run(_main(_parser().parse_args())))

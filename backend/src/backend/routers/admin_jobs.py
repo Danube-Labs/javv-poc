@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse
 from opensearchpy import AsyncOpenSearch
 
 from backend.audit.writer import append_auth_event
+from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.settings import Settings, get_settings
 from backend.jobs.lease import JOBS_INDEX, claim_job, finalize_job, heartbeat_loop, lease_fresh
@@ -114,7 +115,7 @@ def job_view(
 @router.get("")
 async def list_jobs(
     request: Request,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    principal: Annotated[Principal, Depends(require_capability("can_inspect_store"))],
 ) -> dict[str, Any]:
     """Every background job: running/idle/done/failed + last result, whether it can be started
     here (`runnable`), its cron `schedule`, its `next_run_at` and its `health` (`ok`, `failed`,

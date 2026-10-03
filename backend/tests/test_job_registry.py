@@ -8,7 +8,14 @@ from typing import Any
 import pytest
 from opensearchpy import AsyncOpenSearch
 
-from backend.jobs import findings_cleanup, registry, report_drain, report_sweep, session_sweep
+from backend.jobs import (
+    findings_cleanup,
+    lifecycle,
+    registry,
+    report_drain,
+    report_sweep,
+    session_sweep,
+)
 from backend.jobs.lease import JOBS_INDEX, SCHEDULED_ACTOR
 from backend.jobs.registry import JOBS, run_job
 from backend.routers import admin_jobs
@@ -146,6 +153,21 @@ async def test_each_command_line_entry_point_runs_its_kind_through_the_registry(
 
     assert await module._main() == 0
     assert ran == [kind]
+
+
+@requires_opensearch
+async def test_the_lifecycle_entry_point_runs_its_kind_through_the_registry(monkeypatch) -> None:
+    """Issue 706: so a run with errors fails on the command line as it does on the schedule."""
+    ran: list[str] = []
+
+    async def spy(_: AsyncOpenSearch, k: str, **__: Any) -> dict[str, Any]:
+        ran.append(k)
+        return {"rolled": 0, "dropped": 0, "errors": 0}
+
+    monkeypatch.setattr(registry, "run_job", spy)
+
+    line = await lifecycle._main(lifecycle._parser().parse_args([]))
+    assert ran == ["lifecycle_sweep"] and line.startswith("lifecycle sweep:")
 
 
 @requires_opensearch

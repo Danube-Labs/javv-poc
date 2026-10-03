@@ -99,7 +99,7 @@ def _running_doc(heartbeat_at: str) -> dict[str, Any]:
 
 async def test_staleness_trigger_runs_to_done_and_is_journaled(env, private_sweep):
     http, client = env
-    actor = await _login(http, client, ["can_manage_settings"])
+    actor = await _login(http, client, ["can_manage_settings", "can_inspect_store"])
     r = await http.post("/api/v1/admin/jobs/staleness_sweep/run")
     assert r.status_code == 202
     attempt = r.json()["attempt_id"]
@@ -146,7 +146,7 @@ async def test_fresh_lease_409s_a_second_trigger(env):
 
 async def test_stale_lease_is_reclaimable(env, private_sweep):
     http, client = env
-    await _login(http, client, ["can_manage_settings"])
+    await _login(http, client, ["can_manage_settings", "can_inspect_store"])
     old = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
     await client.index(
         index=JOBS, id="staleness_sweep", body=_running_doc(old), params={"refresh": "true"}
@@ -189,7 +189,7 @@ async def test_unknown_kind_404s(env):
 
 async def test_lifecycle_dry_run_is_inline_and_leaves_no_status_doc(env):
     http, client = env
-    actor = await _login(http, client, ["can_drop_index"])
+    actor = await _login(http, client, ["can_drop_index", "can_inspect_store"])
     r = await http.post("/api/v1/admin/jobs/lifecycle_sweep/run?dry_run=true")
     assert r.status_code == 200  # inline answer, not a 202 background run
     body = r.json()
@@ -241,7 +241,7 @@ NOON = datetime(2026, 6, 10, 12, 0, tzinfo=RO)
 async def test_status_lists_every_kind_with_capability(env, monkeypatch):
     http, client = env
     monkeypatch.setattr(admin_jobs, "get_settings", lambda: Settings(scheduler_enabled=True))
-    await _login(http, client, [])  # any authenticated user may LOOK
+    await _login(http, client, ["can_inspect_store"])  # the Data inspector's own capability
     s = await http.get("/api/v1/admin/jobs")
     assert s.status_code == 200
     body = s.json()
@@ -261,12 +261,20 @@ async def test_status_lists_every_kind_with_capability(env, monkeypatch):
 
 async def test_the_scheduler_switched_off_is_reported(env):
     http, client = env  # the suite runs with JAVV_SCHEDULER_ENABLED=false
-    await _login(http, client, [])
+    await _login(http, client, ["can_inspect_store"])
     body = (await http.get("/api/v1/admin/jobs")).json()
     assert body["scheduler"]["enabled"] is False
     for job in body["jobs"]:
         assert job["next_run_at"] is None
         assert job["health"] in {"off", "failed"}
+
+
+async def test_the_job_list_needs_the_inspect_capability(env):
+    """Issue 706: the list carries failure text and who started each run; the Data inspector
+    that shows it already needs `can_inspect_store`."""
+    http, client = env
+    await _login(http, client, [])
+    assert (await http.get("/api/v1/admin/jobs")).status_code == 403
 
 
 @pytest.mark.parametrize("kind", sorted(SCHEDULED_ONLY))

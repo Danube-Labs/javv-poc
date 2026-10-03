@@ -72,7 +72,8 @@ class DecisionPayload(BaseModel):
             raise ValueError(msg) from None
         if parsed.tzinfo is None:
             raise ValueError("expiry datetime must be timezone-aware")
-        return v
+        # stored in UTC: is_active_at compares it as text against UTC stamps (issue 706)
+        return parsed.astimezone(UTC).isoformat()
 
     @model_validator(mode="after")
     def _scanner_iff_specific(self) -> "DecisionPayload":
