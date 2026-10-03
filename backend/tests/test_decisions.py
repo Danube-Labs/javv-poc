@@ -18,6 +18,7 @@ from backend.decisions.lifecycle import (
     edit_decision,
     revoke_decision,
 )
+from backend.decisions.projection import is_active_at
 from os_env import requires_opensearch
 
 pytestmark = requires_opensearch
@@ -296,6 +297,18 @@ def test_expiry_must_be_iso_8601_date_or_aware_datetime() -> None:
     aware = "2026-12-31T00:00:00+00:00"
     assert DecisionPayload.model_validate({**base, "expiry": aware}).expiry == aware
     assert DecisionPayload.model_validate({**base, "expiry": None}).expiry is None
+
+
+def test_a_datetime_expiry_is_stored_in_utc() -> None:
+    """Issue 706: `is_active_at` compares expiry as text against UTC stamps, so an offset kept
+    as typed moved the expiry instant by the size of the offset (up to 14 hours)."""
+    base = _vex_base(type="risk_accepted", vex_justification=None)
+    stored = DecisionPayload.model_validate({**base, "expiry": "2026-10-02T23:00:00+02:00"}).expiry
+    assert stored == "2026-10-02T21:00:00+00:00"
+    zulu = DecisionPayload.model_validate({**base, "expiry": "2026-12-31T00:00:00Z"}).expiry
+    assert zulu == "2026-12-31T00:00:00+00:00"
+    decision = {"created_at": "2026-10-01T00:00:00+00:00", "revoked_at": None, "expiry": stored}
+    assert not is_active_at(decision, "2026-10-02T22:00:00+00:00")  # an hour past the instant
 
 
 # --- M5c: projection round-trip on the findings cache -------------------------------
