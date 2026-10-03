@@ -48,7 +48,16 @@ async def _staleness(client: AsyncOpenSearch) -> dict[str, Any]:
 
 
 async def _lifecycle(client: AsyncOpenSearch) -> dict[str, Any]:
-    return dict(await run_lifecycle_sweep(client))
+    result = dict(await run_lifecycle_sweep(client))
+    if result["errors"]:
+        # The sweep skips and counts a broken cluster so the others still run; the run as a whole
+        # still failed, so it raises here and every reader of the record says so (issue 706). The
+        # counts survive only in the message; the series names are in the sweep's log lines.
+        raise RuntimeError(
+            f"lifecycle sweep: {result['errors']} series failed "
+            f"(rolled {result['rolled']}, dropped {result['dropped']}); see the backend log"
+        )
+    return result
 
 
 async def _findings_cleanup(client: AsyncOpenSearch) -> dict[str, Any]:

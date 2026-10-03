@@ -9,13 +9,20 @@ would delete fresh data out of a long-lived just-rolled index. Real OpenSearch."
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
+import pytest
+
+from backend.jobs import registry
+from backend.jobs.lease import JOBS_INDEX
 from backend.jobs.lifecycle import (
     LifecycleSettings,
     read_lifecycle_settings,
     run_lifecycle_sweep,
     write_lifecycle_settings,
 )
+from backend.jobs.registry import run_job
+from backend.jobs.schedule import job_health
 from backend.services.aliases import ensure_write_alias
 from os_env import requires_opensearch
 
@@ -335,6 +342,45 @@ async def test_a_malformed_settings_doc_cannot_abort_the_whole_sweep(real_os) ->
     assert not await client.indices.exists(index=f"{prefix}javv-scan-events-{healthy}-000001")
     # the broken cluster's data is untouched — skipped, not defaulted
     assert await client.indices.exists(index=f"{prefix}javv-scan-events-{broken}-000001")
+
+
+@requires_opensearch
+async def test_a_run_with_errors_is_recorded_as_failed(real_os, monkeypatch) -> None:
+    """Issue 706: the sweep skips and counts a broken cluster (above), but the run as a whole
+    failed, so the job record, its health and the scheduler say so. The sweep is stubbed: run
+    through the registry it would act on the unprefixed store."""
+    client, prefix = real_os
+
+    async def sweep(_: Any) -> dict[str, int]:
+        return {"rolled": 2, "dropped": 0, "errors": 1}
+
+    monkeypatch.setattr(registry, "run_lifecycle_sweep", sweep)
+
+    with pytest.raises(RuntimeError, match="1 series failed"):
+        await run_job(client, "lifecycle_sweep", prefix=prefix)
+
+    doc = (await client.get(index=f"{prefix}{JOBS_INDEX}", id="lifecycle_sweep"))["_source"]
+    assert doc["status"] == "failed"
+    assert "rolled 2, dropped 0" in doc["error"]
+    assert job_health(doc, "0 3 * * *", now=NOW, enabled=True, lease_fresh=False) == "failed"
+
+
+@requires_opensearch
+async def test_a_run_with_no_errors_is_recorded_as_done(real_os, monkeypatch) -> None:
+    client, prefix = real_os
+
+    async def sweep(_: Any) -> dict[str, int]:
+        return {"rolled": 1, "dropped": 1, "errors": 0}
+
+    monkeypatch.setattr(registry, "run_lifecycle_sweep", sweep)
+
+    assert await run_job(client, "lifecycle_sweep", prefix=prefix) == {
+        "rolled": 1,
+        "dropped": 1,
+        "errors": 0,
+    }
+    doc = (await client.get(index=f"{prefix}{JOBS_INDEX}", id="lifecycle_sweep"))["_source"]
+    assert doc["status"] == "done"
 
 
 @requires_opensearch
