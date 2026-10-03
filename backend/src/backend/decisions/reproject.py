@@ -5,12 +5,17 @@ event is exactly its `(cluster, cve)`, so triggers (decision create/revoke/edit,
 expiry sweep) all funnel here. Reads every active decision for the pair + every candidate
 finding, runs `project()`, and bulk-writes only the deltas — idempotent, a re-run changes 0.
 
-Overwrite discipline (direct action > auto-rule): a finding's `state` is written only when
-projection already owns it (`state_decision_id` set) or it sits at the default (`open`).
-A human-set state (acknowledged/resolved/… with null provenance) and the system's `stale` are
-never overwritten. Fallback ruling: when a projected finding's winner retires and NO other rule
-matches, it reverts to `open` (the pre-decision state isn't stored; PLAN §5.7's "next applicable
-rule, not open" is satisfied because `project()` ranks the survivors first).
+Overwrite discipline (direct action > auto-rule): projection writes a finding only when it
+already owns it (`state_decision_id` set) or the finding sits at the default (`open`). A
+human-set state (acknowledged/resolved/… with null provenance) is never overwritten. Fallback
+ruling: when a projected finding's winner retires and NO other rule matches, it reverts to `open`
+(the pre-decision state isn't stored; PLAN §5.7's "next applicable rule, not open" is satisfied
+because `project()` ranks the survivors first).
+
+`stale` is a presence flag laid over the state (D39), so projection never writes `state` on a
+stale finding. It writes the state saved under the flag (`pre_stale_status`) instead, judging
+ownership by that saved state; a null one counts as `open`, since the sweep's revert restores it
+as `open` (issue 705). The revert then lands on the current projection.
 
 Writes go through the HUMAN_FIELDS family only (`state`, `vex_justification`,
 `state_decision_id`) so merge and rebuild can't diverge (CONTRACT §6). Callers must invoke this
@@ -43,6 +48,7 @@ _SOURCE = [
     "image_digest",
     "namespaces",
     "state",
+    "pre_stale_status",
     "vex_justification",
     "state_decision_id",
 ]
@@ -54,17 +60,18 @@ def _target_for(
     """The projected write for an OWNED finding, or None when projection must keep its hands off.
 
     Ownership (direct action > auto-rule) is re-evaluated against the *given* source, so a
-    guarded-retry that re-reads a doc a human just triaged (provenance cleared) returns None."""
-    owned = doc.get("state_decision_id") is not None or doc.get("state") == "open"
-    if not owned:
-        return None  # direct human action / system stale — untouched
+    guarded-retry that re-reads a doc a human just triaged (provenance cleared) returns None.
+    On a stale finding the target names `pre_stale_status` instead of `state`."""
+    stale = doc.get("state") == "stale"
+    saved = doc.get("pre_stale_status") if stale else doc.get("state")
+    at_default = saved == "open" or (stale and saved is None)
+    if doc.get("state_decision_id") is None and not at_default:
+        return None  # direct human action — untouched
     won = project(doc, decisions, at=at)
-    if won is None:
-        return {"state": "open", "vex_justification": None, "state_decision_id": None}
     return {
-        "state": won.state,
-        "vex_justification": won.vex_justification,
-        "state_decision_id": won.decision_id,
+        "pre_stale_status" if stale else "state": won.state if won else "open",
+        "vex_justification": won.vex_justification if won else None,
+        "state_decision_id": won.decision_id if won else None,
     }
 
 
