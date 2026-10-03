@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     ingest_rate_limit_per_minute: int = Field(default=120, ge=1)
     # human sessions (M5a/SEC-5): server-side TTL — the cookie's own lifetime is advisory
     session_ttl_hours: float = Field(default=24.0, gt=0)
+    # the session cookie's Secure flag. A browser keeps a Secure cookie only from https or
+    # localhost, so an install served over plain http sets this false. It defaults to true
+    # because JAVV cannot see a TLS terminator in front of it (issue 452).
+    session_cookie_secure: bool = True
     # how long an expired session row stays before `jobs/session_sweep.py` deletes it (issue 532)
     session_sweep_grace_hours: float = Field(default=24.0, ge=0)
     # login lockout (M5a): N failures per sliding window locks the username (429)

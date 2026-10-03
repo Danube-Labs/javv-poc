@@ -148,7 +148,7 @@ from an env/secret and must change the password on first login - FR-18.)
 - **FR-17 Saved views (MVP, shared).** `system-views` named filter sets, visible to every signed-in user;
   only the owner or an admin can change or delete one (M8e/C-6); deep-link into pre-filtered Findings.
 - **FR-18 Auth/RBAC (capability-based - D33; lifecycle - SEC-5).** Local users (`system-users`, argon2id) +
-  **server-side sessions** (`system-sessions`: httpOnly+Secure+SameSite cookie, TTL, revoke-on-role-change;
+  **server-side sessions** (`system-sessions`: httpOnly+Secure+SameSite cookie, `Secure` switchable for a plain-http install (issue 452), TTL, revoke-on-role-change;
   one session per browser, **shared across tabs**) + **bootstrap admin** (mounted secret, seed-once,
   server-enforced `must_change` - SEC-6) + **password policy + login lockout/throttle** + **auth-event
   auditing**. **Capabilities, not role strings**, gate every action (`can_triage`, `can_accept_audit_final`

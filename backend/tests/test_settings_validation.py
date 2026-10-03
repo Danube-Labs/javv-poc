@@ -42,6 +42,7 @@ def _clear_settings_cache():
         ("JAVV_REPORT_LEASE_TTL_SECONDS", "0"),
         ("JAVV_REPORT_DRAIN_SLEEP_MS", "-1"),  # 0 is legal (no throttle); negative is not
         ("JAVV_EXPORT_MAX_ROWS", "lots"),  # type garbage pinned too (pydantic coercion)
+        ("JAVV_SESSION_COOKIE_SECURE", "maybe"),
     ],
 )
 def test_semantically_broken_values_are_rejected(monkeypatch, var: str, value: str) -> None:
@@ -73,6 +74,14 @@ def test_defaults_and_legit_values_pass(monkeypatch) -> None:
     monkeypatch.setenv("JAVV_SEARCH_PIT_KEEP_ALIVE", "1500ms")
     monkeypatch.setenv("JAVV_REPORT_DRAIN_SLEEP_MS", "0")  # 0 = no throttle, legitimate in dev
     assert Settings().search_pit_keep_alive == "1500ms"
+
+
+def test_the_session_cookie_is_secure_unless_switched_off(monkeypatch) -> None:
+    """Secure by default: JAVV cannot see a TLS terminator in front of it, so only an install
+    served over plain http switches it off (issue 452)."""
+    assert Settings().session_cookie_secure is True
+    monkeypatch.setenv("JAVV_SESSION_COOKIE_SECURE", "false")
+    assert Settings().session_cookie_secure is False
 
 
 @pytest.mark.parametrize(

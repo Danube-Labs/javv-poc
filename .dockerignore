@@ -1,0 +1,22 @@
+# Every image builds from the repo root (the Python images need libs/javv-common by path), so
+# this file is an allowlist: only the project folders reach the build context.
+*
+!backend/
+!frontend/
+!libs/
+!scanner/
+
+**/.venv
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/*.egg-info
+backend/tests
+scanner/tests
+libs/*/tests
+frontend/dist
+frontend/coverage
+frontend/test-results
+frontend/playwright-report

@@ -19,7 +19,7 @@
 |---|---|---|
 | **none** | — | `/healthz`, `/readyz`, `/metrics` (cluster-internal; restrict by scrape topology, not app auth) |
 | **machine** | `Authorization: Bearer <token>` — per-`(cluster, scanner)` 256-bit token, peppered-SHA-256 at rest, scope-bound to the payload (SEC-3) | ingest, scan-scope, scan-runs |
-| **session** | httpOnly `Secure` cookie from `/auth/login`; server-side TTL + revocation; login lockout | every human endpoint |
+| **session** | httpOnly cookie from `/auth/login`, `Secure` unless `JAVV_SESSION_COOKIE_SECURE=false`; server-side TTL + revocation; login lockout | every human endpoint |
 
 Session endpoints marked with a **capability** additionally require it on the principal's role
 bundle (D33; roles: `viewer` — none, `triager` — `can_triage`, `security_lead` — `can_triage` +

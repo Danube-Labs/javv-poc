@@ -2,8 +2,9 @@
 
 Failure discipline: wrong password, unknown user, and disabled user are the SAME generic 401 (no
 existence oracle; the dummy-hash keeps timing flat). Lockout answers 429 regardless of credential
-correctness. The session cookie is httpOnly+Secure+SameSite=Lax — tests speak https to the ASGI
-app so the cookie jar replays it. Real OpenSearch (real indices, unique per-test usernames — same
+correctness. The session cookie is httpOnly+SameSite=Lax, plus Secure unless
+JAVV_SESSION_COOKIE_SECURE is false — tests speak https to the ASGI app so the cookie jar replays it
+either way. Real OpenSearch (real indices, unique per-test usernames — same
 convention as the ingest route tests)."""
 
 import uuid
@@ -16,7 +17,7 @@ from opensearchpy import AsyncOpenSearch
 from backend.auth.bootstrap_admin import seed_bootstrap_admin
 from backend.auth.passwords import hash_password
 from backend.core.bootstrap import bootstrap
-from backend.core.settings import Settings
+from backend.core.settings import Settings, get_settings
 from backend.main import create_app
 from os_env import OS_URL, requires_opensearch
 
@@ -69,6 +70,21 @@ def _u() -> str:
     return f"u-{uuid.uuid4().hex[:12]}"
 
 
+def _attributes(set_cookie: str) -> set[str]:
+    """The attribute names of one Set-Cookie header, lowercased. Read as names, not substrings,
+    since a random session value could contain the letters "secure"."""
+    _pair, *attrs = set_cookie.split(";")
+    return {a.strip().split("=", 1)[0].lower() for a in attrs}
+
+
+@pytest.fixture
+def cookie_secure(request, monkeypatch):
+    monkeypatch.setenv("JAVV_SESSION_COOKIE_SECURE", "true" if request.param else "false")
+    get_settings.cache_clear()
+    yield request.param
+    get_settings.cache_clear()
+
+
 async def _login(
     http, username: str, password: str = PASSWORD, *, request_id: str | None = None
 ) -> httpx.Response:
@@ -81,7 +97,10 @@ async def _login(
 # --- login ------------------------------------------------------------------------
 
 
-async def test_login_happy_path_sets_cookie_and_returns_the_public_user(auth_client) -> None:
+@pytest.mark.parametrize("cookie_secure", [True, False], indirect=True)
+async def test_login_happy_path_sets_cookie_and_returns_the_public_user(
+    auth_client, cookie_secure: bool
+) -> None:
     http, client = auth_client
     user = _u()
     await _seed_user(client, user)
@@ -95,8 +114,9 @@ async def test_login_happy_path_sets_cookie_and_returns_the_public_user(auth_cli
     assert "password_hash" not in str(r.json())  # the hash never leaves the server
     cookie = r.headers["set-cookie"]
     assert "javv_session=" in cookie
-    for flag in ("HttpOnly", "Secure", "SameSite=lax", "Path=/"):
+    for flag in ("HttpOnly", "SameSite=lax", "Path=/"):
         assert flag.lower() in cookie.lower(), flag
+    assert ("secure" in _attributes(cookie)) is cookie_secure  # JAVV_SESSION_COOKIE_SECURE
 
 
 async def test_wrong_password_and_unknown_user_are_the_same_generic_401(auth_client) -> None:
@@ -149,6 +169,26 @@ async def test_me_roundtrip_and_logout_kills_the_session_server_side(auth_client
 
     assert (await http.post("/auth/logout")).status_code == 204
     assert (await http.get("/auth/me")).status_code == 401  # revoked, not just cookie-cleared
+
+
+@pytest.mark.parametrize("cookie_secure", [True, False], indirect=True)
+async def test_logout_clears_the_cookie_with_the_same_flags_as_login(
+    auth_client, cookie_secure: bool
+) -> None:
+    http, client = auth_client
+    user = _u()
+    await _seed_user(client, user)
+    login = await _login(http, user)
+
+    out = await http.post("/auth/logout")
+
+    cleared = out.headers["set-cookie"]
+    assert cleared.startswith("javv_session=")
+    assert "max-age=0" in cleared.lower()  # an expired cookie: the browser drops it
+    # logout follows JAVV_SESSION_COOKIE_SECURE exactly as login does
+    assert _attributes(cleared) >= {"httponly", "samesite", "path"}
+    assert ("secure" in _attributes(cleared)) is cookie_secure
+    assert ("secure" in _attributes(login.headers["set-cookie"])) is cookie_secure
 
 
 async def test_me_without_or_with_garbage_cookie_is_401(auth_client) -> None:
