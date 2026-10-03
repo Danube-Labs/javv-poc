@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.5.0](https://github.com/Danube-Labs/javv-poc/compare/v0.4.13...v0.5.0) (2026-10-03)
+
+
+### Features
+
+* a crash page inside the frame, and a static maintenance page ([#688](https://github.com/Danube-Labs/javv-poc/issues/688)) ([8f89011](https://github.com/Danube-Labs/javv-poc/commit/8f89011a79979f57f4b6e64ea5938afd9679a410))
+* one registry and one lease for every background job, the schedule maths and the scheduler settings ([#692](https://github.com/Danube-Labs/javv-poc/issues/692)) ([87a704f](https://github.com/Danube-Labs/javv-poc/commit/87a704f0cd0c16f019f824a9fc64b17ad99ca98f))
+* the audit log opens without sign-ins, and a triage change can be undone ([#686](https://github.com/Danube-Labs/javv-poc/issues/686)) ([e03213a](https://github.com/Danube-Labs/javv-poc/commit/e03213ae968ed3591668a1cf45ce369194573c2c))
+* the backend runs its own background jobs on cron schedules ([#693](https://github.com/Danube-Labs/javv-poc/issues/693)) ([f637fed](https://github.com/Danube-Labs/javv-poc/commit/f637fed0c67946f81bd9d2391b9b8b2fb731bdd8))
+* the Guide explains a state against a risk acceptance, and the Approval list ([#700](https://github.com/Danube-Labs/javv-poc/issues/700)) ([f0b15ba](https://github.com/Danube-Labs/javv-poc/commit/f0b15baa21bc96f948d66e091d45a65a99ed35bf)), closes [#698](https://github.com/Danube-Labs/javv-poc/issues/698)
+* the job cards on the Data inspector become one table with column headers ([#696](https://github.com/Danube-Labs/javv-poc/issues/696)) ([2a9eb30](https://github.com/Danube-Labs/javv-poc/commit/2a9eb303d500896ff26aade7508871c5818c6e56))
+* the jobs route lists every background job with its schedule and health ([#694](https://github.com/Danube-Labs/javv-poc/issues/694)) ([9721e64](https://github.com/Danube-Labs/javv-poc/commit/9721e64082f2a0610e281a21d1e2df90e5e34f69))
+* the Scheduled jobs card on the Data inspector, with a status chip per job ([#695](https://github.com/Danube-Labs/javv-poc/issues/695)) ([71c3df8](https://github.com/Danube-Labs/javv-poc/commit/71c3df8af331b677c475c307c31d7f533a6f3e9d))
+
+
+### Bug Fixes
+
+* a dead backend is reported as the server, not as a wrong password or OpenSearch ([#689](https://github.com/Danube-Labs/javv-poc/issues/689)) ([a4493bb](https://github.com/Danube-Labs/javv-poc/commit/a4493bb925a24d100e3100c15d8cb9f3b0a232f4))
+* an image that cannot be scanned no longer freezes the running-images view ([#690](https://github.com/Danube-Labs/javv-poc/issues/690)) ([ccc52ab](https://github.com/Danube-Labs/javv-poc/commit/ccc52abc2c1921955f2076f540a7e7e2dbc2ea24))
+* expiry stored in UTC, lifecycle errors fail the run, jobs list needs the inspect permission ([#709](https://github.com/Danube-Labs/javv-poc/issues/709)) ([567e73e](https://github.com/Danube-Labs/javv-poc/commit/567e73e189772bef2d0f67a838f8d5dfa3469d70))
+* small findings from the design review (wording, headings, scope legend, empty pager) ([#685](https://github.com/Danube-Labs/javv-poc/issues/685)) ([2fa5d7c](https://github.com/Danube-Labs/javv-poc/commit/2fa5d7c3e619cf371f5e554c34be38a096197879))
+* stale survives decision re-projection, and token rotation no longer mass-stales ([#708](https://github.com/Danube-Labs/javv-poc/issues/708)) ([87fec5f](https://github.com/Danube-Labs/javv-poc/commit/87fec5f9c61a98d886b86fc137a7cf707571b737))
+
+
+### Miscellaneous Chores
+
+* cut the 0.5.0 minor release ([#713](https://github.com/Danube-Labs/javv-poc/issues/713)) ([01b8018](https://github.com/Danube-Labs/javv-poc/commit/01b8018cc568ea6695fbf9c3eae048b772dae7b4))
+
 ## [0.4.13](https://github.com/Danube-Labs/javv-poc/compare/v0.4.12...v0.4.13) (2026-10-02)
 
 
