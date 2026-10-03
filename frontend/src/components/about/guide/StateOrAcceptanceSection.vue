@@ -27,7 +27,13 @@ const FIRST_REASON = CISA_JUSTIFICATIONS[0].label
         <span class="state-row"><StateTag v-for="s in PERSON_STATES" :key="s" :state="s" /></span>
       </li>
       <li>A user with the triage permission can set a state.</li>
-      <li>A state has no scope and no expiry date. It stays until a person changes it.</li>
+      <li>
+        A state has no scope and no expiry date. A person changes it. One exception: JAVV sets
+        <StateTag state="stale" /> when the scanner sends scans but no scan saw the finding during the
+        freshness window. JAVV also sets Stale when the scanner sent no scans during the scanner-down
+        window. When a scan sees the finding again, or reports it gone, the next staleness sweep restores
+        the state that the finding had before Stale. A risk acceptance made in the meantime still applies.
+      </li>
     </ul>
 
     <p><strong>Accept the risk</strong></p>

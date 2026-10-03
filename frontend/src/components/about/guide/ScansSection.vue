@@ -22,6 +22,14 @@ import GuideProse from './GuideProse.vue'
         findings are marked <StateTag state="stale" />. Admins set both windows per cluster in
         <span class="ui-name">Settings › Scanning</span>.
       </li>
+      <li>
+        <strong>An image that a scanner cannot scan keeps its old findings.</strong> If a scanner cannot scan
+        an image, the image is not in <span class="ui-name">Running images</span> after the cycle of that
+        scanner. The earlier findings of the image stay. They become <StateTag state="stale" /> after the
+        freshness window. If the other scanner can scan the image, the image is in Running images again
+        after the cycle of that other scanner. After the next cycle of the scanner that cannot scan it, the
+        image is not in Running images.
+      </li>
     </ul>
   </GuideProse>
 </template>
