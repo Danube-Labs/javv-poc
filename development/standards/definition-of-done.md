@@ -23,7 +23,8 @@ demonstrated - by an automated test wherever possible.
 - **Per-scanner never merged** - disagreement flags only, never summed/averaged across Trivy+Grype.
 - **Every read/export query carries an explicit `cluster_id` filter** (query layer, not UI).
 - **Server-side everything** - no raw findings shipped to the client to compute counts.
-- **No external broker** - coordination via OpenSearch; jobs are k8s CronJobs.
+- **No external broker** - coordination via OpenSearch; background jobs run inside the backend on
+  `JAVV_JOB_<KIND>_CRON` schedules (D47); the k8s CronJobs are the scanners and the vuln-DB refresh.
 - Indices touched? **Read [INDEX-MAP.md](../../docs/engineering/INDEX-MAP.md) first**; `dynamic:false`
   + explicit mappings; never aggregate on `text`.
 - **Logging goes through the shared library only** (`libs/javv-common` structlog pipeline,

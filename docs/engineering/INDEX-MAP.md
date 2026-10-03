@@ -432,7 +432,8 @@ revoked           boolean       revoke-on-role-change / logout-all
 ---
 
 ## Notes
-- **Naming:** rollover (the M4 lifecycle CronJob, `_rollover`+`conditions` — not the ISM plugin; see
+- **Naming:** rollover (the M4 lifecycle sweep, a backend job on `JAVV_JOB_LIFECYCLE_SWEEP_CRON`,
+  `_rollover`+`conditions` — not the ISM plugin; see
   PLAN D8) creates numbered backing indices behind a write-alias; the `-*` denotes the
   rolled series. Route append series on **immutable `cluster_id`**, never `cluster_name`.
 - **Every read carries a `cluster_id` filter** via one tenant-scoping repository helper (SEC-4) - including
