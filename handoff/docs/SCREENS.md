@@ -468,7 +468,7 @@ dead-letter feed — retries and dead-lettering stay scanner-local; JAVV only se
 scanner, between that scanner's card and its committed-runs table (what needs attention before the
 history; operator, 2026-09-26) — the screen's per-scanner columns carry it, so
 no count mixes scanners (the prototype's single full-width table with a Scanner column is replaced).
-Columns: When · Image (`—` when the push was refused before its body parsed) · Stage · Error (HTTP
+Columns: When · Image (`-` when the push carried no image JAVV could read) · Stage · Error (HTTP
 status + the server's message). Server-paged with the shared pager; empty = "No failed ingests in
 this range." A self-contained panel (DESIGN.md §10), so it can sit on a composed dashboard.
 
