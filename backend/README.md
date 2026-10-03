@@ -29,8 +29,9 @@ src/backend/
   export/       CSV and VEX streams
   reports/      the scheduled-export queue: claim, lease, chunked storage, download tokens
   admin/        scan scope, snapshot repo, report TTL settings
-  jobs/         the CronJob entry points (staleness, lifecycle, findings_cleanup, report_drain,
-                report_sweep, session_sweep, rebuild_state) and their shared lease
+  jobs/         the background jobs (staleness, lifecycle, findings_cleanup, report_drain,
+                report_sweep, session_sweep, rebuild_state), their shared lease, and the
+                scheduler that runs them inside the backend
   repositories/ the `_bulk` helper (per-item status, 429/503 backoff)
   tools/        export_openapi (the frontend contract snapshot)
 ```

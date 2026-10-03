@@ -26,7 +26,7 @@ const COPY: Record<string, { icon: IconName; label: string; desc: string }> = {
   lifecycle_sweep: {
     icon: 'trash',
     label: 'Lifecycle sweep',
-    desc: 'Applies retention by dropping whole aged indices, the only sanctioned delete in the system.',
+    desc: 'Starts a new history index when the old one is full or old, and drops whole indices past the retention window. Nothing else deletes history.',
   },
   report_drain: {
     icon: 'download',
@@ -36,7 +36,7 @@ const COPY: Record<string, { icon: IconName; label: string; desc: string }> = {
   report_sweep: {
     icon: 'clock',
     label: 'Export cleanup',
-    desc: 'Deletes export files past their expiry and retries exports that got stuck.',
+    desc: 'Deletes finished and failed exports past their keep time, and the pieces left over from interrupted ones.',
   },
   findings_cleanup: {
     icon: 'trash',

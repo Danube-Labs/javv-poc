@@ -3,7 +3,7 @@
 **Status:** tracked in [#41](https://github.com/Danube-Labs/javv-poc/issues/41) — live status on the GitHub issue/board
 
 ## Goal
-Deploy and polish only. Production Helm chart (PVC vuln-DB cache, CronJob hygiene, least-priv
+Deploy and polish only. Production Helm chart (PVC vuln-DB cache, scanner CronJob hygiene, least-priv
 scanner RBAC, snapshot wiring), the **NFR-11 vuln-DB mirror/cache** (PVC + scheduled refresh
 CronJob), rollback strategy, operational runbooks (OpenSearch sizing, `_reindex` migration D25,
 HA/multi-pod D23), and finalized VEX export + attribution. **CI is out of scope** — the pipeline
@@ -23,7 +23,7 @@ In the deploy tree, not here (paths proposed):
 - `deploy/helm/javv/` — chart: API Deployment, scanner **CronJobs** (`Forbid` concurrency, D40/NFR-9), OpenSearch values, snapshot-repo config (S3/MinIO). Each scanner's **image tag is a Helm value** (`scanners.trivy.tag` / `scanners.grype.tag`) the operator sets to a published, compatibility-checked pinned image — **version changes are a tag swap (GitOps), never an in-app switch** (D41); JAVV writes to no cluster. **Envelope lockstep (D44):** the envelope is *current-only* (schema v3) — the backend 422s older schema versions, so **scanner images and the backend must upgrade together** on any schema bump; the chart/runbook must upgrade them as one unit (never bump one side alone).
 - `deploy/helm/javv/templates/vulndb-pvc.yaml` + `vulndb-refresh-cronjob.yaml` — **NFR-11 vuln-DB mirror/cache:** a shared **PVC** mounted by Trivy + Grype scanner jobs, refreshed by a **scheduled CronJob** (offline/air-gapped friendly; deterministic scans don't hit upstream DBs mid-run). **Cache is keyed per vuln-DB *schema*, not per binary** (D41): Trivy minors share schema v2, but **Grype v5↔v6 are incompatible** (and Grype <0.88 scans a frozen/EOL DB) — never let two incompatible-schema versions write one cache dir; warn/block EOL-schema picks. *(NFR-11 had no clear earlier home per AUDIT N11 — it lands here.)*
 - `deploy/helm/javv/templates/scanner-rbac.yaml` — least-priv scanner ServiceAccount/Role (read-only workloads; namespace-scoped Secret read — NFR-3).
-- `deploy/helm/javv/templates/cronjob-*.yaml` — staleness/rebuild-state/snapshot jobs **+ M7's `report-drain` and `report-sweep`** (deferred here from M7/#32 — the jobs ship + are integration-tested in M7 as `python -m backend.jobs.*`; M10 only renders their CronJob manifests), all `Forbid`. **Note:** M7 report *results* live in OpenSearch (chunked, `system-report-chunks`), so **no object store is needed for reports** — the `snapshot-repo config (S3/MinIO)` above is for OpenSearch snapshot/restore only (M2), not reports.
+- **No CronJob manifests for backend jobs** (D47, see the 2026-10-03 entry under `## Updates`): the backend container runs staleness, lifecycle, findings cleanup, session sweep, report drain and report sweep on its own schedules, and rebuild state runs by hand. A scheduled snapshot is issue 664 (deferred). **Note:** M7 report *results* live in OpenSearch (chunked, `system-report-chunks`), so **no object store is needed for reports** — the `snapshot-repo config (S3/MinIO)` above is for OpenSearch snapshot/restore only (M2), not reports.
 - `deploy/runbooks/opensearch-sizing.md`, `reindex-migration.md` (D25), `ha-multipod.md` (D23), `rollback.md`. **Restore/rollback note (D45):** restoring a snapshot restores an old `javv-scan-orders` counter — it self-heals **forward only** (`max(committed) > counter` → bump up) on the next allocation; never manually reset it backward (a regressed counter re-issues orders and the watermark CAS then silently drops newer scans).
   **Index bootstrap in k8s:** the API pod runs `backend/core/bootstrap.py` at startup (idempotent,
   version-gated, multi-pod-race-safe) — the default; if least-priv ever demands API pods that can't
@@ -77,6 +77,14 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-03 — backend jobs are not CronJobs (D47, issue 691):** the chart renders no CronJob for a
+  backend job. The backend container runs staleness, lifecycle, findings cleanup, session sweep,
+  report drain and report sweep itself, each on its `JAVV_JOB_<KIND>_CRON` schedule;
+  `JAVV_SCHEDULER_ENABLED=false` stops them ([`CONFIGURATION.md` §1](../../../docs/CONFIGURATION.md)).
+  Rebuild state has no schedule; it runs by hand or from the Data inspector. This supersedes the
+  `cronjob-*.yaml` deliverable and the `report-drain` + `report-sweep` CronJobs of the 2026-07-07 entry.
+  The chart still ships CronJobs for the two scanners (`Forbid`, D40/NFR-9) and for the vuln-DB refresh
+  (NFR-11). A scheduled snapshot is issue 664, deferred.
 - **2026-09-29 — how the chart runs the upgrade (issue 261):** the backend keeps bootstrapping the
   indices in its own startup; there is no Helm pre-upgrade hook Job. The chart (issue 452) must set:
   - the backend `strategy` to `RollingUpdate` with `maxUnavailable: 0` and `maxSurge: 1`;

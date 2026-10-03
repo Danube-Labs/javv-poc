@@ -199,7 +199,8 @@ routes stay current-state-only).
 Exports + search cursors share a **per-principal concurrent-PIT cap**
 (`JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL`, 10) → **429 + `Retry-After`** past it. Scheduled-report
 results are stored in OpenSearch chunks with `expires_at` (default 24 h); the drain worker
-(`python -m backend.jobs.report_drain`, k8s CronJob in M10) claims jobs via OCC + fencing
+(`python -m backend.jobs.report_drain`; the backend runs it on `JAVV_JOB_REPORT_DRAIN_CRON`, every
+5 minutes by default) claims jobs via OCC + fencing
 `attempt_id`, throttles with `JAVV_REPORT_DRAIN_SLEEP_MS`, fails jobs past `JAVV_EXPORT_MAX_BYTES`,
 and rings a `report_ready` bell on completion.
 

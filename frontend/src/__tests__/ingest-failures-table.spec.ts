@@ -85,7 +85,7 @@ describe('IngestFailuresTable (self-contained panel)', () => {
     expect(trs[0]!.text()).toContain('registry.example.com/team/api:v2')
     expect(trs[0]!.text()).toContain('422')
     expect(trs[0]!.find('[title^="422 ·"]').attributes('title')).toContain('findings.3.severity')
-    // refused before the body parsed: no image to show, and no invented one
+    // the push carried no image JAVV could read: nothing to show, and no invented one
     expect(trs[1]!.find('.muted-dash').text()).toBe('-')
     expect(trs[1]!.text()).toContain('decode')
     expect(w.text()).not.toMatch(/retry/i) // read-only by ruling: no retry column or action

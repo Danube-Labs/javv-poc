@@ -55,7 +55,8 @@ These are settled and non-negotiable. A PR that violates one will be sent back r
 good the code is:
 
 - **No Redis, Kafka, RabbitMQ, or any external broker.** Coordination happens through OpenSearch;
-  scheduled work runs as Kubernetes CronJobs.
+  the backend runs its own background jobs on cron schedules, and only the scanners and the vuln-DB
+  refresh run as Kubernetes CronJobs.
 - **Server-side everything.** Never ship raw findings to the client to compute counts. Every number
   and page comes from an OpenSearch aggregation or query.
 - **Multi-tenant by immutable `cluster_id`.** Every read and export carries an explicit `cluster_id`
@@ -101,8 +102,8 @@ Structured and event-first on both stacks. The event name is a stable identifier
 fields, not prose baked into a sentence:
 
 ```python
-log.info("scan done", image_ref=ref, findings=n, duration_s=1.2)   # queryable
-log.info(f"scanned {ref} and found {n}")                           # not
+log.info("scan done", image_ref=ref, findings=n, duration_s=1.2)  # queryable
+log.info(f"scanned {ref} and found {n}")  # not
 ```
 
 - **Backend:** `structlog.get_logger()`, configured once by `javv_common.logging.configure_logging()`.
