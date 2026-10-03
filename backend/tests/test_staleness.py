@@ -312,9 +312,43 @@ async def test_rotated_token_does_not_mass_stale_a_healthy_scanner(real_os) -> N
 
     result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
 
-    # the disabled stale token is ignored; the healthy one wins → nothing mass-staled
+    # the latest push across the scanner's tokens decides; the healthy one wins
     assert result["staled"] == 0
     assert (await _get(client, prefix, "fresh"))["state"] == "open"
+
+
+@requires_opensearch
+async def test_a_rotation_before_the_first_push_does_not_mass_stale(real_os) -> None:
+    """Issue 705: rotate mints the new token and disables the old one at once. Until the scanner
+    pushes with the new secret, the only push on record is the disabled token's."""
+    client, prefix = real_os
+    await _seed_token(
+        client,
+        prefix,
+        last_ingest=NOW - timedelta(hours=1),
+        disabled=True,
+        token_id=f"{CLUSTER}:trivy:old",
+    )
+    await _seed_token(client, prefix, last_ingest=None, token_id=f"{CLUSTER}:trivy:new")
+    await _seed_finding(client, prefix, "fresh", last_seen=NOW - timedelta(hours=2))
+
+    result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["staled"] == 0
+    assert (await _get(client, prefix, "fresh"))["state"] == "open"
+
+
+@requires_opensearch
+async def test_a_retired_scanner_goes_stale_after_the_scanner_down_window(real_os) -> None:
+    """Every token disabled: the scanner is gone, so its findings age out like any silent one."""
+    client, prefix = real_os
+    await _seed_token(client, prefix, last_ingest=NOW - timedelta(days=8), disabled=True)
+    await _seed_finding(client, prefix, "a", last_seen=NOW - timedelta(days=8))
+
+    result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["staled"] == 1
+    assert (await _get(client, prefix, "a"))["state"] == "stale"
 
 
 # --- M-3: a tz-naive last_ingest_at must not crash the sweep -----------------------
