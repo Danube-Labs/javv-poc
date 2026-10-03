@@ -9,6 +9,9 @@ from pathlib import Path
 
 import pytest
 
+from backend.decisions.lifecycle import DecisionPayload, create_decision, revoke_decision
+from backend.decisions.reproject import project_at_ingest, reproject_cve
+from backend.jobs.rebuild_state import rebuild_decision_projection
 from backend.jobs.staleness import (
     StalenessTimers,
     read_staleness_timers,
@@ -19,6 +22,7 @@ from os_env import requires_opensearch
 
 GOLDEN = json.loads((Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text())
 CLUSTER = GOLDEN["cluster_id"]
+CVE = "CVE-2026-0001"
 NOW = datetime(2026, 7, 3, tzinfo=UTC)
 
 
@@ -43,23 +47,50 @@ async def _seed_token(
 
 
 async def _seed_finding(
-    client, prefix, fk, *, last_seen: datetime, state="open", present=True, pre_stale=None
+    client,
+    prefix,
+    fk,
+    *,
+    last_seen: datetime,
+    state="open",
+    present=True,
+    pre_stale=None,
+    cve_id=CVE,
+    state_decision_id=None,
 ) -> None:
     doc = {
         "finding_key": fk,
         "cluster_id": CLUSTER,
         "scanner": "trivy",
+        "cve_id": cve_id,
         "image_digest": GOLDEN["image_digest"],
         "last_seen_at": last_seen.isoformat(),
         "present": present,
         "state": state,
         "pre_stale_status": pre_stale,
+        "vex_justification": None,
+        "state_decision_id": state_decision_id,
     }
     await client.index(index=f"{prefix}findings", id=fk, body=doc, params={"refresh": "true"})
 
 
 async def _get(client, prefix, fk) -> dict:
     return (await client.get(index=f"{prefix}findings", id=fk))["_source"]
+
+
+def _decision(**overrides) -> DecisionPayload:
+    """A cluster-wide risk acceptance on CVE for both scanners."""
+    return DecisionPayload.model_validate(
+        {
+            "type": "risk_accepted",
+            "cve_id": CVE,
+            "scope": {"namespaces": [], "images": []},
+            "apply_both_scanners": True,
+            "justification": "compensating control in place",
+            "cluster_id": CLUSTER,
+            **overrides,
+        }
+    )
 
 
 # --- config: UI-configurable timers, defaults when unset -----------------------
@@ -227,15 +258,38 @@ async def test_sweep_is_idempotent(real_os) -> None:
     client, prefix = real_os
     await _seed_token(client, prefix, last_ingest=NOW - timedelta(hours=6))
     await _seed_finding(client, prefix, "old", last_seen=NOW - timedelta(days=5), state="open")
+    # a stale row from before `pre_stale_status` was always written, on a CVE with an expired
+    # decision, so the sweep's expiry pass re-projects it: one real write, then none
+    legacy_cve = "CVE-2026-0002"
+    await _seed_finding(
+        client,
+        prefix,
+        "legacy",
+        last_seen=NOW - timedelta(days=5),
+        state="stale",
+        cve_id=legacy_cve,
+    )
+    # created at the real clock and judged at the fixed NOW, so it is never active at NOW either
+    # way; only "expired at NOW" matters (the sweep's expiry query), so this is no date bomb
+    await create_decision(
+        client,
+        actor="t",
+        payload=_decision(cve_id=legacy_cve, expiry="2026-07-01"),  # expired at NOW
+        reproject=False,  # else the create's own projection writes the row before the sweep
+        prefix=prefix,
+    )
 
     first = await run_staleness_sweep(client, now=NOW, prefix=prefix)
     second = await run_staleness_sweep(client, now=NOW, prefix=prefix)
 
     assert first["staled"] == 1 and second["staled"] == 0  # already stale — not re-marked
+    assert first["reprojected"] == 1 and second["reprojected"] == 0
     old = await _get(client, prefix, "old")
     assert (
         old["state"] == "stale" and old["pre_stale_status"] == "open"
     )  # not overwritten to "stale"
+    legacy = await _get(client, prefix, "legacy")
+    assert legacy["state"] == "stale" and legacy["pre_stale_status"] == "open"
 
 
 # --- M-2: a disabled/rotated stale token must not mass-stale a healthy scanner ---------
@@ -260,9 +314,43 @@ async def test_rotated_token_does_not_mass_stale_a_healthy_scanner(real_os) -> N
 
     result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
 
-    # the disabled stale token is ignored; the healthy one wins → nothing mass-staled
+    # the latest push across the scanner's tokens decides; the healthy one wins
     assert result["staled"] == 0
     assert (await _get(client, prefix, "fresh"))["state"] == "open"
+
+
+@requires_opensearch
+async def test_a_rotation_before_the_first_push_does_not_mass_stale(real_os) -> None:
+    """Issue 705: rotate mints the new token and disables the old one at once. Until the scanner
+    pushes with the new secret, the only push on record is the disabled token's."""
+    client, prefix = real_os
+    await _seed_token(
+        client,
+        prefix,
+        last_ingest=NOW - timedelta(hours=1),
+        disabled=True,
+        token_id=f"{CLUSTER}:trivy:old",
+    )
+    await _seed_token(client, prefix, last_ingest=None, token_id=f"{CLUSTER}:trivy:new")
+    await _seed_finding(client, prefix, "fresh", last_seen=NOW - timedelta(hours=2))
+
+    result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["staled"] == 0
+    assert (await _get(client, prefix, "fresh"))["state"] == "open"
+
+
+@requires_opensearch
+async def test_a_retired_scanner_goes_stale_after_the_scanner_down_window(real_os) -> None:
+    """Every token disabled: the scanner is gone, so its findings age out like any silent one."""
+    client, prefix = real_os
+    await _seed_token(client, prefix, last_ingest=NOW - timedelta(days=8), disabled=True)
+    await _seed_finding(client, prefix, "a", last_seen=NOW - timedelta(days=8))
+
+    result = await run_staleness_sweep(client, now=NOW, prefix=prefix)
+
+    assert result["staled"] == 1
+    assert (await _get(client, prefix, "a"))["state"] == "stale"
 
 
 # --- M-3: a tz-naive last_ingest_at must not crash the sweep -----------------------
@@ -295,3 +383,138 @@ async def test_never_ingested_token_mass_stales(real_os) -> None:
 
     assert result["staled"] == 1
     assert (await _get(client, prefix, "a"))["state"] == "stale"
+
+
+# --- issue 705: a decision re-projection never overwrites `stale` ---------------------
+# While a finding is stale, projection keeps the state saved under the flag
+# (`pre_stale_status`) current and leaves `state` alone. Decisions are stamped at the real
+# clock, so these tests measure from it rather than from the fixed NOW.
+
+
+async def _stale_owned_finding(client, prefix, *, at: datetime, expiry: str | None = None) -> dict:
+    """A finding a risk acceptance owns, then marked stale by a real sweep at `at`."""
+    await _seed_finding(client, prefix, "f", last_seen=at - timedelta(days=5))
+    decision = await create_decision(
+        client, actor="t", payload=_decision(expiry=expiry), prefix=prefix
+    )
+    assert (await _get(client, prefix, "f"))["state"] == "risk_accepted"
+    await _seed_token(client, prefix, last_ingest=at - timedelta(hours=1))
+    await run_staleness_sweep(client, now=at, prefix=prefix)
+    return decision
+
+
+@requires_opensearch
+async def test_reproject_keeps_stale_and_projects_into_the_saved_state(real_os) -> None:
+    client, prefix = real_os
+    at = datetime.now(UTC) + timedelta(minutes=1)
+    decision = await _stale_owned_finding(client, prefix, at=at)
+
+    await reproject_cve(client, CLUSTER, CVE, prefix=prefix)
+
+    f = await _get(client, prefix, "f")
+    assert f["state"] == "stale"
+    assert f["pre_stale_status"] == "risk_accepted"
+    assert f["state_decision_id"] == decision["decision_id"]
+
+
+@requires_opensearch
+async def test_a_decision_expiring_while_stale_leaves_stale_and_saves_open(real_os) -> None:
+    client, prefix = real_os
+    expiry = (datetime.now(UTC) + timedelta(hours=1)).isoformat()
+    at = datetime.now(UTC) + timedelta(hours=2)  # past the expiry: the sweep's expiry pass runs
+    await _stale_owned_finding(client, prefix, at=at, expiry=expiry)
+
+    f = await _get(client, prefix, "f")
+    assert f["state"] == "stale"
+    assert f["pre_stale_status"] == "open" and f["state_decision_id"] is None
+
+    # seen again: the next sweep restores `open`, with no provenance left behind
+    await client.update(
+        index=f"{prefix}findings",
+        id="f",
+        body={"doc": {"last_seen_at": at.isoformat()}},
+        params={"refresh": "true"},
+    )
+    await run_staleness_sweep(client, now=at, prefix=prefix)
+    f = await _get(client, prefix, "f")
+    assert f["state"] == "open" and f["pre_stale_status"] is None
+    assert f["state_decision_id"] is None
+
+
+@requires_opensearch
+async def test_a_decision_revoked_while_stale_leaves_stale_and_saves_open(real_os) -> None:
+    client, prefix = real_os
+    at = datetime.now(UTC) + timedelta(minutes=1)
+    decision = await _stale_owned_finding(client, prefix, at=at)
+
+    await revoke_decision(client, actor="t", decision_id=decision["decision_id"], prefix=prefix)
+
+    f = await _get(client, prefix, "f")
+    assert f["state"] == "stale"
+    assert f["pre_stale_status"] == "open" and f["state_decision_id"] is None
+
+
+@requires_opensearch
+async def test_ingest_projection_leaves_stale_until_the_sweep_restores_it(real_os) -> None:
+    client, prefix = real_os
+    at = datetime.now(UTC) + timedelta(minutes=1)
+    decision = await _stale_owned_finding(client, prefix, at=at)
+
+    # a scan sees the finding again: merge refreshes `last_seen_at` and keeps the human fields,
+    # then projects the envelope's CVEs
+    await client.update(
+        index=f"{prefix}findings",
+        id="f",
+        body={"doc": {"last_seen_at": at.isoformat()}},
+        params={"refresh": "true"},
+    )
+    await project_at_ingest(client, CLUSTER, [CVE], prefix=prefix)
+    assert (await _get(client, prefix, "f"))["state"] == "stale"
+
+    await run_staleness_sweep(client, now=at, prefix=prefix)
+    f = await _get(client, prefix, "f")
+    assert f["state"] == "risk_accepted" and f["pre_stale_status"] is None
+    assert f["state_decision_id"] == decision["decision_id"]
+
+
+@requires_opensearch
+async def test_a_person_set_state_saved_under_stale_is_not_taken_by_a_decision(real_os) -> None:
+    client, prefix = real_os
+    await _seed_finding(client, prefix, "f", last_seen=NOW, state="stale", pre_stale="acknowledged")
+
+    await create_decision(client, actor="t", payload=_decision(), prefix=prefix)
+
+    f = await _get(client, prefix, "f")
+    assert f["state"] == "stale" and f["pre_stale_status"] == "acknowledged"
+    assert f["state_decision_id"] is None
+
+
+@requires_opensearch
+@pytest.mark.parametrize("saved", [None, "open"], ids=["nothing-saved", "open-saved"])
+async def test_an_open_finding_under_stale_is_taken_by_a_new_decision(real_os, saved) -> None:
+    client, prefix = real_os
+    await _seed_finding(client, prefix, "f", last_seen=NOW, state="stale", pre_stale=saved)
+
+    decision = await create_decision(client, actor="t", payload=_decision(), prefix=prefix)
+
+    f = await _get(client, prefix, "f")
+    assert f["state"] == "stale" and f["pre_stale_status"] == "risk_accepted"
+    assert f["state_decision_id"] == decision["decision_id"]
+
+
+@requires_opensearch
+async def test_rebuild_restores_the_saved_state_and_keeps_stale(real_os) -> None:
+    client, prefix = real_os
+    at = datetime.now(UTC) + timedelta(minutes=1)
+    await _stale_owned_finding(client, prefix, at=at)
+    await client.update(
+        index=f"{prefix}findings",
+        id="f",
+        body={"doc": {"pre_stale_status": "acknowledged"}},
+        params={"refresh": "true"},
+    )
+
+    await rebuild_decision_projection(client, prefix=prefix)
+
+    f = await _get(client, prefix, "f")
+    assert f["state"] == "stale" and f["pre_stale_status"] == "risk_accepted"

@@ -202,15 +202,18 @@ async def run_staleness_sweep(
     `now` is injectable for tests. The scanner's silence is read from `system-tokens.last_ingest_at`
     (the scanner-down guard) — the tokens ARE the (cluster, scanner) registry."""
     now = now or datetime.now(UTC)
-    # Collapse the token docs into the (cluster, scanner) registry: skip DISABLED tokens, and take
-    # the MOST RECENT last_ingest across a scanner's tokens — otherwise a rotated/disabled old token
-    # (stale last_ingest) would mass-stale a scanner that a newer token is actively feeding (M-2).
+    # Collapse the token docs into the (cluster, scanner) registry, taking the MOST RECENT
+    # last_ingest across ALL of a scanner's tokens, disabled ones included. The max is what keeps
+    # an old token's stale last_ingest from mass-staling a scanner a newer token feeds (M-2).
+    # Counting disabled tokens keeps a rotation from reading as "never ingested" until the first
+    # push with the new secret, and lets a retired scanner's findings age out (issue 705). The
+    # freshness banner reads silence the same way (routers/scanners.py).
     tokens = await search_to_exhaustion(
         client,
         index=f"{prefix}system-tokens",
         body={
             "size": 10_000,
-            "query": {"bool": {"must_not": [{"term": {"disabled": True}}]}},
+            "query": {"match_all": {}},
             "sort": [{"token_hash": "asc"}],  # unique + immutable — the walk's total order
         },
     )

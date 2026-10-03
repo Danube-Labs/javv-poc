@@ -650,7 +650,9 @@ picks the image/namespace dimension; **`apply_both_scanners`** the scanner dimen
 runs at **(1) ingest - newly-created findings only, vs cascading namespace/cluster rules (D19)**,
 **(2) decision-apply**, **(3) daily sweep** (expiry → next applicable rule, not `open`). Explicit-image
 scopes do **not** auto-apply to new images; namespace/cluster scopes do (the cascade). The result is a
-**cache** on `findings`, rebuildable from this index + `system-audit-log` (D17).
+**cache** on `findings`, rebuildable from this index + `system-audit-log` (D17). While a finding is
+`stale`, projection leaves `state` alone and updates the state saved under the flag (`pre_stale_status`),
+so the sweep's revert lands on the current projection (issue 705).
 
 ## 6. Background jobs - idempotent, resumable, no engine (D13)
 - **Reconcile-on-commit** (at ingest, not a cron - D37/C2; **after** the commit doc lands - D39/H3-r2; **only
