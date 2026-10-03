@@ -230,8 +230,9 @@ jobs:
 
   app-images:
     # issue 452: the app's images build on every PR without being pushed, and each one starts and
-    # answers. Publishing on a release is separate. The backend runs on the dev profile with no
-    # secrets, which is what proves the image itself needs none.
+    # answers: the backend against a real store, the frontend in front of it. Publishing on a
+    # release is separate. The backend runs on the dev profile with no secrets, which is what
+    # proves the image itself needs none.
     name: App images
     runs-on: ubuntu-latest
     services:
@@ -269,9 +270,35 @@ jobs:
           curl -sf localhost:8000/healthz | jq -e '.status == "ok"'
           curl -sf localhost:8000/readyz | jq -e '.status == "ready"'
 
-      - name: Backend log
+      - name: Build the frontend image
+        run: docker build -f frontend/Dockerfile -t javv-frontend:ci .
+
+      - name: Start the frontend image in front of the backend
+        run: >-
+          docker run -d --name javv-frontend --network host
+          -e JAVV_BACKEND_URL=http://localhost:8000
+          javv-frontend:ci
+
+      # the SPA for a history-mode route, a hashed asset that may be cached forever, and /readyz
+      # answered by the backend through the frontend's forward
+      - name: The frontend serves the app and forwards to the backend
+        run: |
+          for _ in $(seq 1 20); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' javv-frontend)" = healthy ] && break
+            sleep 3
+          done
+          docker inspect -f '{{.State.Health.Status}}' javv-frontend | grep -qx healthy
+          curl -sf localhost:8080/ | grep -q '<div id="app">'
+          curl -sf localhost:8080/findings | grep -q '<div id="app">'
+          asset=$(curl -sf localhost:8080/ | grep -o '/assets/index-[^"]*\.js' | head -1)
+          curl -sfI "localhost:8080$asset" | grep -qi '^cache-control: public, max-age=31536000, immutable'
+          curl -sf localhost:8080/readyz | jq -e '.status == "ready"'
+
+      - name: Container logs
         if: failure()
-        run: docker logs javv-backend
+        run: |
+          docker logs javv-backend
+          docker logs javv-frontend
 
   scanner:
     name: Scanner

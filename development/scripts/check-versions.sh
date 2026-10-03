@@ -105,11 +105,14 @@ check "javv-common pyright pin" "$pyright" libs/javv-common/pyproject.toml \
 check "pre-commit ruff hook" "$ruff" .pre-commit-config.yaml \
   'ruff-pre-commit\s+rev: v\K[0-9.]+' "/ruff-pre-commit/{n;s/rev: v[0-9.]+/rev: v$ruff/}"
 # Node is a manual major-only bump (no Renovate annotation in versions.yaml). frontend/package.json
-# `engines` is a range, not a pin, so it isn't checked here.
+# `engines` is a range, not a pin, so it isn't checked here. The frontend image's digest is
+# Renovate's; --fix drops it on a major bump, like the Python images.
 check "ci.yml setup-node" "$node" .github/workflows/ci.yml \
   "node-version: '\K[0-9]+" "s/node-version: '[0-9]+'/node-version: '$node'/"
 check "clock-drift setup-node" "$node" .github/workflows/clock-drift.yml \
   "node-version: '\K[0-9]+" "s/node-version: '[0-9]+'/node-version: '$node'/"
+check "frontend Dockerfile node" "$node" frontend/Dockerfile \
+  'FROM node:\K[0-9]+(?=-alpine)' "s/^FROM node:[^ ]+/FROM node:$node-alpine/"
 src=backend/.python-version
 check "scanner .python-version" "$python" scanner/.python-version \
   '^\K[0-9.]+' "s/^[0-9.]+$/$python/"
