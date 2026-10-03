@@ -62,6 +62,8 @@ check "backend Dockerfile uv image" "$uv" backend/Dockerfile \
   'astral-sh/uv:\K[0-9.]+' "s#astral-sh/uv:[^ ]+#astral-sh/uv:$uv#"
 check "opensearch dev compose" "$opensearch" development/setup/opensearch-dev.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
+check "opensearch deploy compose" "$opensearch" deploy/compose/compose.yaml \
+  'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 check "opensearch CI service" "$opensearch" .github/workflows/ci.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 check "opensearch compat svc" "$opensearch" .github/workflows/scanner-images.yml \
