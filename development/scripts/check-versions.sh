@@ -58,6 +58,8 @@ check "Dockerfile.trivy uv image" "$uv" scanner/Dockerfile.trivy \
   'astral-sh/uv:\K[0-9.]+' "s#astral-sh/uv:[^ ]+#astral-sh/uv:$uv#"
 check "Dockerfile.grype uv image" "$uv" scanner/Dockerfile.grype \
   'astral-sh/uv:\K[0-9.]+' "s#astral-sh/uv:[^ ]+#astral-sh/uv:$uv#"
+check "backend Dockerfile uv image" "$uv" backend/Dockerfile \
+  'astral-sh/uv:\K[0-9.]+' "s#astral-sh/uv:[^ ]+#astral-sh/uv:$uv#"
 check "opensearch dev compose" "$opensearch" development/setup/opensearch-dev.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 check "opensearch CI service" "$opensearch" .github/workflows/ci.yml \
@@ -114,6 +116,8 @@ check "scanner .python-version" "$python" scanner/.python-version \
 check "Dockerfile.trivy python" "$python" scanner/Dockerfile.trivy \
   'FROM python:\K[0-9.]+(?=-slim)' "s/^FROM python:[^ ]+/FROM python:$python-slim/"
 check "Dockerfile.grype python" "$python" scanner/Dockerfile.grype \
+  'FROM python:\K[0-9.]+(?=-slim)' "s/^FROM python:[^ ]+/FROM python:$python-slim/"
+check "backend Dockerfile python" "$python" backend/Dockerfile \
   'FROM python:\K[0-9.]+(?=-slim)' "s/^FROM python:[^ ]+/FROM python:$python-slim/"
 
 if [ "$fail" -ne 0 ]; then

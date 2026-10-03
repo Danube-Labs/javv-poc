@@ -5,6 +5,7 @@ name: CI
 #   - commitlint (PR commits; release-please depends on the types)
 #   - javv-common / backend / scanner: ruff + pyright + pytest (backend against a real
 #     OpenSearch service container; coverage floor --cov-fail-under, #383)
+#   - app-images (issue 452): the app's Docker images build without a push, then start and answer
 #   - frontend: oxlint/eslint/stylelint + vue-tsc + vitest (coverage floor in
 #     vitest.config.ts, #383) + the I4/I7 contract gates (openapi.json snapshot must match
 #     the backend code, generated client must match the snapshot — this is what catches a
@@ -226,6 +227,51 @@ jobs:
         run: |
           uv run pytest -n 2 -m "not serial" --cov=src/backend --cov-fail-under=90
           uv run pytest -m serial
+
+  app-images:
+    # issue 452: the app's images build on every PR without being pushed, and each one starts and
+    # answers. Publishing on a release is separate. The backend runs on the dev profile with no
+    # secrets, which is what proves the image itself needs none.
+    name: App images
+    runs-on: ubuntu-latest
+    services:
+      opensearch:
+        image: opensearchproject/opensearch:3.9.0
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+        ports:
+          - 9200:9200
+        options: >-
+          --health-cmd "curl -sf http://localhost:9200/_cluster/health || exit 1"
+          --health-interval 10s --health-timeout 5s --health-retries 20 --health-start-period 40s
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Build the backend image
+        run: docker build -f backend/Dockerfile -t javv-backend:ci .
+
+      - name: Start the backend image against the store
+        run: >-
+          docker run -d --name javv-backend --network host
+          -e JAVV_OPENSEARCH_URL=http://localhost:9200 -e JAVV_SCHEDULER_ENABLED=false
+          javv-backend:ci
+
+      # judged by body: a 200 from something else is not the backend answering
+      - name: The backend is healthy and ready
+        run: |
+          for _ in $(seq 1 40); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' javv-backend)" = healthy ] && break
+            sleep 3
+          done
+          docker inspect -f '{{.State.Health.Status}}' javv-backend | grep -qx healthy
+          curl -sf localhost:8000/healthz | jq -e '.status == "ok"'
+          curl -sf localhost:8000/readyz | jq -e '.status == "ready"'
+
+      - name: Backend log
+        if: failure()
+        run: docker logs javv-backend
 
   scanner:
     name: Scanner
