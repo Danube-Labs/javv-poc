@@ -120,7 +120,8 @@ is archived under `.deprecated/handoff/v1/`.
 ## `.github/` - automation
 `workflows/ci.yml` (Backend pytest + parallel Backend-static ruff/pyright/docs-drift + Frontend
 lint/test + the contract gate + Frontend smoke + Scanner + javv-common + commitlint + the gitleaks
-Secret scan + the report-only Dependency audit; detect-step jobs always run for branch protection) ·
+Secret scan + the report-only Dependency audit + App images, which builds the app's Docker images
+without a push and starts them, issue 452; detect-step jobs always run for branch protection) ·
 `workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
 (batched release PRs) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both
