@@ -5,6 +5,7 @@ paths:
   - "libs/**"
   - "frontend/src/**/*.ts"
   - "frontend/src/**/*.vue"
+  - "frontend/server/**"
 ---
 
 # Logging (shared library on both stacks — never `console.*`, never `print`)
@@ -35,6 +36,13 @@ both emit identical JSON.
 **Frontend** — `@/lib/logger` only (`logger.debug|info|warn|error(event, fields?)`). **`console.*` is
 lint-banned** and CI fails on it. Same shape as the backend: an event name plus a fields object.
 
+**Frontend server** (`frontend/server/`, the frontend container's Node process, issue 452) —
+`server/log.mjs` only: JSON lines to stdout in the backend's shape (`timestamp`, `level`, `event`,
+then fields), the backend's level names, `JAVV_LOG_LEVEL` with the same fail-fast on an unknown
+name. `console.*` is lint-banned there too. It logs startup and failures only, since the backend
+already writes one line per request. Redaction is by omission: no header, body or query string goes
+in a line (`serve.spec.ts` greps the server for it). Its 502 falls under the exception below.
+
 **Ops parity is not optional on bounded or streamed paths.** An endpoint that caps (413/429) logs a
 `warning` *and* bumps its metric; a streaming export counts rows and bytes in the stream's `finally`,
 so a client disconnect still records what left the building.
@@ -42,5 +50,6 @@ so a client disconnect still records what left the building.
 **One exception: a rejection an unauthenticated sender can repeat with no budget is metric-only**,
 because a line per request would let the sender choose our log volume. Today that is ingest's 401,
 decided before any token is known. A rejection with a budget but an attacker-chosen key logs at most
-once per key per window (ingest's 429). Everything past authentication logs a warning, since the
+once per key per window (ingest's 429); the frontend server's 502 while the backend is down logs
+once per window with the count it held back. Everything past authentication logs a warning, since the
 per-token rate limit already bounds it (issue 523).

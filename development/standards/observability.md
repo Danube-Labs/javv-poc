@@ -32,6 +32,10 @@ and the app **degrades loudly, not blindly** when its datastore is unavailable.
   as the single sanctioned touchpoint. Threshold via `VITE_LOG_LEVEL` (build-time; `debug` dev /
   `warn` prod — see `docs/CONFIGURATION.md` §2b). The never-log list applies unchanged: no tokens,
   no cookie values, no raw response bodies — shapes/sizes/ids.
+- **Frontend server (issue 452):** the frontend container's Node process (`frontend/server/`) logs
+  through `server/log.mjs` only: JSON lines to stdout in the backend's shape and level names,
+  threshold from `JAVV_LOG_LEVEL`. Startup and failures only (the backend already logs every
+  request); no header, body or query string in a line; its 502 logs once per window with a count.
 
 ## 2. Health endpoints — `/healthz` vs `/readyz`
 | Endpoint | Means | Depends on OpenSearch? | Used by |

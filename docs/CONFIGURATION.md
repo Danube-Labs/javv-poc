@@ -136,6 +136,18 @@ rebuild, not a restart).
 | `VITE_CLIENT_EVENTS` | *(unset)* → **on** in prod builds, **off** in dev | Client-events beacon ([#453](https://github.com/Danube-Labs/javv-poc/issues/453)): whether `logger.warn`/`logger.error` are also shipped to `POST /api/v1/client-events`, so a browser error survives the tab being closed. `false`/`0` disables; any other value enables. Call sites are unaware — the transport lives inside `lib/logger.ts`. Deliberately lossy telemetry: **never retried**, and the queue caps at one batch (20) flushed on a fixed 5s window, so an error storm drops events rather than bursting requests past the endpoint's per-principal rate cap (§1) — whose 429 would itself be silent loss, since nothing retries. **Lossy but not silently so** ([#519](https://github.com/Danube-Labs/javv-poc/issues/519)): a window that dropped events leads its next batch with a `beacon events dropped` summary carrying the count, so a gap in the stream reads as a storm rather than as a quiet session. The count covers storm drops only — an event refused for its own sake (an unshippable name, a fields object the clip cannot walk) is dropped silently, since a permanent call-site fault would otherwise report a fresh storm on every load of that screen. Field values are clipped to the endpoint's 512-char per-value cap on the way in, so one oversized value (a `?cluster=` deep link) cannot 422 the batch it rides in; a clipped value ends in `…` ([#525](https://github.com/Danube-Labs/javv-poc/issues/525)), so it reads as clipped rather than as exactly 512 characters, and a value at or under the cap arrives untouched. Also flushes on `pagehide`/tab-hide. | n/a (build) |
 | ~~`VITE_APP_VERSION`~~ | — | **REMOVED (issue 261):** the sidebar footer (`components/chrome/SideNav.vue`) now reads the running versions from `GET /api/v1/meta` and shows the release, `store schema v{mapping_version}` and `scanner schema v{newest accepted envelope}`, one per line. The version is the release, kept in `backend/src/backend/version.py` by release-please (`extra-files` in `release-please-config.json`), so no build step sets it. A failed read shows `version unavailable`. The frontend's own version (the About page, issue 341) comes the same way from `frontend/src/version.ts`, not from an env var. | ✅ removed |
 
+### Frontend container server — runtime env (issue 452)
+
+Source: `frontend/server/serve.mjs`. The frontend image runs a small Node server that serves the
+built SPA and forwards `/api`, `/auth` and `/readyz` to the backend, so the browser sees one origin.
+These are read when the container starts (a restart applies them, no rebuild).
+
+| Env var | Default | Meaning | UI? |
+|---|---|---|---|
+| `JAVV_BACKEND_URL` | `http://backend:8000` | Where the frontend server forwards `/api`, `/auth` and `/readyz`: the backend's address as the frontend container sees it (a compose service name, a Kubernetes Service, an IP). `http` or `https`. When nothing answers there, the server replies 502 with the error envelope, which the SPA reads as "backend down" | n/a (deploy) |
+| `JAVV_FRONTEND_PORT` | `8080` | The port the frontend server listens on inside its container | n/a (deploy) |
+| `JAVV_LOG_LEVEL` *(shared)* | `info` | Also the frontend server's threshold (`debug`\|`info`\|`warning`\|`error`); an unknown name stops it at start, as in the backend | n/a (deploy) |
+
 ---
 
 ## 3. Trivy — scan parameters

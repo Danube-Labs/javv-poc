@@ -12,7 +12,7 @@ import pluginOxlint from 'eslint-plugin-oxlint'
 export default defineConfigWithVueTs(
   {
     name: 'app/files-to-lint',
-    files: ['**/*.{vue,ts,mts,tsx}'],
+    files: ['**/*.{vue,ts,mts,tsx}', 'server/**/*.mjs'],
   },
 
   globalIgnores(['**/dist/**', '**/dist-ssr/**', '**/coverage/**', 'src/api/generated/**']),
@@ -27,8 +27,9 @@ export default defineConfigWithVueTs(
 
   {
     name: 'app/no-raw-console',
-    files: ['src/**/*.{ts,mts,tsx,vue}'],
-    rules: { 'no-console': 'error' }, // FE analog of "never print()" — use src/lib/logger.ts
+    files: ['src/**/*.{ts,mts,tsx,vue}', 'server/**/*.mjs'],
+    // FE analog of "never print()": src/lib/logger.ts in the browser, server/log.mjs in the server
+    rules: { 'no-console': 'error' },
   },
 
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
