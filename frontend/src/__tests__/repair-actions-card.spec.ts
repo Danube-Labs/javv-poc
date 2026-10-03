@@ -9,14 +9,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as sdk from '@/api/generated'
 import RepairActionsCard from '@/components/system/RepairActionsCard.vue'
 
-vi.mock('@/api/generated', () => ({
-  listJobsApiV1AdminJobsGet: vi.fn<() => Promise<unknown>>(),
-  triggerJobApiV1AdminJobsKindRunPost: vi.fn<() => Promise<unknown>>(),
-  changePasswordAuthPasswordPost: vi.fn<() => Promise<unknown>>(),
-  loginAuthLoginPost: vi.fn<() => Promise<unknown>>(),
-  logoutAuthLogoutPost: vi.fn<() => Promise<unknown>>(),
-  meAuthMeGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    listJobsApiV1AdminJobsGet: vi.fn<() => Promise<unknown>>(),
+    triggerJobApiV1AdminJobsKindRunPost: vi.fn<() => Promise<unknown>>(),
+    changePasswordAuthPasswordPost: vi.fn<() => Promise<unknown>>(),
+    loginAuthLoginPost: vi.fn<() => Promise<unknown>>(),
+    logoutAuthLogoutPost: vi.fn<() => Promise<unknown>>(),
+    meAuthMeGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 
 const job = (kind: string, capability: string | null) => ({
   kind,

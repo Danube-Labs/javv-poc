@@ -11,9 +11,11 @@ import { useToastStore } from '@/stores/toast'
 
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } })
 
-vi.mock('@/api/generated', () => ({
-  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 import { listClustersApiV1ClustersGet } from '@/api/generated'

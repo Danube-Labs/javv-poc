@@ -8,9 +8,11 @@ import { useBucketRewind } from '@/composables/useBucketRewind'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { failuresAsLensSeries, totalRefused } from '@/system/ingestFailures'
 
-vi.mock('@/api/generated', () => ({
-  ingestFailuresTrendApiV1TrendsIngestFailuresGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    ingestFailuresTrendApiV1TrendsIngestFailuresGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 import { ingestFailuresTrendApiV1TrendsIngestFailuresGet } from '@/api/generated'

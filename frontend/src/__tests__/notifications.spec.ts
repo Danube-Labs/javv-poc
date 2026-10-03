@@ -11,11 +11,13 @@ import { useToastStore } from '@/stores/toast'
 
 const listMock = vi.hoisted(() => vi.fn<() => unknown>())
 const readMock = vi.hoisted(() => vi.fn<(opts: { path: Record<string, string> }) => unknown>())
-vi.mock('@/api/generated', () => ({
-  listNotificationsApiV1NotificationsGet: listMock,
-  markReadApiV1NotificationsNotificationIdReadPatch: readMock,
-  deleteNotificationApiV1NotificationsNotificationIdDelete: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    listNotificationsApiV1NotificationsGet: listMock,
+    markReadApiV1NotificationsNotificationIdReadPatch: readMock,
+    deleteNotificationApiV1NotificationsNotificationIdDelete: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 function feed(unread: number, items: Array<Record<string, unknown>>) {

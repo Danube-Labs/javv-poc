@@ -9,10 +9,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import BulkTriageBar from '@/components/triage/BulkTriageBar.vue'
 import { FINDINGS_FIELDS } from '@/filters/fields.config'
 
-vi.mock('@/api/generated', () => ({
-  bulkTriageApiV1FindingsBulkTriagePost: vi.fn<() => Promise<unknown>>(),
-  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    bulkTriageApiV1FindingsBulkTriagePost: vi.fn<() => Promise<unknown>>(),
+    listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 
 const open = async (selections: Record<string, string[]>) => {
   const w = mount(BulkTriageBar, {

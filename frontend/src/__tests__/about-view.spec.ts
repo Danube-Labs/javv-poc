@@ -13,13 +13,15 @@ import AboutLinksCard from '@/components/about/AboutLinksCard.vue'
 import AboutView from '@/views/AboutView.vue'
 import { useClusterStore } from '@/stores/cluster'
 
-vi.mock('@/api/generated', () => ({
-  getMetaApiV1MetaGet: vi.fn<() => Promise<unknown>>(() => new Promise(() => {})),
-  scannerProvenanceApiV1ScannersProvenanceGet: vi.fn<() => Promise<unknown>>(
-    () => new Promise(() => {}),
-  ),
-  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    getMetaApiV1MetaGet: vi.fn<() => Promise<unknown>>(() => new Promise(() => {})),
+    scannerProvenanceApiV1ScannersProvenanceGet: vi.fn<() => Promise<unknown>>(
+      () => new Promise(() => {}),
+    ),
+    listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 const router = createRouter({

@@ -5,9 +5,11 @@ import { useImagesStore } from '@/stores/images'
 
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } })
 
-vi.mock('@/api/generated', () => ({
-  listRunningImagesApiV1ImagesGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    listRunningImagesApiV1ImagesGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 import { listRunningImagesApiV1ImagesGet } from '@/api/generated'

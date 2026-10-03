@@ -11,10 +11,12 @@ import { createMemoryHistory, createRouter } from 'vue-router'
 
 import RunningStackCard from '@/components/about/RunningStackCard.vue'
 
-vi.mock('@/api/generated', () => ({
-  getMetaApiV1MetaGet: vi.fn<() => Promise<unknown>>(),
-  scannerProvenanceApiV1ScannersProvenanceGet: vi.fn<() => Promise<unknown>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    getMetaApiV1MetaGet: vi.fn<() => Promise<unknown>>(),
+    scannerProvenanceApiV1ScannersProvenanceGet: vi.fn<() => Promise<unknown>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 vi.mock('@/lib/logger', () => ({
   logger: {

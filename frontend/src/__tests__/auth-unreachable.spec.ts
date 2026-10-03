@@ -16,12 +16,14 @@ type Answer = { data?: unknown; response?: { ok: boolean; status: number } }
 const me = vi.fn<() => Promise<Answer>>()
 const login = vi.fn<() => Promise<Answer>>()
 const changePassword = vi.fn<() => Promise<Answer>>()
-vi.mock('@/api/generated', () => ({
-  meAuthMeGet: () => me(),
-  loginAuthLoginPost: () => login(),
-  changePasswordAuthPasswordPost: () => changePassword(),
-  logoutAuthLogoutPost: vi.fn<() => Promise<Answer>>(),
-}))
+vi.mock('@/api/generated', async (importOriginal) =>
+  (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
+    meAuthMeGet: () => me(),
+    loginAuthLoginPost: () => login(),
+    changePasswordAuthPasswordPost: () => changePassword(),
+    logoutAuthLogoutPost: vi.fn<() => Promise<Answer>>(),
+  }),
+)
 vi.mock('@/api/client', () => ({ client: {} }))
 
 const push = vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve())
