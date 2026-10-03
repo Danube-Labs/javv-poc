@@ -12,6 +12,11 @@ import SideNav from '@/components/chrome/SideNav.vue'
 
 vi.mock('@/api/generated', () => ({
   getMetaApiV1MetaGet: vi.fn<() => Promise<unknown>>(),
+  changePasswordAuthPasswordPost: vi.fn<() => Promise<unknown>>(),
+  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
+  loginAuthLoginPost: vi.fn<() => Promise<unknown>>(),
+  logoutAuthLogoutPost: vi.fn<() => Promise<unknown>>(),
+  meAuthMeGet: vi.fn<() => Promise<unknown>>(),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 vi.mock('@/lib/logger', () => ({

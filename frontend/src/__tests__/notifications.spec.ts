@@ -14,6 +14,7 @@ const readMock = vi.hoisted(() => vi.fn<(opts: { path: Record<string, string> })
 vi.mock('@/api/generated', () => ({
   listNotificationsApiV1NotificationsGet: listMock,
   markReadApiV1NotificationsNotificationIdReadPatch: readMock,
+  deleteNotificationApiV1NotificationsNotificationIdDelete: vi.fn<() => Promise<unknown>>(),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 

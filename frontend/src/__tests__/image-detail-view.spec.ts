@@ -16,6 +16,7 @@ vi.mock('@/api/generated', () => ({
   // the ingest lens (audit 343) mounts inside the view and calls these two
   scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
   scannerFreshnessApiV1ScannersFreshnessGet: vi.fn<() => Promise<unknown>>(),
+  listClustersApiV1ClustersGet: vi.fn<() => Promise<unknown>>(),
 }))
 vi.mock('@/api/client', () => ({ client: {} }))
 
