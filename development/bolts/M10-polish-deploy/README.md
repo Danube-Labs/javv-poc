@@ -77,6 +77,15 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-03 — docker compose first, the chart after (issue 452, operator):** JAVV ships as a
+  frontend container and a backend container that reach each other by address, plus OpenSearch.
+  The frontend container's own server forwards `/api`, `/auth` and `/readyz` to the backend, so
+  nothing (nginx, an ingress, a gateway) is required in front, and the chart ships no Ingress.
+  `deploy/compose/compose.yaml` runs the whole stack on one machine with every setting listed at its
+  default; `docs/DEPLOYING.md` is the guide. The Helm chart is built from it afterwards: one backend
+  replica with `strategy: Recreate` (issue 691: one backend; a rolling update would briefly run two),
+  which supersedes the `maxSurge: 1` of the 2026-09-29 entry. Split out: the scanner manifests
+  (issue 714), a secured OpenSearch (issue 715), the maintenance page without a proxy (issue 719).
 - **2026-10-03 — backend jobs are not CronJobs (D47, issue 691):** the chart renders no CronJob for a
   backend job. The backend container runs staleness, lifecycle, findings cleanup, session sweep,
   report drain and report sweep itself, each on its `JAVV_JOB_<KIND>_CRON` schedule;

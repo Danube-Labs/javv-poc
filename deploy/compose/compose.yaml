@@ -1,0 +1,172 @@
+# JAVV on one machine: OpenSearch, the backend and the frontend (issue 452).
+#
+#   cp .env.example .env      # then set the two secrets in .env
+#   docker compose up -d
+#   open http://<this machine>:8080
+#
+# Every backend setting is listed below with its default and what it does
+# (docs/CONFIGURATION.md has the long form). Each one is written ${NAME:-default}, so a line in
+# .env overrides it without an edit here. backend/tests/test_compose_settings.py holds this file
+# to the code defaults. Guide: docs/DEPLOYING.md.
+
+name: javv
+
+services:
+  opensearch:
+    image: opensearchproject/opensearch:3.9.0
+    restart: unless-stopped
+    environment:
+      discovery.type: single-node
+      # The security plugin is off. OpenSearch is reachable only on this compose network (no
+      # published port), and the backend is its only client. See docs/DEPLOYING.md.
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
+      # JAVV runs its own index lifecycle and does not use query insights; their internal
+      # indices would otherwise hold a single node on yellow
+      plugins.index_state_management.enabled: "false"
+      plugins.index_state_management.history.enabled: "false"
+      search.insights.top_queries.latency.enabled: "false"
+      search.insights.top_queries.cpu.enabled: "false"
+      search.insights.top_queries.memory.enabled: "false"
+      # where Settings › Data & OpenSearch takes snapshots, inside the data volume
+      path.repo: /usr/share/opensearch/data/snapshots
+    ulimits:
+      memlock: { soft: -1, hard: -1 }
+      nofile: { soft: 65536, hard: 65536 }
+    volumes:
+      - opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      opensearch:
+        condition: service_healthy
+    environment:
+      # --- deployment ---
+      # prod refuses to start on the dev pepper (the image itself defaults to dev)
+      JAVV_ENV: ${JAVV_ENV:-prod}
+      # debug | info | warning | error; an unknown name stops the backend at start
+      JAVV_LOG_LEVEL: ${JAVV_LOG_LEVEL:-info}
+      # the zone the job schedules below are read in; a container has none of its own
+      TZ: ${TZ:-UTC}
+
+      # --- OpenSearch ---
+      # the compose service above
+      JAVV_OPENSEARCH_URL: ${JAVV_OPENSEARCH_URL:-http://opensearch:9200}
+      # seconds before a store request gives up
+      JAVV_REQUEST_TIMEOUT: ${JAVV_REQUEST_TIMEOUT:-30.0}
+      # check the store and create or update the indices before serving
+      JAVV_BOOTSTRAP_ON_STARTUP: ${JAVV_BOOTSTRAP_ON_STARTUP:-true}
+
+      # --- secrets (required, from .env) ---
+      # hashes ingest tokens and session ids; a long random string, kept for good
+      JAVV_TOKEN_PEPPER: ${JAVV_TOKEN_PEPPER:?set JAVV_TOKEN_PEPPER in .env}
+      # the first admin's password, used once when the admin does not exist yet
+      JAVV_BOOTSTRAP_ADMIN_PASSWORD: ${JAVV_BOOTSTRAP_ADMIN_PASSWORD:?set JAVV_BOOTSTRAP_ADMIN_PASSWORD in .env}
+      # the first admin's user name
+      JAVV_BOOTSTRAP_ADMIN_USERNAME: ${JAVV_BOOTSTRAP_ADMIN_USERNAME:-admin}
+
+      # --- sign-in ---
+      # the session cookie's Secure flag: keep true behind anything that terminates TLS;
+      # set false in .env only when the app is reached over plain http (or login fails)
+      JAVV_SESSION_COOKIE_SECURE: ${JAVV_SESSION_COOKIE_SECURE:-true}
+      # hours a sign-in lasts
+      JAVV_SESSION_TTL_HOURS: ${JAVV_SESSION_TTL_HOURS:-24.0}
+      # hours an expired session row is kept before the session sweep deletes it
+      JAVV_SESSION_SWEEP_GRACE_HOURS: ${JAVV_SESSION_SWEEP_GRACE_HOURS:-24.0}
+      # failed logins per user name within the window before it is locked
+      JAVV_LOGIN_MAX_ATTEMPTS: ${JAVV_LOGIN_MAX_ATTEMPTS:-5}
+      # the lockout window, in minutes
+      JAVV_LOGIN_LOCKOUT_MINUTES: ${JAVV_LOGIN_LOCKOUT_MINUTES:-15.0}
+
+      # --- scanner pushes ---
+      # largest push on the wire, in bytes (10 MiB)
+      JAVV_INGEST_MAX_COMPRESSED_BYTES: ${JAVV_INGEST_MAX_COMPRESSED_BYTES:-10485760}
+      # largest push once decompressed, in bytes (60 MiB)
+      JAVV_INGEST_MAX_BODY_BYTES: ${JAVV_INGEST_MAX_BODY_BYTES:-62914560}
+      # pushes per token per minute
+      JAVV_INGEST_RATE_LIMIT_PER_MINUTE: ${JAVV_INGEST_RATE_LIMIT_PER_MINUTE:-120}
+
+      # --- triage, search and exports ---
+      # a bulk action on at most this many findings applies at once; more is refused
+      JAVV_BULK_INLINE_LIMIT: ${JAVV_BULK_INLINE_LIMIT:-5000}
+      # a bulk selector may match at most this many findings
+      JAVV_BULK_MAX_TARGETS: ${JAVV_BULK_MAX_TARGETS:-10000}
+      # how long a page of a search cursor stays open between pages
+      JAVV_SEARCH_PIT_KEEP_ALIVE: ${JAVV_SEARCH_PIT_KEEP_ALIVE:-2m}
+      # most rows an immediate export may hold; larger ones use a scheduled export
+      JAVV_EXPORT_MAX_ROWS: ${JAVV_EXPORT_MAX_ROWS:-50000}
+      # open search cursors and exports per user at one time
+      JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL: ${JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL:-10}
+      # browser warning batches per user per minute
+      JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE: ${JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE:-60}
+
+      # --- scheduled exports ---
+      # hours a finished export is kept (Settings › Data & OpenSearch can change it)
+      JAVV_EXPORT_TTL_HOURS: ${JAVV_EXPORT_TTL_HOURS:-24}
+      # largest single export, in bytes (500 MiB); a larger one fails
+      JAVV_EXPORT_MAX_BYTES: ${JAVV_EXPORT_MAX_BYTES:-524288000}
+      # pause between export pages, in milliseconds, so exports leave room for pushes
+      JAVV_REPORT_DRAIN_SLEEP_MS: ${JAVV_REPORT_DRAIN_SLEEP_MS:-200}
+      # seconds without a heartbeat before a running export or job counts as abandoned
+      JAVV_REPORT_LEASE_TTL_SECONDS: ${JAVV_REPORT_LEASE_TTL_SECONDS:-300}
+
+      # --- Data inspector ---
+      # most hits one inspector search may return
+      JAVV_INSPECT_MAX_HITS: ${JAVV_INSPECT_MAX_HITS:-500}
+      # largest inspector answer, in bytes (2 MiB)
+      JAVV_INSPECT_MAX_RESPONSE_BYTES: ${JAVV_INSPECT_MAX_RESPONSE_BYTES:-2097152}
+      # seconds before an inspector query gives up
+      JAVV_INSPECT_TIMEOUT_SECONDS: ${JAVV_INSPECT_TIMEOUT_SECONDS:-10.0}
+
+      # --- background jobs: cron expressions read in TZ; empty = never on a schedule ---
+      # false stops every schedule; the jobs can still be run from the Data inspector
+      JAVV_SCHEDULER_ENABLED: ${JAVV_SCHEDULER_ENABLED:-true}
+      # builds queued exports and bulk actions
+      JAVV_JOB_REPORT_DRAIN_CRON: ${JAVV_JOB_REPORT_DRAIN_CRON:-*/5 * * * *}
+      # deletes expired exports and their leftovers
+      JAVV_JOB_REPORT_SWEEP_CRON: ${JAVV_JOB_REPORT_SWEEP_CRON:-15 * * * *}
+      # marks findings stale and ends expired risk acceptances
+      JAVV_JOB_STALENESS_SWEEP_CRON: ${JAVV_JOB_STALENESS_SWEEP_CRON:-0 2 * * *}
+      # rolls history indices over and drops those past retention
+      JAVV_JOB_LIFECYCLE_SWEEP_CRON: ${JAVV_JOB_LIFECYCLE_SWEEP_CRON:-0 3 * * *}
+      # removes findings gone from every scan for longer than the cleanup window
+      JAVV_JOB_FINDINGS_CLEANUP_CRON: ${JAVV_JOB_FINDINGS_CLEANUP_CRON:-0 4 * * *}
+      # deletes expired sign-in sessions
+      JAVV_JOB_SESSION_SWEEP_CRON: ${JAVV_JOB_SESSION_SWEEP_CRON:-30 4 * * *}
+    # The backend is reached through the frontend's port. Publish it only for something that
+    # must reach it directly (a Prometheus scrape of /metrics, which needs no sign-in).
+    # ports:
+    #   - "8000:8000"
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: frontend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # where /api, /auth and /readyz are forwarded: the backend service
+      JAVV_BACKEND_URL: ${JAVV_BACKEND_URL:-http://backend:8000}
+      # the port the frontend listens on inside its container
+      JAVV_FRONTEND_PORT: ${JAVV_FRONTEND_PORT:-8080}
+      # debug | info | warning | error
+      JAVV_LOG_LEVEL: ${JAVV_LOG_LEVEL:-info}
+    # browsers and scanners both use this port: scanners push to /api/v1/ingest/scan through it.
+    # To serve on another host port, change the left side ("80:8080").
+    ports:
+      - "8080:8080"
+
+volumes:
+  opensearch-data:

@@ -106,19 +106,20 @@ Ingest is authenticated with a per-cluster bearer token that is **scope-bound**:
 another cluster's data. JAVV only ever receives pushes, so it needs no credentials for, and no
 network path into, the clusters it reports on.
 
-Deploy target is **Helm → k3s** (in progress, M10). Full detail on layers, data flow, and the index
+Deploy: **docker compose on one machine** today ([`docs/DEPLOYING.md`](docs/DEPLOYING.md)); a Helm chart for Kubernetes follows in M10. Full detail on layers, data flow, and the index
 model lives in [`docs/engineering/ARCHITECTURE.md`](docs/engineering/ARCHITECTURE.md) and
 [`docs/engineering/INDEX-MAP.md`](docs/engineering/INDEX-MAP.md).
 
 ## Running it
 
-> **A packaged deploy is not available yet.** The scanners ship as published images, but the
-> backend/frontend images and the Helm chart land in **M10**
-> ([#41](https://github.com/Danube-Labs/javv-poc/issues/41);
-> [#452](https://github.com/Danube-Labs/javv-poc/issues/452) is the first slice). For now JAVV runs
-> **from source**, for local development and evaluation.
+**On one machine:** [`deploy/compose/`](deploy/compose/) starts OpenSearch, the backend and the
+frontend with `docker compose up -d --build`, and scanners in any cluster push to it. The guide,
+including http or https and pointing scanners at it, is **[`docs/DEPLOYING.md`](docs/DEPLOYING.md)**.
+The images are built from the checkout until the releases publish them
+([#452](https://github.com/Danube-Labs/javv-poc/issues/452)); the Helm chart follows in M10
+([#41](https://github.com/Danube-Labs/javv-poc/issues/41)).
 
-Bring the stack up by hand (backend + UI against a local OpenSearch, or the full end-to-end path
+**From source**, for development: bring the stack up by hand (backend + UI against a local OpenSearch, or the full end-to-end path
 with real Trivy/Grype scanning a live k3d cluster) by following
 **[`development/RUNNING-THE-STACK.md`](development/RUNNING-THE-STACK.md)** (paths A / B / F). On a
 fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequisite first
@@ -146,6 +147,8 @@ fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequi
 | [SECURITY.md](SECURITY.md) | How to report a vulnerability in JAVV (privately), and what's in scope |
 | [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) | Contributor Covenant 3.0: how we work together, and how to report a concern |
 | [docs/API.md](docs/API.md) | The shipped HTTP surface at a glance (auth regimes, capabilities) |
+| [docs/DEPLOYING.md](docs/DEPLOYING.md) | Deploy JAVV: docker compose on one machine, and pointing scanners at it |
+| [docs/UPGRADING.md](docs/UPGRADING.md) | Move a running JAVV to a newer release |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration setting: default, tier, UI-controllability |
 | [development/RUNNING-THE-STACK.md](development/RUNNING-THE-STACK.md) | Bring the stack up by hand (backend / full-stack / frontend) |
 | [docs/research/](docs/research/) | Stack best-practices, tooling/MCP, audits backing v4 |

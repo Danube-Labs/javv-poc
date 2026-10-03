@@ -78,7 +78,9 @@ Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefi
 | `JAVV_JOB_FINDINGS_CLEANUP_CRON` | `0 4 * * *` | When the findings cleanup runs (removes long-absent rows from the `findings` cache, window in §6). Same format and rules. | read-only display |
 | `JAVV_JOB_SESSION_SWEEP_CRON` | `30 4 * * *` | When the session sweep runs (deletes sessions expired longer than `JAVV_SESSION_SWEEP_GRACE_HOURS`). Same format and rules. | read-only display |
 
-> These are deployment/ops settings, tuned per environment (a Helm values file will inject them — M10).
+> These are deployment/ops settings, tuned per environment. `deploy/compose/compose.yaml` lists every
+> one with its default (`backend/tests/test_compose_settings.py` keeps it equal to the code); the Helm
+> values file will follow (M10).
 > Not user-facing settings.
 
 **Job schedules and the timezone (issue 691).** The schedules are cron expressions with five fields

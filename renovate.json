@@ -13,7 +13,7 @@
   "osvVulnerabilityAlerts": true,
   "pre-commit": { "enabled": true },
   "docker-compose": {
-    "managerFilePatterns": ["/(^|/)development/setup/opensearch-dev\\.yml$/"]
+    "managerFilePatterns": ["/(^|/)development/setup/opensearch-dev\\.yml$/", "/(^|/)deploy/compose/compose\\.yaml$/"]
   },
   "lockFileMaintenance": {
     "enabled": true,
