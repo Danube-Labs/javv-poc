@@ -1,6 +1,6 @@
 # JAVV on one machine: OpenSearch, the backend and the frontend (issue 452).
 #
-#   cp .env.example .env      # then set the two secrets in .env
+#   cp .env.example .env      # then set the three secrets in .env
 #   docker compose up -d
 #   open http://<this machine>:8080
 #
@@ -21,9 +21,12 @@ services:
     restart: unless-stopped
     environment:
       discovery.type: single-node
-      # The security plugin is off. OpenSearch is reachable only on this compose network (no
-      # published port), and the backend is its only client. See docs/DEPLOYING.md.
-      DISABLE_SECURITY_PLUGIN: "true"
+      # The security plugin is on, with OpenSearch's demo certificates: a real login, but not
+      # private TLS, since the demo key ships in the image. OpenSearch is still reachable only on
+      # this compose network (no published port), and the backend is its only client. The admin
+      # password is used once, when the store first starts with security on (issue 715).
+      # See docs/DEPLOYING.md.
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${JAVV_OPENSEARCH_PASSWORD:?set JAVV_OPENSEARCH_PASSWORD in .env}
       OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
       # JAVV runs its own index lifecycle and does not use query insights; their internal
       # indices would otherwise hold a single node on yellow
@@ -40,7 +43,14 @@ services:
     volumes:
       - opensearch-data:/usr/share/opensearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:9200/_cluster/health || exit 1"]
+      # $$ leaves the variable to the container's shell; one $ would write the password into the
+      # container's command, where docker inspect shows it. The login reaches curl as config on
+      # stdin (-K -) from the shell's printf, so it is in no process's arguments either.
+      test:
+        - CMD-SHELL
+        - >-
+          printf 'user = "admin:%s"\n' "$$OPENSEARCH_INITIAL_ADMIN_PASSWORD"
+          | curl -fsSk -K - https://localhost:9200/_cluster/health || exit 1
       interval: 10s
       timeout: 5s
       retries: 30
@@ -62,20 +72,21 @@ services:
       TZ: ${TZ:-UTC}
 
       # --- OpenSearch ---
-      # the compose service above
-      JAVV_OPENSEARCH_URL: ${JAVV_OPENSEARCH_URL:-http://opensearch:9200}
+      # the compose service above, over https with its demo certificates
+      JAVV_OPENSEARCH_URL: ${JAVV_OPENSEARCH_URL:-https://opensearch:9200}
       # seconds before a store request gives up
       JAVV_REQUEST_TIMEOUT: ${JAVV_REQUEST_TIMEOUT:-30.0}
       # check the store and create or update the indices before serving
       JAVV_BOOTSTRAP_ON_STARTUP: ${JAVV_BOOTSTRAP_ON_STARTUP:-true}
-      # the user JAVV signs in to OpenSearch as; empty = no login, as with the service above
-      JAVV_OPENSEARCH_USERNAME: ${JAVV_OPENSEARCH_USERNAME:-}
-      # that user's password, set in .env together with the username (never in the URL)
-      JAVV_OPENSEARCH_PASSWORD: ${JAVV_OPENSEARCH_PASSWORD:-}
+      # the user JAVV signs in to OpenSearch as: the service's admin (a narrower role is issue 729)
+      JAVV_OPENSEARCH_USERNAME: ${JAVV_OPENSEARCH_USERNAME:-admin}
+      # --- secret (required, from .env): the same password the OpenSearch service above sets ---
+      JAVV_OPENSEARCH_PASSWORD: ${JAVV_OPENSEARCH_PASSWORD:?set JAVV_OPENSEARCH_PASSWORD in .env}
       # a PEM file of CA certificates for a private CA; empty = the system's CAs
       JAVV_OPENSEARCH_CA_BUNDLE: ${JAVV_OPENSEARCH_CA_BUNDLE:-}
-      # check OpenSearch's certificate and host name on an https URL
-      JAVV_OPENSEARCH_VERIFY_CERTS: ${JAVV_OPENSEARCH_VERIFY_CERTS:-true}
+      # false here: the demo certificate names node-0.example.com and localhost, not opensearch,
+      # and its CA key is public anyway. The backend logs one warning at start for it.
+      JAVV_OPENSEARCH_VERIFY_CERTS: ${JAVV_OPENSEARCH_VERIFY_CERTS:-false}
 
       # --- secrets (required, from .env) ---
       # hashes ingest tokens and session ids; a long random string, kept for good

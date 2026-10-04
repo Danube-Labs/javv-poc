@@ -315,12 +315,16 @@ jobs:
   compose:
     # issue 452: the whole stack from deploy/compose/compose.yaml, started the way the guide says,
     # signed in over plain http, then the backend stopped to prove the frontend answers 502 (which
-    # the app reads as "backend down", not "store")
+    # the app reads as "backend down", not "store"). Issue 715: OpenSearch runs with its login on,
+    # so the job also proves the store refuses an anonymous request and a wrong password stops the
+    # backend with a message that says so.
     name: Compose stack
     runs-on: ubuntu-latest
     env:
       JAVV_TOKEN_PEPPER: ci-only-pepper-for-the-compose-check
       JAVV_BOOTSTRAP_ADMIN_PASSWORD: ci-only-admin-passphrase
+      # OpenSearch's rules: 8+ characters with upper, lower, digit and special, and not a weak one
+      JAVV_OPENSEARCH_PASSWORD: Ci-only-OpenSearch-715!
       JAVV_SESSION_COOKIE_SECURE: "false"
       OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
     steps:
@@ -346,6 +350,32 @@ jobs:
             -d "{\"username\":\"admin\",\"password\":\"$JAVV_BOOTSTRAP_ADMIN_PASSWORD\"}" \
             localhost:8080/auth/login | jq -e '.user.username == "admin" and .user.must_change'
           curl -sf -b jar.txt localhost:8080/auth/me | jq -e '.user.username == "admin"'
+
+      - name: OpenSearch refuses a request without its login
+        run: |
+          code=$(docker compose -f deploy/compose/compose.yaml exec -T opensearch \
+            curl -sk -o /dev/null -w '%{http_code}' https://localhost:9200/)
+          echo "status $code"
+          [ "$code" = 401 ]
+
+      # compose interpolates one $ into the container's command, where docker inspect shows it
+      - name: The store's health check leaves the password to the container's shell
+        run: |
+          check=$(docker inspect javv-opensearch-1 -f '{{json .Config.Healthcheck.Test}}')
+          echo "$check" | grep -q '\$OPENSEARCH_INITIAL_ADMIN_PASSWORD'
+          if echo "$check" | grep -qF "$JAVV_OPENSEARCH_PASSWORD"; then exit 1; fi
+
+      - name: A wrong OpenSearch password stops the backend and says so
+        run: |
+          set +e
+          out=$(timeout 180 docker compose -f deploy/compose/compose.yaml run --rm --no-deps \
+            -e JAVV_OPENSEARCH_PASSWORD=Wrong-OpenSearch-715! backend 2>&1)
+          code=$?
+          set -e
+          echo "$out" | tail -5
+          [ "$code" != 0 ] && [ "$code" != 124 ]
+          echo "$out" | grep -q 'refused the credentials in JAVV_OPENSEARCH_USERNAME'
+          if echo "$out" | grep -qF 'Wrong-OpenSearch-715!'; then exit 1; fi
 
       - name: A stopped backend is a 502 from the frontend, not the store's 503
         run: |
