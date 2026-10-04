@@ -48,9 +48,12 @@ and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<versio
      (`docker compose logs opensearch`). Changing this password later is in
      [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
 
-   **In `.env`, write a `$` as `$$`, or put the whole value in single quotes** (`'pa$ss…'`):
-   compose reads an unquoted `$` as the start of a variable and refuses the file. Any other
-   character, `"` and `\` included, is written as it is.
+   **In `.env`, write a `$` as `$$`, or put the whole value in single quotes** (`'pa$ss…'`).
+   Compose reads an unquoted `$name` as a variable and substitutes it, with only a warning, so
+   `pa$ss-Word1!` reaches OpenSearch and the backend as `pa-Word1!`: the stack comes up healthy
+   on a password you did not write. Three more things compose does to an unquoted value: a space
+   before `#` ends it (`pa #ss` is `pa`), trailing spaces are dropped, and a value that starts
+   with `"` or `'` is read as quoted. `"` and `\` anywhere else need nothing.
 
    **If `opensearch` never reports healthy** while its log shows it running, the password in
    `.env` and the one the store took on its first start disagree. UPGRADING has the way out.
