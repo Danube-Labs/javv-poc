@@ -151,10 +151,12 @@ def test_opensearch_runs_with_its_security_plugin_on() -> None:
 
 def test_the_health_check_keeps_the_password_out_of_the_container_command() -> None:
     """One `$` is interpolated by compose, which writes the password into the container's
-    command, visible in docker inspect and ps; `$$` leaves it to the container's shell."""
+    command, visible in docker inspect; `$$` leaves it to the container's shell. The login then
+    reaches curl on stdin (`-K -`), not as `-u`, where `ps` in the container would show it."""
     check = " ".join(_services()["opensearch"]["healthcheck"]["test"])
     assert "$$OPENSEARCH_INITIAL_ADMIN_PASSWORD" in check
     assert "${" not in check and "JAVV_" not in check
+    assert "-K -" in check and " -u " not in check and "--user" not in check
     assert "https://localhost:9200" in check
 
 

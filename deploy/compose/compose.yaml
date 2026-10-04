@@ -44,10 +44,13 @@ services:
       - opensearch-data:/usr/share/opensearch/data
     healthcheck:
       # $$ leaves the variable to the container's shell; one $ would write the password into the
-      # container's command, where docker inspect and ps show it
+      # container's command, where docker inspect shows it. The login reaches curl as config on
+      # stdin (-K -) from the shell's printf, so it is in no process's arguments either.
       test:
         - CMD-SHELL
-        - curl -fsSk -u "admin:$$OPENSEARCH_INITIAL_ADMIN_PASSWORD" https://localhost:9200/_cluster/health || exit 1
+        - >-
+          printf 'user = "admin:%s"\n' "$$OPENSEARCH_INITIAL_ADMIN_PASSWORD"
+          | curl -fsSk -K - https://localhost:9200/_cluster/health || exit 1
       interval: 10s
       timeout: 5s
       retries: 30
