@@ -10,7 +10,12 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import icon from '@/assets/brand/icon.svg'
-import { SERVER_DOWN_COPY, useAuthStore } from '@/stores/auth'
+import {
+  PASSWORD_MIN_LENGTH,
+  passwordLength,
+  SERVER_DOWN_COPY,
+  useAuthStore,
+} from '@/stores/auth'
 import { POLL_MS, useHealthStore } from '@/stores/health'
 
 const auth = useAuthStore()
@@ -53,6 +58,10 @@ async function submitLogin() {
 }
 
 async function submitChange() {
+  if (passwordLength(newPassword.value) < PASSWORD_MIN_LENGTH) {
+    error.value = `The new password needs at least ${PASSWORD_MIN_LENGTH} characters.`
+    return
+  }
   if (newPassword.value !== confirm.value) {
     error.value = 'New passwords do not match.'
     return
@@ -85,9 +94,20 @@ async function submitChange() {
         <label for="current">Current password</label>
         <input id="current" v-model="password" type="password" autocomplete="current-password" required />
         <label for="new">New password</label>
-        <input id="new" v-model="newPassword" type="password" autocomplete="new-password" required />
+        <input
+          id="new"
+          v-model="newPassword"
+          type="password"
+          autocomplete="new-password"
+          aria-describedby="password-rule"
+          required
+        />
         <label for="confirm">Confirm new password</label>
         <input id="confirm" v-model="confirm" type="password" autocomplete="new-password" required />
+        <p id="password-rule" class="rule">
+          At least {{ PASSWORD_MIN_LENGTH }} characters. Your current password stops working once
+          you set the new one.
+        </p>
       </template>
 
       <p v-if="auth.unreachable" class="error" role="alert">{{ SERVER_DOWN_COPY }}</p>
@@ -169,6 +189,12 @@ input {
   font-size: var(--text-body);
   background: var(--panel);
   color: var(--ink);
+}
+.rule {
+  margin: 10px 0 0;
+  color: var(--soft);
+  font-size: var(--text-sm);
+  line-height: 1.5;
 }
 .error {
   margin: 12px 0 0;

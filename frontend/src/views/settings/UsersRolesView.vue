@@ -19,6 +19,7 @@ import {
   setRoleApiV1AdminUsersUsernameRolePatch,
 } from '@/api/generated'
 import { client } from '@/api/client'
+import { detailOr } from '@/api/problem'
 import DotWord from '@/components/chips/DotWord.vue'
 import GridPager from '@/components/findings/GridPager.vue'
 import RolesCard, { type RoleRow } from '@/components/settings/RolesCard.vue'
@@ -84,15 +85,6 @@ const hasNext = computed(() => (page.value + 1) * size.value < users.value.lengt
 function setSize(next: number) {
   size.value = next
   page.value = 0
-}
-
-/** Server messages (409 last-admin, 422 policy) surface VERBATIM — the backend speaks RFC-7807
- * and an HTTPException's text lands in the problem's `title`. Pydantic validation 422s only say
- * "Validation error" (their detail is a repr, not user copy) — those get the caller's fallback.
- * The hey-api client already consumed the body: read the parsed `error`, never `response`. */
-function detailOr(error: unknown, fallback: string): string {
-  const title = (error as { title?: unknown } | undefined)?.title
-  return typeof title === 'string' && title !== 'Validation error' ? title : fallback
 }
 
 // ── invite (create-with-temp-password) ─────────────────────────────────────────────────

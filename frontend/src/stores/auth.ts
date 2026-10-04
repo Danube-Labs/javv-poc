@@ -7,6 +7,7 @@
 import { defineStore } from 'pinia'
 
 import { client } from '@/api/client'
+import { detailOr } from '@/api/problem'
 import {
   loginAuthLoginPost,
   logoutAuthLogoutPost,
@@ -29,6 +30,15 @@ export function serverFailed(status: number | undefined): boolean {
 }
 
 export const SERVER_DOWN_COPY = 'The server is not answering. This page checks again on its own.'
+
+/** Mirror `MIN_LENGTH` and `MAX_LENGTH` in `backend/src/backend/auth/passwords.py`
+ * (CONFIGURATION.md §8), so the form can say the rule and refuse a short password before sending
+ * it. The server stays the authority; `password-change.spec.ts` fails when they differ. */
+export const PASSWORD_MIN_LENGTH = 12
+export const PASSWORD_MAX_LENGTH = 256
+
+/** Counted in code points, as the server's `len()` counts them: `'😀'.length` is 2 in JS. */
+export const passwordLength = (password: string): number => [...password].length
 
 /** The sign-in form's message for a failed answer, or null on success. A wrong password stays
  * generic: no hint about whether the user exists. */
@@ -72,13 +82,17 @@ export const useAuthStore = defineStore('auth', {
       return null
     },
     async changePassword(currentPassword: string, newPassword: string): Promise<string | null> {
-      const { response } = await changePasswordAuthPasswordPost({
+      const { error, response } = await changePasswordAuthPasswordPost({
         client,
         body: { current_password: currentPassword, new_password: newPassword },
       })
       this.unreachable = serverFailed(response?.status)
       if (this.unreachable) return SERVER_DOWN_COPY
-      if (!response?.ok) return 'Password change failed. Check the current password and policy.'
+      if (response?.status === 422) {
+        const rule = `Use ${PASSWORD_MIN_LENGTH} to ${PASSWORD_MAX_LENGTH} characters.`
+        return detailOr(error, `The new password was refused. ${rule}`)
+      }
+      if (!response?.ok) return 'Password change failed. Check the current password.'
       logger.info('password changed')
       await this.fetchMe()
       return null
