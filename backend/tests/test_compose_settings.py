@@ -6,12 +6,15 @@ lists every backend setting with its default and a comment, like a Helm values f
 - every `JAVV_` key in the file is a `Settings` field or a name the code reads (the rule of
   `development/scripts/check-docs-drift.sh`: `JAVV_LOG_LEVEL` is read by javv_common, and
   `JAVV_BACKEND_URL` by the frontend server);
-- every value is the code default, except the named set the compose file sets on purpose.
+- every value is the code default, except the named set the compose file sets on purpose;
+- the backend and frontend run the images a release publishes, under the release-please manifest's
+  version, on lines release-please rewrites (a release PR gets no CI run of its own).
 
 Each value is written `${JAVV_X:-default}`, so `.env` overrides any setting without an edit to the
 compose file; the default after `:-` is what is compared. Keys without the prefix (`TZ`) are not
 settings and are ignored. No store needed."""
 
+import json
 import re
 from pathlib import Path
 from typing import Any
@@ -24,6 +27,7 @@ from backend.core.settings import Settings
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "deploy" / "compose" / "compose.yaml"
+MANIFEST = ROOT / ".release-please-manifest.json"
 
 # set on purpose to something other than the code default (issue 452, plan v7 ruling 3)
 NOT_THE_CODE_DEFAULT = {
@@ -119,4 +123,16 @@ def test_the_frontend_reaches_the_backend_by_its_service_name() -> None:
     frontend = _environment("frontend")
     assert _parsed("JAVV_BACKEND_URL", frontend["JAVV_BACKEND_URL"])["rest"] == (
         "http://backend:8000"
+    )
+
+
+@pytest.mark.parametrize("app", ["backend", "frontend"])
+def test_the_app_runs_the_published_image_of_this_release(app: str) -> None:
+    version = json.loads(MANIFEST.read_text())["."]
+    service = _services()[app]
+    assert "build" not in service, f"{app} builds from source, not the published image"
+    image = f"ghcr.io/danube-labs/javv-{app}:{version}"
+    assert service["image"] == image
+    assert f"image: {image} # x-release-please-version" in COMPOSE.read_text(), (
+        f"{app}: without the annotation, release-please leaves the tag behind on the next release"
     )

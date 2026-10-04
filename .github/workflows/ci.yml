@@ -230,8 +230,8 @@ jobs:
 
   app-images:
     # issue 452: the app's images build on every PR without being pushed, and each one starts and
-    # answers: the backend against a real store, the frontend in front of it. Publishing on a
-    # release is separate. The backend runs on the dev profile with no secrets, which is what
+    # answers: the backend against a real store, the frontend in front of it. A release publishes
+    # them from release-please.yml. The backend runs on the dev profile with no secrets, which is what
     # proves the image itself needs none.
     name: App images
     runs-on: ubuntu-latest
@@ -250,14 +250,29 @@ jobs:
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
-      - name: Build the backend image
-        run: docker build -f backend/Dockerfile -t javv-backend:ci .
+      # the release builds with this script too, so its tags and labels are checked on every PR
+      - name: Build both images
+        run: |
+          development/scripts/build-app-images.sh > "$RUNNER_TEMP/refs.txt"
+          echo "BACKEND_IMAGE=$(sed -n 1p "$RUNNER_TEMP/refs.txt")" >> "$GITHUB_ENV"
+          echo "FRONTEND_IMAGE=$(sed -n 2p "$RUNNER_TEMP/refs.txt")" >> "$GITHUB_ENV"
+
+      - name: Each image carries its release, commit and source
+        run: |
+          version=$(jq -r '."."' .release-please-manifest.json)
+          for ref in "$BACKEND_IMAGE" "$FRONTEND_IMAGE"; do
+            docker image inspect -f '{{json .Config.Labels}}' "$ref" | jq -e --arg v "$version" \
+              --arg sha "$(git rev-parse HEAD)" '
+                ."org.opencontainers.image.version" == $v
+                and ."org.opencontainers.image.revision" == $sha
+                and (."org.opencontainers.image.source" | startswith("https://github.com/"))'
+          done
 
       - name: Start the backend image against the store
         run: >-
           docker run -d --name javv-backend --network host
           -e JAVV_OPENSEARCH_URL=http://localhost:9200 -e JAVV_SCHEDULER_ENABLED=false
-          javv-backend:ci
+          "$BACKEND_IMAGE"
 
       # judged by body: a 200 from something else is not the backend answering
       - name: The backend is healthy and ready
@@ -270,14 +285,11 @@ jobs:
           curl -sf localhost:8000/healthz | jq -e '.status == "ok"'
           curl -sf localhost:8000/readyz | jq -e '.status == "ready"'
 
-      - name: Build the frontend image
-        run: docker build -f frontend/Dockerfile -t javv-frontend:ci .
-
       - name: Start the frontend image in front of the backend
         run: >-
           docker run -d --name javv-frontend --network host
           -e JAVV_BACKEND_URL=http://localhost:8000
-          javv-frontend:ci
+          "$FRONTEND_IMAGE"
 
       # the SPA for a history-mode route, a hashed asset that may be cached forever, and /readyz
       # answered by the backend through the frontend's forward
@@ -317,8 +329,16 @@ jobs:
       - name: OpenSearch's memory map limit
         run: sudo sysctl -w vm.max_map_count=262144
 
+      # built under the names the compose file uses, then started with no pull: a file that names
+      # another registry or version fails here instead of on someone's machine. OpenSearch is the
+      # one image that is pulled.
+      - name: Build both images
+        run: development/scripts/build-app-images.sh
+
       - name: Start the stack
-        run: docker compose -f deploy/compose/compose.yaml up -d --build --wait --wait-timeout 300
+        run: |
+          docker compose -f deploy/compose/compose.yaml pull opensearch
+          docker compose -f deploy/compose/compose.yaml up -d --pull never --wait --wait-timeout 300
 
       - name: Sign in through the frontend over plain http
         run: |
