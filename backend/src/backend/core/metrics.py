@@ -72,6 +72,13 @@ STORED_SETTING_UNKNOWN_FIELDS = Counter(
     " per-cluster doc id, so the series stay bounded",
     ["setting"],
 )
+CONFIG_WARNINGS = Counter(
+    "javv_config_warnings_total",
+    "Start-ups whose settings leave a connection weaker than it looks (issue 715): OpenSearch"
+    " certificates not checked, or its password sent over plain http; `setting` names the"
+    " variable",
+    ["setting"],  # JAVV_OPENSEARCH_VERIFY_CERTS | JAVV_OPENSEARCH_URL
+)
 
 # --- M-3: concurrency-control churn ----------------------------------------------
 
@@ -148,6 +155,7 @@ def install_http_metrics(app: FastAPI) -> None:
 __all__ = [
     "AUTH_FAILURES",
     "CAS_CONFLICTS",
+    "CONFIG_WARNINGS",
     "CONTENT_TYPE_LATEST",
     "EXPORT_BYTES",
     "EXPORT_ROWS",

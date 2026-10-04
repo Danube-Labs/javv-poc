@@ -5,12 +5,20 @@ process-level config, not an untrusted request model — those are `extra="forbi
 limits, garbage PIT grammar, inverted cap pairs) raise at the first `get_settings()` call — which
 happens in the app lifespan, so a borked deployment CRASHES AT BOOT with the offending variable
 named, instead of booting green and failing every request. `opensearch_url` stays a plain str (the
-startup ping fail-fasts it with a better error); the pepper rule is owned by
-`assert_production_ready` (env-profile aware), never duplicated here."""
+startup ping fail-fasts it with a better error), but a URL that carries a user or password is
+refused: credentials go in their own settings (issue 715). The pepper rule is owned by
+`assert_production_ready` (env-profile aware), never duplicated here.
 
+**The failure names the variable and never echoes a value** (issue 715): pydantic's own error
+carries the raw input dict, pepper and passwords included, so `get_settings()` re-raises it as a
+`RuntimeError` built from the messages alone."""
+
+import os
 from functools import lru_cache
+from pathlib import Path
+from urllib.parse import urlsplit
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.jobs.schedule import validate_cron
@@ -23,6 +31,12 @@ class Settings(BaseSettings):
     # prod-like ("prod"/"production") turns them into startup FAILURES (assert_production_ready)
     env: str = "dev"
     opensearch_url: str = "http://localhost:9200"
+    # signing in to a secured OpenSearch (issue 715): empty username = no login (the dev store, CI).
+    # The CA bundle is a PEM path for a private CA; empty = the system's CAs plus certifi's.
+    opensearch_username: str = ""
+    opensearch_password: SecretStr = SecretStr("")
+    opensearch_ca_bundle: str = ""
+    opensearch_verify_certs: bool = True
     request_timeout: float = Field(default=30.0, gt=0)
     # startup contract: ping OpenSearch + run bootstrap before serving (fail-fast). Unit tests that
     # run the app without an OpenSearch set this false.
@@ -122,10 +136,48 @@ class Settings(BaseSettings):
                         raise ValueError(f"JAVV_{name.upper()}: {exc}") from exc
         return self
 
+    @model_validator(mode="after")
+    def _opensearch_login_is_coherent(self) -> "Settings":
+        # values never go in these messages: the password is a secret, and the URL may carry one
+        if bool(self.opensearch_username) != bool(self.opensearch_password.get_secret_value()):
+            raise ValueError(
+                "JAVV_OPENSEARCH_USERNAME and JAVV_OPENSEARCH_PASSWORD go together: set both or"
+                " neither"
+            )
+        url = urlsplit(self.opensearch_url)
+        if url.username is not None or url.password is not None:
+            raise ValueError(
+                "JAVV_OPENSEARCH_URL carries a user or password; set JAVV_OPENSEARCH_USERNAME and"
+                " JAVV_OPENSEARCH_PASSWORD instead"
+            )
+        bundle = self.opensearch_ca_bundle.strip()
+        if bundle and not self.opensearch_verify_certs:
+            raise ValueError(
+                "JAVV_OPENSEARCH_CA_BUNDLE is set but JAVV_OPENSEARCH_VERIFY_CERTS is false; a CA"
+                " bundle only matters when certificates are checked"
+            )
+        if bundle and not (Path(bundle).is_file() and os.access(bundle, os.R_OK)):
+            raise ValueError("JAVV_OPENSEARCH_CA_BUNDLE: no readable file at that path")
+        return self
+
+
+def describe_errors(exc: ValidationError) -> str:
+    """One line per error, `JAVV_<FIELD>: <message>`, with no input value in it. A field error
+    carries the name only in `loc`; a model-level error writes it into its own message."""
+    lines = []
+    for error in exc.errors(include_input=False, include_url=False):
+        loc = error["loc"]
+        lines.append(f"JAVV_{str(loc[0]).upper()}: {error['msg']}" if loc else error["msg"])
+    return "invalid settings: " + "; ".join(lines)
+
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    try:
+        return Settings()
+    except ValidationError as exc:
+        # `from None`: the chained ValidationError would print its input dict in the traceback
+        raise RuntimeError(describe_errors(exc)) from None
 
 
 _DEV_PEPPER = "dev-only-pepper"

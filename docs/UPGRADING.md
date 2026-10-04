@@ -131,3 +131,16 @@ automatically on the first start.
 | Release | Store schema | Report formats accepted | What to do |
 |---|---|---|---|
 | *(no entries yet)* | | | |
+
+**The release after 0.5.1: how the backend connects to OpenSearch (issue 715).** Two changes, both
+on purpose:
+
+- **A `JAVV_OPENSEARCH_URL` with a user or password in it stops the backend at start.** Earlier
+  releases passed `https://user:pass@host` through to the client. Move the credentials into
+  `JAVV_OPENSEARCH_USERNAME` and `JAVV_OPENSEARCH_PASSWORD` ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
+- **A broken setting now stops start-up with one line per variable**, `invalid settings:
+  JAVV_<NAME>: <reason>`, and no value from your environment in it. Earlier releases printed part
+  of the environment, which could include secrets.
+
+The token command line (`python -m backend.core.tokens`) and the scan-scope command line also gain
+the `JAVV_REQUEST_TIMEOUT` the rest of the backend already used (30 seconds by default).

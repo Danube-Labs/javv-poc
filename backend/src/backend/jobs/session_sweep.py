@@ -34,6 +34,7 @@ from opensearchpy import AsyncOpenSearch
 
 from backend.audit.writer import append_field_change
 from backend.auth.sessions import INDEX as SESSIONS_INDEX
+from backend.core.opensearch_client import build_client
 from backend.core.settings import get_settings
 
 log = structlog.get_logger()
@@ -80,7 +81,7 @@ async def sweep_sessions(
 
 async def _main() -> int:
     settings = get_settings()
-    client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+    client = build_client(settings)
     try:
         from backend.jobs.registry import run_job
 

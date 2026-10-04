@@ -252,10 +252,11 @@ async def run_findings_cleanup(
 
 
 async def _main() -> int:
+    from backend.core.opensearch_client import build_client
     from backend.core.settings import get_settings
 
     settings = get_settings()
-    client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+    client = build_client(settings)
     try:
         from backend.jobs.registry import run_job
 

@@ -68,6 +68,14 @@ services:
       JAVV_REQUEST_TIMEOUT: ${JAVV_REQUEST_TIMEOUT:-30.0}
       # check the store and create or update the indices before serving
       JAVV_BOOTSTRAP_ON_STARTUP: ${JAVV_BOOTSTRAP_ON_STARTUP:-true}
+      # the user JAVV signs in to OpenSearch as; empty = no login, as with the service above
+      JAVV_OPENSEARCH_USERNAME: ${JAVV_OPENSEARCH_USERNAME:-}
+      # that user's password, set in .env together with the username (never in the URL)
+      JAVV_OPENSEARCH_PASSWORD: ${JAVV_OPENSEARCH_PASSWORD:-}
+      # a PEM file of CA certificates for a private CA; empty = the system's CAs
+      JAVV_OPENSEARCH_CA_BUNDLE: ${JAVV_OPENSEARCH_CA_BUNDLE:-}
+      # check OpenSearch's certificate and host name on an https URL
+      JAVV_OPENSEARCH_VERIFY_CERTS: ${JAVV_OPENSEARCH_VERIFY_CERTS:-true}
 
       # --- secrets (required, from .env) ---
       # hashes ingest tokens and session ids; a long random string, kept for good

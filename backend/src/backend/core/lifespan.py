@@ -4,9 +4,11 @@ one client, no per-request clients), and enforce the boot contract (observabilit
   ping OpenSearch → run the versioned index bootstrap → serve.
 
 **Fail-fast at startup** (D9): if OpenSearch is unreachable at boot, raise — the process exits
-non-zero with a clear message rather than serving a broken app. At *runtime* the app stays up and
-degrades (`/readyz` → 503) instead of crashing. Set `JAVV_BOOTSTRAP_ON_STARTUP=false` to skip the
-ping+bootstrap (used by unit tests that run the app without an OpenSearch).
+non-zero with a clear message rather than serving a broken app. A store that refuses the
+credentials says so instead of "unreachable" (issue 715), and neither message carries the URL.
+At *runtime* the app stays up and degrades (`/readyz` → 503) instead of crashing. Set
+`JAVV_BOOTSTRAP_ON_STARTUP=false` to skip the ping+bootstrap (used by unit tests that run the app
+without an OpenSearch).
 """
 
 from collections.abc import AsyncIterator
@@ -14,11 +16,12 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI
-from opensearchpy import AsyncOpenSearch
+from opensearchpy import AuthenticationException, AuthorizationException
 
 from backend.auth.bootstrap_admin import seed_bootstrap_admin
 from backend.auth.capabilities import seed_default_roles
 from backend.core.bootstrap import MAPPING_VERSION, bootstrap, summarize_actions
+from backend.core.opensearch_client import build_client, warn_about_transport
 from backend.core.settings import assert_production_ready, get_settings
 from backend.jobs.scheduler import start_scheduler, stop_scheduler
 from backend.query.as_of import register_as_of_t
@@ -32,16 +35,23 @@ log = structlog.get_logger()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     assert_production_ready(settings)  # task C / audit M3: dev secrets never survive a prod boot
-    client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+    client = build_client(settings)
     app.state.opensearch = client
+    warn_about_transport(settings)
 
     if settings.bootstrap_on_startup:
         try:
             await client.info()  # fail-fast: unreachable OpenSearch at boot is fatal
+        except (AuthenticationException, AuthorizationException) as exc:
+            await client.close()
+            raise RuntimeError(
+                "OpenSearch refused the credentials in JAVV_OPENSEARCH_USERNAME /"
+                f" JAVV_OPENSEARCH_PASSWORD (HTTP {exc.status_code})"
+            ) from exc
         except Exception as exc:
             await client.close()
             raise RuntimeError(
-                f"OpenSearch unreachable at startup ({settings.opensearch_url}): {exc!r}"
+                f"OpenSearch unreachable at startup: {type(exc).__name__}: {exc}"
             ) from exc
         results = await bootstrap(client)  # idempotent + version-gated
         # names as list values keyed by action — as keys, `system-tokens` gets redacted (#156)

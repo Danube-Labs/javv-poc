@@ -97,15 +97,16 @@ def test_pit_horizon_parses_the_validated_grammar(monkeypatch, ka: str, seconds:
 
 
 async def test_broken_env_aborts_startup(monkeypatch) -> None:
-    """The failure surface: lifespan's get_settings() call → ValidationError aborts boot
-    (crash-loop with a readable error beats healthy-looking-but-broken)."""
+    """The failure surface: lifespan's get_settings() call aborts boot (crash-loop with a
+    readable error beats healthy-looking-but-broken). It raises RuntimeError naming the
+    variable, not pydantic's ValidationError, whose input dict would print secrets (issue 715)."""
     from backend.core.lifespan import lifespan
     from backend.main import create_app
 
     monkeypatch.setenv("JAVV_SESSION_TTL_HOURS", "-5")
     get_settings.cache_clear()
     app = create_app()
-    with pytest.raises(ValidationError, match="session_ttl_hours"):
+    with pytest.raises(RuntimeError, match="JAVV_SESSION_TTL_HOURS"):
         async with lifespan(app):
             pass
 
@@ -173,6 +174,6 @@ async def test_a_malformed_schedule_aborts_startup(monkeypatch) -> None:
 
     monkeypatch.setenv("JAVV_JOB_STALENESS_SWEEP_CRON", "61 * * * *")
     app = create_app()
-    with pytest.raises(ValidationError, match="JAVV_JOB_STALENESS_SWEEP_CRON"):
+    with pytest.raises(RuntimeError, match="JAVV_JOB_STALENESS_SWEEP_CRON"):
         async with app.router.lifespan_context(app):
             pass

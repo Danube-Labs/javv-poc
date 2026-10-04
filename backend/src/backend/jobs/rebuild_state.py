@@ -425,12 +425,13 @@ async def run_rebuild_state(client: AsyncOpenSearch, *, prefix: str = "") -> dic
 
 
 if __name__ == "__main__":  # manual/self-heal entrypoint (under the lease, like the sweeps)
+    from backend.core.opensearch_client import build_client
     from backend.core.settings import get_settings
     from backend.jobs.lease import run_under_lease
 
     async def _main() -> None:
         settings = get_settings()
-        client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+        client = build_client(settings)
         try:
             result = await run_under_lease(client, "rebuild_state", run_rebuild_state)
             print(f"rebuild-state: {result if result is not None else 'skipped — already running'}")

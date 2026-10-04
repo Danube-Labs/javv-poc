@@ -129,9 +129,12 @@ The first push appears in **Scanner status**; its findings appear once a scan is
 - **amd64 only.** The images, like the scanner images, are built for amd64.
 - **The first release with published images is the one after 0.5.0.** 0.5.0 predates the images, so
   its tag has none.
-- **A secured OpenSearch of your own is not supported yet.** The backend connects with
-  `JAVV_OPENSEARCH_URL` alone: no username, password or CA setting. The compose file runs its own
-  OpenSearch, so this path does not need one. Issue 715.
+- **An OpenSearch of your own, with its security plugin on,** works from the release after 0.5.1:
+  point `JAVV_OPENSEARCH_URL` at it and set `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`
+  and, for a private CA, `JAVV_OPENSEARCH_CA_BUNDLE` ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
+  The user needs full access to the `findings`, `javv-*` and `system-*` indices and their aliases,
+  point-in-time searches, cluster health and the snapshot repository; a narrower role is issue 729.
+  The compose file's own OpenSearch still runs with its security plugin off (issue 715).
 - **No maintenance page without a proxy.** `frontend/public/maintenance.html` is shown by pointing
   a proxy in front of JAVV at it (`development/RUNNING-THE-STACK.md` §R1). With nothing in front,
   there is no switch yet. Issue 719.

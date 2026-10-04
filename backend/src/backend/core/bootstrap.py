@@ -616,11 +616,12 @@ async def bootstrap(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, s
 if __name__ == "__main__":  # pragma: no cover — thin runner; logic is bootstrap() above
     import asyncio
 
+    from backend.core.opensearch_client import build_client
     from backend.core.settings import get_settings
 
     async def _main() -> None:
         settings = get_settings()
-        client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+        client = build_client(settings)
         try:
             for index_name, outcome in (await bootstrap(client)).items():
                 print(f"{outcome:9s} {index_name}")
