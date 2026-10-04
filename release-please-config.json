@@ -15,6 +15,10 @@
         {
           "type": "generic",
           "path": "frontend/src/version.ts"
+        },
+        {
+          "type": "generic",
+          "path": "deploy/compose/compose.yaml"
         }
       ]
     }

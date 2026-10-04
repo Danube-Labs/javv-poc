@@ -45,6 +45,18 @@ While the backend rolls, old and new pods serve side by side against the same st
 because every schema change so far only adds fields: old pods ignore fields they don't know, and new
 pods treat a missing field as absent.
 
+### With docker compose
+
+Each release publishes `ghcr.io/danube-labs/javv-backend` and `javv-frontend` under its version, and
+its `deploy/compose/compose.yaml` names them. To upgrade:
+
+1. Replace your `compose.yaml` with the new release's. Keep your `.env`: it holds your settings.
+2. Run `docker compose pull`, then `docker compose up -d`.
+
+There is one backend, so JAVV is unavailable for the seconds the new backend takes to start and
+upgrade the indices. The frontend waits for it to report healthy (`depends_on`). To roll back, put
+the older release's `compose.yaml` back and run the same two commands.
+
 ### On Kubernetes (Helm)
 
 The Helm chart lands in M10 ([#452](https://github.com/Danube-Labs/javv-poc/issues/452)). This section

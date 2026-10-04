@@ -329,8 +329,13 @@ jobs:
       - name: OpenSearch's memory map limit
         run: sudo sysctl -w vm.max_map_count=262144
 
+      # built under the names the compose file uses, then started with no pull: a file that names
+      # another registry or version fails here instead of on someone's machine
+      - name: Build both images
+        run: development/scripts/build-app-images.sh
+
       - name: Start the stack
-        run: docker compose -f deploy/compose/compose.yaml up -d --build --wait --wait-timeout 300
+        run: docker compose -f deploy/compose/compose.yaml up -d --pull never --wait --wait-timeout 300
 
       - name: Sign in through the frontend over plain http
         run: |
