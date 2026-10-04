@@ -83,6 +83,7 @@ jobs:
           OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
         run: |
           sudo sysctl -w vm.max_map_count=262144
+          docker compose -f deploy/compose/compose.yaml pull opensearch
           docker compose -f deploy/compose/compose.yaml up -d --pull never --wait --wait-timeout 300
           curl -sf localhost:8080/ | grep -q '<div id="app">'
           curl -sf localhost:8080/readyz | jq -e '.status == "ready"'
