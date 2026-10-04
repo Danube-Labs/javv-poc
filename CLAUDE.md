@@ -63,7 +63,7 @@ cd backend
 export JAVV_OPENSEARCH_URL=http://localhost:9200
 export JAVV_TOKEN_PEPPER='local-dev-pepper-change-me'          # peppers ingest tokens + session ids
 export JAVV_BOOTSTRAP_ADMIN_USERNAME='admin'
-export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'  # >= 12 chars (password policy)
+export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'  # used once; new one needs 12+
 export JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50   # default 10 starves UI navigation/rigs with 429s
 export JAVV_SCHEDULER_ENABLED=false                # dev: no automatic sweeps on a store you want to keep
 uv run python -m backend.core.bootstrap            # idempotent, versioned (MAPPING_VERSION)

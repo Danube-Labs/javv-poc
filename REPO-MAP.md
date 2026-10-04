@@ -81,7 +81,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 | **`development/bolts/`** | One folder per milestone unit M0-M10 (the **execution briefs**) - see milestone map below |
 | **`development/standards/`** | Process rules: `definition-of-done` · `testing` (suite budget, no per-test bootstrap) · `git-workflow` (bolt tracking on issues) · `releases` · `observability` (**javv-common logging only**) · `api-design` · `ui-foundations` (binding FE tokens) · `security` · `dependency-policy` (fix deadlines, Renovate) · `bolt-readme-template` |
 | **`development/e2e/`** | Operator rigs: `smoke.sh` (full-stack smoke incl. read/report phase) · `smoke-two-cluster.sh` (two-tenant isolation) · `bench_refresh.py` + `bench_read.py` (ingest + read-contention benches) · `loadbreak.py` (synthetic load + break attempts) · `results.md` (run log). Run logs are git-ignored |
-| `development/scripts/` | `check-versions.sh` (versions.yaml ↔ consumers drift gate) · `check-scanner-db-policy.sh` · `check-ingest-roundtrip.sh` (the compat push's summary vs the store, CI) · `check-docs-drift.sh` (API.md + CONFIGURATION.md vs code, and this map's inventory, CI) · `clean-dev-store.sh` (test-residue sweep) · `dependency-audit.sh` (report-only, CI) · `seed-smoke.sh` (seeds the CI smoke's backend) · `make-demo-gif.sh` (README demo) |
+| `development/scripts/` | `check-versions.sh` (versions.yaml ↔ consumers drift gate) · `check-scanner-db-policy.sh` · `check-ingest-roundtrip.sh` (the compat push's summary vs the store, CI) · `check-docs-drift.sh` (API.md + CONFIGURATION.md vs code, and this map's inventory, CI) · `build-app-images.sh` (the app images as a release tags and labels them; CI and the release) · `clean-dev-store.sh` (test-residue sweep) · `dependency-audit.sh` (report-only, CI) · `seed-smoke.sh` (seeds the CI smoke's backend) · `make-demo-gif.sh` (README demo) |
 | `development/hooks/` | `conventional-commit.sh` (local commitlint mirror: types, subject case, 100-char lines) + its case suite `test-conventional-commit.sh` |
 
 ### Milestone map (`development/bolts/`)
@@ -124,7 +124,7 @@ lint/test + the contract gate + Frontend smoke + Scanner + javv-common + commitl
 Secret scan + the report-only Dependency audit + App images, which builds the app's Docker images
 without a push and starts them, + Compose stack, which runs deploy/compose and signs in, issue 452; detect-step jobs always run for branch protection) ·
 `workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
-(batched release PRs) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
+(batched release PRs; a release publishes the app images, issue 452) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both
 test suites with the clock shifted forward, to catch date bombs before they fire on main) ·
 `workflows/compat-fixture.yml` (manual: copies the compat gate's fixture image into GHCR by digest,

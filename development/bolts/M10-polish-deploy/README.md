@@ -77,6 +77,13 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-04: a release publishes the app images (issue 452, slice 4):** the `Publish app images`
+  job in `release-please.yml` runs in the release's own run. It builds `javv-backend` and
+  `javv-frontend` under the release version (`development/scripts/build-app-images.sh`, OCI version,
+  revision and source labels), smokes the release's compose file on them, pushes them to GHCR, writes
+  both digests out for signing (issue 615), and fails the run with a note on the release if any
+  step fails. `deploy/compose/compose.yaml` now names the published images, and release-please
+  bumps their tags with `version.py` and `version.ts`. The chart takes the same images.
 - **2026-10-03 — docker compose first, the chart after (issue 452, operator):** JAVV ships as a
   frontend container and a backend container that reach each other by address, plus OpenSearch.
   The frontend container's own server forwards `/api`, `/auth` and `/readyz` to the backend, so

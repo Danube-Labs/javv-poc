@@ -23,17 +23,18 @@ follows it (issue 41).
 
 ## A machine with docker compose
 
-You need Docker Engine with the compose plugin, and this repository checked out. The images are
-built from the checkout until the releases publish them.
+You need Docker Engine with the compose plugin and two files from the release you deploy:
+`deploy/compose/compose.yaml` and `deploy/compose/.env.example`. Each release publishes the backend
+and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<version>` and
+`javv-frontend:<version>`), and its compose file names them.
 
 1. **Give OpenSearch its memory map limit** (once per host; add it to `/etc/sysctl.conf` to keep
    it after a reboot):
    ```bash
    sudo sysctl -w vm.max_map_count=262144
    ```
-2. **Fill in `.env`:**
+2. **Fill in `.env`**, in the folder that holds the two files:
    ```bash
-   cd deploy/compose
    cp .env.example .env
    ```
    Set `JAVV_TOKEN_PEPPER` (a long random string, `openssl rand -hex 32`, kept for good) and
@@ -41,12 +42,18 @@ built from the checkout until the releases publish them.
    refuses to start without them. Decide the session cookie (next section).
 3. **Start it:**
    ```bash
-   docker compose up -d --build
-   docker compose ps    # opensearch, backend and frontend all "healthy"
+   docker compose up -d   # pulls the release's images the first time
+   docker compose ps      # opensearch, backend and frontend all "healthy"
    ```
    The backend creates its indices on the first start.
 4. **Sign in** at `http://<this machine>:8080` as `admin` with the password from `.env`. JAVV asks
    for a new password (12 characters or more) before anything else.
+
+To upgrade later, see [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
+
+**A checkout that is not a release** (`main`, or a commit between releases): build the images first
+with `development/scripts/build-app-images.sh`. It tags them with the names the compose file uses,
+and `docker compose up -d` then runs them instead of pulling.
 
 ### http or https
 
@@ -120,6 +127,8 @@ The first push appears in **Scanner status**; its findings appear once a scan is
 ## Known limits
 
 - **amd64 only.** The images, like the scanner images, are built for amd64.
+- **The first release with published images is the one after 0.5.0.** 0.5.0 predates the images, so
+  its tag has none.
 - **A secured OpenSearch of your own is not supported yet.** The backend connects with
   `JAVV_OPENSEARCH_URL` alone: no username, password or CA setting. The compose file runs its own
   OpenSearch, so this path does not need one. Issue 715.
