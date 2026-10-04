@@ -93,6 +93,9 @@ check is not remembered as signed out: the next navigation asks again).
 is the form's plain red line (A of two; B was a tinted box). The banner for a backend that is gone
 reads "The backend is not answering. Screens cannot load until it is back." (A of two; B ended
 "Check that the JAVV backend is running.").
+**The password rule** (issue 726): the forced change states it under the fields, as the
+prototype does ("At least 12 characters. Your current password stops working once you set the new
+one."), refuses a shorter password before sending it, and shows the server's own reason for a `422`.
 **Changed:** copy states capability-based access; SSO/OIDC removed (post-MVP, per V4-DELTA).
 
 ---
