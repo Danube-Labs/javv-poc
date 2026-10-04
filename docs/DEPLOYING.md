@@ -48,6 +48,13 @@ and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<versio
      (`docker compose logs opensearch`). Changing this password later is in
      [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
 
+   **In `.env`, write a `$` as `$$`, or put the whole value in single quotes** (`'pa$ss…'`):
+   compose reads an unquoted `$` as the start of a variable and refuses the file. Any other
+   character, `"` and `\` included, is written as it is.
+
+   **If `opensearch` never reports healthy** while its log shows it running, the password in
+   `.env` and the one the store took on its first start disagree. UPGRADING has the way out.
+
    Decide the session cookie (next section).
 3. **Start it:**
    ```bash

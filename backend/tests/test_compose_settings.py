@@ -17,7 +17,9 @@ compose file; the default after `:-` is what is compared. Keys without the prefi
 settings and are ignored. No store needed."""
 
 import json
+import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -161,6 +163,23 @@ def test_the_health_check_keeps_the_password_out_of_the_container_command() -> N
     assert "${" not in check and "JAVV_" not in check
     assert "-K -" in check and " -u " not in check and "--user" not in check
     assert "https://localhost:9200" in check
+
+
+@pytest.mark.parametrize(
+    "password",
+    ['Pa"ss\\Word1-715!', "Sp ace%$#'-Word1!", "Plain-Word1-715!"],
+)
+def test_the_health_check_hands_curl_any_password_intact(password: str) -> None:
+    """OpenSearch's rules ask for a special character, and curl reads a double-quoted config
+    value with escapes: unescaped, `pa"ss` reached the store as `pa` and the store never turned
+    healthy (review of PR 733). Run the part of the check that builds curl's config, as the
+    container's shell runs it, and require each `"` and `\\` escaped and nothing else touched."""
+    check = _services()["opensearch"]["healthcheck"]["test"][1]
+    feed = check.replace("$$", "$").split(" | curl ")[0]  # compose hands the shell one $
+    env = {"PATH": os.environ["PATH"], "OPENSEARCH_INITIAL_ADMIN_PASSWORD": password}
+    out = subprocess.run(["sh", "-c", feed], env=env, capture_output=True, text=True, check=True)
+    escaped = password.replace("\\", "\\\\").replace('"', '\\"')
+    assert out.stdout == f'user = "admin:{escaped}"\n'
 
 
 def test_the_frontend_reaches_the_backend_by_its_service_name() -> None:

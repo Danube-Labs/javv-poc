@@ -49,11 +49,13 @@ services:
     healthcheck:
       # $$ leaves the variable to the container's shell; one $ would write the password into the
       # container's command, where docker inspect shows it. The login reaches curl as config on
-      # stdin (-K -) from the shell's printf, so it is in no process's arguments either.
+      # stdin (-K -) from the shell's printf, so it is in no process's arguments either. curl reads
+      # a double-quoted config value with escapes, so sed escapes " and \ first.
       test:
         - CMD-SHELL
         - >-
-          printf 'user = "admin:%s"\n' "$$OPENSEARCH_INITIAL_ADMIN_PASSWORD"
+          printf 'user = "admin:%s"\n'
+          "$$(printf %s "$$OPENSEARCH_INITIAL_ADMIN_PASSWORD" | sed 's/[\\"]/\\&/g')"
           | curl -fsSk -K - https://localhost:9200/_cluster/health || exit 1
       interval: 10s
       timeout: 5s
