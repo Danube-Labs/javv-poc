@@ -14,7 +14,7 @@ JAVV has three parts you upgrade separately:
 | **scanner images** (Trivy, Grype) | you swap the published image tag in your deploy (D41) | [`versions.yaml`](../versions.yaml) lists the supported scanner versions |
 
 JAVV never changes versions inside a monitored cluster. Every version change is a tag you set in your
-own deploy.
+own deploy. How to deploy in the first place is [`DEPLOYING.md`](DEPLOYING.md).
 
 ## Before you upgrade
 

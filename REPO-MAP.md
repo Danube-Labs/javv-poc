@@ -9,7 +9,7 @@
 readers; releases via release-please). Frontend shipped through **M9f** (findings/triage, overview,
 all-clusters, images, audit log, scanner status, contributors, approvals, the full Settings area,
 then search, the bell, saved views, RBAC and empty states - 0.4.0, #449), plus the post-M9f polish
-wave (#450). **Next: M10** (polish + Helm deploy, #41). There is no `deploy/` yet - that lands at M10.
+wave (#450). **Now: M10** (polish + deploy, #41): `deploy/compose/` runs the whole stack on one machine; the Helm chart follows it.
 
 ## Start here (reading order)
 1. [`README.md`](README.md) - what JAVV is, stack, toolchain table, license.
@@ -65,6 +65,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 | **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D46, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `UPGRADES` (how a rollout runs the index bootstrap, rollback, what the Helm chart must do) |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
 | **`docs/CONFIGURATION.md`** | Every configuration setting: default, tier, UI-controllability. **New setting → same PR** |
+| **`docs/DEPLOYING.md`** | The operator deploy guide: the three containers, docker compose on one machine (http or https, what is exposed, settings, data), pointing scanners at it, known limits |
 | **`docs/UPGRADING.md`** | The operator upgrade runbook: before, order (backend → frontend → scanners), how to check what's running, rollback, per-release version notes |
 | **`docs/audits/`** | `remaining_audit_items.md` = **the one live audit backlog**; archived point-in-time reports, and the finished 2026-07-07 hygiene audit (`major_audit/`), in `.deprecated/docs/audits/` |
 | **`docs/research/`** | Backing research. `STACK-BEST-PRACTICES` (day-one engineering rules) · `TOOLING-AND-MCP` (MCP servers + install) · `K8S-DEV-CLUSTER` (k3d/remote options) · `INDEPENDENT-AUDIT-v3` · `SNAPSHOT-MODEL-VALIDATION` · `OPENSEARCH-DYNAMIC-CONFIG` |
@@ -121,7 +122,7 @@ is archived under `.deprecated/handoff/v1/`.
 `workflows/ci.yml` (Backend pytest + parallel Backend-static ruff/pyright/docs-drift + Frontend
 lint/test + the contract gate + Frontend smoke + Scanner + javv-common + commitlint + the gitleaks
 Secret scan + the report-only Dependency audit + App images, which builds the app's Docker images
-without a push and starts them, issue 452; detect-step jobs always run for branch protection) ·
+without a push and starts them, + Compose stack, which runs deploy/compose and signs in, issue 452; detect-step jobs always run for branch protection) ·
 `workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
 (batched release PRs) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both
@@ -146,5 +147,11 @@ builders), and the per-screen dirs (`findings/`, `audit/`, `contributors/`, `sca
 `/api`, `/auth`, `/readyz` to the backend, with no runtime dependencies; `server/log.mjs` is its
 logger. `Dockerfile` builds the image (context = the repo root).
 
+## `deploy/` - how JAVV is deployed (M10)
+`compose/`: `compose.yaml` runs OpenSearch, the backend and the frontend on one machine, with every
+setting listed at its default (`backend/tests/test_compose_settings.py` holds it to the code),
+`.env.example` for the secrets and the cookie choice, and a short `README.md`. The guide is
+[`docs/DEPLOYING.md`](docs/DEPLOYING.md).
+
 ---
-*Planned code layout still to land:* `deploy/` (Helm charts, M10).
+*Planned code layout still to land:* the Helm chart under `deploy/` (M10, after the compose file).

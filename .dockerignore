@@ -6,6 +6,10 @@
 !libs/
 !scanner/
 
+# a local env file would be baked into an image (Vite reads frontend/.env* at build)
+**/.env
+**/.env.*
+
 **/.venv
 **/node_modules
 **/__pycache__
