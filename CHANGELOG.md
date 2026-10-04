@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.5.1](https://github.com/Danube-Labs/javv-poc/compare/v0.5.0...v0.5.1) (2026-10-04)
+
+
+### Features
+
+* a release publishes the app images, and the compose file runs them ([#723](https://github.com/Danube-Labs/javv-poc/issues/723)) ([dad731f](https://github.com/Danube-Labs/javv-poc/commit/dad731f63e6ecab05dc531f63920ae1d8dc0d6b7))
+* docker compose runs the whole stack on one machine, with a deploy guide ([#720](https://github.com/Danube-Labs/javv-poc/issues/720)) ([e831ce0](https://github.com/Danube-Labs/javv-poc/commit/e831ce019832cb480a995d513831652554b5635f))
+* the backend image, and a setting for the session cookie's Secure flag ([#716](https://github.com/Danube-Labs/javv-poc/issues/716)) ([bbd55cf](https://github.com/Danube-Labs/javv-poc/commit/bbd55cf81095ef028229582b6e670da61fa88ada))
+* the frontend image, with a server that serves the app and forwards to the backend ([#718](https://github.com/Danube-Labs/javv-poc/issues/718)) ([31a34df](https://github.com/Danube-Labs/javv-poc/commit/31a34dfd1b356928ac131c09a82b49235ff19704))
+
 ## [0.5.0](https://github.com/Danube-Labs/javv-poc/compare/v0.4.13...v0.5.0) (2026-10-03)
 
 
