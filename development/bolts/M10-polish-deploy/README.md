@@ -82,8 +82,9 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
   `_VERIFY_CERTS`, one client factory in `core/opensearch_client.py`), and `deploy/compose/compose.yaml`
   drops `DISABLE_SECURITY_PLUGIN`. The store uses OpenSearch's demo certificates and an admin
   password from `.env` (`JAVV_OPENSEARCH_PASSWORD`, shared with the backend, which skips the
-  certificate check with one warning). Until now, compose (issue 452) ran its store with the
-  security plugin off. A 0.5.x store upgrades in place; changing the password later takes OpenSearch's
+  certificate check with one warning). OpenSearch's own audit log is off (`noop`), since it
+  writes a daily index nothing deletes with ISM off. Until now, compose (issue 452) ran its store
+  with the security plugin off. A 0.5.x store upgrades in place; changing the password later takes OpenSearch's
   `securityadmin.sh` (`docs/UPGRADING.md`). A narrower OpenSearch role than `admin` is issue 729.
 - **2026-10-04: a release publishes the app images (issue 452, slice 4):** the `Publish app images`
   job in `release-please.yml` runs in the release's own run. It builds `javv-backend` and

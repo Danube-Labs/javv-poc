@@ -37,6 +37,10 @@ services:
       search.insights.top_queries.memory.enabled: "false"
       # where Settings › Data & OpenSearch takes snapshots, inside the data volume
       path.repo: /usr/share/opensearch/data/snapshots
+      # OpenSearch's own audit log is off: the demo security setup would write a new
+      # security-auditlog-<date> index every day, and with ISM off nothing deletes them. JAVV keeps
+      # its own audit trail (system-audit-log). Issue 715.
+      plugins.security.audit.type: noop
     ulimits:
       memlock: { soft: -1, hard: -1 }
       nofile: { soft: 65536, hard: 65536 }

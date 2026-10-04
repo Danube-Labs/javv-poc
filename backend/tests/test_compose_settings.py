@@ -147,6 +147,9 @@ def test_opensearch_runs_with_its_security_plugin_on() -> None:
         name="JAVV_OPENSEARCH_PASSWORD",
     )
     assert password["op"] == ":?", "the store's admin password is required from .env"
+    # the demo setup's own audit log writes a daily index nothing deletes (ISM is off); JAVV
+    # keeps its own audit trail
+    assert store.get("plugins.security.audit.type") == "noop"
 
 
 def test_the_health_check_keeps_the_password_out_of_the_container_command() -> None:
