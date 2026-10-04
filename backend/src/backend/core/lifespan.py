@@ -5,7 +5,9 @@ one client, no per-request clients), and enforce the boot contract (observabilit
 
 **Fail-fast at startup** (D9): if OpenSearch is unreachable at boot, raise — the process exits
 non-zero with a clear message rather than serving a broken app. A store that refuses the
-credentials says so instead of "unreachable" (issue 715), and neither message carries the URL.
+credentials says so instead of "unreachable" (issue 715). Neither message carries credentials:
+they are refused in the URL at settings load, and the login is never part of an error's text. The
+"unreachable" one does name the host and port, as the connection error reports them.
 At *runtime* the app stays up and degrades (`/readyz` → 503) instead of crashing. Set
 `JAVV_BOOTSTRAP_ON_STARTUP=false` to skip the ping+bootstrap (used by unit tests that run the app
 without an OpenSearch).

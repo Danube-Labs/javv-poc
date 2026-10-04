@@ -6,15 +6,16 @@ command line call `build_client`, so how JAVV signs in and checks TLS cannot dri
   which a secured store answers with a 401 that points nowhere useful.
 - **`ssl_show_warn=False`.** With verification off, opensearch-py warns once per connection through
   `warnings`, outside the log pipeline. `warn_about_transport` says it once, structured and counted.
+  It runs at app start only: the job and admin command lines read the same settings, so the
+  warning a deployment needs is the one its backend logs at start, and a command line has no
+  `/metrics` to count it in.
 """
-
-from urllib.parse import urlsplit
 
 import structlog
 from opensearchpy import AsyncOpenSearch
 
 from backend.core.metrics import CONFIG_WARNINGS
-from backend.core.settings import Settings
+from backend.core.settings import Settings, split_opensearch_url
 
 log = structlog.get_logger()
 
@@ -34,7 +35,7 @@ def build_client(settings: Settings) -> AsyncOpenSearch:
 
 def warn_about_transport(settings: Settings) -> None:
     """Start-up warnings for a connection weaker than it looks; each is one line and one count."""
-    scheme = urlsplit(settings.opensearch_url).scheme
+    scheme = split_opensearch_url(settings.opensearch_url).scheme or "http"  # the library's default
     if scheme == "https" and not settings.opensearch_verify_certs:
         log.warning("opensearch certificates not checked", setting="JAVV_OPENSEARCH_VERIFY_CERTS")
         CONFIG_WARNINGS.labels("JAVV_OPENSEARCH_VERIFY_CERTS").inc()

@@ -144,6 +144,9 @@ async def test_without_the_flag_the_library_does_warn() -> None:
         ({"JAVV_OPENSEARCH_PASSWORD": PASSWORD}, "JAVV_OPENSEARCH_USERNAME"),
         ({"JAVV_OPENSEARCH_URL": f"https://javv:{PASSWORD}@store:9200"}, "JAVV_OPENSEARCH_URL"),
         ({"JAVV_OPENSEARCH_URL": "https://javv@store:9200"}, "JAVV_OPENSEARCH_URL"),
+        # no scheme: opensearch-py reads `//javv:pw@store:9200` and logs in as javv (review, #731)
+        ({"JAVV_OPENSEARCH_URL": f"javv:{PASSWORD}@store:9200"}, "JAVV_OPENSEARCH_URL"),
+        ({"JAVV_OPENSEARCH_URL": "javv@store:9200"}, "JAVV_OPENSEARCH_URL"),
         ({"JAVV_OPENSEARCH_CA_BUNDLE": "/nowhere/ca.pem"}, "JAVV_OPENSEARCH_CA_BUNDLE"),
     ],
 )
@@ -257,12 +260,17 @@ async def test_a_refused_login_says_so_at_start_up(monkeypatch, error) -> None:
 
 
 async def test_an_unreachable_store_still_says_unreachable(monkeypatch) -> None:
-    store = _Store(OSConnectionError("N/A", "connection refused", Exception("refused")))
+    """The cause is kept, and with it the host and port, which is what aiohttp's error names. The
+    guard is on credentials: they cannot sit in the URL, and the login is never in the text."""
+    cause = Exception("Cannot connect to host store.internal:9200 ssl:True [Connection refused]")
+    store = _Store(OSConnectionError("N/A", "Cannot connect to host store.internal:9200", cause))
     app = _start_with(monkeypatch, store)
     with pytest.raises(RuntimeError, match="unreachable at startup") as exc:
         async with lifespan_module.lifespan(app):
             pass
-    assert "store.internal" not in str(exc.value) and PASSWORD not in str(exc.value)
+    message = str(exc.value)
+    assert "store.internal:9200" in message  # the host is useful, and shown on purpose
+    assert PASSWORD not in message and "javv:" not in message
 
 
 async def test_with_bootstrap_off_no_check_runs(monkeypatch) -> None:
@@ -292,10 +300,11 @@ def test_certificates_not_checked_is_one_warning_and_one_count() -> None:
     assert _count("JAVV_OPENSEARCH_VERIFY_CERTS") == before + 1
 
 
-def test_a_password_over_plain_http_is_one_warning_and_one_count() -> None:
+@pytest.mark.parametrize("url", ["http://store:9200", "store:9200"])  # no scheme = plain http
+def test_a_password_over_plain_http_is_one_warning_and_one_count(url: str) -> None:
     before = _count("JAVV_OPENSEARCH_URL")
     settings = Settings(
-        opensearch_url="http://store:9200",
+        opensearch_url=url,
         opensearch_username="javv",
         opensearch_password=SecretStr(PASSWORD),
     )

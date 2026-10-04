@@ -16,7 +16,7 @@ carries the raw input dict, pepper and passwords included, so `get_settings()` r
 import os
 from functools import lru_cache
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import SplitResult, urlsplit
 
 from pydantic import Field, SecretStr, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -144,7 +144,7 @@ class Settings(BaseSettings):
                 "JAVV_OPENSEARCH_USERNAME and JAVV_OPENSEARCH_PASSWORD go together: set both or"
                 " neither"
             )
-        url = urlsplit(self.opensearch_url)
+        url = split_opensearch_url(self.opensearch_url)
         if url.username is not None or url.password is not None:
             raise ValueError(
                 "JAVV_OPENSEARCH_URL carries a user or password; set JAVV_OPENSEARCH_USERNAME and"
@@ -159,6 +159,12 @@ class Settings(BaseSettings):
         if bundle and not (Path(bundle).is_file() and os.access(bundle, os.R_OK)):
             raise ValueError("JAVV_OPENSEARCH_CA_BUNDLE: no readable file at that path")
         return self
+
+
+def split_opensearch_url(url: str) -> SplitResult:
+    """Parse the URL as opensearch-py does: without `://` it reads `//<url>`, so
+    `user:pw@store:9200` is a host carrying credentials (plain http), not a scheme named `user`."""
+    return urlsplit(url if "://" in url else "//" + url)
 
 
 def describe_errors(exc: ValidationError) -> str:

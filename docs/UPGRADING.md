@@ -136,7 +136,7 @@ automatically on the first start.
 on purpose:
 
 - **A `JAVV_OPENSEARCH_URL` with a user or password in it stops the backend at start.** Earlier
-  releases passed `https://user:pass@host` through to the client. Move the credentials into
+  releases passed `https://user:pass@host` (or `user:pass@host`, with no scheme) through to the client. Move the credentials into
   `JAVV_OPENSEARCH_USERNAME` and `JAVV_OPENSEARCH_PASSWORD` ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
 - **A broken setting now stops start-up with one line per variable**, `invalid settings:
   JAVV_<NAME>: <reason>`, and no value from your environment in it. Earlier releases printed part
