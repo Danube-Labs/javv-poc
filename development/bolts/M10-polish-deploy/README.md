@@ -77,6 +77,14 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-04: compose runs OpenSearch with its login on (issue 715, operator ruling on issue 725):**
+  the backend signs in to a secured OpenSearch (`JAVV_OPENSEARCH_USERNAME`, `_PASSWORD`, `_CA_BUNDLE`,
+  `_VERIFY_CERTS`, one client factory in `core/opensearch_client.py`), and `deploy/compose/compose.yaml`
+  drops `DISABLE_SECURITY_PLUGIN`. The store uses OpenSearch's demo certificates and an admin
+  password from `.env` (`JAVV_OPENSEARCH_PASSWORD`, shared with the backend, which skips the
+  certificate check with one warning). Until now, compose (issue 452) ran its store with the
+  security plugin off. A 0.5.x store upgrades in place; changing the password later takes OpenSearch's
+  `securityadmin.sh` (`docs/UPGRADING.md`). A narrower OpenSearch role than `admin` is issue 729.
 - **2026-10-04: a release publishes the app images (issue 452, slice 4):** the `Publish app images`
   job in `release-please.yml` runs in the release's own run. It builds `javv-backend` and
   `javv-frontend` under the release version (`development/scripts/build-app-images.sh`, OCI version,

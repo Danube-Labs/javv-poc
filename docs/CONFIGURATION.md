@@ -203,7 +203,8 @@ M10 (Helm). Version pin: `versions.yaml` → `datastore.opensearch`.
 |---|---|---|---|
 | image | `opensearchproject/opensearch:3.9.0` | pinned in `versions.yaml` (D42) | same pin |
 | `discovery.type` | `single-node` | single-node dev cluster | multi-node in prod |
-| `DISABLE_SECURITY_PLUGIN` | `true` | **DEV ONLY** — no TLS/auth on :9200 | **off** in prod: security plugin + TLS (SEC-8) |
+| `DISABLE_SECURITY_PLUGIN` | `true` | **Dev, CI and the pytest store only** — no TLS/auth on :9200 | **not set** in `deploy/compose/compose.yaml` since issue 715: the security plugin is on, with OpenSearch's demo certificates. Your own OpenSearch: on, with your own certificates (§1: `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`, `JAVV_OPENSEARCH_CA_BUNDLE`) |
+| `OPENSEARCH_INITIAL_ADMIN_PASSWORD` | n/a (security off) | 🔒 The `admin` password OpenSearch's demo security setup creates on its **first** start with security on (issue 715). Compose fills it from `JAVV_OPENSEARCH_PASSWORD`, the same value the backend signs in with. Later changes are ignored by the store (`UPGRADING.md`); a weak one stops the container | 🔒 secret, from `.env` |
 | `OPENSEARCH_JAVA_OPTS` | dev `-Xms1g -Xmx1g` · CI `-Xms512m -Xmx512m` | JVM heap. Dev was raised off 512m: the parent circuit breaker is 95% of heap and the e2e corpus rested at ~83% of it, so bulk ingest tripped it. CI keeps 512m — a fresh store per run has no resting corpus. | sized per node |
 | `path.repo` | `/usr/share/opensearch/data/snapshots` | fs snapshot repo root (M2 restore drill) | s3/MinIO repo in prod (creds → keystore) |
 | snapshot repo creds | n/a (fs) | 🔒 s3 access/secret keys | 🔒 OpenSearch **keystore** only, never a doc |

@@ -8,7 +8,7 @@ other clusters and the known limits, is [`docs/DEPLOYING.md`](../../docs/DEPLOYI
 sudo sysctl -w vm.max_map_count=262144
 
 cd deploy/compose
-cp .env.example .env    # set JAVV_TOKEN_PEPPER and JAVV_BOOTSTRAP_ADMIN_PASSWORD
+cp .env.example .env    # set JAVV_TOKEN_PEPPER, JAVV_BOOTSTRAP_ADMIN_PASSWORD and JAVV_OPENSEARCH_PASSWORD
 docker compose up -d    # pulls this release's JAVV images
 docker compose ps       # wait until all three are healthy
 ```

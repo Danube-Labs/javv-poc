@@ -79,6 +79,7 @@ jobs:
         env:
           JAVV_TOKEN_PEPPER: release-smoke-only-pepper
           JAVV_BOOTSTRAP_ADMIN_PASSWORD: release-smoke-only-passphrase
+          JAVV_OPENSEARCH_PASSWORD: Release-smoke-OpenSearch-715!
           JAVV_SESSION_COOKIE_SECURE: "false"
           OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
         run: |
