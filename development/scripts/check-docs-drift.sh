@@ -50,7 +50,8 @@ if gone:
     failures.append('routes in docs/API.md but GONE from code:\n  ' + '\n  '.join(gone))
 
 src = open('backend/src/backend/core/settings.py').read()
-fields = set(re.findall(r'^\s{4}(\w+):', src, re.M))
+# a field is `name: type`; a bare `try:`/`else:` at the same indent is a block, not a field
+fields = set(re.findall(r'^\s{4}(\w+): \S', src, re.M))
 conf = open('docs/CONFIGURATION.md').read()
 import subprocess
 code_literals = set(subprocess.run(

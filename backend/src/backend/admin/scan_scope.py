@@ -75,6 +75,7 @@ if __name__ == "__main__":  # interim admin write path until the M9e UI (FR-24);
     import argparse
     import asyncio
 
+    from backend.core.opensearch_client import build_client
     from backend.core.settings import get_settings
 
     ap = argparse.ArgumentParser(description="Set a cluster's scan scope in system-config")
@@ -94,7 +95,7 @@ if __name__ == "__main__":  # interim admin write path until the M9e UI (FR-24);
 
     async def _main() -> None:
         settings = get_settings()
-        client = AsyncOpenSearch(hosts=[settings.opensearch_url])
+        client = build_client(settings)
         try:
             await write_scan_scope(client, args.cluster, scope, updated_by="cli")
             print(f"scan_scope set for {args.cluster}: {scope.model_dump()}")

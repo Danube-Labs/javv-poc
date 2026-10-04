@@ -29,6 +29,7 @@ import structlog
 from opensearchpy import AsyncOpenSearch
 
 from backend.admin.report_ttl import read_report_ttl_hours
+from backend.core.opensearch_client import build_client
 from backend.core.settings import get_settings
 from backend.export.csv_stream import stream_csv
 from backend.export.sweep import sweep_findings
@@ -300,7 +301,7 @@ async def drain(client: AsyncOpenSearch, *, worker: str | None = None, prefix: s
 
 async def _main() -> int:
     settings = get_settings()
-    client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+    client = build_client(settings)
     try:
         from backend.jobs.registry import run_job
 

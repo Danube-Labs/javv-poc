@@ -9,8 +9,7 @@ import argparse
 import asyncio
 from datetime import UTC, datetime
 
-from opensearchpy import AsyncOpenSearch
-
+from backend.core.opensearch_client import build_client
 from backend.core.security import hash_token, mint_token
 from backend.core.settings import get_settings
 
@@ -27,7 +26,7 @@ async def mint(cluster_id: str, scanner: str) -> str:
         "created_at": datetime.now(UTC).isoformat(),
         "disabled": False,
     }
-    client = AsyncOpenSearch(hosts=[settings.opensearch_url])
+    client = build_client(settings)
     try:
         await client.index(index="system-tokens", body=doc, params={"refresh": "true"})
     finally:

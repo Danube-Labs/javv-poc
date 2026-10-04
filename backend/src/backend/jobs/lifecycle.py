@@ -286,11 +286,12 @@ def _parser() -> argparse.ArgumentParser:
 async def _main(args: argparse.Namespace) -> str:
     """Returns the line the command prints. A run goes through the job registry like a scheduled
     one, so a run with errors raises here too and the command exits non-zero (issue 706)."""
+    from backend.core.opensearch_client import build_client
     from backend.core.settings import get_settings
     from backend.jobs import registry
 
     settings = get_settings()
-    client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+    client = build_client(settings)
     try:
         updates = {
             key: value

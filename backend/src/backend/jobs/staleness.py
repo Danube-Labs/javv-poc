@@ -291,6 +291,7 @@ if __name__ == "__main__":  # command-line entrypoint + interim timer-config CLI
     import argparse
     import asyncio
 
+    from backend.core.opensearch_client import build_client
     from backend.core.settings import get_settings
     from backend.jobs.lease import run_under_lease
 
@@ -302,7 +303,7 @@ if __name__ == "__main__":  # command-line entrypoint + interim timer-config CLI
 
     async def _main() -> None:
         settings = get_settings()
-        client = AsyncOpenSearch(hosts=[settings.opensearch_url], timeout=settings.request_timeout)
+        client = build_client(settings)
         try:
             if args.set_freshness_days is not None or args.set_scanner_down_days is not None:
                 current = await read_staleness_timers(client, cluster_id=args.cluster)
