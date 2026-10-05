@@ -411,8 +411,10 @@ jobs:
   helm:
     # issue 725: the charts in deploy/helm. ct lint (yamllint, Chart.yaml, helm lint) and each
     # chart's README against its values.yaml, then ct install in kind: every ci/*-values.yaml is one
-    # install followed by the chart's `helm test`. For javv-opensearch: the demo certificates, a
-    # certificate from a Secret, and one from cert-manager. The render checks are
+    # install followed by the chart's `helm test`. javv-opensearch: the demo certificates, a
+    # certificate from a Secret, and one from cert-manager. javv: next to a store with a
+    # cert-manager certificate, on images built from this commit, then a real sign-in, a stopped
+    # backend (502) and an upgrade with a rollback. The render checks are
     # backend/tests/test_helm_*.py, in the Backend job.
     name: Helm charts
     runs-on: ubuntu-latest
@@ -443,18 +445,53 @@ jobs:
         run: sudo sysctl -w vm.max_map_count=262144
 
       - uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        with:
+          cluster_name: chart-testing
 
-      - name: The namespace, Secrets, cert-manager and the CA Issuer the installs use
-        run: development/scripts/helm-ci-fixtures.sh javv-ci
+      # built under the release's names, which the javv chart's values use, and imported straight
+      # into the node's containerd: the images carry an attestation manifest, and an import that
+      # misses one shows up only later, as ImagePullBackOff
+      - name: The app images, built from this commit and loaded into kind
+        run: |
+          development/scripts/build-app-images.sh
+          version=$(jq -r '."."' .release-please-manifest.json)
+          for app in backend frontend; do
+            docker save "ghcr.io/danube-labs/javv-$app:$version" |
+              docker exec -i chart-testing-control-plane ctr -n k8s.io images import --all-platforms -
+          done
+          docker exec chart-testing-control-plane crictl images | grep "danube-labs/javv-"
+          [ "$(docker exec chart-testing-control-plane crictl images | grep -c "danube-labs/javv-")" = 2 ]
 
-      - name: ct install
-        run: ct install --config deploy/helm/ct.yaml --all
+      - name: ct install, javv-opensearch
+        run: |
+          development/scripts/helm-ci-fixtures.sh javv-ci
+          ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv-opensearch
+
+      - name: A store for the app, with a cert-manager certificate
+        run: |
+          development/scripts/helm-ci-fixtures.sh javv
+          helm install store deploy/helm/javv-opensearch -n javv --wait --timeout 10m \
+            -f deploy/helm/javv-opensearch/ci/cert-manager-values.yaml
+
+      - name: ct install, javv
+        run: ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv --namespace javv
+
+      - name: Sign-in, a stopped backend, upgrade and rollback
+        env:
+          JAVV_CI_ADMIN_PASSWORD: ci-only-admin-passphrase
+        run: |
+          helm install javv deploy/helm/javv -n javv --wait --timeout 10m \
+            -f deploy/helm/javv/ci/default-values.yaml
+          development/scripts/helm-ci-app-checks.sh javv javv deploy/helm/javv/ci/default-values.yaml
 
       - name: Cluster state
         if: failure()
         run: |
-          kubectl -n javv-ci get all,secrets,certificates,events
-          kubectl -n javv-ci logs -l app.kubernetes.io/name=opensearch --all-containers --tail 200
+          for ns in javv-ci javv; do
+            kubectl -n "$ns" get all,secrets,certificates,events || true
+            kubectl -n "$ns" logs -l app.kubernetes.io/name=opensearch --all-containers --tail 100 || true
+            kubectl -n "$ns" logs -l app.kubernetes.io/name=javv --all-containers --tail 100 || true
+          done
 
   scanner:
     name: Scanner

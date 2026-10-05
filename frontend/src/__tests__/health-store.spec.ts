@@ -1,7 +1,8 @@
 /**
- * The health store says WHAT is down (issue 675): a 503 is the backend reporting its store; no
- * answer, or a proxy's 502 or 504, is the backend itself. The banner and the sidebar footer word
- * the two differently.
+ * The health store says WHAT is down (issue 675): the backend's own 503, which says so in JSON, is
+ * its store; anything else (no answer, the frontend server's 502, a proxy's or an ingress's 502,
+ * 503 or 504 page) is the backend itself (issue 725). The banner and the sidebar footer word the
+ * two differently.
  */
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -9,9 +10,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import BackendHealthBanner from '@/components/system/BackendHealthBanner.vue'
 import { logger } from '@/lib/logger'
+import { client } from '@/api/client'
 import { downReason, useHealthStore } from '@/stores/health'
 
-const fetchMock = vi.fn<(url: string) => Promise<{ ok: boolean; status: number }>>()
+const fetchMock = vi.fn<(url: string) => Promise<Response>>()
+
+const DEGRADED = '{"status":"degraded","opensearch":"unreachable"}'
+const json = (status: number, body: string, type = 'application/json') =>
+  new Response(body, { status, headers: { 'content-type': type } })
+// what an nginx ingress answers for a Service with no ready pod
+const ingressPage = (status: number) =>
+  new Response('<html><head><title>503 Service Temporarily Unavailable</title></head></html>', {
+    status,
+    headers: { 'content-type': 'text/html' },
+  })
 const warned = vi.spyOn(logger, 'warn').mockImplementation(() => {})
 vi.spyOn(logger, 'info').mockImplementation(() => {})
 
@@ -24,15 +36,18 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('downReason', () => {
-  it('a 503 is the backend reporting its store', () => expect(downReason(503)).toBe('store'))
+  it("the backend's own 503 is its store", () => expect(downReason(503, true)).toBe('store'))
+  it('a 503 from anything in front of the backend is the backend', () => {
+    expect(downReason(503, false)).toBe('backend')
+  })
   it.each([undefined, 500, 502, 504, 404])('%s is the backend itself', (status) => {
-    expect(downReason(status)).toBe('backend')
+    expect(downReason(status, true)).toBe('backend')
   })
 })
 
 describe('the /readyz poll', () => {
-  it('a 503 marks the store down', async () => {
-    fetchMock.mockResolvedValueOnce({ ok: false, status: 503 })
+  it("the backend's degraded answer marks the store down", async () => {
+    fetchMock.mockResolvedValueOnce(json(503, DEGRADED))
     const health = useHealthStore()
     await health.check()
     expect(health.degraded).toBe(true)
@@ -42,7 +57,10 @@ describe('the /readyz poll', () => {
   })
 
   it.each([
-    ['a proxy error', () => Promise.resolve({ ok: false, status: 502 })],
+    ['a proxy error', () => Promise.resolve(json(502, '{"title":"Backend unavailable"}', 'application/problem+json'))],
+    ['an ingress 503 page', () => Promise.resolve(ingressPage(503))],
+    ['a JSON 503 that is not the degraded answer', () => Promise.resolve(json(503, '{"status":"unavailable"}'))],
+    ['a 503 whose JSON does not parse', () => Promise.resolve(json(503, 'not json'))],
     ['no answer', () => Promise.reject(new TypeError('Failed to fetch'))],
   ])('%s marks the backend down', async (_name, reply) => {
     fetchMock.mockImplementationOnce(reply)
@@ -55,7 +73,7 @@ describe('the /readyz poll', () => {
   it('a 200 clears the flag and the reason', async () => {
     const health = useHealthStore()
     health.markDegraded('backend', 'api')
-    fetchMock.mockResolvedValueOnce({ ok: true, status: 200 })
+    fetchMock.mockResolvedValueOnce(json(200, '{"status":"ready"}'))
     await health.check()
     expect(health.degraded).toBe(false)
     expect(health.reason).toBeNull()
@@ -78,6 +96,27 @@ describe('the /readyz poll', () => {
     expect(health.bannerVisible).toBe(false)
     health.markDegraded('store', 'readyz')
     expect(health.bannerVisible).toBe(true)
+  })
+})
+
+describe('the API client', () => {
+  it.each([
+    { name: 'the error envelope', reply: () => json(503, '{"status":503}', 'application/problem+json'), reason: 'store' },
+    { name: 'an ingress 503 page', reply: () => ingressPage(503), reason: 'backend' },
+    { name: 'the frontend server 502', reply: () => json(502, '{"status":502}', 'application/problem+json'), reason: 'backend' },
+    { name: 'a proxy 504 page', reply: () => ingressPage(504), reason: 'backend' },
+    { name: "a gateway's JSON 503", reply: () => json(503, '{"message":"no healthy upstream"}'), reason: 'backend' },
+  ])('$name marks the $reason down, and the caller still reads the answer', async ({ reply, reason }) => {
+    const answer = reply()
+    // Node's Request needs an absolute address; in the browser the page's origin is the base
+    const result = await client.get({
+      baseUrl: 'http://localhost',
+      url: '/api/v1/findings',
+      fetch: () => Promise.resolve(answer),
+    })
+    expect(useHealthStore().reason).toBe(reason)
+    expect(result.response?.status).toBe(answer.status)
+    expect(answer.bodyUsed).toBe(true) // read once, by the client for its caller, not by the check
   })
 })
 

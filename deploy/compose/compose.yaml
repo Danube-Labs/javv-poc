@@ -205,6 +205,9 @@ services:
     environment:
       # where /api, /auth and /readyz are forwarded: the backend service
       JAVV_BACKEND_URL: ${JAVV_BACKEND_URL:-http://backend:8000}
+      # seconds a connection to the backend may take to open before the answer is a 502; a slow
+      # answer (an export) is never cut
+      JAVV_BACKEND_CONNECT_TIMEOUT: ${JAVV_BACKEND_CONNECT_TIMEOUT:-5}
       # the port the frontend listens on inside its container
       JAVV_FRONTEND_PORT: ${JAVV_FRONTEND_PORT:-8080}
       # debug | info | warning | error

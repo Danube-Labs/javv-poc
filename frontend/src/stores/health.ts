@@ -13,13 +13,37 @@ export const POLL_MS = 30_000
 export type DownReason = 'backend' | 'store'
 
 /**
- * Reads one failed answer. The backend answers a 503 itself when OpenSearch is unreachable
- * (`/readyz` says `degraded`; data routes send the error envelope), so a 503 means the store.
- * No answer at all, or any other failure, comes from in front of the backend (a proxy's 502 or
- * 504, a dev server with nothing behind it): the backend is gone.
+ * Reads one failed answer. The backend answers a 503 itself when OpenSearch is unreachable, and
+ * says so in JSON: `/readyz` with `{"status":"degraded"}`, data routes with the error envelope.
+ * Only that 503 means the store. Anything else comes from in front of the backend: the frontend
+ * server's 502, a proxy's or an ingress's 502, 503 or 504 page (for a frontend pod that is gone,
+ * say), or no answer at all. Then the backend is what is missing (issue 725).
  */
-export function downReason(status: number | undefined): DownReason {
-  return status === 503 ? 'store' : 'backend'
+export function downReason(status: number | undefined, fromBackend: boolean): DownReason {
+  return status === 503 && fromBackend ? 'store' : 'backend'
+}
+
+/** True when an answer is JSON (the /readyz poll then reads its body for the backend's answer). */
+export function isBackendJson(response: Response): boolean {
+  return /[/+]json\b/.test(response.headers.get('content-type') ?? '')
+}
+
+/**
+ * True when an API answer is the backend's error envelope (`core/errors.py`, RFC 9457), which every
+ * backend error on an API route uses. A gateway's own JSON 503 (Kong, Tyk) is plain JSON.
+ */
+export function isBackendProblem(response: Response): boolean {
+  return /^application\/problem\+json\b/i.test(response.headers.get('content-type') ?? '')
+}
+
+/** True when a /readyz answer is the backend reporting its store down. */
+async function readyzSaysDegraded(response: Response): Promise<boolean> {
+  if (response.status !== 503 || !isBackendJson(response)) return false
+  try {
+    return ((await response.json()) as { status?: unknown }).status === 'degraded'
+  } catch {
+    return false
+  }
 }
 
 export const useHealthStore = defineStore('health', {
@@ -48,10 +72,10 @@ export const useHealthStore = defineStore('health', {
           this.degraded = false
           this.reason = null
         } else {
-          this.markDegraded(downReason(res.status), 'readyz')
+          this.markDegraded(downReason(res.status, await readyzSaysDegraded(res)), 'readyz')
         }
       } catch {
-        this.markDegraded(downReason(undefined), 'readyz')
+        this.markDegraded(downReason(undefined, false), 'readyz')
       }
     },
     startPolling() {

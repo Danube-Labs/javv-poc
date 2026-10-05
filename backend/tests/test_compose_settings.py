@@ -14,6 +14,10 @@ lists every backend setting with its default and a comment, like a Helm values f
 - OpenSearch starts with `admin` as its only user: the demo setup's other users are cut from its
   users file before the first start (issue 736).
 
+The Helm chart is the third copy (issue 725): `deploy/helm/javv/values.yaml` lists the same settings
+under `backend.config` as plain values, each the compose file's default, except the store's
+address. Its secrets come from Kubernetes Secrets, so they are not settings there.
+
 Each value is written `${JAVV_X:-default}`, so `.env` overrides any setting without an edit to the
 compose file; the default after `:-` is what is compared. Keys without the prefix (`TZ`) are not
 settings and are ignored. No store needed."""
@@ -34,6 +38,7 @@ from backend.core.settings import Settings
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "deploy" / "compose" / "compose.yaml"
 MANIFEST = ROOT / ".release-please-manifest.json"
+CHART_VALUES = ROOT / "deploy" / "helm" / "javv" / "values.yaml"
 
 # set on purpose to something other than the code default (issue 452, plan v7 ruling 3)
 NOT_THE_CODE_DEFAULT = {
@@ -139,6 +144,54 @@ def test_the_named_exceptions_are_what_a_deployment_needs() -> None:
     )
     verify = _parsed("JAVV_OPENSEARCH_VERIFY_CERTS", backend["JAVV_OPENSEARCH_VERIFY_CERTS"])
     assert verify["rest"] == "false"
+
+
+# required in compose (`:?`); in the chart they come from Secrets, never from backend.config
+SECRETS = {"JAVV_TOKEN_PEPPER", "JAVV_BOOTSTRAP_ADMIN_PASSWORD", "JAVV_OPENSEARCH_PASSWORD"}
+
+
+def _chart(block: str) -> dict[str, str]:
+    return {k: str(v) for k, v in yaml.safe_load(CHART_VALUES.read_text())[block]["config"].items()}
+
+
+def test_every_setting_is_in_the_chart() -> None:
+    chart = _chart("backend")
+    expected = {_env_name(f) for f in Settings.model_fields} - SECRETS
+    assert not sorted(expected - set(chart)), f"missing from {CHART_VALUES.relative_to(ROOT)}"
+    assert not SECRETS & set(chart), "a secret is a Secret in the chart, not a setting"
+
+
+def test_every_javv_key_in_the_chart_is_read_by_the_code() -> None:
+    known = {_env_name(f) for f in Settings.model_fields} | _code_literals()
+    keys = {k for block in ("backend", "frontend") for k in _chart(block) if k.startswith("JAVV_")}
+    assert not sorted(keys - known), "no code reads these"
+
+
+@pytest.mark.parametrize(
+    "field",
+    [f for f in Settings.model_fields if _env_name(f) not in NOT_THE_CODE_DEFAULT],
+)
+def test_each_chart_value_is_the_code_default(field: str) -> None:
+    info = Settings.model_fields[field]
+    value = _chart("backend")[_env_name(field)]
+    assert TypeAdapter(info.annotation).validate_python(value) == info.default
+
+
+def test_the_chart_and_compose_agree_on_every_value_but_the_store_address() -> None:
+    """The named exceptions too: prod, the store's admin, unchecked demo certificates. Only the
+    address differs: the chart's store is the javv-opensearch chart's Service."""
+    compose = {k: _VALUE.match(v) for k, v in _environment("backend").items()}
+    for key, value in _chart("backend").items():
+        match = compose[key]
+        default = match["rest"] if match else None  # TZ is written the same way
+        if key == "JAVV_OPENSEARCH_URL":
+            assert value == "https://javv-opensearch:9200"
+        else:
+            assert value == default, f"{key}: chart {value!r}, compose {default!r}"
+    frontend = _environment("frontend")
+    for key, value in _chart("frontend").items():
+        if key != "JAVV_BACKEND_URL":  # the chart's own backend Service, filled in by the template
+            assert value == _parsed(key, frontend[key])["rest"], key
 
 
 def test_opensearch_runs_with_its_security_plugin_on() -> None:

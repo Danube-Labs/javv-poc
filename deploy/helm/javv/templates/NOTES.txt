@@ -1,0 +1,14 @@
+JAVV: http://{{ include "javv.fullname" . }}:{{ .Values.frontend.service.port }} in namespace {{ .Release.Namespace }}.
+Browsers and scanners both use this Service; put your own Ingress, gateway or load balancer in
+front of it for https (the session cookie is Secure by default).
+
+Sign in as {{ .Values.backend.config.JAVV_BOOTSTRAP_ADMIN_USERNAME }} with the password in the Secret {{ include "javv.secretName" . }}
+(key bootstrap-admin-password). JAVV asks for a new password before anything else.
+
+To look before anything is in front of it:
+  kubectl -n {{ .Release.Namespace }} port-forward svc/{{ include "javv.fullname" . }} 8080:{{ .Values.frontend.service.port }}
+  (plain http to localhost: set backend.config.JAVV_SESSION_COOKIE_SECURE=false for that)
+
+OpenSearch: {{ .Values.backend.config.JAVV_OPENSEARCH_URL }}, {{ if .Values.opensearch.caSecret.name }}its certificate checked against {{ .Values.opensearch.caSecret.name }}{{ else }}its certificate NOT checked (demo certificates; set opensearch.caSecret for your own){{ end }}.
+
+Check the install: helm test {{ .Release.Name }} -n {{ .Release.Namespace }}

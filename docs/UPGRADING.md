@@ -2,7 +2,7 @@
 
 > How to move a running JAVV to a newer release: what to check before you start, the order to upgrade
 > the parts in, how to confirm what's running afterwards, and how to roll back. The reasoning behind
-> it (where the index bootstrap runs and why old and new pods can serve side by side) is in the design
+> it (where the index bootstrap runs and why an older release can run against a newer store) is in the design
 > note [`docs/engineering/UPGRADES.md`](engineering/UPGRADES.md).
 
 JAVV has three parts you upgrade separately:
@@ -41,9 +41,10 @@ own deploy. How to deploy in the first place is [`DEPLOYING.md`](DEPLOYING.md).
    A newer scanner can send a report format (`schema_version`) that only the newer backend accepts. The
    backend lists the formats it accepts in `GET /api/v1/meta` → `envelope_versions`.
 
-While the backend rolls, old and new pods serve side by side against the same store. That is safe
-because every schema change so far only adds fields: old pods ignore fields they don't know, and new
-pods treat a missing field as absent.
+There is one backend, and an upgrade replaces it (issue 691), so two backend releases never serve
+together. An older backend does meet a newer store after a rollback. That is safe because every
+schema change so far only adds fields: an older backend ignores fields it doesn't know, and a newer
+one treats a missing field as absent.
 
 ### With docker compose
 
@@ -89,11 +90,37 @@ OpenSearch's account API cannot change this password: `admin` is a reserved user
 
 ### On Kubernetes (Helm)
 
-The Helm chart lands in M10 ([#452](https://github.com/Danube-Labs/javv-poc/issues/452)). This section
-gets the exact commands when it does. The chart is required to roll the backend one pod at a time,
-never taking the last serving pod down (`maxUnavailable: 0`), so a pod whose startup fails leaves the
-old pods serving. The full list of requirements is in the design note's
-[chart section](engineering/UPGRADES.md#what-the-helm-chart-must-do-452).
+The two charts in `deploy/helm/` ([`DEPLOYING.md`](DEPLOYING.md#on-kubernetes-with-helm)) take a
+release's version with it. Keep your settings in a values file of your own, so an upgrade is the
+new release's chart with the same file:
+
+```bash
+helm upgrade store deploy/helm/javv-opensearch -f my-store-values.yaml   # when the store chart changed
+helm upgrade javv deploy/helm/javv -f my-javv-values.yaml
+helm test javv
+```
+
+The backend runs as one pod with `strategy: Recreate` (issue 691: it runs the background jobs
+itself, so two must never run at once). The old pod stops before the new one starts, and JAVV is
+unavailable for the seconds the new one takes to check the store and upgrade the indices; the
+startup probe allows 300 s for that. Meanwhile the frontend answers 502, which the app shows as
+"backend not answering". The frontend itself rolls over without a gap.
+
+**Rolling back** is one command. `helm history javv` lists the revisions:
+
+```bash
+helm rollback javv          # to the revision before the current one
+helm rollback javv 3        # or to a given one
+```
+
+The settings and images of that revision come back; the indices stay as the newer release left
+them, which an older backend reads (see [Rolling back](#rolling-back)). CI runs an upgrade and a
+rollback on every change to the charts.
+
+**Changing the OpenSearch password** is in the
+[`javv-opensearch` chart's README](../deploy/helm/javv-opensearch/README.md#changing-the-admin-password).
+After it, restart the backend so it reads the new password from the same Secret:
+`kubectl rollout restart deploy/javv-backend`.
 
 ## Check what's running
 
