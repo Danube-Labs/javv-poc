@@ -43,6 +43,7 @@ jobs:
     permissions:
       contents: write   # the note on the release when the publish fails
       packages: write
+      id-token: write   # keyless cosign: the signing certificate comes from this job's OIDC token
     outputs:
       backend-digest: ${{ steps.push.outputs.backend }}
       frontend-digest: ${{ steps.push.outputs.frontend }}
@@ -96,7 +97,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # the digests are what issue 615 will sign, so they come from the registry, not the local store
+      # the digests are what gets signed, so they come from the registry, not the local store
       - name: Push both images
         id: push
         env:
@@ -110,6 +111,41 @@ jobs:
             echo "$app=$REGISTRY/javv-$app@$digest" >> "$GITHUB_OUTPUT"
             echo "- \`$ref\` = \`$digest\`" >> "$GITHUB_STEP_SUMMARY"
           done
+
+      # issue 615: an SBOM, a keyless signature and a signed SBOM attestation for each pushed digest,
+      # as the scanner images have (issue 74). A tag can be moved; the digest is what was pushed.
+      - name: Install syft (versions.yaml, from its official image)
+        run: |
+          syft=$(yq -r '.supply_chain.syft' versions.yaml)
+          cid=$(docker create "anchore/syft:v$syft")
+          docker cp "$cid:/syft" syft && docker rm "$cid" >/dev/null
+          sudo install -m 0755 syft /usr/local/bin/syft && rm syft
+
+      - name: An SBOM of each pushed digest
+        id: sbom
+        env:
+          BACKEND: ${{ steps.push.outputs.backend }}
+          FRONTEND: ${{ steps.push.outputs.frontend }}
+        run: |
+          mkdir -p sbom
+          : > "$RUNNER_TEMP/to-sign.txt"
+          for app in backend frontend; do
+            ref=$BACKEND; [ "$app" = frontend ] && ref=$FRONTEND
+            syft "$ref" -o spdx-json="sbom/javv-$app.spdx.json"
+            echo "$ref sbom/javv-$app.spdx.json" >> "$RUNNER_TEMP/to-sign.txt"
+          done
+          {
+            echo "images<<EOF_IMAGES"
+            cat "$RUNNER_TEMP/to-sign.txt"
+            echo "EOF_IMAGES"
+          } >> "$GITHUB_OUTPUT"
+          echo "cosign=$(yq -r '.supply_chain.cosign' versions.yaml)" >> "$GITHUB_OUTPUT"
+
+      - name: Sign and attest each pushed image (cosign keyless)
+        uses: ./.github/actions/sign-image
+        with:
+          images: ${{ steps.sbom.outputs.images }}
+          cosign-version: ${{ steps.sbom.outputs.cosign }}
 
       # a new package can start private, and a private image breaks every deployment that pulls it
       - name: Anyone can pull them
@@ -125,6 +161,22 @@ jobs:
             }
           done
 
+      # what docs/DEPLOYING.md tells an operator to run, still signed out
+      - name: Anyone can verify them
+        env:
+          BACKEND: ${{ steps.push.outputs.backend }}
+          FRONTEND: ${{ steps.push.outputs.frontend }}
+          IDENTITY: '^https://github\.com/Danube-Labs/javv-poc/\.github/workflows/release-please\.yml@refs/heads/main$'
+          ISSUER: https://token.actions.githubusercontent.com
+        run: |
+          for ref in "$BACKEND" "$FRONTEND"; do
+            cosign verify "$ref" --certificate-identity-regexp "$IDENTITY" \
+              --certificate-oidc-issuer "$ISSUER" >/dev/null
+            cosign verify-attestation "$ref" --type spdxjson --certificate-identity-regexp "$IDENTITY" \
+              --certificate-oidc-issuer "$ISSUER" >/dev/null
+            echo "verified: $ref, its signature and its SBOM attestation"
+          done
+
       - name: Compose logs
         if: failure()
         run: docker compose -f deploy/compose/compose.yaml logs || true
@@ -134,7 +186,7 @@ jobs:
         run: |
           run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           {
-            echo "> **The images for this release were not published.** See $run_url; once it is fixed,"
+            echo "> **The images for this release were not published and signed.** See $run_url; once it is fixed,"
             echo "> re-run the failed jobs there and delete this note."
             echo
             gh release view "$TAG" --json body -q .body

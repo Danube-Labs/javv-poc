@@ -124,7 +124,7 @@ lint/test + the contract gate + Frontend smoke + Scanner + javv-common + commitl
 Secret scan + the report-only Dependency audit + App images, which builds the app's Docker images
 without a push and starts them, + Compose stack, which runs deploy/compose and signs in, issue 452; + Helm charts, which runs ct lint and ct install in kind on deploy/helm, issue 725; detect-step jobs always run for branch protection) ·
 `workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
-(batched release PRs; a release publishes the app images, issue 452) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
+(batched release PRs; a release publishes the app images, signed with an SBOM attestation, issues 452 and 615) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both
 test suites with the clock shifted forward, to catch date bombs before they fire on main) ·
 `workflows/compat-fixture.yml` (manual: copies the compat gate's fixture image into GHCR by digest,

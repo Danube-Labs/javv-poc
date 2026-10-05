@@ -77,6 +77,11 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-05: the release signs the app images (issue 615, before issue 725 slice 4, operator):**
+  `Publish app images` makes an SPDX SBOM of each pushed digest with syft, signs and attests it with
+  `.github/actions/sign-image` (cosign keyless, the scanner images' design from issue 74), then runs
+  `cosign verify` and `verify-attestation` signed out. `id-token: write` is on that job only.
+  `docs/DEPLOYING.md` "Verify the images" gives the commands. Slice 4 signs the charts in the same run.
 - **2026-10-05: the `javv-scanner` chart (issue 725, slice 3, operator rulings on the slice 3
   plan):** one CronJob per scanner (`Forbid`, stopped after 5 h 30 min, no retry until the next
   schedule), each with its own token Secret, settings, image and vuln-DB cache. This replaces two

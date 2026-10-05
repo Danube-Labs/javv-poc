@@ -71,7 +71,7 @@ JAVV never writes to the clusters it monitors; the scanners push to it.
 | RBAC/IDOR registry | backend tests | CI fails |
 | Ingest round trip: each supported scanner version's real output pushed into a real backend, the store checked against it | `scanner-images.yml` compat job + `development/scripts/check-ingest-roundtrip.sh` | the job fails, and publish needs it |
 | SBOM + report-only Grype pass over the scanner images | `.github/workflows/scanner-images.yml` | reported, not blocking |
-| cosign keyless signature + signed SBOM attestation of each published image, by digest | `scanner-images.yml` via `.github/actions/sign-image` | the publish fails; an image is never left pushed and unsigned by a green run |
+| cosign keyless signature + signed SBOM attestation of each published image, by digest | `scanner-images.yml` and `release-please.yml` (the app images, issue 615) via `.github/actions/sign-image` | the publish fails; an image is never left pushed and unsigned by a green run |
 
 ## When something is found
 
