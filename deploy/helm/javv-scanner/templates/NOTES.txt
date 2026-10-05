@@ -1,0 +1,19 @@
+Scanners for this cluster, pushing to {{ .Values.backendUrl }}{{ with .Values.clusterId }} as cluster {{ . }}{{ end }}:
+{{- range $name := include "javv-scanner.scanners" . | fromJsonArray }}
+{{- $s := index $.Values $name }}
+{{- if $s.enabled }}
+  {{ $name }}: CronJob {{ include "javv-scanner.fullname" $ }}-{{ $name }}, "{{ $s.schedule }}"{{ with $s.timeZone }} ({{ . }}){{ end }}, image {{ include "javv-scanner.image" (dict "root" $ "name" $name) }}
+{{- end }}
+{{- end }}
+
+Check that JAVV answers and accepts the tokens: helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+Run a cycle now instead of waiting for the schedule:
+{{- range $name := include "javv-scanner.scanners" . | fromJsonArray }}
+{{- if (index $.Values $name).enabled }}
+  kubectl -n {{ $.Release.Namespace }} create job {{ $name }}-now --from=cronjob/{{ include "javv-scanner.fullname" $ }}-{{ $name }}
+{{- end }}
+{{- end }}
+
+Each run first refreshes the scanner's vuln DB into its own volume, then scans every running image.
+Its result shows in JAVV under Scanner status. Images from private registries are not scanned yet.

@@ -81,7 +81,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 | **`development/bolts/`** | One folder per milestone unit M0-M10 (the **execution briefs**) - see milestone map below |
 | **`development/standards/`** | Process rules: `definition-of-done` · `testing` (suite budget, no per-test bootstrap) · `git-workflow` (bolt tracking on issues) · `releases` · `observability` (**javv-common logging only**) · `api-design` · `ui-foundations` (binding FE tokens) · `security` · `dependency-policy` (fix deadlines, Renovate) · `bolt-readme-template` |
 | **`development/e2e/`** | Operator rigs: `smoke.sh` (full-stack smoke incl. read/report phase) · `smoke-two-cluster.sh` (two-tenant isolation) · `bench_refresh.py` + `bench_read.py` (ingest + read-contention benches) · `loadbreak.py` (synthetic load + break attempts) · `results.md` (run log). Run logs are git-ignored |
-| `development/scripts/` | `check-versions.sh` (versions.yaml ↔ consumers drift gate) · `check-scanner-db-policy.sh` · `check-ingest-roundtrip.sh` (the compat push's summary vs the store, CI) · `check-docs-drift.sh` (API.md + CONFIGURATION.md vs code, and this map's inventory, CI) · `build-app-images.sh` (the app images as a release tags and labels them; CI and the release) · `helm-ci-fixtures.sh` (the Secrets, certificates and cert-manager Issuer the chart installs in CI use) · `helm-docs.sh` (chart READMEs from their values.yaml, at the pinned helm-docs; `--check` in CI) · `helm-ci-app-checks.sh` (on an installed javv chart: a sign-in, a stopped backend, upgrade and rollback; CI) · `clean-dev-store.sh` (test-residue sweep) · `dependency-audit.sh` (report-only, CI) · `seed-smoke.sh` (seeds the CI smoke's backend) · `make-demo-gif.sh` (README demo) |
+| `development/scripts/` | `check-versions.sh` (versions.yaml ↔ consumers drift gate) · `check-scanner-db-policy.sh` · `check-ingest-roundtrip.sh` (the compat push's summary vs the store, CI) · `check-docs-drift.sh` (API.md + CONFIGURATION.md vs code, and this map's inventory, CI) · `build-app-images.sh` (the app images as a release tags and labels them; CI and the release) · `helm-ci-fixtures.sh` (the Secrets, certificates and cert-manager Issuer the chart installs in CI use) · `helm-docs.sh` (chart READMEs from their values.yaml, at the pinned helm-docs; `--check` in CI) · `helm-ci-app-checks.sh` (on an installed javv chart: a sign-in, a stopped backend, upgrade and rollback; CI) · `helm-ci-scanner-checks.sh` (the javv-scanner chart in a second cluster pushing to the javv chart: tokens, then one cycle per scanner landing in JAVV; CI) · `clean-dev-store.sh` (test-residue sweep) · `dependency-audit.sh` (report-only, CI) · `seed-smoke.sh` (seeds the CI smoke's backend) · `make-demo-gif.sh` (README demo) |
 | `development/hooks/` | `conventional-commit.sh` (local commitlint mirror: types, subject case, 100-char lines) + its case suite `test-conventional-commit.sh` |
 
 ### Milestone map (`development/bolts/`)
@@ -157,10 +157,10 @@ chart (vendored in its `charts/`), one node with its login on and `admin` as its
 user; its `README.md` is written from `values.yaml` by `development/scripts/helm-docs.sh`, and
 `ci/*-values.yaml` are the cases CI installs. `javv/` is the backend and frontend, built from the
 compose file: every setting under `backend.config` (held to the code by
-`backend/tests/test_compose_settings.py`), one backend with `Recreate`, Services only. `ct.yaml`
-configures chart-testing for all of them. `backend/tests/test_helm_opensearch.py` and
-`test_helm_javv.py` hold the rendered charts.
-
----
-*Planned code layout still to land:* the `javv-scanner` chart under `deploy/helm/` (issue 725,
-slice 3).
+`backend/tests/test_compose_settings.py`), one backend with `Recreate`, Services only.
+`javv-scanner/` is the scanners for each monitored cluster: a CronJob per scanner, each with its
+own token, settings and vuln-DB cache volume, which `files/refresh-vulndb.sh` refreshes at the start
+of every cycle (and once at install); its settings are held to the code by
+`scanner/tests/test_helm_config.py`. `ct.yaml` configures chart-testing for all of them.
+`backend/tests/test_helm_opensearch.py`, `test_helm_javv.py` and `test_helm_scanner.py` hold the
+rendered charts.

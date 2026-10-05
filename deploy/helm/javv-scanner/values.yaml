@@ -1,0 +1,157 @@
+# JAVV's scanners for one monitored cluster (issue 725, slice 3). Install it in every cluster JAVV
+# should scan; JAVV itself (the javv chart) can run anywhere the scanners reach over HTTP. Each
+# scanner is its own CronJob with its own token, settings and vuln-DB cache: Trivy and Grype are
+# never merged. Guide: docs/DEPLOYING.md, "Point scanners at it".
+
+# -- JAVV's address as the scanners reach it: the javv chart's frontend Service, or whatever you
+# put in front of it (`http://javv.javv.svc:8080` in the same cluster, `https://javv.example.com`
+# from another). Required.
+backendUrl: ""
+
+# -- This cluster's id in JAVV. Empty: the scanners read it (the `kube-system` namespace UID). Set,
+# it is asserted: a cycle that reaches a different cluster stops without scanning (issue 470).
+clusterId: ""
+
+trivy:
+  # -- Run the Trivy CronJob.
+  enabled: true
+  # -- When a cycle starts, in the CronJob's time zone. Every 6 hours keeps each finding well inside
+  # JAVV's 3-day staleness window; Grype runs half an hour later so their downloads don't overlap.
+  schedule: "0 */6 * * *"
+  # -- The zone `schedule` is read in (`Europe/Bucharest`); empty is the cluster's, UTC on most.
+  timeZone: ""
+  # -- A cycle still running after this many seconds is stopped. With one cycle at a time, a hung
+  # one would otherwise hold back every later one.
+  activeDeadlineSeconds: 19800
+
+  image:
+    repository: ghcr.io/danube-labs/javv-scanner-trivy
+    # -- The Trivy version, from versions.yaml (`scanners.trivy.current`). The tag moves when JAVV
+    # republishes the image for that version, so it is pulled on every run.
+    tag: "0.74.0"  # versions.yaml scanners.trivy.current
+    # -- `sha256:...`: run exactly that image; it wins over `tag`.
+    digest: ""
+    pullPolicy: Always
+
+  # -- The ingest token JAVV minted for this cluster and Trivy (Settings, Access & tokens). Name a
+  # Secret that holds it under `key`, or give `value` and the chart puts it in a Secret.
+  token:
+    existingSecret: ""
+    key: token
+    value: ""
+
+  vulnDb:
+    # -- Where the vulnerability DB comes from (`--db-repository`, OCI repositories in order).
+    # Empty: Trivy's own, `mirror.gcr.io/aquasec/trivy-db:2` then `ghcr.io/aquasecurity/trivy-db:2`.
+    repository: ""
+    # -- Where the Java index DB comes from (`--java-db-repository`). Empty: Trivy's own,
+    # `mirror.gcr.io/aquasec/trivy-java-db:1` then `ghcr.io/aquasecurity/trivy-java-db:1`.
+    javaRepository: ""
+    # -- The cache volume. Trivy's two DBs took 2.9 GB in October 2026; the size leaves room for
+    # them to grow.
+    size: 10Gi
+    # -- Empty: the cluster's default StorageClass.
+    storageClass: ""
+    # -- A PersistentVolumeClaim of your own; the chart then makes none.
+    existingClaim: ""
+
+  # -- Trivy's scan settings (docs/CONFIGURATION.md §3), at their defaults; empty means unset.
+  # @default -- every setting at its code default; the list is in values.yaml
+  config:
+    # debug | info | warning | error
+    JAVV_LOG_LEVEL: "info"
+    # what Trivy looks for: vuln, misconfig, secret, license (comma-separated)
+    JAVV_TRIVY_SCANNERS: "vuln"
+    # leave out vulnerabilities with no fixed version
+    JAVV_TRIVY_IGNORE_UNFIXED: "false"
+    # only these severities (CRITICAL,HIGH); empty is all
+    JAVV_TRIVY_SEVERITIES: ""
+    # os, library; empty is Trivy's default
+    JAVV_TRIVY_PKG_TYPES: ""
+    # one image's scan limit (5m0s); empty is Trivy's default
+    JAVV_TRIVY_TIMEOUT: ""
+
+  # -- More environment variables for the refresh and the scan, in Kubernetes' own form.
+  extraEnv: []
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  priorityClassName: ""
+  podLabels: {}
+  podAnnotations: {}
+
+grype:
+  # -- Run the Grype CronJob.
+  enabled: true
+  # -- When a cycle starts, in the CronJob's time zone.
+  schedule: "30 */6 * * *"
+  # -- The zone `schedule` is read in; empty is the cluster's, UTC on most.
+  timeZone: ""
+  # -- A cycle still running after this many seconds is stopped.
+  activeDeadlineSeconds: 19800
+
+  image:
+    repository: ghcr.io/danube-labs/javv-scanner-grype
+    # -- The Grype version, from versions.yaml (`scanners.grype.current`). The tag moves when JAVV
+    # republishes the image for that version, so it is pulled on every run.
+    tag: "0.119.0"  # versions.yaml scanners.grype.current
+    # -- `sha256:...`: run exactly that image; it wins over `tag`.
+    digest: ""
+    pullPolicy: Always
+
+  # -- The ingest token JAVV minted for this cluster and Grype. Name a Secret that holds it under
+  # `key`, or give `value` and the chart puts it in a Secret.
+  token:
+    existingSecret: ""
+    key: token
+    value: ""
+
+  vulnDb:
+    # -- Where the vulnerability DB comes from (`GRYPE_DB_UPDATE_URL`, the listing of DB builds).
+    # Empty: Grype's own, `https://grype.anchore.io/databases`.
+    updateUrl: ""
+    # -- The cache volume. Grype's DB took 3.0 GB in October 2026; the size leaves room for them
+    # to grow.
+    size: 10Gi
+    # -- Empty: the cluster's default StorageClass.
+    storageClass: ""
+    # -- A PersistentVolumeClaim of your own; the chart then makes none.
+    existingClaim: ""
+
+  # -- Grype's scan settings (docs/CONFIGURATION.md §4), at their defaults; empty means unset.
+  # @default -- every setting at its code default; the list is in values.yaml
+  config:
+    # debug | info | warning | error
+    JAVV_LOG_LEVEL: "info"
+    # leave out vulnerabilities with no fixed version
+    JAVV_GRYPE_ONLY_FIXED: "false"
+    # squashed | all-layers | deep-squashed; empty is Grype's default
+    JAVV_GRYPE_SCOPE: ""
+    # seconds before one image's scan is stopped
+    JAVV_GRYPE_SCAN_TIMEOUT: "600"
+
+  # -- More environment variables for the refresh and the scan, in Kubernetes' own form.
+  extraEnv: []
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  priorityClassName: ""
+  podLabels: {}
+  podAnnotations: {}
+
+# -- Both scanners run as the images' own user, with a read-only root; they write only the vuln-DB
+# cache, the dead-letter file and /tmp (issue 632).
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]

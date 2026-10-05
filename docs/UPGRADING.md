@@ -90,7 +90,7 @@ OpenSearch's account API cannot change this password: `admin` is a reserved user
 
 ### On Kubernetes (Helm)
 
-The two charts in `deploy/helm/` ([`DEPLOYING.md`](DEPLOYING.md#on-kubernetes-with-helm)) take a
+The JAVV and store charts in `deploy/helm/` ([`DEPLOYING.md`](DEPLOYING.md#on-kubernetes-with-helm)) take a
 release's version with it. Keep your settings in a values file of your own, so an upgrade is the
 new release's chart with the same file:
 
@@ -116,6 +116,18 @@ helm rollback javv 3        # or to a given one
 The settings and images of that revision come back; the indices stay as the newer release left
 them, which an older backend reads (see [Rolling back](#rolling-back)). CI runs an upgrade and a
 rollback on every change to the charts.
+
+**The scanners come last,** in each monitored cluster, once JAVV runs the new release: a newer
+scanner can send a report format only the newer backend accepts. The `javv-scanner` chart carries
+the scanner versions of its release; your values file (`backendUrl`, the token Secrets) stays:
+
+```bash
+helm upgrade scanner deploy/helm/javv-scanner -n javv-scanner -f my-scanner-values.yaml
+```
+
+The upgrade starts a vuln-DB refresh when the scanner image or the DB source changed; the next
+cycle uses the new image. To roll back, `helm rollback scanner` in that cluster, before rolling JAVV
+back.
 
 **Changing the OpenSearch password** is in the
 [`javv-opensearch` chart's README](../deploy/helm/javv-opensearch/README.md#changing-the-admin-password).

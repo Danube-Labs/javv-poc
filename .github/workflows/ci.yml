@@ -414,8 +414,10 @@ jobs:
     # install followed by the chart's `helm test`. javv-opensearch: the demo certificates, a
     # certificate from a Secret, and one from cert-manager. javv: next to a store with a
     # cert-manager certificate, on images built from this commit, then a real sign-in, a stopped
-    # backend (502) and an upgrade with a rollback. The render checks are
-    # backend/tests/test_helm_*.py, in the Backend job.
+    # backend (502) and an upgrade with a rollback. javv-scanner: in a second kind cluster that
+    # plays the monitored one, on the published scanner images, pushing to that JAVV; one cycle
+    # of each scanner lands. The render checks are backend/tests/test_helm_*.py, in the Backend
+    # job, and scanner/tests/test_helm_config.py, in the Scanner job.
     name: Helm charts
     runs-on: ubuntu-latest
     env:
@@ -484,14 +486,42 @@ jobs:
             -f deploy/helm/javv/ci/default-values.yaml
           development/scripts/helm-ci-app-checks.sh javv javv deploy/helm/javv/ci/default-values.yaml
 
+      # a cluster of its own, as a monitored cluster is: the scanners reach JAVV at the first
+      # cluster's node address on the kind network. It becomes the current context.
+      - name: A second kind cluster, the monitored one
+        run: kind create cluster --name monitored --wait 2m
+
+      - name: ct install, javv-scanner, pushing to that JAVV
+        env:
+          JAVV_CI_ADMIN_PASSWORD: ci-only-admin-passphrase
+        run: |
+          url=$(development/scripts/helm-ci-scanner-checks.sh prepare \
+            kind-chart-testing javv javv kind-monitored javv-scan | tail -n 1)
+          echo "JAVV_CI_BACKEND_URL=$url" >> "$GITHUB_ENV"
+          ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv-scanner \
+            --namespace javv-scan --helm-extra-set-args "--set=backendUrl=$url"
+
+      - name: A cycle of each scanner lands in JAVV
+        env:
+          JAVV_CI_ADMIN_PASSWORD: ci-only-admin-passphrase
+        run: |
+          helm install scanner deploy/helm/javv-scanner -n javv-scan \
+            -f deploy/helm/javv-scanner/ci/default-values.yaml --set backendUrl="$JAVV_CI_BACKEND_URL"
+          development/scripts/helm-ci-scanner-checks.sh cycle \
+            kind-monitored javv-scan scanner "$JAVV_CI_BACKEND_URL"
+          df -h /
+
       - name: Cluster state
         if: failure()
         run: |
           for ns in javv-ci javv; do
-            kubectl -n "$ns" get all,secrets,certificates,events || true
-            kubectl -n "$ns" logs -l app.kubernetes.io/name=opensearch --all-containers --tail 100 || true
-            kubectl -n "$ns" logs -l app.kubernetes.io/name=javv --all-containers --tail 100 || true
+            kubectl --context kind-chart-testing -n "$ns" get all,secrets,certificates,events || true
+            kubectl --context kind-chart-testing -n "$ns" logs -l app.kubernetes.io/name=opensearch --all-containers --tail 100 || true
+            kubectl --context kind-chart-testing -n "$ns" logs -l app.kubernetes.io/name=javv --all-containers --tail 100 || true
           done
+          kubectl --context kind-monitored -n javv-scan get all,pvc,events || true
+          kubectl --context kind-monitored -n javv-scan logs -l app.kubernetes.io/name=javv-scanner --all-containers --tail 100 || true
+          df -h /
 
   scanner:
     name: Scanner
