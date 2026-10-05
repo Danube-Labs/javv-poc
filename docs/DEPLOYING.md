@@ -135,7 +135,8 @@ inside the same volume (`path.repo`); copying them off the machine is up to you 
 
 ## On Kubernetes, with Helm
 
-Two charts in `deploy/helm/`, installed one after the other in the same namespace (issue 725):
+Two charts in `deploy/helm/`, installed one after the other in the same namespace (issue 725), and
+a third, `javv-scanner`, in each cluster you scan ([below](#point-scanners-at-it)):
 `javv-opensearch`, the store, and `javv`, the backend and frontend. Each chart's README lists every
 value; this is the order and what each step needs.
 
@@ -201,12 +202,48 @@ Each pair of cluster and scanner has its own token.
    ```
 2. In JAVV, **Settings › Access & tokens › Mint token**: that cluster id and the scanner (`trivy`
    or `grype`). The token is shown once.
-3. Run the scanner with `JAVV_BACKEND_URL=http://<JAVV machine>:8080`, `JAVV_TOKEN=<the token>`
-   and `JAVV_CLUSTER_ID=<the id>`. The scanner's settings are in
-   [`CONFIGURATION.md` §2](CONFIGURATION.md); its images are published per scanner version.
-   A Helm chart to run them as Kubernetes CronJobs, `javv-scanner`, is issue 725's slice 3.
+3. Install the `javv-scanner` chart in that cluster, each token in its own Secret, with JAVV's
+   address as that cluster reaches it:
+   ```bash
+   kubectl create namespace javv-scanner
+   for s in trivy grype; do  # each token at a prompt: out of shell history and process arguments
+     read -rs -p "$s token: " token && echo
+     printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
+       --from-file=token=/dev/stdin
+   done; unset token
+   helm install scanner deploy/helm/javv-scanner -n javv-scanner \
+     --set backendUrl=http://<JAVV's address>:8080 \
+     --set trivy.token.existingSecret=javv-trivy-token \
+     --set grype.token.existingSecret=javv-grype-token
+   helm test scanner -n javv-scanner
+   ```
+   `helm test` checks that JAVV answers at that address and accepts each token. Without
+   Kubernetes, run the scanner image with `JAVV_BACKEND_URL`, `JAVV_TOKEN` and `JAVV_CLUSTER_ID`
+   ([`CONFIGURATION.md` §2](CONFIGURATION.md)).
 
 The first push appears in **Scanner status**; its findings appear once a scan is complete.
+
+### What the scanner chart runs
+
+The [chart's README](../deploy/helm/javv-scanner/README.md) lists every value.
+
+- **One CronJob per scanner,** every 6 hours by default (Grype half an hour after Trivy), stopped
+  after 5 h 30 min. Each scanner has its own token, settings, image and cache. The CronJob never
+  starts a cycle while one of its own runs; a cycle you start by hand is not counted, so pause the
+  CronJob first and start yours when none is running (the chart's `NOTES` give the commands).
+- **A vuln-DB cache per scanner,** a 10Gi `ReadWriteOnce` volume. Each cycle first refreshes the
+  DB there, then scans every image against that one DB with updates off. The install runs one
+  refresh straight away, so the first cycle finds a DB in place and the volume is bound for
+  `helm install --wait`. A failed refresh falls back to the cached DB; Grype refuses one older
+  than 5 days.
+- **Where the DBs come from:** the vendors' own sources by default, which the scanners reach over
+  the internet. For a mirror, set `trivy.vulnDb.repository` and `trivy.vulnDb.javaRepository` (OCI
+  repositories) or `grype.vulnDb.updateUrl` (a DB listing).
+- **What it may read in the cluster:** pods, in every namespace (to find the running images), and
+  the `kube-system` namespace (its UID is the cluster id). Nothing else, and no Secrets.
+- **The images** are the scanner versions in [`versions.yaml`](../versions.yaml), pulled on every
+  run because JAVV republishes a version's tag when it changes the scanner. Set
+  `<scanner>.image.digest` to run one exact build.
 
 ## Known limits
 
@@ -227,6 +264,9 @@ The first push appears in **Scanner status**; its findings appear once a scan is
   §2b](CONFIGURATION.md)): an image carries their defaults.
 - **TLS is yours.** JAVV serves plain http; put `https` in front of it with whatever you already
   run, and keep the session cookie `Secure`.
-- **The scanner chart** (`javv-scanner`) is issue 725's slice 3.
+- **Images from private registries are not scanned yet.** The scanners pull each image without a
+  login; one that fails to pull is skipped with a warning in the scanner's log. Issue 739.
+- **The scanners see every pod spec.** Listing pods, which finding the images needs, also shows
+  any value written straight into a pod's `env`. Keep secrets in Secrets.
 - **The charts are installed from a checkout** (`deploy/helm/`) until a release publishes them
   (issue 725, slice 4).

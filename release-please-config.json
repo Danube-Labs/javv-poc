@@ -31,6 +31,10 @@
         {
           "type": "generic",
           "path": "deploy/helm/javv/values.yaml"
+        },
+        {
+          "type": "generic",
+          "path": "deploy/helm/javv-scanner/Chart.yaml"
         }
       ]
     }

@@ -77,6 +77,24 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-05: the `javv-scanner` chart (issue 725, slice 3, operator rulings on the slice 3
+  plan):** one CronJob per scanner (`Forbid`, stopped after 5 h 30 min, no retry until the next
+  schedule), each with its own token Secret, settings, image and vuln-DB cache. This replaces two
+  lines of the deliverables above:
+  - **NFR-11's cache is one `ReadWriteOnce` volume per scanner, refreshed at the start of every
+    cycle,** not one volume both scanners share plus a refresh CronJob. Four Jobs on one volume work
+    only on `ReadWriteMany` storage or a single node. Each cycle's init container refreshes the DB
+    with the scanner's own image (so the schema matches, D41), from the vendor's source or the one
+    in `vulnDb`; the scan then runs with updates off, so a cycle reads one DB and calls nothing
+    upstream mid-scan. The install runs the same refresh once as a Job, which also binds the volume
+    for `helm install --wait`.
+  - **NFR-3's scanner RBAC grants no Secret read:** `list` pods and `get` the `kube-system`
+    namespace, the two calls a cycle makes. Private registries are issue 739.
+
+  The image tag is `versions.yaml`'s scanner version (drift-checked), pulled `Always` since JAVV
+  republishes it; a digest pins one build, and slice 4 writes the scanner digests into the chart
+  it publishes. CI installs the chart in a second kind cluster that pushes to the `javv` chart, and
+  one cycle of each scanner lands.
 - **2026-10-05: the `javv` chart (issue 725, slice 2, operator rulings on the slice 2 plan):**
   `deploy/helm/javv` runs the backend (one replica, `strategy: Recreate`, issue 691) and the frontend
   as Services only, with every backend setting under `backend.config` by its environment name,

@@ -139,11 +139,43 @@ fallback or a per-image error loop. Unset always means the documented default.
 
 | Path | Set by | What |
 |---|---|---|
-| `/var/cache/javv/<scanner>` | `TRIVY_CACHE_DIR` / `GRYPE_DB_CACHE_DIR` (the vendors' own variables, image `ENV`) | the vuln-DB cache; M10's vuln-DB PVC mounts here (NFR-11) |
+| `/var/cache/javv/<scanner>` | `TRIVY_CACHE_DIR` / `GRYPE_DB_CACHE_DIR` (the vendors' own variables, image `ENV`) | the vuln-DB cache; the `javv-scanner` chart mounts each scanner's own volume at `/var/cache/javv` (NFR-11) |
 | `/var/lib/javv` | `JAVV_DEAD_LETTER` (image `ENV`) | the dead-letter file |
 | `/tmp` | the scanners | image layers pulled during a scan |
 
 Override any of them per CronJob; whatever is mounted there must be writable by UID 65532. Out of a cluster, a mounted kubeconfig must be readable by that UID too.
+
+### The `javv-scanner` Helm chart (issue 725)
+
+`deploy/helm/javv-scanner` runs one CronJob per scanner in a monitored cluster. Each scanner's block
+(`trivy`, `grype`) has its own image, token, schedule, vuln-DB source and cache, and a `config` with
+its §3 or §4 settings and `JAVV_LOG_LEVEL`, by their environment names, at their defaults (empty
+means unset); `scanner/tests/test_helm_config.py` holds them to the code. The rest:
+
+| Value | Default | Meaning | UI? |
+|---|---|---|---|
+| `backendUrl` | `""` | `JAVV_BACKEND_URL`: JAVV's frontend Service as this cluster reaches it. The install fails without it | n/a (deploy) |
+| `clusterId` | `""` | `JAVV_CLUSTER_ID`; empty, the scanners read the `kube-system` UID | n/a (deploy) |
+| `<scanner>.token.existingSecret` / `.key` / `.value` | `""` / `token` / `""` | 🔒 `JAVV_TOKEN`: that scanner's own Secret, or a value the chart puts in one. The install fails without it | 🔒 secret |
+| `<scanner>.schedule` | `0 */6 * * *` (Trivy), `30 */6 * * *` (Grype) | when a cycle starts; `timeZone` sets the zone | ⚙️ GitOps |
+| `<scanner>.activeDeadlineSeconds` | `19800` | a cycle still running after 5 h 30 min is stopped; the CronJob starts no cycle while one of its own runs (`Forbid`; a Job made by hand is not counted, see the chart's `NOTES`), and retries none until the next schedule | n/a (deploy) |
+| `<scanner>.image.tag` / `.digest` / `.pullPolicy` | `versions.yaml` `scanners.<s>.current` / `""` / `Always` | the scanner version (D41; `check-versions.sh` holds the tag to `versions.yaml`). The tag moves when JAVV republishes that version, hence `Always`; a digest runs one exact build | ⚙️ GitOps |
+| `trivy.vulnDb.repository` / `.javaRepository` | `""` | `TRIVY_DB_REPOSITORY` / `TRIVY_JAVA_DB_REPOSITORY` for the refresh; empty is Trivy's own (`mirror.gcr.io/aquasec/trivy-db:2`, then `ghcr.io/aquasecurity/trivy-db:2`; the Java DB likewise) | ⚙️ GitOps |
+| `grype.vulnDb.updateUrl` | `""` | `GRYPE_DB_UPDATE_URL` for the refresh; empty is Grype's own (`https://grype.anchore.io/databases`) | ⚙️ GitOps |
+| `<scanner>.vulnDb.size` / `.storageClass` / `.existingClaim` | `10Gi` / `""` / `""` | the scanner's cache volume, `ReadWriteOnce`. Measured in October 2026: Trivy's two DBs 2.9 GB, Grype's 3.0 GB | n/a (deploy) |
+
+Each cycle starts with an init container on the scanner's own image that refreshes the DB in the
+cache volume; the scan then runs with the vendors' update switches off (`TRIVY_SKIP_DB_UPDATE`,
+`TRIVY_SKIP_JAVA_DB_UPDATE`, `TRIVY_SKIP_CHECK_UPDATE`, `GRYPE_DB_AUTO_UPDATE=false`, which the
+chart sets), so a cycle reads one DB and calls nothing upstream mid-scan. A failed refresh falls back to the cached DB; with none,
+the cycle fails. Grype refuses a DB older than 5 days (its `GRYPE_DB_MAX_ALLOWED_BUILT_AGE`, settable
+in `extraEnv`). The install runs the same refresh once as a Job, which also binds the volume; an
+upgrade that changes the refresh container (the image, the DB source, `extraEnv`, `resources` or
+`pullPolicy`) runs it again. Misconfig scans (`JAVV_TRIVY_SCANNERS` with `misconfig`) use the
+checks built into the Trivy binary, so they too call nothing upstream mid-scan. A DB that cannot be read (the refresh checks with a lookup) is
+dropped and fetched once more before the cycle gives up. Trivy gets two lookups, because a cut
+Java DB fails no scan: Trivy skips each jar it cannot look up and exits 0, so its lookup must find
+a known CVE in a jar only the Java DB can name.
 
 ---
 
@@ -194,7 +226,7 @@ severities ∈ `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`, pkg-types ∈ `os,library`, t
 | `JAVV_TRIVY_TIMEOUT` | *(unset)* | `--timeout 5m0s` (unset = trivy's own default) | read-only display (C-4) |
 | Output format | `json` | fixed — parser depends on it | n/a |
 | **Trivy version** | `0.74.0` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
-| **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; DB pulled at scan time; stamped per envelope via a per-cycle `trivy version --format json` (#96) | ⚙️ read-only display |
+| **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; refreshed at the start of each cycle by the `javv-scanner` chart (§2), at scan time without it; stamped per envelope via a per-cycle `trivy version --format json` (#96) | ⚙️ read-only display |
 
 ---
 
@@ -210,7 +242,7 @@ env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (pa
 | `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag); non-integer → fail-fast with a clear error (#97) | read-only display (C-4) |
 | Output format | `json` | fixed — parser depends on it | n/a |
 | **Grype version** | `0.119.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
-| **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; DB pulled at scan time | ⚙️ read-only display |
+| **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; refreshed at the start of each cycle by the `javv-scanner` chart (§2), at scan time without it | ⚙️ read-only display |
 
 ---
 

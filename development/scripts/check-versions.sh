@@ -70,6 +70,14 @@ check "javv-opensearch appVersion" "$opensearch" deploy/helm/javv-opensearch/Cha
   '(?m)^appVersion: "\K[0-9.]+' "s/^appVersion: \"[0-9.]+\"/appVersion: \"$opensearch\"/"
 check "javv-opensearch image tag" "$opensearch" deploy/helm/javv-opensearch/values.yaml \
   '(?m)^    tag: "\K[0-9.]+' "s/^    tag: \"[0-9.]+\"/    tag: \"$opensearch\"/"
+# The scanner chart's image tags are the scanner versions (issue 725); Renovate bumps versions.yaml
+# only, so a scanner bump PR needs --fix here, as for the Grype Dockerfile.
+check "javv-scanner trivy tag" "$trivy" deploy/helm/javv-scanner/values.yaml \
+  'tag: "\K[0-9.]+(?="  # versions.yaml scanners.trivy.current)' \
+  "s/tag: \"[0-9.]+\"  # versions.yaml scanners.trivy.current/tag: \"$trivy\"  # versions.yaml scanners.trivy.current/"
+check "javv-scanner grype tag" "$grype" deploy/helm/javv-scanner/values.yaml \
+  'tag: "\K[0-9.]+(?="  # versions.yaml scanners.grype.current)' \
+  "s/tag: \"[0-9.]+\"  # versions.yaml scanners.grype.current/tag: \"$grype\"  # versions.yaml scanners.grype.current/"
 check "opensearch CI service" "$opensearch" .github/workflows/ci.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 check "opensearch compat svc" "$opensearch" .github/workflows/scanner-images.yml \

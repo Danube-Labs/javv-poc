@@ -1,0 +1,10 @@
+# ct install: the scanners in a second kind cluster, pushing to the javv chart in the first. The CI
+# job mints both tokens in that JAVV, puts them in these two Secrets in the install's namespace,
+# and passes the real backendUrl (the first cluster's node address) with --helm-extra-set-args.
+backendUrl: http://javv.invalid:8080
+trivy:
+  token:
+    existingSecret: javv-ci-trivy-token
+grype:
+  token:
+    existingSecret: javv-ci-grype-token

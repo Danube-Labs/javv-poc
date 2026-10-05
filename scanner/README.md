@@ -104,7 +104,7 @@ other branch fails verification. Images published before signing started (issue 
 next publish signs forward, it never re-pushes old tags.
 
 ## Runtime & failure modes
-Status: ✅ implemented (M0/M0b) · 🏗 M10 (Helm/CronJob hygiene, PVC vuln-DB cache, RBAC).
+Status: ✅ implemented (M0/M0b; M10's CronJobs, vuln-DB cache and RBAC in the `javv-scanner` chart, `deploy/helm/javv-scanner`).
 
 | Scenario | What happens | Mechanism / decision | Status |
 |---|---|---|---|
@@ -120,8 +120,8 @@ Status: ✅ implemented (M0/M0b) · 🏗 M10 (Helm/CronJob hygiene, PVC vuln-DB 
 | Same digest across namespaces | One scan target spanning both | dedup keyed on digest | ✅ |
 | kube API unreachable at start | Discovery raises → run fails fast → next CronJob retry | injected client; fail-fast | ✅ / 🏗 retry |
 | Scanner crashes mid-run | Committed pushes stand (idempotent); next CronJob run re-scans from scratch | stateless, scan-ALL (D30) | ✅ / 🏗 schedule |
-| A run overruns the next schedule | Next run is **skipped** (not queued) | `concurrencyPolicy: Forbid` → monotonic `scan_order` | 🏗 |
-| Vuln-DB unavailable (offline) | Scan uses the **cached DB from a PVC**; succeeds without upstream | M10 PVC cache (per-schema, D42) | 🏗 |
+| A run overruns the next schedule | Next run is **skipped** (not queued); a run is stopped after `activeDeadlineSeconds` | `concurrencyPolicy: Forbid` → monotonic `scan_order` | ✅ chart |
+| Vuln-DB unavailable (offline) | The cycle's refresh fails, logs a warning, and the scan uses the **cached DB from the scanner's own volume**; with none cached, the cycle fails | a cache volume per scanner, refreshed by the scanner's own binary (per-schema, D41) | ✅ chart |
 | Trivy vs Grype disagree | Both kept verbatim, **never merged** | per-scanner sacred | ✅ |
 
 **"Fails to push, then what?"** transient → backoff retry; permanent → dead-letter (preserved for replay);
