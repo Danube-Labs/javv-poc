@@ -35,8 +35,20 @@ py() {
 setting() { k get "$backend" -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name==\"$1\")].value}"; }
 
 echo "== a real sign-in through the frontend"
+# A pod is Ready before its Service sends it traffic (the backend's first /readyz to the frontend
+# reaching it has been seen a second apart, ECONNREFUSED in between), so this waits for /readyz
+# through the frontend first, for up to a minute.
 printf '%s' "$JAVV_CI_ADMIN_PASSWORD" | py login '
-import json, os, sys, urllib.request
+import json, os, sys, time, urllib.error, urllib.request
+deadline = time.monotonic() + 60
+while True:
+    try:
+        urllib.request.urlopen(os.environ["BASE"] + "/readyz", timeout=10)
+        break
+    except urllib.error.URLError:
+        if time.monotonic() > deadline:
+            raise
+        time.sleep(2)
 req = urllib.request.Request(os.environ["BASE"] + "/auth/login", method="POST",
     data=json.dumps({"username": "admin", "password": sys.stdin.read()}).encode(),
     headers={"content-type": "application/json"})

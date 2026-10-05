@@ -79,7 +79,8 @@ prepare() {
   node=$(kubectl --context "$javv_ctx" get nodes \
     -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
   url="http://$node:$port"
-  curl -sSf "$url/readyz" >/dev/null
+  # a new NodePort, and a backend the javv checks just rolled back, can take a moment to route
+  curl -sSf --retry 30 --retry-delay 2 --retry-all-errors "$url/readyz" >/dev/null
   echo "JAVV answers at $url" >&2
 
   used=$(sign_in "$url" "$JAVV_CI_ADMIN_PASSWORD" "$ROTATED")
