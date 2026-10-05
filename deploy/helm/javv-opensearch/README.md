@@ -19,8 +19,13 @@ The admin password comes from a Secret with the key `password`, or from
 8 characters or more, with upper and lower case, a digit and a special character, and not a
 common one.
 
+The password is read at a prompt, so it stays out of your shell history and every process's
+arguments:
+
 ```bash
-kubectl create secret generic javv-opensearch-admin --from-literal=password='<a strong password>'
+read -rs -p 'OpenSearch admin password: ' pw && echo
+printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
+unset pw
 helm install javv-opensearch deploy/helm/javv-opensearch \
   --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
 helm test javv-opensearch
@@ -86,4 +91,5 @@ does. Then give JAVV the new password (`JAVV_OPENSEARCH_PASSWORD`) and restart i
 | opensearch.javv.tls.certManager.issuerRef | object | `{}` | The cert-manager Issuer or ClusterIssuer to ask: `name`, and `kind` if not Issuer. |
 | opensearch.javv.tls.existingSecret | string | `""` | A Secret with your certificate: `tls.crt`, `tls.key` (PKCS#8) and `ca.crt`. Empty, with `certManager.enabled` false: OpenSearch's demo certificates, whose key is public. |
 | opensearch.opensearchJavaOpts | string | `"-Xms1g -Xmx1g"` | The OpenSearch heap, as in compose. |
+| opensearch.persistence.enableInitChown | bool | `false` | Off: the official chart would otherwise add an init container that runs as root on an unpinned busybox image to chown the volume. The pod's `fsGroup` (1000, the official chart's) already makes the volume writable by OpenSearch. |
 | opensearch.singleNode | bool | `true` | One node: JAVV runs one store (NFR-9, D23). The install fails with anything else. |

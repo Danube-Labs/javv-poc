@@ -24,19 +24,21 @@ frontend_svc=${backend#deploy/}
 frontend_svc=${frontend_svc%-backend}
 image=$(k get "$backend" -o jsonpath='{.spec.template.spec.containers[0].image}')
 
-py() {  # name, then a Python program; runs it in a throwaway pod as the images' user
+# name, then a Python program; runs it in a throwaway pod as the images' user, with this script's
+# stdin as the pod's (the password reaches the pod that way: never in its spec or an argument)
+py() {
   k run "check-$1" --image="$image" --restart=Never --rm -i --quiet \
-    --env="BASE=http://$frontend_svc:8080" --env="PASSWORD=$JAVV_CI_ADMIN_PASSWORD" \
+    --env="BASE=http://$frontend_svc:8080" \
     --overrides='{"spec":{"securityContext":{"runAsNonRoot":true,"runAsUser":65532}}}' \
     --command -- python -c "$2"
 }
 setting() { k get "$backend" -o jsonpath="{.spec.template.spec.containers[0].env[?(@.name==\"$1\")].value}"; }
 
 echo "== a real sign-in through the frontend"
-py login '
-import json, os, urllib.request
+printf '%s' "$JAVV_CI_ADMIN_PASSWORD" | py login '
+import json, os, sys, urllib.request
 req = urllib.request.Request(os.environ["BASE"] + "/auth/login", method="POST",
-    data=json.dumps({"username": "admin", "password": os.environ["PASSWORD"]}).encode(),
+    data=json.dumps({"username": "admin", "password": sys.stdin.read()}).encode(),
     headers={"content-type": "application/json"})
 user = json.load(urllib.request.urlopen(req, timeout=10))["user"]
 assert user["username"] == "admin", user

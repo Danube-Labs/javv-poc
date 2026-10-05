@@ -141,9 +141,11 @@ a third, `javv-scanner`, in each cluster you scan ([below](#point-scanners-at-it
 value; this is the order and what each step needs.
 
 1. **The store, with its admin password in a Secret.** OpenSearch refuses a weak one (the rules
-   are the compose ones above).
+   are the compose ones above). Each secret here is read at a prompt or made on the spot, so it
+   stays out of your shell history and every process's arguments (the commands need bash).
    ```bash
-   kubectl create secret generic javv-opensearch-admin --from-literal=password='<a strong password>'
+   read -rs -p 'OpenSearch admin password: ' pw && echo
+   printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
    helm install store deploy/helm/javv-opensearch \
      --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
    ```
@@ -153,9 +155,11 @@ value; this is the order and what each step needs.
    [chart's README](../deploy/helm/javv-opensearch/README.md) has both.
 2. **JAVV's own two secrets**, the same ones `.env` holds for compose:
    ```bash
+   read -rs -p 'First JAVV admin password (12 characters or more): ' pw && echo
    kubectl create secret generic javv-secrets \
-     --from-literal=token-pepper="$(openssl rand -hex 32)" \
-     --from-literal=bootstrap-admin-password='<12 characters or more>'
+     --from-file=token-pepper=<(openssl rand -hex 32 | tr -d '\n') \
+     --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
+   unset pw
    ```
 3. **JAVV**, signing in to the store with the store's own Secret:
    ```bash

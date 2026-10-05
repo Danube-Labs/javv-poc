@@ -20,8 +20,9 @@ service=javv-opensearch
 
 kubectl create namespace "$ns" --dry-run=client -o yaml | kubectl apply -f -
 
-kubectl -n "$ns" create secret generic javv-ci-admin \
-  --from-literal=password="$JAVV_CI_OPENSEARCH_PASSWORD" --dry-run=client -o yaml | kubectl apply -f -
+# from stdin, so the password is in no process's arguments
+printf '%s' "$JAVV_CI_OPENSEARCH_PASSWORD" | kubectl -n "$ns" create secret generic javv-ci-admin \
+  --from-file=password=/dev/stdin --dry-run=client -o yaml | kubectl apply -f -
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

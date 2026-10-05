@@ -1,5 +1,6 @@
-# ct install: OpenSearch's demo certificates. Small, and no volume, so each case starts a fresh
-# store. The CI job makes the admin password Secret javv-ci-admin.
+# ct install: OpenSearch's demo certificates, on a volume as a real install runs (kind's default
+# storage class), so the chart's volume settings are installed somewhere. The other cases have no
+# volume. The CI job makes the admin password Secret javv-ci-admin.
 opensearch:
   javv:
     auth:
@@ -10,5 +11,5 @@ opensearch:
       cpu: 100m
       memory: 1Gi
   persistence:
-    enabled: false
+    size: 1Gi
   terminationGracePeriod: 5

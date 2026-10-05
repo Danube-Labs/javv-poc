@@ -187,14 +187,16 @@ export function createFrontendServer({
 
     // An address whose pod is gone but still listed (its node died) never answers the connection,
     // and the request would hang with no banner; a Service with no pod at all refuses at once.
-    // A reused keep-alive socket is already connected and starts no timer.
+    // A reused keep-alive socket is already connected and starts no timer. For https the
+    // connection is open only after the TLS handshake: a peer that accepts TCP and never answers
+    // it would hang the request too.
     upstream.on('socket', (socket) => {
       if (!socket.connecting) return
       const timer = setTimeout(
         () => upstream.destroy(Object.assign(new Error('connect timeout'), { code: 'CONNECT_TIMEOUT' })),
         connectMs,
       )
-      socket.once('connect', () => clearTimeout(timer))
+      socket.once(transport === https ? 'secureConnect' : 'connect', () => clearTimeout(timer))
       socket.once('close', () => clearTimeout(timer))
     })
 
