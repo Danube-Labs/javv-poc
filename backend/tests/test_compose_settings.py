@@ -10,7 +10,9 @@ lists every backend setting with its default and a comment, like a Helm values f
 - the backend and frontend run the images a release publishes, under the release-please manifest's
   version, on lines release-please rewrites (a release PR gets no CI run of its own);
 - OpenSearch runs with its security plugin on, and one password from `.env` reaches both the
-  store and the backend, without being written into a container's command (issue 715).
+  store and the backend, without being written into a container's command (issue 715);
+- OpenSearch starts with `admin` as its only user: the demo setup's other users are cut from its
+  users file before the first start (issue 736).
 
 Each value is written `${JAVV_X:-default}`, so `.env` overrides any setting without an edit to the
 compose file; the default after `:-` is what is compared. Keys without the prefix (`TZ`) are not
@@ -152,6 +154,104 @@ def test_opensearch_runs_with_its_security_plugin_on() -> None:
     # the demo setup's own audit log writes a daily index nothing deletes (ISM is off); JAVV
     # keeps its own audit trail
     assert store.get("plugins.security.audit.type") == "noop"
+
+
+# the layout of the image's own users file (OpenSearch 3.9.0), with stand-in hashes: comments,
+# _meta, then the demo users, each of whom signs in with its own name as password
+DEMO_USERS = """---
+# This is the internal user database
+# The hash value is a bcrypt hash and can be generated with plugin/tools/hash.sh
+
+_meta:
+  type: "internalusers"
+  config_version: 2
+
+# Define your internal users here
+
+## Demo users
+
+admin:
+  hash: "admin-hash"
+  reserved: true
+  backend_roles:
+  - "admin"
+  description: "Demo admin user"
+
+anomalyadmin:
+  hash: "anomalyadmin-hash"
+  reserved: false
+  opendistro_security_roles:
+  - "anomaly_full_access"
+  description: "Demo anomaly admin user, using internal role"
+
+readall:
+  hash: "readall-hash"
+  reserved: false
+  backend_roles:
+  - "readall"
+  description: "Demo readall user"
+
+snapshotrestore:
+  hash: "snapshotrestore-hash"
+  reserved: false
+  backend_roles:
+  - "snapshotrestore"
+  description: "Demo snapshotrestore user"
+"""
+USERS_FILE = Path("config/opensearch-security/internal_users.yml")
+
+
+def _run_opensearch_entrypoint(
+    home: Path, users: str, command: list[str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run the store's entrypoint as its container does: compose hands the shell one `$` and
+    appends the service's command (or `compose run`'s) after the entrypoint. The layout is a copy
+    of the image's, whose own entrypoint is a stand-in that reports how it was called, and the
+    shell's temp directory is the test's own, so a file left behind shows."""
+    service = _services()["opensearch"]
+    entrypoint = service["entrypoint"]
+    assert entrypoint[:2] == ["/bin/bash", "-c"]
+    (home / USERS_FILE).parent.mkdir(parents=True)
+    (home / USERS_FILE).write_text(users)
+    (home / "tmp").mkdir()
+    image_entrypoint = home / "opensearch-docker-entrypoint.sh"
+    image_entrypoint.write_text('#!/bin/sh\necho "image entrypoint: $*"\n')
+    image_entrypoint.chmod(0o755)
+    argv = [entrypoint[2].replace("$$", "$"), *entrypoint[3:], *(command or service["command"])]
+    env = {"PATH": os.environ["PATH"], "TMPDIR": str(home / "tmp")}
+    return subprocess.run(["bash", "-c", *argv], cwd=home, env=env, capture_output=True, text=True)
+
+
+def test_opensearch_starts_with_admin_as_its_only_user(tmp_path: Path) -> None:
+    """The demo security setup loads every user in the image's file, and no setting turns the
+    others off (issue 736). The entrypoint keeps `_meta` and `admin`, unchanged, then hands over to
+    the image's own entrypoint with the image's own command."""
+    started = _run_opensearch_entrypoint(tmp_path, DEMO_USERS)
+    assert started.returncode == 0, started.stderr
+    assert started.stdout == "image entrypoint: opensearch\n"
+    kept = yaml.safe_load((tmp_path / USERS_FILE).read_text())
+    demo = yaml.safe_load(DEMO_USERS)
+    assert kept == {"_meta": demo["_meta"], "admin": demo["admin"]}
+    assert not any((tmp_path / "tmp").iterdir())
+
+
+def test_opensearch_does_not_start_without_an_admin_user(tmp_path: Path) -> None:
+    without_admin = DEMO_USERS.replace("admin:\n", "someone:\n", 1)
+    started = _run_opensearch_entrypoint(tmp_path, without_admin)
+    assert started.returncode != 0
+    assert "no admin user" in started.stderr
+    assert started.stdout == "", "the image's entrypoint must not run"
+    assert (tmp_path / USERS_FILE).read_text() == without_admin
+    # restart: unless-stopped retries it, so a file left per try would pile up
+    assert not any((tmp_path / "tmp").iterdir())
+
+
+def test_compose_run_still_hands_its_command_to_the_image(tmp_path: Path) -> None:
+    """`docker compose run opensearch bash` replaces the service's command, not the entrypoint;
+    the image's own entrypoint runs any command other than `opensearch` as given."""
+    started = _run_opensearch_entrypoint(tmp_path, DEMO_USERS, command=["bash", "-l"])
+    assert started.returncode == 0, started.stderr
+    assert started.stdout == "image entrypoint: bash -l\n"
 
 
 def test_the_health_check_keeps_the_password_out_of_the_container_command() -> None:

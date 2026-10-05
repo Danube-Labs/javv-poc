@@ -96,11 +96,16 @@ backend through the frontend's forward. To serve on another host port, change th
 - The backend's own port (8000) is not published. It also serves `/docs`, `/openapi.json` and a
   `/metrics` that needs no sign-in, so publish it only for something that must reach it directly,
   such as a Prometheus scrape (the commented `ports` block under `backend`).
-- OpenSearch is not published. Its security plugin is on (issue 715): every request needs the
-  admin password from `.env`. Its TLS uses OpenSearch's demo certificates, whose private key ships
-  in the image, so the traffic is not private from anyone on the compose network; the backend
-  does not check the certificate and logs one warning at start saying so. The network holds only
-  the three JAVV containers. Do not publish OpenSearch's port.
+- OpenSearch is not published. Its security plugin is on (issue 715), and `admin`, with the
+  password from `.env`, is the only user that can sign in with a password. OpenSearch's demo
+  security setup would also add six users whose passwords are their own names; the compose file
+  removes them before OpenSearch first starts (issue 736). The setup's demo admin certificate
+  (`kirk.pem`, which [`UPGRADING.md`](UPGRADING.md#with-docker-compose) uses to change the
+  password) also has full access, with no password. Its key ships in the public image, like the
+  demo certificates' own, so anything that can reach OpenSearch on the compose network can use
+  it. The traffic is not private from anyone on that network either; the backend does not
+  check the certificate and logs one warning at start saying so. The network holds only the three
+  JAVV containers. Do not publish OpenSearch's port.
 - Scanner pushes stream through the frontend container. Restarting it cuts a push in flight. The
   scanner retries it with backoff; if the retries run out, it writes the envelope to its
   dead-letter file, and its next cycle scans and pushes that image again.
