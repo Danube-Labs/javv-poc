@@ -90,13 +90,15 @@ OpenSearch's account API cannot change this password: `admin` is a reserved user
 
 ### On Kubernetes (Helm)
 
-The JAVV and store charts in `deploy/helm/` ([`DEPLOYING.md`](DEPLOYING.md#on-kubernetes-with-helm)) take a
-release's version with it. Keep your settings in a values file of your own, so an upgrade is the
-new release's chart with the same file:
+The JAVV and store charts ([`DEPLOYING.md`](DEPLOYING.md#on-kubernetes-with-helm)) carry a
+release's version: each release publishes them at `oci://ghcr.io/danube-labs/charts` under it.
+Keep your settings in a values file of your own, so an upgrade is the new release's chart with the
+same file:
 
 ```bash
-helm upgrade store deploy/helm/javv-opensearch -f my-store-values.yaml   # when the store chart changed
-helm upgrade javv deploy/helm/javv -f my-javv-values.yaml
+helm upgrade store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <new version> \
+  -f my-store-values.yaml   # when the store chart changed
+helm upgrade javv oci://ghcr.io/danube-labs/charts/javv --version <new version> -f my-javv-values.yaml
 helm test javv
 ```
 
@@ -122,7 +124,8 @@ scanner can send a report format only the newer backend accepts. The `javv-scann
 the scanner versions of its release; your values file (`backendUrl`, the token Secrets) stays:
 
 ```bash
-helm upgrade scanner deploy/helm/javv-scanner -n javv-scanner -f my-scanner-values.yaml
+helm upgrade scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version <new version> \
+  -n javv-scanner -f my-scanner-values.yaml
 ```
 
 The upgrade starts a vuln-DB refresh when the refresh container changed (the image, the DB

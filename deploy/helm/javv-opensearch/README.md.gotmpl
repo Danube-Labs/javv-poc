@@ -26,10 +26,14 @@ arguments:
 read -rs -p 'OpenSearch admin password: ' pw && echo
 printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
 unset pw
-helm install javv-opensearch deploy/helm/javv-opensearch \
+helm install javv-opensearch oci://ghcr.io/danube-labs/charts/javv-opensearch --version <version> \
   --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
 helm test javv-opensearch
 ```
+
+Each JAVV release publishes this chart at `oci://ghcr.io/danube-labs/charts`, signed
+(`docs/DEPLOYING.md`, "Verify the images and charts"). From a checkout, use the chart's
+folder in `deploy/helm/` instead.
 
 `helm test` checks that a request without a login is refused, that `admin` is the only user in
 OpenSearch's user list, that one of the demo users OpenSearch would otherwise add (`readall`) is

@@ -77,6 +77,15 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-05: a release publishes the charts (issue 725, slice 4, operator rulings on the plan):**
+  `Publish charts` in `release-please.yml`, after `Publish app images`: `publish-charts.sh`
+  packages the three charts, checks each carries the release version, and pins the scanner images
+  in `javv-scanner` by the digests their tags name at the release, each after `cosign verify`
+  against `scanner-images.yml`'s identity (an unsigned one stops the release). It pushes them to
+  `oci://ghcr.io/danube-labs/charts`, signs each chart digest (cosign keyless, no SBOM: a chart has
+  no packages), then pulls and verifies each signed out. CI's Helm job runs the same packaging
+  against a local registry on every PR. DEPLOYING, UPGRADING and the chart READMEs install from
+  `oci://`.
 - **2026-10-05: the release signs the app images (issue 615, before issue 725 slice 4, operator):**
   `Publish app images` makes an SPDX SBOM of each pushed digest with syft, signs and attests it with
   `.github/actions/sign-image` (cosign keyless, the scanner images' design from issue 74), then runs
