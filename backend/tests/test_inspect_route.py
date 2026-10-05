@@ -90,13 +90,28 @@ async def test_search_runs_and_is_journaled(env):
     assert entity.startswith("POST findings/_search sha256:")
 
 
-async def test_global_cat_read_returns_structured_rows(env):
+@pytest.mark.parametrize("path", ["_cat/indices", "_cat/shards"])
+async def test_global_cat_read_lists_only_javv_indices(env, path):
+    """Issue 729: an unscoped _cat takes in every index, OpenSearch's security index too, which
+    JAVV's role cannot read; the inspector lists JAVV's own indices and nothing else."""
     http, client = env
-    await _login(http, client, ["can_inspect_store"])
-    r = await _inspect(http, method="GET", path="_cat/indices")
-    assert r.status_code == 200
-    rows = r.json()["body"]
-    assert isinstance(rows, list) and rows and "index" in rows[0]  # format=json, never plaintext
+    other = f"other-{uuid.uuid4().hex[:8]}"
+    await client.indices.create(index=other)
+    try:
+        await _login(http, client, ["can_inspect_store"])
+        r = await _inspect(http, method="GET", path=path)
+        assert r.status_code == 200
+        rows = r.json()["body"]
+        assert isinstance(rows, list) and rows and "index" in rows[0]  # format=json, not plaintext
+        names = {row["index"] for row in rows}
+        assert "findings" in names
+        assert other not in names
+        assert all(
+            name == "findings" or name.startswith(("javv-", "system-", "restored-"))
+            for name in names
+        )
+    finally:
+        await client.indices.delete(index=other)
 
 
 @pytest.mark.parametrize(

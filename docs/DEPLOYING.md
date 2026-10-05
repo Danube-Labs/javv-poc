@@ -23,7 +23,8 @@ Kubernetes** (issue 725). Both run the same images with the same settings and de
 
 ## A machine with docker compose
 
-You need Docker Engine with the compose plugin and two files from the release you deploy:
+You need Docker Engine with the compose plugin, version 2.23.1 or later (the compose file carries
+OpenSearch's role for JAVV inline, as `configs`), and two files from the release you deploy:
 `deploy/compose/compose.yaml` and `deploy/compose/.env.example`. Each release publishes the backend
 and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<version>` and
 `javv-frontend:<version>`), and its compose file names them.
@@ -37,16 +38,22 @@ and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<versio
    ```bash
    cp .env.example .env
    ```
-   Set three secrets. The compose file refuses to start without them.
+   Set four secrets. The compose file refuses to start without them.
    - `JAVV_TOKEN_PEPPER`: a long random string (`openssl rand -hex 32`), kept for good.
    - `JAVV_BOOTSTRAP_ADMIN_PASSWORD`: the first JAVV admin's password, used once.
-   - `JAVV_OPENSEARCH_PASSWORD`: OpenSearch's admin password, which JAVV signs in with. OpenSearch
-     takes it once, when it first starts, and refuses to start on a weak one. Its rules: 8
-     characters or more, with an upper-case letter, a lower-case letter, a digit and a special
-     character, and not a common password such as `Password123!`. A refused password stops the
-     `opensearch` container, and OpenSearch writes the refused value into its own log
-     (`docker compose logs opensearch`). Changing this password later is in
-     [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
+   - `JAVV_OPENSEARCH_ADMIN_PASSWORD`: OpenSearch's admin password. It stays with OpenSearch and its
+     health check; JAVV never gets it. OpenSearch takes it once, when it first starts, and refuses
+     to start on a weak one. Its rules: 8 characters or more, with an upper-case letter, a
+     lower-case letter, a digit and a special character, and not a common password such as
+     `Password123!`. A refused password stops the `opensearch` container, and OpenSearch writes the
+     refused value into its own log (`docker compose logs opensearch`).
+   - `JAVV_OPENSEARCH_PASSWORD`: the password of `javv`, the OpenSearch user the backend signs in
+     as, which holds only the `javv` role ([An OpenSearch of your own](#an-opensearch-of-your-own)
+     lists what it can do). OpenSearch also takes it once, when it first starts. Use a long random
+     string (`openssl rand -hex 24`).
+
+   Changing either OpenSearch password later is in
+   [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
 
    **In `.env`, write a `$` as `$$`, or put the whole value in single quotes** (`'pa$ss…'`).
    Compose reads an unquoted `$name` as a variable and substitutes it, with only a warning, so
@@ -55,8 +62,10 @@ and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<versio
    before `#` ends it (`pa #ss` is `pa`), trailing spaces are dropped, and a value that starts
    with `"` or `'` is read as quoted. `"` and `\` anywhere else need nothing.
 
-   **If `opensearch` never reports healthy** while its log shows it running, the password in
-   `.env` and the one the store took on its first start disagree. UPGRADING has the way out.
+   **If `opensearch` never reports healthy** while its log shows it running, the admin password in
+   `.env` and the one the store took on its first start disagree. If the backend stops with
+   "refused the credentials in JAVV_OPENSEARCH_USERNAME", javv's do. UPGRADING has the way out for
+   both.
 
    Decide the session cookie (next section).
 3. **Start it:**
@@ -96,10 +105,11 @@ backend through the frontend's forward. To serve on another host port, change th
 - The backend's own port (8000) is not published. It also serves `/docs`, `/openapi.json` and a
   `/metrics` that needs no sign-in, so publish it only for something that must reach it directly,
   such as a Prometheus scrape (the commented `ports` block under `backend`).
-- OpenSearch is not published. Its security plugin is on (issue 715), and `admin`, with the
-  password from `.env`, is the only user that can sign in with a password. OpenSearch's demo
-  security setup would also add six users whose passwords are their own names; the compose file
-  removes them before OpenSearch first starts (issue 736). The setup's demo admin certificate
+- OpenSearch is not published. Its security plugin is on (issue 715), and two users can sign in
+  with a password: `admin`, OpenSearch's superuser, and `javv`, which the backend uses and which
+  holds only the `javv` role (issue 729). OpenSearch's demo security setup would also add six users
+  whose passwords are their own names; the compose file removes them before OpenSearch first starts
+  (issue 736). The setup's demo admin certificate
   (`kirk.pem`, which [`UPGRADING.md`](UPGRADING.md#with-docker-compose) uses to change the
   password) also has full access, with no password. Its key ships in the public image, like the
   demo certificates' own, so anything that can reach OpenSearch on the compose network can use
@@ -286,6 +296,113 @@ The scanner images are signed the same way by their own workflow; their identity
 signature on each scanner image before it names the image's digest in the published
 `javv-scanner` chart.
 
+## An OpenSearch of your own
+
+JAVV signs in to OpenSearch as one user, which needs one role. The compose file creates both, as
+`javv`; the role holds what the backend calls and nothing more. Its own indices (`findings`,
+`javv-*`, `system-*`, and the `restored-*` copies a restore from **Settings › Data & OpenSearch**
+writes), their snapshots, and cluster health. It cannot read any other index's documents, change
+cluster settings, register a snapshot repository, or use the security API (issue 729).
+
+Some permissions are checked by OpenSearch at cluster level, so they reach past JAVV's indices:
+
+- `cluster:monitor/state`, which the Data inspector's index list needs, also lets the user read
+  the cluster's metadata: the name, settings and mappings of every index, OpenSearch's own included.
+  Never their documents.
+- `cluster:admin/snapshot/create` is not limited to JAVV's indices: OpenSearch lets the user copy
+  any index into a repository you registered. JAVV only ever snapshots its own.
+- The index templates (bootstrap writes JAVV's own), and the bulk, multi-get and scroll calls,
+  whose documents are still checked against the index permissions.
+
+Each permission was shown needed: the role walk fails without it (the runs are on issue 729).
+
+To create them on a cluster you run, as a user that may change security (OpenSearch's `admin`):
+
+```bash
+OS=https://<your opensearch>:9200
+curl -u admin -X PUT "$OS/_plugins/_security/api/roles/javv" \
+  -H 'content-type: application/json' --data-binary @javv-role.json
+curl -u admin -X PUT "$OS/_plugins/_security/api/internalusers/javv" \
+  -H 'content-type: application/json' -d '{"password": "<a long random password>"}'
+curl -u admin -X PUT "$OS/_plugins/_security/api/rolesmapping/javv" \
+  -H 'content-type: application/json' -d '{"users": ["javv"]}'
+```
+
+with `javv-role.json`:
+
+```json
+{
+  "description": "JAVV backend: its own indices, their snapshots, and cluster health",
+  "cluster_permissions": [
+    "cluster:monitor/main",
+    "cluster:monitor/health",
+    "cluster:monitor/nodes/info",
+    "cluster:monitor/nodes/stats",
+    "cluster:monitor/state",
+    "cluster:monitor/shards",
+    "indices:admin/index_template/get",
+    "indices:admin/index_template/put",
+    "cluster:admin/snapshot/get",
+    "cluster:admin/snapshot/create",
+    "cluster:admin/snapshot/restore",
+    "indices:data/write/bulk",
+    "indices:data/read/mget",
+    "indices:data/read/scroll*"
+  ],
+  "index_permissions": [
+    {
+      "index_patterns": [
+        "findings",
+        "javv-*",
+        "system-*"
+      ],
+      "allowed_actions": [
+        "indices:data/read/*",
+        "indices:data/write/*",
+        "indices:admin/create",
+        "indices:admin/get",
+        "indices:admin/mapping/put",
+        "indices:admin/mappings/get",
+        "indices:admin/aliases",
+        "indices:admin/aliases/get",
+        "indices:admin/refresh*",
+        "indices:monitor/*"
+      ]
+    },
+    {
+      "index_patterns": [
+        "javv-*",
+        "system-audit-log*"
+      ],
+      "allowed_actions": [
+        "indices:admin/rollover"
+      ]
+    },
+    {
+      "index_patterns": [
+        "javv-*"
+      ],
+      "allowed_actions": [
+        "indices:admin/delete"
+      ]
+    },
+    {
+      "index_patterns": [
+        "restored-*"
+      ],
+      "allowed_actions": [
+        "indices:admin/create",
+        "indices:data/write/*"
+      ]
+    }
+  ]
+}
+```
+
+Then set `JAVV_OPENSEARCH_USERNAME=javv` and `JAVV_OPENSEARCH_PASSWORD`
+([`CONFIGURATION.md` §1](CONFIGURATION.md)). Snapshots need a repository registered by you
+(`PUT _snapshot/<name>`, with any credentials in OpenSearch's keystore), which JAVV's role cannot do.
+
 ## Known limits
 
 - **amd64 only.** The images, like the scanner images, are built for amd64.
@@ -294,8 +411,7 @@ signature on each scanner image before it names the image's digest in the publis
 - **An OpenSearch of your own, with its security plugin on,** works from the release after 0.5.1:
   point `JAVV_OPENSEARCH_URL` at it and set `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`
   and, for a private CA, `JAVV_OPENSEARCH_CA_BUNDLE` ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
-  The user needs full access to the `findings`, `javv-*` and `system-*` indices and their aliases,
-  point-in-time searches, cluster health and the snapshot repository; a narrower role is issue 729.
+  The user needs the `javv` role ([An OpenSearch of your own](#an-opensearch-of-your-own)).
 - **The compose file's OpenSearch uses demo certificates** (see What is exposed). For certificates
   of your own, run your own OpenSearch and point JAVV at it as above.
 - **No maintenance page without a proxy.** `frontend/public/maintenance.html` is shown by pointing

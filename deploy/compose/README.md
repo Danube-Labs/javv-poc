@@ -8,7 +8,7 @@ other clusters and the known limits, is [`docs/DEPLOYING.md`](../../docs/DEPLOYI
 sudo sysctl -w vm.max_map_count=262144
 
 cd deploy/compose
-cp .env.example .env    # set JAVV_TOKEN_PEPPER, JAVV_BOOTSTRAP_ADMIN_PASSWORD and JAVV_OPENSEARCH_PASSWORD
+cp .env.example .env    # set the four secrets in it (docs/DEPLOYING.md says what each is for)
 docker compose up -d    # pulls this release's JAVV images
 docker compose ps       # wait until all three are healthy
 ```
@@ -25,4 +25,5 @@ new one. Scanners push to the same address: `http://<this machine>:8080`.
 | Upgrade | the new release's `compose.yaml` in place of this one, then `docker compose pull` and `docker compose up -d` |
 | Run a checkout that is not a release | `development/scripts/build-app-images.sh`, then `docker compose up -d` |
 
-Every setting is listed in [`compose.yaml`](compose.yaml) with its default and a comment.
+Every setting is listed in [`compose.yaml`](compose.yaml) with its default and a comment. Needs
+Docker Compose 2.23.1 or later: the file carries OpenSearch's role for JAVV inline, as `configs`.

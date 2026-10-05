@@ -33,6 +33,9 @@ CanInspect = Annotated[Principal, Depends(require_capability("can_inspect_store"
 
 # global read facts — GET only, no body, no parameters beyond what we set server-side
 _GLOBAL_PATHS = frozenset({"_cluster/health", "_cat/indices", "_cat/shards", "_nodes/stats"})
+# The _cat reads list JAVV's own indices only. With no index they take in every index, including
+# OpenSearch's security index, which JAVV's least-privilege role cannot read (issue 729).
+_CAT_INDICES = "findings,javv-*,system-*,restored-*"
 # per-index verbs and the methods each admits
 _INDEX_VERBS: dict[str, frozenset[str]] = {
     "_search": frozenset({"GET", "POST"}),
@@ -139,12 +142,14 @@ async def inspect_store(
     )
 
     params: dict[str, Any] = {"request_timeout": settings.inspect_timeout_seconds}
+    target = f"/{path}"
     if path.startswith("_cat/"):
         params["format"] = "json"  # the UI always gets structured rows, never plaintext columns
+        target = f"/{path}/{_CAT_INDICES}"
     started = time.monotonic()
     try:
         response = await client.transport.perform_request(
-            body.method, f"/{path}", params=params, body=body.body
+            body.method, target, params=params, body=body.body
         )
     except TransportError as exc:
         # the store's own 4xx (bad query DSL, unknown index) surfaces verbatim — the real errors

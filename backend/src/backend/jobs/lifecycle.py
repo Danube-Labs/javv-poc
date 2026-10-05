@@ -247,7 +247,8 @@ async def run_lifecycle_sweep(
     # 3) rollover-only series (m-6): the audit journal rolls on the fleet settings, NEVER retires
     for name in ROLLOVER_ONLY:
         alias = f"{prefix}{name}"
-        if not await client.indices.exists_alias(name=alias):
+        # its own backing indices only, as in services/aliases.py (issue 729)
+        if not await client.indices.exists_alias(name=alias, index=f"{alias}-*"):
             continue
         try:
             fleet = await read_lifecycle_settings(client, prefix=prefix)

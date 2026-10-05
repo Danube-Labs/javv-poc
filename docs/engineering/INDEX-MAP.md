@@ -34,6 +34,9 @@
 | `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h) |
 | `system-report-chunks` | mutable | none | **no** | TTL sweep with its parent report |
 | `system-jobs` | mutable (one lease/status doc per background job kind: the three repair actions, issue 406, and since issue 691 the four scheduled-only jobs too) | none | **no** | none — bounded at one doc per job kind |
+| `restored-*` | copies a restore writes (**Settings › Data & OpenSearch**, `restored-<index>`), never read by JAVV | none | **no** | none: promoting or deleting a copy is a manual step |
+
+**OpenSearch's `javv` role (issue 729) is drawn from this table:** `findings`, `javv-*` and `system-*` for everything JAVV reads and writes, and `restored-*`, the one pattern outside them, which it may only create and write (a restore). A new index outside these patterns needs the role changed with it (`docs/DEPLOYING.md` § An OpenSearch of your own, the compose file's `configs`).
 
 **Time-travel horizon = per-cluster, "as far back as the data in OpenSearch allows"** - i.e. the oldest
 retained `javv-finding-occurrences-<cluster_id>-*` / `javv-images-<cluster_id>-*` window, paired with

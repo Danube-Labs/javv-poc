@@ -22,6 +22,7 @@ Each value is written `${JAVV_X:-default}`, so `.env` overrides any setting with
 compose file; the default after `:-` is what is compared. Keys without the prefix (`TZ`) are not
 settings and are ignored. No store needed."""
 
+import hashlib
 import json
 import os
 import re
@@ -47,8 +48,9 @@ NOT_THE_CODE_DEFAULT = {
     "JAVV_BOOTSTRAP_ADMIN_PASSWORD",  # required from .env
     "JAVV_ENV",  # prod: the dev pepper refuses to start
     # issue 715: the compose store runs with its security plugin on, with demo certificates
-    "JAVV_OPENSEARCH_USERNAME",  # its admin
-    "JAVV_OPENSEARCH_PASSWORD",  # required from .env, shared with the store
+    # issue 729: javv, which holds only the javv role, and its password, which the store sets
+    "JAVV_OPENSEARCH_USERNAME",
+    "JAVV_OPENSEARCH_PASSWORD",  # required from .env
     "JAVV_OPENSEARCH_VERIFY_CERTS",  # false: the demo certificate does not name the service
 }
 
@@ -87,7 +89,7 @@ def _env_name(field: str) -> str:
 
 def _parsed(key: str, raw: str, name: str | None = None) -> re.Match[str]:
     """`name` is the variable the value must read, when it differs from the key (OpenSearch's own
-    `OPENSEARCH_INITIAL_ADMIN_PASSWORD` reads `JAVV_OPENSEARCH_PASSWORD`)."""
+    `OPENSEARCH_INITIAL_ADMIN_PASSWORD` reads `JAVV_OPENSEARCH_ADMIN_PASSWORD`)."""
     match = _VALUE.match(raw)
     assert match, f"{key}: write it as ${{{key}:-default}} so .env can override it, got {raw!r}"
     expected = name or key
@@ -140,7 +142,7 @@ def test_the_named_exceptions_are_what_a_deployment_needs() -> None:
         "https://opensearch:9200"
     )
     assert _parsed("JAVV_OPENSEARCH_USERNAME", backend["JAVV_OPENSEARCH_USERNAME"])["rest"] == (
-        "admin"
+        "javv"
     )
     verify = _parsed("JAVV_OPENSEARCH_VERIFY_CERTS", backend["JAVV_OPENSEARCH_VERIFY_CERTS"])
     assert verify["rest"] == "false"
@@ -178,14 +180,17 @@ def test_each_chart_value_is_the_code_default(field: str) -> None:
 
 
 def test_the_chart_and_compose_agree_on_every_value_but_the_store_address() -> None:
-    """The named exceptions too: prod, the store's admin, unchecked demo certificates. Only the
-    address differs: the chart's store is the javv-opensearch chart's Service."""
+    """The named exceptions too: prod, unchecked demo certificates. The address differs: the
+    chart's store is the javv-opensearch chart's Service. So does the user, until the
+    javv-opensearch chart creates javv too (issue 729, slice 2): the chart signs in as admin."""
     compose = {k: _VALUE.match(v) for k, v in _environment("backend").items()}
     for key, value in _chart("backend").items():
         match = compose[key]
         default = match["rest"] if match else None  # TZ is written the same way
         if key == "JAVV_OPENSEARCH_URL":
             assert value == "https://javv-opensearch:9200"
+        elif key == "JAVV_OPENSEARCH_USERNAME":
+            assert (value, default) == ("admin", "javv")
         else:
             assert value == default, f"{key}: chart {value!r}, compose {default!r}"
     frontend = _environment("frontend")
@@ -198,15 +203,28 @@ def test_opensearch_runs_with_its_security_plugin_on() -> None:
     store = _environment("opensearch")
     assert "DISABLE_SECURITY_PLUGIN" not in store, "compose runs OpenSearch with its login on"
     assert "DISABLE_INSTALL_DEMO_CONFIG" not in store, "the demo certificates are what it serves"
-    password = _parsed(
+    admin = _parsed(
         "OPENSEARCH_INITIAL_ADMIN_PASSWORD",
         store["OPENSEARCH_INITIAL_ADMIN_PASSWORD"],
+        name="JAVV_OPENSEARCH_ADMIN_PASSWORD",
+    )
+    assert admin["op"] == ":?", "the store's admin password is required from .env"
+    javv = _parsed(
+        "OPENSEARCH_JAVV_PASSWORD",
+        store["OPENSEARCH_JAVV_PASSWORD"],
         name="JAVV_OPENSEARCH_PASSWORD",
     )
-    assert password["op"] == ":?", "the store's admin password is required from .env"
+    assert javv["op"] == ":?", "javv's password is required from .env"
     # the demo setup's own audit log writes a daily index nothing deletes (ISM is off); JAVV
     # keeps its own audit trail
     assert store.get("plugins.security.audit.type") == "noop"
+
+
+def test_the_backend_never_gets_the_stores_admin_password() -> None:
+    """Issue 729: the backend signs in as javv; admin's password stays with the store."""
+    for service in ("backend", "frontend"):
+        values = _environment(service).values()
+        assert not any("JAVV_OPENSEARCH_ADMIN_PASSWORD" in v for v in values), service
 
 
 # the layout of the image's own users file (OpenSearch 3.9.0), with stand-in hashes: comments,
@@ -252,10 +270,24 @@ snapshotrestore:
   description: "Demo snapshotrestore user"
 """
 USERS_FILE = Path("config/opensearch-security/internal_users.yml")
+HASH_TOOL = Path("plugins/opensearch-security/tools/hash.sh")
+# OpenSearch's hash.sh prints a warning, then the bcrypt hash of the variable `-env` names; the
+# stand-in's "hash" is the password's sha256, in bcrypt's alphabet as a real hash is
+STAND_IN_HASH = """#!/bin/sh
+[ "$1" = -env ] || exit 2
+eval "password=\\$$2"
+[ -n "$password" ] || { echo "no password"; exit 0; }
+echo "**************************************************************************"
+printf '$2y$12$%s\\n' "$(printf %s "$password" | sha256sum | cut -c1-53)"
+"""
+
+
+def _stand_in_hash(password: str) -> str:
+    return "$2y$12$" + hashlib.sha256(password.encode()).hexdigest()[:53]
 
 
 def _run_opensearch_entrypoint(
-    home: Path, users: str, command: list[str] | None = None
+    home: Path, users: str, command: list[str] | None = None, javv_password: str = "Javv-pass-729!"
 ) -> subprocess.CompletedProcess[str]:
     """Run the store's entrypoint as its container does: compose hands the shell one `$` and
     appends the service's command (or `compose run`'s) after the entrypoint. The layout is a copy
@@ -270,21 +302,46 @@ def _run_opensearch_entrypoint(
     image_entrypoint = home / "opensearch-docker-entrypoint.sh"
     image_entrypoint.write_text('#!/bin/sh\necho "image entrypoint: $*"\n')
     image_entrypoint.chmod(0o755)
+    (home / HASH_TOOL).parent.mkdir(parents=True)
+    (home / HASH_TOOL).write_text(STAND_IN_HASH)
+    (home / HASH_TOOL).chmod(0o755)
     argv = [entrypoint[2].replace("$$", "$"), *entrypoint[3:], *(command or service["command"])]
-    env = {"PATH": os.environ["PATH"], "TMPDIR": str(home / "tmp")}
+    env = {
+        "PATH": os.environ["PATH"],
+        "TMPDIR": str(home / "tmp"),
+        "OPENSEARCH_JAVV_PASSWORD": javv_password,
+    }
     return subprocess.run(["bash", "-c", *argv], cwd=home, env=env, capture_output=True, text=True)
 
 
-def test_opensearch_starts_with_admin_as_its_only_user(tmp_path: Path) -> None:
+def test_opensearch_starts_with_admin_and_javv_as_its_users(tmp_path: Path) -> None:
     """The demo security setup loads every user in the image's file, and no setting turns the
-    others off (issue 736). The entrypoint keeps `_meta` and `admin`, unchanged, then hands over to
-    the image's own entrypoint with the image's own command."""
-    started = _run_opensearch_entrypoint(tmp_path, DEMO_USERS)
+    others off (issue 736). The entrypoint keeps `_meta` and `admin`, unchanged, adds `javv` with
+    its password hashed by OpenSearch's own tool (issue 729), then hands over to the image's own
+    entrypoint with the image's own command."""
+    started = _run_opensearch_entrypoint(tmp_path, DEMO_USERS, javv_password='Pa"ss$Word-729!')
     assert started.returncode == 0, started.stderr
     assert started.stdout == "image entrypoint: opensearch\n"
     kept = yaml.safe_load((tmp_path / USERS_FILE).read_text())
     demo = yaml.safe_load(DEMO_USERS)
-    assert kept == {"_meta": demo["_meta"], "admin": demo["admin"]}
+    assert kept == {
+        "_meta": demo["_meta"],
+        "admin": demo["admin"],
+        "javv": {
+            "hash": _stand_in_hash('Pa"ss$Word-729!'),
+            "reserved": False,
+            "description": "JAVV backend",
+        },
+    }
+    assert not any((tmp_path / "tmp").iterdir())
+
+
+def test_opensearch_does_not_start_when_javvs_password_cannot_be_hashed(tmp_path: Path) -> None:
+    started = _run_opensearch_entrypoint(tmp_path, DEMO_USERS, javv_password="")
+    assert started.returncode != 0
+    assert "could not hash OPENSEARCH_JAVV_PASSWORD" in started.stderr
+    assert started.stdout == "", "the image's entrypoint must not run"
+    assert (tmp_path / USERS_FILE).read_text() == DEMO_USERS
     assert not any((tmp_path / "tmp").iterdir())
 
 

@@ -55,9 +55,12 @@ fields = set(re.findall(r'^\s{4}(\w+): \S', src, re.M))
 conf = open('docs/CONFIGURATION.md').read()
 import subprocess
 code_literals = set(subprocess.run(
-    ['git', 'grep', '-rho', r'JAVV_[A-Z0-9_]*', '--', 'backend/src', 'scanner/src', 'libs', 'frontend'],
+    # deploy/compose: a variable compose reads from .env is real even if no code does (issue 729)
+    ['git', 'grep', '-rho', r'JAVV_[A-Z0-9_]*', '--', 'backend/src', 'scanner/src', 'libs', 'frontend',
+     'deploy/compose'],
     capture_output=True, text=True).stdout.split())
-doc_vars = set(re.findall(r'JAVV_[A-Z0-9_]+', conf))
+# not the tail of a longer name: OPENSEARCH_JAVV_PASSWORD is not JAVV_PASSWORD
+doc_vars = set(re.findall(r'(?<![A-Z0-9_])JAVV_[A-Z0-9_]+', conf))
 phantom = sorted(v for v in doc_vars
                  if v.removeprefix('JAVV_').lower() not in fields and v not in code_literals)
 undocumented = sorted(f for f in fields if f'JAVV_{f.upper()}' not in conf and f.upper() not in conf)

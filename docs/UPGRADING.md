@@ -58,18 +58,21 @@ There is one backend, so JAVV is unavailable for the seconds the new backend tak
 upgrade the indices. The frontend waits for it to report healthy (`depends_on`). To roll back, put
 the older release's `compose.yaml` back and run the same two commands.
 
-**The upgrade that turns on OpenSearch's login** (the release after 0.5.1, issue 715). Before step
-2, add `JAVV_OPENSEARCH_PASSWORD` to your `.env`: the compose file refuses to start without it, and
-OpenSearch refuses a weak one ([`DEPLOYING.md`](DEPLOYING.md) has the rules). Your data stays: on
+**The upgrade that turns on OpenSearch's login** (the release after 0.5.1, issues 715 and 729).
+Before step 2, add `JAVV_OPENSEARCH_ADMIN_PASSWORD` (OpenSearch's admin) and
+`JAVV_OPENSEARCH_PASSWORD` (javv's, the user the backend signs in as) to your `.env`: the compose
+file refuses to start without them, and OpenSearch refuses a weak admin password
+([`DEPLOYING.md`](DEPLOYING.md) has the rules). Your data stays: on
 first start with its login on, OpenSearch keeps every index and sets up its security on top of
 them. Rolling back to a 0.5.x `compose.yaml` also works on the same data; OpenSearch runs without
 its login again. This was tried on the real compose files, from a 0.5.1 store with data.
 
-**Changing the OpenSearch password.** OpenSearch takes `JAVV_OPENSEARCH_PASSWORD` only on its first
-start with its login on, and keeps that password in its data. A new value in `.env` alone is
-ignored by the store: OpenSearch never reports healthy (its health check uses the new value), the
-backend waits for it, and `docker compose up -d` fails after a few minutes. To change it and keep
-the data:
+**Changing an OpenSearch password.** OpenSearch takes `JAVV_OPENSEARCH_ADMIN_PASSWORD` and
+`JAVV_OPENSEARCH_PASSWORD` only on its first start with its login on, and keeps them in its data.
+A new value in `.env` alone is ignored by the store. A new admin password: OpenSearch never reports
+healthy (its health check uses the new value), the backend waits for it, and
+`docker compose up -d` fails after a few minutes. A new javv password: the backend stops with
+"refused the credentials in JAVV_OPENSEARCH_USERNAME". To change either and keep the data:
 
 1. Put the new password in `.env`.
 2. Start OpenSearch on its own: `docker compose up -d opensearch`. It still takes only the old
@@ -81,12 +84,32 @@ the data:
      -f config/opensearch-security/internal_users.yml -t internalusers -icl -nhnv \
      -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem
    ```
-   It ends with `Done with success`. OpenSearch writes that file from `.env` on every start, so it
-   holds the new password.
+   It ends with `Done with success`. The compose file writes that file from `.env` on every start,
+   so it holds both new passwords.
 4. `docker compose up -d`.
 
 `docker compose down -v` also takes a new password, but it deletes all JAVV data with the store.
-OpenSearch's account API cannot change this password: `admin` is a reserved user there (403).
+OpenSearch's account API cannot change admin's password: `admin` is a reserved user there (403).
+
+**A store started from `main` between issues 715 and 729** (no release had it) has only `admin` in
+its security index, because OpenSearch reads the users, roles and role-mapping files only on its
+first start with its login on. There, `JAVV_OPENSEARCH_PASSWORD` was admin's password: move that
+value to `JAVV_OPENSEARCH_ADMIN_PASSWORD`, and give `JAVV_OPENSEARCH_PASSWORD` a new one for
+javv. Then start OpenSearch on its own (`docker compose up -d opensearch`) and load all three
+files with the same certificate, once, before `docker compose up -d`:
+
+```bash
+for f in internal_users:internalusers roles:roles roles_mapping:rolesmapping; do
+  docker compose exec opensearch plugins/opensearch-security/tools/securityadmin.sh \
+    -f "config/opensearch-security/${f%%:*}.yml" -t "${f#*:}" -icl -nhnv \
+    -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem
+done
+```
+
+Each file ends with `Done with success`. A `java.nio.channels.ClosedSelectorException` printed after it,
+now and then, is the tool's HTTP client closing, after the load. The same loop loads a changed
+`javv` role, if a release ever changes it; its notes will say so. This upgrade was tried on the
+real compose files, from a store started with `main`'s.
 
 ### On Kubernetes (Helm)
 
