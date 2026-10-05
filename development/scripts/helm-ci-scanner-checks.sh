@@ -28,9 +28,10 @@ SEED_IMAGE=nginx:1.23.4
 ROTATED="$JAVV_CI_ADMIN_PASSWORD-rotated"
 
 # The session cookie is Secure, which curl's own cookie jar never sends over http, so it travels
-# as a header read from a file: never in a process's arguments.
-jar=$(mktemp) headers=$(mktemp)
-trap 'rm -f "$jar" "$headers"' EXIT
+# as a header read from a file; a body with a password is a file too. Neither is ever in a
+# process's arguments (jq reads the password from its environment).
+jar=$(mktemp) headers=$(mktemp) body=$(mktemp)
+trap 'rm -f "$jar" "$headers" "$body"' EXIT
 
 json() {
   local status=0
@@ -45,8 +46,8 @@ json() {
 sign_in() {  # url, then the password to try first and the one to try next
   local url=$1 password
   for password in "$2" "$3"; do
-    if json -o /dev/null -X POST "$url/auth/login" \
-      -d "$(jq -n --arg u "$ADMIN" --arg p "$password" '{username: $u, password: $p}')" 2>/dev/null; then
+    P=$password jq -n --arg u "$ADMIN" '{username: $u, password: env.P}' >"$body"
+    if json -o /dev/null -X POST "$url/auth/login" --data-binary @"$body" 2>/dev/null; then
       printf '%s' "$password"
       return 0
     fi
@@ -74,8 +75,8 @@ prepare() {
 
   used=$(sign_in "$url" "$JAVV_CI_ADMIN_PASSWORD" "$ROTATED")
   if [ "$used" != "$ROTATED" ]; then  # the bootstrap admin may do nothing else first
-    json -o /dev/null -X POST "$url/auth/password" \
-      -d "$(jq -n --arg c "$used" --arg n "$ROTATED" '{current_password: $c, new_password: $n}')"
+    C=$used N=$ROTATED jq -n '{current_password: env.C, new_password: env.N}' >"$body"
+    json -o /dev/null -X POST "$url/auth/password" --data-binary @"$body"
   fi
 
   cid=$(kubectl --context "$mon_ctx" get namespace kube-system -o jsonpath='{.metadata.uid}')
@@ -103,29 +104,57 @@ prepare() {
   echo "$url"
 }
 
+# Waits for a Job to finish and prints succeeded or failed, whichever it reaches first (a failed
+# Job never meets condition=complete, which would hold the step for its whole timeout).
+finished() {
+  local job=$1 deadline=$((SECONDS + 1200)) state
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    state=$(k get "$job" -o jsonpath='{.status.succeeded}/{.status.failed}')
+    case "$state" in
+      [1-9]*/*) echo succeeded; return ;;
+      */[1-9]*) echo failed; return ;;
+    esac
+    sleep 5
+  done
+  echo "timed out"
+}
+
+# Waits until no Job of that scanner is running, or fails after 20 minutes.
+until_none_running() {
+  local selector=$1 scanner=$2 deadline=$((SECONDS + 1200)) active
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    active=$(k get jobs -l "$selector" -o jsonpath='{range .items[*]}{.status.active}{end}')
+    [ -z "$active" ] && return 0
+    sleep 5
+  done
+  echo "FAIL: a $scanner job is still running after 20 minutes" >&2
+  k get jobs -l "$selector" >&2 || true
+  exit 1
+}
+
 cycle() {
   local mon_ctx=$1 ns=$2 release=$3 url=$4
   local k cid scanner cronjob want provenance version
   k() { kubectl --context "$mon_ctx" -n "$ns" "$@"; }
   cid=$(kubectl --context "$mon_ctx" get namespace kube-system -o jsonpath='{.metadata.uid}')
 
-  # One scanner at a time, each after the install's own refresh of its cache: a DB refresh takes
-  # one to two GB of memory while it unpacks, and two writers on one cache volume gain nothing.
+  # One scanner at a time, and each cycle in the order the chart's NOTES give an operator: a Job
+  # made by hand from a CronJob is outside Forbid, so the CronJob is paused, nothing of that
+  # scanner may be running (its scheduled cycles, the install's refresh), and only then the Job
+  # starts. A DB refresh also takes one to two GB of memory while it unpacks.
   for scanner in trivy grype; do
     local selector="app.kubernetes.io/instance=$release,app.kubernetes.io/component=$scanner"
-    k delete job "ci-$scanner" --ignore-not-found >/dev/null
-    if ! k wait --for=condition=complete job -l "$selector" --timeout=20m; then
-      echo "FAIL: the install's $scanner vuln-DB refresh did not complete" >&2
-      k logs -l "$selector" --all-containers --tail 30 >&2 || true
-      exit 1
-    fi
     cronjob=$(k get cronjob -l "$selector" -o jsonpath='{.items[0].metadata.name}')
+    k patch cronjob "$cronjob" -p '{"spec":{"suspend":true}}' >/dev/null
+    k delete job "ci-$scanner" --ignore-not-found >/dev/null
+    until_none_running "$selector" "$scanner"
     k create job "ci-$scanner" --from="cronjob/$cronjob" >/dev/null
-    if ! k wait --for=condition=complete "job/ci-$scanner" --timeout=20m; then
+    if [ "$(finished "job/ci-$scanner")" != succeeded ]; then
       echo "FAIL: the $scanner cycle did not complete" >&2
       k logs "job/ci-$scanner" --all-containers --tail 60 >&2 || true
       exit 1
     fi
+    k patch cronjob "$cronjob" -p '{"spec":{"suspend":false}}' >/dev/null
     k logs "job/ci-$scanner" -c refresh-vulndb --tail 5
   done
 

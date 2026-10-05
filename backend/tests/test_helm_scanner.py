@@ -91,6 +91,35 @@ def test_one_cycle_at_a_time_bounded_and_not_retried() -> None:
     assert _cronjob(docs, "grype")["spec"]["schedule"] == "30 */6 * * *"
 
 
+def test_a_cycle_started_by_hand_waits_for_the_running_one() -> None:
+    # Forbid counts only the CronJob's own Jobs: a hand-made one carries the same labels, so
+    # "is one running" can find both, and NOTES pause the CronJob before starting one
+    docs = _render(*VALUES)
+    for scanner in SCANNERS:
+        labels = _cronjob(docs, scanner)["spec"]["jobTemplate"]["metadata"]["labels"]
+        assert labels == {
+            "app.kubernetes.io/name": "javv-scanner",
+            "app.kubernetes.io/instance": "s",
+            "app.kubernetes.io/component": scanner,
+        }
+    args = ["helm", "install", "s", str(CHART), "-n", "scan", "--dry-run=client"]
+    out = subprocess.run(
+        args + [arg for v in VALUES for arg in ("--set", v)], capture_output=True, text=True
+    )
+    assert out.returncode == 0, out.stderr
+    notes = out.stdout.split("NOTES:", 1)[1]
+    for scanner in SCANNERS:
+        cronjob = f"s-javv-scanner-{scanner}"
+        steps = [
+            f'patch cronjob {cronjob} -p \'{{"spec":{{"suspend":true}}}}\'',
+            f"get jobs -l app.kubernetes.io/instance=s,app.kubernetes.io/component={scanner}",
+            f"create job {scanner}-now --from=cronjob/{cronjob}",
+            f'patch cronjob {cronjob} -p \'{{"spec":{{"suspend":false}}}}\'',
+        ]
+        where = [notes.index(step) for step in steps]
+        assert where == sorted(where), scanner
+
+
 @pytest.mark.parametrize("off", SCANNERS)
 def test_a_disabled_scanner_renders_nothing(off: str) -> None:
     on = next(s for s in SCANNERS if s != off)
@@ -167,7 +196,14 @@ def test_each_scanner_has_its_own_cache_volume() -> None:
 @pytest.mark.parametrize(
     ("scanner", "off"),
     [
-        ("trivy", {"TRIVY_SKIP_DB_UPDATE": "true", "TRIVY_SKIP_JAVA_DB_UPDATE": "true"}),
+        (
+            "trivy",
+            {
+                "TRIVY_SKIP_DB_UPDATE": "true",
+                "TRIVY_SKIP_JAVA_DB_UPDATE": "true",
+                "TRIVY_SKIP_CHECK_UPDATE": "true",
+            },
+        ),
         ("grype", {"GRYPE_DB_AUTO_UPDATE": "false"}),
     ],
 )
@@ -356,3 +392,77 @@ def test_the_install_fails_with_its_reason(sets: tuple[str, ...], message: str) 
     out = _helm(*sets)
     assert out.returncode != 0
     assert message in out.stderr
+
+
+# A stand-in trivy for the refresh script: NET=1 lets downloads through; a DB marked `cut` is one
+# whose metadata calls it current, so a download leaves it alone until it is dropped.
+_FAKE_TRIVY = """#!/bin/sh
+db="$TRIVY_CACHE_DIR/db"
+case "$1 $2" in
+  "image --download-db-only")
+    [ "$NET" = 1 ] || exit 1
+    [ -e "$db/cut" ] && exit 0
+    mkdir -p "$db" && : >"$db/good" ;;
+  "image --download-java-db-only")
+    [ "$NET" = 1 ] || exit 1
+    mkdir -p "$TRIVY_CACHE_DIR/java-db" && echo x >"$TRIVY_CACHE_DIR/java-db/trivy-java.db" ;;
+  rootfs*) [ -e "$db/good" ] && [ ! -e "$db/cut" ] ;;
+  *) exit 9 ;;
+esac
+"""
+
+
+@pytest.mark.parametrize(
+    ("cached", "net", "code", "events"),
+    [
+        (
+            None,
+            "0",
+            1,
+            [
+                "vuln db unreadable, fetching it again",
+                "vuln db refresh failed and no readable one is cached, this cycle does not scan",
+            ],
+        ),
+        (None, "1", 0, ["vuln db up to date"]),
+        ("good", "0", 0, ["vuln db refresh failed, scanning with the cached db"]),
+        ("cut", "1", 0, ["vuln db unreadable, fetching it again", "vuln db up to date"]),
+        (
+            "cut",
+            "0",
+            1,
+            [
+                "vuln db unreadable, fetching it again",
+                "vuln db refresh failed and no readable one is cached, this cycle does not scan",
+            ],
+        ),
+    ],
+    ids=["empty-offline", "empty-online", "cached-offline", "cut-online", "cut-offline"],
+)
+def test_the_refresh_goes_on_only_with_a_db_it_can_read(
+    tmp_path: Path, cached: str | None, net: str, code: int, events: list[str]
+) -> None:
+    bin_dir, cache = tmp_path / "bin", tmp_path / "cache"
+    bin_dir.mkdir()
+    (bin_dir / "trivy").write_text(_FAKE_TRIVY)
+    (bin_dir / "trivy").chmod(0o755)
+    if cached:
+        (cache / "db").mkdir(parents=True)
+        (cache / "db" / "good").touch()
+        if cached == "cut":
+            (cache / "db" / "cut").touch()
+        (cache / "java-db").mkdir()
+        (cache / "java-db" / "trivy-java.db").write_text("x")
+    env = {
+        "PATH": f"{bin_dir}:/usr/bin:/bin",
+        "JAVV_SCANNER": "trivy",
+        "TRIVY_CACHE_DIR": str(cache),
+        "NET": net,
+    }
+    out = subprocess.run(
+        ["sh", str(CHART / "files" / "refresh-vulndb.sh")], env=env, capture_output=True, text=True
+    )
+    assert out.returncode == code, out.stdout + out.stderr
+    lines = [json.loads(line) for line in out.stdout.splitlines()]
+    assert [line["event"] for line in lines] == events
+    assert {line["scanner"] for line in lines} == {"trivy"}

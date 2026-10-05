@@ -206,8 +206,11 @@ Each pair of cluster and scanner has its own token.
    address as that cluster reaches it:
    ```bash
    kubectl create namespace javv-scanner
-   kubectl -n javv-scanner create secret generic javv-trivy-token --from-literal=token='<trivy token>'
-   kubectl -n javv-scanner create secret generic javv-grype-token --from-literal=token='<grype token>'
+   for s in trivy grype; do  # each token at a prompt: out of shell history and process arguments
+     read -rs -p "$s token: " token && echo
+     printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
+       --from-file=token=/dev/stdin
+   done; unset token
    helm install scanner deploy/helm/javv-scanner -n javv-scanner \
      --set backendUrl=http://<JAVV's address>:8080 \
      --set trivy.token.existingSecret=javv-trivy-token \
@@ -224,8 +227,10 @@ The first push appears in **Scanner status**; its findings appear once a scan is
 
 The [chart's README](../deploy/helm/javv-scanner/README.md) lists every value.
 
-- **One CronJob per scanner,** every 6 hours by default (Grype half an hour after Trivy), one cycle
-  at a time, stopped after 5 h 30 min. Each scanner has its own token, settings, image and cache.
+- **One CronJob per scanner,** every 6 hours by default (Grype half an hour after Trivy), stopped
+  after 5 h 30 min. Each scanner has its own token, settings, image and cache. The CronJob never
+  starts a cycle while one of its own runs; a cycle you start by hand is not counted, so pause the
+  CronJob first and start yours when none is running (the chart's `NOTES` give the commands).
 - **A vuln-DB cache per scanner,** a 10Gi `ReadWriteOnce` volume. Each cycle first refreshes the
   DB there, then scans every image against that one DB with updates off. The install runs one
   refresh straight away, so the first cycle finds a DB in place and the volume is bound for

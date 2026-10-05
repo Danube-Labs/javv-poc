@@ -22,6 +22,12 @@ spec:
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3
   jobTemplate:
+    # also on a Job made by hand from this CronJob, so "is a cycle running" can find both kinds
+    metadata:
+      labels:
+        app.kubernetes.io/name: javv-scanner
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/component: {{ $name }}
     spec:
       activeDeadlineSeconds: {{ $s.activeDeadlineSeconds }}
       # a failed cycle is retried by the next schedule; a bad setting would only fail again

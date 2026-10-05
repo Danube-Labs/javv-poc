@@ -55,6 +55,9 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version }}
   value: "true"
 - name: TRIVY_SKIP_JAVA_DB_UPDATE
   value: "true"
+# misconfig scans then use the checks built into the Trivy binary, never a bundle fetched mid-scan
+- name: TRIVY_SKIP_CHECK_UPDATE
+  value: "true"
 {{- else }}
 - name: GRYPE_DB_AUTO_UPDATE
   value: "false"

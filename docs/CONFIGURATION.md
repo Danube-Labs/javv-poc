@@ -158,7 +158,7 @@ means unset); `scanner/tests/test_helm_config.py` holds them to the code. The re
 | `clusterId` | `""` | `JAVV_CLUSTER_ID`; empty, the scanners read the `kube-system` UID | n/a (deploy) |
 | `<scanner>.token.existingSecret` / `.key` / `.value` | `""` / `token` / `""` | 🔒 `JAVV_TOKEN`: that scanner's own Secret, or a value the chart puts in one. The install fails without it | 🔒 secret |
 | `<scanner>.schedule` | `0 */6 * * *` (Trivy), `30 */6 * * *` (Grype) | when a cycle starts; `timeZone` sets the zone | ⚙️ GitOps |
-| `<scanner>.activeDeadlineSeconds` | `19800` | a cycle still running after 5 h 30 min is stopped; one cycle at a time (`Forbid`), no retry until the next schedule | n/a (deploy) |
+| `<scanner>.activeDeadlineSeconds` | `19800` | a cycle still running after 5 h 30 min is stopped; the CronJob starts no cycle while one of its own runs (`Forbid`; a Job made by hand is not counted, see the chart's `NOTES`), and retries none until the next schedule | n/a (deploy) |
 | `<scanner>.image.tag` / `.digest` / `.pullPolicy` | `versions.yaml` `scanners.<s>.current` / `""` / `Always` | the scanner version (D41; `check-versions.sh` holds the tag to `versions.yaml`). The tag moves when JAVV republishes that version, hence `Always`; a digest runs one exact build | ⚙️ GitOps |
 | `trivy.vulnDb.repository` / `.javaRepository` | `""` | `TRIVY_DB_REPOSITORY` / `TRIVY_JAVA_DB_REPOSITORY` for the refresh; empty is Trivy's own (`mirror.gcr.io/aquasec/trivy-db:2`, then `ghcr.io/aquasecurity/trivy-db:2`; the Java DB likewise) | ⚙️ GitOps |
 | `grype.vulnDb.updateUrl` | `""` | `GRYPE_DB_UPDATE_URL` for the refresh; empty is Grype's own (`https://grype.anchore.io/databases`) | ⚙️ GitOps |
@@ -166,10 +166,14 @@ means unset); `scanner/tests/test_helm_config.py` holds them to the code. The re
 
 Each cycle starts with an init container on the scanner's own image that refreshes the DB in the
 cache volume; the scan then runs with the vendors' update switches off (`TRIVY_SKIP_DB_UPDATE`,
-`TRIVY_SKIP_JAVA_DB_UPDATE`, `GRYPE_DB_AUTO_UPDATE=false`, which the chart sets), so a cycle reads
-one DB and calls nothing upstream mid-scan. A failed refresh falls back to the cached DB; with none,
+`TRIVY_SKIP_JAVA_DB_UPDATE`, `TRIVY_SKIP_CHECK_UPDATE`, `GRYPE_DB_AUTO_UPDATE=false`, which the
+chart sets), so a cycle reads one DB and calls nothing upstream mid-scan. A failed refresh falls back to the cached DB; with none,
 the cycle fails. Grype refuses a DB older than 5 days (its `GRYPE_DB_MAX_ALLOWED_BUILT_AGE`, settable
-in `extraEnv`). The install runs the same refresh once as a Job, which also binds the volume.
+in `extraEnv`). The install runs the same refresh once as a Job, which also binds the volume; an
+upgrade that changes the refresh container (the image, the DB source, `extraEnv`, `resources` or
+`pullPolicy`) runs it again. Misconfig scans (`JAVV_TRIVY_SCANNERS` with `misconfig`) use the
+checks built into the Trivy binary, so they too call nothing upstream mid-scan. A DB that cannot be read (the refresh checks with a lookup) is
+dropped and fetched once more before the cycle gives up.
 
 ---
 

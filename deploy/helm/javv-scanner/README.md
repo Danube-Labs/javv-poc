@@ -16,8 +16,11 @@ tokens › Mint token**, with the cluster id below and the scanner's name):
 kubectl get namespace kube-system -o jsonpath='{.metadata.uid}'   # this cluster's id in JAVV
 
 kubectl create namespace javv-scanner
-kubectl -n javv-scanner create secret generic javv-trivy-token --from-literal=token='<trivy token>'
-kubectl -n javv-scanner create secret generic javv-grype-token --from-literal=token='<grype token>'
+for s in trivy grype; do  # each token at a prompt: out of shell history and process arguments
+  read -rs -p "$s token: " token && echo
+  printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
+    --from-file=token=/dev/stdin
+done; unset token
 helm install scanner deploy/helm/javv-scanner -n javv-scanner \
   --set backendUrl=http://<JAVV's address>:8080 \
   --set trivy.token.existingSecret=javv-trivy-token \
@@ -26,17 +29,22 @@ helm test scanner -n javv-scanner
 ```
 
 `helm test` checks that JAVV answers at `backendUrl` and accepts each token, without scanning.
-Each scanner then runs on its `schedule`; `NOTES` shows how to start a cycle at once.
+Each scanner then runs on its `schedule`. To start a cycle at once, `NOTES` gives the safe order:
+pause the CronJob, wait until none of that scanner's Jobs is running, create the Job from the
+CronJob, and resume it after.
 
 ## What it runs
 
-- **One CronJob per scanner**, `concurrencyPolicy: Forbid` (one cycle at a time per scanner),
-  stopped after `activeDeadlineSeconds`, not retried until the next schedule.
+- **One CronJob per scanner**, `concurrencyPolicy: Forbid`: the CronJob never starts a cycle while
+  one of its own runs. A Job made by hand from it is not counted, hence the order in `NOTES`. A
+  cycle is stopped after `activeDeadlineSeconds` and not retried until the next schedule.
 - **A vuln-DB cache per scanner:** a `ReadWriteOnce` PersistentVolumeClaim at `/var/cache/javv`.
   Each run first refreshes the DB there with the scanner's own binary, from the vendor's source or
   the one in `vulnDb`, then scans with updates off: every image in a cycle is checked against one
-  DB and nothing upstream is called mid-scan. A failed refresh falls back to the cached DB; with
-  none cached, the run fails and its log says so. Grype refuses a DB older than 5 days.
+  DB and nothing upstream is called mid-scan (Trivy's misconfig checks are the ones built into
+  its binary). A failed refresh falls back to the cached DB, a DB that cannot be read is dropped
+  and fetched once more, and with no readable DB the run fails and its log says so. Grype refuses
+  a DB older than 5 days.
 - **Mirrors:** `trivy.vulnDb.repository` and `trivy.vulnDb.javaRepository` take OCI repositories;
   `grype.vulnDb.updateUrl` takes the address of a DB listing. Anything else the vendors read
   (`GRYPE_DB_CA_CERT`, registry logins for a private mirror) goes in `extraEnv`.

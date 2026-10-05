@@ -125,7 +125,8 @@ the scanner versions of its release; your values file (`backendUrl`, the token S
 helm upgrade scanner deploy/helm/javv-scanner -n javv-scanner -f my-scanner-values.yaml
 ```
 
-The upgrade starts a vuln-DB refresh when the scanner image or the DB source changed; the next
+The upgrade starts a vuln-DB refresh when the refresh container changed (the image, the DB
+source, `extraEnv`, `resources` or `pullPolicy`); the next
 cycle uses the new image. To roll back, `helm rollback scanner` in that cluster, before rolling JAVV
 back.
 

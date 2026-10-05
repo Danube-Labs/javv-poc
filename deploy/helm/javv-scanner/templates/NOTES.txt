@@ -8,10 +8,18 @@ Scanners for this cluster, pushing to {{ .Values.backendUrl }}{{ with .Values.cl
 
 Check that JAVV answers and accepts the tokens: helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
 
-Run a cycle now instead of waiting for the schedule:
+Run a cycle now instead of waiting for the schedule. One cycle at a time per scanner holds only
+for the cycles the CronJob starts itself, so pause it first and start yours when none is running:
 {{- range $name := include "javv-scanner.scanners" . | fromJsonArray }}
 {{- if (index $.Values $name).enabled }}
-  kubectl -n {{ $.Release.Namespace }} create job {{ $name }}-now --from=cronjob/{{ include "javv-scanner.fullname" $ }}-{{ $name }}
+{{- $cj := printf "%s-%s" (include "javv-scanner.fullname" $) $name }}
+
+  kubectl -n {{ $.Release.Namespace }} patch cronjob {{ $cj }} -p '{"spec":{"suspend":true}}'
+  kubectl -n {{ $.Release.Namespace }} get jobs -l app.kubernetes.io/instance={{ $.Release.Name }},app.kubernetes.io/component={{ $name }}
+      (wait until none of them is Running)
+  kubectl -n {{ $.Release.Namespace }} create job {{ $name }}-now --from=cronjob/{{ $cj }}
+  kubectl -n {{ $.Release.Namespace }} wait --for=condition=complete job/{{ $name }}-now --timeout=6h
+  kubectl -n {{ $.Release.Namespace }} patch cronjob {{ $cj }} -p '{"spec":{"suspend":false}}'
 {{- end }}
 {{- end }}
 
