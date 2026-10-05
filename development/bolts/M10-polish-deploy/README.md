@@ -77,6 +77,19 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-05: three Helm charts, not one (issue 725, operator rulings of 2026-10-04):** the
+  `deploy/helm/javv/` chart of the deliverables above becomes three charts in `deploy/helm/`,
+  installed separately: `javv-opensearch` (the store), `javv` (backend and frontend) and
+  `javv-scanner` (the scanner CronJobs, RBAC and the vuln-DB cache, issue 714's list), published to
+  `oci://ghcr.io/danube-labs/charts` on every release. Each carries the JAVV release as its
+  version, with `appVersion` recording what is inside. CI runs `ct lint` and `ct install` in kind
+  (`deploy/helm/ct.yaml`, every `ci/*-values.yaml` one install plus the chart's `helm test`), and a
+  pytest render check per chart. Slice 1 is `javv-opensearch`: a wrapper around the official
+  `opensearch` chart (vendored, Renovate refreshes it), one node with the compose file's settings
+  and its security plugin on, `admin` as the only password user (an init container writes the
+  users file, issue 736), and demo certificates by default or your own from a Secret or
+  cert-manager, with hot reload. The `helm template` + `helm lint` Definition-of-Done line is met
+  by `ct lint` and the render checks.
 - **2026-10-05: compose's OpenSearch has one password user, `admin` (issue 736):** OpenSearch's demo
   security setup also loads six users whose passwords are their own names (`readall` can search
   every index), and no setting turns them off. The compose `opensearch` service's entrypoint keeps

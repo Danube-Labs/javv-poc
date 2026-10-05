@@ -64,6 +64,12 @@ check "opensearch dev compose" "$opensearch" development/setup/opensearch-dev.ym
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 check "opensearch deploy compose" "$opensearch" deploy/compose/compose.yaml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
+# The chart pins the image itself: the official chart's own version and the OpenSearch it ships
+# can differ (its 3.2.1 shipped 3.2.0), so the chart dependency is not checked here (issue 725).
+check "javv-opensearch appVersion" "$opensearch" deploy/helm/javv-opensearch/Chart.yaml \
+  '(?m)^appVersion: "\K[0-9.]+' "s/^appVersion: \"[0-9.]+\"/appVersion: \"$opensearch\"/"
+check "javv-opensearch image tag" "$opensearch" deploy/helm/javv-opensearch/values.yaml \
+  '(?m)^    tag: "\K[0-9.]+' "s/^    tag: \"[0-9.]+\"/    tag: \"$opensearch\"/"
 check "opensearch CI service" "$opensearch" .github/workflows/ci.yml \
   'opensearchproject/opensearch:\K[0-9.]+' "s#opensearchproject/opensearch:[0-9.]+#opensearchproject/opensearch:$opensearch#"
 check "opensearch compat svc" "$opensearch" .github/workflows/scanner-images.yml \

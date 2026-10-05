@@ -57,6 +57,13 @@
       "groupName": "opensearch"
     },
     {
+      "description": "The javv-opensearch chart's dependency on the official opensearch chart joins the opensearch PR, and the copy vendored in its charts/ folder is refreshed in the same PR",
+      "matchManagers": ["helmv3"],
+      "matchPackageNames": ["opensearch"],
+      "groupName": "opensearch",
+      "postUpdateOptions": ["helmUpdateSubChartArchives"]
+    },
+    {
       "description": "ruff moves as one PR: versions.yaml, each pyproject.toml pin and the pre-commit hook, which check-versions.sh holds equal",
       "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit"],
       "groupName": "ruff"

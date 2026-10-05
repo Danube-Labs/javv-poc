@@ -6,6 +6,7 @@ name: CI
 #   - javv-common / backend / scanner: ruff + pyright + pytest (backend against a real
 #     OpenSearch service container; coverage floor --cov-fail-under, #383)
 #   - app-images (issue 452): the app's Docker images build without a push, then start and answer
+#   - helm (issue 725): ct lint, the chart READMEs, and ct install in kind with each chart's tests
 #   - frontend: oxlint/eslint/stylelint + vue-tsc + vitest (coverage floor in
 #     vitest.config.ts, #383) + the I4/I7 contract gates (openapi.json snapshot must match
 #     the backend code, generated client must match the snapshot — this is what catches a
@@ -406,6 +407,54 @@ jobs:
       - name: Compose logs
         if: failure()
         run: docker compose -f deploy/compose/compose.yaml logs
+
+  helm:
+    # issue 725: the charts in deploy/helm. ct lint (yamllint, Chart.yaml, helm lint) and each
+    # chart's README against its values.yaml, then ct install in kind: every ci/*-values.yaml is one
+    # install followed by the chart's `helm test`. For javv-opensearch: the demo certificates, a
+    # certificate from a Secret, and one from cert-manager. The render checks are
+    # backend/tests/test_helm_*.py, in the Backend job.
+    name: Helm charts
+    runs-on: ubuntu-latest
+    env:
+      # OpenSearch's rules: 8+ characters with upper, lower, digit and special, and not a weak one
+      JAVV_CI_OPENSEARCH_PASSWORD: Ci-only-OpenSearch-725!
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      # chart-testing runs yamllint and yamale in Python
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - uses: helm/chart-testing-action@6ec842c01de15ebb84c8627d2744a0c2f2755c9f # v2.8.0
+
+      - name: ct lint
+        run: ct lint --config deploy/helm/ct.yaml --all
+
+      - name: Each chart's README matches its values.yaml
+        run: development/scripts/helm-docs.sh --check
+
+      - name: OpenSearch's memory map limit
+        run: sudo sysctl -w vm.max_map_count=262144
+
+      - uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+
+      - name: The namespace, Secrets, cert-manager and the CA Issuer the installs use
+        run: development/scripts/helm-ci-fixtures.sh javv-ci
+
+      - name: ct install
+        run: ct install --config deploy/helm/ct.yaml --all
+
+      - name: Cluster state
+        if: failure()
+        run: |
+          kubectl -n javv-ci get all,secrets,certificates,events
+          kubectl -n javv-ci logs -l app.kubernetes.io/name=opensearch --all-containers --tail 200
 
   scanner:
     name: Scanner

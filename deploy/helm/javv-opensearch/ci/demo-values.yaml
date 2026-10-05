@@ -1,0 +1,15 @@
+# ct install: OpenSearch's demo certificates, on a volume as a real install runs (kind's default
+# storage class), so the chart's volume settings are installed somewhere. The other cases have no
+# volume. The CI job makes the admin password Secret javv-ci-admin.
+opensearch:
+  javv:
+    auth:
+      existingSecret: javv-ci-admin
+  opensearchJavaOpts: "-Xms512m -Xmx512m"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1Gi
+  persistence:
+    size: 1Gi
+  terminationGracePeriod: 5

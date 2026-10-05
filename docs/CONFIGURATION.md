@@ -196,8 +196,9 @@ env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (pa
 
 ## 5. OpenSearch — deployment config
 
-Source: `development/setup/opensearch-dev.yml` (dev) + `.github/workflows/ci.yml` service (CI). Prod is
-M10 (Helm). Version pin: `versions.yaml` → `datastore.opensearch`.
+Source: `development/setup/opensearch-dev.yml` (dev) + `.github/workflows/ci.yml` service (CI).
+Deployments: `deploy/compose/compose.yaml`, and the `javv-opensearch` Helm chart (below). Version pin:
+`versions.yaml` → `datastore.opensearch`.
 
 | Setting | Dev/CI value | Meaning | Prod note |
 |---|---|---|---|
@@ -206,10 +207,28 @@ M10 (Helm). Version pin: `versions.yaml` → `datastore.opensearch`.
 | `DISABLE_SECURITY_PLUGIN` | `true` | **Dev, CI and the pytest store only** — no TLS/auth on :9200 | **not set** in `deploy/compose/compose.yaml` since issue 715: the security plugin is on, with OpenSearch's demo certificates. Your own OpenSearch: on, with your own certificates (§1: `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`, `JAVV_OPENSEARCH_CA_BUNDLE`) |
 | `plugins.security.audit.type` | n/a (security off) | OpenSearch's own audit log. Compose sets `noop` (issue 715): the demo security setup would otherwise write a new `security-auditlog-<date>` index every day, and with ISM off nothing deletes them. JAVV's own audit trail is `system-audit-log` | your own OpenSearch: your choice; JAVV does not read it |
 | `OPENSEARCH_INITIAL_ADMIN_PASSWORD` | n/a (security off) | 🔒 The `admin` password OpenSearch's demo security setup creates on its **first** start with security on (issue 715). Compose fills it from `JAVV_OPENSEARCH_PASSWORD`, the same value the backend signs in with. Later changes are ignored by the store (`UPGRADING.md`); a weak one stops the container | 🔒 secret, from `.env` |
-| OpenSearch users | n/a (security off) | Who can sign in to the store. OpenSearch's demo security setup loads every user in the image's `config/opensearch-security/internal_users.yml`, including six whose passwords are their own names, and no setting turns them off. Compose's `opensearch` entrypoint keeps only `_meta` and `admin` in that file before OpenSearch's own entrypoint runs (issue 736), so `admin` is the only user that signs in with a password. OpenSearch reads the file on its first start with security on. The demo admin certificate in the image (`kirk.pem`, used by the password change in `UPGRADING.md`) also has full access, with no password | your own OpenSearch: your users; JAVV signs in as `JAVV_OPENSEARCH_USERNAME` |
+| OpenSearch users | n/a (security off) | Who can sign in to the store. OpenSearch's demo security setup loads every user in the image's `config/opensearch-security/internal_users.yml`, including six whose passwords are their own names, and no setting turns them off. Compose's `opensearch` entrypoint keeps only `_meta` and `admin` in that file before OpenSearch's own entrypoint runs (issue 736), so `admin` is the only user that signs in with a password. OpenSearch reads the file on its first start with security on. The demo admin certificate in the image (`kirk.pem`, used by the password change in `UPGRADING.md`) also has full access, with no password | your own OpenSearch: your users; JAVV signs in as `JAVV_OPENSEARCH_USERNAME`. The `javv-opensearch` chart writes a users file with `admin` alone from an init container (below) |
 | `OPENSEARCH_JAVA_OPTS` | dev `-Xms1g -Xmx1g` · CI `-Xms512m -Xmx512m` | JVM heap. Dev was raised off 512m: the parent circuit breaker is 95% of heap and the e2e corpus rested at ~83% of it, so bulk ingest tripped it. CI keeps 512m — a fresh store per run has no resting corpus. | sized per node |
 | `path.repo` | `/usr/share/opensearch/data/snapshots` | fs snapshot repo root (M2 restore drill) | s3/MinIO repo in prod (creds → keystore) |
 | snapshot repo creds | n/a (fs) | 🔒 s3 access/secret keys | 🔒 OpenSearch **keystore** only, never a doc |
+
+### The `javv-opensearch` Helm chart (issue 725)
+
+`deploy/helm/javv-opensearch` runs the same OpenSearch settings as compose, as values of the
+official chart under `opensearch:`. JAVV's own keys sit under `opensearch.javv` (a wrapper chart
+cannot compute its subchart's values, so they live where both can read them). The full list,
+with the official chart's keys this chart sets, is the chart's
+[`README.md`](../deploy/helm/javv-opensearch/README.md), written from its `values.yaml`.
+
+| Value | Default | Meaning | UI? |
+|---|---|---|---|
+| `opensearch.javv.auth.existingSecret` | `""` | 🔒 a Secret with the admin password under `password`. Set this or `password`; the install fails with neither or both | n/a |
+| `opensearch.javv.auth.password` | `""` | 🔒 the admin password; the chart puts it in the Secret `<release>-javv-opensearch-admin`. OpenSearch reads it on its first start only | n/a |
+| `opensearch.javv.tls.existingSecret` | `""` | a Secret with `tls.crt`, `tls.key` (PKCS#8) and `ca.crt`; switches the demo certificates off | n/a |
+| `opensearch.javv.tls.certManager.enabled` / `.issuerRef` | `false` / `{}` | a cert-manager `Certificate` for the Service, into `<release>-javv-opensearch-tls`; switches the demo certificates off | n/a |
+| `opensearch.javv.tls.adminDn` | `[]` | client certificate DNs allowed to run `securityadmin.sh` with your own certificates | n/a |
+| `opensearch.singleNode` | `true` | one node; the install fails with `false` | n/a |
+| `opensearch.image.tag` | `versions.yaml` `datastore.opensearch` | the OpenSearch image tag, held to that pin by `check-versions.sh` | n/a |
 
 ---
 
