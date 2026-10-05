@@ -19,6 +19,23 @@ services:
   opensearch:
     image: opensearchproject/opensearch:3.9.0
     restart: unless-stopped
+    # The demo security setup also loads six users whose password is their own name (readall can
+    # search every index), and no setting turns them off. So before the image's own entrypoint
+    # runs, its users file keeps only _meta and admin; the demo setup then sets admin's password
+    # from OPENSEARCH_INITIAL_ADMIN_PASSWORD as before. OpenSearch reads the file on its first
+    # start with security on. Issue 736.
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >-
+        set -e;
+        users=config/opensearch-security/internal_users.yml; kept=$$(mktemp);
+        awk '/^[A-Za-z_]/ { keep = ($$1 == "_meta:" || $$1 == "admin:") } /^---/ || keep'
+        "$$users" > "$$kept";
+        grep -q '^admin:' "$$kept"
+        || { echo "no admin user in $$users; not starting" >&2; exit 1; };
+        cat "$$kept" > "$$users"; rm -f "$$kept";
+        exec ./opensearch-docker-entrypoint.sh opensearch
     environment:
       discovery.type: single-node
       # The security plugin is on, with OpenSearch's demo certificates: a real login, but not

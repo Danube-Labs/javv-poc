@@ -77,6 +77,14 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-05: compose's OpenSearch has one user, `admin` (issue 736):** OpenSearch's demo
+  security setup also loads six users whose passwords are their own names (`readall` can search
+  every index), and no setting turns them off. The compose `opensearch` service's entrypoint keeps
+  only `_meta` and `admin` in the image's `internal_users.yml` before the image's own entrypoint
+  runs; the demo setup still checks the password's strength and sets `admin` from `.env`. Found
+  while planning the charts (issue 725); the `javv-opensearch` chart does the same. A store first
+  started from `main` between issue 715 slice 2 and this fix keeps the six users until the
+  `UPGRADING.md` password change runs once. No release had them.
 - **2026-10-04: compose runs OpenSearch with its login on (issue 715, operator ruling on issue 725):**
   the backend signs in to a secured OpenSearch (`JAVV_OPENSEARCH_USERNAME`, `_PASSWORD`, `_CA_BUNDLE`,
   `_VERIFY_CERTS`, one client factory in `core/opensearch_client.py`), and `deploy/compose/compose.yaml`

@@ -317,7 +317,7 @@ jobs:
     # signed in over plain http, then the backend stopped to prove the frontend answers 502 (which
     # the app reads as "backend down", not "store"). Issue 715: OpenSearch runs with its login on,
     # so the job also proves the store refuses an anonymous request and a wrong password stops the
-    # backend with a message that says so.
+    # backend with a message that says so. Issue 736: admin is the store's only user.
     name: Compose stack
     runs-on: ubuntu-latest
     env:
@@ -356,6 +356,20 @@ jobs:
           code=$(docker compose -f deploy/compose/compose.yaml exec -T opensearch \
             curl -sk -o /dev/null -w '%{http_code}' https://localhost:9200/)
           echo "status $code"
+          [ "$code" = 401 ]
+
+      # issue 736: the demo security setup's other users sign in with their names as passwords,
+      # so the compose file keeps only admin in the users file OpenSearch loads
+      - name: OpenSearch's only user is admin
+        run: |
+          docker compose -f deploy/compose/compose.yaml exec -T opensearch sh -c \
+            'printf "user = \"admin:%s\"\n" "$OPENSEARCH_INITIAL_ADMIN_PASSWORD" |
+              curl -sfk -K - https://localhost:9200/_plugins/_security/api/internalusers' |
+            jq -e 'keys == ["admin"]'
+          code=$(printf 'user = "readall:readall"\n' |
+            docker compose -f deploy/compose/compose.yaml exec -T opensearch \
+              curl -sk -K - -o /dev/null -w '%{http_code}' https://localhost:9200/_search)
+          echo "readall status $code"
           [ "$code" = 401 ]
 
       # compose interpolates one $ into the container's command, where docker inspect shows it

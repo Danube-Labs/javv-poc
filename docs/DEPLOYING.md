@@ -97,7 +97,9 @@ backend through the frontend's forward. To serve on another host port, change th
   `/metrics` that needs no sign-in, so publish it only for something that must reach it directly,
   such as a Prometheus scrape (the commented `ports` block under `backend`).
 - OpenSearch is not published. Its security plugin is on (issue 715): every request needs the
-  admin password from `.env`. Its TLS uses OpenSearch's demo certificates, whose private key ships
+  admin password from `.env`, and `admin` is its only user. OpenSearch's demo security setup
+  would also add six users whose passwords are their own names; the compose file removes them
+  before OpenSearch first starts (issue 736). Its TLS uses OpenSearch's demo certificates, whose private key ships
   in the image, so the traffic is not private from anyone on the compose network; the backend
   does not check the certificate and logs one warning at start saying so. The network holds only
   the three JAVV containers. Do not publish OpenSearch's port.
