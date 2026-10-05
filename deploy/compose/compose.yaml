@@ -23,19 +23,23 @@ services:
     # search every index), and no setting turns them off. So before the image's own entrypoint
     # runs, its users file keeps only _meta and admin; the demo setup then sets admin's password
     # from OPENSEARCH_INITIAL_ADMIN_PASSWORD as before. OpenSearch reads the file on its first
-    # start with security on. Issue 736.
+    # start with security on. Issue 736. The command below reaches the image's entrypoint as it
+    # would without this one (javv-opensearch is only bash's $0), so `compose run` still works.
     entrypoint:
       - /bin/bash
       - -c
       - >-
         set -e;
         users=config/opensearch-security/internal_users.yml; kept=$$(mktemp);
+        trap 'rm -f "$$kept"' EXIT;
         awk '/^[A-Za-z_]/ { keep = ($$1 == "_meta:" || $$1 == "admin:") } /^---/ || keep'
         "$$users" > "$$kept";
         grep -q '^admin:' "$$kept"
         || { echo "no admin user in $$users; not starting" >&2; exit 1; };
         cat "$$kept" > "$$users"; rm -f "$$kept";
-        exec ./opensearch-docker-entrypoint.sh opensearch
+        exec ./opensearch-docker-entrypoint.sh "$$@"
+      - javv-opensearch
+    command: [opensearch]
     environment:
       discovery.type: single-node
       # The security plugin is on, with OpenSearch's demo certificates: a real login, but not

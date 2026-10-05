@@ -360,15 +360,19 @@ jobs:
 
       # issue 736: the demo security setup's other users sign in with their names as passwords,
       # so the compose file keeps only admin in the users file OpenSearch loads
+      # Both logins reach curl the same way, as config on stdin, so the admin request (which must
+      # succeed) proves that path carries a login: without it, readall's 401 could be a request
+      # that sent none. sed escapes " and \ for curl's config, as the store's health check does.
       - name: OpenSearch's only user is admin
         run: |
-          docker compose -f deploy/compose/compose.yaml exec -T opensearch sh -c \
-            'printf "user = \"admin:%s\"\n" "$OPENSEARCH_INITIAL_ADMIN_PASSWORD" |
-              curl -sfk -K - https://localhost:9200/_plugins/_security/api/internalusers' |
-            jq -e 'keys == ["admin"]'
-          code=$(printf 'user = "readall:readall"\n' |
-            docker compose -f deploy/compose/compose.yaml exec -T opensearch \
-              curl -sk -K - -o /dev/null -w '%{http_code}' https://localhost:9200/_search)
+          as() {  # $1 user:password, then curl's arguments; runs curl inside the store's container
+            local login=$1; shift
+            printf 'user = "%s"\n' "$(printf %s "$login" | sed 's/[\\"]/\\&/g')" |
+              docker compose -f deploy/compose/compose.yaml exec -T opensearch curl -sk -K - "$@"
+          }
+          as "admin:$JAVV_OPENSEARCH_PASSWORD" -f \
+            https://localhost:9200/_plugins/_security/api/internalusers | jq -e 'keys == ["admin"]'
+          code=$(as readall:readall -o /dev/null -w '%{http_code}' https://localhost:9200/_search)
           echo "readall status $code"
           [ "$code" = 401 ]
 

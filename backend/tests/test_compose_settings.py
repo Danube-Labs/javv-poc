@@ -201,30 +201,38 @@ snapshotrestore:
 USERS_FILE = Path("config/opensearch-security/internal_users.yml")
 
 
-def _run_opensearch_entrypoint(home: Path, users: str) -> subprocess.CompletedProcess[str]:
-    """Run the store's entrypoint as its container does (compose hands the shell one `$`), in a
-    copy of the image's layout whose own entrypoint is a stand-in that reports how it was called."""
-    entrypoint = _services()["opensearch"]["entrypoint"]
+def _run_opensearch_entrypoint(
+    home: Path, users: str, command: list[str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run the store's entrypoint as its container does: compose hands the shell one `$` and
+    appends the service's command (or `compose run`'s) after the entrypoint. The layout is a copy
+    of the image's, whose own entrypoint is a stand-in that reports how it was called, and the
+    shell's temp directory is the test's own, so a file left behind shows."""
+    service = _services()["opensearch"]
+    entrypoint = service["entrypoint"]
     assert entrypoint[:2] == ["/bin/bash", "-c"]
     (home / USERS_FILE).parent.mkdir(parents=True)
     (home / USERS_FILE).write_text(users)
+    (home / "tmp").mkdir()
     image_entrypoint = home / "opensearch-docker-entrypoint.sh"
     image_entrypoint.write_text('#!/bin/sh\necho "image entrypoint: $*"\n')
     image_entrypoint.chmod(0o755)
-    script = entrypoint[2].replace("$$", "$")
-    return subprocess.run(["bash", "-c", script], cwd=home, capture_output=True, text=True)
+    argv = [entrypoint[2].replace("$$", "$"), *entrypoint[3:], *(command or service["command"])]
+    env = {"PATH": os.environ["PATH"], "TMPDIR": str(home / "tmp")}
+    return subprocess.run(["bash", "-c", *argv], cwd=home, env=env, capture_output=True, text=True)
 
 
 def test_opensearch_starts_with_admin_as_its_only_user(tmp_path: Path) -> None:
     """The demo security setup loads every user in the image's file, and no setting turns the
     others off (issue 736). The entrypoint keeps `_meta` and `admin`, unchanged, then hands over to
-    the image's own entrypoint and command."""
+    the image's own entrypoint with the image's own command."""
     started = _run_opensearch_entrypoint(tmp_path, DEMO_USERS)
     assert started.returncode == 0, started.stderr
     assert started.stdout == "image entrypoint: opensearch\n"
     kept = yaml.safe_load((tmp_path / USERS_FILE).read_text())
     demo = yaml.safe_load(DEMO_USERS)
     assert kept == {"_meta": demo["_meta"], "admin": demo["admin"]}
+    assert not any((tmp_path / "tmp").iterdir())
 
 
 def test_opensearch_does_not_start_without_an_admin_user(tmp_path: Path) -> None:
@@ -234,6 +242,16 @@ def test_opensearch_does_not_start_without_an_admin_user(tmp_path: Path) -> None
     assert "no admin user" in started.stderr
     assert started.stdout == "", "the image's entrypoint must not run"
     assert (tmp_path / USERS_FILE).read_text() == without_admin
+    # restart: unless-stopped retries it, so a file left per try would pile up
+    assert not any((tmp_path / "tmp").iterdir())
+
+
+def test_compose_run_still_hands_its_command_to_the_image(tmp_path: Path) -> None:
+    """`docker compose run opensearch bash` replaces the service's command, not the entrypoint;
+    the image's own entrypoint runs any command other than `opensearch` as given."""
+    started = _run_opensearch_entrypoint(tmp_path, DEMO_USERS, command=["bash", "-l"])
+    assert started.returncode == 0, started.stderr
+    assert started.stdout == "image entrypoint: bash -l\n"
 
 
 def test_the_health_check_keeps_the_password_out_of_the_container_command() -> None:
