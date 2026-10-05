@@ -19,7 +19,7 @@ every process's arguments (bash):
 # the store first (its README has the certificate choices)
 read -rs -p 'OpenSearch admin password: ' pw && echo
 printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
-helm install store deploy/helm/javv-opensearch \
+helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <version> \
   --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
 
 # then JAVV, signing in with the store's Secret
@@ -28,11 +28,15 @@ kubectl create secret generic javv-secrets \
   --from-file=token-pepper=<(openssl rand -hex 32 | tr -d '\n') \
   --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
 unset pw
-helm install javv deploy/helm/javv \
+helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \
   --set secrets.existingSecret=javv-secrets \
   --set opensearch.passwordSecret.name=javv-opensearch-admin
 helm test javv
 ```
+
+Each JAVV release publishes this chart at `oci://ghcr.io/danube-labs/charts`, signed
+(`docs/DEPLOYING.md`, "Verify the images and charts"). From a checkout, use the chart's
+folder in `deploy/helm/` instead.
 
 With the store's own certificate (from a Secret or cert-manager), add
 `--set opensearch.caSecret.name=<the Secret with its ca.crt>`: the backend then checks the store's

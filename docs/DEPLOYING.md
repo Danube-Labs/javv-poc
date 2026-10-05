@@ -135,10 +135,13 @@ inside the same volume (`path.repo`); copying them off the machine is up to you 
 
 ## On Kubernetes, with Helm
 
-Two charts in `deploy/helm/`, installed one after the other in the same namespace (issue 725), and
-a third, `javv-scanner`, in each cluster you scan ([below](#point-scanners-at-it)):
-`javv-opensearch`, the store, and `javv`, the backend and frontend. Each chart's README lists every
-value; this is the order and what each step needs.
+Two charts, installed one after the other in the same namespace (issue 725), and a third,
+`javv-scanner`, in each cluster you scan ([below](#point-scanners-at-it)): `javv-opensearch`, the
+store, and `javv`, the backend and frontend. Each release publishes all three at
+`oci://ghcr.io/danube-labs/charts/<chart>`, under the release's version and signed
+([Verify the images and charts](#verify-the-images-and-charts)). From a checkout that is not a
+release, use `deploy/helm/<chart>` in place of `oci://ghcr.io/danube-labs/charts/<chart> --version
+<version>`. Each chart's README lists every value; this is the order and what each step needs.
 
 1. **The store, with its admin password in a Secret.** OpenSearch refuses a weak one (the rules
    are the compose ones above). Each secret here is read at a prompt or made on the spot, so it
@@ -146,7 +149,7 @@ value; this is the order and what each step needs.
    ```bash
    read -rs -p 'OpenSearch admin password: ' pw && echo
    printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
-   helm install store deploy/helm/javv-opensearch \
+   helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <version> \
      --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
    ```
    That runs OpenSearch's demo certificates, as compose does. For your own, set
@@ -163,7 +166,7 @@ value; this is the order and what each step needs.
    ```
 3. **JAVV**, signing in to the store with the store's own Secret:
    ```bash
-   helm install javv deploy/helm/javv \
+   helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \
      --set secrets.existingSecret=javv-secrets \
      --set opensearch.passwordSecret.name=javv-opensearch-admin
    helm test javv
@@ -211,7 +214,8 @@ Each pair of cluster and scanner has its own token.
      printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
        --from-file=token=/dev/stdin
    done; unset token
-   helm install scanner deploy/helm/javv-scanner -n javv-scanner \
+   helm install scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version <version> \
+     -n javv-scanner \
      --set backendUrl=http://<JAVV's address>:8080 \
      --set trivy.token.existingSecret=javv-trivy-token \
      --set grype.token.existingSecret=javv-grype-token
@@ -241,11 +245,13 @@ The [chart's README](../deploy/helm/javv-scanner/README.md) lists every value.
   repositories) or `grype.vulnDb.updateUrl` (a DB listing).
 - **What it may read in the cluster:** pods, in every namespace (to find the running images), and
   the `kube-system` namespace (its UID is the cluster id). Nothing else, and no Secrets.
-- **The images** are the scanner versions in [`versions.yaml`](../versions.yaml), pulled on every
-  run because JAVV republishes a version's tag when it changes the scanner. Set
-  `<scanner>.image.digest` to run one exact build.
+- **The images** are the scanner versions in [`versions.yaml`](../versions.yaml). The published
+  chart names each one by the digest its version tag pointed at when the release was made, so a
+  cluster runs the scanner build that release shipped with. From a checkout, the chart has the
+  tag only, pulled on every run, because JAVV republishes a version's tag when it changes the
+  scanner; set `<scanner>.image.digest` there to run one exact build.
 
-## Verify the images
+## Verify the images and charts
 
 Each release signs the backend and frontend images it publishes, with **cosign keyless**: the
 certificate comes from the release workflow's GitHub identity and is logged in the public Rekor
@@ -267,8 +273,18 @@ The identity accepts only the release workflow running on this repository's `mai
 built anywhere else fails. The release runs these same two commands, signed out, before it
 finishes. Images released before signing started (0.5.1 and earlier) carry no signature.
 
+The three charts are signed by the same workflow, with the same identity. A chart holds no
+software packages, so it carries a signature and no SBOM:
+
+```bash
+cosign verify ghcr.io/danube-labs/charts/javv:<version> \
+  --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
+```
+
 The scanner images are signed the same way by their own workflow; their identity is in
-[`scanner/README.md`](../scanner/README.md#verify-a-published-image).
+[`scanner/README.md`](../scanner/README.md#verify-a-published-image). The release checks that
+signature on each scanner image before it names the image's digest in the published
+`javv-scanner` chart.
 
 ## Known limits
 
@@ -293,5 +309,5 @@ The scanner images are signed the same way by their own workflow; their identity
   login; one that fails to pull is skipped with a warning in the scanner's log. Issue 739.
 - **The scanners see every pod spec.** Listing pods, which finding the images needs, also shows
   any value written straight into a pod's `env`. Keep secrets in Secrets.
-- **The charts are installed from a checkout** (`deploy/helm/`) until a release publishes them
-  (issue 725, slice 4).
+- **The first release with published charts is the one after 0.5.1.** For 0.5.1 and earlier,
+  install from a checkout's `deploy/helm/`.

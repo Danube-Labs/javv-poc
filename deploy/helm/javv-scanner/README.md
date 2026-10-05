@@ -21,12 +21,17 @@ for s in trivy grype; do  # each token at a prompt: out of shell history and pro
   printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
     --from-file=token=/dev/stdin
 done; unset token
-helm install scanner deploy/helm/javv-scanner -n javv-scanner \
+helm install scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version <version> \
+  -n javv-scanner \
   --set backendUrl=http://<JAVV's address>:8080 \
   --set trivy.token.existingSecret=javv-trivy-token \
   --set grype.token.existingSecret=javv-grype-token
 helm test scanner -n javv-scanner
 ```
+
+Each JAVV release publishes this chart at `oci://ghcr.io/danube-labs/charts`, signed
+(`docs/DEPLOYING.md`, "Verify the images and charts"). From a checkout, use the chart's
+folder in `deploy/helm/` instead.
 
 `helm test` checks that JAVV answers at `backendUrl` and accepts each token, without scanning.
 Each scanner then runs on its `schedule`. To start a cycle at once, `NOTES` gives the safe order:
@@ -59,7 +64,9 @@ CronJob, and resume it after.
 
 `image.tag` is the scanner version from the repository's `versions.yaml`. JAVV republishes that tag
 when it changes the scanner, so the default `pullPolicy` is `Always`. To run one exact build, set
-`image.digest`.
+`image.digest`. **The chart a release publishes sets it:** each scanner's digest is the one its tag
+named when the release was made, after cosign checked that `scanner-images.yml` signed it. A
+checkout of the repository has the tag only.
 
 ## Values
 
@@ -71,7 +78,7 @@ when it changes the scanner, so the default `pullPolicy` is `Always`. To run one
 | grype.config | object | every setting at its code default; the list is in values.yaml | Grype's scan settings (docs/CONFIGURATION.md §4), at their defaults; empty means unset. |
 | grype.enabled | bool | `true` | Run the Grype CronJob. |
 | grype.extraEnv | list | `[]` | More environment variables for the refresh and the scan, in Kubernetes' own form. |
-| grype.image.digest | string | `""` | `sha256:...`: run exactly that image; it wins over `tag`. |
+| grype.image.digest | string | `""` | `sha256:...`: run exactly that image; it wins over `tag`. Empty in the repository; the chart a release publishes sets it to the digest the tag named at the release. |
 | grype.image.tag | string | `"0.119.0"` | The Grype version, from versions.yaml (`scanners.grype.current`). The tag moves when JAVV republishes the image for that version, so it is pulled on every run. |
 | grype.schedule | string | `"30 */6 * * *"` | When a cycle starts, in the CronJob's time zone. |
 | grype.timeZone | string | `""` | The zone `schedule` is read in; empty is the cluster's, UTC on most. |
@@ -85,7 +92,7 @@ when it changes the scanner, so the default `pullPolicy` is `Always`. To run one
 | trivy.config | object | every setting at its code default; the list is in values.yaml | Trivy's scan settings (docs/CONFIGURATION.md §3), at their defaults; empty means unset. |
 | trivy.enabled | bool | `true` | Run the Trivy CronJob. |
 | trivy.extraEnv | list | `[]` | More environment variables for the refresh and the scan, in Kubernetes' own form. |
-| trivy.image.digest | string | `""` | `sha256:...`: run exactly that image; it wins over `tag`. |
+| trivy.image.digest | string | `""` | `sha256:...`: run exactly that image; it wins over `tag`. Empty in the repository; the chart a release publishes sets it to the digest the tag named at the release. |
 | trivy.image.tag | string | `"0.74.0"` | The Trivy version, from versions.yaml (`scanners.trivy.current`). The tag moves when JAVV republishes the image for that version, so it is pulled on every run. |
 | trivy.schedule | string | `"0 */6 * * *"` | When a cycle starts, in the CronJob's time zone. Every 6 hours keeps each finding well inside JAVV's 3-day staleness window; Grype runs half an hour later so their downloads don't overlap. |
 | trivy.timeZone | string | `""` | The zone `schedule` is read in (`Europe/Bucharest`); empty is the cluster's, UTC on most. |
