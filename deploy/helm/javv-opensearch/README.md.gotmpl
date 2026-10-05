@@ -19,8 +19,13 @@ The admin password comes from a Secret with the key `password`, or from
 8 characters or more, with upper and lower case, a digit and a special character, and not a
 common one.
 
+The password is read at a prompt, so it stays out of your shell history and every process's
+arguments:
+
 ```bash
-kubectl create secret generic javv-opensearch-admin --from-literal=password='<a strong password>'
+read -rs -p 'OpenSearch admin password: ' pw && echo
+printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
+unset pw
 helm install javv-opensearch deploy/helm/javv-opensearch \
   --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
 helm test javv-opensearch

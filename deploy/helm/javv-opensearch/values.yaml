@@ -41,6 +41,12 @@ opensearch:
   # -- The OpenSearch heap, as in compose.
   opensearchJavaOpts: "-Xms1g -Xmx1g"
 
+  persistence:
+    # -- Off: the official chart would otherwise add an init container that runs as root on an
+    # unpinned busybox image to chown the volume. The pod's `fsGroup` (1000, the official
+    # chart's) already makes the volume writable by OpenSearch.
+    enableInitChown: false
+
   # The same settings as the compose file's OpenSearch.
   extraEnvs:
     # JAVV runs its own index lifecycle and does not use query insights; their internal indices
