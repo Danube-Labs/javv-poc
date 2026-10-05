@@ -407,9 +407,14 @@ jobs:
           OS_ADMIN_LOGIN="admin:$JAVV_OPENSEARCH_ADMIN_PASSWORD" \
             OS_JAVV_LOGIN="javv:$JAVV_OPENSEARCH_PASSWORD" \
             development/scripts/opensearch-role-walk.sh
-          # nothing the backend did along the way was refused either
-          if docker compose -f deploy/compose/compose.yaml logs backend |
-            grep -E 'status:403|security_exception'; then
+          # nothing else the backend did along the way was refused: the walk's one deliberate
+          # refusal (a search of a restored copy) must be in the log, so the check can see one
+          refused=$(docker compose -f deploy/compose/compose.yaml logs backend |
+            grep -E 'status:403|security_exception' || true)
+          if ! grep -q 'restored-findings/_search' <<<"$refused"; then
+            echo "::error::the walk's refusal is not in the backend's log"; exit 1
+          fi
+          if grep -v 'restored-findings/_search' <<<"$refused"; then
             echo "::error::OpenSearch refused the backend a call"; exit 1
           fi
 

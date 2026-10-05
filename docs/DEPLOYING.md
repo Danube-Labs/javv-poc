@@ -301,7 +301,8 @@ signature on each scanner image before it names the image's digest in the publis
 JAVV signs in to OpenSearch as one user, which needs one role. The compose file creates both, as
 `javv`; the role holds what the backend calls and nothing more. Its own indices (`findings`,
 `javv-*`, `system-*`, and the `restored-*` copies a restore from **Settings › Data & OpenSearch**
-writes), their snapshots, and cluster health. It cannot read any other index's documents, change
+writes and its Data inspector lists, but never reads: a copy of `system-users` holds password
+hashes), their snapshots, and cluster health. It cannot read any other index's documents, change
 cluster settings, register a snapshot repository, or use the security API (issue 729).
 
 Some permissions are checked by OpenSearch at cluster level, so they reach past JAVV's indices:
@@ -311,8 +312,12 @@ Some permissions are checked by OpenSearch at cluster level, so they reach past 
   Never their documents.
 - `cluster:admin/snapshot/create` is not limited to JAVV's indices: OpenSearch lets the user copy
   any index into a repository you registered. JAVV only ever snapshots its own.
-- The index templates (bootstrap writes JAVV's own), and the bulk, multi-get and scroll calls,
-  whose documents are still checked against the index permissions.
+- `cluster:monitor/nodes/stats` and `cluster:monitor/shards` (the runtime card and the inspector's
+  shard list) show statistics and the shard list of every index.
+- `indices:admin/index_template/put` can write a template for any index pattern; bootstrap only
+  writes JAVV's own.
+- The bulk, multi-get and scroll calls, whose documents are still checked against the index
+  permissions.
 
 Each permission was shown needed: the role walk fails without it (the runs are on issue 729).
 
@@ -392,7 +397,8 @@ with `javv-role.json`:
       ],
       "allowed_actions": [
         "indices:admin/create",
-        "indices:data/write/*"
+        "indices:data/write/*",
+        "indices:monitor/*"
       ]
     }
   ]

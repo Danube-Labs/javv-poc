@@ -280,8 +280,10 @@ configs:
             allowed_actions: ["indices:admin/rollover"]
           - index_patterns: ["javv-*"]
             allowed_actions: ["indices:admin/delete"]
+          # written by a restore and listed by the Data inspector, never read: a copy of
+          # system-users holds password hashes
           - index_patterns: ["restored-*"]
-            allowed_actions: ["indices:admin/create", "indices:data/write/*"]
+            allowed_actions: ["indices:admin/create", "indices:data/write/*", "indices:monitor/*"]
   opensearch-roles-mapping:
     content: |
       _meta:

@@ -51,7 +51,7 @@ PROVEN_INDEX = {
     },
     ("javv-*", "system-audit-log*"): {"indices:admin/rollover"},
     ("javv-*",): {"indices:admin/delete"},
-    ("restored-*",): {"indices:admin/create", "indices:data/write/*"},
+    ("restored-*",): {"indices:admin/create", "indices:data/write/*", "indices:monitor/*"},
 }
 
 

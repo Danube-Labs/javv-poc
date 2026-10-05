@@ -57,18 +57,32 @@ os_status() {  # login method path [body]: prints the status code
   os_as "$login" "${args[@]}"
 }
 
-job() {  # a job through the API (the three the Data inspector runs), waited to done
-  local kind=$1
-  api POST "/api/v1/admin/jobs/$kind/run" >/dev/null
+job() {  # a job through the API (the three the Data inspector runs), this run waited to done
+  local kind=$1 attempt run
+  attempt=$(api POST "/api/v1/admin/jobs/$kind/run" | jq -r .attempt_id)
   for _ in $(seq 1 60); do
-    status=$(api GET /api/v1/admin/jobs | jq -r --arg k "$kind" '.. | objects | select(.kind? == $k) | .status' | head -1)
-    case "$status" in
+    run=$(api GET /api/v1/admin/jobs |
+      jq -c --arg k "$kind" --arg a "$attempt" '.. | objects | select(.kind? == $k and .attempt_id? == $a)')
+    case "$(jq -r .status <<<"$run")" in
       done) return 0 ;;
-      failed) fail "job $kind failed: $(api GET /api/v1/admin/jobs | jq -c --arg k "$kind" '.. | objects | select(.kind? == $k)' | head -1)" ;;
+      failed) fail "job $kind failed: $run" ;;
     esac
     sleep 2
   done
-  fail "job $kind did not finish"
+  fail "job $kind (attempt $attempt) did not finish"
+}
+
+run_module() {  # a job or bootstrap in the backend's own process; its log lines are its output
+  local out
+  out=$($RUN_JOB "$@" 2>&1) || fail "$* failed: $(tail -n 5 <<<"$out")"
+  if grep -E 'status:403|security_exception' <<<"$out"; then fail "OpenSearch refused $*"; fi
+  printf '%s' "$out"
+}
+
+inspector_reads() {  # with no index the _cat reads take in every index (issue 729)
+  for path in _cluster/health _cat/indices _cat/shards _nodes/stats; do
+    api POST /api/v1/admin/opensearch/inspect "{\"method\":\"GET\",\"path\":\"$path\"}" >/dev/null
+  done
 }
 
 backing() {  # the backing indices of a series for a cluster, as admin sees them
@@ -153,20 +167,20 @@ step "exports: inline, VEX, and a queued one built by the report drain"
 api GET "/api/v1/findings/export.csv?cluster_id=$C1" >/dev/null
 api GET "/api/v1/findings/export.vex?cluster_id=$C1&scanner=trivy" >/dev/null
 report=$(api POST /api/v1/reports "{\"cluster_id\":\"$C1\",\"run_mode\":\"now\"}" | jq -r .report_id)
-$RUN_JOB backend.jobs.report_drain >/dev/null
+run_module backend.jobs.report_drain >/dev/null
 api GET "/api/v1/reports/$report" | jq -e '.status == "done"' >/dev/null || fail "report not done"
 
 step "the jobs the Data inspector runs, and the scheduled-only ones"
 job rebuild_state
 job staleness_sweep
 for kind in report_sweep findings_cleanup session_sweep; do
-  $RUN_JOB "backend.jobs.$kind" >/dev/null || fail "job $kind"
+  run_module "backend.jobs.$kind" >/dev/null
 done
 
 step "bootstrap upgrades an index on an older mapping version, as after an upgrade"
 os_as "$OS_ADMIN_LOGIN" -sf -X PUT "$OS_URL/system-config/_mapping" -H 'content-type: application/json' \
   -d '{"_meta":{"version":0}}' >/dev/null || fail "lowering the mapping version"
-out=$($RUN_JOB backend.core.bootstrap) || fail "bootstrap as javv"
+out=$(run_module backend.core.bootstrap)
 grep -q 'updated *system-config' <<<"$out" || fail "bootstrap did not update system-config: $out"
 os_as "$OS_ADMIN_LOGIN" -sf "$OS_URL/system-config/_mapping" |
   jq -e '."system-config".mappings._meta.version > 0' >/dev/null || fail "mapping version"
@@ -174,9 +188,7 @@ os_as "$OS_ADMIN_LOGIN" -sf "$OS_URL/system-config/_mapping" |
 step "the Data inspector and the runtime card"
 api GET /api/v1/admin/opensearch-runtime >/dev/null
 api GET "/api/v1/settings/data?cluster_id=$C1" >/dev/null
-for path in _cluster/health _cat/indices _cat/shards _nodes/stats; do
-  api POST /api/v1/admin/opensearch/inspect "{\"method\":\"GET\",\"path\":\"$path\"}" >/dev/null
-done
+inspector_reads
 api POST /api/v1/admin/opensearch/inspect \
   '{"method":"POST","path":"findings/_search","body":{"size":1}}' >/dev/null
 api POST /api/v1/admin/opensearch/inspect '{"method":"GET","path":"findings/_count"}' >/dev/null
@@ -204,6 +216,13 @@ for _ in $(seq 1 60); do
   sleep 2
 done
 [ "$(os_status "$OS_ADMIN_LOGIN" HEAD /restored-findings)" = 200 ] || fail "restore"
+# the inspector lists restored-* too, so its reads must hold once a copy exists
+inspector_reads
+# a copy is listed, never read: it holds system-users and system-tokens too. CI's compose job
+# also finds this refusal in the backend's log, which shows its log check can see one.
+code=$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -X POST "$BACKEND/api/v1/admin/opensearch/inspect" \
+  -H 'content-type: application/json' -d '{"method":"POST","path":"restored-findings/_search","body":{"size":1}}')
+[ "$code" = 403 ] || fail "a search of a restored copy got $code, not 403"
 
 step "lifecycle: a series and the audit log roll over, then an old backing index drops"
 api PUT /api/v1/settings/rollover \
@@ -238,4 +257,6 @@ for check in \
 done
 os_as "$OS_ADMIN_LOGIN" -sf -X DELETE "$OS_URL/walk-other" >/dev/null
 
+# left in the store: the javv-walk repository and its snapshot, the restored-* copies, and the
+# cluster with a one-doc rollover and a minute's retention
 echo "walk: every surface passed as javv, and each refusal held"
