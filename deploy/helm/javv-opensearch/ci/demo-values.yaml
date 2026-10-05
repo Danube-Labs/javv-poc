@@ -1,0 +1,14 @@
+# ct install: OpenSearch's demo certificates. Small, and no volume, so each case starts a fresh
+# store. The CI job makes the admin password Secret javv-ci-admin.
+opensearch:
+  javv:
+    auth:
+      existingSecret: javv-ci-admin
+  opensearchJavaOpts: "-Xms512m -Xmx512m"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 1Gi
+  persistence:
+    enabled: false
+  terminationGracePeriod: 5

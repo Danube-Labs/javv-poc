@@ -52,6 +52,10 @@ toolchain:
   # major-only LTS; CI's setup-node repeats it (drift-checked). Majors wait for dashboard approval.
   # renovate: datasource=node-version depName=node
   node: "22"
+  # writes each chart's README from its values.yaml; CI fails on a README it would change.
+  # development/scripts/helm-docs.sh runs this version (issue 725)
+  # renovate: datasource=github-releases depName=norwoodj/helm-docs extractVersion=^v(?<version>.+)$
+  helm-docs: "1.14.2"
 
 # CI supply-chain tools: the Secret scan job's gitleaks (ci.yml), the scanner-images SBOM step's
 # syft, and cosign for image signing. CI reads these directly. A gitleaks bump also needs GITLEAKS_SHA256 in ci.yml, from the

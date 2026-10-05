@@ -19,6 +19,10 @@
         {
           "type": "generic",
           "path": "deploy/compose/compose.yaml"
+        },
+        {
+          "type": "generic",
+          "path": "deploy/helm/javv-opensearch/Chart.yaml"
         }
       ]
     }

@@ -1,0 +1,19 @@
+{{- /*
+Rules values.schema.json cannot say. A failed rule stops the install with its message.
+*/ -}}
+{{- $javv := .Values.opensearch.javv -}}
+{{- if and $javv.auth.existingSecret $javv.auth.password -}}
+{{- fail "opensearch.javv.auth: set existingSecret or password, not both" -}}
+{{- end -}}
+{{- if not (or $javv.auth.existingSecret $javv.auth.password) -}}
+{{- fail "opensearch.javv.auth: set existingSecret (a Secret with the key password) or password; OpenSearch needs an admin password" -}}
+{{- end -}}
+{{- if and $javv.tls.existingSecret $javv.tls.certManager.enabled -}}
+{{- fail "opensearch.javv.tls: set existingSecret or certManager.enabled, not both" -}}
+{{- end -}}
+{{- if and $javv.tls.certManager.enabled (not $javv.tls.certManager.issuerRef.name) -}}
+{{- fail "opensearch.javv.tls.certManager.issuerRef.name: name the Issuer or ClusterIssuer cert-manager uses" -}}
+{{- end -}}
+{{- if not .Values.opensearch.singleNode -}}
+{{- fail "opensearch.singleNode: JAVV runs one OpenSearch node; keep it true" -}}
+{{- end -}}

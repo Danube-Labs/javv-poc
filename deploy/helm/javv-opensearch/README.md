@@ -1,0 +1,89 @@
+# javv-opensearch
+
+![Version: 0.5.1](https://img.shields.io/badge/Version-0.5.1-informational?style=flat-square) ![AppVersion: 3.9.0](https://img.shields.io/badge/AppVersion-3.9.0-informational?style=flat-square)
+
+OpenSearch for JAVV: one node, with its security plugin on and `admin` as its only password
+user. A wrapper around the official
+[`opensearch` chart](https://github.com/opensearch-project/helm-charts/tree/main/charts/opensearch)
+3.9.0, set to what JAVV's
+[compose file](../../compose/compose.yaml) runs.
+
+The Service is `javv-opensearch`, https on port 9200. JAVV signs in to it as `admin`
+(`JAVV_OPENSEARCH_URL=https://javv-opensearch:9200`, `JAVV_OPENSEARCH_USERNAME=admin`,
+`JAVV_OPENSEARCH_PASSWORD` from the same Secret; `docs/CONFIGURATION.md` §1).
+
+## Install
+
+The admin password comes from a Secret with the key `password`, or from
+`opensearch.javv.auth.password`, which the chart puts in one. OpenSearch refuses a weak password:
+8 characters or more, with upper and lower case, a digit and a special character, and not a
+common one.
+
+```bash
+kubectl create secret generic javv-opensearch-admin --from-literal=password='<a strong password>'
+helm install javv-opensearch deploy/helm/javv-opensearch \
+  --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
+helm test javv-opensearch
+```
+
+`helm test` checks that a request without a login is refused, that `admin` is the only user in
+OpenSearch's user list, that one of the demo users OpenSearch would otherwise add (`readall`) is
+refused, and, with your own certificate, that the https endpoint passes a check against your CA.
+
+## Certificates
+
+| | Set | What the node uses |
+|---|---|---|
+| Default | nothing | OpenSearch's demo certificates. Their private key ships in the public image, so the traffic is not private from anything that can reach the Service. The demo admin certificate in the image (`kirk.pem`) also has full access with no password. |
+| Your own | `opensearch.javv.tls.existingSecret`: a Secret with `tls.crt`, `tls.key` (PKCS#8) and `ca.crt` | That certificate, for https and for the node's transport layer, so it needs both server and client usage, and names the Service (`javv-opensearch`, `javv-opensearch.<namespace>.svc`). The demo setup stays off. |
+| cert-manager | `opensearch.javv.tls.certManager.enabled=true` and `issuerRef` | A `Certificate` the chart renders for the Service's names, into `<release>-javv-opensearch-tls`. |
+
+With your own certificate, a renewal reaches the node without a restart: the Secret is mounted as
+a directory and `plugins.security.ssl.certificates_hot_reload.enabled` is on. The chart never
+makes a certificate itself.
+
+## Users
+
+The image's users file holds `admin` and six demo users whose passwords are their own names, and
+no setting turns them off (issue 736). An init container replaces that file with one holding
+`admin` alone, hashed from the Secret by OpenSearch's own `hash.sh`, which reads it from the
+environment. OpenSearch loads the file on its first start; after that its security index holds
+the users.
+
+## Changing the admin password
+
+A new password in the Secret alone changes nothing: the store keeps the one in its security index.
+To change it and keep the data:
+
+1. Put the new password in the Secret (or `opensearch.javv.auth.password`, then `helm upgrade`).
+2. Restart the node, so the init container writes the users file with the new password:
+   `kubectl rollout restart statefulset/javv-opensearch-master`. The old password still works.
+3. Load the file into the security index with OpenSearch's `securityadmin.sh`, which signs in
+   with an admin certificate. With the demo certificates, the image's own:
+   ```bash
+   kubectl exec javv-opensearch-master-0 -c opensearch -- \
+     plugins/opensearch-security/tools/securityadmin.sh \
+     -f config/opensearch-security/internal_users.yml -t internalusers -icl -nhnv \
+     -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem
+   ```
+   With your own certificates: a client certificate signed by the CA in your Secret, whose subject
+   is in `opensearch.javv.tls.adminDn`. Copy it and its PKCS#8 key into the pod (`kubectl cp`),
+   run the same command with `-cacert config/certs/ca.crt -cert <it> -key <its key>`, and delete
+   them afterwards.
+
+It ends with `Done with success`. The new password works from then on, and the old one no longer
+does. Then give JAVV the new password (`JAVV_OPENSEARCH_PASSWORD`) and restart it.
+
+## Values
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| opensearch.image.tag | string | `"3.9.0"` | versions.yaml datastore.opensearch; check-versions.sh holds it. Set explicitly because the official chart's version and the OpenSearch it ships can differ. |
+| opensearch.javv.auth.existingSecret | string | `""` | A Secret with the admin password under the key `password`. Set this or `password`. |
+| opensearch.javv.auth.password | string | `""` | The admin password; the chart puts it in a Secret. OpenSearch's rules: 8 characters or more, with upper and lower case, a digit and a special character, and not a common one. |
+| opensearch.javv.tls.adminDn | list | `[]` | Subject DNs of client certificates allowed to run OpenSearch's securityadmin.sh, which changing the admin password needs, with your own certificates. The demo setup has its own. |
+| opensearch.javv.tls.certManager.enabled | bool | `false` | Ask cert-manager for the certificate, into the Secret `<release>-javv-opensearch-tls`. |
+| opensearch.javv.tls.certManager.issuerRef | object | `{}` | The cert-manager Issuer or ClusterIssuer to ask: `name`, and `kind` if not Issuer. |
+| opensearch.javv.tls.existingSecret | string | `""` | A Secret with your certificate: `tls.crt`, `tls.key` (PKCS#8) and `ca.crt`. Empty, with `certManager.enabled` false: OpenSearch's demo certificates, whose key is public. |
+| opensearch.opensearchJavaOpts | string | `"-Xms1g -Xmx1g"` | The OpenSearch heap, as in compose. |
+| opensearch.singleNode | bool | `true` | One node: JAVV runs one store (NFR-9, D23). The install fails with anything else. |
