@@ -20,8 +20,9 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
   `release-please-config.json` so later versions compute from commits.
 - JAVV is a **deployed app** (FastAPI + Vue, shipped via Helm/k3s), **not a published library**.
   A "release" here is a tag + changelog + GitHub Release that a deploy can pin to, plus the
-  backend and frontend images published under that version (issue 452). The `Publish app images`
-  job in `release-please.yml` does that in the same run. If it fails, the release notes say so at
+  backend and frontend images published under that version (issue 452), each signed with cosign
+  keyless and carrying a signed SPDX SBOM attestation (issue 615). The `Publish app images` job in
+  `release-please.yml` does that in the same run, and verifies the signatures signed out. If it fails, the release notes say so at
   the top: fix the cause, re-run the failed jobs, then delete the note.
 - **Version notes for operators.** A change that does any of the following adds a row to
   [`docs/UPGRADING.md` § Version notes](../../docs/UPGRADING.md#version-notes) in the same PR,

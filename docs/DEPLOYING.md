@@ -245,6 +245,31 @@ The [chart's README](../deploy/helm/javv-scanner/README.md) lists every value.
   run because JAVV republishes a version's tag when it changes the scanner. Set
   `<scanner>.image.digest` to run one exact build.
 
+## Verify the images
+
+Each release signs the backend and frontend images it publishes, with **cosign keyless**: the
+certificate comes from the release workflow's GitHub identity and is logged in the public Rekor
+transparency log. Each image also carries a **signed SPDX SBOM attestation**, the list of what is
+inside it. Both bind to the image's digest, not its tag. To check one with cosign 3.x (the version
+the release signs with, `versions.yaml` `supply_chain.cosign`):
+
+```bash
+IMAGE=ghcr.io/danube-labs/javv-backend:<version>   # or javv-frontend
+IDENTITY='^https://github\.com/Danube-Labs/javv-poc/\.github/workflows/release-please\.yml@refs/heads/main$'
+ISSUER=https://token.actions.githubusercontent.com
+
+cosign verify "$IMAGE" --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
+cosign verify-attestation "$IMAGE" --type spdxjson \
+  --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER" > /dev/null && echo "SBOM attestation OK"
+```
+
+The identity accepts only the release workflow running on this repository's `main`, so an image
+built anywhere else fails. The release runs these same two commands, signed out, before it
+finishes. Images released before signing started (0.5.1 and earlier) carry no signature.
+
+The scanner images are signed the same way by their own workflow; their identity is in
+[`scanner/README.md`](../scanner/README.md#verify-a-published-image).
+
 ## Known limits
 
 - **amd64 only.** The images, like the scanner images, are built for amd64.
