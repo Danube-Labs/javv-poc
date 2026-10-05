@@ -115,6 +115,17 @@ def test_the_service_javv_signs_in_to_is_javv_opensearch() -> None:
     assert ports["http"] == 9200
 
 
+def test_every_container_is_the_pinned_opensearch_image_and_none_runs_as_root() -> None:
+    # the default install, on a volume: the official chart's chown init container would run as
+    # root on an unpinned busybox image; the pod's fsGroup does its job
+    pod = _pod(_render(*DEMO))
+    assert pod["securityContext"]["fsGroup"] == 1000
+    image = f"opensearchproject/opensearch:{_pinned_opensearch()}"
+    for container in (*pod.get("initContainers", []), *pod["containers"]):
+        assert container["image"] == image, container["name"]
+        assert (container.get("securityContext") or {}).get("runAsUser") != 0, container["name"]
+
+
 def test_the_image_is_the_opensearch_versions_yaml_pins() -> None:
     docs = _render(*DEMO)
     image = f"opensearchproject/opensearch:{_pinned_opensearch()}"
