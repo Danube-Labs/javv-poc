@@ -1,18 +1,18 @@
 /**
  * The one place the generated client is configured. Same-origin (Vite dev proxy / the deployed
  * ingress route both put the API on our origin); the session cookie is httpOnly and rides
- * automatically. A 503 anywhere, or a proxy's 502 or 504, flips the global degraded flag
- * (observability.md §3 — the app degrades loudly, not blindly); the health store's /readyz poll
- * clears it.
+ * automatically. A 502, 503 or 504 anywhere flips the global degraded flag (observability.md §3 —
+ * the app degrades loudly, not blindly): the store when the backend's own JSON 503 says so, the
+ * backend for anything else, such as a proxy's 503 page. The health store's /readyz poll clears it.
  */
 import { client } from './generated/client.gen'
-import { downReason, useHealthStore } from '@/stores/health'
+import { downReason, isBackendJson, useHealthStore } from '@/stores/health'
 
 client.setConfig({ baseUrl: '', credentials: 'same-origin', throwOnError: false })
 
 client.interceptors.response.use((response) => {
   if (response.status === 503 || response.status === 502 || response.status === 504) {
-    useHealthStore().markDegraded(downReason(response.status), 'api')
+    useHealthStore().markDegraded(downReason(response.status, isBackendJson(response)), 'api')
   }
   // expired/invalid session: every screen would degrade into generic "unavailable" copy —
   // land on login instead (audit 343). Full navigation on purpose: it also resets stale state.

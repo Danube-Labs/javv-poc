@@ -77,6 +77,18 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-05: the `javv` chart (issue 725, slice 2, operator rulings on the slice 2 plan):**
+  `deploy/helm/javv` runs the backend (one replica, `strategy: Recreate`, issue 691) and the frontend
+  as Services only, with every backend setting under `backend.config` by its environment name,
+  held to the code by the same test as the compose file. The pepper and the bootstrap password come
+  from a Secret, OpenSearch's password by reference to the `javv-opensearch` chart's Secret, and
+  `opensearch.caSecret` mounts the store's CA and turns certificate checking on. The startup probe
+  allows 300 s. The frontend server gets `JAVV_BACKEND_CONNECT_TIMEOUT` (5 s, connecting only): an
+  address whose pod is gone but still listed never answers, and the request would hang. The
+  banner reads a 503 as "store down" only when the backend sent it (its JSON), on the `/readyz` poll
+  and in the API client, so an ingress's 503 page reads as "backend down". CI installs the chart
+  next to a store with a cert-manager certificate, signs in, stops the backend (502), and runs an
+  upgrade and a `helm rollback`: the Definition of Done's `helm rollback` line.
 - **2026-10-05: three Helm charts, not one (issue 725, operator rulings of 2026-10-04):** the
   `deploy/helm/javv/` chart of the deliverables above becomes three charts in `deploy/helm/`,
   installed separately: `javv-opensearch` (the store), `javv` (backend and frontend) and

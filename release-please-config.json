@@ -23,6 +23,14 @@
         {
           "type": "generic",
           "path": "deploy/helm/javv-opensearch/Chart.yaml"
+        },
+        {
+          "type": "generic",
+          "path": "deploy/helm/javv/Chart.yaml"
+        },
+        {
+          "type": "generic",
+          "path": "deploy/helm/javv/values.yaml"
         }
       ]
     }

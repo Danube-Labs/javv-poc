@@ -9,7 +9,8 @@
  * it replies 502 with the backend's own error envelope, which the SPA reads as "backend down";
  * only the backend's own 503 means the store (stores/health.ts). No runtime dependencies.
  *
- *   node server/serve.mjs   (env: JAVV_BACKEND_URL, JAVV_FRONTEND_PORT, JAVV_LOG_LEVEL)
+ *   node server/serve.mjs
+ *   (env: JAVV_BACKEND_URL, JAVV_FRONTEND_PORT, JAVV_LOG_LEVEL, JAVV_BACKEND_CONNECT_TIMEOUT)
  */
 
 import { randomBytes } from 'node:crypto'
@@ -59,12 +60,29 @@ const TYPES = {
 // per window, with the count it held back (.claude/rules/logging.md, issue 523's rule)
 const WARN_WINDOW_MS = 10_000
 
+// Seconds a connection to the backend may take to open (JAVV_BACKEND_CONNECT_TIMEOUT). Only the
+// opening is timed: once connected, a slow or streamed answer (an export) is never cut.
+export const CONNECT_TIMEOUT_S = 5
+
 // Vite puts every hashed build file under /assets/, so its name changes whenever its content does
 const IMMUTABLE = 'public, max-age=31536000, immutable'
 
 /** @param {string} path */
 function isForwarded(path) {
   return FORWARDED.some((p) => path === p || path.startsWith(`${p}/`))
+}
+
+/**
+ * @param {string | undefined} value JAVV_BACKEND_CONNECT_TIMEOUT
+ * @returns {number} milliseconds; a value that is not a number of seconds above 0 stops the server
+ */
+export function connectTimeoutMs(value) {
+  if (value === undefined || value === '') return CONNECT_TIMEOUT_S * 1000
+  const seconds = Number(value)
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    throw new Error(`JAVV_BACKEND_CONNECT_TIMEOUT must be a number of seconds above 0, not "${value}"`)
+  }
+  return seconds * 1000
 }
 
 /** @param {import('node:http').IncomingHttpHeaders} headers */
@@ -123,10 +141,20 @@ function sendFile(res, file, cache, head) {
 }
 
 /**
- * @param {{ backendUrl: string, distDir: string, log: Logger, warnWindowMs?: number }} options
+ * @param {{
+ *   backendUrl: string, distDir: string, log: Logger, warnWindowMs?: number,
+ *   connectMs?: number, createConnection?: import('node:http').RequestOptions['createConnection']
+ * }} options  createConnection replaces the socket the forward opens (tests only)
  * @returns {import('node:http').Server}
  */
-export function createFrontendServer({ backendUrl, distDir, log, warnWindowMs = WARN_WINDOW_MS }) {
+export function createFrontendServer({
+  backendUrl,
+  distDir,
+  log,
+  warnWindowMs = WARN_WINDOW_MS,
+  connectMs = CONNECT_TIMEOUT_S * 1000,
+  createConnection,
+}) {
   const backend = new URL(backendUrl)
   const root = normalize(distDir)
   const index = join(root, 'index.html')
@@ -152,6 +180,22 @@ export function createFrontendServer({ backendUrl, distDir, log, warnWindowMs = 
       method: req.method,
       path: target,
       headers: { ...withoutHopByHop(req.headers), host: backend.host, 'x-request-id': requestId },
+      // given only in tests: with no agent named, the request uses this socket instead of one
+      // from the shared pool
+      ...(createConnection ? { createConnection } : {}),
+    })
+
+    // An address whose pod is gone but still listed (its node died) never answers the connection,
+    // and the request would hang with no banner; a Service with no pod at all refuses at once.
+    // A reused keep-alive socket is already connected and starts no timer.
+    upstream.on('socket', (socket) => {
+      if (!socket.connecting) return
+      const timer = setTimeout(
+        () => upstream.destroy(Object.assign(new Error('connect timeout'), { code: 'CONNECT_TIMEOUT' })),
+        connectMs,
+      )
+      socket.once('connect', () => clearTimeout(timer))
+      socket.once('close', () => clearTimeout(timer))
     })
 
     upstream.on('response', (answer) => {
@@ -159,7 +203,7 @@ export function createFrontendServer({ backendUrl, distDir, log, warnWindowMs = 
       answer.pipe(res)
     })
 
-    upstream.on('error', () => {
+    upstream.on('error', (/** @type {NodeJS.ErrnoException} */ error) => {
       if (res.headersSent) {
         res.destroy() // the backend went away mid-answer: cut the stream, don't fake an end
         return
@@ -173,6 +217,7 @@ export function createFrontendServer({ backendUrl, distDir, log, warnWindowMs = 
           duration_ms: Math.round(now - started),
           request_id: requestId,
           held_back: heldBack,
+          reason: error.code === 'CONNECT_TIMEOUT' ? 'connect timeout' : (error.code ?? 'error'),
         })
         lastWarning = now
         heldBack = 0
@@ -225,9 +270,10 @@ function main() {
   const log = createLogger(process.env.JAVV_LOG_LEVEL)
   const backendUrl = process.env.JAVV_BACKEND_URL || 'http://backend:8000'
   const port = Number(process.env.JAVV_FRONTEND_PORT || 8080)
+  const connectMs = connectTimeoutMs(process.env.JAVV_BACKEND_CONNECT_TIMEOUT)
   const distDir = fileURLToPath(new URL('../dist', import.meta.url))
 
-  const server = createFrontendServer({ backendUrl, distDir, log })
+  const server = createFrontendServer({ backendUrl, distDir, log, connectMs })
   server.listen(port, () => log.info('frontend server started', { port, backend: new URL(backendUrl).origin }))
   for (const signal of ['SIGTERM', 'SIGINT']) {
     process.on(signal, () => {

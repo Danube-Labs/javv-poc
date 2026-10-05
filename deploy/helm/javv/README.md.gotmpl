@@ -1,0 +1,51 @@
+# {{ template "chart.name" . }}
+
+{{ template "chart.versionBadge" . }}{{ template "chart.appVersionBadge" . }}
+
+JAVV's backend and frontend, built from its [compose file](../../compose/compose.yaml): the same
+settings at the same defaults, one backend (it runs the background jobs itself), and a frontend
+Service that browsers and scanners both use. Services only: put your own Ingress, gateway or load
+balancer in front of the frontend Service for https.
+
+The store is the [`javv-opensearch`](../javv-opensearch/README.md) chart. Scanners in each monitored
+cluster are the `javv-scanner` chart. The full guide is `docs/DEPLOYING.md`.
+
+## Install
+
+```bash
+# the store first (its README has the certificate choices)
+kubectl create secret generic javv-opensearch-admin --from-literal=password='<a strong password>'
+helm install store deploy/helm/javv-opensearch \
+  --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
+
+# then JAVV, signing in with the store's Secret
+kubectl create secret generic javv-secrets \
+  --from-literal=token-pepper="$(openssl rand -hex 32)" \
+  --from-literal=bootstrap-admin-password='<12 characters or more>'
+helm install javv deploy/helm/javv \
+  --set secrets.existingSecret=javv-secrets \
+  --set opensearch.passwordSecret.name=javv-opensearch-admin
+helm test javv
+```
+
+With the store's own certificate (from a Secret or cert-manager), add
+`--set opensearch.caSecret.name=<the Secret with its ca.crt>`: the backend then checks the store's
+certificate.
+
+## What it runs
+
+- **The backend:** one replica with `strategy: Recreate` (issue 691: a rolling update would briefly
+  run two), its ClusterIP Service on 8000, and the three probes. The startup probe allows 300 s for
+  the first start, which creates the indices before the port opens.
+- **The frontend:** `frontend.replicas` pods and the Service browsers and scanners use, on 8080. It
+  forwards `/api`, `/auth` and `/readyz` to the backend, and answers 502 when the backend does not.
+- Both run as the images' user `65532`, with a read-only root and an `emptyDir` on `/tmp`.
+
+## Settings
+
+Every backend setting is under `backend.config`, at its default, by the name the backend reads,
+with the comment the compose file gives it; `docs/CONFIGURATION.md` has the long form. Secrets are
+not settings here: the pepper and the bootstrap password come from `secrets`, OpenSearch's
+password and CA from `opensearch`.
+
+{{ template "chart.valuesSection" . }}

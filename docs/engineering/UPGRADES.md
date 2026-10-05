@@ -1,7 +1,7 @@
 # JAVV - How an upgrade runs
 
 > **Design note** (issue 261, 2026-09-29). This note covers how the index bootstrap behaves when a new JAVV
-> release rolls out: which pod runs it, why old and new pods can serve side by side, and what a rollback
+> release rolls out: which pod runs it, why an older release can run against a newer store, and what a rollback
 > does. It also sets the requirements the Helm chart (#452) must meet. The operator runbook built on
 > it is [`docs/UPGRADING.md`](../UPGRADING.md). Index definitions stay in [`INDEX-MAP.md`](INDEX-MAP.md).
 
@@ -17,7 +17,7 @@ sequenceDiagram
     K->>P: start container
     P->>O: ping (client.info)
     alt unreachable
-        P-->>K: exit non-zero (old pods keep serving)
+        P-->>K: exit non-zero (the old pod is already stopped: Recreate)
     end
     P->>O: bootstrap(): per index/template, compare _meta.version
     O-->>P: created / updated / unchanged
@@ -33,7 +33,9 @@ sequenceDiagram
   bootstrap is done. Checked against uvicorn 0.54.
 - **A failed bootstrap stops the pod, not the service.** An exception in the lifespan makes uvicorn
   log `Application startup failed. Exiting.` and exit non-zero; exit code 3 was observed with OpenSearch
-  unreachable. With the rollout settings below, the old pods keep serving while the new one crash-loops.
+  unreachable. With one backend replaced by `Recreate` (the chart table below), the old pod is
+  already gone: JAVV has no backend until the new one starts or `helm rollback` puts the old
+  release back.
 - **It runs on every start of every pod, and that is safe.** Bootstrap leaves an index or template
   `unchanged` when its `_meta.version` is at or above the code's `MAPPING_VERSION`. When two pods
   race to create the same index, the loser sees `resource_already_exists_exception` and records
@@ -64,8 +66,9 @@ resumable Job by nature, and it belongs to the hardening phase (see *Deferred* b
 
 ## Old and new pods side by side
 
-A rolling upgrade briefly runs both releases against one store. That is safe only because every
-mapping change is **additive**. `core/bootstrap.py` says so in its instructions for evolving a mapping,
+One backend runs at a time (issue 691, `Recreate`), so two backend releases never serve together.
+An older release still meets a newer store after a rollback, and the frontend and the scanners are
+upgraded on their own. That is safe only because every mapping change is **additive**. `core/bootstrap.py` says so in its instructions for evolving a mapping,
 and the history v2 → v18 contains only added fields and indices.
 
 | Who | Sees | Why it's safe |
@@ -112,12 +115,14 @@ new backend has removed. Keeping a removed route alive for one release is a hard
 
 ## What the Helm chart must do (#452)
 
+Built in `deploy/helm/javv` (issue 725, slice 2); `backend/tests/test_helm_javv.py` holds each row.
+
 | Setting | Value | Why |
 |---|---|---|
-| backend `strategy` | `RollingUpdate`, `maxUnavailable: 0`, `maxSurge: 1` | a new pod that fails bootstrap never takes the last serving pod down with it |
+| backend `strategy` | `Recreate`, one replica | one backend (issue 691, M10 log of 2026-10-03): it runs the background jobs itself, and a rolling update would briefly run two. The cost is a gap of one backend start on each upgrade, which the frontend shows as "backend not answering". This replaces `RollingUpdate` with `maxUnavailable: 0` and `maxSurge: 1`, which kept the old pod serving while a new one failed bootstrap |
 | `readinessProbe` | `GET /readyz` | 200 only when OpenSearch is reachable; the pod isn't listening at all until bootstrap is done |
 | `livenessProbe` | `GET /healthz` | no OpenSearch dependency, so a store outage degrades the app instead of restarting it |
-| `startupProbe` | `GET /healthz`, with a budget of several `JAVV_REQUEST_TIMEOUT` periods (default 30 s each) | holds off liveness while bootstrap runs against a slow store; the chart documents the number it picks in `CONFIGURATION.md` |
+| `startupProbe` | `GET /healthz`, 30 tries 10 s apart: 300 s, ten `JAVV_REQUEST_TIMEOUT` periods (default 30 s each) | holds off liveness while bootstrap runs against a slow store; `backend.startupProbe` in the chart's values, recorded in `CONFIGURATION.md` |
 | `JAVV_BOOTSTRAP_ON_STARTUP` | not set (default `true`) | false skips index creation and the admin seed |
 | scanner CronJobs | a separate image tag per scanner (D41) | upgraded after the backend, as a tag swap |
 

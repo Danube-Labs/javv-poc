@@ -18,8 +18,8 @@ flowchart LR
 - **Scanners** run in the clusters they scan and push results to JAVV over HTTP. They can be
   anywhere that reaches the JAVV address; JAVV never connects to a monitored cluster.
 
-Today there is one way to deploy: **docker compose on one machine**. A Helm chart for Kubernetes
-follows it (issue 41).
+There are two ways to deploy: **docker compose on one machine**, and **Helm charts on
+Kubernetes** (issue 725). Both run the same images with the same settings and defaults.
 
 ## A machine with docker compose
 
@@ -133,6 +133,59 @@ OpenSearch keeps everything in the `opensearch-data` volume: `docker compose dow
 `docker compose down -v` deletes it. Snapshots taken from **Settings › Data & OpenSearch** land
 inside the same volume (`path.repo`); copying them off the machine is up to you (issue 664).
 
+## On Kubernetes, with Helm
+
+Two charts in `deploy/helm/`, installed one after the other in the same namespace (issue 725):
+`javv-opensearch`, the store, and `javv`, the backend and frontend. Each chart's README lists every
+value; this is the order and what each step needs.
+
+1. **The store, with its admin password in a Secret.** OpenSearch refuses a weak one (the rules
+   are the compose ones above).
+   ```bash
+   kubectl create secret generic javv-opensearch-admin --from-literal=password='<a strong password>'
+   helm install store deploy/helm/javv-opensearch \
+     --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
+   ```
+   That runs OpenSearch's demo certificates, as compose does. For your own, set
+   `opensearch.javv.tls.existingSecret` (a Secret with `tls.crt`, a PKCS#8 `tls.key` and
+   `ca.crt`) or `opensearch.javv.tls.certManager` (the chart asks your cert-manager Issuer); the
+   [chart's README](../deploy/helm/javv-opensearch/README.md) has both.
+2. **JAVV's own two secrets**, the same ones `.env` holds for compose:
+   ```bash
+   kubectl create secret generic javv-secrets \
+     --from-literal=token-pepper="$(openssl rand -hex 32)" \
+     --from-literal=bootstrap-admin-password='<12 characters or more>'
+   ```
+3. **JAVV**, signing in to the store with the store's own Secret:
+   ```bash
+   helm install javv deploy/helm/javv \
+     --set secrets.existingSecret=javv-secrets \
+     --set opensearch.passwordSecret.name=javv-opensearch-admin
+   helm test javv
+   ```
+   With the store's own certificate, add `--set opensearch.caSecret.name=<the Secret with its
+   ca.crt>` (for cert-manager: `store-javv-opensearch-tls`): the backend then checks it.
+4. **Sign in** through the `javv` Service on port 8080, as `admin` with the bootstrap password.
+   Nothing sits in front of it: put your own Ingress, gateway or load balancer there for `https`,
+   and keep the session cookie `Secure` (http or https, above, applies the same way). To look
+   before that, `kubectl port-forward svc/javv 8080` and set
+   `backend.config.JAVV_SESSION_COOKIE_SECURE=false`.
+
+**What it runs.** One backend (`strategy: Recreate`: it runs the background jobs itself, so a
+rolling update would briefly run two, issue 691), its ClusterIP Service on 8000, and the frontend
+Service on 8080 that browsers and scanners use. Both run as the images' user with a read-only
+root. Every backend setting is under `backend.config` in `deploy/helm/javv/values.yaml`, at the
+same default and with the same comment as in the compose file; change one with
+`--set backend.config.TZ=Europe/Bucharest` or in a values file of your own.
+
+**What is exposed.** Only what you put in front of the `javv` Service. The backend's Service and
+OpenSearch's are ClusterIP; OpenSearch's login and certificates are as in step 1. With the demo
+certificates, anything in the cluster that can reach the store's Service can read its traffic or
+use the image's demo admin certificate, as on the compose network.
+
+Upgrading and rolling back:
+[`UPGRADING.md` § On Kubernetes (Helm)](UPGRADING.md#on-kubernetes-helm).
+
 ## Point scanners at it
 
 Scanners run in the cluster they scan, which can be a different cluster or a different network.
@@ -147,7 +200,7 @@ Each pair of cluster and scanner has its own token.
 3. Run the scanner with `JAVV_BACKEND_URL=http://<JAVV machine>:8080`, `JAVV_TOKEN=<the token>`
    and `JAVV_CLUSTER_ID=<the id>`. The scanner's settings are in
    [`CONFIGURATION.md` §2](CONFIGURATION.md); its images are published per scanner version.
-   Manifests to run them as Kubernetes CronJobs are issue 714.
+   A Helm chart to run them as Kubernetes CronJobs, `javv-scanner`, is issue 725's slice 3.
 
 The first push appears in **Scanner status**; its findings appear once a scan is complete.
 
@@ -170,5 +223,6 @@ The first push appears in **Scanner status**; its findings appear once a scan is
   §2b](CONFIGURATION.md)): an image carries their defaults.
 - **TLS is yours.** JAVV serves plain http; put `https` in front of it with whatever you already
   run, and keep the session cookie `Secure`.
-- **Scanner manifests** for Kubernetes are issue 714, and the Helm chart for JAVV itself follows
-  this compose file.
+- **The scanner chart** (`javv-scanner`) is issue 725's slice 3.
+- **The charts are installed from a checkout** (`deploy/helm/`) until a release publishes them
+  (issue 725, slice 4).

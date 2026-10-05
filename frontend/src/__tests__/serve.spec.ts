@@ -5,13 +5,13 @@
  */
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import http from 'node:http'
-import type { AddressInfo } from 'node:net'
+import net, { type AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 
 import { createLogger } from '../../server/log.mjs'
-import { createFrontendServer } from '../../server/serve.mjs'
+import { connectTimeoutMs, createFrontendServer } from '../../server/serve.mjs'
 
 type Seen = { method?: string; url?: string; headers: http.IncomingHttpHeaders; body: string }
 
@@ -54,6 +54,11 @@ beforeAll(async () => {
       } else if (req.url === '/auth/login') {
         res.writeHead(200, { 'set-cookie': ['javv_session=abc; HttpOnly; Path=/', 'other=1; Path=/'] })
         res.end('{"user":{}}')
+      } else if (req.url === '/api/v1/slow') {
+        setTimeout(() => {
+          res.writeHead(200, { 'content-type': 'application/json' })
+          res.end('{"slow":true}')
+        }, 150)
       } else if (req.url === '/api/v1/stream') {
         res.writeHead(200, { 'content-type': 'text/csv' })
         res.write('a,b\n')
@@ -230,6 +235,60 @@ describe('a backend that does not answer', () => {
     await fetch(`${every}/readyz`)
     await fetch(`${every}/readyz`)
     expect(lines.map((l) => JSON.parse(l).held_back)).toEqual([0, 0])
+  })
+})
+
+/** A socket that never finishes connecting: an address whose pod is gone but still listed. */
+function neverConnects(): net.Socket {
+  const socket = new net.Socket()
+  Object.defineProperty(socket, 'connecting', { value: true })
+  return socket
+}
+
+describe('the connect timeout (JAVV_BACKEND_CONNECT_TIMEOUT)', () => {
+  it('answers 502 when the connection does not open in time, with the reason logged', async () => {
+    const log = createLogger('info', (line) => lines.push(line))
+    const server = createFrontendServer({
+      backendUrl,
+      distDir: dist,
+      log,
+      connectMs: 50,
+      createConnection: () => neverConnects(),
+    })
+    servers.push(server)
+    const started = performance.now()
+    const res = await fetch(`${await listen(server)}/readyz`)
+    expect(res.status).toBe(502)
+    expect(performance.now() - started).toBeLessThan(2_000)
+    expect((await res.json()).title).toBe('Backend unavailable')
+    expect(JSON.parse(lines[0]!)).toMatchObject({ event: 'backend unreachable', reason: 'connect timeout' })
+  })
+
+  it('never cuts an answer slower than the timeout once connected', async () => {
+    const log = createLogger('info', (line) => lines.push(line))
+    const server = createFrontendServer({ backendUrl, distDir: dist, log, connectMs: 50 })
+    servers.push(server)
+    const base = await listen(server)
+    for (let i = 0; i < 2; i++) {
+      const res = await fetch(`${base}/api/v1/slow`) // 150 ms, three times the timeout
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({ slow: true })
+    }
+    expect(lines).toHaveLength(0)
+  })
+
+  it('names another failure by its code', async () => {
+    await fetch(`${await frontend(await deadBackend())}/readyz`)
+    expect(JSON.parse(lines[0]!).reason).toBe('ECONNREFUSED')
+  })
+
+  it('reads seconds, defaults to 5, and stops the server at start on a bad value', () => {
+    expect(connectTimeoutMs(undefined)).toBe(5_000)
+    expect(connectTimeoutMs('')).toBe(5_000)
+    expect(connectTimeoutMs('0.5')).toBe(500)
+    for (const bad of ['0', '-1', 'five', 'Infinity']) {
+      expect(() => connectTimeoutMs(bad)).toThrow(/JAVV_BACKEND_CONNECT_TIMEOUT/)
+    }
   })
 })
 

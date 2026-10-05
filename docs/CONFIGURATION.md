@@ -97,6 +97,25 @@ share a store must share one timezone. On the night clocks go back, a local time
 runs once; on the night they go forward, a local time that does not exist runs at the first valid
 time after the gap, so a daily job never misses a day (`backend/tests/test_job_schedule.py`).
 
+### The `javv` Helm chart (issue 725)
+
+`deploy/helm/javv` sets every setting above under `backend.config`, by its environment name, at the
+default and with the comment the compose file gives it; `backend/tests/test_compose_settings.py`
+holds both to the code. Change one with `--set backend.config.<NAME>=<value>` or in a values file.
+The secrets are not settings there:
+
+| Value | Default | Meaning | UI? |
+|---|---|---|---|
+| `secrets.existingSecret` | `""` | 🔒 a Secret with `token-pepper` (`JAVV_TOKEN_PEPPER`) and `bootstrap-admin-password` (`JAVV_BOOTSTRAP_ADMIN_PASSWORD`); or `secrets.tokenPepper` and `secrets.bootstrapAdminPassword`, which the chart puts in one. The install fails without them; the chart never makes up a pepper | 🔒 secret |
+| `opensearch.passwordSecret.name` / `.key` | `""` / `password` | 🔒 the Secret with `JAVV_OPENSEARCH_PASSWORD`: the `javv-opensearch` chart's. The install fails without it | 🔒 secret |
+| `opensearch.caSecret.name` / `.key` | `""` / `ca.crt` | a Secret with the CA of OpenSearch's certificate. Set, it is mounted at `/etc/javv/opensearch-ca/`, `JAVV_OPENSEARCH_CA_BUNDLE` points at it and `JAVV_OPENSEARCH_VERIFY_CERTS` is `true` (the one setting the chart derives) | n/a (deploy) |
+| `backend.startupProbe` | `GET /healthz`, every 10 s, 30 tries | 300 s, ten `JAVV_REQUEST_TIMEOUT` periods, for the first start: the backend creates or updates the indices before it opens its port (`docs/engineering/UPGRADES.md`) | n/a (deploy) |
+| `backend.readinessProbe` / `livenessProbe` | `GET /readyz` every 10 s / `GET /healthz` every 20 s, 3 failures each | out of its Service while the store is unreachable; restarted only when the backend itself stops answering | n/a (deploy) |
+| `frontend.config` | `JAVV_BACKEND_URL` empty (the chart's backend Service), `JAVV_BACKEND_CONNECT_TIMEOUT` `5`, `JAVV_LOG_LEVEL` `info` | §2b's settings | n/a (deploy) |
+| `frontend.replicas` / `frontend.service.type` / `.port` | `1` / `ClusterIP` / `8080` | the Service browsers and scanners use; no Ingress (issue 452) | n/a (deploy) |
+
+The backend runs as one replica with `strategy: Recreate`, which no value changes (issue 691).
+
 ---
 
 ## 2. JAVV Scanner (CronJob) — `JAVV_*` env vars
@@ -151,6 +170,7 @@ These are read when the container starts (a restart applies them, no rebuild).
 | Env var | Default | Meaning | UI? |
 |---|---|---|---|
 | `JAVV_BACKEND_URL` | `http://backend:8000` | Where the frontend server forwards `/api`, `/auth` and `/readyz`: the backend's address as the frontend container sees it (a compose service name, a Kubernetes Service, an IP). `http` or `https`. When nothing answers there, the server replies 502 with the error envelope, which the SPA reads as "backend down" | n/a (deploy) |
+| `JAVV_BACKEND_CONNECT_TIMEOUT` | `5` | Seconds a connection to the backend may take to open. Past it the answer is the same 502 (the warning line gives `reason: connect timeout`). Only the opening is timed: once connected, a slow or streamed answer (an export) is never cut. Kubernetes refuses at once when a Service has no ready pod, but an address whose pod is gone without being removed yet (its node died) does not answer at all, and the request would hang (issue 725). A value that is not a number of seconds above 0 stops the server at start | n/a (deploy) |
 | `JAVV_FRONTEND_PORT` | `8080` | The port the frontend server listens on inside its container | n/a (deploy) |
 | `JAVV_LOG_LEVEL` *(shared)* | `info` | Also the frontend server's threshold (`debug`\|`info`\|`warning`\|`error`); an unknown name stops it at start, as in the backend | n/a (deploy) |
 
