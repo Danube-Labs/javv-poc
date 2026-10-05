@@ -57,6 +57,36 @@ There is one backend, so JAVV is unavailable for the seconds the new backend tak
 upgrade the indices. The frontend waits for it to report healthy (`depends_on`). To roll back, put
 the older release's `compose.yaml` back and run the same two commands.
 
+**The upgrade that turns on OpenSearch's login** (the release after 0.5.1, issue 715). Before step
+2, add `JAVV_OPENSEARCH_PASSWORD` to your `.env`: the compose file refuses to start without it, and
+OpenSearch refuses a weak one ([`DEPLOYING.md`](DEPLOYING.md) has the rules). Your data stays: on
+first start with its login on, OpenSearch keeps every index and sets up its security on top of
+them. Rolling back to a 0.5.x `compose.yaml` also works on the same data; OpenSearch runs without
+its login again. This was tried on the real compose files, from a 0.5.1 store with data.
+
+**Changing the OpenSearch password.** OpenSearch takes `JAVV_OPENSEARCH_PASSWORD` only on its first
+start with its login on, and keeps that password in its data. A new value in `.env` alone is
+ignored by the store: OpenSearch never reports healthy (its health check uses the new value), the
+backend waits for it, and `docker compose up -d` fails after a few minutes. To change it and keep
+the data:
+
+1. Put the new password in `.env`.
+2. Start OpenSearch on its own: `docker compose up -d opensearch`. It still takes only the old
+   password.
+3. Load the new one into its security index, with the demo admin certificate that ships in the
+   image:
+   ```bash
+   docker compose exec opensearch plugins/opensearch-security/tools/securityadmin.sh \
+     -f config/opensearch-security/internal_users.yml -t internalusers -icl -nhnv \
+     -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem
+   ```
+   It ends with `Done with success`. OpenSearch writes that file from `.env` on every start, so it
+   holds the new password.
+4. `docker compose up -d`.
+
+`docker compose down -v` also takes a new password, but it deletes all JAVV data with the store.
+OpenSearch's account API cannot change this password: `admin` is a reserved user there (403).
+
 ### On Kubernetes (Helm)
 
 The Helm chart lands in M10 ([#452](https://github.com/Danube-Labs/javv-poc/issues/452)). This section

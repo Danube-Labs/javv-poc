@@ -8,14 +8,18 @@ lists every backend setting with its default and a comment, like a Helm values f
   `JAVV_BACKEND_URL` by the frontend server);
 - every value is the code default, except the named set the compose file sets on purpose;
 - the backend and frontend run the images a release publishes, under the release-please manifest's
-  version, on lines release-please rewrites (a release PR gets no CI run of its own).
+  version, on lines release-please rewrites (a release PR gets no CI run of its own);
+- OpenSearch runs with its security plugin on, and one password from `.env` reaches both the
+  store and the backend, without being written into a container's command (issue 715).
 
 Each value is written `${JAVV_X:-default}`, so `.env` overrides any setting without an edit to the
 compose file; the default after `:-` is what is compared. Keys without the prefix (`TZ`) are not
 settings and are ignored. No store needed."""
 
 import json
+import os
 import re
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -35,6 +39,10 @@ NOT_THE_CODE_DEFAULT = {
     "JAVV_TOKEN_PEPPER",  # required from .env
     "JAVV_BOOTSTRAP_ADMIN_PASSWORD",  # required from .env
     "JAVV_ENV",  # prod: the dev pepper refuses to start
+    # issue 715: the compose store runs with its security plugin on, with demo certificates
+    "JAVV_OPENSEARCH_USERNAME",  # its admin
+    "JAVV_OPENSEARCH_PASSWORD",  # required from .env, shared with the store
+    "JAVV_OPENSEARCH_VERIFY_CERTS",  # false: the demo certificate does not name the service
 }
 
 _VALUE = re.compile(r"^\$\{(?P<name>[A-Z0-9_]+)(?P<op>:-|:\?)(?P<rest>.*)\}$")
@@ -70,10 +78,13 @@ def _env_name(field: str) -> str:
     return f"JAVV_{field.upper()}"
 
 
-def _parsed(key: str, raw: str) -> re.Match[str]:
+def _parsed(key: str, raw: str, name: str | None = None) -> re.Match[str]:
+    """`name` is the variable the value must read, when it differs from the key (OpenSearch's own
+    `OPENSEARCH_INITIAL_ADMIN_PASSWORD` reads `JAVV_OPENSEARCH_PASSWORD`)."""
     match = _VALUE.match(raw)
     assert match, f"{key}: write it as ${{{key}:-default}} so .env can override it, got {raw!r}"
-    assert match["name"] == key, f"{key} interpolates a different variable: {match['name']}"
+    expected = name or key
+    assert match["name"] == expected, f"{key} interpolates {match['name']}, not {expected}"
     return match
 
 
@@ -111,12 +122,64 @@ def test_each_value_is_the_code_default(field: str) -> None:
 
 def test_the_named_exceptions_are_what_a_deployment_needs() -> None:
     backend = _environment("backend")
-    for secret in ("JAVV_TOKEN_PEPPER", "JAVV_BOOTSTRAP_ADMIN_PASSWORD"):
+    for secret in (
+        "JAVV_TOKEN_PEPPER",
+        "JAVV_BOOTSTRAP_ADMIN_PASSWORD",
+        "JAVV_OPENSEARCH_PASSWORD",
+    ):
         assert _parsed(secret, backend[secret])["op"] == ":?", f"{secret} must be required"
     assert _parsed("JAVV_ENV", backend["JAVV_ENV"])["rest"] == "prod"
     assert _parsed("JAVV_OPENSEARCH_URL", backend["JAVV_OPENSEARCH_URL"])["rest"] == (
-        "http://opensearch:9200"
+        "https://opensearch:9200"
     )
+    assert _parsed("JAVV_OPENSEARCH_USERNAME", backend["JAVV_OPENSEARCH_USERNAME"])["rest"] == (
+        "admin"
+    )
+    verify = _parsed("JAVV_OPENSEARCH_VERIFY_CERTS", backend["JAVV_OPENSEARCH_VERIFY_CERTS"])
+    assert verify["rest"] == "false"
+
+
+def test_opensearch_runs_with_its_security_plugin_on() -> None:
+    store = _environment("opensearch")
+    assert "DISABLE_SECURITY_PLUGIN" not in store, "compose runs OpenSearch with its login on"
+    assert "DISABLE_INSTALL_DEMO_CONFIG" not in store, "the demo certificates are what it serves"
+    password = _parsed(
+        "OPENSEARCH_INITIAL_ADMIN_PASSWORD",
+        store["OPENSEARCH_INITIAL_ADMIN_PASSWORD"],
+        name="JAVV_OPENSEARCH_PASSWORD",
+    )
+    assert password["op"] == ":?", "the store's admin password is required from .env"
+    # the demo setup's own audit log writes a daily index nothing deletes (ISM is off); JAVV
+    # keeps its own audit trail
+    assert store.get("plugins.security.audit.type") == "noop"
+
+
+def test_the_health_check_keeps_the_password_out_of_the_container_command() -> None:
+    """One `$` is interpolated by compose, which writes the password into the container's
+    command, visible in docker inspect; `$$` leaves it to the container's shell. The login then
+    reaches curl on stdin (`-K -`), not as `-u`, where `ps` in the container would show it."""
+    check = " ".join(_services()["opensearch"]["healthcheck"]["test"])
+    assert "$$OPENSEARCH_INITIAL_ADMIN_PASSWORD" in check
+    assert "${" not in check and "JAVV_" not in check
+    assert "-K -" in check and " -u " not in check and "--user" not in check
+    assert "https://localhost:9200" in check
+
+
+@pytest.mark.parametrize(
+    "password",
+    ['Pa"ss\\Word1-715!', "Sp ace%$#'-Word1!", "Plain-Word1-715!"],
+)
+def test_the_health_check_hands_curl_any_password_intact(password: str) -> None:
+    """OpenSearch's rules ask for a special character, and curl reads a double-quoted config
+    value with escapes: unescaped, `pa"ss` reached the store as `pa` and the store never turned
+    healthy (review of PR 733). Run the part of the check that builds curl's config, as the
+    container's shell runs it, and require each `"` and `\\` escaped and nothing else touched."""
+    check = _services()["opensearch"]["healthcheck"]["test"][1]
+    feed = check.replace("$$", "$").split(" | curl ")[0]  # compose hands the shell one $
+    env = {"PATH": os.environ["PATH"], "OPENSEARCH_INITIAL_ADMIN_PASSWORD": password}
+    out = subprocess.run(["sh", "-c", feed], env=env, capture_output=True, text=True, check=True)
+    escaped = password.replace("\\", "\\\\").replace('"', '\\"')
+    assert out.stdout == f'user = "admin:{escaped}"\n'
 
 
 def test_the_frontend_reaches_the_backend_by_its_service_name() -> None:

@@ -37,9 +37,28 @@ and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<versio
    ```bash
    cp .env.example .env
    ```
-   Set `JAVV_TOKEN_PEPPER` (a long random string, `openssl rand -hex 32`, kept for good) and
-   `JAVV_BOOTSTRAP_ADMIN_PASSWORD` (the first admin's password, used once). The compose file
-   refuses to start without them. Decide the session cookie (next section).
+   Set three secrets. The compose file refuses to start without them.
+   - `JAVV_TOKEN_PEPPER`: a long random string (`openssl rand -hex 32`), kept for good.
+   - `JAVV_BOOTSTRAP_ADMIN_PASSWORD`: the first JAVV admin's password, used once.
+   - `JAVV_OPENSEARCH_PASSWORD`: OpenSearch's admin password, which JAVV signs in with. OpenSearch
+     takes it once, when it first starts, and refuses to start on a weak one. Its rules: 8
+     characters or more, with an upper-case letter, a lower-case letter, a digit and a special
+     character, and not a common password such as `Password123!`. A refused password stops the
+     `opensearch` container, and OpenSearch writes the refused value into its own log
+     (`docker compose logs opensearch`). Changing this password later is in
+     [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
+
+   **In `.env`, write a `$` as `$$`, or put the whole value in single quotes** (`'pa$ss…'`).
+   Compose reads an unquoted `$name` as a variable and substitutes it, with only a warning, so
+   `pa$ss-Word1!` reaches OpenSearch and the backend as `pa-Word1!`: the stack comes up healthy
+   on a password you did not write. Three more things compose does to an unquoted value: a space
+   before `#` ends it (`pa #ss` is `pa`), trailing spaces are dropped, and a value that starts
+   with `"` or `'` is read as quoted. `"` and `\` anywhere else need nothing.
+
+   **If `opensearch` never reports healthy** while its log shows it running, the password in
+   `.env` and the one the store took on its first start disagree. UPGRADING has the way out.
+
+   Decide the session cookie (next section).
 3. **Start it:**
    ```bash
    docker compose up -d   # pulls the release's images the first time
@@ -77,8 +96,11 @@ backend through the frontend's forward. To serve on another host port, change th
 - The backend's own port (8000) is not published. It also serves `/docs`, `/openapi.json` and a
   `/metrics` that needs no sign-in, so publish it only for something that must reach it directly,
   such as a Prometheus scrape (the commented `ports` block under `backend`).
-- OpenSearch is not published. Its security plugin is off, which is safe only because nothing
-  outside the compose network can reach it. Do not publish its port.
+- OpenSearch is not published. Its security plugin is on (issue 715): every request needs the
+  admin password from `.env`. Its TLS uses OpenSearch's demo certificates, whose private key ships
+  in the image, so the traffic is not private from anyone on the compose network; the backend
+  does not check the certificate and logs one warning at start saying so. The network holds only
+  the three JAVV containers. Do not publish OpenSearch's port.
 - Scanner pushes stream through the frontend container. Restarting it cuts a push in flight. The
   scanner retries it with backoff; if the retries run out, it writes the envelope to its
   dead-letter file, and its next cycle scans and pushes that image again.
@@ -134,7 +156,8 @@ The first push appears in **Scanner status**; its findings appear once a scan is
   and, for a private CA, `JAVV_OPENSEARCH_CA_BUNDLE` ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
   The user needs full access to the `findings`, `javv-*` and `system-*` indices and their aliases,
   point-in-time searches, cluster health and the snapshot repository; a narrower role is issue 729.
-  The compose file's own OpenSearch still runs with its security plugin off (issue 715).
+- **The compose file's OpenSearch uses demo certificates** (see What is exposed). For certificates
+  of your own, run your own OpenSearch and point JAVV at it as above.
 - **No maintenance page without a proxy.** `frontend/public/maintenance.html` is shown by pointing
   a proxy in front of JAVV at it (`development/RUNNING-THE-STACK.md` §R1). With nothing in front,
   there is no switch yet. Issue 719.
