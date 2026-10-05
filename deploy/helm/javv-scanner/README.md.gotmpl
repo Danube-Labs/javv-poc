@@ -43,7 +43,8 @@ CronJob, and resume it after.
   the one in `vulnDb`, then scans with updates off: every image in a cycle is checked against one
   DB and nothing upstream is called mid-scan (Trivy's misconfig checks are the ones built into
   its binary). A failed refresh falls back to the cached DB, a DB that cannot be read is dropped
-  and fetched once more, and with no readable DB the run fails and its log says so. Grype refuses
+  and fetched once more, and with no readable DB the run fails and its log says so. Trivy's Java
+  DB is checked too: a cut one fails no scan, it only drops the jars it cannot name. Grype refuses
   a DB older than 5 days.
 - **Mirrors:** `trivy.vulnDb.repository` and `trivy.vulnDb.javaRepository` take OCI repositories;
   `grype.vulnDb.updateUrl` takes the address of a DB listing. Anything else the vendors read

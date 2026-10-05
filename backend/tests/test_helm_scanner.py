@@ -102,22 +102,20 @@ def test_a_cycle_started_by_hand_waits_for_the_running_one() -> None:
             "app.kubernetes.io/instance": "s",
             "app.kubernetes.io/component": scanner,
         }
-    args = ["helm", "install", "s", str(CHART), "-n", "scan", "--dry-run=client"]
-    out = subprocess.run(
-        args + [arg for v in VALUES for arg in ("--set", v)], capture_output=True, text=True
-    )
-    assert out.returncode == 0, out.stderr
-    notes = out.stdout.split("NOTES:", 1)[1]
-    for scanner in SCANNERS:
-        cronjob = f"s-javv-scanner-{scanner}"
-        steps = [
-            f'patch cronjob {cronjob} -p \'{{"spec":{{"suspend":true}}}}\'',
-            f"get jobs -l app.kubernetes.io/instance=s,app.kubernetes.io/component={scanner}",
-            f"create job {scanner}-now --from=cronjob/{cronjob}",
-            f'patch cronjob {cronjob} -p \'{{"spec":{{"suspend":false}}}}\'',
-        ]
-        where = [notes.index(step) for step in steps]
-        assert where == sorted(where), scanner
+    # NOTES read as the template's text: helm template does not print them, and helm install
+    # --dry-run asks a cluster for its version even with =client
+    notes = (CHART / "templates" / "NOTES.txt").read_text()
+    steps = [
+        """patch cronjob {{ $cj }} -p '{"spec":{"suspend":true}}'""",
+        "get jobs -l app.kubernetes.io/instance={{ $.Release.Name }},"
+        "app.kubernetes.io/component={{ $name }}",
+        "create job {{ $name }}-now --from=cronjob/{{ $cj }}",
+        """patch cronjob {{ $cj }} -p '{"spec":{"suspend":false}}'""",
+        "If a step fails, still run the last patch",
+    ]
+    where = [notes.index(step) for step in steps]
+    assert where == sorted(where)
+    assert '{{- $cj := printf "%s-%s" (include "javv-scanner.fullname" $) $name }}' in notes
 
 
 @pytest.mark.parametrize("off", SCANNERS)
@@ -397,7 +395,7 @@ def test_the_install_fails_with_its_reason(sets: tuple[str, ...], message: str) 
 # A stand-in trivy for the refresh script: NET=1 lets downloads through; a DB marked `cut` is one
 # whose metadata calls it current, so a download leaves it alone until it is dropped.
 _FAKE_TRIVY = """#!/bin/sh
-db="$TRIVY_CACHE_DIR/db"
+db="$TRIVY_CACHE_DIR/db" java="$TRIVY_CACHE_DIR/java-db"
 case "$1 $2" in
   "image --download-db-only")
     [ "$NET" = 1 ] || exit 1
@@ -405,39 +403,46 @@ case "$1 $2" in
     mkdir -p "$db" && : >"$db/good" ;;
   "image --download-java-db-only")
     [ "$NET" = 1 ] || exit 1
-    mkdir -p "$TRIVY_CACHE_DIR/java-db" && echo x >"$TRIVY_CACHE_DIR/java-db/trivy-java.db" ;;
-  rootfs*) [ -e "$db/good" ] && [ ! -e "$db/cut" ] ;;
+    [ -e "$java/cut" ] && exit 0
+    mkdir -p "$java" && : >"$java/good" ;;
+  rootfs*)
+    [ -e "$db/good" ] && [ ! -e "$db/cut" ] || exit 2
+    case "$*" in
+      *"--pkg-types os"*) ;;
+      *) if [ -e "$java/good" ] && [ ! -e "$java/cut" ]; then echo CVE-2021-44228; fi ;;
+    esac ;;
   *) exit 9 ;;
 esac
 """
+_REFETCH = ["vuln db unreadable, fetching it again", "vuln db up to date"]
+_NO_SCAN = [
+    "vuln db unreadable, fetching it again",
+    "vuln db refresh failed and no readable one is cached, this cycle does not scan",
+]
 
 
+# The stand-in behaves as Trivy 0.74 did on a cut DB: "current" by its metadata, so a refresh
+# skips it; a cut trivy.db fails the scan, a cut Java DB exits 0 and only the finding is missing.
 @pytest.mark.parametrize(
     ("cached", "net", "code", "events"),
     [
-        (
-            None,
-            "0",
-            1,
-            [
-                "vuln db unreadable, fetching it again",
-                "vuln db refresh failed and no readable one is cached, this cycle does not scan",
-            ],
-        ),
+        (None, "0", 1, _NO_SCAN),
         (None, "1", 0, ["vuln db up to date"]),
         ("good", "0", 0, ["vuln db refresh failed, scanning with the cached db"]),
-        ("cut", "1", 0, ["vuln db unreadable, fetching it again", "vuln db up to date"]),
-        (
-            "cut",
-            "0",
-            1,
-            [
-                "vuln db unreadable, fetching it again",
-                "vuln db refresh failed and no readable one is cached, this cycle does not scan",
-            ],
-        ),
+        ("db", "1", 0, _REFETCH),
+        ("db", "0", 1, _NO_SCAN),
+        ("java-db", "1", 0, _REFETCH),
+        ("java-db", "0", 1, _NO_SCAN),
     ],
-    ids=["empty-offline", "empty-online", "cached-offline", "cut-online", "cut-offline"],
+    ids=[
+        "empty-offline",
+        "empty-online",
+        "cached-offline",
+        "cut-db-online",
+        "cut-db-offline",
+        "cut-java-db-online",
+        "cut-java-db-offline",
+    ],
 )
 def test_the_refresh_goes_on_only_with_a_db_it_can_read(
     tmp_path: Path, cached: str | None, net: str, code: int, events: list[str]
@@ -447,12 +452,11 @@ def test_the_refresh_goes_on_only_with_a_db_it_can_read(
     (bin_dir / "trivy").write_text(_FAKE_TRIVY)
     (bin_dir / "trivy").chmod(0o755)
     if cached:
-        (cache / "db").mkdir(parents=True)
-        (cache / "db" / "good").touch()
-        if cached == "cut":
-            (cache / "db" / "cut").touch()
-        (cache / "java-db").mkdir()
-        (cache / "java-db" / "trivy-java.db").write_text("x")
+        for name in ("db", "java-db"):
+            (cache / name).mkdir(parents=True)
+            (cache / name / "good").touch()
+        if cached != "good":
+            (cache / cached / "cut").touch()
     env = {
         "PATH": f"{bin_dir}:/usr/bin:/bin",
         "JAVV_SCANNER": "trivy",

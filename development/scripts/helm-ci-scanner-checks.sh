@@ -31,7 +31,16 @@ ROTATED="$JAVV_CI_ADMIN_PASSWORD-rotated"
 # as a header read from a file; a body with a password is a file too. Neither is ever in a
 # process's arguments (jq reads the password from its environment).
 jar=$(mktemp) headers=$(mktemp) body=$(mktemp)
-trap 'rm -f "$jar" "$headers" "$body"' EXIT
+# A cycle that fails while its CronJob is paused resumes it on the way out. The trap runs after
+# cycle's locals are gone, so the whole command is kept here.
+paused=()
+on_exit() {
+  rm -f "$jar" "$headers" "$body"
+  if [ "${#paused[@]}" -gt 0 ]; then
+    kubectl "${paused[@]}" -p '{"spec":{"suspend":false}}' >/dev/null || true
+  fi
+}
+trap on_exit EXIT
 
 json() {
   local status=0
@@ -146,6 +155,7 @@ cycle() {
     local selector="app.kubernetes.io/instance=$release,app.kubernetes.io/component=$scanner"
     cronjob=$(k get cronjob -l "$selector" -o jsonpath='{.items[0].metadata.name}')
     k patch cronjob "$cronjob" -p '{"spec":{"suspend":true}}' >/dev/null
+    paused=(--context "$mon_ctx" -n "$ns" patch cronjob "$cronjob")
     k delete job "ci-$scanner" --ignore-not-found >/dev/null
     until_none_running "$selector" "$scanner"
     k create job "ci-$scanner" --from="cronjob/$cronjob" >/dev/null
@@ -155,6 +165,7 @@ cycle() {
       exit 1
     fi
     k patch cronjob "$cronjob" -p '{"spec":{"suspend":false}}' >/dev/null
+    paused=()
     k logs "job/ci-$scanner" -c refresh-vulndb --tail 5
   done
 

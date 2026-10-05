@@ -173,7 +173,9 @@ in `extraEnv`). The install runs the same refresh once as a Job, which also bind
 upgrade that changes the refresh container (the image, the DB source, `extraEnv`, `resources` or
 `pullPolicy`) runs it again. Misconfig scans (`JAVV_TRIVY_SCANNERS` with `misconfig`) use the
 checks built into the Trivy binary, so they too call nothing upstream mid-scan. A DB that cannot be read (the refresh checks with a lookup) is
-dropped and fetched once more before the cycle gives up.
+dropped and fetched once more before the cycle gives up. Trivy gets two lookups, because a cut
+Java DB fails no scan: Trivy skips each jar it cannot look up and exits 0, so its lookup must find
+a known CVE in a jar only the Java DB can name.
 
 ---
 

@@ -15,16 +15,30 @@ log() {
 case "$JAVV_SCANNER" in
   trivy)
     refresh() { trivy image --download-db-only --quiet && trivy image --download-java-db-only --quiet; }
-    # A lookup, not a look at the files: `trivy version` reads only metadata.json and reports a
+    # Lookups, not a look at the files: `trivy version` reads only metadata.json and reports a
     # cut trivy.db as fine, while a scan of it crashes. This image's own Debian packages are
-    # always there, and the scan takes a second or two.
+    # always there, and that scan takes a second or two. A cut Java DB fails nothing: Trivy
+    # skips each jar it cannot look up and exits 0, so the second lookup must find something.
+    # A jar named log4j-core-2.14.1.jar with no Maven metadata is found only through the Java
+    # DB, and the vulnerability DB then gives it CVE-2021-44228.
     usable() {
-      [ -s "$TRIVY_CACHE_DIR/java-db/trivy-java.db" ] &&
+      trivy rootfs --skip-db-update --skip-java-db-update --skip-check-update --scanners vuln \
+        --pkg-types os --skip-dirs /proc --skip-dirs /sys --skip-dirs /var/cache/javv \
+        --quiet / >/dev/null 2>&1 || return 1
+      probe=$(mktemp -d) || return 1
+      printf '%s\n' \
+        UEsDBBQAAAAAAAAAIVx631ogFgAAABYAAAAUAAAATUVUQS1JTkYvTUFOSUZFU1QuTUZNYW5pZmVzdC1WZXJzaW9u \
+        OiAxLjAKUEsBAhQDFAAAAAAAAAAhXHrfWiAWAAAAFgAAABQAAAAAAAAAAAAAAIABAAAAAE1FVEEtSU5GL01BTklG \
+        RVNULk1GUEsFBgAAAAABAAEAQgAAAEgAAAAAAA== |
+        base64 -d >"$probe/log4j-core-2.14.1.jar" &&
         trivy rootfs --skip-db-update --skip-java-db-update --skip-check-update --scanners vuln \
-          --pkg-types os --skip-dirs /proc --skip-dirs /sys --skip-dirs /var/cache/javv \
-          --quiet / >/dev/null 2>&1
+          --format json --quiet "$probe" 2>/dev/null | grep -q CVE-2021-44228
+      found=$?
+      rm -r -f "$probe"
+      return "$found"
     }
-    drop() { rm -r -f "$TRIVY_CACHE_DIR/db"; }
+    # Both DBs: a cut one whose metadata calls it current is otherwise never fetched again.
+    drop() { rm -r -f "$TRIVY_CACHE_DIR/db" "$TRIVY_CACHE_DIR/java-db"; }
     ;;
   grype)
     refresh() { grype db update --quiet >/dev/null; }
@@ -39,6 +53,8 @@ esac
 
 refreshed=no
 refresh && refreshed=yes
+# Any failed lookup drops the DB, whatever the cause (a full volume too): offline, a cycle that
+# could have scanned with it then fails here instead. Accepted, for a DB that repairs itself.
 if ! usable; then
   log warning "vuln db unreadable, fetching it again"
   drop
