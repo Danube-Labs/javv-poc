@@ -264,6 +264,31 @@ describe('the connect timeout (JAVV_BACKEND_CONNECT_TIMEOUT)', () => {
     expect(JSON.parse(lines[0]!)).toMatchObject({ event: 'backend unreachable', reason: 'connect timeout' })
   })
 
+  it('counts the TLS handshake as part of connecting to an https backend', async () => {
+    // a peer that takes the TCP connection and never answers the handshake
+    const held: net.Socket[] = []
+    const silent = net.createServer((socket) => held.push(socket))
+    await new Promise<void>((resolve) => silent.listen(0, '127.0.0.1', resolve))
+    const log = createLogger('info', (line) => lines.push(line))
+    const server = createFrontendServer({
+      backendUrl: `https://127.0.0.1:${(silent.address() as AddressInfo).port}`,
+      distDir: dist,
+      log,
+      connectMs: 50,
+    })
+    servers.push(server)
+    try {
+      const started = performance.now()
+      const res = await fetch(`${await listen(server)}/readyz`)
+      expect(res.status).toBe(502)
+      expect(performance.now() - started).toBeLessThan(2_000)
+      expect(JSON.parse(lines[0]!)).toMatchObject({ reason: 'connect timeout' })
+    } finally {
+      held.forEach((socket) => socket.destroy())
+      silent.close()
+    }
+  })
+
   it('never cuts an answer slower than the timeout once connected', async () => {
     const log = createLogger('info', (line) => lines.push(line))
     const server = createFrontendServer({ backendUrl, distDir: dist, log, connectMs: 50 })

@@ -12,16 +12,22 @@ cluster are the `javv-scanner` chart. The full guide is `docs/DEPLOYING.md`.
 
 ## Install
 
+Each secret is read at a prompt or made on the spot, so it stays out of your shell history and
+every process's arguments (bash):
+
 ```bash
 # the store first (its README has the certificate choices)
-kubectl create secret generic javv-opensearch-admin --from-literal=password='<a strong password>'
+read -rs -p 'OpenSearch admin password: ' pw && echo
+printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
 helm install store deploy/helm/javv-opensearch \
   --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
 
 # then JAVV, signing in with the store's Secret
+read -rs -p 'First JAVV admin password (12 characters or more): ' pw && echo
 kubectl create secret generic javv-secrets \
-  --from-literal=token-pepper="$(openssl rand -hex 32)" \
-  --from-literal=bootstrap-admin-password='<12 characters or more>'
+  --from-file=token-pepper=<(openssl rand -hex 32 | tr -d '\n') \
+  --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
+unset pw
 helm install javv deploy/helm/javv \
   --set secrets.existingSecret=javv-secrets \
   --set opensearch.passwordSecret.name=javv-opensearch-admin
@@ -47,5 +53,9 @@ Every backend setting is under `backend.config`, at its default, by the name the
 with the comment the compose file gives it; `docs/CONFIGURATION.md` has the long form. Secrets are
 not settings here: the pepper and the bootstrap password come from `secrets`, OpenSearch's
 password and CA from `opensearch`.
+
+`values.schema.json` makes a mistyped key fail the install, except inside `backend.config` and
+`frontend.config`: those take any name, so a misspelled setting there is passed on and ignored by
+the backend. `backend/tests/test_compose_settings.py` holds this file's own settings to the code.
 
 {{ template "chart.valuesSection" . }}

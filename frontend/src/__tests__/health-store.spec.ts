@@ -105,6 +105,7 @@ describe('the API client', () => {
     { name: 'an ingress 503 page', reply: () => ingressPage(503), reason: 'backend' },
     { name: 'the frontend server 502', reply: () => json(502, '{"status":502}', 'application/problem+json'), reason: 'backend' },
     { name: 'a proxy 504 page', reply: () => ingressPage(504), reason: 'backend' },
+    { name: "a gateway's JSON 503", reply: () => json(503, '{"message":"no healthy upstream"}'), reason: 'backend' },
   ])('$name marks the $reason down, and the caller still reads the answer', async ({ reply, reason }) => {
     const answer = reply()
     // Node's Request needs an absolute address; in the browser the page's origin is the base

@@ -23,9 +23,17 @@ export function downReason(status: number | undefined, fromBackend: boolean): Do
   return status === 503 && fromBackend ? 'store' : 'backend'
 }
 
-/** True when an answer is the backend's own JSON, not a proxy's HTML or text page. */
+/** True when an answer is JSON (the /readyz poll then reads its body for the backend's answer). */
 export function isBackendJson(response: Response): boolean {
   return /[/+]json\b/.test(response.headers.get('content-type') ?? '')
+}
+
+/**
+ * True when an API answer is the backend's error envelope (`core/errors.py`, RFC 9457), which every
+ * backend error on an API route uses. A gateway's own JSON 503 (Kong, Tyk) is plain JSON.
+ */
+export function isBackendProblem(response: Response): boolean {
+  return /^application\/problem\+json\b/i.test(response.headers.get('content-type') ?? '')
 }
 
 /** True when a /readyz answer is the backend reporting its store down. */
