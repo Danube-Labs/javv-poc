@@ -21,7 +21,9 @@
 # shop / data / ops / legacy — each workload exercising a specific path:
 #   - shop:   httpd (dense deb CVEs) · node:16-slim (huge package count → table perf) ·
 #             redis ×2 (replicas aggregation)
-#   - data:   postgres · mysql:5.7 (EOL, critical-heavy) · minio (go-module ptype)
+#   - data:   postgres · mysql:5.7 (EOL, critical-heavy; its rpm packages are the seed's rpm path)
+#             minio left the seed in issue 766: Docker Hub stopped serving its pinned tag, and
+#             grafana and prometheus already carry the go-module/gobinary findings it added
 #   - ops:    grafana (alpine+go mix) · prometheus (go binaries)
 #   - legacy: nginx:1.21.6 (SAME digest as javv-smoke → cross-namespace one-row roll-up) ·
 #             python:3.9-slim (same repo as javv-smoke's python, different tag) ·
@@ -234,28 +236,6 @@ spec:
       containers:
         - name: mysql
           image: mysql:5.7
-          command: ["sleep", "infinity"]
-          resources:
-            requests: { cpu: 10m, memory: 16Mi }
-            limits:   { cpu: 100m, memory: 64Mi }
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: data-minio
-  namespace: data
-  labels: { javv.dev/purpose: scan-smoke-target }
-spec:
-  replicas: 1
-  selector:
-    matchLabels: { app: data-minio }
-  template:
-    metadata:
-      labels: { app: data-minio }
-    spec:
-      containers:
-        - name: minio
-          image: minio/minio:RELEASE.2022-05-08T23-50-31Z
           command: ["sleep", "infinity"]
           resources:
             requests: { cpu: 10m, memory: 16Mi }
