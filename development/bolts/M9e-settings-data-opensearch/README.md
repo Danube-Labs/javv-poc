@@ -145,6 +145,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-10-06: the backend runs these jobs itself (D47, issue 691):** the CronJobs this
+  bolt names were never built. The backend starts each job on its cron schedule
+  (`JAVV_JOB_<KIND>_CRON`, `jobs/scheduler.py`); `python -m backend.jobs.<name>` still runs one
+  by hand. Issue 754.
 - **2026-07-16 (slice 5, bolt wrap) — the findings-cleanup sweep landed; M9e complete.**
   `run_findings_cleanup` in `jobs/findings_cleanup.py` (the knob shipped in slice 4): the ONE
   sanctioned `delete_by_query` on `findings` reaps rows `present=false` whose **`resolved_at`**

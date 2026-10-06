@@ -55,8 +55,8 @@ These are settled and non-negotiable. A PR that violates one will be sent back r
 good the code is:
 
 - **No Redis, Kafka, RabbitMQ, or any external broker.** Coordination happens through OpenSearch;
-  the backend runs its own background jobs on cron schedules, and only the scanners and the vuln-DB
-  refresh run as Kubernetes CronJobs.
+  the backend runs its own background jobs on cron schedules, and only the scanners run as
+  Kubernetes CronJobs (each cycle refreshes its vuln DB first).
 - **Server-side everything.** Never ship raw findings to the client to compute counts. Every number
   and page comes from an OpenSearch aggregation or query.
 - **Multi-tenant by immutable `cluster_id`.** Every read and export carries an explicit `cluster_id`

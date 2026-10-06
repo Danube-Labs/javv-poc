@@ -14,7 +14,7 @@ wave (#450). **Now: M10** (polish + deploy, #41): `deploy/compose/` runs the who
 ## Start here (reading order)
 1. [`README.md`](README.md) - what JAVV is, stack, toolchain table, license.
 2. [`CLAUDE.md`](CLAUDE.md) - **hard constraints + working rules** (read before changing anything).
-3. [`docs/engineering/PLAN.md`](docs/engineering/PLAN.md) - decisions D1-D46, data model, milestones M0-M10.
+3. [`docs/engineering/PLAN.md`](docs/engineering/PLAN.md) - decisions D1-D47, data model, milestones M0-M10.
 4. [`docs/engineering/INDEX-MAP.md`](docs/engineering/INDEX-MAP.md) - **source of truth** for every OpenSearch index + mapping.
 5. [`docs/API.md`](docs/API.md) - the shipped HTTP surface (auth regimes + capabilities) · [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) - every setting.
 6. [`development/bolts/`](development/bolts/) - the milestone you're actually building.
@@ -62,7 +62,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 
 | Path | Contents |
 |---|---|
-| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D46, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `UPGRADES` (how a rollout runs the index bootstrap, rollback, what the Helm chart must do) |
+| **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D47, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `UPGRADES` (how a rollout runs the index bootstrap, rollback, what the Helm chart must do) |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
 | **`docs/CONFIGURATION.md`** | Every configuration setting: default, tier, UI-controllability. **New setting → same PR** |
 | **`docs/DEPLOYING.md`** | The operator deploy guide: the three containers, docker compose on one machine (http or https, what is exposed, settings, data), pointing scanners at it, known limits |

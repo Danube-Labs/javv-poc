@@ -9,15 +9,13 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
 
 ## Versioning
 - **SemVer** (`MAJOR.MINOR.PATCH`), derived from conventional-commit types, never bumped by hand.
-- **Pre-1.0:** while in MVP we stay in `0.x`. release-please otherwise defaults the *first* release to
-  `1.0.0`, so the config pins it with **`release-as: "0.1.0"`** (plus `bump-minor-pre-major` +
-  `bump-patch-for-minor-pre-major` for bumps after that). The **first tag (`v0.1.0`) is cut when M0/M1 lands
-  the first runnable code** — not now (the tree is docs-only) and not as late as M10; `0.x` = pre-stable dev,
-  so an early dev milestone is exactly when to tag. The **MVP release** closes the deploy bolt (M10) and
-  ships as `0.6.0` or `0.7.0`, set with a `Release-As:` footer. **`1.0.0`** comes after a hardening phase,
-  once JAVV installs plug-and-play and is as close to bug-free as we can make it. The standing
-  release PR just accumulates until then. **After that first `0.1.0` tag, remove `release-as`** from
-  `release-please-config.json` so later versions compute from commits.
+- **Pre-1.0:** while in MVP we stay in `0.x`. `release-please-config.json` sets
+  `bump-minor-pre-major` and `bump-patch-for-minor-pre-major`, so a `feat` bumps the patch version
+  and a breaking change the minor one; a minor bump beyond that is set with a `Release-As:` footer
+  (0.5.0 and 0.6.0 were). The first tag, `v0.1.0`, was pinned with a one-time `release-as` that has
+  since been removed. The **MVP release** closes the deploy bolt (M10) in the 0.6 line. **`1.0.0`**
+  comes after a hardening phase, once JAVV installs plug-and-play and is as close to bug-free as we
+  can make it.
 - JAVV is a **deployed app** (FastAPI + Vue, shipped via Helm/k3s), **not a published library**.
   A "release" here is a tag + changelog + GitHub Release that a deploy can pin to, plus the
   backend and frontend images published under that version (issue 452), each signed with cosign
@@ -89,6 +87,6 @@ release-please later turns into releases.
 scheduling. Dependabot is simpler and GitHub-native but weaker on Helm/Docker and grouping.
 
 ## Remaining gap
-- Release PRs are opened with `GITHUB_TOKEN`, which does **not** trigger the CI workflow
-  (a release would merge unverified). Switch to a PAT or GitHub App token once CI (AUDIT C1) lands.
-- Activate Renovate by enabling its GitHub App on the repo.
+- Release PRs are opened with `GITHUB_TOKEN`, which does **not** trigger the CI workflow, so the
+  release PR is closed and reopened to run it (Cutting a release, step 3). A GitHub App token for
+  release-please would remove that step.
