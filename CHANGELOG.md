@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.6.0](https://github.com/Danube-Labs/javv-poc/compare/v0.5.1...v0.6.0) (2026-10-06)
+
+
+### Features
+
+* a release publishes the three charts to ghcr, signed ([#743](https://github.com/Danube-Labs/javv-poc/issues/743)) ([e04ab83](https://github.com/Danube-Labs/javv-poc/commit/e04ab83c83074df95c4dbd096682754833ccd088))
+* compose runs opensearch with its login on ([#733](https://github.com/Danube-Labs/javv-poc/issues/733)) ([6c5ed35](https://github.com/Danube-Labs/javv-poc/commit/6c5ed3595573a25bcb5b5577d39189d2c49195f4))
+* the backend signs in to a secured opensearch, through one client factory ([#731](https://github.com/Danube-Labs/javv-poc/issues/731)) ([de2a875](https://github.com/Danube-Labs/javv-poc/commit/de2a87551299c557fec104b761ba26b1a1163e49))
+* the backend signs in to opensearch as javv, a least-privilege role ([#745](https://github.com/Danube-Labs/javv-poc/issues/745)) ([9613caf](https://github.com/Danube-Labs/javv-poc/commit/9613caf2eaa8943eb7911eafa8f5f424f264622a))
+* the charts create the javv user and role, and the app signs in as it ([#748](https://github.com/Danube-Labs/javv-poc/issues/748)) ([498e7a8](https://github.com/Danube-Labs/javv-poc/commit/498e7a8f99fc6ee3ad82d955656d5f25130a0176))
+* the javv chart, the backend and frontend from the compose file ([#740](https://github.com/Danube-Labs/javv-poc/issues/740)) ([db1d615](https://github.com/Danube-Labs/javv-poc/commit/db1d6158390f3dbc81f6cabebc2be31d3b02e166))
+* the javv-opensearch chart, opensearch with its login on and admin alone ([#738](https://github.com/Danube-Labs/javv-poc/issues/738)) ([1b51647](https://github.com/Danube-Labs/javv-poc/commit/1b516470f2361802b62d3f12534a82f066c07e23))
+* the javv-scanner chart, a cronjob and a vuln-db cache per scanner ([#741](https://github.com/Danube-Labs/javv-poc/issues/741)) ([63bc658](https://github.com/Danube-Labs/javv-poc/commit/63bc658bca7758d6211d3a02ec141c995f67daa3))
+* the release signs the app images, with an sbom attestation ([#742](https://github.com/Danube-Labs/javv-poc/issues/742)) ([6568349](https://github.com/Danube-Labs/javv-poc/commit/65683499ecd197ee063ea20c7120b4dca431d39c))
+
+
+### Bug Fixes
+
+* compose's opensearch starts with admin as its only user ([#737](https://github.com/Danube-Labs/javv-poc/issues/737)) ([f545e9d](https://github.com/Danube-Labs/javv-poc/commit/f545e9d074de6668156b92df906893b3a521f729))
+* the charts ci step fails on a failed render or a missing image ([#744](https://github.com/Danube-Labs/javv-poc/issues/744)) ([6f4e336](https://github.com/Danube-Labs/javv-poc/commit/6f4e33600e8f29b70bd8ec15f43605b20d7440ed))
+* the password change says the 12-character rule and why a password was refused ([#727](https://github.com/Danube-Labs/javv-poc/issues/727)) ([4a86e81](https://github.com/Danube-Labs/javv-poc/commit/4a86e8107351038c0797d95cc5eaf7d9b5c4dafb))
+
+
+### Miscellaneous Chores
+
+* cut the 0.6.0 minor release ([#751](https://github.com/Danube-Labs/javv-poc/issues/751)) ([5c572ad](https://github.com/Danube-Labs/javv-poc/commit/5c572ad3009fb05ff7d8beb02fc6f648b22d3871))
+
 ## [0.5.1](https://github.com/Danube-Labs/javv-poc/compare/v0.5.0...v0.5.1) (2026-10-04)
 
 
