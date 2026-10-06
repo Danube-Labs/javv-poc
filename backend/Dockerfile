@@ -11,7 +11,7 @@ ENV UV_LINK_MODE=copy \
     UV_COMPILE_BYTECODE=1 \
     UV_PYTHON_DOWNLOADS=never
 # uv's own image, tag = versions.yaml toolchain.uv (check-versions.sh), pinned by digest
-COPY --from=ghcr.io/astral-sh/uv:0.12.21@sha256:a7aed3216253ee804de3e2d8afa5073baa1a177335345d43845cd4165e43b711 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.23@sha256:61d393e44e249f2e4b526b6c7ddcecce245946826e608e11c93ad4f5bba55b21 /uv /usr/local/bin/uv
 # /app is the project; the shared lib lands at /libs so the lock's ../libs/javv-common resolves
 COPY libs /libs
 COPY backend/pyproject.toml backend/uv.lock ./
