@@ -115,6 +115,10 @@ async function submitChange() {
       <button type="submit" :disabled="busy">
         {{ mode === 'login' ? 'Sign in' : 'Change password' }}
       </button>
+      <p v-if="mode === 'login'" class="note">
+        Forgot your password? Ask an admin to reset it. If no admin can sign in, the deploy guide
+        (DEPLOYING.md) shows how to reset one.
+      </p>
     </form>
   </main>
 </template>
@@ -195,6 +199,13 @@ input {
   color: var(--soft);
   font-size: var(--text-sm);
   line-height: 1.5;
+}
+.note {
+  margin: 16px 0 0;
+  color: var(--soft);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  text-align: center;
 }
 .error {
   margin: 12px 0 0;

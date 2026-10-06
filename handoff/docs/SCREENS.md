@@ -96,6 +96,13 @@ reads "The backend is not answering. Screens cannot load until it is back." (A o
 **The password rule** (issue 726): the forced change states it under the fields, as the
 prototype does ("At least 12 characters. Your current password stops working once you set the new
 one."), refuses a shorter password before sending it, and shows the server's own reason for a `422`.
+**A forgotten password** (issue 761): the sign-in screen carries a note under **Sign in**, in the
+prototype's `login-note` place (small, muted, centered): "Forgot your password? Ask an admin to
+reset it. If no admin can sign in, the deploy guide (DEPLOYING.md) shows how to reset one." It is
+the same for every visitor (no user-existence hint) and is not on the forced change. Ruling
+(operator, on built specimens, 2026-10-06): A, the note always shown, of two; B hid it behind a
+"Forgot your password?" button. No self-service reset: users have no email and JAVV no mail server,
+and OIDC (#131) moves those passwords to the identity provider.
 **Changed:** copy states capability-based access; SSO/OIDC removed (post-MVP, per V4-DELTA).
 
 ---
