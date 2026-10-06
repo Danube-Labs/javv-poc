@@ -114,7 +114,7 @@ syft python:3.4-slim -o json | grype --output json            # SBOM → grype (
 
 Keep the two scanners **separate**: never merge a CVE across Trivy and Grype (per-scanner is sacred).
 The two Dockerfiles + the scanner package land in **M0**; image build/publish + the compatibility gate in
-**M0b** (`python -m scanner.compat`); their Helm/CronJob setup in **M10**.
+**M0b** (`python -m scanner.compat`); their CronJobs in the `javv-scanner` chart (**M10**, issue 725).
 
 ---
 
@@ -167,7 +167,7 @@ Static floor: **ruff + pyright** (Python), **vue-tsc + ESLint + oxlint + styleli
 
 | Doc | What |
 |---|---|
-| [`docs/engineering/PLAN.md`](../docs/engineering/PLAN.md) | Decisions (D1-D46), data model, milestones (M0-M10) |
+| [`docs/engineering/PLAN.md`](../docs/engineering/PLAN.md) | Decisions (D1-D47), data model, milestones (M0-M10) |
 | [`docs/engineering/INDEX-MAP.md`](../docs/engineering/INDEX-MAP.md) | **Source of truth** for every OpenSearch index + mapping - read before touching any index |
 | [`docs/research/STACK-BEST-PRACTICES.md`](../docs/research/STACK-BEST-PRACTICES.md) | Day-one engineering rules (async client, mappings, `_bulk`, Vue patterns) |
 | [`docs/research/TOOLING-AND-MCP.md`](../docs/research/TOOLING-AND-MCP.md) | MCP servers + tooling, ranked, with install commands |
