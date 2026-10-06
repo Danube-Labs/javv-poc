@@ -12,9 +12,10 @@ paths:
 
 > **One carve-out, and it is structural, not a file list:** `print()` is allowed only inside
 > `if __name__ == "__main__":` blocks — stdout-as-output for CLI entry points (the job CLIs,
-> `core/tokens.py`, `core/bootstrap.py`, `tools/export_openapi.py`, scanner `compat.py`), enforced
-> by `backend/tests/test_logging_discipline.py`. Everything inside a request path, job body, or
-> library uses the logger.
+> `core/tokens.py`, `core/bootstrap.py`, `auth/reset_password.py`, `tools/export_openapi.py`,
+> scanner `compat.py`), enforced by `backend/tests/test_logging_discipline.py`. Everything inside a
+> request path, job body, or library uses the logger. A CLI whose stdout is its answer (a token, a
+> password) sends its log lines to stderr, as `auth/reset_password.py` does.
 
 Loaded when you touch source on either stack.
 
