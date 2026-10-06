@@ -39,11 +39,12 @@
 
 > **Status:** actively developed, pre-1.0. The full stack is built and runnable from source: Python
 > scanners → FastAPI backend → **Vue 3 frontend** (overview, triage, images, audit, scanner status,
-> contributors, approvals, settings, data inspector). The **scanner images are published**
-> (see [Supported versions](#supported-versions)), but the **app images + Helm chart are not
-> built yet**. That's the remaining milestone, **M10**
-> ([#41](https://github.com/Danube-Labs/javv-poc/issues/41), starting with
-> [#452](https://github.com/Danube-Labs/javv-poc/issues/452)). See
+> contributors, approvals, settings, data inspector). It deploys with **docker compose** on one
+> machine or with **three Helm charts** on Kubernetes ([`docs/DEPLOYING.md`](docs/DEPLOYING.md)).
+> The release workflow publishes the backend and frontend images and the charts, signed with
+> cosign; the scanner images are published per supported version (see
+> [Supported versions](#supported-versions)). The current milestone is **M10**
+> ([#41](https://github.com/Danube-Labs/javv-poc/issues/41)). See
 > [Releases](https://github.com/Danube-Labs/javv-poc/releases) for the current cut; canonical design
 > lives in [`docs/engineering/`](docs/engineering/).
 
@@ -106,18 +107,18 @@ Ingest is authenticated with a per-cluster bearer token that is **scope-bound**:
 another cluster's data. JAVV only ever receives pushes, so it needs no credentials for, and no
 network path into, the clusters it reports on.
 
-Deploy: **docker compose on one machine** today ([`docs/DEPLOYING.md`](docs/DEPLOYING.md)); a Helm chart for Kubernetes follows in M10. Full detail on layers, data flow, and the index
+Deploy: **docker compose on one machine**, or **Helm charts on Kubernetes**
+([`docs/DEPLOYING.md`](docs/DEPLOYING.md)). Full detail on layers, data flow, and the index
 model lives in [`docs/engineering/ARCHITECTURE.md`](docs/engineering/ARCHITECTURE.md) and
 [`docs/engineering/INDEX-MAP.md`](docs/engineering/INDEX-MAP.md).
 
 ## Running it
 
 **On one machine:** [`deploy/compose/`](deploy/compose/) starts OpenSearch, the backend and the
-frontend with `docker compose up -d --build`, and scanners in any cluster push to it. The guide,
-including http or https and pointing scanners at it, is **[`docs/DEPLOYING.md`](docs/DEPLOYING.md)**.
-The images are built from the checkout until the releases publish them
-([#452](https://github.com/Danube-Labs/javv-poc/issues/452)); the Helm chart follows in M10
-([#41](https://github.com/Danube-Labs/javv-poc/issues/41)).
+frontend with `docker compose up -d`, on the images the release publishes, and scanners in any
+cluster push to it. **On Kubernetes:** the `javv-opensearch` and `javv` charts, and `javv-scanner`
+in each cluster you scan. The guide for both, including http or https and pointing scanners at
+JAVV, is **[`docs/DEPLOYING.md`](docs/DEPLOYING.md)**.
 
 **From source**, for development: bring the stack up by hand (backend + UI against a local OpenSearch, or the full end-to-end path
 with real Trivy/Grype scanning a live k3d cluster) by following
@@ -131,7 +132,7 @@ fresh Ubuntu host, `bash development/setup/setup-dev.sh` installs every prerequi
 
 | Doc | What |
 |---|---|
-| [PLAN.md](docs/engineering/PLAN.md) | Decisions (D1–D46), data model, milestones (M0–M10) |
+| [PLAN.md](docs/engineering/PLAN.md) | Decisions (D1–D47), data model, milestones (M0–M10) |
 | [SPEC.md](docs/engineering/SPEC.md) | Functional + non-functional requirements (FR/NFR) |
 | [ARCHITECTURE.md](docs/engineering/ARCHITECTURE.md) | Layers, data flow, diagrams (Mermaid) |
 | [INDEX-MAP.md](docs/engineering/INDEX-MAP.md) | Source of truth for every OpenSearch index + mapping |

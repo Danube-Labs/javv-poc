@@ -2,7 +2,7 @@
 
 > **Design note** (issue 261, 2026-09-29). This note covers how the index bootstrap behaves when a new JAVV
 > release rolls out: which pod runs it, why an older release can run against a newer store, and what a rollback
-> does. It also sets the requirements the Helm chart (#452) must meet. The operator runbook built on
+> does. It also sets the requirements the Helm charts (issue 725) meet. The operator runbook built on
 > it is [`docs/UPGRADING.md`](../UPGRADING.md). Index definitions stay in [`INDEX-MAP.md`](INDEX-MAP.md).
 
 ## Where bootstrap runs
@@ -113,9 +113,10 @@ new backend has removed. Keeping a removed route alive for one release is a hard
 - **Decisions are safe.** Editing a decision copies only the fields `DecisionPayload` declares from the
   stored document (`decisions/lifecycle.py`), so unknown stored keys are dropped, not rejected.
 
-## What the Helm chart must do (#452)
+## What the charts do (issue 725)
 
-Built in `deploy/helm/javv` (issue 725, slice 2); `backend/tests/test_helm_javv.py` holds each row.
+The backend rows are in `deploy/helm/javv` (issue 725, slice 2), and `backend/tests/test_helm_javv.py`
+holds each one. The scanner row is the `javv-scanner` chart (slice 3).
 
 | Setting | Value | Why |
 |---|---|---|
@@ -124,9 +125,10 @@ Built in `deploy/helm/javv` (issue 725, slice 2); `backend/tests/test_helm_javv.
 | `livenessProbe` | `GET /healthz` | no OpenSearch dependency, so a store outage degrades the app instead of restarting it |
 | `startupProbe` | `GET /healthz`, 30 tries 10 s apart: 300 s, ten `JAVV_REQUEST_TIMEOUT` periods (default 30 s each) | holds off liveness while bootstrap runs against a slow store; `backend.startupProbe` in the chart's values, recorded in `CONFIGURATION.md` |
 | `JAVV_BOOTSTRAP_ON_STARTUP` | not set (default `true`) | false skips index creation and the admin seed |
-| scanner CronJobs | a separate image tag per scanner (D41) | upgraded after the backend, as a tag swap |
+| scanner CronJobs | a separate image tag per scanner (D41), pinned by digest in a published chart | upgraded after the backend, as a tag swap |
 
-The scanner CronJobs' security context is set out in the M10 bolt README (`## Updates`, 2026-09-29).
+The scanner CronJobs' security context (UID 65532, a read-only root) is in the `javv-scanner`
+chart's `values.yaml`; the M10 bolt README's `## Updates` of 2026-09-29 set it out.
 
 ## Deferred to the hardening phase (issue 261, items 1-3)
 
@@ -137,3 +139,5 @@ The scanner CronJobs' security context is set out in the M10 bolt README (`## Up
   tag's.
 - **A tested rollback:** a CI run that upgrades, writes, rolls back and reads. It would exercise the
   lenient settings reads above end to end, plus keeping a route for one release before removing it.
+  CI's Helm job already runs `helm upgrade` and `helm rollback` within one release
+  (`development/scripts/helm-ci-app-checks.sh`); across releases with a schema change is what is deferred.

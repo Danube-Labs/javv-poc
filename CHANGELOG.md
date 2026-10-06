@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/Danube-Labs/javv-poc/compare/v0.6.0...v0.6.1) (2026-10-06)
+
+
+### Bug Fixes
+
+* the release smoke sets every compose secret, and the release pr gets its chart readmes ([#753](https://github.com/Danube-Labs/javv-poc/issues/753)) ([1299ad8](https://github.com/Danube-Labs/javv-poc/commit/1299ad81e2d022534b4625ede5bd7c06ff5b9853))
+
 ## [0.6.0](https://github.com/Danube-Labs/javv-poc/compare/v0.5.1...v0.6.0) (2026-10-06)
 
 

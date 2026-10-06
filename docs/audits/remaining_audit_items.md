@@ -49,8 +49,8 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
   + strict up-to-date, no force-pushes/deletions, conversation resolution required, 0 approving
   reviews while solo (raise `REVIEWS` in the script when a second reviewer exists). Idempotent —
   re-run to re-assert.
-- [ ] **Renovate app is inert.** The config is merged and `versions.yaml` is watched on paper, but
-  zero Renovate PRs have ever arrived — enable `github.com/apps/renovate` on the repo.
+- [x] **Renovate app is inert.** Resolved: Renovate is active and opens PRs for `versions.yaml` and
+  the dependencies; eight of them merged on 2026-10-06.
 
 ### Missing standards docs (N1 residue)
 
@@ -163,10 +163,13 @@ alerting/SLO owned by M10 (`prometheus-rules.yaml`), CORRECTNESS-CONTRACT.md wri
 
 ### Deferred-but-owned (listed so they don't fall out of view)
 
-- [ ] **Scanner dead-letter durability** — the dead-letter file is in-pod (destroyed on CronJob
-  completion) until **M10** mounts the PVC. Logged loudly today; the PVC is the fix.
-- [ ] **Token/pepper + auth items deferred to productization** — OIDC/LDAP (#131), cosign signing
-  (#74): parked issues, revisit at Phase 3.
+- [ ] **Scanner dead-letter durability:** the `javv-scanner` chart (issue 725) mounts the
+  dead-letter file on an `emptyDir`, so it still goes with the pod. A push that runs out of retries
+  is logged, and the next cycle scans and pushes that image again (`docs/DEPLOYING.md`); a PVC
+  would keep the file across cycles.
+- [ ] **Token/pepper + auth items deferred to productization:** OIDC/LDAP (#131), parked,
+  revisit at Phase 3. Cosign signing (#74) is done: the scanner images are signed by
+  `scanner-images.yml`, and the app images and charts by the release (#615, #725).
 
 ### Nice-to-haves (do if capacity, else drop consciously)
 
