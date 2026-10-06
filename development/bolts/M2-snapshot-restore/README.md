@@ -88,6 +88,13 @@ manifests originally listed here — `snapshot-repo.yaml` (repo registration) an
 lives; building them now (no chart yet, untestable) would be speculative. The PLAN gate (the
 automated restore drill) is met in Slice 2 and doesn't depend on them.
 
+### 2026-10-06: what M10 did not build (issue 754)
+
+The deploy manifests deferred to M10 above were not built there. No chart registers a snapshot
+repository: `docs/DEPLOYING.md` leaves that to the deployment (`PUT _snapshot/<name>`, with its
+credentials in OpenSearch's keystore), and JAVV's least-privilege role cannot do it (issue 729).
+There is no `snapshot-verify` CronJob or scheduled snapshot; issue 664 carries scheduled snapshots.
+
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
 > `libs/javv-common` pipeline — redaction, JSON, `timestamp→level→event` order and
