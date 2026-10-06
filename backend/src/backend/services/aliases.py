@@ -24,7 +24,9 @@ async def ensure_write_alias(client: AsyncOpenSearch, alias: str) -> None:
     Legacy series (pre-M4 bare `-000001`, or a racing pod won the create) → attach the alias to
     the existing index instead; `put_alias` is itself idempotent, so concurrent pods are safe.
     """
-    if await client.indices.exists_alias(name=alias):
+    # asked of the series' own backing indices: with no index, OpenSearch checks the alias against
+    # every index, which a least-privilege role is refused (issue 729)
+    if await client.indices.exists_alias(name=alias, index=f"{alias}-*"):
         return
     first = alias + FIRST_SUFFIX
     try:

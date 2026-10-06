@@ -318,14 +318,17 @@ jobs:
     # signed in over plain http, then the backend stopped to prove the frontend answers 502 (which
     # the app reads as "backend down", not "store"). Issue 715: OpenSearch runs with its login on,
     # so the job also proves the store refuses an anonymous request and a wrong password stops the
-    # backend with a message that says so. Issue 736: admin is the store's only user.
+    # backend with a message that says so. Issue 736: the demo setup's other users are gone.
+    # Issue 729: the backend signs in as javv, which holds only the javv role, and the role walk
+    # calls every surface that reaches OpenSearch as javv, then checks what the role refuses.
     name: Compose stack
     runs-on: ubuntu-latest
     env:
       JAVV_TOKEN_PEPPER: ci-only-pepper-for-the-compose-check
       JAVV_BOOTSTRAP_ADMIN_PASSWORD: ci-only-admin-passphrase
       # OpenSearch's rules: 8+ characters with upper, lower, digit and special, and not a weak one
-      JAVV_OPENSEARCH_PASSWORD: Ci-only-OpenSearch-715!
+      JAVV_OPENSEARCH_ADMIN_PASSWORD: Ci-only-OpenSearch-715!
+      JAVV_OPENSEARCH_PASSWORD: Ci-only-javv-729
       JAVV_SESSION_COOKIE_SECURE: "false"
       OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
     steps:
@@ -360,19 +363,20 @@ jobs:
           [ "$code" = 401 ]
 
       # issue 736: the demo security setup's other users sign in with their names as passwords,
-      # so the compose file keeps only admin in the users file OpenSearch loads
+      # so the compose file keeps only admin, and adds javv (issue 729), in the users file
+      # OpenSearch loads
       # Both logins reach curl the same way, as config on stdin, so the admin request (which must
       # succeed) proves that path carries a login: without it, readall's 401 could be a request
       # that sent none. sed escapes " and \ for curl's config, as the store's health check does.
-      - name: OpenSearch's only user is admin
+      - name: OpenSearch's users are admin and javv
         run: |
           as() {  # $1 user:password, then curl's arguments; runs curl inside the store's container
             local login=$1; shift
             printf 'user = "%s"\n' "$(printf %s "$login" | sed 's/[\\"]/\\&/g')" |
               docker compose -f deploy/compose/compose.yaml exec -T opensearch curl -sk -K - "$@"
           }
-          as "admin:$JAVV_OPENSEARCH_PASSWORD" -f \
-            https://localhost:9200/_plugins/_security/api/internalusers | jq -e 'keys == ["admin"]'
+          as "admin:$JAVV_OPENSEARCH_ADMIN_PASSWORD" -f \
+            https://localhost:9200/_plugins/_security/api/internalusers | jq -e 'keys == ["admin", "javv"]'
           code=$(as readall:readall -o /dev/null -w '%{http_code}' https://localhost:9200/_search)
           echo "readall status $code"
           [ "$code" = 401 ]
@@ -382,7 +386,37 @@ jobs:
         run: |
           check=$(docker inspect javv-opensearch-1 -f '{{json .Config.Healthcheck.Test}}')
           echo "$check" | grep -q '\$OPENSEARCH_INITIAL_ADMIN_PASSWORD'
-          if echo "$check" | grep -qF "$JAVV_OPENSEARCH_PASSWORD"; then exit 1; fi
+          if echo "$check" | grep -qF "$JAVV_OPENSEARCH_ADMIN_PASSWORD"; then exit 1; fi
+
+      - name: The backend never gets OpenSearch's admin password
+        run: |
+          if docker inspect javv-backend-1 -f '{{json .Config.Env}}' |
+            grep -qF "$JAVV_OPENSEARCH_ADMIN_PASSWORD"; then
+            echo "::error::the backend container carries the store's admin password"; exit 1
+          fi
+
+      # a seeded backend (two clusters, an inventory run), then every surface as javv
+      - name: The javv role covers every surface, and refuses the rest
+        shell: bash
+        env:
+          OS_EXEC: docker compose -f deploy/compose/compose.yaml exec -T opensearch
+          RUN_JOB: docker compose -f deploy/compose/compose.yaml exec -T backend python -m
+        run: |
+          export BACKEND=http://localhost:8080 ADMIN_PW=ci-only-admin-rotated-729
+          ADMIN_PW_INIT="$JAVV_BOOTSTRAP_ADMIN_PASSWORD" development/scripts/seed-smoke.sh
+          OS_ADMIN_LOGIN="admin:$JAVV_OPENSEARCH_ADMIN_PASSWORD" \
+            OS_JAVV_LOGIN="javv:$JAVV_OPENSEARCH_PASSWORD" \
+            development/scripts/opensearch-role-walk.sh
+          # nothing else the backend did along the way was refused: the walk's one deliberate
+          # refusal (a search of a restored copy) must be in the log, so the check can see one
+          refused=$(docker compose -f deploy/compose/compose.yaml logs backend |
+            grep -E 'status:403|security_exception' || true)
+          if ! grep -q 'restored-findings/_search' <<<"$refused"; then
+            echo "::error::the walk's refusal is not in the backend's log"; exit 1
+          fi
+          if grep -v 'restored-findings/_search' <<<"$refused"; then
+            echo "::error::OpenSearch refused the backend a call"; exit 1
+          fi
 
       - name: A wrong OpenSearch password stops the backend and says so
         run: |

@@ -77,6 +77,36 @@ async def test_ensure_is_idempotent(real_os) -> None:
     assert list(backing) == [f"{alias}-000001"]  # exactly one backing index, no dup
 
 
+def _record_exists_alias(client, monkeypatch) -> list[dict]:
+    calls: list[dict] = []
+    real = client.indices.exists_alias
+
+    async def recording(**kwargs):
+        calls.append(kwargs)
+        return await real(**kwargs)
+
+    monkeypatch.setattr(client.indices, "exists_alias", recording)
+    return calls
+
+
+@requires_opensearch
+async def test_alias_checks_name_their_own_backing_indices(real_os, monkeypatch) -> None:
+    """Issue 729: with no index, OpenSearch checks an alias against every index, which JAVV's
+    least-privilege role is refused. The store here runs without its login, so the guard is the
+    call's shape; CI's role walk is the end-to-end proof."""
+    from backend.jobs.lifecycle import run_lifecycle_sweep
+
+    client, prefix = real_os
+    calls = _record_exists_alias(client, monkeypatch)
+    alias = f"{prefix}javv-scan-events-{CLUSTER}"
+
+    await ensure_write_alias(client, alias)
+    await run_lifecycle_sweep(client, prefix=prefix, dry_run=True)
+
+    assert {c["name"] for c in calls} >= {alias, f"{prefix}system-audit-log"}
+    assert all(c.get("index") == f"{c['name']}-*" for c in calls)
+
+
 # --- the DoD gate: rollover-then-ingest ------------------------------------------
 
 

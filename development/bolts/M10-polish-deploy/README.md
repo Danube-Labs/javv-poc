@@ -77,6 +77,17 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-05: JAVV signs in to OpenSearch with a least-privilege role (issue 729, slice 1,
+  operator rulings on the plan):** the `javv` role holds what the backend calls and nothing more:
+  its own indices (`findings`, `javv-*`, `system-*`), the `restored-*` copies a restore writes,
+  snapshots and cluster health. Index delete is on `javv-*` only, and rollover on `javv-*` and
+  `system-audit-log*`. Compose creates the `javv` user and role (inline `configs`, Compose 2.23.1+),
+  and the backend signs in as `javv`. `JAVV_OPENSEARCH_PASSWORD` is now javv's, and a new
+  `JAVV_OPENSEARCH_ADMIN_PASSWORD` sets the store's admin, which the backend never gets. Two code
+  paths named no index and were refused by the role: the Data inspector's `_cat` reads (now scoped
+  to JAVV's indices) and the write-alias check (now asks the series' own backing indices). CI's
+  compose job runs `opensearch-role-walk.sh`, every surface as `javv` plus five refusals. The
+  charts follow in slice 2.
 - **2026-10-05: a release publishes the charts (issue 725, slice 4, operator rulings on the plan):**
   `Publish charts` in `release-please.yml`, after `Publish app images`: `publish-charts.sh`
   packages the three charts, checks each carries the release version, and pins the scanner images

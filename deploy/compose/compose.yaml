@@ -21,10 +21,12 @@ services:
     restart: unless-stopped
     # The demo security setup also loads six users whose password is their own name (readall can
     # search every index), and no setting turns them off. So before the image's own entrypoint
-    # runs, its users file keeps only _meta and admin; the demo setup then sets admin's password
-    # from OPENSEARCH_INITIAL_ADMIN_PASSWORD as before. OpenSearch reads the file on its first
-    # start with security on. Issue 736. The command below reaches the image's entrypoint as it
-    # would without this one (javv-opensearch is only bash's $0), so `compose run` still works.
+    # runs, its users file keeps only _meta and admin (issue 736) and adds javv, the user the
+    # backend signs in as, with its password hashed by OpenSearch's own tool (issue 729). The demo
+    # setup then sets admin's password from OPENSEARCH_INITIAL_ADMIN_PASSWORD as before. OpenSearch
+    # reads the users, roles and role-mapping files on its first start with security on. The
+    # command below reaches the image's entrypoint as it would without this one (javv-opensearch
+    # is only bash's $0), so `compose run` still works.
     entrypoint:
       - /bin/bash
       - -c
@@ -36,6 +38,11 @@ services:
         "$$users" > "$$kept";
         grep -q '^admin:' "$$kept"
         || { echo "no admin user in $$users; not starting" >&2; exit 1; };
+        hash=$$(plugins/opensearch-security/tools/hash.sh -env OPENSEARCH_JAVV_PASSWORD | tail -n 1);
+        case "$$hash" in '$$2'*) ;;
+        *) echo "could not hash OPENSEARCH_JAVV_PASSWORD; not starting" >&2; exit 1 ;; esac;
+        printf 'javv:\n  hash: "%s"\n  reserved: false\n  description: "JAVV backend"\n'
+        "$$hash" >> "$$kept";
         cat "$$kept" > "$$users"; rm -f "$$kept";
         exec ./opensearch-docker-entrypoint.sh "$$@"
       - javv-opensearch
@@ -44,10 +51,12 @@ services:
       discovery.type: single-node
       # The security plugin is on, with OpenSearch's demo certificates: a real login, but not
       # private TLS, since the demo key ships in the image. OpenSearch is still reachable only on
-      # this compose network (no published port), and the backend is its only client. The admin
-      # password is used once, when the store first starts with security on (issue 715).
+      # this compose network (no published port), and the backend is its only client. Both
+      # passwords are used once, when the store first starts with security on (issue 715): admin's
+      # stays with the store and its health check, javv's is what the backend signs in with.
       # See docs/DEPLOYING.md.
-      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${JAVV_OPENSEARCH_PASSWORD:?set JAVV_OPENSEARCH_PASSWORD in .env}
+      OPENSEARCH_INITIAL_ADMIN_PASSWORD: ${JAVV_OPENSEARCH_ADMIN_PASSWORD:?set JAVV_OPENSEARCH_ADMIN_PASSWORD in .env}
+      OPENSEARCH_JAVV_PASSWORD: ${JAVV_OPENSEARCH_PASSWORD:?set JAVV_OPENSEARCH_PASSWORD in .env}
       OPENSEARCH_JAVA_OPTS: ${OPENSEARCH_JAVA_OPTS:--Xms1g -Xmx1g}
       # JAVV runs its own index lifecycle and does not use query insights; their internal
       # indices would otherwise hold a single node on yellow
@@ -67,6 +76,12 @@ services:
       nofile: { soft: 65536, hard: 65536 }
     volumes:
       - opensearch-data:/usr/share/opensearch/data
+    # in place of the image's demo roles and mappings: the javv role, and admin's all_access
+    configs:
+      - source: opensearch-roles
+        target: /usr/share/opensearch/config/opensearch-security/roles.yml
+      - source: opensearch-roles-mapping
+        target: /usr/share/opensearch/config/opensearch-security/roles_mapping.yml
     healthcheck:
       # $$ leaves the variable to the container's shell; one $ would write the password into the
       # container's command, where docker inspect shows it. The login reaches curl as config on
@@ -105,9 +120,9 @@ services:
       JAVV_REQUEST_TIMEOUT: ${JAVV_REQUEST_TIMEOUT:-30.0}
       # check the store and create or update the indices before serving
       JAVV_BOOTSTRAP_ON_STARTUP: ${JAVV_BOOTSTRAP_ON_STARTUP:-true}
-      # the user JAVV signs in to OpenSearch as: the service's admin (a narrower role is issue 729)
-      JAVV_OPENSEARCH_USERNAME: ${JAVV_OPENSEARCH_USERNAME:-admin}
-      # --- secret (required, from .env): the same password the OpenSearch service above sets ---
+      # the user JAVV signs in to OpenSearch as: javv, which holds only the javv role below
+      JAVV_OPENSEARCH_USERNAME: ${JAVV_OPENSEARCH_USERNAME:-javv}
+      # --- secret (required, from .env): javv's password, which the OpenSearch service sets ---
       JAVV_OPENSEARCH_PASSWORD: ${JAVV_OPENSEARCH_PASSWORD:?set JAVV_OPENSEARCH_PASSWORD in .env}
       # a PEM file of CA certificates for a private CA; empty = the system's CAs
       JAVV_OPENSEARCH_CA_BUNDLE: ${JAVV_OPENSEARCH_CA_BUNDLE:-}
@@ -219,3 +234,66 @@ services:
 
 volumes:
   opensearch-data:
+
+# OpenSearch's security configuration for JAVV (issue 729), read on the store's first start with
+# security on. The javv role holds what the backend calls and nothing more; docs/DEPLOYING.md
+# gives the same role for a cluster you run yourself. The mapping keeps admin on all_access (the
+# image's own mapping file, which this one replaces, is where admin gets it) and puts javv on javv.
+configs:
+  opensearch-roles:
+    content: |
+      _meta:
+        type: "roles"
+        config_version: 2
+      javv:
+        reserved: false
+        description: "JAVV backend: its own indices, their snapshots, and cluster health"
+        cluster_permissions:
+          - "cluster:monitor/main"
+          - "cluster:monitor/health"
+          - "cluster:monitor/nodes/info"
+          - "cluster:monitor/nodes/stats"
+          - "cluster:monitor/state"
+          - "cluster:monitor/shards"
+          - "indices:admin/index_template/get"
+          - "indices:admin/index_template/put"
+          - "cluster:admin/snapshot/get"
+          - "cluster:admin/snapshot/create"
+          - "cluster:admin/snapshot/restore"
+          - "indices:data/write/bulk"
+          - "indices:data/read/mget"
+          - "indices:data/read/scroll*"
+        index_permissions:
+          - index_patterns: ["findings", "javv-*", "system-*"]
+            allowed_actions:
+              - "indices:data/read/*"
+              - "indices:data/write/*"
+              - "indices:admin/create"
+              - "indices:admin/get"
+              - "indices:admin/mapping/put"
+              - "indices:admin/mappings/get"
+              - "indices:admin/aliases"
+              - "indices:admin/aliases/get"
+              - "indices:admin/refresh*"
+              - "indices:monitor/*"
+          - index_patterns: ["javv-*", "system-audit-log*"]
+            allowed_actions: ["indices:admin/rollover"]
+          - index_patterns: ["javv-*"]
+            allowed_actions: ["indices:admin/delete"]
+          # written by a restore and listed by the Data inspector, never read: a copy of
+          # system-users holds password hashes
+          - index_patterns: ["restored-*"]
+            allowed_actions: ["indices:admin/create", "indices:data/write/*", "indices:monitor/*"]
+  opensearch-roles-mapping:
+    content: |
+      _meta:
+        type: "rolesmapping"
+        config_version: 2
+      all_access:
+        reserved: false
+        backend_roles: ["admin"]
+        description: "admin, the store's superuser"
+      javv:
+        reserved: false
+        users: ["javv"]
+        description: "the backend's user"
