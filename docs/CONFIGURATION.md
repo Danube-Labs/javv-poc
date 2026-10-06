@@ -241,7 +241,7 @@ env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (pa
 | `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers\|deep-squashed` (validated, #97; unset = grype default) | read-only display (C-4) |
 | `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag); non-integer → fail-fast with a clear error (#97) | read-only display (C-4) |
 | Output format | `json` | fixed — parser depends on it | n/a |
-| **Grype version** | `0.119.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
+| **Grype version** | `0.120.0` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; refreshed at the start of each cycle by the `javv-scanner` chart (§2), at scan time without it | ⚙️ read-only display |
 
 ---
