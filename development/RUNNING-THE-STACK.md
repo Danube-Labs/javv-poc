@@ -311,7 +311,7 @@ cd scanner && KUBECONFIG=$HOME/.kube/config JAVV_SCANNER=trivy \
   uv run python -m scanner
 ```
 
-That's the full loop the k8s CronJobs will run on a schedule.
+That's the full loop each scanner's CronJob runs on a schedule (the `javv-scanner` chart, issue 725).
 
 ---
 

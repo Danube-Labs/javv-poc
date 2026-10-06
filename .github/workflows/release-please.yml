@@ -2,7 +2,8 @@ name: release-please
 
 # Maintains a standing "release PR" that accumulates conventional-commit changelog
 # entries + the next SemVer bump. Merging that PR cuts the tag, GitHub Release, and
-# CHANGELOG, and publishes the app images. See development/standards/releases.md.
+# CHANGELOG, then publishes the app images and the three charts, signed. While the PR is open, a
+# job regenerates its chart READMEs. See development/standards/releases.md.
 
 on:
   push:

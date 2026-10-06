@@ -112,6 +112,10 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 
 ## Updates
 
+- **2026-10-06: the backend runs these jobs itself (D47, issue 691):** the CronJobs this
+  bolt names were never built. The backend starts each job on its cron schedule
+  (`JAVV_JOB_<KIND>_CRON`, `jobs/scheduler.py`); `python -m backend.jobs.<name>` still runs one
+  by hand. Issue 754.
 - **2026-07-03 — pre-kickoff refresh against the M0–M3 reality.** M1/M3 already built the
   scan-events doc builder (idempotent `_id`, `scan_order`, `commit_key`, `effective_config`,
   clean-scan `total:0`), the counts invariant, and the index template — moved to a new *Already

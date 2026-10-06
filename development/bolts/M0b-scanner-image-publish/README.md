@@ -86,6 +86,9 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   a scanner-code merge moves `:<ver>` (M10's chart).
   - **`docker build --check` (point 4):** new `lint-dockerfiles` job on both Dockerfiles; `publish` now
     `needs: [compat, lint-dockerfiles]`.
+- **2026-10-06: "M10's chart" is the `javv-scanner` chart** (issue 725, slice 3). A published
+  chart names each scanner image by the digest its tag pointed at when the release was made, so a
+  later republish of `:<ver>` does not change what a release runs. Issue 754.
 
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
