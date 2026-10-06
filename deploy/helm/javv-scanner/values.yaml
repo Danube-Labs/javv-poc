@@ -28,7 +28,7 @@ trivy:
     repository: ghcr.io/danube-labs/javv-scanner-trivy
     # -- The Trivy version, from versions.yaml (`scanners.trivy.current`). The tag moves when JAVV
     # republishes the image for that version, so it is pulled on every run.
-    tag: "0.74.0"  # versions.yaml scanners.trivy.current
+    tag: "0.75.0"  # versions.yaml scanners.trivy.current
     # -- `sha256:...`: run exactly that image; it wins over `tag`. Empty in the repository; the
     # chart a release publishes sets it to the digest the tag named at the release.
     digest: ""
