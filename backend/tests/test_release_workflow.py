@@ -116,3 +116,31 @@ def test_the_release_verifies_with_the_identity_the_docs_give() -> None:
     issuer = re.search(r"^ISSUER=(\S+)$", section, re.M)
     assert identity and issuer
     assert (identity[1], issuer[1]) == (verify["IDENTITY"], verify["ISSUER"])
+
+
+def test_the_release_pr_carries_chart_readmes_at_its_version() -> None:
+    # release-please moves each Chart.yaml and the javv chart's tags, never the READMEs helm-docs
+    # writes from them, so its PR failed CI's README check until this job (issue 752)
+    workflow = _workflow()
+    outputs = workflow["jobs"]["release-please"]["outputs"]
+    assert outputs["prs_created"] == "${{ steps.release.outputs.prs_created }}"
+    assert outputs["pr"] == "${{ steps.release.outputs.pr }}"
+
+    job = workflow["jobs"]["chart-readmes"]
+    assert job["needs"] == "release-please"
+    assert job["if"] == (
+        "needs.release-please.outputs.prs_created == 'true'"
+        " && needs.release-please.outputs.release_created != 'true'"
+    )
+    assert job["permissions"] == {"contents": "write"}
+
+    steps = job["steps"]
+    checkout = next(s for s in steps if s.get("uses", "").startswith("actions/checkout@"))
+    branch = "${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}"
+    assert checkout["with"]["ref"] == branch
+    run = "\n".join(s.get("run", "") for s in steps)
+    assert "development/scripts/helm-docs.sh" in run
+    # a push only when a README changed, and only to the release PR's own branch
+    assert "git diff --quiet -- 'deploy/helm/*/README.md' && exit 0" in run
+    assert 'git push origin "HEAD:$BRANCH"' in run
+    assert next(s for s in steps if "git push" in s.get("run", ""))["env"]["BRANCH"] == branch

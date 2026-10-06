@@ -50,6 +50,20 @@ standing **"release PR"** that accumulates changelog entries and the next versio
 merge that PR when you decide to release — that merge creates the tag, GitHub Release, and
 updated `CHANGELOG.md`.
 
+**Cutting a release:**
+1. **The version.** A `Release-As: <version>` footer in a commit's own message sets it; a
+   one-commit squash keeps the commit message and drops the PR body.
+2. **The chart READMEs.** The `chart-readmes` job regenerates them on the release PR (issue 752):
+   release-please moves each `Chart.yaml` and the `javv` chart's tags, not the READMEs helm-docs
+   writes from them.
+3. **CI.** The release PR is pushed with `GITHUB_TOKEN`, so no CI runs on it (see Remaining gap).
+   Close and reopen it to start CI.
+4. **When to merge.** Only when no `scanner-images` run is in progress on `main`. That workflow
+   republishes the scanner tags on a merge that touches `versions.yaml` or the scanner build, and
+   signs them minutes later. The release refuses an unsigned scanner image.
+5. **Merging.** Every release PR so far was merged with a merge commit. Then follow both publish
+   jobs through their pull-and-verify steps.
+
 **Why release-please over semantic-release:**
 | | release-please | semantic-release |
 |---|---|---|
