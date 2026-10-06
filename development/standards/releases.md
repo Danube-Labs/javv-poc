@@ -25,8 +25,12 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
   `release-please.yml` does that in the same run, and verifies the signatures signed out. The
   `Publish charts` job then publishes the three Helm charts at `oci://ghcr.io/danube-labs/charts`
   under the same version, each signed (issue 725), with the scanner images pinned by digest in
-  `javv-scanner`. It runs only after the images are published. If it fails, the release notes say so at
-  the top: fix the cause, re-run the failed jobs, then delete the note.
+  `javv-scanner`. It runs only after the images are published. If either job fails, the release notes
+  say so at the top. When the cause is outside the workflow (a registry or Sigstore outage), re-run
+  the failed jobs once it clears, then delete the note. A re-run uses the workflow as it was at the
+  release commit, so a cause in the workflow itself can only be fixed by a fix on `main` and the
+  next release. 0.6.0's smoke step lacked a variable compose requires, so 0.6.0 published nothing
+  and its fix went into the release after it.
 - **Version notes for operators.** A change that does any of the following adds a row to
   [`docs/UPGRADING.md` § Version notes](../../docs/UPGRADING.md#version-notes) in the same PR,
   with `Unreleased` in the release column:
