@@ -119,6 +119,7 @@ SCHEDULED_KINDS = (
     "staleness_sweep",
     "lifecycle_sweep",
     "findings_cleanup",
+    "cluster_retirement",
     "session_sweep",
 )
 
@@ -141,6 +142,7 @@ def test_the_default_schedules_are_the_ruled_ones(monkeypatch) -> None:
         "staleness_sweep": "0 2 * * *",
         "lifecycle_sweep": "0 3 * * *",
         "findings_cleanup": "0 4 * * *",
+        "cluster_retirement": "15 4 * * *",
         "session_sweep": "30 4 * * *",
     }
 
