@@ -1,10 +1,11 @@
 name: Versions drift
 
 # D42: versions.yaml is the single source of truth for externally-owned tool/service versions.
-# Consumers (scanner Dockerfiles, dev OpenSearch compose, CI service images and setup-node, the
-# pyproject ruff/pyright pins, the pre-commit ruff hook, the bake defaults, and the docs that state
-# the supported versions) keep a literal pin so they work standalone; this gate fails if any
-# consumer drifts from versions.yaml, or a Python copy from backend/.python-version.
+# Consumers (the scanner and app Dockerfiles, the dev and deploy compose files, the javv-opensearch
+# and javv-scanner charts' image tags, CI service images and setup-node, the pyproject ruff/pyright
+# pins, the pre-commit ruff hook, the bake defaults, and the docs that state the supported versions)
+# keep a literal pin so they work standalone; this gate fails if any consumer drifts from
+# versions.yaml, or a Python copy from backend/.python-version.
 # Fix: check-versions.sh --fix.
 
 on:

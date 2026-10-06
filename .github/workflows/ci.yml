@@ -3,10 +3,17 @@ name: CI
 # Quality gate for every PR + push to main, as required by
 # development/standards/definition-of-done.md, git-workflow.md and testing.md. Active gates:
 #   - commitlint (PR commits; release-please depends on the types)
-#   - javv-common / backend / scanner: ruff + pyright + pytest (backend against a real
-#     OpenSearch service container; coverage floor --cov-fail-under, #383)
+#   - secret-scan: gitleaks over the full history
+#   - javv-common / scanner: ruff + pyright + pytest
+#   - backend-static: ruff + pyright + the docs-drift check; backend: pytest against a real
+#     OpenSearch service container (coverage floor --cov-fail-under, #383)
 #   - app-images (issue 452): the app's Docker images build without a push, then start and answer
-#   - helm (issue 725): ct lint, the chart READMEs, and ct install in kind with each chart's tests
+#   - compose (issues 452, 715, 729): the stack from deploy/compose, signed in through the frontend,
+#     OpenSearch's login and users checked, and the javv role walked over every surface
+#   - helm (issue 725): ct lint, the chart READMEs, the release's package/push/pull, ct install of
+#     the three charts in kind, the app's sign-in, upgrade and rollback, and a scanner cycle
+#     pushing from a second cluster
+#   - dependency-audit (issue 552): pip-audit + npm audit, report-only
 #   - frontend: oxlint/eslint/stylelint + vue-tsc + vitest (coverage floor in
 #     vitest.config.ts, #383) + the I4/I7 contract gates (openapi.json snapshot must match
 #     the backend code, generated client must match the snapshot — this is what catches a
