@@ -1,0 +1,163 @@
+"""Retired clusters (issue 765): a cluster that is gone leaves the cluster list, the switcher and
+All clusters, and keeps all of its data. One `system-config` doc per retired cluster,
+`cluster-retirement:<cluster_id>`; un-retiring deletes it.
+
+A manual retire also revokes the cluster's tokens, so a scanner still pushing gets 401. An
+automatic one (the retirement sweep) leaves them alone, so a cluster that was only silent comes
+back on its next scan. Both journal first (D17): the audit rows land before anything changes, and
+the retirement doc is written last, so a retire that failed halfway is re-driven by a retry
+instead of reading as done."""
+
+import contextlib
+from datetime import UTC, datetime
+from typing import Any, Literal
+
+from opensearchpy import AsyncOpenSearch, NotFoundError
+from pydantic import BaseModel, ConfigDict
+
+from backend.audit.writer import append_auth_event, append_field_change
+from backend.core.stored_settings import parse_stored_setting
+from backend.query.paging import search_to_exhaustion
+
+RETIREMENT_PREFIX = "cluster-retirement:"
+
+
+def retirement_doc_id(cluster_id: str) -> str:
+    return f"{RETIREMENT_PREFIX}{cluster_id}"
+
+
+class Retirement(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    retired_at: datetime
+    by: str  # a user_id, or "system" for the sweep
+    mode: Literal["manual", "auto"]
+
+
+async def read_retirements(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, Retirement]:
+    """Every retired cluster: `{cluster_id → Retirement}`. Bounded by the fleet size."""
+    try:
+        docs = await search_to_exhaustion(
+            client,
+            index=f"{prefix}system-config",
+            body={
+                "size": 1000,
+                "query": {"prefix": {"key": RETIREMENT_PREFIX}},
+                "sort": [{"key": "asc"}],  # the doc id: unique, so a total order for the walk
+            },
+        )
+    except NotFoundError:
+        return {}
+    return {
+        doc["key"][len(RETIREMENT_PREFIX) :]: parse_stored_setting(
+            Retirement, doc["value"], key=doc["key"]
+        )
+        for doc in docs
+    }
+
+
+async def _live_token_ids(client: AsyncOpenSearch, cluster_id: str, prefix: str) -> list[str]:
+    ids: list[str] = []
+    after: list[Any] | None = None
+    while True:
+        body: dict[str, Any] = {
+            "size": 1000,
+            "_source": False,
+            "query": {
+                "bool": {
+                    "filter": [{"term": {"cluster_id": cluster_id}}],
+                    "must_not": [{"term": {"disabled": True}}],
+                }
+            },
+            "sort": [{"token_hash": "asc"}],  # unique + immutable, as the staleness sweep walks it
+        }
+        if after is not None:
+            body["search_after"] = after
+        hits = (await client.search(index=f"{prefix}system-tokens", body=body))["hits"]["hits"]
+        ids.extend(h["_id"] for h in hits)
+        if len(hits) < 1000:
+            return ids
+        after = hits[-1]["sort"]
+
+
+async def retire_cluster(
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    *,
+    actor: str,
+    mode: Literal["manual", "auto"],
+    prefix: str = "",
+) -> Retirement:
+    """Retire one cluster. The caller has checked it is known and not already retired."""
+    await append_field_change(
+        client,
+        actor=actor,
+        action="cluster_retire",
+        entity_type="config",
+        entity_id=f"cluster:{cluster_id}",
+        field="retired",
+        old_value=None,
+        new_value=mode,
+        revision=1,
+        cluster_id=cluster_id,
+        prefix=prefix,
+    )
+    token_ids = await _live_token_ids(client, cluster_id, prefix) if mode == "manual" else []
+    for token_id in token_ids:
+        await append_auth_event(
+            client,
+            actor=actor,
+            action="token_revoke",
+            entity_type="token",
+            entity_id=token_id,
+            cluster_id=cluster_id,
+            strict=True,
+            prefix=prefix,
+        )
+    for token_id in token_ids:
+        await client.update(
+            index=f"{prefix}system-tokens",
+            id=token_id,
+            body={"doc": {"disabled": True}},
+            params={"refresh": "true"},
+        )
+    retirement = Retirement(retired_at=datetime.now(UTC), by=actor, mode=mode)
+    await client.index(
+        index=f"{prefix}system-config",
+        id=retirement_doc_id(cluster_id),
+        body={
+            "key": retirement_doc_id(cluster_id),
+            "cluster_id": cluster_id,
+            "value": retirement.model_dump(mode="json"),
+            "updated_at": retirement.retired_at.isoformat(),
+            "updated_by": actor,
+        },
+        params={"refresh": "true"},
+    )
+    return retirement
+
+
+async def unretire_cluster(
+    client: AsyncOpenSearch, cluster_id: str, *, actor: str, prefix: str = ""
+) -> None:
+    """Bring a retired cluster back to the list. Its revoked tokens stay revoked: a scanner needs
+    a new token to push again."""
+    await append_field_change(
+        client,
+        actor=actor,
+        action="cluster_unretire",
+        entity_type="config",
+        entity_id=f"cluster:{cluster_id}",
+        field="retired",
+        old_value="retired",
+        new_value=None,
+        revision=1,
+        cluster_id=cluster_id,
+        prefix=prefix,
+    )
+    with contextlib.suppress(NotFoundError):  # a retry after the delete landed: already back
+        await client.delete(
+            index=f"{prefix}system-config",
+            id=retirement_doc_id(cluster_id),
+            params={"refresh": "true"},
+        )

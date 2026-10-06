@@ -3260,7 +3260,20 @@
     },
     "/api/v1/clusters": {
       "get": {
+        "description": "Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters\nboth read this list, so leaving one out here is what takes it off them.",
         "operationId": "list_clusters_api_v1_clusters_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "include_retired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Retired",
+              "type": "boolean"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -3273,6 +3286,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "List Clusters",
@@ -3331,6 +3354,97 @@
           }
         },
         "summary": "Rename Cluster",
+        "tags": [
+          "clusters"
+        ]
+      }
+    },
+    "/api/v1/clusters/{cluster_id}/retire": {
+      "post": {
+        "description": "Manual retire: off the list, tokens revoked, data kept (issue 765).",
+        "operationId": "retire_api_v1_clusters__cluster_id__retire_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{7,63}$",
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Retire Api V1 Clusters  Cluster Id  Retire Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Retire",
+        "tags": [
+          "clusters"
+        ]
+      }
+    },
+    "/api/v1/clusters/{cluster_id}/unretire": {
+      "post": {
+        "operationId": "unretire_api_v1_clusters__cluster_id__unretire_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{7,63}$",
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Unretire Api V1 Clusters  Cluster Id  Unretire Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Unretire",
         "tags": [
           "clusters"
         ]

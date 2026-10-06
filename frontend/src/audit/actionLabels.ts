@@ -19,6 +19,8 @@ export const ACTION_LABELS: Record<string, string> = {
   view_delete: 'View deleted',
   sla_policy_change: 'SLA policy',
   cluster_rename: 'Cluster renamed',
+  cluster_retire: 'Cluster retired',
+  cluster_unretire: 'Cluster un-retired',
   pwd_change: 'Password changed',
   pwd_reset: 'Password reset',
   role_change: 'Role changed',

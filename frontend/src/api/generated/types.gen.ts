@@ -1622,9 +1622,23 @@ export type ReceiveClientEventsApiV1ClientEventsPostResponse = ReceiveClientEven
 export type ListClustersApiV1ClustersGetData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Include Retired
+         */
+        include_retired?: boolean;
+    };
     url: '/api/v1/clusters';
 };
+
+export type ListClustersApiV1ClustersGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListClustersApiV1ClustersGetError = ListClustersApiV1ClustersGetErrors[keyof ListClustersApiV1ClustersGetErrors];
 
 export type ListClustersApiV1ClustersGetResponses = {
     /**
@@ -1672,6 +1686,74 @@ export type RenameClusterApiV1ClustersClusterIdNamePutResponses = {
 };
 
 export type RenameClusterApiV1ClustersClusterIdNamePutResponse = RenameClusterApiV1ClustersClusterIdNamePutResponses[keyof RenameClusterApiV1ClustersClusterIdNamePutResponses];
+
+export type RetireApiV1ClustersClusterIdRetirePostData = {
+    body?: never;
+    path: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+    };
+    query?: never;
+    url: '/api/v1/clusters/{cluster_id}/retire';
+};
+
+export type RetireApiV1ClustersClusterIdRetirePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetireApiV1ClustersClusterIdRetirePostError = RetireApiV1ClustersClusterIdRetirePostErrors[keyof RetireApiV1ClustersClusterIdRetirePostErrors];
+
+export type RetireApiV1ClustersClusterIdRetirePostResponses = {
+    /**
+     * Response Retire Api V1 Clusters  Cluster Id  Retire Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type RetireApiV1ClustersClusterIdRetirePostResponse = RetireApiV1ClustersClusterIdRetirePostResponses[keyof RetireApiV1ClustersClusterIdRetirePostResponses];
+
+export type UnretireApiV1ClustersClusterIdUnretirePostData = {
+    body?: never;
+    path: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+    };
+    query?: never;
+    url: '/api/v1/clusters/{cluster_id}/unretire';
+};
+
+export type UnretireApiV1ClustersClusterIdUnretirePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UnretireApiV1ClustersClusterIdUnretirePostError = UnretireApiV1ClustersClusterIdUnretirePostErrors[keyof UnretireApiV1ClustersClusterIdUnretirePostErrors];
+
+export type UnretireApiV1ClustersClusterIdUnretirePostResponses = {
+    /**
+     * Response Unretire Api V1 Clusters  Cluster Id  Unretire Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type UnretireApiV1ClustersClusterIdUnretirePostResponse = UnretireApiV1ClustersClusterIdUnretirePostResponses[keyof UnretireApiV1ClustersClusterIdUnretirePostResponses];
 
 export type ContributorsApiV1ContributorsGetData = {
     body?: never;

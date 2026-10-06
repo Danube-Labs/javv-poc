@@ -33,6 +33,8 @@ export const AUDIT_ACTIONS = [
   // config
   'sla_policy_change',
   'cluster_rename',
+  'cluster_retire',
+  'cluster_unretire',
   // auth + admin (entity_type=user/token)
   'login',
   'logout',

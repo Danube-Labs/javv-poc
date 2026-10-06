@@ -140,7 +140,7 @@ routes stay current-state-only).
 | GET | `/api/v1/audit/export.csv` | Streaming CSV of the audit lens (M9d, same filters incl. `exclude_*`): decorated + CSV-injection-sanitized, constant-memory PIT sweep; > `JAVV_EXPORT_MAX_ROWS` → **413**, PIT cap → **429** (same bounds as the findings export) |
 | GET | `/api/v1/images` | Running images = the latest **committed** inventory run's image docs (M8c/#240; the T=now case of M8b's `running_images_at` — shared primitives). Partial runs never leak; clean (zero-finding) images appear; `inventory: null` = no committed inventory yet (unknown ≠ empty) |
 | GET | `/api/v1/images/timeline` | One `repo:tag`'s committed scan-event history (`cluster_id` + `image_repo` + `tag` query params) for the image-detail digest sub-timeline — build-change (digest flips) and per-scanner gap markers derive client-side |
-| GET | `/api/v1/clusters` | Cluster listing (D-5): token-derived `cluster_id`s ∪ registry names; `cluster_name` defaults to the id. **Display-only** — never a query key |
+| GET | `/api/v1/clusters` | Cluster listing (D-5): token-derived `cluster_id`s ∪ registry names; `cluster_name` defaults to the id. **Display-only** — never a query key. Each row carries `retired`; retired clusters (issue 765) are left out unless `?include_retired=true` |
 
 **Cursor errors (A-m1):** expired PIT → **410** (re-run the search); tampered/invalid cursor →
 **422**; OpenSearch transport failure → **503**. The PIT slot is released on every error path.
@@ -173,6 +173,8 @@ routes stay current-state-only).
 | PUT | `/api/v1/settings/report-ttl` | `can_manage_retention` | Set the export TTL `hours` (fleet-wide `report_ttl` setting — row 11 made `JAVV_EXPORT_TTL_HOURS` runtime-editable). Journaled (D17) |
 | PUT | `/api/v1/settings/findings-cleanup` | `can_manage_retention` | Set the D37/M12 long `cleanup_days` window — fleet default, or a per-cluster override via body `cluster_id` (the lifecycle-settings pattern; consumed per cluster by the findings-cleanup job). Journaled (D17) |
 | PUT | `/api/v1/clusters/{cluster_id}/name` | `can_manage_settings` | Rename a cluster's display name (M8c/#240): journaled per D17 (journal-first), stored in the `system-config` `cluster-registry` doc via a seq_no-CAS write. `cluster_id` itself is immutable |
+| POST | `/api/v1/clusters/{cluster_id}/retire` | `can_manage_settings` | Retire a cluster (issue 765): it leaves the default listing, so the switcher and All clusters; its data is kept and its tokens are revoked. Journal-first (D17): a `cluster_retire` row, then a `token_revoke` row per token. Unknown cluster **404**, already retired **409**. Returns `{cluster_id, retired, retired_at, by, mode}` |
+| POST | `/api/v1/clusters/{cluster_id}/unretire` | `can_manage_settings` | Bring a retired cluster back to the listing (`cluster_unretire`, journal-first). Its revoked tokens stay revoked: a scanner needs a new token. Unknown **404**, not retired **409** |
 
 ### Saved views (M8e, C-6)
 

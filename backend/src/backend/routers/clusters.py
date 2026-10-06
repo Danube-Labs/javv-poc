@@ -10,16 +10,20 @@ default `cluster_name = cluster_id`.
 
 Rename = `can_manage_settings` (admin), journal-FIRST per D17/#188 (the audit row lands before
 the registry write — a journal failure leaves no applied-but-unjournaled rename), mirroring the
-SLA settings write."""
+SLA settings write.
+
+Retire and un-retire (issue 765, `admin/cluster_retirement.py`) are `can_manage_settings` too: a
+retired cluster leaves the default listing and keeps its data."""
 
 from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from opensearchpy import AsyncOpenSearch
 from opensearchpy.exceptions import ConflictError, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.admin.cluster_retirement import read_retirements, retire_cluster, unretire_cluster
 from backend.audit.writer import append_field_change
 from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal, get_current_principal
@@ -66,12 +70,59 @@ async def _token_cluster_ids(client: AsyncOpenSearch, *, prefix: str = "") -> li
     return [b["key"] for b in agg["buckets"]] if agg else []
 
 
+async def _known_cluster_ids(client: AsyncOpenSearch, names: dict[str, str]) -> set[str]:
+    return set(await _token_cluster_ids(client)) | set(names)
+
+
 @router.get("")
-async def list_clusters(request: Request, principal: Authenticated) -> dict[str, Any]:
+async def list_clusters(
+    request: Request,
+    principal: Authenticated,
+    include_retired: Annotated[bool, Query()] = False,
+) -> dict[str, Any]:
+    """Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters
+    both read this list, so leaving one out here is what takes it off them."""
     client = cast(Any, request.app.state.opensearch)
     names = await read_registry(client)
-    known = sorted(set(await _token_cluster_ids(client)) | set(names))
-    return {"clusters": [{"cluster_id": cid, "cluster_name": names.get(cid, cid)} for cid in known]}
+    retired = await read_retirements(client)
+    known = sorted(await _known_cluster_ids(client, names))
+    return {
+        "clusters": [
+            {"cluster_id": cid, "cluster_name": names.get(cid, cid), "retired": cid in retired}
+            for cid in known
+            if include_retired or cid not in retired
+        ]
+    }
+
+
+async def _require_known(client: AsyncOpenSearch, cluster_id: str) -> None:
+    if cluster_id not in await _known_cluster_ids(client, await read_registry(client)):
+        raise HTTPException(404, "cluster not found")
+
+
+@router.post("/{cluster_id}/retire")
+async def retire(
+    request: Request, cluster_id: ClusterIdPath, principal: ManageSettings
+) -> dict[str, Any]:
+    """Manual retire: off the list, tokens revoked, data kept (issue 765)."""
+    client = cast(Any, request.app.state.opensearch)
+    await _require_known(client, cluster_id)
+    if cluster_id in await read_retirements(client):
+        raise HTTPException(409, "cluster is already retired")
+    retirement = await retire_cluster(client, cluster_id, actor=principal.user_id, mode="manual")
+    return {"cluster_id": cluster_id, "retired": True, **retirement.model_dump(mode="json")}
+
+
+@router.post("/{cluster_id}/unretire")
+async def unretire(
+    request: Request, cluster_id: ClusterIdPath, principal: ManageSettings
+) -> dict[str, Any]:
+    client = cast(Any, request.app.state.opensearch)
+    await _require_known(client, cluster_id)
+    if cluster_id not in await read_retirements(client):
+        raise HTTPException(409, "cluster is not retired")
+    await unretire_cluster(client, cluster_id, actor=principal.user_id)
+    return {"cluster_id": cluster_id, "retired": False}
 
 
 @router.put("/{cluster_id}/name")

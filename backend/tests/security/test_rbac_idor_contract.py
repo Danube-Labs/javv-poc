@@ -211,6 +211,18 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"cluster_name": "RBAC probe"},
     ),
+    MutatingEndpoint(  # issue 765 — retire a cluster (off the list, its tokens revoked)
+        method="POST",
+        path="/api/v1/clusters/c-rbac-sample1/retire",
+        route_path="/api/v1/clusters/{cluster_id}/retire",
+        capability="can_manage_settings",
+    ),
+    MutatingEndpoint(  # issue 765 — bring a retired cluster back
+        method="POST",
+        path="/api/v1/clusters/c-rbac-sample1/unretire",
+        route_path="/api/v1/clusters/{cluster_id}/unretire",
+        capability="can_manage_settings",
+    ),
     MutatingEndpoint(  # issue 406 repair actions — per-KIND capability inside the handler
         # (rebuild_state→can_rebuild_state, lifecycle_sweep→can_drop_index); the registry probes
         # the staleness kind, the other kinds' gates are asserted in test_admin_jobs
