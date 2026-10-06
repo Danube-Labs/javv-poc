@@ -457,6 +457,7 @@ jobs:
     env:
       # OpenSearch's rules: 8+ characters with upper, lower, digit and special, and not a weak one
       JAVV_CI_OPENSEARCH_PASSWORD: Ci-only-OpenSearch-725!
+      JAVV_CI_OPENSEARCH_BACKEND_PASSWORD: Ci-only-javv-729
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -584,6 +585,16 @@ jobs:
           development/scripts/helm-ci-scanner-checks.sh cycle \
             kind-monitored javv-scan scanner "$JAVV_CI_BACKEND_URL"
           df -h /
+
+      # issue 729: the backend signed in as javv through every step above; nothing it did was
+      # refused (the store's own helm test checks javv's role and a refusal)
+      - name: OpenSearch refused the backend nothing
+        shell: bash
+        run: |
+          if kubectl --context kind-chart-testing -n javv logs deploy/javv-backend |
+            grep -E 'status:403|security_exception'; then
+            echo "::error::OpenSearch refused the backend a call"; exit 1
+          fi
 
       - name: Cluster state
         if: failure()

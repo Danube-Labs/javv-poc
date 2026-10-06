@@ -153,14 +153,21 @@ store, and `javv`, the backend and frontend. Each release publishes all three at
 release, use `deploy/helm/<chart>` in place of `oci://ghcr.io/danube-labs/charts/<chart> --version
 <version>`. Each chart's README lists every value; this is the order and what each step needs.
 
-1. **The store, with its admin password in a Secret.** OpenSearch refuses a weak one (the rules
-   are the compose ones above). Each secret here is read at a prompt or made on the spot, so it
-   stays out of your shell history and every process's arguments (the commands need bash).
+1. **The store, with its two passwords in Secrets:** admin's, which stays with OpenSearch, and
+   javv's, the user JAVV's backend signs in as, which holds only the `javv` role
+   ([An OpenSearch of your own](#an-opensearch-of-your-own) lists it). OpenSearch refuses a weak
+   admin password (the rules are the compose ones above). Each secret here is read at a prompt or
+   made on the spot, so it stays out of your shell history and every process's arguments (the
+   commands need bash).
    ```bash
    read -rs -p 'OpenSearch admin password: ' pw && echo
    printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
+   unset pw
+   kubectl create secret generic javv-opensearch-backend \
+     --from-file=password=<(openssl rand -hex 24 | tr -d '\n')
    helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <version> \
-     --set opensearch.javv.auth.existingSecret=javv-opensearch-admin
+     --set opensearch.javv.auth.existingSecret=javv-opensearch-admin \
+     --set opensearch.javv.backend.existingSecret=javv-opensearch-backend
    ```
    That runs OpenSearch's demo certificates, as compose does. For your own, set
    `opensearch.javv.tls.existingSecret` (a Secret with `tls.crt`, a PKCS#8 `tls.key` and
@@ -174,11 +181,11 @@ release, use `deploy/helm/<chart>` in place of `oci://ghcr.io/danube-labs/charts
      --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
    unset pw
    ```
-3. **JAVV**, signing in to the store with the store's own Secret:
+3. **JAVV**, signing in to the store as `javv`, with javv's Secret:
    ```bash
    helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \
      --set secrets.existingSecret=javv-secrets \
-     --set opensearch.passwordSecret.name=javv-opensearch-admin
+     --set opensearch.passwordSecret.name=javv-opensearch-backend
    helm test javv
    ```
    With the store's own certificate, add `--set opensearch.caSecret.name=<the Secret with its
@@ -298,8 +305,9 @@ signature on each scanner image before it names the image's digest in the publis
 
 ## An OpenSearch of your own
 
-JAVV signs in to OpenSearch as one user, which needs one role. The compose file creates both, as
-`javv`; the role holds what the backend calls and nothing more. Its own indices (`findings`,
+JAVV signs in to OpenSearch as one user, which needs one role. The compose file and the
+`javv-opensearch` chart create both, as `javv`; the role holds what the backend calls and nothing
+more. Its own indices (`findings`,
 `javv-*`, `system-*`, and the `restored-*` copies a restore from **Settings › Data & OpenSearch**
 writes and its Data inspector lists, but never reads: a copy of `system-users` holds password
 hashes), their snapshots, and cluster health. It cannot read any other index's documents, change

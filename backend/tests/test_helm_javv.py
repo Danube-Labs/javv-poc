@@ -30,9 +30,9 @@ ADMIN = "admin-725-render"
 VALUES = (
     f"secrets.tokenPepper={PEPPER}",
     f"secrets.bootstrapAdminPassword={ADMIN}",
-    "opensearch.passwordSecret.name=store-admin",
+    "opensearch.passwordSecret.name=store-backend",
 )
-EXISTING = ("secrets.existingSecret=javv-secrets", "opensearch.passwordSecret.name=store-admin")
+EXISTING = ("secrets.existingSecret=javv-secrets", "opensearch.passwordSecret.name=store-backend")
 WITH_CA = (*VALUES, "opensearch.caSecret.name=store-tls")
 
 
@@ -107,8 +107,10 @@ def test_secrets_by_reference(sets: tuple[str, ...]) -> None:
     assert env["JAVV_BOOTSTRAP_ADMIN_PASSWORD"] == {
         "secretKeyRef": {"name": secret, "key": "bootstrap-admin-password"}
     }
+    # issue 729: the backend signs in as javv, with javv's password, never the admin's
+    assert env["JAVV_OPENSEARCH_USERNAME"] == "javv"
     assert env["JAVV_OPENSEARCH_PASSWORD"] == {
-        "secretKeyRef": {"name": "store-admin", "key": "password"}
+        "secretKeyRef": {"name": "store-backend", "key": "password"}
     }
     secrets = [d for d in docs if d["kind"] == "Secret"]
     assert len(secrets) == (0 if sets is EXISTING else 1)

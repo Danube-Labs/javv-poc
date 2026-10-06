@@ -2,7 +2,9 @@
 OpenSearch for JAVV: https://{{ include "javv-opensearch.service" . }}:{{ .Values.opensearch.httpPort }} in namespace {{ .Release.Namespace }}.
 
 Sign in as admin with the password in the Secret
-{{ include "javv-opensearch.adminSecret" (dict "javv" $javv "Release" .Release) }} (key: password). admin is the only user that signs in with a password.
+{{ include "javv-opensearch.adminSecret" (dict "javv" $javv "Release" .Release) }} (key: password). The other user that signs in with a password is javv,
+which JAVV's backend uses and which holds only the javv role: its password is in the Secret
+{{ include "javv-opensearch.backendSecret" (dict "javv" $javv "Release" .Release) }}, which the javv chart's opensearch.passwordSecret names.
 {{- if include "javv-opensearch.ownCertificates" $javv }}
 
 TLS: your certificate, from the Secret {{ include "javv-opensearch.tlsSecret" (dict "javv" $javv "Release" .Release) }}. JAVV checks it with
@@ -15,7 +17,7 @@ reach this Service can read the traffic or use that certificate. Set opensearch.
 certificates of your own.
 {{- end }}
 
-OpenSearch reads the admin password once, on its first start. A new password in the Secret alone
-does not change it; see the chart README.
+OpenSearch reads both passwords once, on its first start. A new password in a Secret alone does
+not change it; see the chart README.
 
 Check the install: helm test {{ .Release.Name }} -n {{ .Release.Namespace }}
