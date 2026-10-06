@@ -350,6 +350,7 @@ test that drills it — these can't drift from the code:
 | Retention / rollover changes | Settings → Data & OpenSearch (applies at the next lifecycle sweep) | `backend/tests/test_lifecycle.py` |
 | Findings cache cleanup | setting in the same panel; `uv run python -m backend.jobs.findings_cleanup` | `backend/tests/test_findings_cleanup.py` |
 | Maintenance page | point the proxy in front of the app at `maintenance.html` (§ R1 below) | `frontend/src/__tests__/maintenance-page.spec.ts` |
+| Forgotten password | Settings → Users & roles → Reset password; with no admin left to sign in, `uv run python -m backend.auth.reset_password <username>` (DEPLOYING § A forgotten password) | `backend/tests/test_reset_password.py` + `test_admin_users.py` |
 
 ### R1. The maintenance page
 

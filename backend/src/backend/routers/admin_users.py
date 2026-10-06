@@ -4,8 +4,9 @@ credential); a created/reset user gets an admin-set temp password and starts `mu
 (the same SEC-6 server-enforced first-login change the bootstrap admin gets); a role change
 updates `role` + the denormalized `capabilities` together and REVOKES every session of the user
 (D33 — role/permission changes must not ride an old session); disable also revokes. The LAST
-enabled admin can be neither demoted nor disabled (409 — no self-bricking; recovery would be
-manual index surgery). Role-bundle EDITING is out of scope (assignment of `system-roles` bundles
+enabled admin can be neither demoted nor disabled (409 — no self-bricking). An admin who forgets
+their password is reset from a shell instead, by `python -m backend.auth.reset_password` (issue
+761). Role-bundle EDITING is out of scope (assignment of `system-roles` bundles
 only); external (`oidc`/`ldap`) users' passwords are their IdP's business (403 on reset).
 
 Every route registers in the standing RBAC/IDOR suite (`tests/security/test_rbac_idor_contract.py`)

@@ -417,6 +417,28 @@ Then set `JAVV_OPENSEARCH_USERNAME=javv` and `JAVV_OPENSEARCH_PASSWORD`
 ([`CONFIGURATION.md` §1](CONFIGURATION.md)). Snapshots need a repository registered by you
 (`PUT _snapshot/<name>`, with any credentials in OpenSearch's keystore), which JAVV's role cannot do.
 
+## A forgotten password
+
+A user who forgets theirs asks an admin, who gives them a temporary password with **Reset
+password** in **Settings › Users & roles**. They choose their own at the next sign-in.
+
+When no admin can sign in, reset one from a shell where the backend runs (issue 761):
+
+```bash
+docker compose exec backend python -m backend.auth.reset_password admin          # compose
+kubectl exec deploy/javv-backend -- python -m backend.auth.reset_password admin  # Helm, release javv
+```
+
+It prints a temporary password, once, and nothing else. Sign in with it and JAVV asks for a new one
+before anything else. It also ends every session of that user and writes a `pwd_reset` row to the
+Audit log, with `system` as the actor. A user whose password belongs to an identity provider is
+refused. A user locked out by too many failed sign-ins stays locked out for
+`JAVV_LOGIN_LOCKOUT_MINUTES` (15 by default), because the lockout lives in the running backend's
+memory: wait it out, or restart the backend.
+
+Changing `JAVV_BOOTSTRAP_ADMIN_PASSWORD` does not do this: it is read only when the admin does not
+exist yet.
+
 ## Known limits
 
 - **amd64 only.** The images, like the scanner images, are built for amd64.
