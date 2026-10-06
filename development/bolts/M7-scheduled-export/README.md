@@ -64,6 +64,10 @@ accept a bulk-triage job (frozen `target_ids` + patch + one journaled row on com
 - Admin-configurable off-peak windows in the UI → `Settings → Data & OpenSearch` (FR-19, M9e).
 
 ## Updates
+- **2026-10-06: the backend runs these jobs itself (D47, issue 691):** the CronJobs this
+  bolt names were never built. The backend starts each job on its cron schedule
+  (`JAVV_JOB_<KIND>_CRON`, `jobs/scheduler.py`); `python -m backend.jobs.<name>` still runs one
+  by hand. Issue 754.
 - **2026-07-08 (post-bolt, by M8b slice 4/#34)** — the **as_of_t export unparked**: the drain's
   FAIL-LOUD branch is gone; a queued export with a past `as_of_t` now reconstructs its rows at T
   through the `AsOfTReader` (paged, throttled like any export) into the same CSV/VEX pipeline.

@@ -77,6 +77,14 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-06: the 0.6 releases (issues 752 and 754):**
+  - **0.5.2 was never released.** Issue 715 slice 2 and the issue 736 fix are both first in
+    `v0.6.0`, so no release ever ran a store with the six demo users. The 2026-10-05 entry's
+    caveat for "0.5.2" never applied.
+  - **0.6.0 published nothing.** Its tag and GitHub Release exist, but the release workflow's
+    compose smoke lacked `JAVV_OPENSEARCH_ADMIN_PASSWORD`, which issue 729 made required. The fix
+    (PR 753) also has the release workflow regenerate the chart READMEs on its own PR (issue
+    752). The images and charts ship with the release after 0.6.0.
 - **2026-10-05: the charts create and use javv (issue 729, slice 2):** `javv-opensearch` takes
   javv's password as a second Secret (`opensearch.javv.backend`, required like admin's). Its init
   container writes admin and javv into the users file, and the javv role and mapping come from

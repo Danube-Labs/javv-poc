@@ -420,9 +420,10 @@ Then set `JAVV_OPENSEARCH_USERNAME=javv` and `JAVV_OPENSEARCH_PASSWORD`
 ## Known limits
 
 - **amd64 only.** The images, like the scanner images, are built for amd64.
-- **The first release with published images is the one after 0.5.0.** 0.5.0 predates the images, so
-  its tag has none.
-- **An OpenSearch of your own, with its security plugin on,** works from the release after 0.5.1:
+- **Releases with published images:** 0.5.1, then the releases after 0.6.0. 0.5.0 predates the
+  images. 0.6.0's release run stopped before publishing (its compose smoke lacked a setting), so
+  its tag has no images and no charts; use the release after it.
+- **An OpenSearch of your own, with its security plugin on,** works from the 0.6 releases:
   point `JAVV_OPENSEARCH_URL` at it and set `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`
   and, for a private CA, `JAVV_OPENSEARCH_CA_BUNDLE` ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
   The user needs the `javv` role ([An OpenSearch of your own](#an-opensearch-of-your-own)).
@@ -439,5 +440,5 @@ Then set `JAVV_OPENSEARCH_USERNAME=javv` and `JAVV_OPENSEARCH_PASSWORD`
   login; one that fails to pull is skipped with a warning in the scanner's log. Issue 739.
 - **The scanners see every pod spec.** Listing pods, which finding the images needs, also shows
   any value written straight into a pod's `env`. Keep secrets in Secrets.
-- **The first release with published charts is the one after 0.5.1.** For 0.5.1 and earlier,
+- **The first release with published charts is the one after 0.6.0.** For earlier releases,
   install from a checkout's `deploy/helm/`.
