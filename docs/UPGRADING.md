@@ -156,10 +156,11 @@ source, `extraEnv`, `resources` or `pullPolicy`); the next
 cycle uses the new image. To roll back, `helm rollback scanner` in that cluster, before rolling JAVV
 back.
 
-**Changing the OpenSearch password** is in the
-[`javv-opensearch` chart's README](../deploy/helm/javv-opensearch/README.md#changing-the-admin-password).
-After it, restart the backend so it reads the new password from the same Secret:
-`kubectl rollout restart deploy/javv-backend`.
+**Changing an OpenSearch password** (admin's, or javv's, the user the backend signs in as) is in
+the [`javv-opensearch` chart's README](../deploy/helm/javv-opensearch/README.md#changing-a-password).
+After javv's, restart the backend so it reads the new password from the same Secret:
+`kubectl rollout restart deploy/javv-backend`. The same section loads the `javv` role and its
+mapping into a store first started without them (issue 729).
 
 ## Check what's running
 

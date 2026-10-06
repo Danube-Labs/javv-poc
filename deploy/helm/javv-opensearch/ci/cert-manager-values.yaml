@@ -4,6 +4,8 @@ opensearch:
   javv:
     auth:
       existingSecret: javv-ci-admin
+    backend:
+      existingSecret: javv-ci-backend
     tls:
       certManager:
         enabled: true

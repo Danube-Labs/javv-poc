@@ -180,17 +180,14 @@ def test_each_chart_value_is_the_code_default(field: str) -> None:
 
 
 def test_the_chart_and_compose_agree_on_every_value_but_the_store_address() -> None:
-    """The named exceptions too: prod, unchecked demo certificates. The address differs: the
-    chart's store is the javv-opensearch chart's Service. So does the user, until the
-    javv-opensearch chart creates javv too (issue 729, slice 2): the chart signs in as admin."""
+    """The named exceptions too: prod, javv as the store user, unchecked demo certificates. Only
+    the address differs: the chart's store is the javv-opensearch chart's Service."""
     compose = {k: _VALUE.match(v) for k, v in _environment("backend").items()}
     for key, value in _chart("backend").items():
         match = compose[key]
         default = match["rest"] if match else None  # TZ is written the same way
         if key == "JAVV_OPENSEARCH_URL":
             assert value == "https://javv-opensearch:9200"
-        elif key == "JAVV_OPENSEARCH_USERNAME":
-            assert (value, default) == ("admin", "javv")
         else:
             assert value == default, f"{key}: chart {value!r}, compose {default!r}"
     frontend = _environment("frontend")

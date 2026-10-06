@@ -77,6 +77,13 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-05: the charts create and use javv (issue 729, slice 2):** `javv-opensearch` takes
+  javv's password as a second Secret (`opensearch.javv.backend`, required like admin's). Its init
+  container writes admin and javv into the users file, and the javv role and mapping come from
+  the chart's `files/` (held equal to the compose file's `configs`) as a ConfigMap mounted over
+  the image's demo ones. The `javv` chart signs in as `javv` with that Secret. The store's
+  `helm test` checks javv's role and a refusal, and the Helm job fails on any 403 in the
+  backend's log after the scanner cycle.
 - **2026-10-05: JAVV signs in to OpenSearch with a least-privilege role (issue 729, slice 1,
   operator rulings on the plan):** the `javv` role holds what the backend calls and nothing more:
   its own indices (`findings`, `javv-*`, `system-*`), the `restored-*` copies a restore writes,

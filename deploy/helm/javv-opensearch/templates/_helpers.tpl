@@ -14,6 +14,11 @@ so it works from either side: here `.Values.opensearch.javv`, there `.Values.jav
 {{- .javv.auth.existingSecret | default (printf "%s-javv-opensearch-admin" .Release.Name) -}}
 {{- end -}}
 
+{{/* the Secret holding javv's password (issue 729); takes (dict "javv" <block> "Release" .Release) */}}
+{{- define "javv-opensearch.backendSecret" -}}
+{{- .javv.backend.existingSecret | default (printf "%s-javv-opensearch-backend" .Release.Name) -}}
+{{- end -}}
+
 {{/* the Secret holding your certificate; takes (dict "javv" <block> "Release" .Release) */}}
 {{- define "javv-opensearch.tlsSecret" -}}
 {{- .javv.tls.existingSecret | default (printf "%s-javv-opensearch-tls" .Release.Name) -}}

@@ -31,8 +31,8 @@ backend:
     JAVV_REQUEST_TIMEOUT: "30.0"
     # check the store and create or update the indices before serving
     JAVV_BOOTSTRAP_ON_STARTUP: "true"
-    # the user JAVV signs in to OpenSearch as: the service's admin (a narrower role is issue 729)
-    JAVV_OPENSEARCH_USERNAME: "admin"
+    # the user JAVV signs in to OpenSearch as: javv, which holds only the javv role (issue 729)
+    JAVV_OPENSEARCH_USERNAME: "javv"
     # a PEM file of CA certificates; leave it empty here: opensearch.caSecret sets it
     JAVV_OPENSEARCH_CA_BUNDLE: ""
     # false for OpenSearch's demo certificates, which name neither the Service nor a CA anyone
@@ -198,8 +198,9 @@ secrets:
   bootstrapAdminPassword: ""
 
 opensearch:
-  # -- The Secret with the OpenSearch password JAVV signs in with: the javv-opensearch chart's
-  # (`opensearch.javv.auth.existingSecret` there, or `<its release>-javv-opensearch-admin`).
+  # -- The Secret with the password of javv, the OpenSearch user JAVV signs in as: the
+  # javv-opensearch chart's (`opensearch.javv.backend.existingSecret` there, or
+  # `<its release>-javv-opensearch-backend`). Never the admin's: the backend needs only javv.
   passwordSecret:
     name: ""
     key: password

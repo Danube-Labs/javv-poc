@@ -13,9 +13,17 @@
         "javv": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["auth", "tls"],
+          "required": ["auth", "backend", "tls"],
           "properties": {
             "auth": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "existingSecret": { "type": "string" },
+                "password": { "type": "string" }
+              }
+            },
+            "backend": {
               "type": "object",
               "additionalProperties": false,
               "properties": {

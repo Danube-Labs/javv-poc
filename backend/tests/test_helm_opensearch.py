@@ -6,8 +6,9 @@ fail without it rather than skip.
 What they hold:
 - one node with the compose file's OpenSearch settings, on the image versions.yaml pins, and the
   chart's version is the release's, on a line release-please moves;
-- admin is the only password user in every mode: an init container writes a users file holding
-  admin alone, hashed from the Secret read through the environment (issue 736);
+- admin and javv are the only password users in every mode: an init container writes a users file
+  holding the two, each hashed from its Secret read through the environment (issues 736, 729), and
+  the javv role and its mapping are mounted from files/ in place of the image's;
 - demo certificates by default; your own, from a Secret or from cert-manager, switch the demo setup
   off through opensearch.yml and are mounted so a renewal reaches the node;
 - every rule the chart enforces at install fails with its message.
@@ -31,13 +32,16 @@ MANIFEST = ROOT / ".release-please-manifest.json"
 RELEASE_PLEASE = ROOT / "release-please-config.json"
 
 PASSWORD = "opensearch.javv.auth.password=Pw-725-render!"
-DEMO = (PASSWORD,)
+BACKEND = "opensearch.javv.backend.password=Pj-729-render"
+DEMO = (PASSWORD, BACKEND)
 OWN_SECRET = (
     "opensearch.javv.auth.existingSecret=store-admin",
+    "opensearch.javv.backend.existingSecret=store-backend",
     "opensearch.javv.tls.existingSecret=store-certs",
 )
 CERT_MANAGER = (
     PASSWORD,
+    BACKEND,
     "opensearch.javv.tls.certManager.enabled=true",
     "opensearch.javv.tls.certManager.issuerRef.name=store-ca",
 )
@@ -70,12 +74,12 @@ def _store(docs: list[dict[str, Any]]) -> dict[str, Any]:
     return next(c for c in _pod(docs)["containers"] if c["name"] == "opensearch")
 
 
-def _admin_user_init(docs: list[dict[str, Any]]) -> dict[str, Any]:
-    return next(c for c in _pod(docs)["initContainers"] if c["name"] == "javv-admin-user")
+def _users_init(docs: list[dict[str, Any]]) -> dict[str, Any]:
+    return next(c for c in _pod(docs)["initContainers"] if c["name"] == "javv-users")
 
 
 def _opensearch_yml(docs: list[dict[str, Any]]) -> str:
-    (config,) = _kind(docs, "ConfigMap")
+    (config,) = [c for c in _kind(docs, "ConfigMap") if "opensearch.yml" in c["data"]]
     return config["data"]["opensearch.yml"]
 
 
@@ -130,7 +134,7 @@ def test_the_image_is_the_opensearch_versions_yaml_pins() -> None:
     docs = _render(*DEMO)
     image = f"opensearchproject/opensearch:{_pinned_opensearch()}"
     assert _store(docs)["image"] == image
-    assert _admin_user_init(docs)["image"] == image
+    assert _users_init(docs)["image"] == image
     chart = yaml.safe_load((CHART / "Chart.yaml").read_text())
     assert chart["appVersion"] == _pinned_opensearch()
 
@@ -147,37 +151,61 @@ def test_the_chart_carries_this_release() -> None:
 
 
 @pytest.mark.parametrize("mode", [DEMO, OWN_SECRET, CERT_MANAGER], ids=["demo", "own", "cm"])
-def test_the_admin_user_file_replaces_the_images_in_every_mode(mode: tuple[str, ...]) -> None:
+def test_the_security_files_replace_the_images_in_every_mode(mode: tuple[str, ...]) -> None:
     docs = _render(*mode)
-    init = _admin_user_init(docs)
-    (env,) = init["env"]
-    secret = "store-admin" if mode is OWN_SECRET else "t-javv-opensearch-admin"
-    assert env["valueFrom"]["secretKeyRef"] == {"name": secret, "key": "password"}
-    mounts = {m["name"]: m for m in _store(docs)["volumeMounts"]}
-    assert mounts["javv-users"]["mountPath"] == (
-        f"{IMAGE_HOME}/config/opensearch-security/internal_users.yml"
-    )
-    assert mounts["javv-users"]["subPath"] == "internal_users.yml"
+    env = {e["name"]: e["valueFrom"]["secretKeyRef"] for e in _users_init(docs)["env"]}
+    own = mode is OWN_SECRET
+    assert env == {
+        "JAVV_ADMIN_PASSWORD": {
+            "name": "store-admin" if own else "t-javv-opensearch-admin",
+            "key": "password",
+        },
+        "JAVV_BACKEND_PASSWORD": {
+            "name": "store-backend" if own else "t-javv-opensearch-backend",
+            "key": "password",
+        },
+    }
+    security = f"{IMAGE_HOME}/config/opensearch-security"
+    mounts = {(m["name"], m.get("subPath")): m["mountPath"] for m in _store(docs)["volumeMounts"]}
+    assert mounts[("javv-users", "internal_users.yml")] == f"{security}/internal_users.yml"
+    assert mounts[("javv-security", "roles.yml")] == f"{security}/roles.yml"
+    assert mounts[("javv-security", "roles_mapping.yml")] == f"{security}/roles_mapping.yml"
+    volumes = {v["name"]: v for v in _pod(docs)["volumes"]}
+    assert volumes["javv-security"]["configMap"]["name"] == "t-javv-opensearch-security"
 
 
-def test_the_password_is_only_in_its_secret() -> None:
+def test_the_role_and_mapping_are_the_charts_files() -> None:
+    """files/ is held equal to the compose file's configs by test_opensearch_role.py."""
+    (config,) = [c for c in _kind(_render(*DEMO), "ConfigMap") if "roles.yml" in c["data"]]
+    assert config["metadata"]["name"] == "t-javv-opensearch-security"
+    for name in ("roles.yml", "roles_mapping.yml"):
+        assert yaml.safe_load(config["data"][name]) == yaml.safe_load(
+            (CHART / "files" / name).read_text()
+        )
+
+
+def test_each_password_is_only_in_its_secret() -> None:
     docs = _render(*DEMO)
-    password = PASSWORD.split("=", 1)[1]
-    (secret,) = _kind(docs, "Secret")
-    assert secret["metadata"]["name"] == "t-javv-opensearch-admin"
-    assert secret["stringData"] == {"password": password}
-    others = [doc for doc in docs if doc is not secret]
-    assert password not in yaml.safe_dump_all(others)
+    secrets = {s["metadata"]["name"]: s["stringData"] for s in _kind(docs, "Secret")}
+    admin, backend = PASSWORD.split("=", 1)[1], BACKEND.split("=", 1)[1]
+    assert secrets == {
+        "t-javv-opensearch-admin": {"password": admin},
+        "t-javv-opensearch-backend": {"password": backend},
+    }
+    others = yaml.safe_dump_all([doc for doc in docs if doc["kind"] != "Secret"])
+    assert admin not in others and backend not in others
 
 
 def test_an_existing_secret_renders_no_secret() -> None:
     assert _kind(_render(*OWN_SECRET), "Secret") == []
 
 
-def _run_admin_user_init(home: Path, hash_line: str) -> subprocess.CompletedProcess[str]:
+def _run_users_init(
+    home: Path, hash_line: str, backend: str = "Pj-729-render"
+) -> subprocess.CompletedProcess[str]:
     """Run the init container's script with a stand-in for OpenSearch's hash.sh that prints its
     usual noise, then a line built from the variable it was told to read."""
-    script = _admin_user_init(_render(*DEMO))["command"][2]
+    script = _users_init(_render(*DEMO))["command"][2]
     tools = home / "plugins" / "opensearch-security" / "tools"
     tools.mkdir(parents=True)
     (home / "javv-users").mkdir()
@@ -186,14 +214,21 @@ def _run_admin_user_init(home: Path, hash_line: str) -> subprocess.CompletedProc
         f'#!/bin/sh\necho "WARNING: noise"\n[ "$1" = -env ] || exit 2\n{hash_line}\n'
     )
     hash_sh.chmod(0o755)
-    env = {"PATH": os.environ["PATH"], "JAVV_ADMIN_PASSWORD": "Pw-725-render!"}
+    env = {
+        "PATH": os.environ["PATH"],
+        "JAVV_ADMIN_PASSWORD": "Pw-725-render!",
+        "JAVV_BACKEND_PASSWORD": backend,
+    }
     script = script.replace("/javv-users/", f"{home}/javv-users/")
     return subprocess.run(["bash", "-c", script], cwd=home, env=env, capture_output=True, text=True)
 
 
-def test_the_users_file_holds_admin_alone_hashed_from_the_environment(tmp_path: Path) -> None:
+HASH_FROM_THE_VARIABLE = 'v=$(printenv "$2") && [ -n "$v" ] && printf \'$2y$12$%s\\n\' "$v"'
+
+
+def test_the_users_file_holds_admin_and_javv_hashed_from_the_environment(tmp_path: Path) -> None:
     # the stand-in "hashes" the variable named after -env, so the hash proves where it read from
-    started = _run_admin_user_init(tmp_path, 'printf \'$2y$12$%s\\n\' "$(printenv "$2")"')
+    started = _run_users_init(tmp_path, HASH_FROM_THE_VARIABLE)
     assert started.returncode == 0, started.stderr
     users = yaml.safe_load((tmp_path / "javv-users" / "internal_users.yml").read_text())
     assert users == {
@@ -204,13 +239,21 @@ def test_the_users_file_holds_admin_alone_hashed_from_the_environment(tmp_path: 
             "backend_roles": ["admin"],
             "description": "JAVV admin user",
         },
+        "javv": {"hash": "$2y$12$Pj-729-render", "reserved": False, "description": "JAVV backend"},
     }
 
 
 def test_no_users_file_without_a_hash(tmp_path: Path) -> None:
-    started = _run_admin_user_init(tmp_path, "echo 'no such variable'")
+    started = _run_users_init(tmp_path, "echo 'no such variable'")
     assert started.returncode != 0
-    assert "no bcrypt hash" in started.stderr
+    assert "no bcrypt hash for JAVV_ADMIN_PASSWORD" in started.stderr
+    assert not (tmp_path / "javv-users" / "internal_users.yml").exists()
+
+
+def test_no_users_file_without_javvs_hash(tmp_path: Path) -> None:
+    started = _run_users_init(tmp_path, HASH_FROM_THE_VARIABLE, backend="")
+    assert started.returncode != 0
+    assert "no bcrypt hash for JAVV_BACKEND_PASSWORD" in started.stderr
     assert not (tmp_path / "javv-users" / "internal_users.yml").exists()
 
 
@@ -265,20 +308,34 @@ def test_admin_dn_names_who_may_run_securityadmin() -> None:
 @pytest.mark.parametrize(
     ("sets", "message"),
     [
-        ((), "opensearch.javv.auth: set existingSecret"),
-        ((PASSWORD, "opensearch.javv.auth.existingSecret=s"), "not both"),
+        ((BACKEND,), "opensearch.javv.auth: set existingSecret"),
+        ((PASSWORD, BACKEND, "opensearch.javv.auth.existingSecret=s"), "not both"),
+        ((PASSWORD,), "opensearch.javv.backend: set existingSecret"),
+        (
+            (*DEMO, "opensearch.javv.backend.existingSecret=s"),
+            "opensearch.javv.backend: set existingSecret or password, not both",
+        ),
         (
             (*OWN_SECRET, "opensearch.javv.tls.certManager.enabled=true"),
             "opensearch.javv.tls: set existingSecret or certManager.enabled, not both",
         ),
         (
-            (PASSWORD, "opensearch.javv.tls.certManager.enabled=true"),
+            (*DEMO, "opensearch.javv.tls.certManager.enabled=true"),
             "opensearch.javv.tls.certManager.issuerRef.name",
         ),
-        ((PASSWORD, "opensearch.singleNode=false"), "JAVV runs one OpenSearch node"),
-        ((PASSWORD, "opensearch.javv.tls.adminDN[0]=x"), "additional properties 'adminDN'"),
+        ((*DEMO, "opensearch.singleNode=false"), "JAVV runs one OpenSearch node"),
+        ((*DEMO, "opensearch.javv.tls.adminDN[0]=x"), "additional properties 'adminDN'"),
     ],
-    ids=["no-password", "two-passwords", "two-certificates", "no-issuer", "nodes", "typo"],
+    ids=[
+        "no-password",
+        "two-passwords",
+        "no-backend-password",
+        "two-backend-passwords",
+        "two-certificates",
+        "no-issuer",
+        "nodes",
+        "typo",
+    ],
 )
 def test_the_install_fails_with_its_reason(sets: tuple[str, ...], message: str) -> None:
     out = _helm(*sets)

@@ -1,8 +1,9 @@
 """OpenSearch's `javv` role (issue 729): what the backend's OpenSearch user may do.
 
-The role lives in the compose file's `configs` and, for a cluster someone runs, in
-`docs/DEPLOYING.md`. `development/scripts/opensearch-role-walk.sh` is its proof: CI's compose job
-calls every surface that reaches OpenSearch as `javv`, then checks what the role refuses. A role
+The role lives in the compose file's `configs`, the javv-opensearch chart's `files/` and, for a
+cluster someone runs, `docs/DEPLOYING.md`. `development/scripts/opensearch-role-walk.sh` is its
+proof: CI's compose job calls every surface that reaches OpenSearch as `javv`, then checks what the
+role refuses. A role
 changed here without that walk passing is not proven, so these tests hold the role to the one the
 walk proved, and to what it must never grant.
 """
@@ -16,6 +17,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 COMPOSE = ROOT / "deploy" / "compose" / "compose.yaml"
+CHART_FILES = ROOT / "deploy" / "helm" / "javv-opensearch" / "files"
 DEPLOYING = ROOT / "docs" / "DEPLOYING.md"
 INDEX_MAP = ROOT / "docs" / "engineering" / "INDEX-MAP.md"
 
@@ -105,6 +107,17 @@ def test_the_mapping_keeps_admin_on_all_access_and_javv_on_javv() -> None:
     assert mapping["all_access"]["backend_roles"] == ["admin"]
     assert mapping["javv"]["users"] == ["javv"]
     assert set(mapping) == {"_meta", "all_access", "javv"}
+
+
+def test_the_chart_carries_the_same_role_and_mapping() -> None:
+    configs = _configs()
+    for name, config in (
+        ("roles.yml", "opensearch-roles"),
+        ("roles_mapping.yml", "opensearch-roles-mapping"),
+    ):
+        assert yaml.safe_load((CHART_FILES / name).read_text()) == yaml.safe_load(
+            configs[config]["content"]
+        ), name
 
 
 def test_deploying_gives_the_same_role() -> None:
