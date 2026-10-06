@@ -80,6 +80,9 @@ See [`standards/testing.md`](../../standards/testing.md). This bolt needs:
   CI as a **compatibility gate** (see the new bolt), not a runtime switch. The envelope now stamps
   **`scanner_version` + vuln-DB version/built** (self-reported by the binary) for read-only version display +
   audit. Full decision: PLAN **D41**. Deploy mechanics (Helm tag value, per-schema DB cache) → M10.
+- **2026-10-06: the scanners' Helm/CronJob wiring is the `javv-scanner` chart** (M10, issue 725,
+  slice 3): one CronJob per scanner, a vuln-DB cache volume per scanner, and the image named by digest
+  in a published chart. Issue 754.
 
 ## Logging (standing rule)
 > All app-code logging goes through the shared library: `structlog.get_logger()` on the
