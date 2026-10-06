@@ -209,7 +209,9 @@ export const receiveClientEventsApiV1ClientEventsPost = <ThrowOnError extends bo
  * List Clusters
  *
  * Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters
- * both read this list, so leaving one out here is what takes it off them.
+ * both read this list, so leaving one out here is what takes it off them. Each row carries its
+ * retirement schedule for the warning banner: `silent_since`, `warns_at` and `retires_at`
+ * (null = never retires).
  */
 export const listClustersApiV1ClustersGet = <ThrowOnError extends boolean = false>(options?: Options<ListClustersApiV1ClustersGetData, ThrowOnError>): RequestResult<ListClustersApiV1ClustersGetResponses, ListClustersApiV1ClustersGetErrors, ThrowOnError> => (options?.client ?? client).get<ListClustersApiV1ClustersGetResponses, ListClustersApiV1ClustersGetErrors, ThrowOnError>({ url: '/api/v1/clusters', ...options });
 

@@ -3,7 +3,8 @@
 How long a cluster may go without an accepted scan before the retirement sweep retires it. The
 staleness settings' shape: read = any authenticated principal (the warning banner reads it),
 write = `can_manage_settings`, journal-FIRST with the full old/new value (D17). The PUT edits the
-fleet-wide default unless the body names a `cluster_id`. `null` = never retire.
+fleet-wide default unless the body names a `cluster_id`. `null` = never retire. `warn_days` is
+how long before retirement the warning banner counts down and the admins' bell rings.
 
 The window must be longer than the scanner-down timer it would follow, so a scanner outage
 short enough to only stale findings can never retire the cluster. Registered in the standing
@@ -36,6 +37,7 @@ class RetirementPut(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     retire_after_days: float | None = Field(gt=0)  # required; null = never retire
+    warn_days: float = Field(gt=0)  # how long before retirement the warning starts
     cluster_id: ClusterId | None = None  # None = the fleet-wide default doc
 
 
@@ -57,8 +59,10 @@ async def put_retirement(
     request: Request, body: RetirementPut, principal: ManageSettings
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
-    window = RetirementWindow(retire_after_days=body.retire_after_days)
+    window = RetirementWindow(retire_after_days=body.retire_after_days, warn_days=body.warn_days)
     if window.retire_after_days is not None:
+        if window.warn_days >= window.retire_after_days:
+            raise HTTPException(422, "the warning must be shorter than the retirement window")
         timers = await read_staleness_timers(client, cluster_id=body.cluster_id)
         if window.retire_after_days <= timers.scanner_down_days:
             raise HTTPException(

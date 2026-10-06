@@ -241,3 +241,13 @@ on purpose:
 
 The token command line (`python -m backend.core.tokens`) and the scan-scope command line also gain
 the `JAVV_REQUEST_TIMEOUT` the rest of the backend already used (30 seconds by default).
+
+**The release after 0.6.1: silent clusters are retired (issue 765).** A new daily job retires a
+cluster that has sent no accepted scan for 45 days (`JAVV_CLUSTER_RETIRE_AFTER_DAYS`): it leaves the
+cluster list, the switcher and All clusters, and keeps all of its data and its tokens. It comes back
+on its next accepted scan, or by hand (`POST /api/v1/clusters/{cluster_id}/unretire`). Its first run (04:15 by default) retires every
+cluster that is already silent that long, such as a cluster you recreated, which comes back under a new
+id. To keep one, set its window to never (`PUT /api/v1/settings/retirement` with its `cluster_id` and
+`retire_after_days: null`), or set `JAVV_CLUSTER_RETIRE_AFTER_DAYS=0` to
+turn it off for the fleet. If every cluster is silent at once, the job retires nothing and logs a
+warning instead.

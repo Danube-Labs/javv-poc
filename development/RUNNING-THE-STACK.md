@@ -211,6 +211,7 @@ cd backend
 uv run python -m backend.jobs.staleness         # two-timer staleness sweep (D20)
 uv run python -m backend.jobs.lifecycle         # rollover + per-cluster drop-whole-index retention
 uv run python -m backend.jobs.findings_cleanup  # long-window findings cache cleanup (D37/M12)
+uv run python -m backend.jobs.cluster_retirement  # retires clusters silent past their window
 uv run python -m backend.jobs.report_drain      # scheduled-export worker (leases pending reports)
 uv run python -m backend.jobs.report_sweep      # report TTL + orphan-chunk cleanup
 uv run python -m backend.jobs.session_sweep     # expired login sessions, past the grace

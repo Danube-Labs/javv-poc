@@ -574,6 +574,10 @@ export type RetirementPut = {
      * Retire After Days
      */
     retire_after_days: number | null;
+    /**
+     * Warn Days
+     */
+    warn_days: number;
 };
 
 /**

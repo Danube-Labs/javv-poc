@@ -28,6 +28,12 @@ from backend.audit.writer import append_field_change
 from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import CLUSTER_ID_RE
+from backend.jobs.cluster_retirement import (
+    TokenActivity,
+    is_retired,
+    read_schedules,
+    token_activity,
+)
 
 router = APIRouter(prefix="/api/v1/clusters", tags=["clusters"])
 
@@ -36,7 +42,6 @@ ManageSettings = Annotated[Principal, Depends(require_capability("can_manage_set
 ClusterIdPath = Annotated[str, Path(pattern=CLUSTER_ID_RE.pattern)]
 
 _REGISTRY_KEY = "cluster-registry"
-_MAX_CLUSTERS = 10_000  # terms-agg headroom; a fleet is tens of clusters, not thousands
 
 
 class RenameCluster(BaseModel):
@@ -55,23 +60,25 @@ async def read_registry(client: AsyncOpenSearch, *, prefix: str = "") -> dict[st
     return {k: v for k, v in names.items() if isinstance(v, str)}
 
 
-async def _token_cluster_ids(client: AsyncOpenSearch, *, prefix: str = "") -> list[str]:
-    try:
-        resp = await client.search(
-            index=f"{prefix}system-tokens",
-            body={
-                "size": 0,
-                "aggs": {"c": {"terms": {"field": "cluster_id", "size": _MAX_CLUSTERS}}},
-            },
-        )
-    except NotFoundError:
-        return []
-    agg = (resp.get("aggregations") or {}).get("c")
-    return [b["key"] for b in agg["buckets"]] if agg else []
+def _iso(at: datetime | None) -> str | None:
+    return at.isoformat() if at is not None else None
 
 
-async def _known_cluster_ids(client: AsyncOpenSearch, names: dict[str, str]) -> set[str]:
-    return set(await _token_cluster_ids(client)) | set(names)
+async def _fleet(
+    client: AsyncOpenSearch,
+) -> tuple[dict[str, str], dict[str, TokenActivity], set[str], set[str]]:
+    """(names, token activity, every known cluster, the retired ones). An automatic retirement
+    that a newer scan has outlived already reads as not retired; the sweep journals the return."""
+    names = await read_registry(client)
+    activity = await token_activity(client)
+    retirements = await read_retirements(client)
+    known = set(activity) | set(names)
+    retired = {
+        cid
+        for cid, r in retirements.items()
+        if is_retired(r, activity[cid].last_scan_at if cid in activity else None)
+    }
+    return names, activity, known, retired
 
 
 @router.get("")
@@ -81,23 +88,34 @@ async def list_clusters(
     include_retired: Annotated[bool, Query()] = False,
 ) -> dict[str, Any]:
     """Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters
-    both read this list, so leaving one out here is what takes it off them."""
+    both read this list, so leaving one out here is what takes it off them. Each row carries its
+    retirement schedule for the warning banner: `silent_since`, `warns_at` and `retires_at`
+    (null = never retires)."""
     client = cast(Any, request.app.state.opensearch)
-    names = await read_registry(client)
-    retired = await read_retirements(client)
-    known = sorted(await _known_cluster_ids(client, names))
+    names, activity, known, retired = await _fleet(client)
+    shown = sorted(cid for cid in known if include_retired or cid not in retired)
+    schedules = await read_schedules(client, activity, shown)
     return {
         "clusters": [
-            {"cluster_id": cid, "cluster_name": names.get(cid, cid), "retired": cid in retired}
-            for cid in known
-            if include_retired or cid not in retired
+            {
+                "cluster_id": cid,
+                "cluster_name": names.get(cid, cid),
+                "retired": cid in retired,
+                "silent_since": _iso(schedules[cid].silent_since),
+                "warns_at": _iso(schedules[cid].warns_at),
+                "retires_at": _iso(schedules[cid].retires_at),
+            }
+            for cid in shown
         ]
     }
 
 
-async def _require_known(client: AsyncOpenSearch, cluster_id: str) -> None:
-    if cluster_id not in await _known_cluster_ids(client, await read_registry(client)):
+async def _require_known(client: AsyncOpenSearch, cluster_id: str) -> set[str]:
+    """404 for a cluster JAVV has never seen; else the retired set."""
+    _, _, known, retired = await _fleet(client)
+    if cluster_id not in known:
         raise HTTPException(404, "cluster not found")
+    return retired
 
 
 @router.post("/{cluster_id}/retire")
@@ -106,8 +124,7 @@ async def retire(
 ) -> dict[str, Any]:
     """Manual retire: off the list, tokens revoked, data kept (issue 765)."""
     client = cast(Any, request.app.state.opensearch)
-    await _require_known(client, cluster_id)
-    if cluster_id in await read_retirements(client):
+    if cluster_id in await _require_known(client, cluster_id):
         raise HTTPException(409, "cluster is already retired")
     retirement = await retire_cluster(client, cluster_id, actor=principal.user_id, mode="manual")
     return {"cluster_id": cluster_id, "retired": True, **retirement.model_dump(mode="json")}
@@ -118,8 +135,7 @@ async def unretire(
     request: Request, cluster_id: ClusterIdPath, principal: ManageSettings
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
-    await _require_known(client, cluster_id)
-    if cluster_id not in await read_retirements(client):
+    if cluster_id not in await _require_known(client, cluster_id):
         raise HTTPException(409, "cluster is not retired")
     await unretire_cluster(client, cluster_id, actor=principal.user_id)
     return {"cluster_id": cluster_id, "retired": False}

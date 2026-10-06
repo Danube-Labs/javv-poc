@@ -16,6 +16,7 @@ from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.audit.writer import append_auth_event, append_field_change
+from backend.core.settings import get_settings
 from backend.core.stored_settings import parse_stored_setting
 from backend.query.paging import search_to_exhaustion
 
@@ -166,21 +167,32 @@ async def unretire_cluster(
 WINDOW_KEY = (
     "retirement"  # the fleet-wide default doc _id; per-cluster is `retirement:<cluster_id>`
 )
-DEFAULT_RETIRE_AFTER_DAYS = 45  # the documented default (docs/CONFIGURATION.md §6)
 
 
 def _window_id(cluster_id: str | None) -> str:
     return WINDOW_KEY if cluster_id is None else f"{WINDOW_KEY}:{cluster_id}"
 
 
+def _seed_retire_after() -> float | None:
+    return get_settings().cluster_retire_after_days or None  # 0 in the env = never
+
+
+def _seed_warn_days() -> float:
+    return get_settings().cluster_retirement_warn_days
+
+
 class RetirementWindow(BaseModel):
     """How long a cluster may go without an accepted scan before the sweep retires it. `None` =
     never: a per-cluster override for a cluster scanned rarely on purpose, or the fleet default
-    turned off. Tier-③ runtime config (D26 pattern: per-cluster override over a fleet default)."""
+    turned off. Tier-③ runtime config (D26 pattern: per-cluster override over a fleet default),
+    seeded by `JAVV_CLUSTER_RETIRE_AFTER_DAYS` / `JAVV_CLUSTER_RETIREMENT_WARN_DAYS` until a
+    value is saved, as the report TTL is."""
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    retire_after_days: float | None = Field(default=DEFAULT_RETIRE_AFTER_DAYS, gt=0)
+    retire_after_days: float | None = Field(default_factory=_seed_retire_after, gt=0)
+    # how long before retirement the banner counts down and the admins' bell rings
+    warn_days: float = Field(default_factory=_seed_warn_days, gt=0)
 
 
 async def _read_window(
@@ -202,7 +214,7 @@ async def has_window_override(
 async def read_retirement_window(
     client: AsyncOpenSearch, *, cluster_id: str | None = None, prefix: str = ""
 ) -> RetirementWindow:
-    """The cluster's override if set, else the fleet default, else 45 days."""
+    """The cluster's override if set, else the fleet default, else the env seed."""
     if cluster_id is not None:
         per_cluster = await _read_window(client, _window_id(cluster_id), prefix)
         if per_cluster is not None:

@@ -204,3 +204,37 @@ async def test_conflicts_unknown_and_malformed(env) -> None:
     assert unknown not in await read_retirements(client)
 
     assert (await http.post("/api/v1/clusters/BAD_ID/retire")).status_code == 422
+
+
+async def test_the_listing_carries_each_clusters_schedule(env) -> None:
+    http, client, _ = env
+    cid = _cid()
+    token = await _seed_token(client, cid)
+    await client.update(
+        index="system-tokens",
+        id=token,
+        body={"doc": {"last_ingest_at": "2026-10-01T00:00:00+00:00"}},
+        params={"refresh": "true"},
+    )
+    r = await http.get("/api/v1/clusters")
+    row = next(c for c in r.json()["clusters"] if c["cluster_id"] == cid)
+    assert row["silent_since"].startswith("2026-10-01T00:00:00")
+    # the env seeds: 45 days, the warning 7 before
+    assert row["retires_at"].startswith("2026-11-15T00:00:00")
+    assert row["warns_at"].startswith("2026-11-08T00:00:00")
+
+
+async def test_an_auto_retired_cluster_that_scans_again_is_listed_at_once(env) -> None:
+    http, client, _ = env
+    cid = _cid()
+    token = await _seed_token(client, cid)
+    await retire_cluster(client, cid, actor="system", mode="auto")
+    assert cid not in await _listing(http)
+
+    await client.update(
+        index="system-tokens",
+        id=token,
+        body={"doc": {"last_ingest_at": "2099-01-01T00:00:00+00:00"}},
+        params={"refresh": "true"},
+    )
+    assert (await _listing(http))[cid] is False  # before the sweep journals the return

@@ -129,6 +129,11 @@ SCHEDULER_TICK_ERRORS = Counter(
     "Scheduler ticks that failed before a job could start (the store was away); a sustained"
     " rate means no job is running",
 )
+RETIREMENT_HELD = Counter(
+    "javv_cluster_retirement_held_total",
+    "Retirement sweeps that retired nothing because every cluster was silent past its window"
+    " (issue 765): that points at JAVV itself, an outage or a rejected scanner version",
+)
 
 
 def install_http_metrics(app: FastAPI) -> None:
@@ -170,6 +175,7 @@ __all__ = [
     "OS_BACKOFF_RETRIES",
     "OS_REQUEST_ERRORS",
     "PITS_OPEN",
+    "RETIREMENT_HELD",
     "SCHEDULER_TICK_ERRORS",
     "generate_latest",
     "install_http_metrics",

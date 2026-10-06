@@ -81,33 +81,37 @@ async def _get(http: httpx.AsyncClient, cluster_id: str | None = None) -> dict:
     return r.json()
 
 
-async def test_45_days_until_anyone_sets_it(env) -> None:
+async def test_the_env_seed_until_anyone_sets_it(env) -> None:
     http, _ = env
+    # JAVV_CLUSTER_RETIRE_AFTER_DAYS / JAVV_CLUSTER_RETIREMENT_WARN_DAYS defaults
     assert await _get(http) == {
-        "retirement": {"retire_after_days": 45},
+        "retirement": {"retire_after_days": 45, "warn_days": 7},
         "per_cluster_override": False,
     }
-    assert (await _get(http, _cid()))["retirement"] == {"retire_after_days": 45}
+    assert (await _get(http, _cid()))["retirement"] == {"retire_after_days": 45, "warn_days": 7}
 
 
 async def test_a_cluster_override_beats_the_fleet_default_and_null_means_never(env) -> None:
     http, _ = env
     rare, other = _cid(), _cid()
 
-    r = await http.put("/api/v1/settings/retirement", json={"retire_after_days": 60})
-    assert r.status_code == 200
     r = await http.put(
-        "/api/v1/settings/retirement", json={"retire_after_days": None, "cluster_id": rare}
+        "/api/v1/settings/retirement", json={"retire_after_days": 60, "warn_days": 7}
     )
     assert r.status_code == 200
-    assert r.json() == {"retirement": {"retire_after_days": None}}
+    r = await http.put(
+        "/api/v1/settings/retirement",
+        json={"retire_after_days": None, "warn_days": 7, "cluster_id": rare},
+    )
+    assert r.status_code == 200
+    assert r.json() == {"retirement": {"retire_after_days": None, "warn_days": 7}}
 
     assert await _get(http, rare) == {
-        "retirement": {"retire_after_days": None},
+        "retirement": {"retire_after_days": None, "warn_days": 7},
         "per_cluster_override": True,
     }
     assert await _get(http, other) == {
-        "retirement": {"retire_after_days": 60},
+        "retirement": {"retire_after_days": 60, "warn_days": 7},
         "per_cluster_override": False,
     }
 
@@ -117,9 +121,11 @@ async def test_a_window_not_past_the_scanner_down_timer_is_refused(env) -> None:
     cid = _cid()
     # the default scanner-down timer is 7 days
     for days in (7, 3):
-        r = await http.put("/api/v1/settings/retirement", json={"retire_after_days": days})
+        r = await http.put(
+            "/api/v1/settings/retirement", json={"retire_after_days": days, "warn_days": 1}
+        )
         assert r.status_code == 422
-    assert (await _get(http))["retirement"] == {"retire_after_days": 45}
+    assert (await _get(http))["retirement"] == {"retire_after_days": 45, "warn_days": 7}
 
     # a cluster's own scanner-down timer is the one its window must clear
     await write_staleness_timers(
@@ -129,13 +135,15 @@ async def test_a_window_not_past_the_scanner_down_timer_is_refused(env) -> None:
         cluster_id=cid,
     )
     r = await http.put(
-        "/api/v1/settings/retirement", json={"retire_after_days": 15, "cluster_id": cid}
+        "/api/v1/settings/retirement",
+        json={"retire_after_days": 15, "warn_days": 7, "cluster_id": cid},
     )
     assert r.status_code == 422
     assert "20 days" in r.json()["title"]
     assert (await _get(http, cid))["per_cluster_override"] is False
     r = await http.put(
-        "/api/v1/settings/retirement", json={"retire_after_days": 21, "cluster_id": cid}
+        "/api/v1/settings/retirement",
+        json={"retire_after_days": 21, "warn_days": 7, "cluster_id": cid},
     )
     assert r.status_code == 200
 
@@ -144,7 +152,8 @@ async def test_every_write_is_journaled_with_old_and_new(env) -> None:
     http, client = env
     cid = _cid()
     r = await http.put(
-        "/api/v1/settings/retirement", json={"retire_after_days": 30, "cluster_id": cid}
+        "/api/v1/settings/retirement",
+        json={"retire_after_days": 30, "warn_days": 5, "cluster_id": cid},
     )
     assert r.status_code == 200
 
@@ -156,19 +165,22 @@ async def test_every_write_is_journaled_with_old_and_new(env) -> None:
     assert rows["hits"]["total"]["value"] == 1
     row = rows["hits"]["hits"][0]["_source"]
     assert row["action"] == "retirement_window_change" and row["cluster_id"] == cid
-    assert row["old_value_json"] == {"retire_after_days": 45}
-    assert row["new_value_json"] == {"retire_after_days": 30}
+    assert row["old_value_json"] == {"retire_after_days": 45, "warn_days": 7}
+    assert row["new_value_json"] == {"retire_after_days": 30, "warn_days": 5}
 
 
 async def test_garbage_is_422_and_never_stored(env) -> None:
     http, _ = env
     cid = _cid()
     for body in (
-        {},  # the window is required; null has to be said
-        {"retire_after_days": 0, "cluster_id": cid},
-        {"retire_after_days": -5, "cluster_id": cid},
-        {"retire_after_days": 50, "cluster_id": cid, "bogus": 1},
-        {"retire_after_days": 50, "cluster_id": "BAD_ID"},
+        {"warn_days": 7},  # the window is required; null has to be said
+        {"retire_after_days": 50},  # so is the warning
+        {"retire_after_days": 0, "warn_days": 7, "cluster_id": cid},
+        {"retire_after_days": -5, "warn_days": 7, "cluster_id": cid},
+        {"retire_after_days": 50, "warn_days": 0, "cluster_id": cid},
+        {"retire_after_days": 50, "warn_days": 50, "cluster_id": cid},  # not shorter than it
+        {"retire_after_days": 50, "warn_days": 7, "cluster_id": cid, "bogus": 1},
+        {"retire_after_days": 50, "warn_days": 7, "cluster_id": "BAD_ID"},
     ):
         r = await http.put("/api/v1/settings/retirement", json=body)
         assert r.status_code == 422, body

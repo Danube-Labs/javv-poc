@@ -162,7 +162,7 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         path="/api/v1/settings/retirement",
         route_path="/api/v1/settings/retirement",
         capability="can_manage_settings",
-        body={"retire_after_days": 45, "cluster_id": "c-rbac-sample"},
+        body={"retire_after_days": 45, "warn_days": 7, "cluster_id": "c-rbac-sample"},
     ),
     MutatingEndpoint(  # M9e slice 3 — scan scope write (D43; the bearer GET stays scanner-only)
         method="PUT",

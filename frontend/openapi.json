@@ -1195,10 +1195,16 @@
               }
             ],
             "title": "Retire After Days"
+          },
+          "warn_days": {
+            "exclusiveMinimum": 0.0,
+            "title": "Warn Days",
+            "type": "number"
           }
         },
         "required": [
-          "retire_after_days"
+          "retire_after_days",
+          "warn_days"
         ],
         "title": "RetirementPut",
         "type": "object"
@@ -3293,7 +3299,7 @@
     },
     "/api/v1/clusters": {
       "get": {
-        "description": "Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters\nboth read this list, so leaving one out here is what takes it off them.",
+        "description": "Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters\nboth read this list, so leaving one out here is what takes it off them. Each row carries its\nretirement schedule for the warning banner: `silent_since`, `warns_at` and `retires_at`\n(null = never retires).",
         "operationId": "list_clusters_api_v1_clusters_get",
         "parameters": [
           {
