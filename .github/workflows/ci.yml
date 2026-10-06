@@ -478,7 +478,8 @@ jobs:
         run: development/scripts/helm-docs.sh --check
 
       # the release's packaging (release-please.yml, publish-charts) up to the push, against a
-      # registry on this runner: the real scanner digests, each verified with cosign
+      # registry on this runner: the real scanner digests, each verified with cosign. So an outage
+      # of ghcr or Sigstore fails this job, the cost of pinning only signed images.
       - name: The cosign version
         id: cosign
         run: echo "version=$(yq -r '.supply_chain.cosign' versions.yaml)" >> "$GITHUB_OUTPUT"
@@ -488,6 +489,8 @@ jobs:
           cosign-release: v${{ steps.cosign.outputs.version }}
 
       - name: The charts package, push, and pull back as the release does
+        # GitHub's bash runs with pipefail, so a failed render fails the step
+        shell: bash
         run: |
           version=$(jq -r '."."' .release-please-manifest.json)
           docker run -d --rm --name charts-registry -p 127.0.0.1:5000:5000 registry:3.0.0
@@ -504,10 +507,14 @@ jobs:
           done < "$RUNNER_TEMP/pushed.txt"
           helm template s oci://localhost:5000/charts/javv-scanner --version "$version" --plain-http \
             --set backendUrl=http://j:8080 --set trivy.token.value=t --set grype.token.value=g |
-            grep -E '^\s+image:' | sort -u | tee "$RUNNER_TEMP/scanner-images.txt"
-          if grep -v '@sha256:' "$RUNNER_TEMP/scanner-images.txt"; then
+            sed -nE 's/^ +image: "?([^"]+)"?$/\1/p' | sort -u | tee "$RUNNER_TEMP/scanner-images.txt"
+          # each scanner's image once, by digest; anything else, or nothing, fails
+          pinned='^ghcr\.io/danube-labs/javv-scanner-(trivy|grype)@sha256:[0-9a-f]{64}$'
+          if grep -vE "$pinned" "$RUNNER_TEMP/scanner-images.txt"; then
             echo "::error::the published javv-scanner names an image by tag"; exit 1
           fi
+          [ "$(wc -l < "$RUNNER_TEMP/scanner-images.txt")" -eq 2 ]
+          [ "$(cut -d@ -f1 "$RUNNER_TEMP/scanner-images.txt" | sort -u | wc -l)" -eq 2 ]
           docker stop charts-registry
 
       - name: OpenSearch's memory map limit
