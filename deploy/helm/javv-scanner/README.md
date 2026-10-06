@@ -79,7 +79,7 @@ checkout of the repository has the tag only.
 | grype.enabled | bool | `true` | Run the Grype CronJob. |
 | grype.extraEnv | list | `[]` | More environment variables for the refresh and the scan, in Kubernetes' own form. |
 | grype.image.digest | string | `""` | `sha256:...`: run exactly that image; it wins over `tag`. Empty in the repository; the chart a release publishes sets it to the digest the tag named at the release. |
-| grype.image.tag | string | `"0.119.0"` | The Grype version, from versions.yaml (`scanners.grype.current`). The tag moves when JAVV republishes the image for that version, so it is pulled on every run. |
+| grype.image.tag | string | `"0.120.0"` | The Grype version, from versions.yaml (`scanners.grype.current`). The tag moves when JAVV republishes the image for that version, so it is pulled on every run. |
 | grype.schedule | string | `"30 */6 * * *"` | When a cycle starts, in the CronJob's time zone. |
 | grype.timeZone | string | `""` | The zone `schedule` is read in; empty is the cluster's, UTC on most. |
 | grype.token | object | `{"existingSecret":"","key":"token","value":""}` | The ingest token JAVV minted for this cluster and Grype. Name a Secret that holds it under `key`, or give `value` and the chart puts it in a Secret. |
