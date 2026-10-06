@@ -225,7 +225,7 @@ severities ∈ `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`, pkg-types ∈ `os,library`, t
 | `JAVV_TRIVY_PKG_TYPES` | *(unset)* | `--pkg-types os,library` | read-only display (C-4) |
 | `JAVV_TRIVY_TIMEOUT` | *(unset)* | `--timeout 5m0s` (unset = trivy's own default) | read-only display (C-4) |
 | Output format | `json` | fixed — parser depends on it | n/a |
-| **Trivy version** | `0.74.0` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
+| **Trivy version** | `0.75.0` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
 | **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; refreshed at the start of each cycle by the `javv-scanner` chart (§2), at scan time without it; stamped per envelope via a per-cycle `trivy version --format json` (#96) | ⚙️ read-only display |
 
 ---

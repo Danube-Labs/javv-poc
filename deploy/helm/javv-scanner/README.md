@@ -93,7 +93,7 @@ checkout of the repository has the tag only.
 | trivy.enabled | bool | `true` | Run the Trivy CronJob. |
 | trivy.extraEnv | list | `[]` | More environment variables for the refresh and the scan, in Kubernetes' own form. |
 | trivy.image.digest | string | `""` | `sha256:...`: run exactly that image; it wins over `tag`. Empty in the repository; the chart a release publishes sets it to the digest the tag named at the release. |
-| trivy.image.tag | string | `"0.74.0"` | The Trivy version, from versions.yaml (`scanners.trivy.current`). The tag moves when JAVV republishes the image for that version, so it is pulled on every run. |
+| trivy.image.tag | string | `"0.75.0"` | The Trivy version, from versions.yaml (`scanners.trivy.current`). The tag moves when JAVV republishes the image for that version, so it is pulled on every run. |
 | trivy.schedule | string | `"0 */6 * * *"` | When a cycle starts, in the CronJob's time zone. Every 6 hours keeps each finding well inside JAVV's 3-day staleness window; Grype runs half an hour later so their downloads don't overlap. |
 | trivy.timeZone | string | `""` | The zone `schedule` is read in (`Europe/Bucharest`); empty is the cluster's, UTC on most. |
 | trivy.token | object | `{"existingSecret":"","key":"token","value":""}` | The ingest token JAVV minted for this cluster and Trivy (Settings, Access & tokens). Name a Secret that holds it under `key`, or give `value` and the chart puts it in a Secret. |
