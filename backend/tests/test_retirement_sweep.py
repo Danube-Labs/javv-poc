@@ -48,7 +48,12 @@ WINDOW = RetirementWindow(retire_after_days=45, warn_days=7)
 
 def test_silence_counts_from_the_newest_scan() -> None:
     got = schedule_for(TokenActivity(_ago(10), _ago(100)), WINDOW, scanner_down_days=7)
-    assert got == Schedule(silent_since=_ago(10), warns_at=_ago(10 - 38), retires_at=_ago(-35))
+    assert got == Schedule(
+        silent_since=_ago(10),
+        warns_at=_ago(10 - 38),
+        retires_at=_ago(-35),
+        alive_until=_ago(3),  # the scan plus the 7-day scanner-down timer
+    )
 
 
 def test_a_cluster_that_never_scanned_counts_from_its_first_token() -> None:
@@ -59,7 +64,9 @@ def test_a_cluster_that_never_scanned_counts_from_its_first_token() -> None:
 def test_nothing_known_or_never_means_no_dates() -> None:
     assert schedule_for(TokenActivity(None, None), WINDOW, 7) == Schedule(None, None, None)
     never = RetirementWindow(retire_after_days=None, warn_days=7)
-    assert schedule_for(TokenActivity(_ago(400), None), never, 7) == Schedule(_ago(400), None, None)
+    assert schedule_for(TokenActivity(_ago(400), None), never, 7) == Schedule(
+        _ago(400), None, None, alive_until=_ago(393)
+    )
 
 
 def test_the_window_is_never_shorter_than_the_scanner_down_timer() -> None:
@@ -83,6 +90,7 @@ def _ret(mode: Literal["manual", "auto"], days_ago: float) -> Retirement:
         (_ret("auto", 5), _ago(10), True),  # scanned before it was retired
         (_ret("auto", 5), _ago(1), False),  # scanned again: back
         (_ret("manual", 5), _ago(1), True),  # a manual retirement ends only by hand
+        (_ret("manual", 5).model_copy(update={"returned_at": _ago(1)}), None, False),  # un-retired
     ],
 )
 def test_is_retired(retirement, last_scan, expected) -> None:
@@ -92,12 +100,20 @@ def test_is_retired(retirement, last_scan, expected) -> None:
 # --- plan_sweep ----------------------------------------------------------------------------
 
 
-def _due(cid_days: dict[str, float | None]) -> tuple[dict, dict]:
-    """{cluster: days silent (None = never retires)} → (schedules, activity)."""
+def _due(
+    silent: dict[str, float],
+    *,
+    never: frozenset[str] = frozenset(),
+    unscanned: frozenset[str] = frozenset(),
+) -> tuple[dict, dict]:
+    """{cluster: days since its last scan} → (schedules, activity). `never` clusters have no
+    window; `unscanned` ones never sent a scan and count from their token's mint."""
     schedules, activity = {}, {}
-    for cid, days in cid_days.items():
-        window = WINDOW if days is not None else RetirementWindow(retire_after_days=None)
-        act = TokenActivity(_ago(days if days is not None else 400), None)
+    for cid, days in silent.items():
+        window = RetirementWindow(retire_after_days=None) if cid in never else WINDOW
+        act = (
+            TokenActivity(None, _ago(days)) if cid in unscanned else TokenActivity(_ago(days), None)
+        )
         schedules[cid] = schedule_for(act, window, 7)
         activity[cid] = act
     return schedules, activity
@@ -115,9 +131,34 @@ def test_a_whole_fleet_silence_retires_nothing() -> None:
     assert (plan.retire, plan.held) == ([], ["a", "b"])
 
 
-def test_a_never_cluster_does_not_count_toward_the_fleet() -> None:
-    schedules, activity = _due({"a": 50, "rare": None})
-    assert plan_sweep(schedules, activity, {}, NOW).held == ["a"]
+def test_a_cluster_still_scanning_ends_the_hold_whatever_its_window() -> None:
+    # a "never" cluster that scanned 12 hours ago proves ingest works: the dead ones go
+    schedules, activity = _due({"a": 60, "b": 70, "prod": 0.5}, never=frozenset({"prod"}))
+    plan = plan_sweep(schedules, activity, {}, NOW)
+    assert (plan.retire, plan.held) == (["a", "b"], [])
+
+
+def test_silent_or_unscanned_clusters_do_not_end_the_hold() -> None:
+    # a silent "never" cluster, and one minted 2 days ago that has not scanned yet, prove nothing
+    schedules, activity = _due(
+        {"a": 60, "rare": 400, "new": 2}, never=frozenset({"rare"}), unscanned=frozenset({"new"})
+    )
+    plan = plan_sweep(schedules, activity, {}, NOW)
+    assert (plan.retire, plan.held) == ([], ["a"])
+
+
+def test_a_cluster_brought_back_counts_from_its_return() -> None:
+    returned = schedule_for(TokenActivity(_ago(60), None), WINDOW, 7, returned_at=_ago(1))
+    assert returned.silent_since == _ago(1) and returned.retires_at == _ago(-44)
+    # a scan after the return is the newer start
+    scanned = schedule_for(TokenActivity(_ago(0), None), WINDOW, 7, returned_at=_ago(1))
+    assert scanned.silent_since == _ago(0)
+
+
+def test_a_returned_record_is_not_brought_back_again() -> None:
+    schedules, activity = _due({"a": 1})
+    done = _ret("auto", 10).model_copy(update={"returned_at": _ago(2)})
+    assert plan_sweep(schedules, activity, {"a": done}, NOW).bring_back == []
 
 
 def test_a_cluster_scanning_again_is_brought_back_and_counts_as_alive() -> None:
@@ -163,21 +204,20 @@ async def test_the_sweep_retires_brings_back_and_journals(real_os) -> None:
     await _token(client, prefix, "c-gone-0001", last=_ago(60), made=_ago(90))
     await _token(client, prefix, "c-live-0001", last=_ago(1), made=_ago(90))
     await _token(client, prefix, "c-back-0001", last=_ago(1), made=_ago(90))
-    await retire_cluster(client, "c-back-0001", actor="system", mode="auto", prefix=prefix)
-    await client.update(
-        index=f"{prefix}system-config",
-        id="cluster-retirement:c-back-0001",
-        body={
-            "doc": {"value": {"retired_at": _ago(5).isoformat(), "by": "system", "mode": "auto"}}
-        },
-        params={"refresh": "true"},
+    await retire_cluster(
+        client, "c-back-0001", actor="system", mode="auto", at=_ago(5), prefix=prefix
     )
 
     counts = await run_retirement_sweep(client, now=NOW, prefix=prefix)
 
     assert counts == {"retired": 1, "returned": 1, "held": 0}
-    retired = await read_retirements(client, prefix=prefix)
-    assert set(retired) == {"c-gone-0001"} and retired["c-gone-0001"].mode == "auto"
+    records = await read_retirements(client, prefix=prefix)
+    assert records["c-gone-0001"].mode == "auto" and records["c-gone-0001"].retired_at == NOW
+    assert records["c-gone-0001"].returned_at is None
+    assert records["c-back-0001"].returned_at == NOW  # kept, stamped with the sweep's time
+    # a second run journals nothing more: the return is recorded once
+    again = await run_retirement_sweep(client, now=NOW, prefix=prefix)
+    assert again == {"retired": 0, "returned": 0, "held": 0}
     await client.indices.refresh(index=f"{prefix}system-audit-log-*")
     rows = await client.search(
         index=f"{prefix}system-audit-log-*",

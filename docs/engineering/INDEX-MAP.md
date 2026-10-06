@@ -389,7 +389,7 @@ revoked           boolean       revoke-on-role-change / logout-all
 ### `system-config` · `system-tags` (planned) · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks` · `system-jobs`
 ```
 # system-config        : SLA policy, rollover/retention/staleness settings, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c),
-#                        cluster-retirement:<cluster_id> (issue 765: one per retired cluster, {retired_at, by, mode: manual|auto}; un-retire deletes it)
+#                        cluster-retirement:<cluster_id> (issue 765: one per cluster ever retired, {retired_at, by, mode: manual|auto, returned_at}; un-retire stamps returned_at and keeps the doc, so the sweep counts silence from the return)
 #                        doc shape: { key (= _id), value (opaque, not indexed), updated_at, updated_by }
 # system-tags          : { tag, kind: team|app|org, ... }   (planned: not created by bootstrap yet)
 # system-views         : { view_id, name, description, preset, workbench, owner, created_at,

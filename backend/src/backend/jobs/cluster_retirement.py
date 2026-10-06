@@ -6,13 +6,16 @@ its data and its tokens. An automatically retired cluster that scans again is br
 Silence is measured against the clock: now minus the newest `last_ingest_at` across the
 cluster's tokens, revoked ones included (the staleness sweep's read). A cluster that never sent a
 scan counts from its first token's `created_at`, so a cluster being onboarded is not silent
-forever. The effective window is never shorter than the cluster's scanner-down timer, whatever
-the two settings say, so an outage that only stales findings never retires a cluster.
+forever, and a cluster brought back from retirement counts from its `returned_at`, so an
+un-retire is not undone by the next sweep. The effective window is never shorter than the
+cluster's scanner-down timer, whatever the two settings say, so an outage that only stales
+findings never retires a cluster.
 
-**A whole-fleet silence retires nothing.** When every cluster that has a window is due at once,
-the likelier cause is JAVV itself (the backend was away, or it rejects every scanner after an
-upgrade done out of order), so the sweep logs a warning, counts it, and waits for scans to flow.
-A fleet of one is always in that position: its cluster is retired by hand.
+**A whole-fleet silence retires nothing.** When clusters are due and no cluster at all has had a
+scan accepted within its scanner-down timer, whatever its window, the likelier cause is JAVV
+itself (the backend was away, or it rejects every scanner after an upgrade done out of order), so
+the sweep logs a warning, counts it, and waits for scans to flow. A fleet of one is always in that
+position when its cluster is due: it is retired by hand.
 
 The schedule each cluster is on (`silent_since`, `warns_at`, `retires_at`) is also what
 `GET /api/v1/clusters` returns for the warning banner, read the same way here."""
@@ -61,36 +64,47 @@ class Schedule:
     silent_since: datetime | None  # None = nothing known about the cluster yet
     warns_at: datetime | None  # None = never retires
     retires_at: datetime | None
+    # the scan pipeline counts as working until then: the newest scan plus the scanner-down timer
+    alive_until: datetime | None = None
 
 
 def schedule_for(
-    activity: TokenActivity, window: RetirementWindow, scanner_down_days: float
+    activity: TokenActivity,
+    window: RetirementWindow,
+    scanner_down_days: float,
+    returned_at: datetime | None = None,
 ) -> Schedule:
-    since = activity.last_scan_at or activity.first_token_at
+    down = timedelta(days=scanner_down_days)
+    alive_until = activity.last_scan_at + down if activity.last_scan_at else None
+    starts = [t for t in (activity.last_scan_at or activity.first_token_at, returned_at) if t]
+    since = max(starts) if starts else None
     if since is None or window.retire_after_days is None:
-        return Schedule(silent_since=since, warns_at=None, retires_at=None)
-    retires_at = since + timedelta(days=max(window.retire_after_days, scanner_down_days))
+        return Schedule(since, warns_at=None, retires_at=None, alive_until=alive_until)
+    retires_at = since + max(timedelta(days=window.retire_after_days), down)
     return Schedule(
         silent_since=since,
         warns_at=retires_at - timedelta(days=window.warn_days),
         retires_at=retires_at,
+        alive_until=alive_until,
     )
 
 
 def is_retired(retirement: Retirement | None, last_scan_at: datetime | None) -> bool:
     """An automatic retirement ends with the next accepted scan; a manual one only by hand."""
-    if retirement is None:
+    if retirement is None or retirement.returned_at is not None:
         return False
-    if retirement.mode == "auto" and last_scan_at is not None:
-        return last_scan_at <= retirement.retired_at
-    return True
+    return not (
+        retirement.mode == "auto"
+        and last_scan_at is not None
+        and last_scan_at > retirement.retired_at
+    )
 
 
 @dataclass(frozen=True)
 class SweepPlan:
     retire: list[str]
     bring_back: list[str]
-    held: list[str]  # due, but not retired: every cluster with a window is silent
+    held: list[str]  # due, but not retired: no cluster in the fleet is scanning
 
 
 def plan_sweep(
@@ -103,15 +117,26 @@ def plan_sweep(
         got = activity.get(cid)
         return got.last_scan_at if got else None
 
-    bring_back = sorted(cid for cid, r in retirements.items() if not is_retired(r, last_scan(cid)))
-    active = [cid for cid in schedules if not is_retired(retirements.get(cid), last_scan(cid))]
-    windowed = [cid for cid in active if schedules[cid].retires_at is not None]
-    due = sorted(
-        cid for cid in windowed if (at := schedules[cid].retires_at) is not None and now >= at
+    # a record not yet returned whose cluster scanned again: journal the return once
+    bring_back = sorted(
+        cid
+        for cid, r in retirements.items()
+        if r.returned_at is None and not is_retired(r, last_scan(cid))
     )
-    if due and len(due) == len(windowed):
+    active = [cid for cid in schedules if not is_retired(retirements.get(cid), last_scan(cid))]
+    due = sorted(
+        cid for cid in active if (at := schedules[cid].retires_at) is not None and now >= at
+    )
+    scanning = any(
+        (until := schedules[cid].alive_until) is not None and now < until for cid in active
+    )
+    if due and not scanning:
         return SweepPlan(retire=[], bring_back=bring_back, held=due)
     return SweepPlan(retire=due, bring_back=bring_back, held=[])
+
+
+def returned_at(retirements: dict[str, Retirement]) -> dict[str, datetime]:
+    return {cid: r.returned_at for cid, r in retirements.items() if r.returned_at is not None}
 
 
 async def token_activity(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, TokenActivity]:
@@ -156,6 +181,7 @@ async def read_schedules(
     activity: dict[str, TokenActivity],
     cluster_ids: list[str],
     *,
+    returned: dict[str, datetime] | None = None,
     prefix: str = "",
 ) -> dict[str, Schedule]:
     """Every cluster's schedule, from two reads however large the fleet: each cluster's window
@@ -177,6 +203,7 @@ async def read_schedules(
             activity.get(cid, empty),
             setting(RetirementWindow, WINDOW_KEY, cid),
             setting(StalenessTimers, STALENESS_KEY, cid).scanner_down_days,
+            (returned or {}).get(cid),
         )
         for cid in cluster_ids
     }
@@ -190,18 +217,20 @@ async def run_retirement_sweep(
     now = now or datetime.now(UTC)
     activity = await token_activity(client, prefix=prefix)
     retirements = await read_retirements(client, prefix=prefix)
-    schedules = await read_schedules(client, activity, sorted(activity), prefix=prefix)
+    schedules = await read_schedules(
+        client, activity, sorted(activity), returned=returned_at(retirements), prefix=prefix
+    )
     plan = plan_sweep(schedules, activity, retirements, now)
 
     for cid in plan.bring_back:
-        await unretire_cluster(client, cid, actor="system", prefix=prefix)
+        await unretire_cluster(client, cid, actor="system", at=now, prefix=prefix)
         log.info("cluster back from retirement", cluster_id=cid)
     for cid in plan.retire:
-        await retire_cluster(client, cid, actor="system", mode="auto", prefix=prefix)
+        await retire_cluster(client, cid, actor="system", mode="auto", at=now, prefix=prefix)
         log.info("cluster retired", cluster_id=cid, silent_since=str(schedules[cid].silent_since))
     if plan.held:
         RETIREMENT_HELD.inc()
-        log.warning("cluster retirement held: every cluster is silent", clusters=len(plan.held))
+        log.warning("cluster retirement held: no cluster is scanning", clusters=len(plan.held))
     return {"retired": len(plan.retire), "returned": len(plan.bring_back), "held": len(plan.held)}
 
 

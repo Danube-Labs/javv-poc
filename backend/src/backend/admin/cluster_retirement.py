@@ -1,6 +1,8 @@
 """Retired clusters (issue 765): a cluster that is gone leaves the cluster list, the switcher and
 All clusters, and keeps all of its data. One `system-config` doc per retired cluster,
-`cluster-retirement:<cluster_id>`; un-retiring deletes it.
+`cluster-retirement:<cluster_id>`. Un-retiring keeps the doc and stamps `returned_at`: the
+retirement sweep counts a returned cluster's silence from then, so an un-retire is not undone by
+the next night's sweep.
 
 A manual retire also revokes the cluster's tokens, so a scanner still pushing gets 401. An
 automatic one (the retirement sweep) leaves them alone, so a cluster that was only silent comes
@@ -8,7 +10,6 @@ back on its next scan. Both journal first (D17): the audit rows land before anyt
 the retirement doc is written last, so a retire that failed halfway is re-driven by a retry
 instead of reading as done."""
 
-import contextlib
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -33,10 +34,29 @@ class Retirement(BaseModel):
     retired_at: datetime
     by: str  # a user_id, or "system" for the sweep
     mode: Literal["manual", "auto"]
+    returned_at: datetime | None = None  # set by un-retire; the record is kept for the sweep
+
+
+async def _write_retirement(
+    client: AsyncOpenSearch, cluster_id: str, retirement: Retirement, actor: str, prefix: str
+) -> None:
+    await client.index(
+        index=f"{prefix}system-config",
+        id=retirement_doc_id(cluster_id),
+        body={
+            "key": retirement_doc_id(cluster_id),
+            "cluster_id": cluster_id,
+            "value": retirement.model_dump(mode="json"),
+            "updated_at": datetime.now(UTC).isoformat(),
+            "updated_by": actor,
+        },
+        params={"refresh": "true"},
+    )
 
 
 async def read_retirements(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, Retirement]:
-    """Every retired cluster: `{cluster_id → Retirement}`. Bounded by the fleet size."""
+    """Every retirement record, returned ones included: `{cluster_id → Retirement}`. Whether a
+    cluster is retired NOW is `jobs/cluster_retirement.is_retired`. Bounded by the fleet size."""
     try:
         docs = await search_to_exhaustion(
             client,
@@ -87,9 +107,11 @@ async def retire_cluster(
     *,
     actor: str,
     mode: Literal["manual", "auto"],
+    at: datetime | None = None,
     prefix: str = "",
 ) -> Retirement:
-    """Retire one cluster. The caller has checked it is known and not already retired."""
+    """Retire one cluster. The caller has checked it is known and not already retired. `at` is
+    the sweep's read time, so a scan accepted after that read brings the cluster straight back."""
     await append_field_change(
         client,
         actor=actor,
@@ -122,24 +144,18 @@ async def retire_cluster(
             body={"doc": {"disabled": True}},
             params={"refresh": "true"},
         )
-    retirement = Retirement(retired_at=datetime.now(UTC), by=actor, mode=mode)
-    await client.index(
-        index=f"{prefix}system-config",
-        id=retirement_doc_id(cluster_id),
-        body={
-            "key": retirement_doc_id(cluster_id),
-            "cluster_id": cluster_id,
-            "value": retirement.model_dump(mode="json"),
-            "updated_at": retirement.retired_at.isoformat(),
-            "updated_by": actor,
-        },
-        params={"refresh": "true"},
-    )
+    retirement = Retirement(retired_at=at or datetime.now(UTC), by=actor, mode=mode)
+    await _write_retirement(client, cluster_id, retirement, actor, prefix)
     return retirement
 
 
 async def unretire_cluster(
-    client: AsyncOpenSearch, cluster_id: str, *, actor: str, prefix: str = ""
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    *,
+    actor: str,
+    at: datetime | None = None,
+    prefix: str = "",
 ) -> None:
     """Bring a retired cluster back to the list. Its revoked tokens stay revoked: a scanner needs
     a new token to push again."""
@@ -156,12 +172,11 @@ async def unretire_cluster(
         cluster_id=cluster_id,
         prefix=prefix,
     )
-    with contextlib.suppress(NotFoundError):  # a retry after the delete landed: already back
-        await client.delete(
-            index=f"{prefix}system-config",
-            id=retirement_doc_id(cluster_id),
-            params={"refresh": "true"},
-        )
+    current = (await read_retirements(client, prefix=prefix)).get(cluster_id)
+    if current is None:
+        return
+    returned = current.model_copy(update={"returned_at": at or datetime.now(UTC)})
+    await _write_retirement(client, cluster_id, returned, actor, prefix)
 
 
 WINDOW_KEY = (

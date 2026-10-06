@@ -248,6 +248,6 @@ cluster list, the switcher and All clusters, and keeps all of its data and its t
 on its next accepted scan, or by hand (`POST /api/v1/clusters/{cluster_id}/unretire`). Its first run (04:15 by default) retires every
 cluster that is already silent that long, such as a cluster you recreated, which comes back under a new
 id. To keep one, set its window to never (`PUT /api/v1/settings/retirement` with its `cluster_id` and
-`retire_after_days: null`), or set `JAVV_CLUSTER_RETIRE_AFTER_DAYS=0` to
-turn it off for the fleet. If every cluster is silent at once, the job retires nothing and logs a
-warning instead.
+`retire_after_days: null`, `warn_days` as before), or set `JAVV_CLUSTER_RETIRE_AFTER_DAYS=0` to
+turn it off for the fleet. If no cluster at all has had a scan accepted within its scanner-down timer, the job
+retires nothing and logs a warning instead: that points at JAVV, not at the clusters.

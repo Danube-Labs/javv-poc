@@ -7,14 +7,21 @@ journal failure leaves the cluster as it was; un-retire brings it back and its t
 revoked. The 401/403 axes live in the RBAC/IDOR suite."""
 
 import uuid
+from datetime import datetime
 
 import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch
 
 from backend.admin import cluster_retirement
-from backend.admin.cluster_retirement import read_retirements, retire_cluster
+from backend.admin.cluster_retirement import (
+    RetirementWindow,
+    read_retirements,
+    retire_cluster,
+    write_retirement_window,
+)
 from backend.auth.passwords import hash_password
+from backend.jobs.staleness import StalenessTimers, write_staleness_timers
 from backend.main import create_app
 from os_env import OS_URL, requires_opensearch
 
@@ -170,6 +177,28 @@ async def test_unretire_brings_it_back_and_the_tokens_stay_revoked(env) -> None:
     assert (await _listing(http))[cid] is False
     assert await _disabled(client, token) is True  # a scanner needs a new token to push again
     assert len(await _audit_rows(client, cid, "cluster_unretire")) == 1
+    # the record is kept and stamped, so the sweep counts silence from the return
+    assert (await read_retirements(client))[cid].returned_at is not None
+
+
+async def test_an_unretired_cluster_counts_its_silence_from_the_return(env) -> None:
+    http, client, _ = env
+    cid = _cid()
+    token = await _seed_token(client, cid)
+    await client.update(
+        index="system-tokens",
+        id=token,
+        body={"doc": {"last_ingest_at": "2026-01-01T00:00:00+00:00"}},  # long silent
+        params={"refresh": "true"},
+    )
+    assert (await http.post(f"/api/v1/clusters/{cid}/retire")).status_code == 200
+    assert (await http.post(f"/api/v1/clusters/{cid}/unretire")).status_code == 200
+
+    returned = (await read_retirements(client))[cid].returned_at
+    assert returned is not None
+    r = await http.get("/api/v1/clusters")
+    row = next(c for c in r.json()["clusters"] if c["cluster_id"] == cid)
+    assert datetime.fromisoformat(row["silent_since"]) == returned
 
 
 async def test_a_failed_journal_leaves_the_cluster_as_it_was(env, monkeypatch) -> None:
@@ -210,6 +239,16 @@ async def test_the_listing_carries_each_clusters_schedule(env) -> None:
     http, client, _ = env
     cid = _cid()
     token = await _seed_token(client, cid)
+    # the cluster's own settings, so the fleet values other tests may be holding don't matter
+    await write_retirement_window(
+        client, RetirementWindow(retire_after_days=30, warn_days=5), updated_by="t", cluster_id=cid
+    )
+    await write_staleness_timers(
+        client,
+        StalenessTimers(freshness_days=3, scanner_down_days=7),
+        updated_by="t",
+        cluster_id=cid,
+    )
     await client.update(
         index="system-tokens",
         id=token,
@@ -219,9 +258,8 @@ async def test_the_listing_carries_each_clusters_schedule(env) -> None:
     r = await http.get("/api/v1/clusters")
     row = next(c for c in r.json()["clusters"] if c["cluster_id"] == cid)
     assert row["silent_since"].startswith("2026-10-01T00:00:00")
-    # the env seeds: 45 days, the warning 7 before
-    assert row["retires_at"].startswith("2026-11-15T00:00:00")
-    assert row["warns_at"].startswith("2026-11-08T00:00:00")
+    assert row["retires_at"].startswith("2026-10-31T00:00:00")  # 30 days on
+    assert row["warns_at"].startswith("2026-10-26T00:00:00")  # 5 days before that
 
 
 async def test_an_auto_retired_cluster_that_scans_again_is_listed_at_once(env) -> None:

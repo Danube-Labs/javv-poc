@@ -19,7 +19,9 @@ from os_env import OS_URL, requires_opensearch
 
 PASSWORD = "retirement-window-password"
 
-pytestmark = requires_opensearch
+# serial: these tests write and restore the shared fleet-wide `retirement` doc; under `-n 2` a
+# test on the other worker would read another test's value
+pytestmark = [requires_opensearch, pytest.mark.serial]
 
 
 @pytest.fixture

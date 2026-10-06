@@ -131,8 +131,9 @@ SCHEDULER_TICK_ERRORS = Counter(
 )
 RETIREMENT_HELD = Counter(
     "javv_cluster_retirement_held_total",
-    "Retirement sweeps that retired nothing because every cluster was silent past its window"
-    " (issue 765): that points at JAVV itself, an outage or a rejected scanner version",
+    "Retirement sweeps that retired nothing because no cluster had a scan accepted within its"
+    " scanner-down timer (issue 765): that points at JAVV itself, an outage or a rejected"
+    " scanner version",
 )
 
 
