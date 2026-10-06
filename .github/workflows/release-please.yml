@@ -30,8 +30,8 @@ jobs:
         with:
           # Manifest mode: reads release-please-config.json + .release-please-manifest.json.
           # Uses the default GITHUB_TOKEN. NOTE: PRs opened with GITHUB_TOKEN do not
-          # trigger other workflows (e.g. CI) — switch to a PAT/App token if the release
-          # PR needs CI to run on it.
+          # trigger other workflows (e.g. CI), so the release PR is closed and reopened to run
+          # CI (releases.md); an App token here would remove that step.
           token: ${{ secrets.GITHUB_TOKEN }}
 
   # issue 752: release-please moves each Chart.yaml and the javv chart's image tags, not the READMEs
