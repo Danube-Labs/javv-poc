@@ -47,7 +47,7 @@ comment whose *content is* the history; an anchor with no explanation next to it
 ## Stack (fixed)
 Backend: **Python 3.12 · FastAPI (async) · AsyncOpenSearch (opensearch-py) · Pydantic v2**. Frontend:
 **Vue 3 (`<script setup lang="ts">`) · PrimeVue · vue-echarts · Pinia · Vue Router**. Store: **OpenSearch,
-single store**. Deploy: **Helm → k3s**. Scanners: **Trivy + Grype** (per-scanner, **never merged**).
+single store**. Deploy: **docker compose, or Helm → k3s**. Scanners: **Trivy + Grype** (per-scanner, **never merged**).
 
 ## Running the stack (dev)
 Full walkthrough incl. ingest, triage and the two-cluster loop: **`development/RUNNING-THE-STACK.md`**
