@@ -165,6 +165,8 @@ routes stay current-state-only).
 | PUT | `/api/v1/settings/sla` | `can_manage_settings` | Replace SLA policy |
 | GET | `/api/v1/settings/staleness` | session | Effective D20 timers for `?cluster_id` (its override if set, else the fleet default) + `per_cluster_override` (M9e) |
 | PUT | `/api/v1/settings/staleness` | `can_manage_settings` | Replace the timers; `cluster_id` in the body writes the per-cluster override, absent = the fleet default. Journaled (D17) |
+| GET | `/api/v1/settings/retirement` | session | The effective cluster retirement window for `?cluster_id` (its override if set, else the fleet default, else 45 days) + `per_cluster_override` (issue 765). `retire_after_days: null` = never |
+| PUT | `/api/v1/settings/retirement` | `can_manage_settings` | Set `retire_after_days` (required; `null` = never); `cluster_id` in the body writes the per-cluster override, absent = the fleet default. A window not longer than the effective scanner-down timer → **422**. Journaled (D17) |
 | GET | `/api/v1/settings/scan-scope` | session | The D-2 session read of `?cluster_id`'s scan scope (the bearer `GET /api/v1/scan-scope` stays scanner-only; M9e) |
 | PUT | `/api/v1/scan-scope` | `can_manage_settings` | Replace a cluster's scan scope (D43/FR-24: empty include = all, ignore wins). Journaled (D17) |
 | GET | `/api/v1/settings/data` | `can_manage_retention` | The Data & OpenSearch panel's one read: effective lifecycle settings for `?cluster_id` (+ `per_cluster_override`), report TTL, the effective findings-cleanup window for `?cluster_id` (+ `findings_cleanup_override`), snapshot repo ref (M9e) |

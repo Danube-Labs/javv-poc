@@ -221,6 +221,7 @@ EXEMPT_GET_ROUTES: dict[str, str] = {
     "/auth/me": "one principal",
     "/api/v1/settings/sla": "one policy object",
     "/api/v1/settings/staleness": "timers object",
+    "/api/v1/settings/retirement": "window object",
     "/api/v1/settings/data": "settings object",
     "/api/v1/settings/scan-scope": "scope object (its include/exclude are fields, not the payload)",
     "/api/v1/scan-scope": "same scope object, machine regime",

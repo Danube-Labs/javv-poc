@@ -29,6 +29,7 @@ from backend.routers import (
     metrics,
     notifications,
     reports,
+    retirement_settings,
     scan_runs,
     scan_scope,
     scanners,
@@ -77,6 +78,7 @@ def create_app() -> FastAPI:
     app.include_router(client_events.router)
     app.include_router(sla_routes.router)
     app.include_router(staleness_settings.router)
+    app.include_router(retirement_settings.router)
     app.include_router(data_settings.router)
     app.include_router(inspect.router)
     app.include_router(bulk_routes.router)

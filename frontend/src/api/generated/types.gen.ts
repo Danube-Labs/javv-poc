@@ -563,6 +563,20 @@ export type RetentionPut = {
 };
 
 /**
+ * RetirementPut
+ */
+export type RetirementPut = {
+    /**
+     * Cluster Id
+     */
+    cluster_id?: string | null;
+    /**
+     * Retire After Days
+     */
+    retire_after_days: number | null;
+};
+
+/**
  * RolePatch
  */
 export type RolePatch = {
@@ -3723,6 +3737,69 @@ export type PutRetentionApiV1SettingsRetentionPutResponses = {
 };
 
 export type PutRetentionApiV1SettingsRetentionPutResponse = PutRetentionApiV1SettingsRetentionPutResponses[keyof PutRetentionApiV1SettingsRetentionPutResponses];
+
+export type GetRetirementApiV1SettingsRetirementGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cluster Id
+         */
+        cluster_id?: string | null;
+    };
+    url: '/api/v1/settings/retirement';
+};
+
+export type GetRetirementApiV1SettingsRetirementGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRetirementApiV1SettingsRetirementGetError = GetRetirementApiV1SettingsRetirementGetErrors[keyof GetRetirementApiV1SettingsRetirementGetErrors];
+
+export type GetRetirementApiV1SettingsRetirementGetResponses = {
+    /**
+     * Response Get Retirement Api V1 Settings Retirement Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetRetirementApiV1SettingsRetirementGetResponse = GetRetirementApiV1SettingsRetirementGetResponses[keyof GetRetirementApiV1SettingsRetirementGetResponses];
+
+export type PutRetirementApiV1SettingsRetirementPutData = {
+    body: RetirementPut;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/retirement';
+};
+
+export type PutRetirementApiV1SettingsRetirementPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutRetirementApiV1SettingsRetirementPutError = PutRetirementApiV1SettingsRetirementPutErrors[keyof PutRetirementApiV1SettingsRetirementPutErrors];
+
+export type PutRetirementApiV1SettingsRetirementPutResponses = {
+    /**
+     * Response Put Retirement Api V1 Settings Retirement Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutRetirementApiV1SettingsRetirementPutResponse = PutRetirementApiV1SettingsRetirementPutResponses[keyof PutRetirementApiV1SettingsRetirementPutResponses];
 
 export type PutRolloverApiV1SettingsRolloverPutData = {
     body: RolloverPut;

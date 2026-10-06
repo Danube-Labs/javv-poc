@@ -157,6 +157,13 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"freshness_days": 3, "scanner_down_days": 7},
     ),
+    MutatingEndpoint(  # issue 765 — the cluster retirement window (settings-tier, journaled)
+        method="PUT",
+        path="/api/v1/settings/retirement",
+        route_path="/api/v1/settings/retirement",
+        capability="can_manage_settings",
+        body={"retire_after_days": 45, "cluster_id": "c-rbac-sample"},
+    ),
     MutatingEndpoint(  # M9e slice 3 — scan scope write (D43; the bearer GET stays scanner-only)
         method="PUT",
         path="/api/v1/scan-scope",

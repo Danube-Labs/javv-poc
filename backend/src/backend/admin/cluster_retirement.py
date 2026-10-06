@@ -13,7 +13,7 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 from opensearchpy import AsyncOpenSearch, NotFoundError
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.audit.writer import append_auth_event, append_field_change
 from backend.core.stored_settings import parse_stored_setting
@@ -161,3 +161,72 @@ async def unretire_cluster(
             id=retirement_doc_id(cluster_id),
             params={"refresh": "true"},
         )
+
+
+WINDOW_KEY = (
+    "retirement"  # the fleet-wide default doc _id; per-cluster is `retirement:<cluster_id>`
+)
+DEFAULT_RETIRE_AFTER_DAYS = 45  # the documented default (docs/CONFIGURATION.md §6)
+
+
+def _window_id(cluster_id: str | None) -> str:
+    return WINDOW_KEY if cluster_id is None else f"{WINDOW_KEY}:{cluster_id}"
+
+
+class RetirementWindow(BaseModel):
+    """How long a cluster may go without an accepted scan before the sweep retires it. `None` =
+    never: a per-cluster override for a cluster scanned rarely on purpose, or the fleet default
+    turned off. Tier-③ runtime config (D26 pattern: per-cluster override over a fleet default)."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    retire_after_days: float | None = Field(default=DEFAULT_RETIRE_AFTER_DAYS, gt=0)
+
+
+async def _read_window(
+    client: AsyncOpenSearch, doc_id: str, prefix: str
+) -> RetirementWindow | None:
+    try:
+        got = await client.get(index=f"{prefix}system-config", id=doc_id)
+    except NotFoundError:
+        return None
+    return parse_stored_setting(RetirementWindow, got["_source"]["value"], key=doc_id)
+
+
+async def has_window_override(
+    client: AsyncOpenSearch, cluster_id: str, *, prefix: str = ""
+) -> bool:
+    return await _read_window(client, _window_id(cluster_id), prefix) is not None
+
+
+async def read_retirement_window(
+    client: AsyncOpenSearch, *, cluster_id: str | None = None, prefix: str = ""
+) -> RetirementWindow:
+    """The cluster's override if set, else the fleet default, else 45 days."""
+    if cluster_id is not None:
+        per_cluster = await _read_window(client, _window_id(cluster_id), prefix)
+        if per_cluster is not None:
+            return per_cluster
+    return await _read_window(client, WINDOW_KEY, prefix) or RetirementWindow()
+
+
+async def write_retirement_window(
+    client: AsyncOpenSearch,
+    window: RetirementWindow,
+    *,
+    updated_by: str,
+    cluster_id: str | None = None,
+    prefix: str = "",
+) -> None:
+    doc_id = _window_id(cluster_id)
+    await client.index(
+        index=f"{prefix}system-config",
+        id=doc_id,
+        body={
+            "key": doc_id,
+            "value": window.model_dump(),
+            "updated_at": datetime.now(UTC).isoformat(),
+            "updated_by": updated_by,
+        },
+        params={"refresh": "true"},
+    )

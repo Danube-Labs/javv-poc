@@ -1170,6 +1170,39 @@
         "title": "RetentionPut",
         "type": "object"
       },
+      "RetirementPut": {
+        "additionalProperties": false,
+        "properties": {
+          "cluster_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cluster Id"
+          },
+          "retire_after_days": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retire After Days"
+          }
+        },
+        "required": [
+          "retire_after_days"
+        ],
+        "title": "RetirementPut",
+        "type": "object"
+      },
       "RolePatch": {
         "additionalProperties": false,
         "properties": {
@@ -8459,6 +8492,99 @@
           }
         },
         "summary": "Put Retention",
+        "tags": [
+          "settings"
+        ]
+      }
+    },
+    "/api/v1/settings/retirement": {
+      "get": {
+        "description": "The EFFECTIVE window for a cluster, and whether it is that cluster's own override.",
+        "operationId": "get_retirement_api_v1_settings_retirement_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "cluster_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cluster Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Retirement Api V1 Settings Retirement Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Retirement",
+        "tags": [
+          "settings"
+        ]
+      },
+      "put": {
+        "operationId": "put_retirement_api_v1_settings_retirement_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetirementPut"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Retirement Api V1 Settings Retirement Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Retirement",
         "tags": [
           "settings"
         ]
