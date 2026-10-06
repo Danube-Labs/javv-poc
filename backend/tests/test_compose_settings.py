@@ -406,3 +406,29 @@ def test_the_app_runs_the_published_image_of_this_release(app: str) -> None:
     assert f"image: {image} # x-release-please-version" in COMPOSE.read_text(), (
         f"{app}: without the annotation, release-please leaves the tag behind on the next release"
     )
+
+
+WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.yml"))
+COMPOSE_UP = "docker compose -f deploy/compose/compose.yaml up"
+
+
+def _compose_up_steps() -> list[tuple[str, dict[str, Any]]]:
+    """Every workflow step that starts the compose file, with the env it runs under."""
+    found = []
+    for workflow in WORKFLOWS:
+        for name, job in (yaml.safe_load(workflow.read_text())["jobs"] or {}).items():
+            for step in job.get("steps", []):
+                if COMPOSE_UP in step.get("run", ""):
+                    env = {**(job.get("env") or {}), **(step.get("env") or {})}
+                    found.append((f"{workflow.name} {name} / {step.get('name')}", env))
+    return found
+
+
+def test_every_workflow_that_starts_the_stack_sets_what_compose_requires() -> None:
+    # compose refuses to start on an unset `${NAME:?…}`: 0.6.0's release smoke missed one, issue 729
+    required = set(re.findall(r"\$\{([A-Z0-9_]+):\?", COMPOSE.read_text()))
+    assert required >= {"JAVV_OPENSEARCH_ADMIN_PASSWORD", "JAVV_OPENSEARCH_PASSWORD"}
+    steps = _compose_up_steps()
+    assert {where.split(" ")[0] for where, _ in steps} == {"ci.yml", "release-please.yml"}
+    for where, env in steps:
+        assert required <= set(env), f"{where} leaves {sorted(required - set(env))} unset"

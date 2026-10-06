@@ -25,8 +25,12 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
   `release-please.yml` does that in the same run, and verifies the signatures signed out. The
   `Publish charts` job then publishes the three Helm charts at `oci://ghcr.io/danube-labs/charts`
   under the same version, each signed (issue 725), with the scanner images pinned by digest in
-  `javv-scanner`. It runs only after the images are published. If it fails, the release notes say so at
-  the top: fix the cause, re-run the failed jobs, then delete the note.
+  `javv-scanner`. It runs only after the images are published. If either job fails, the release notes
+  say so at the top. When the cause is outside the workflow (a registry or Sigstore outage), re-run
+  the failed jobs once it clears, then delete the note. A re-run uses the workflow as it was at the
+  release commit, so a cause in the workflow itself can only be fixed by a fix on `main` and the
+  next release. 0.6.0's smoke step lacked a variable compose requires, so 0.6.0 published nothing
+  and its fix went into the release after it.
 - **Version notes for operators.** A change that does any of the following adds a row to
   [`docs/UPGRADING.md` § Version notes](../../docs/UPGRADING.md#version-notes) in the same PR,
   with `Unreleased` in the release column:
@@ -45,6 +49,20 @@ We use **[release-please](https://github.com/googleapis/release-please)**, run a
 standing **"release PR"** that accumulates changelog entries and the next version bump. You
 merge that PR when you decide to release — that merge creates the tag, GitHub Release, and
 updated `CHANGELOG.md`.
+
+**Cutting a release:**
+1. **The version.** A `Release-As: <version>` footer in a commit's own message sets it; a
+   one-commit squash keeps the commit message and drops the PR body.
+2. **The chart READMEs.** The `chart-readmes` job regenerates them on the release PR (issue 752):
+   release-please moves each `Chart.yaml` and the `javv` chart's tags, not the READMEs helm-docs
+   writes from them.
+3. **CI.** The release PR is pushed with `GITHUB_TOKEN`, so no CI runs on it (see Remaining gap).
+   Close and reopen it to start CI.
+4. **When to merge.** Only when no `scanner-images` run is in progress on `main`. That workflow
+   republishes the scanner tags on a merge that touches `versions.yaml` or the scanner build, and
+   signs them minutes later. The release refuses an unsigned scanner image.
+5. **Merging.** Every release PR so far was merged with a merge commit. Then follow both publish
+   jobs through their pull-and-verify steps.
 
 **Why release-please over semantic-release:**
 | | release-please | semantic-release |

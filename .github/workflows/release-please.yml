@@ -21,6 +21,8 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
+      pr: ${{ steps.release.outputs.pr }}
     steps:
       - id: release
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -30,6 +32,35 @@ jobs:
           # trigger other workflows (e.g. CI) — switch to a PAT/App token if the release
           # PR needs CI to run on it.
           token: ${{ secrets.GITHUB_TOKEN }}
+
+  # issue 752: release-please moves each Chart.yaml and the javv chart's image tags, not the READMEs
+  # helm-docs writes from them, so its PR would fail CI's README check. This regenerates them on the
+  # release PR's own branch. A GITHUB_TOKEN push starts no workflow, as release-please's own don't.
+  chart-readmes:
+    name: Chart READMEs on the release PR
+    needs: release-please
+    if: needs.release-please.outputs.prs_created == 'true' && needs.release-please.outputs.release_created != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+
+      - name: Regenerate the chart READMEs
+        run: development/scripts/helm-docs.sh
+
+      - name: Push them if they changed
+        env:
+          BRANCH: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+        run: |
+          git diff --quiet -- 'deploy/helm/*/README.md' && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add deploy/helm/*/README.md
+          git commit -m "docs: the chart readmes show the release's version"
+          git push origin "HEAD:$BRANCH"
 
   # issue 452: a release publishes the backend and frontend images under its version. This runs here,
   # off release-please's output, because the tag release-please pushes is made with GITHUB_TOKEN and
@@ -80,7 +111,8 @@ jobs:
         env:
           JAVV_TOKEN_PEPPER: release-smoke-only-pepper
           JAVV_BOOTSTRAP_ADMIN_PASSWORD: release-smoke-only-passphrase
-          JAVV_OPENSEARCH_PASSWORD: Release-smoke-OpenSearch-715!
+          JAVV_OPENSEARCH_ADMIN_PASSWORD: Release-smoke-OpenSearch-715!
+          JAVV_OPENSEARCH_PASSWORD: Release-smoke-javv-729
           JAVV_SESSION_COOKIE_SECURE: "false"
           OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
         run: |
