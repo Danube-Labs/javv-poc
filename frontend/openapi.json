@@ -3299,7 +3299,7 @@
     },
     "/api/v1/clusters": {
       "get": {
-        "description": "Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters\nboth read this list, so leaving one out here is what takes it off them. Each row carries its\nretirement schedule for the warning banner: `silent_since`, `warns_at` and `retires_at`\n(null = never retires).",
+        "description": "Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters\nboth read this list, so leaving one out here is what takes it off them. Each row carries the\nnewest accepted scan (`last_scan_at`) and its retirement schedule for the warning banner:\n`silent_since` is where the countdown starts (the newest scan, else the first token's mint,\nor the return from retirement if later), then `warns_at` and `retires_at` (null = never).",
         "operationId": "list_clusters_api_v1_clusters_get",
         "parameters": [
           {
