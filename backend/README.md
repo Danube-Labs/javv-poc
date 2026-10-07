@@ -28,7 +28,8 @@ src/backend/
   auth/         sessions, passwords, lockout, capabilities, the bootstrap admin
   export/       CSV and VEX streams
   reports/      the scheduled-export queue: claim, lease, chunked storage, download tokens
-  admin/        scan scope, snapshot repo, report TTL settings, cluster retirement
+  admin/        scan scope, snapshot repo, report TTL settings, the cluster registry,
+                cluster retirement and delete
   jobs/         the background jobs (staleness, lifecycle, findings_cleanup, cluster_retirement,
                 report_drain, report_sweep, session_sweep, rebuild_state), their shared lease, and the
                 scheduler that runs them inside the backend

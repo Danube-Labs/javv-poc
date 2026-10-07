@@ -21,8 +21,9 @@ Loaded when you touch backend or scanner source.
   for retention. **`delete_by_query` is not banned outright** — the rule targets the time-series
   append family. Three sanctioned exceptions exist and say so in their own headers:
   `jobs/findings_cleanup.py` (the `findings` cache), `jobs/report_sweep.py` (small bounded ops
-  indices) and `jobs/session_sweep.py` (expired `system-sessions` rows, ruled on issue 532). Adding
-  a fourth needs a ruling.
+  indices) and `jobs/session_sweep.py` (expired `system-sessions` rows, ruled on issue 532). A
+  fourth was ruled on issue 765: `admin/cluster_delete.py`, deleting one retired cluster's rows
+  from the shared indices, always on an exact `cluster_id` term. Adding a fifth needs a ruling.
 - PIT + `search_after` (delete the PIT in `finally`) for deep paging/sweeps; `from/size` only under 10k.
 - **Logging** has its own rule (`.claude/rules/logging.md`, loads alongside this one) — a shared
   library on both stacks, never `console.*`/`print`.

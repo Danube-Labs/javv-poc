@@ -12,26 +12,26 @@
 
 | Index | Shelf | Partition | Rollover | Retention |
 |---|---|---|---|---|
-| `javv-finding-occurrences-<cluster_id>-*` | append (history) | cluster | **yes** (lifecycle job: size/age/docs) | per-cluster drop-whole-index; **bounds how far back time-travel goes** |
+| `javv-finding-occurrences-<cluster_id>-*` | append (history) | cluster | **yes** (lifecycle job: size/age/docs) | per-cluster drop-whole-index; **bounds how far back time-travel goes**; a cluster delete drops the cluster's series (issue 765) |
 | `javv-scan-events-<cluster_id>-*` | append (trends + **commit catalog**) | cluster (scanner = field, D38) | **yes** | per-cluster drop-whole-index |
 | `javv-images-<cluster_id>-*` | append (inventory snapshots, per `inventory_run_id`) | cluster | **yes** | per-cluster drop-whole-index |
 | `javv-inventory-runs-<cluster_id>-*` | append (**inventory commit manifest**, 1/run) | cluster | **yes** | per-cluster drop-whole-index |
 | `javv-ingest-failures-<cluster_id>-*` | append (pushes rejected past the token check, issue 357) | cluster (scanner = field) | **yes** | per-cluster drop-whole-index (the same `retention_days`) |
 | `system-audit-log-*` | append (human-state timeline + trail) | time | **yes** (fleet settings; rollover-ONLY in the sweep - task F m-6, #143) | **keep long** - the sweep NEVER retention-drops it (no expiry in MVP) |
 | `javv-metrics-*` *(v1.1)* | append (downsample rollup) | cluster | **yes** | keep long (tiny) |
-| `findings` | mutable current-state ("now" cache) | none (field `cluster_id`) | **no** | `stale`/`present` are **flags**; `delete_by_query` only after a **long** window (D37/M12) |
-| `javv-scan-watermarks` | mutable (per-digest commit pointer) | none (field `cluster_id`) | **no** | bounded by live fleet; prune with `findings` |
-| `javv-scan-orders` | mutable (**authoritative** `scan_order` counter, D45) | none (field `cluster_id`) | **no** | **none, ever** — `#clusters × #scanners` docs; rebuild-state never touches it |
-| `system-decisions` | mutable (source of truth) | none | **no** | none (lifecycle-stamped; kept for time-travel/audit) |
+| `findings` | mutable current-state ("now" cache) | none (field `cluster_id`) | **no** | `stale`/`present` are **flags**; `delete_by_query` only after a **long** window (D37/M12), or for a deleted cluster (issue 765) |
+| `javv-scan-watermarks` | mutable (per-digest commit pointer) | none (field `cluster_id`) | **no** | bounded by live fleet; prune with `findings`, and with a deleted cluster (issue 765) |
+| `javv-scan-orders` | mutable (**authoritative** `scan_order` counter, D45) | none (field `cluster_id`) | **no** | **none, ever** — `#clusters × #scanners` docs; rebuild-state never touches it. The one exception is deleting a whole cluster (issue 765), which removes that cluster's counters with the rest of it |
+| `system-decisions` | mutable (source of truth) | none | **no** | none (lifecycle-stamped; kept for time-travel/audit), except a deleted cluster's (issue 765) |
 | `system-users` | mutable | none | **no** | none |
 | `system-roles` | mutable (capability bundles) | none | **no** | none |
-| `system-tokens` | mutable | none | **no** | manual revoke |
+| `system-tokens` | mutable | none | **no** | manual revoke; a deleted cluster's are deleted (issue 765) |
 | `system-sessions` | mutable | none | **no** | refused on lookup once `expires_at` passes; deleted by the session sweep (`jobs/session_sweep.py`) after `JAVV_SESSION_SWEEP_GRACE_HOURS` more (default 24h), revoked rows included |
 | `system-config` | mutable | none | **no** | none |
 | `system-tags` | mutable *(planned — not yet created by bootstrap; the tags feature is post-MVP)* | none | **no** | none |
 | `system-views` | mutable | none | **no** | none |
-| `system-notifications` | mutable | none | **no** | bounded delete (old/read) |
-| `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h) |
+| `system-notifications` | mutable | none | **no** | bounded delete (old/read); a deleted cluster's go with it (issue 765) |
+| `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h); a deleted cluster's go with it, chunks included (issue 765) |
 | `system-report-chunks` | mutable | none | **no** | TTL sweep with its parent report |
 | `system-jobs` | mutable (one lease/status doc per background job kind: the three repair actions, issue 406, and since issue 691 the scheduled-only jobs too: four, and `cluster_retirement` since issue 765) | none | **no** | none — bounded at one doc per job kind |
 | `restored-*` | copies a restore writes (**Settings › Data & OpenSearch**, `restored-<index>`), never read by JAVV | none | **no** | none: promoting or deleting a copy is a manual step |

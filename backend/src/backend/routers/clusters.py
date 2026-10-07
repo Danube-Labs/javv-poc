@@ -13,16 +13,19 @@ the registry write — a journal failure leaves no applied-but-unjournaled renam
 SLA settings write.
 
 Retire and un-retire (issue 765, `admin/cluster_retirement.py`) are `can_manage_settings` too: a
-retired cluster leaves the default listing and keeps its data."""
+retired cluster leaves the default listing and keeps its data. Deleting a retired cluster
+(`admin/cluster_delete.py`) is `can_manage_retention`, the capability of every other setting
+that deletes data."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from opensearchpy import AsyncOpenSearch
-from opensearchpy.exceptions import ConflictError, NotFoundError
 from pydantic import BaseModel, ConfigDict, Field
 
+from backend.admin.cluster_delete import DeleteIncomplete, delete_cluster
+from backend.admin.cluster_registry import read_registry, set_registry_name
 from backend.admin.cluster_retirement import (
     Retirement,
     read_retirements,
@@ -45,25 +48,14 @@ router = APIRouter(prefix="/api/v1/clusters", tags=["clusters"])
 
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 ManageSettings = Annotated[Principal, Depends(require_capability("can_manage_settings"))]
+ManageRetention = Annotated[Principal, Depends(require_capability("can_manage_retention"))]
 ClusterIdPath = Annotated[str, Path(pattern=CLUSTER_ID_RE.pattern)]
-
-_REGISTRY_KEY = "cluster-registry"
 
 
 class RenameCluster(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     cluster_name: str = Field(min_length=1, max_length=128)
-
-
-async def read_registry(client: AsyncOpenSearch, *, prefix: str = "") -> dict[str, str]:
-    """The registry map `{cluster_id → cluster_name}`; empty until the first rename."""
-    try:
-        got = await client.get(index=f"{prefix}system-config", id=_REGISTRY_KEY)
-    except NotFoundError:
-        return {}
-    names = got["_source"].get("value") or {}
-    return {k: v for k, v in names.items() if isinstance(v, str)}
 
 
 def _iso(at: datetime | None) -> str | None:
@@ -79,7 +71,9 @@ async def _fleet(
     names = await read_registry(client)
     activity = await token_activity(client)
     retirements = await read_retirements(client)
-    known = set(activity) | set(names)
+    # a retirement record alone still names a cluster: a delete that stopped halfway removed its
+    # tokens and its name, and a retry must still find it
+    known = set(activity) | set(names) | set(retirements)
     retired = {
         cid
         for cid, r in retirements.items()
@@ -151,6 +145,23 @@ async def unretire(
     return {"cluster_id": cluster_id, "retired": False}
 
 
+@router.delete("/{cluster_id}")
+async def delete_retired_cluster(
+    request: Request, cluster_id: ClusterIdPath, principal: ManageRetention
+) -> dict[str, Any]:
+    """Delete everything JAVV holds for a retired cluster but its audit rows (issue 765,
+    `admin/cluster_delete.py`). It must be retired first. A delete that could not finish answers
+    503 and a retry finishes it."""
+    client = cast(Any, request.app.state.opensearch)
+    if cluster_id not in await _require_known(client, cluster_id):
+        raise HTTPException(409, "retire the cluster before deleting it")
+    try:
+        counts = await delete_cluster(client, cluster_id, actor=principal.user_id)
+    except DeleteIncomplete as exc:
+        raise HTTPException(503, f"the delete did not finish, retry it: {exc}") from exc
+    return {"cluster_id": cluster_id, "deleted": counts}
+
+
 @router.put("/{cluster_id}/name")
 async def rename_cluster(
     request: Request,
@@ -173,32 +184,6 @@ async def rename_cluster(
         revision=1,
         cluster_id=cluster_id,
     )
-    # the registry write is a guarded RMW (the D40 rule — never a naked read-modify-write on
-    # shared state): seq_no CAS, re-read + retry on conflict, so two concurrent renames of
-    # DIFFERENT clusters both land instead of one silently losing the doc race
-    for _ in range(5):
-        try:
-            got = await client.get(index="system-config", id=_REGISTRY_KEY)
-            names = {
-                k: v for k, v in (got["_source"].get("value") or {}).items() if isinstance(v, str)
-            }
-            cas = {"if_seq_no": got["_seq_no"], "if_primary_term": got["_primary_term"]}
-        except NotFoundError:
-            names, cas = {}, {"op_type": "create"}
-        names[cluster_id] = body.cluster_name
-        try:
-            await client.index(
-                index="system-config",
-                id=_REGISTRY_KEY,
-                body={
-                    "key": _REGISTRY_KEY,
-                    "value": names,
-                    "updated_at": datetime.now(UTC).isoformat(),
-                    "updated_by": principal.user_id,
-                },
-                params={"refresh": "true", **cas},
-            )
-        except ConflictError:
-            continue  # someone else moved the doc — re-read and re-apply this rename
+    if await set_registry_name(client, cluster_id, body.cluster_name, actor=principal.user_id):
         return {"cluster_id": cluster_id, "cluster_name": body.cluster_name}
     raise HTTPException(503, "cluster registry contended — retry")  # journaled; retry re-drives
