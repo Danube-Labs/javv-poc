@@ -536,6 +536,9 @@ to the Decisions queue (screen 9) — decisions carry scope/justification/expiry
 **Data:** `GET/POST /api/v1/admin/tokens`, `POST …/{token_id}/revoke`, `POST …/{token_id}/rotate`
 (gated `can_manage_tokens`). Raw token shown **once at mint** (modal with copy affordance +
 "you won't see this again"). Table: scanner scope, created, last_used, status.
+Retired clusters (issue 765, `GET /api/v1/clusters?include_retired=true`) are named in the table
+and listed apart in the mint picker under **Retired**; picking one says its first scan on the new
+token brings it back to the cluster list (operator ruling 2026-10-07).
 
 ### 13.6 Users & roles — editable (shipped)
 **Data:** `GET/POST /api/v1/admin/users`, `PATCH …/{username}/role` (revokes their sessions —
@@ -567,6 +570,25 @@ retention/rollover offered **only** for time-partitioned append families; the mu
 ### 13.8 Cluster
 `cluster_id` immutable (mono). `cluster_name` **editable** — the D-5 registry doc was ruled in
 (**M8c**); rename is a `system-config` write, journaled, display-only (never a query key).
+
+**Retirement (issue 765)**, three parts on the same panel:
+- **Retire row** (in the Cluster card, below `schema_version`): `Retire cluster…` opens a confirm
+  dialog; `POST /api/v1/clusters/{cluster_id}/retire` (`can_manage_settings`, journaled). The
+  cluster leaves the list, the switcher and All clusters, its push tokens are revoked, its data is
+  kept; the first scan on a newly minted token brings it back. 409 = already retired.
+- **Cluster retirement card**: retire after N days without an accepted scan, or Never (seg
+  control), and Warn before N days; `GET/PUT /api/v1/settings/retirement`. Edits this cluster's
+  override when one exists, else the fleet default (also with no cluster selected), and says
+  which. Refuses a window not longer than the scanner-down timer of the doc it edits (the
+  cluster's own for an override, the fleet's for the default; named in the hint) and a warning
+  not shorter than the window, inline on that field and with the save bar disabled. The backend
+  checks the same timer; its 422 reason is shown when the timer was not known yet.
+- **Retired clusters card**: every retired cluster (`GET /api/v1/clusters?include_retired=true`),
+  since a retired one can no longer be selected; per row the last scan, `Bring back`
+  (`POST .../unretire`) and `Delete…` (`can_manage_retention` only). Delete opens a dialog listing
+  what goes and what stays (audit history; earlier snapshots) and enables only once the cluster's
+  name is typed, and cannot be closed while the delete runs; `DELETE /api/v1/clusters/{cluster_id}`,
+  503 = finish it by deleting again, 409 = it was brought back meanwhile (the list reloads).
 
 **States (all sections):** loading; 403-capability-hidden (section hidden from sub-nav without
 its capability); save-bar dirty/saved; degraded; 409/422 inline errors as noted.
@@ -784,6 +806,7 @@ grammar is the prototype's — substituting it needs a live ruling (DESIGN.md §
 | 13.7 | (v4 prototype) 4 editable per-purpose retention windows | **One** editable window over the 4 append families; protected families render read-only with the why written in the panel | 2026-07-15 ruling, M9e README row 23 |
 | 13.7 | — | Panel additions beyond the contract: report/export-TTL setting (row 11: now runtime-editable), findings-cleanup window (D37/M12), read-only **OpenSearch runtime** card (§D), snapshots restore into `restored-*` copies only | M9e README rows 10/11 + §D |
 | 13.8 | `schema_version: 3` | **4** (M8d ptype bump) | M9e README row 9 |
+| 13.8 | (not in the contract) | **Cluster retirement** (issue 765): retire row in the Cluster card, a Cluster retirement window card and a Retired clusters card on the same panel (not a new Settings section); delete confirm lists what goes and what stays and needs the name typed | 2026-10-07 §8.5 A/B rulings on built specimens: placement A (Cluster panel), window card moved to the Cluster panel, delete dialog B (list + typed name) |
 | global | FE freshness banner on a build-time env var | Banner + fleet chips read the **live staleness timers** (selected cluster's effective window); `VITE_FRESHNESS_BANNER_HOURS` removed | M9e README row 14 |
 | global | — | Severity everywhere is the **six-word canonical vocabulary** (D46); verbatim scanner casing is display-only | D46/#274 |
 | 2 | (v4 prototype had no Scan-activity card; the built one duplicated IngestLens) | Scan-activity card **dropped**; slot carries **Top components** (restored prototype card, ≤100-package server board w/ per-scanner unique-CVE counts, now-only read) + **Riskiest images** (ranked running images off the images read, rewindable) — both on the shared table skin + GridPager; Overview goes `wide` | 2026-07-16 §8.5 ruling on built specimens: **keep both** |
