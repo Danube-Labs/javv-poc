@@ -5,10 +5,13 @@
  * SlideoverShell (banked by the docked-triage ruling for exactly this), rows = icon tile ·
  * title + muted description · timestamp at the trailing edge · unread dot.
  * Categories: ready-export (resolves the signed download on click; expired flips the item —
- * never a dead link) · sla_breach · assignment (writers land with their owning bolts).
+ * never a dead link) · sla_breach · assignment (writers land with their owning bolts) ·
+ * cluster_retiring (issue 765: a cluster entered its warning window; opens Settings › Cluster
+ * for it, where its window and Bring back are).
  * Degraded rule: the badge PAUSES — no stale count.
  */
 import { onMounted, onUnmounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 import { client } from '@/api/client'
 import { getReportApiV1ReportsReportIdGet } from '@/api/generated'
@@ -18,9 +21,12 @@ import UiButton from '@/components/ui/UiButton.vue'
 import { useNotifications, type NotificationItem } from '@/composables/useNotifications'
 import { fmtAt } from '@/findings/format'
 import { logger } from '@/lib/logger'
+import { useClusterStore } from '@/stores/cluster'
 import { useToastStore } from '@/stores/toast'
 
 const toast = useToastStore()
+const router = useRouter()
+const clusterStore = useClusterStore()
 const bell = useNotifications()
 const open = ref(false)
 const expired = ref(new Set<string>())
@@ -28,7 +34,9 @@ const expired = ref(new Set<string>())
 onMounted(() => bell.startPolling())
 onUnmounted(() => bell.stopPolling())
 
-const COPY: Record<string, { icon: 'download' | 'clock' | 'shield'; label: string; desc: string }> = {
+type Meta = { icon: 'download' | 'clock' | 'shield' | 'alert'; label: string; desc: string }
+
+const COPY: Record<string, Meta> = {
   report_ready: {
     icon: 'download',
     label: 'Export ready',
@@ -46,8 +54,51 @@ const COPY: Record<string, { icon: 'download' | 'clock' | 'shield'; label: strin
   },
 }
 
-function meta(item: NotificationItem) {
-  return COPY[item.type] ?? { icon: 'shield' as const, label: item.type, desc: '' }
+/** The retirement date in the notification (`ref` = `retires_at`), as "14 Oct". The sweep
+ * retires on its first run from that moment, so the row says "due", not "will be retired on". */
+function onDay(iso: string | null): string | null {
+  const at = iso ? new Date(iso) : null
+  return at && !Number.isNaN(at.getTime())
+    ? at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    : null
+}
+
+function retiringDesc(name: string, iso: string | null): string {
+  const day = onDay(iso)
+  if (!day) return `${name} is due to be retired soon unless a scan arrives.`
+  // a cluster held past its date (the sweep retires nothing while no cluster scans)
+  return new Date(iso as string).getTime() < Date.now()
+    ? `${name} was due to be retired on ${day} and will be retired unless a scan arrives.`
+    : `${name} is due to be retired on ${day} unless a scan arrives.`
+}
+
+function meta(item: NotificationItem): Meta {
+  if (item.type === 'cluster_retiring') {
+    const id = item.cluster_id ?? ''
+    const name = clusterStore.clusters.find((c) => c.cluster_id === id)?.cluster_name ?? id
+    // the title names the event, like every other row; ruled on built A/B specimens 2026-10-07
+    return {
+      icon: 'alert',
+      label: 'Cluster retiring',
+      desc: retiringDesc(name, item.ref),
+    }
+  }
+  return COPY[item.type] ?? { icon: 'shield', label: item.type, desc: '' }
+}
+
+/** cluster_retiring: open that cluster's Settings › Cluster, if it is still listed. The list
+ * is re-read first: the sweep may have retired it since the last poll. */
+async function openCluster(item: NotificationItem) {
+  if (!item.read) void bell.markRead(item.notification_id)
+  open.value = false
+  await clusterStore.refresh()
+  const id = item.cluster_id
+  if (!id || !clusterStore.clusters.some((c) => c.cluster_id === id)) {
+    toast.info('That cluster is no longer on the cluster list. Retired clusters are in Settings › Cluster.')
+  } else {
+    clusterStore.select(id)
+  }
+  void router.push({ name: 'settings-cluster' })
 }
 
 /** ready-export: resolve the signed link on click — the report GET carries the token; an
@@ -77,6 +128,8 @@ async function openExport(item: NotificationItem) {
 function onRowClick(item: NotificationItem) {
   if (item.type === 'report_ready' && !expired.value.has(item.notification_id)) {
     void openExport(item)
+  } else if (item.type === 'cluster_retiring') {
+    void openCluster(item)
   } else if (!item.read) {
     void bell.markRead(item.notification_id)
   }
@@ -107,7 +160,7 @@ function onRowClick(item: NotificationItem) {
           Notifications unavailable. The badge is paused, nothing here is stale.
         </p>
         <p v-else-if="bell.loaded.value && bell.items.value.length === 0" class="bell-empty" role="status">
-          Nothing yet. SLA breaches, new assignments and ready exports land here.
+          Nothing yet. SLA breaches, new assignments, ready exports and clusters about to be retired land here.
         </p>
         <div
           v-for="item in bell.items.value"
@@ -131,7 +184,7 @@ function onRowClick(item: NotificationItem) {
             </span>
           </span>
           <AppIcon
-            v-if="item.type === 'report_ready' && !expired.has(item.notification_id)"
+            v-if="(item.type === 'report_ready' && !expired.has(item.notification_id)) || item.type === 'cluster_retiring'"
             class="bell-go"
             name="chevron"
             :size="11"

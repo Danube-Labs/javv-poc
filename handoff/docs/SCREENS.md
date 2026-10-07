@@ -621,7 +621,12 @@ slice 3), BLOCKED until then**. Badge count is the server-computed unread count;
 broker, NFR-9).
 **Categories:** SLA-overdue-assigned-to-you · newly-assigned · **ready-export** — the export item
 shows **"expires in Xh"** (C-2) and opens `GET /api/v1/reports/{id}/download`; on **410** the
-item flips to "expired — re-run the export" (never a dead link).
+item flips to "expired — re-run the export" (never a dead link). **Cluster retiring** (issue 765):
+written once per silence to every settings admin; names the cluster and the date it is due to be
+retired (`ref` = `retires_at`; the sweep retires on its first run from then), or that it was due
+and is held while no cluster scans; withdrawn by the sweep when the cluster scans again; opens
+Settings › Cluster for that cluster, or says it is no longer listed and opens the panel with
+Retired clusters.
 **States:** loading; empty; 410-expired per item; degraded (badge pauses, no stale count).
 **Changed vs SCREENS.md:** ready-export category + expiry/410 affordances (C-2/C-7); endpoint
 BLOCKED (D-3).
@@ -822,6 +827,7 @@ grammar is the prototype's — substituting it needs a live ruling (DESIGN.md §
 | 13.8 | `schema_version: 3` | **4** (M8d ptype bump) | M9e README row 9 |
 | 13.8 | (not in the contract) | **Cluster retirement** (issue 765): retire row in the Cluster card, a Cluster retirement window card and a Retired clusters card on the same panel (not a new Settings section); delete confirm lists what goes and what stays and needs the name typed | 2026-10-07 §8.5 A/B rulings on built specimens: placement A (Cluster panel), window card moved to the Cluster panel, delete dialog B (list + typed name) |
 | global · 1 | (not in the contract) | **Retirement countdown** (issue 765): its own amber line under the freshness banner, red on the last day; on All clusters a chip under the cluster's name | 2026-10-07 §8.5 A/B rulings on built specimens: B (own line) over a sentence inside the freshness banner, B (chip) over a Retires in column, which pushed the full-width table past the screen at 1440 px |
+| 14 | (not in the contract) | **Cluster retiring** bell row (issue 765): title names the event ("Cluster retiring"), the description names the cluster and its date; opens Settings › Cluster for it | 2026-10-07 §8.5 A/B ruling on built specimens: A (event title) over the cluster's name in the title |
 | global | FE freshness banner on a build-time env var | Banner + fleet chips read the **live staleness timers** (selected cluster's effective window); `VITE_FRESHNESS_BANNER_HOURS` removed | M9e README row 14 |
 | global | — | Severity everywhere is the **six-word canonical vocabulary** (D46); verbatim scanner casing is display-only | D46/#274 |
 | 2 | (v4 prototype had no Scan-activity card; the built one duplicated IngestLens) | Scan-activity card **dropped**; slot carries **Top components** (restored prototype card, ≤100-package server board w/ per-scanner unique-CVE counts, now-only read) + **Riskiest images** (ranked running images off the images read, rewindable) — both on the shared table skin + GridPager; Overview goes `wide` | 2026-07-16 §8.5 ruling on built specimens: **keep both** |

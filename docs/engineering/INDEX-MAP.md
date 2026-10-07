@@ -390,6 +390,7 @@ revoked           boolean       revoke-on-role-change / logout-all
 ```
 # system-config        : SLA policy, rollover/retention/staleness settings, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c),
 #                        cluster-retirement:<cluster_id> (issue 765: one per cluster ever retired, {retired_at, by, mode: manual|auto, returned_at}; un-retire stamps returned_at and keeps the doc, so the sweep counts silence from the return)
+#                        retirement-warned:<cluster_id> (issue 765: {silent_since} of the silence the settings admins were told about, so a dismissed notice, or a settings change that moves the dates, sends nothing again; a new silence sends again; deleted with the cluster's notices when it scans again or a new silence replaces it, kept while it is retired, deleted with the cluster)
 #                        doc shape: { key (= _id), value (opaque, not indexed), updated_at, updated_by }
 # system-tags          : { tag, kind: team|app|org, ... }   (planned: not created by bootstrap yet)
 # system-views         : { view_id, name, description, preset, workbench, owner, created_at,
@@ -403,7 +404,8 @@ revoked           boolean       revoke-on-role-change / logout-all
 #                          owner-or-admin. `preset` = the SearchFilters mirror, {enabled:false} in _source
 #                          — presets are fetched by _id/list, never queried by their innards; card counts
 #                          come from /findings/facets at render time, never stored.)
-# system-notifications : { notification_id, user_id, type: sla_breach|assignment|report_ready, ref, cluster_id, created_at, read }
+# system-notifications : { notification_id, user_id, type: sla_breach|assignment|report_ready|cluster_retiring, ref, cluster_id, created_at, read }
+#                        cluster_retiring (issue 765): one per settings admin when a cluster enters its retirement warning window; ref = its retires_at; id derived from (cluster, user, silent_since)
 # system-reports       : { report_id, kind: export|bulk_triage, status: pending|running|done|failed,
 #                          params, requested_by, run_mode: now|offpeak, scheduled_for, cluster_id,
 #                          bytes, chunk_count, expires_at, heartbeat_at, lease_expires_at, retry_count,

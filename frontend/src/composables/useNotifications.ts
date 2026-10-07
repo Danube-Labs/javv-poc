@@ -17,7 +17,7 @@ import { useToastStore } from '@/stores/toast'
 
 export interface NotificationItem {
   notification_id: string
-  type: string // report_ready | sla_breach | assignment (writers land with their bolts)
+  type: string // report_ready | sla_breach | assignment | cluster_retiring
   ref: string | null
   cluster_id: string | null
   created_at: string

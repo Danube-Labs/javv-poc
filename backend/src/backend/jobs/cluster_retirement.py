@@ -18,7 +18,9 @@ the sweep logs a warning, counts it, and waits for scans to flow. A fleet of one
 position when its cluster is due: it is retired by hand.
 
 The schedule each cluster is on (`silent_since`, `warns_at`, `retires_at`) is also what
-`GET /api/v1/clusters` returns for the warning banner, read the same way here."""
+`GET /api/v1/clusters` returns for the warning banner, read the same way here. A cluster entering
+its warning window is announced once per silence to the settings admins
+(`admin/retirement_notices.py`)."""
 
 import sys
 from dataclasses import dataclass
@@ -37,7 +39,8 @@ from backend.admin.cluster_retirement import (
     retire_cluster,
     unretire_cluster,
 )
-from backend.core.metrics import RETIREMENT_HELD
+from backend.admin.retirement_notices import notify_retiring, withdraw_stale
+from backend.core.metrics import RETIREMENT_HELD, RETIREMENT_NOTIFY_FAILURES
 from backend.core.stored_settings import parse_stored_setting
 from backend.jobs.staleness import STALENESS_KEY, StalenessTimers
 
@@ -102,6 +105,7 @@ class SweepPlan:
     retire: list[str]
     bring_back: list[str]
     held: list[str]  # due, but not retired: no cluster in the fleet is scanning
+    warn: list[str]  # inside the warning window and not retired by this run
 
 
 def plan_sweep(
@@ -127,9 +131,23 @@ def plan_sweep(
     scanning = any(
         (until := schedules[cid].alive_until) is not None and now < until for cid in active
     )
+
+    def warning(listed: list[str]) -> list[str]:
+        # the only cluster is never retired by the sweep (nothing else can show scans still
+        # flow), so it is never announced either; the banner says the same
+        if len(listed) < 2:
+            return []
+        return sorted(c for c in listed if (at := schedules[c].warns_at) is not None and now >= at)
+
     if due and not scanning:
-        return SweepPlan(retire=[], bring_back=bring_back, held=due)
-    return SweepPlan(retire=due, bring_back=bring_back, held=[])
+        return SweepPlan(retire=[], bring_back=bring_back, held=due, warn=warning(active))
+    gone = set(due)
+    return SweepPlan(
+        retire=due,
+        bring_back=bring_back,
+        held=[],
+        warn=warning([c for c in active if c not in gone]),
+    )
 
 
 def returned_at(retirements: dict[str, Retirement]) -> dict[str, datetime]:
@@ -209,8 +227,11 @@ async def read_schedules(
 async def run_retirement_sweep(
     client: AsyncOpenSearch, *, now: datetime | None = None, prefix: str = ""
 ) -> dict[str, int]:
-    """Retire the clusters whose window has passed and bring back the ones that scanned again.
-    Returns counts {retired, returned, held}."""
+    """Retire the clusters whose window has passed, bring back the ones that scanned again, and
+    announce the ones entering their warning window, withdrawing the notices that stopped being
+    true. Returns counts {retired, returned, held, announced, withdrawn}. A failed announcement
+    does not fail the run: the retirements are done, and the next run announces again (its
+    notification ids repeat none)."""
     now = now or datetime.now(UTC)
     activity = await token_activity(client, prefix=prefix)
     retirements = await read_retirements(client, prefix=prefix)
@@ -238,7 +259,38 @@ async def run_retirement_sweep(
     if plan.held:
         RETIREMENT_HELD.inc()
         log.warning("cluster retirement held: no cluster is scanning", clusters=len(plan.held))
-    return {"retired": len(plan.retire), "returned": returned, "held": len(plan.held)}
+    warning = {
+        cid: (since, retires_at)
+        for cid in plan.warn
+        if (since := schedules[cid].silent_since) and (retires_at := schedules[cid].retires_at)
+    }
+    # a retired cluster keeps its notice; one that scanned again, or now has another silence,
+    # loses it before the new one is written
+    retired = set(plan.retire) | {
+        cid
+        for cid, r in retirements.items()
+        if is_retired(r, a.last_scan_at if (a := activity.get(cid)) else None)
+    }
+    keep: dict[str, datetime | None] = {cid: None for cid in retired}
+    keep |= {cid: since for cid, (since, _) in warning.items()}
+    withdrawn = announced = 0
+    try:
+        withdrawn = await withdraw_stale(client, keep, prefix=prefix)
+        announced = await notify_retiring(client, warning, now=now, prefix=prefix)
+    except Exception as exc:  # noqa: BLE001 - the run's retirements stand; the next run retries
+        RETIREMENT_NOTIFY_FAILURES.inc()
+        log.warning(
+            "cluster retirement not announced",
+            clusters=len(plan.warn),
+            error=f"{type(exc).__name__}: {exc}",
+        )
+    return {
+        "retired": len(plan.retire),
+        "returned": returned,
+        "held": len(plan.held),
+        "announced": announced,
+        "withdrawn": withdrawn,
+    }
 
 
 async def _main() -> int:

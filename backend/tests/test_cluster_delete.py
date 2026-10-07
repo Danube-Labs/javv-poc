@@ -31,7 +31,7 @@ pytestmark = requires_opensearch
 
 GONE = "c-del-abcdefgh"
 KEPT = "c-del-abcdefgh-1234"  # GONE is a prefix of it: a wildcard on GONE would match KEPT
-CONFIG_KINDS = ("staleness", "lifecycle", "findings_cleanup", "retirement")
+CONFIG_KINDS = ("staleness", "lifecycle", "findings_cleanup", "retirement", "retirement-warned")
 
 
 async def _put(client: AsyncOpenSearch, index: str, doc_id: str, body: dict[str, Any]) -> None:
