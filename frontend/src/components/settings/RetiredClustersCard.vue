@@ -38,9 +38,14 @@ async function bringBack(row: FleetCluster) {
     toast.error(error)
   } else {
     toast.success(`${row.cluster_name} is back on the cluster list`)
-    await clusterStore.fetchClusters()
+    await clusterStore.refresh()
   }
   await fleet.load()
+}
+
+// brought back meanwhile: it is on the cluster list again
+async function onChanged() {
+  await Promise.all([fleet.load(), clusterStore.refresh()])
 }
 
 async function onDeleted() {
@@ -100,7 +105,7 @@ async function onDeleted() {
     :cluster-name="deleting.cluster_name"
     @close="deleting = null"
     @deleted="onDeleted"
-    @changed="fleet.load()"
+    @changed="onChanged"
   />
 </template>
 

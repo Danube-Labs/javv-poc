@@ -8,6 +8,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 
+import DotWord from '@/components/chips/DotWord.vue'
 import HealthChip from '@/components/chips/HealthChip.vue'
 import MixBar from '@/components/dashboards/MixBar.vue'
 import AppIcon from '@/components/ui/AppIcon.vue'
@@ -17,6 +18,7 @@ import { useClusterStore } from '@/stores/cluster'
 import type { Severity } from '@/styles/tokens'
 import { facetCount, fmt, type ScannerLens } from '@/lib/scannerLens'
 import { lastDataAt } from '@/system/freshness'
+import { retirementChip, retirementStatus } from '@/system/retirement'
 
 const MIX_SEVERITIES: Severity[] = ['critical', 'high', 'medium', 'low', 'negligible', 'unknown']
 const SCANNERS = ['trivy', 'grype'] as const
@@ -26,6 +28,13 @@ const props = defineProps<{ scanner: ScannerLens; thresholdS: number }>()
 const router = useRouter()
 const clusterStore = useClusterStore()
 const fleet = useAllClustersStore()
+// the retirement countdown per cluster, inside its warning window only (issue 765)
+const retiring = computed(
+  () =>
+    new Map(
+      fleet.rows.map((r) => [r.cluster_id, retirementChip(retirementStatus(r.schedule), fleet.rows.length === 1)]),
+    ),
+)
 
 const count = (row: ClusterRow, facet: string, key: string) =>
   facetCount(row.facets, facet, key, props.scanner)
@@ -116,6 +125,11 @@ const overviewRoute = (row: ClusterRow) => ({ path: '/overview', query: { cluste
                     <span class="cl-name cl-link">{{ row.cluster_name }}<AppIcon class="cell-go" name="chevron" :size="11" /></span>
                   </RowLink>
                   <span v-if="row.cluster_name !== row.cluster_id" class="cl-id mono-cell">{{ row.cluster_id }}</span>
+                  <DotWord
+                    v-if="retiring.get(row.cluster_id)"
+                    :tone="retiring.get(row.cluster_id)!.tone"
+                    :label="retiring.get(row.cluster_id)!.label"
+                  />
                 </div>
               </div>
             </td>

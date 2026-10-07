@@ -37,7 +37,7 @@ defineProps<{ tone: 'ok' | 'warn' | 'down' | 'muted'; label: string }>()
   box-shadow: 0 0 0 3px var(--health-degraded-bg);
 }
 .dw-down .dw-dot {
-  background: var(--health-down-dot);
+  background: var(--health-down-fg);
   box-shadow: 0 0 0 3px var(--health-down-bg);
 }
 .dw-muted {

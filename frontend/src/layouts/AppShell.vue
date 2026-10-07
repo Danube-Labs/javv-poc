@@ -19,6 +19,7 @@ import EmptyState from '@/components/ui/EmptyState.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import CrashBoundary from '@/components/system/CrashBoundary.vue'
 import BackendHealthBanner from '@/components/system/BackendHealthBanner.vue'
+import RetirementCountdownBanner from '@/components/system/RetirementCountdownBanner.vue'
 import ScannerFreshnessBanner from '@/components/system/ScannerFreshnessBanner.vue'
 import GlobalTimePicker from '@/components/time-travel/GlobalTimePicker.vue'
 import ToastStack from '@/components/ui/ToastStack.vue'
@@ -122,6 +123,7 @@ onUnmounted(() => {
 
       <BackendHealthBanner />
       <ScannerFreshnessBanner />
+      <RetirementCountdownBanner />
       <p v-if="clusterStore.failed && clusterStore.clusters.length === 0" class="load-error" role="alert">
         Cluster list unavailable, and every read needs it. Check the backend, then reload.
       </p>

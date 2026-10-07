@@ -68,7 +68,7 @@ async function save() {
     return
   }
   toast.success('Cluster renamed: display only, queries still key on the immutable id')
-  await clusterStore.fetchClusters()
+  await clusterStore.refresh()
 }
 
 function discard() {
@@ -95,7 +95,7 @@ async function retire() {
     return
   }
   toast.success(`${name} retired. Bring it back from Retired clusters`)
-  await clusterStore.fetchClusters()
+  await clusterStore.refresh({ quiet: true })
   await retiredCard.value?.reload()
 }
 </script>
