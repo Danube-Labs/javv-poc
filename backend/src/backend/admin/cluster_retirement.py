@@ -13,13 +13,18 @@ instead of reading as done."""
 from datetime import UTC, datetime
 from typing import Any, Literal
 
+import structlog
 from opensearchpy import AsyncOpenSearch, NotFoundError
+from opensearchpy.exceptions import ConflictError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.audit.writer import append_auth_event, append_field_change
+from backend.core.metrics import CAS_CONFLICTS
 from backend.core.settings import get_settings
 from backend.core.stored_settings import parse_stored_setting
 from backend.query.paging import search_to_exhaustion
+
+log = structlog.get_logger()
 
 RETIREMENT_PREFIX = "cluster-retirement:"
 
@@ -38,7 +43,12 @@ class Retirement(BaseModel):
 
 
 async def _write_retirement(
-    client: AsyncOpenSearch, cluster_id: str, retirement: Retirement, actor: str, prefix: str
+    client: AsyncOpenSearch,
+    cluster_id: str,
+    retirement: Retirement,
+    actor: str,
+    prefix: str,
+    cas: dict[str, Any] | None = None,
 ) -> None:
     await client.index(
         index=f"{prefix}system-config",
@@ -50,7 +60,7 @@ async def _write_retirement(
             "updated_at": datetime.now(UTC).isoformat(),
             "updated_by": actor,
         },
-        params={"refresh": "true"},
+        params={"refresh": "true", **(cas or {})},
     )
 
 
@@ -155,10 +165,24 @@ async def unretire_cluster(
     *,
     actor: str,
     at: datetime | None = None,
+    expected: Retirement | None = None,
     prefix: str = "",
-) -> None:
-    """Bring a retired cluster back to the list. Its revoked tokens stay revoked: a scanner needs
-    a new token to push again."""
+) -> bool:
+    """Bring a retired cluster back to the list; False when there was nothing to bring back. Its
+    revoked tokens stay revoked: a scanner needs a new token to push again.
+
+    `expected` is the record the caller planned on (the sweep's read): if another write replaced
+    it since, such as an admin retiring the cluster by hand, nothing changes. The write itself is
+    a seq_no CAS, so a retire landing between this read and the write is never overwritten."""
+    try:
+        got = await client.get(index=f"{prefix}system-config", id=retirement_doc_id(cluster_id))
+    except NotFoundError:
+        return False
+    current = parse_stored_setting(
+        Retirement, got["_source"]["value"], key=retirement_doc_id(cluster_id)
+    )
+    if current.returned_at is not None or (expected is not None and current != expected):
+        return False
     await append_field_change(
         client,
         actor=actor,
@@ -172,11 +196,16 @@ async def unretire_cluster(
         cluster_id=cluster_id,
         prefix=prefix,
     )
-    current = (await read_retirements(client, prefix=prefix)).get(cluster_id)
-    if current is None:
-        return
     returned = current.model_copy(update={"returned_at": at or datetime.now(UTC)})
-    await _write_retirement(client, cluster_id, returned, actor, prefix)
+    cas = {"if_seq_no": got["_seq_no"], "if_primary_term": got["_primary_term"]}
+    try:
+        await _write_retirement(client, cluster_id, returned, actor, prefix, cas)
+    except ConflictError:
+        # journaled, then lost to a concurrent write: that write is the newer truth
+        CAS_CONFLICTS.labels("retirement").inc()
+        log.warning("un-retire lost a write race", cluster_id=cluster_id)
+        return False
+    return True
 
 
 WINDOW_KEY = (

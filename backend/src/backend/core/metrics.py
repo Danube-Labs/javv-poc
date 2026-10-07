@@ -86,7 +86,8 @@ CAS_CONFLICTS = Counter(
     "javv_cas_conflicts_total",
     "seq_no/primary_term CAS conflicts by site — early warning for multi-writer contention (D40)",
     ["site"],  # watermarks | scan_orders | reproject | report_claim (M7 slice 2) |
-    # inventory_orders | reconcile | merge (issue 510 — the commit-race drain loops)
+    # inventory_orders | reconcile | merge (issue 510 — the commit-race drain loops) |
+    # retirement (issue 765: an un-retire that lost to a concurrent retire)
 )
 
 # --- M-4: limit pressure ----------------------------------------------------------

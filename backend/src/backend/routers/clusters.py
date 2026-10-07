@@ -95,9 +95,10 @@ async def list_clusters(
     include_retired: Annotated[bool, Query()] = False,
 ) -> dict[str, Any]:
     """Retired clusters (issue 765) are left out unless asked for: the switcher and All clusters
-    both read this list, so leaving one out here is what takes it off them. Each row carries its
-    retirement schedule for the warning banner: `silent_since`, `warns_at` and `retires_at`
-    (null = never retires)."""
+    both read this list, so leaving one out here is what takes it off them. Each row carries the
+    newest accepted scan (`last_scan_at`) and its retirement schedule for the warning banner:
+    `silent_since` is where the countdown starts (the newest scan, else the first token's mint,
+    or the return from retirement if later), then `warns_at` and `retires_at` (null = never)."""
     client = cast(Any, request.app.state.opensearch)
     names, activity, retirements, known, retired = await _fleet(client)
     shown = sorted(cid for cid in known if include_retired or cid not in retired)
@@ -108,6 +109,7 @@ async def list_clusters(
                 "cluster_id": cid,
                 "cluster_name": names.get(cid, cid),
                 "retired": cid in retired,
+                "last_scan_at": _iso(activity[cid].last_scan_at if cid in activity else None),
                 "silent_since": _iso(schedules[cid].silent_since),
                 "warns_at": _iso(schedules[cid].warns_at),
                 "retires_at": _iso(schedules[cid].retires_at),
@@ -144,7 +146,8 @@ async def unretire(
     client = cast(Any, request.app.state.opensearch)
     if cluster_id not in await _require_known(client, cluster_id):
         raise HTTPException(409, "cluster is not retired")
-    await unretire_cluster(client, cluster_id, actor=principal.user_id)
+    if not await unretire_cluster(client, cluster_id, actor=principal.user_id):
+        raise HTTPException(409, "cluster is not retired")  # a concurrent write got there first
     return {"cluster_id": cluster_id, "retired": False}
 
 

@@ -18,6 +18,7 @@ from backend.admin.cluster_retirement import (
     RetirementWindow,
     read_retirements,
     retire_cluster,
+    unretire_cluster,
     write_retirement_window,
 )
 from backend.jobs.cluster_retirement import (
@@ -214,7 +215,7 @@ async def test_the_sweep_retires_brings_back_and_journals(real_os) -> None:
     records = await read_retirements(client, prefix=prefix)
     assert records["c-gone-0001"].mode == "auto" and records["c-gone-0001"].retired_at == NOW
     assert records["c-gone-0001"].returned_at is None
-    assert records["c-back-0001"].returned_at == NOW  # kept, stamped with the sweep's time
+    assert records["c-back-0001"].returned_at == _ago(1)  # kept, stamped with its scan time
     # a second run journals nothing more: the return is recorded once
     again = await run_retirement_sweep(client, now=NOW, prefix=prefix)
     assert again == {"retired": 0, "returned": 0, "held": 0}
@@ -272,3 +273,22 @@ async def test_schedules_read_each_clusters_own_settings(real_os) -> None:
     assert schedules["c-slow-0001"].retires_at == _ago(-60)  # its scanner-down timer wins
     assert schedules["c-std-00001"].silent_since == _ago(10)  # never scanned: from the mint
     assert schedules["c-std-00001"].retires_at is not None
+
+
+@requires_opensearch
+async def test_a_bring_back_never_undoes_a_retire_that_landed_after_the_plan(real_os) -> None:
+    client, prefix = real_os
+    await _token(client, prefix, "c-race-0001", last=_ago(1), made=_ago(90))
+    planned = await retire_cluster(
+        client, "c-race-0001", actor="system", mode="auto", at=_ago(5), prefix=prefix
+    )
+    # an admin retires it by hand between the sweep's read and its un-retire
+    await retire_cluster(client, "c-race-0001", actor="admin", mode="manual", prefix=prefix)
+
+    brought = await unretire_cluster(
+        client, "c-race-0001", actor="system", at=_ago(1), expected=planned, prefix=prefix
+    )
+
+    assert brought is False
+    record = (await read_retirements(client, prefix=prefix))["c-race-0001"]
+    assert record.mode == "manual" and record.returned_at is None

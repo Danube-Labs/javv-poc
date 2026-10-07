@@ -222,16 +222,26 @@ async def run_retirement_sweep(
     )
     plan = plan_sweep(schedules, activity, retirements, now)
 
+    returned = 0
     for cid in plan.bring_back:
-        await unretire_cluster(client, cid, actor="system", at=now, prefix=prefix)
-        log.info("cluster back from retirement", cluster_id=cid)
+        # returned at its scan, not at this run: its silence is counted from that scan
+        if await unretire_cluster(
+            client,
+            cid,
+            actor="system",
+            at=activity[cid].last_scan_at,
+            expected=retirements[cid],
+            prefix=prefix,
+        ):
+            returned += 1
+            log.info("cluster back from retirement", cluster_id=cid)
     for cid in plan.retire:
         await retire_cluster(client, cid, actor="system", mode="auto", at=now, prefix=prefix)
         log.info("cluster retired", cluster_id=cid, silent_since=str(schedules[cid].silent_since))
     if plan.held:
         RETIREMENT_HELD.inc()
         log.warning("cluster retirement held: no cluster is scanning", clusters=len(plan.held))
-    return {"retired": len(plan.retire), "returned": len(plan.bring_back), "held": len(plan.held)}
+    return {"retired": len(plan.retire), "returned": returned, "held": len(plan.held)}
 
 
 async def _main() -> int:

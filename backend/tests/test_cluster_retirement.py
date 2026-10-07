@@ -198,7 +198,8 @@ async def test_an_unretired_cluster_counts_its_silence_from_the_return(env) -> N
     assert returned is not None
     r = await http.get("/api/v1/clusters")
     row = next(c for c in r.json()["clusters"] if c["cluster_id"] == cid)
-    assert datetime.fromisoformat(row["silent_since"]) == returned
+    assert datetime.fromisoformat(row["silent_since"]) == returned  # the countdown restarts
+    assert row["last_scan_at"].startswith("2026-01-01T00:00:00")  # the scan record does not
 
 
 async def test_a_failed_journal_leaves_the_cluster_as_it_was(env, monkeypatch) -> None:
@@ -258,6 +259,7 @@ async def test_the_listing_carries_each_clusters_schedule(env) -> None:
     r = await http.get("/api/v1/clusters")
     row = next(c for c in r.json()["clusters"] if c["cluster_id"] == cid)
     assert row["silent_since"].startswith("2026-10-01T00:00:00")
+    assert row["last_scan_at"].startswith("2026-10-01T00:00:00")
     assert row["retires_at"].startswith("2026-10-31T00:00:00")  # 30 days on
     assert row["warns_at"].startswith("2026-10-26T00:00:00")  # 5 days before that
 
