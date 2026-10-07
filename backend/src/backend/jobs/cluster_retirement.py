@@ -1,7 +1,7 @@
 """The retirement sweep (issue 765) — a daily job the backend runs. A cluster that has sent no
 accepted scan for its retirement window (`admin/cluster_retirement.py`, seeded by
 `JAVV_CLUSTER_RETIRE_AFTER_DAYS`) is retired automatically: it leaves the cluster list and keeps
-its data and its tokens. An automatically retired cluster that scans again is brought back.
+its data and its tokens. A retired cluster that scans again is brought back.
 
 Silence is measured against the clock: now minus the newest `last_ingest_at` across the
 cluster's tokens, revoked ones included (the staleness sweep's read). A cluster that never sent a
@@ -90,14 +90,11 @@ def schedule_for(
 
 
 def is_retired(retirement: Retirement | None, last_scan_at: datetime | None) -> bool:
-    """An automatic retirement ends with the next accepted scan; a manual one only by hand."""
+    """A retirement ends with the next accepted scan after it, or by hand. A manual one revoked the
+    cluster's tokens, so its scan needs a newly minted token."""
     if retirement is None or retirement.returned_at is not None:
         return False
-    return not (
-        retirement.mode == "auto"
-        and last_scan_at is not None
-        and last_scan_at > retirement.retired_at
-    )
+    return last_scan_at is None or last_scan_at <= retirement.retired_at
 
 
 @dataclass(frozen=True)

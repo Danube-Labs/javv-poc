@@ -73,9 +73,9 @@ def _iso(at: datetime | None) -> str | None:
 async def _fleet(
     client: AsyncOpenSearch,
 ) -> tuple[dict[str, str], dict[str, TokenActivity], dict[str, Retirement], set[str], set[str]]:
-    """(names, token activity, retirement records, every known cluster, the retired ones). An
-    automatic retirement that a newer scan has outlived already reads as not retired; the sweep
-    journals the return."""
+    """(names, token activity, retirement records, every known cluster, the retired ones). A
+    retirement that a newer scan has outlived already reads as not retired; the sweep journals the
+    return."""
     names = await read_registry(client)
     activity = await token_activity(client)
     retirements = await read_retirements(client)

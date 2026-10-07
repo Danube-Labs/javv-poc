@@ -4,11 +4,11 @@ All clusters, and keeps all of its data. One `system-config` doc per retired clu
 retirement sweep counts a returned cluster's silence from then, so an un-retire is not undone by
 the next night's sweep.
 
-A manual retire also revokes the cluster's tokens, so a scanner still pushing gets 401. An
-automatic one (the retirement sweep) leaves them alone, so a cluster that was only silent comes
-back on its next scan. Both journal first (D17): the audit rows land before anything changes, and
-the retirement doc is written last, so a retire that failed halfway is re-driven by a retry
-instead of reading as done."""
+A manual retire also revokes the cluster's tokens, so a scanner still pushing gets 401, and the
+cluster comes back on a scan sent with a newly minted token. An automatic one (the retirement
+sweep) leaves them alone, so a cluster that was only silent comes back on its next scan. Both
+journal first (D17): the audit rows land before anything changes, and the retirement doc is
+written last, so a retire that failed halfway is re-driven by a retry instead of reading as done."""
 
 from datetime import UTC, datetime
 from typing import Any, Literal

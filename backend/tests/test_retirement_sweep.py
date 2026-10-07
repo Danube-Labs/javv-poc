@@ -3,8 +3,8 @@ against a private store.
 
 Pins: silence counts from the newest accepted scan, or from the first token's mint when there was
 none; the window is never shorter than the scanner-down timer; a whole-fleet silence retires
-nothing and is counted; an automatic retirement ends with the next accepted scan and a manual one
-does not; `GET /api/v1/clusters` serves the same schedule."""
+nothing and is counted; a retirement, automatic or manual, ends with the next accepted scan;
+`GET /api/v1/clusters` serves the same schedule."""
 
 from datetime import UTC, datetime, timedelta
 from typing import Literal
@@ -90,7 +90,8 @@ def _ret(mode: Literal["manual", "auto"], days_ago: float) -> Retirement:
         (_ret("auto", 5), None, True),
         (_ret("auto", 5), _ago(10), True),  # scanned before it was retired
         (_ret("auto", 5), _ago(1), False),  # scanned again: back
-        (_ret("manual", 5), _ago(1), True),  # a manual retirement ends only by hand
+        (_ret("manual", 5), _ago(10), True),
+        (_ret("manual", 5), _ago(1), False),  # scanned on a newly minted token: back
         (_ret("manual", 5).model_copy(update={"returned_at": _ago(1)}), None, False),  # un-retired
     ],
 )
@@ -163,10 +164,14 @@ def test_a_returned_record_is_not_brought_back_again() -> None:
 
 
 def test_a_cluster_scanning_again_is_brought_back_and_counts_as_alive() -> None:
-    schedules, activity = _due({"a": 50, "back": 1})
-    retirements = {"back": _ret("auto", 10), "kept": _ret("manual", 10)}
+    schedules, activity = _due({"a": 50, "back": 1, "minted": 1})
+    retirements = {
+        "back": _ret("auto", 10),
+        "minted": _ret("manual", 10),
+        "kept": _ret("manual", 10),
+    }
     plan = plan_sweep(schedules, activity, retirements, NOW)
-    assert (plan.retire, plan.bring_back, plan.held) == (["a"], ["back"], [])
+    assert (plan.retire, plan.bring_back, plan.held) == (["a"], ["back", "minted"], [])
 
 
 def test_retired_clusters_are_not_retired_again() -> None:
