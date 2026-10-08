@@ -7,7 +7,10 @@ stopped halfway finishes it, through the route as well (503, then 200), for a cl
 its retirement record still names; the store away answers 503, a bug stays 500; the route
 refuses a cluster that is not retired (409) or unknown (404), and journals before it deletes.
 A delete marks its start before the tokens go (issue 778): while the mark stands, bringing the
-cluster back is refused and the listing says so, and a finished delete clears it.
+cluster back is refused and the listing says so. A finished delete keeps it as a tombstone, and
+the nightly sweep re-runs the data part of the delete for a cluster nothing names any more,
+removing rows a push in flight wrote after the delete, until a second pass finds nothing; a
+cluster onboarded again keeps its data and loses the tombstone.
 The 401/403 axes live in the RBAC/IDOR suite."""
 
 import uuid
@@ -25,10 +28,13 @@ from backend.admin.cluster_delete import (
     delete_cluster,
     delete_marker_id,
     deletes_started,
+    recheck_deleted,
 )
 from backend.admin.cluster_registry import read_registry, set_registry_name
 from backend.admin.cluster_retirement import read_retirements, retire_cluster, retirement_doc_id
 from backend.auth.passwords import hash_password
+from backend.jobs import cluster_retirement
+from backend.jobs.cluster_retirement import run_retirement_sweep
 from backend.jobs.lifecycle import SERIES
 from backend.main import create_app
 from backend.reports.models import NOTIFICATIONS_INDEX, REPORT_CHUNKS_INDEX, REPORTS_INDEX
@@ -212,6 +218,9 @@ async def test_a_delete_marks_its_start_before_the_tokens_go(real_os, monkeypatc
     monkeypatch.undo()
     await delete_cluster(client, GONE, actor="t", prefix=prefix)
     assert await deletes_started(client, prefix=prefix) == set()
+    # kept as a tombstone, finished, for the next sweep's pass
+    tomb = await client.get(index=f"{prefix}system-config", id=delete_marker_id(GONE))
+    assert tomb["_source"]["value"]["finished_at"]
 
 
 async def test_the_marker_outlives_the_retirement_record(real_os, monkeypatch) -> None:
@@ -230,6 +239,124 @@ async def test_the_marker_outlives_the_retirement_record(real_os, monkeypatch) -
         await delete_cluster(client, GONE, actor="t", prefix=prefix)
     assert GONE in await read_retirements(client, prefix=prefix)
     assert await deletes_started(client, prefix=prefix) == {GONE}
+
+
+def _leftovers() -> float:
+    return REGISTRY.get_sample_value("javv_cluster_delete_leftovers_total") or 0.0
+
+
+async def _late_push(client: AsyncOpenSearch, prefix: str, cid: str) -> None:
+    """What a push already past its token check writes after the delete's passes."""
+    await _put(client, f"{prefix}findings", f"late-{cid}", {"cluster_id": cid})
+    await _put(client, f"{prefix}{SERIES[0]}-{cid}-000001", f"late-{cid}", {"cluster_id": cid})
+
+
+async def _tombstoned(client: AsyncOpenSearch, prefix: str, cid: str) -> bool:
+    return bool(await client.exists(index=f"{prefix}system-config", id=delete_marker_id(cid)))
+
+
+async def test_the_next_pass_removes_what_a_late_push_left(real_os) -> None:
+    client, prefix = real_os
+    await _seed(client, prefix, GONE)
+    await _seed(client, prefix, KEPT)
+    await retire_cluster(client, GONE, actor="t", mode="manual", prefix=prefix)
+    await delete_cluster(client, GONE, actor="t", prefix=prefix)
+    await _late_push(client, prefix, GONE)
+    before, kept = _leftovers(), await _snapshot(client, prefix, KEPT)
+
+    first = await recheck_deleted(client, prefix=prefix)
+
+    assert first == {"rechecked": 1, "with_leftovers": 1, "dropped": 0}
+    assert _leftovers() == before + 1
+    assert await _left(client, prefix, GONE) == []
+    assert await _snapshot(client, prefix, KEPT) == kept
+    assert await _tombstoned(client, prefix, GONE)  # one more clean pass before it goes
+    second = await recheck_deleted(client, prefix=prefix)
+    assert second == {"rechecked": 1, "with_leftovers": 0, "dropped": 1}
+    assert not await _tombstoned(client, prefix, GONE)
+
+
+async def test_a_cluster_onboarded_again_keeps_its_data(real_os) -> None:
+    client, prefix = real_os
+    await _seed(client, prefix, GONE)
+    await retire_cluster(client, GONE, actor="t", mode="manual", prefix=prefix)
+    await delete_cluster(client, GONE, actor="t", prefix=prefix)
+    # a new token for the same id, and its first scan
+    await _put(
+        client,
+        f"{prefix}system-tokens",
+        f"tok-new-{GONE}",
+        {"token_hash": "h-new", "cluster_id": GONE, "scanner": "trivy", "disabled": False},
+    )
+    await _put(client, f"{prefix}findings", f"new-{GONE}", {"cluster_id": GONE})
+
+    assert await recheck_deleted(client, prefix=prefix) == {
+        "rechecked": 0,
+        "with_leftovers": 0,
+        "dropped": 1,
+    }
+    assert await client.exists(index=f"{prefix}findings", id=f"new-{GONE}")
+    assert not await _tombstoned(client, prefix, GONE)
+
+
+async def test_a_stray_marker_for_a_cluster_nothing_names_is_cleared(real_os) -> None:
+    client, prefix = real_os
+    stray = "c-del-stray0001"  # a delete that stopped between its last two steps
+    await _put(
+        client,
+        f"{prefix}system-config",
+        delete_marker_id(stray),
+        {"key": delete_marker_id(stray), "cluster_id": stray, "value": {"started_at": "x"}},
+    )
+    await recheck_deleted(client, prefix=prefix)
+    assert await _tombstoned(client, prefix, stray)  # a clean pass, then one more
+    await recheck_deleted(client, prefix=prefix)
+    assert not await _tombstoned(client, prefix, stray)
+
+
+async def test_a_delete_still_running_is_left_alone(real_os) -> None:
+    client, prefix = real_os
+    await _seed(client, prefix, GONE)
+    await retire_cluster(client, GONE, actor="t", mode="manual", prefix=prefix)
+    await _put(
+        client,
+        f"{prefix}system-config",
+        delete_marker_id(GONE),
+        {"key": delete_marker_id(GONE), "cluster_id": GONE, "value": {"started_at": "x"}},
+    )
+    # its retirement record still names it: the delete (or its retry) owns it
+    assert (await recheck_deleted(client, prefix=prefix))["rechecked"] == 0
+    assert await client.exists(index=f"{prefix}findings", id=f"findings-{GONE}")
+    assert await deletes_started(client, prefix=prefix) == {GONE}
+
+
+async def test_the_retirement_sweep_runs_the_pass(real_os) -> None:
+    client, prefix = real_os
+    await _seed(client, prefix, GONE)
+    await retire_cluster(client, GONE, actor="t", mode="manual", prefix=prefix)
+    await delete_cluster(client, GONE, actor="t", prefix=prefix)
+    await _late_push(client, prefix, GONE)
+
+    counts = await run_retirement_sweep(client, prefix=prefix)
+
+    assert counts["delete_rechecked"] == 1
+    assert await _left(client, prefix, GONE) == []
+
+
+async def test_a_failed_pass_does_not_fail_the_sweep(real_os, monkeypatch) -> None:
+    client, prefix = real_os
+
+    async def store_away(*_args: Any, **_kwargs: Any) -> dict[str, int]:
+        raise RuntimeError("store away")
+
+    monkeypatch.setattr(cluster_retirement, "recheck_deleted", store_away)
+    before = REGISTRY.get_sample_value("javv_cluster_delete_recheck_failures_total") or 0.0
+
+    counts = await run_retirement_sweep(client, prefix=prefix)
+
+    assert counts["delete_rechecked"] == 0
+    after = REGISTRY.get_sample_value("javv_cluster_delete_recheck_failures_total") or 0.0
+    assert after == before + 1
 
 
 # --- the route --------------------------------------------------------------------------------

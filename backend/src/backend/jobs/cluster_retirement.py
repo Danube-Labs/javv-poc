@@ -31,6 +31,7 @@ import structlog
 from opensearchpy import AsyncOpenSearch, NotFoundError
 from pydantic import BaseModel
 
+from backend.admin.cluster_delete import recheck_deleted
 from backend.admin.cluster_retirement import (
     WINDOW_KEY,
     Retirement,
@@ -40,7 +41,11 @@ from backend.admin.cluster_retirement import (
     unretire_cluster,
 )
 from backend.admin.retirement_notices import notify_retiring, withdraw_stale
-from backend.core.metrics import RETIREMENT_HELD, RETIREMENT_NOTIFY_FAILURES
+from backend.core.metrics import (
+    CLUSTER_DELETE_RECHECK_FAILURES,
+    RETIREMENT_HELD,
+    RETIREMENT_NOTIFY_FAILURES,
+)
 from backend.core.stored_settings import parse_stored_setting
 from backend.jobs.staleness import STALENESS_KEY, StalenessTimers
 
@@ -229,9 +234,10 @@ async def run_retirement_sweep(
 ) -> dict[str, int]:
     """Retire the clusters whose window has passed, bring back the ones that scanned again, and
     announce the ones entering their warning window, withdrawing the notices that stopped being
-    true. Returns counts {retired, returned, held, announced, withdrawn}. A failed announcement
-    does not fail the run: the retirements are done, and the next run announces again (its
-    notification ids repeat none)."""
+    true, then pass over deleted clusters for rows written after their delete
+    (`admin/cluster_delete.py`). Returns counts {retired, returned, held, announced, withdrawn,
+    delete_rechecked}. A failed announcement or pass does not fail the run: the retirements are
+    done, and the next run tries again (its notification ids repeat none)."""
     now = now or datetime.now(UTC)
     activity = await token_activity(client, prefix=prefix)
     retirements = await read_retirements(client, prefix=prefix)
@@ -293,12 +299,19 @@ async def run_retirement_sweep(
             clusters=len(plan.warn),
             error=f"{type(exc).__name__}: {exc}",
         )
+    rechecked = 0
+    try:
+        rechecked = (await recheck_deleted(client, now=now, prefix=prefix))["rechecked"]
+    except Exception as exc:  # noqa: BLE001 - the run's retirements stand; the next run retries
+        CLUSTER_DELETE_RECHECK_FAILURES.inc()
+        log.warning("deleted clusters not rechecked", error=f"{type(exc).__name__}: {exc}")
     return {
         "retired": len(plan.retire),
         "returned": returned,
         "held": len(plan.held),
         "announced": announced,
         "withdrawn": withdrawn,
+        "delete_rechecked": rechecked,
     }
 
 
