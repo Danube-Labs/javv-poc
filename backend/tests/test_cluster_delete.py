@@ -2,9 +2,11 @@
 
 Contract pins: the delete leaves nothing of the cluster in any index JAVV writes but the audit
 log; the other cluster is untouched byte for byte, even when the two ids are prefixes of each
-other; a retry after a delete that stopped halfway finishes it; the route refuses a cluster that
-is not retired (409) or unknown (404), and journals before it deletes. The 401/403 axes live in
-the RBAC/IDOR suite."""
+other, and an index auto-created under the alias's own name goes too; a retry after a delete that
+stopped halfway finishes it, through the route as well (503, then 200), for a cluster that only
+its retirement record still names; the store away answers 503, a bug stays 500; the route
+refuses a cluster that is not retired (409) or unknown (404), and journals before it deletes.
+The 401/403 axes live in the RBAC/IDOR suite."""
 
 import uuid
 from typing import Any
@@ -12,6 +14,8 @@ from typing import Any
 import httpx
 import pytest
 from opensearchpy import AsyncOpenSearch, NotFoundError
+from opensearchpy.exceptions import ConnectionTimeout, RequestError
+from prometheus_client import REGISTRY
 
 from backend.admin import cluster_delete
 from backend.admin.cluster_delete import SHARED_INDICES, delete_cluster
@@ -112,13 +116,20 @@ async def test_a_delete_leaves_nothing_and_the_other_cluster_byte_for_byte(real_
     await _seed(client, prefix, GONE)
     await _seed(client, prefix, KEPT)
     await retire_cluster(client, GONE, actor="t", mode="manual", prefix=prefix)
+    # a write to the alias that landed while the series was gone: a concrete index under the
+    # alias's own name, for each cluster
+    stray = {cid: f"{prefix}{SERIES[0]}-{cid}" for cid in (GONE, KEPT)}
+    for cid, name in stray.items():
+        await _put(client, name, f"s-{cid}", {"cluster_id": cid})
     before = await _snapshot(client, prefix, KEPT)
 
     counts = await delete_cluster(client, GONE, actor="t", prefix=prefix)
 
     assert await _left(client, prefix, GONE) == []
+    assert not await client.indices.exists(index=stray[GONE])
+    assert await client.indices.exists(index=stray[KEPT])
     assert await _snapshot(client, prefix, KEPT) == before
-    assert counts["history_indices"] == len(SERIES)
+    assert counts["history_indices"] == len(SERIES) + 1
     assert counts["tokens"] == 1 and counts["findings"] == 1
     assert counts[REPORTS_INDEX] == 1 and counts[REPORT_CHUNKS_INDEX] == 1
     assert counts[NOTIFICATIONS_INDEX] == 1
@@ -230,3 +241,49 @@ async def test_the_route_deletes_a_retired_cluster_and_it_leaves_every_listing(e
     listed = await http.get("/api/v1/clusters", params={"include_retired": "true"})
     assert cid not in {c["cluster_id"] for c in listed.json()["clusters"]}
     assert (await http.delete(f"/api/v1/clusters/{cid}")).status_code == 404
+
+
+def _incomplete() -> float:
+    return REGISTRY.get_sample_value("javv_cluster_delete_incomplete_total") or 0.0
+
+
+async def test_the_route_finishes_a_delete_that_stopped_halfway(env, monkeypatch) -> None:
+    http, client = env
+    cid = await _route_cluster(client)  # never renamed: no registry name
+    assert (await http.post(f"/api/v1/clusters/{cid}/retire")).status_code == 200
+    before = _incomplete()
+
+    async def stopped(*_args: Any, **_kwargs: Any) -> list[str]:
+        raise cluster_delete.DeleteIncomplete("stopped after the tokens")
+
+    monkeypatch.setattr(cluster_delete, "_history_indices", stopped)
+    assert (await http.delete(f"/api/v1/clusters/{cid}")).status_code == 503
+    assert _incomplete() == before + 1
+    # its tokens are gone and it has no name: only its retirement record still names it
+    with pytest.raises(NotFoundError):
+        await client.get(index="system-tokens", id=f"tok-{cid}")
+    listed = await http.get("/api/v1/clusters", params={"include_retired": "true"})
+    assert cid in {c["cluster_id"] for c in listed.json()["clusters"]}
+
+    monkeypatch.undo()
+    assert (await http.delete(f"/api/v1/clusters/{cid}")).status_code == 200
+    assert (await http.delete(f"/api/v1/clusters/{cid}")).status_code == 404
+
+
+async def test_the_store_away_answers_503_and_a_bug_stays_500(env, monkeypatch) -> None:
+    http, client = env
+    cid = await _route_cluster(client)
+    assert (await http.post(f"/api/v1/clusters/{cid}/retire")).status_code == 200
+
+    async def timed_out(*_args: Any, **_kwargs: Any) -> list[str]:
+        raise ConnectionTimeout("TIMEOUT", "read timed out", None)
+
+    monkeypatch.setattr(cluster_delete, "_history_indices", timed_out)
+    assert (await http.delete(f"/api/v1/clusters/{cid}")).status_code == 503
+
+    async def malformed(*_args: Any, **_kwargs: Any) -> list[str]:
+        raise RequestError(400, "parsing_exception", None)
+
+    monkeypatch.setattr(cluster_delete, "_history_indices", malformed)
+    with pytest.raises(RequestError):  # unhandled: the app's 500, not a "retry it" 503
+        await http.delete(f"/api/v1/clusters/{cid}")

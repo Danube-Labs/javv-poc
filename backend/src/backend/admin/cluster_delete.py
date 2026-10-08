@@ -7,7 +7,9 @@ cluster is retired; the route checks both.
 2. its five history series (occurrences, scan-events, images, inventory runs, ingest failures),
    as whole-index drops. Indices are matched by exact name, `<series>-<cluster_id>-NNNNNN`, never
    by the `-<cluster_id>-*` wildcard alone: two valid ids can be prefixes of each other
-   (`abcdefgh` and `abcdefgh-1234`), and the wildcard would take the other cluster's history;
+   (`abcdefgh` and `abcdefgh-1234`), and the wildcard would take the other cluster's history.
+   `<series>-<cluster_id>` itself is dropped too: a write to the alias landing between the drop
+   and its re-creation auto-creates a concrete index under the alias's name;
 3. its rows in the shared indices: `findings`, `javv-scan-watermarks`, `javv-scan-orders`,
    `system-decisions`, `system-reports` (with their chunks) and `system-notifications`;
 4. its `system-config` docs: scan scope, the four per-cluster overrides, its registry name;
@@ -15,7 +17,8 @@ cluster is retired; the route checks both.
    and a retry finishes it.
 
 **`delete_by_query` here is a sanctioned use** (operator ruling on issue 765, named in the backend
-rules): every query is an exact `term` on `cluster_id`, so it can only ever match that tenant.
+rules): every query is an exact `term` on `cluster_id`, so it can only ever match that tenant (the
+report chunks go by `report_id`, taken from that cluster's reports).
 The append series are still whole-index drops. Every step can be re-run.
 
 Snapshots taken before the delete still hold the data; deleting does not reach them."""
@@ -57,15 +60,18 @@ class DeleteIncomplete(Exception):
 
 
 def _history_index_re(prefix: str, series: str, cluster_id: str) -> re.Pattern[str]:
-    return re.compile(rf"^{re.escape(prefix + series)}-{re.escape(cluster_id)}-\d{{6}}$")
+    return re.compile(rf"^{re.escape(prefix + series)}-{re.escape(cluster_id)}(-\d{{6}})?$")
 
 
 async def _history_indices(client: AsyncOpenSearch, cluster_id: str, prefix: str) -> list[str]:
     found: list[str] = []
     for series in SERIES:
-        pattern = f"{prefix}{series}-{cluster_id}-*"
+        base = f"{prefix}{series}-{cluster_id}"
         try:
-            got = await client.indices.get(index=pattern, params={"allow_no_indices": "true"})
+            got = await client.indices.get(
+                index=f"{base},{base}-*",
+                params={"allow_no_indices": "true", "ignore_unavailable": "true"},
+            )
         except NotFoundError:
             continue
         exact = _history_index_re(prefix, series, cluster_id)
@@ -133,6 +139,7 @@ async def delete_cluster(
     for name in indices:
         with contextlib.suppress(NotFoundError):  # a retry after this drop landed
             await client.indices.delete(index=name)
+            log.info("index dropped", index=name, cluster_id=cluster_id)
     counts["history_indices"] = len(indices)
 
     for index in SHARED_INDICES:

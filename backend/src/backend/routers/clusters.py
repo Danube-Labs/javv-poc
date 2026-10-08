@@ -5,8 +5,9 @@ One *document* in the existing `system-config` (`_id = "cluster-registry"`), not
 index name, never a filter (hard constraint; `cluster_id` is the immutable tenant key). The
 listing is cross-cluster BY DESIGN (MVP tenant model D38/H9: all clusters visible to any
 authenticated user): known clusters = the distinct `cluster_id`s that ever minted a token (the
-onboarding requirement — a cluster cannot push without one) ∪ registry entries; unnamed clusters
-default `cluster_name = cluster_id`.
+onboarding requirement — a cluster cannot push without one) ∪ registry entries ∪ retirement
+records (a cluster whose delete stopped halfway has only that left); unnamed clusters default
+`cluster_name = cluster_id`.
 
 Rename = `can_manage_settings` (admin), journal-FIRST per D17/#188 (the audit row lands before
 the registry write — a journal failure leaves no applied-but-unjournaled rename), mirroring the
@@ -20,8 +21,11 @@ that deletes data."""
 from datetime import datetime
 from typing import Annotated, Any, cast
 
+import structlog
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 from opensearchpy import AsyncOpenSearch
+from opensearchpy.exceptions import ConnectionError as OSConnectionError
+from opensearchpy.exceptions import TransportError
 from pydantic import BaseModel, ConfigDict, Field
 
 from backend.admin.cluster_delete import DeleteIncomplete, delete_cluster
@@ -36,6 +40,7 @@ from backend.audit.writer import append_field_change
 from backend.auth.capabilities import require_capability
 from backend.auth.principal import Principal, get_current_principal
 from backend.core.identifiers import CLUSTER_ID_RE
+from backend.core.metrics import CLUSTER_DELETE_INCOMPLETE
 from backend.jobs.cluster_retirement import (
     TokenActivity,
     is_retired,
@@ -43,6 +48,8 @@ from backend.jobs.cluster_retirement import (
     returned_at,
     token_activity,
 )
+
+log = structlog.get_logger()
 
 router = APIRouter(prefix="/api/v1/clusters", tags=["clusters"])
 
@@ -150,16 +157,26 @@ async def delete_retired_cluster(
     request: Request, cluster_id: ClusterIdPath, principal: ManageRetention
 ) -> dict[str, Any]:
     """Delete everything JAVV holds for a retired cluster but its audit rows (issue 765,
-    `admin/cluster_delete.py`). It must be retired first. A delete that could not finish answers
-    503 and a retry finishes it."""
+    `admin/cluster_delete.py`). It must be retired first. A delete that could not finish, a step
+    contended or the store away or overloaded, answers 503, and a retry finishes it: every step
+    can be re-run and the retirement record goes last."""
     client = cast(Any, request.app.state.opensearch)
     if cluster_id not in await _require_known(client, cluster_id):
         raise HTTPException(409, "retire the cluster before deleting it")
     try:
         counts = await delete_cluster(client, cluster_id, actor=principal.user_id)
-    except DeleteIncomplete as exc:
-        raise HTTPException(503, f"the delete did not finish, retry it: {exc}") from exc
+    except (DeleteIncomplete, TransportError) as exc:
+        if isinstance(exc, TransportError) and not _retryable(exc):
+            raise
+        CLUSTER_DELETE_INCOMPLETE.inc()
+        log.warning("cluster delete incomplete", cluster_id=cluster_id, error=str(exc))
+        raise HTTPException(503, "the delete did not finish, retry it") from exc
     return {"cluster_id": cluster_id, "deleted": counts}
+
+
+def _retryable(exc: TransportError) -> bool:
+    """The store away, timed out or pushing back; a 4xx is a bug and stays a 500."""
+    return isinstance(exc, OSConnectionError) or exc.status_code in (429, 500, 502, 503, 504)
 
 
 @router.put("/{cluster_id}/name")

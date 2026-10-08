@@ -136,6 +136,11 @@ RETIREMENT_HELD = Counter(
     " scanner-down timer (issue 765): that points at JAVV itself, an outage or a rejected"
     " scanner version",
 )
+CLUSTER_DELETE_INCOMPLETE = Counter(
+    "javv_cluster_delete_incomplete_total",
+    "Cluster deletes that stopped halfway and answered 503 (issue 765): a step stayed contended or"
+    " the store was away; a retry finishes the delete",
+)
 
 
 def install_http_metrics(app: FastAPI) -> None:
@@ -162,6 +167,7 @@ def install_http_metrics(app: FastAPI) -> None:
 __all__ = [
     "AUTH_FAILURES",
     "CAS_CONFLICTS",
+    "CLUSTER_DELETE_INCOMPLETE",
     "CONFIG_WARNINGS",
     "CONTENT_TYPE_LATEST",
     "EXPORT_BYTES",

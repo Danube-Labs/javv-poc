@@ -220,8 +220,9 @@ export const listClustersApiV1ClustersGet = <ThrowOnError extends boolean = fals
  * Delete Retired Cluster
  *
  * Delete everything JAVV holds for a retired cluster but its audit rows (issue 765,
- * `admin/cluster_delete.py`). It must be retired first. A delete that could not finish answers
- * 503 and a retry finishes it.
+ * `admin/cluster_delete.py`). It must be retired first. A delete that could not finish, a step
+ * contended or the store away or overloaded, answers 503, and a retry finishes it: every step
+ * can be re-run and the retirement record goes last.
  */
 export const deleteRetiredClusterApiV1ClustersClusterIdDelete = <ThrowOnError extends boolean = false>(options: Options<DeleteRetiredClusterApiV1ClustersClusterIdDeleteData, ThrowOnError>): RequestResult<DeleteRetiredClusterApiV1ClustersClusterIdDeleteResponses, DeleteRetiredClusterApiV1ClustersClusterIdDeleteErrors, ThrowOnError> => (options.client ?? client).delete<DeleteRetiredClusterApiV1ClustersClusterIdDeleteResponses, DeleteRetiredClusterApiV1ClustersClusterIdDeleteErrors, ThrowOnError>({ url: '/api/v1/clusters/{cluster_id}', ...options });
 
