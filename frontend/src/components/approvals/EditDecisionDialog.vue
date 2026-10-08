@@ -74,7 +74,7 @@ async function submit() {
     <UiField label="Expiry" hint="empty keeps the current expiry" for="ed-expiry">
       <input id="ed-expiry" v-model="expiry" class="fld" type="date" />
     </UiField>
-    <p v-if="error" class="ed-error" role="alert">{{ error }}</p>
+    <p v-if="error" class="modal-error" role="alert">{{ error }}</p>
     <template #actions>
       <UiButton variant="quiet" @click="emit('close')">Cancel</UiButton>
       <UiButton :disabled="!valid || submitting" @click="submit">
@@ -92,10 +92,5 @@ async function submit() {
 }
 .ed-just {
   resize: vertical;
-}
-.ed-error {
-  margin: 10px 0 0;
-  font-size: var(--text-sm);
-  color: var(--health-down-fg);
 }
 </style>

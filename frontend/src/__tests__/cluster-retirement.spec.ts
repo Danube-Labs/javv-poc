@@ -111,6 +111,15 @@ describe('RetiredClustersCard', () => {
     expect(rows[0]!.text()).toContain('beta')
   })
 
+  it('names a never-renamed cluster by its id once, not twice', async () => {
+    signIn(['can_manage_settings'])
+    listing([fleetRow('c-old-01', true)]) // no registry name: the listing names it by its id
+    const w = mount(RetiredClustersCard)
+    await flushPromises()
+    expect(w.find('tbody .name-cell').text()).toBe('c-old-01')
+    expect(w.find('tbody .id-cell').exists()).toBe(false)
+  })
+
   it('shows Delete only with can_manage_retention', async () => {
     listing([fleetRow('beta', true)])
     signIn(['can_manage_settings'])

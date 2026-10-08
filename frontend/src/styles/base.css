@@ -937,9 +937,10 @@ button.stat-cell:hover .cell-go,
   }
 }
 
-/* ---- settings skins (issue 765): one source for the pieces every Settings panel and its modals
-   share. A table that fills its SettingsCard edge to edge, a modal's error line, and a confirm
-   modal's body copy. The style rules test refuses a second definition outside this file. */
+/* ---- settings and modal skins (issue 765): one source for pieces several panels and modals
+   share. A table that is its SettingsCard's body, full-bleed under the head hairline (no empty
+   body strip, no card-in-card); a modal's error line; a confirm modal's body copy. The style
+   rules test refuses a second definition outside this file. */
 .set-flush {
   margin: -4px -16px -14px;
 }

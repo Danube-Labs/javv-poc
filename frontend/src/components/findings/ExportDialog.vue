@@ -250,7 +250,7 @@ const downloadHref = computed(() =>
               </div>
             </template>
 
-            <p v-if="error" class="ex-error" role="alert">{{ error }}</p>
+            <p v-if="error" class="modal-error" role="alert">{{ error }}</p>
 
       <template #actions>
           <UiButton variant="ghost" @click="close">Close</UiButton>
@@ -326,10 +326,5 @@ const downloadHref = computed(() =>
   font-family: var(--font-mono);
   font-size: var(--text-sm);
   color: var(--soft);
-}
-.ex-error {
-  margin: 10px 0 0;
-  font-size: var(--text-sm);
-  color: var(--health-down-fg);
 }
 </style>

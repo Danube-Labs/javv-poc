@@ -338,8 +338,6 @@ const fmt = (iso: string | null) =>
 </template>
 
 <style scoped>
-/* the table IS the card body, full-bleed under the head hairline (the data-panel grammar) —
-   no empty body strip, no card-in-card */
 .stack {
   display: flex;
   flex-direction: column;
