@@ -437,7 +437,8 @@ D15 scanner casing lowercase *(now via normalizer - see D16)*.
   key is minted by the **backend**: at cycle start the scanner `POST`s `/api/v1/scan-runs` (token-scoped,
   **fail-closed** like the D43 scope fetch - backend down → skip the cycle); the backend CAS-increments a
   per-`(cluster_id, scanner)` counter doc in **`javv-scan-orders`** - a dedicated, tiny mutable index
-  (`#clusters × #scanners` docs, `_seq_no`/`_primary_term`-guarded, no rollover/ISM/retention ever) -
+  (`#clusters × #scanners` docs, `_seq_no`/`_primary_term`-guarded, no rollover/ISM/retention ever,
+  save deleting a whole cluster, issue 765) -
   and returns the new order. **Separate from `javv-scan-watermarks` on purpose:** watermarks are
   *derived* state (rebuild-state may wipe + recompute them from the catalog); the counter is
   *authoritative* (allocated-but-uncommitted orders are invisible to the catalog, so a naive rebuild

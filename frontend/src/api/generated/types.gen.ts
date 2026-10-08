@@ -1671,6 +1671,40 @@ export type ListClustersApiV1ClustersGetResponses = {
 
 export type ListClustersApiV1ClustersGetResponse = ListClustersApiV1ClustersGetResponses[keyof ListClustersApiV1ClustersGetResponses];
 
+export type DeleteRetiredClusterApiV1ClustersClusterIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+    };
+    query?: never;
+    url: '/api/v1/clusters/{cluster_id}';
+};
+
+export type DeleteRetiredClusterApiV1ClustersClusterIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteRetiredClusterApiV1ClustersClusterIdDeleteError = DeleteRetiredClusterApiV1ClustersClusterIdDeleteErrors[keyof DeleteRetiredClusterApiV1ClustersClusterIdDeleteErrors];
+
+export type DeleteRetiredClusterApiV1ClustersClusterIdDeleteResponses = {
+    /**
+     * Response Delete Retired Cluster Api V1 Clusters  Cluster Id  Delete
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type DeleteRetiredClusterApiV1ClustersClusterIdDeleteResponse = DeleteRetiredClusterApiV1ClustersClusterIdDeleteResponses[keyof DeleteRetiredClusterApiV1ClustersClusterIdDeleteResponses];
+
 export type RenameClusterApiV1ClustersClusterIdNamePutData = {
     body: RenameCluster;
     path: {

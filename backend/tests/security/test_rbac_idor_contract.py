@@ -224,6 +224,12 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         route_path="/api/v1/clusters/{cluster_id}/retire",
         capability="can_manage_settings",
     ),
+    MutatingEndpoint(  # issue 765 — delete a retired cluster (everything but its audit rows)
+        method="DELETE",
+        path="/api/v1/clusters/c-rbac-sample1",
+        route_path="/api/v1/clusters/{cluster_id}",
+        capability="can_manage_retention",
+    ),
     MutatingEndpoint(  # issue 765 — bring a retired cluster back
         method="POST",
         path="/api/v1/clusters/c-rbac-sample1/unretire",

@@ -3343,6 +3343,52 @@
         ]
       }
     },
+    "/api/v1/clusters/{cluster_id}": {
+      "delete": {
+        "description": "Delete everything JAVV holds for a retired cluster but its audit rows (issue 765,\n`admin/cluster_delete.py`). It must be retired first. A delete that could not finish, a step\ncontended or the store away or overloaded, answers 503, and a retry finishes it: every step\ncan be re-run and the retirement record goes last.",
+        "operationId": "delete_retired_cluster_api_v1_clusters__cluster_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "cluster_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z0-9][a-z0-9-]{7,63}$",
+              "title": "Cluster Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Retired Cluster Api V1 Clusters  Cluster Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Retired Cluster",
+        "tags": [
+          "clusters"
+        ]
+      }
+    },
     "/api/v1/clusters/{cluster_id}/name": {
       "put": {
         "operationId": "rename_cluster_api_v1_clusters__cluster_id__name_put",

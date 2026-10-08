@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict
 from backend.core.stored_settings import parse_stored_setting
 
 
-def _doc_id(cluster_id: str) -> str:
+def scan_scope_doc_id(cluster_id: str) -> str:
     return f"scan_scope:{cluster_id}"
 
 
@@ -37,10 +37,12 @@ async def read_scan_scope(
 ) -> ScanScope:
     """The cluster's scan scope, or an empty scope (= scan everything) if none is configured."""
     try:
-        got = await client.get(index=f"{prefix}system-config", id=_doc_id(cluster_id))
+        got = await client.get(index=f"{prefix}system-config", id=scan_scope_doc_id(cluster_id))
     except NotFoundError:
         return ScanScope()
-    return parse_stored_setting(ScanScope, got["_source"]["value"], key=_doc_id(cluster_id))
+    return parse_stored_setting(
+        ScanScope, got["_source"]["value"], key=scan_scope_doc_id(cluster_id)
+    )
 
 
 async def write_scan_scope(
@@ -53,7 +55,7 @@ async def write_scan_scope(
 ) -> None:
     """Persist the cluster's scan scope in system-config (one doc per cluster)."""
     doc = {
-        "key": _doc_id(cluster_id),
+        "key": scan_scope_doc_id(cluster_id),
         "cluster_id": cluster_id,
         "value": scope.model_dump(),
         "updated_at": datetime.now(UTC).isoformat(),
@@ -61,7 +63,7 @@ async def write_scan_scope(
     }
     await client.index(
         index=f"{prefix}system-config",
-        id=_doc_id(cluster_id),
+        id=scan_scope_doc_id(cluster_id),
         body=doc,
         params={"refresh": "true"},
     )
