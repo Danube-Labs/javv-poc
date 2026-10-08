@@ -122,7 +122,7 @@ is archived under `.deprecated/handoff/v1/`.
 `workflows/ci.yml` (Backend pytest + parallel Backend-static ruff/pyright/docs-drift + Frontend
 lint/test + the contract gate + Frontend smoke + Scanner + javv-common + commitlint + the gitleaks
 Secret scan + the report-only Dependency audit + App images, which builds the app's Docker images
-without a push and starts them, + Compose stack, which runs deploy/compose and signs in, issue 452; + Helm charts, which runs ct lint and ct install in kind on deploy/helm, issue 725; detect-step jobs always run for branch protection) ·
+without a push and starts them, + Compose stack, which runs deploy/compose and signs in, issue 452; + two Helm jobs side by side, which run ct lint and ct install in kind on deploy/helm, issues 725 and 780; detect-step jobs always run for branch protection) ·
 `workflows/scorecard.yml` (weekly OpenSSF Scorecard) · `workflows/release-please.yml`
 (batched release PRs; a release publishes the app images, signed with an SBOM attestation, issues 452 and 615, then the three charts to `oci://ghcr.io/danube-labs/charts`, signed, issue 725) · `workflows/scanner-images.yml` (publish, SBOM and sign the pinned scanner images on every merge that changes them) ·
 `workflows/versions.yml` (versions.yaml drift gate) · `workflows/clock-drift.yml` (weekly: both

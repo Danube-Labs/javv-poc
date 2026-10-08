@@ -10,9 +10,10 @@ name: CI
 #   - app-images (issue 452): the app's Docker images build without a push, then start and answer
 #   - compose (issues 452, 715, 729): the stack from deploy/compose, signed in through the frontend,
 #     OpenSearch's login and users checked, and the javv role walked over every surface
-#   - helm (issue 725): ct lint, the chart READMEs, the release's package/push/pull, ct install of
-#     the three charts in kind, the app's sign-in, upgrade and rollback, and a scanner cycle
-#     pushing from a second cluster
+#   - helm (issues 725, 780), two jobs side by side: helm-opensearch runs ct lint, the chart
+#     READMEs, the release's package/push/pull and ct install of javv-opensearch in kind;
+#     helm-app runs ct install of javv and javv-scanner, the app's sign-in, upgrade and rollback,
+#     and a scanner cycle pushing from a second cluster
 #   - dependency-audit (issue 552): pip-audit + npm audit, report-only
 #   - frontend: oxlint/eslint/stylelint + vue-tsc + vitest (coverage floor in
 #     vitest.config.ts, #383) + the I4/I7 contract gates (openapi.json snapshot must match
@@ -449,17 +450,16 @@ jobs:
         if: failure()
         run: docker compose -f deploy/compose/compose.yaml logs
 
-  helm:
-    # issue 725: the charts in deploy/helm. ct lint (yamllint, Chart.yaml, helm lint) and each
-    # chart's README against its values.yaml, then ct install in kind: every ci/*-values.yaml is one
-    # install followed by the chart's `helm test`. javv-opensearch: the demo certificates, a
-    # certificate from a Secret, and one from cert-manager. javv: next to a store with a
-    # cert-manager certificate, on images built from this commit, then a real sign-in, a stopped
-    # backend (502) and an upgrade with a rollback. javv-scanner: in a second kind cluster that
-    # plays the monitored one, on the published scanner images, pushing to that JAVV; one cycle
-    # of each scanner lands. The render checks are backend/tests/test_helm_*.py, in the Backend
-    # job, and scanner/tests/test_helm_config.py, in the Scanner job.
-    name: Helm charts
+  # issue 725: the charts in deploy/helm, over two jobs that run side by side (issue 780: one job
+  # holding all of it was the slowest in CI). ct install puts each chart in kind: every
+  # ci/*-values.yaml is one install followed by the chart's `helm test`. The render checks are
+  # backend/tests/test_helm_*.py, in the Backend job, and scanner/tests/test_helm_config.py, in the
+  # Scanner job; backend/tests/test_ci_helm_jobs.py holds the split.
+  helm-opensearch:
+    # ct lint (yamllint, Chart.yaml, helm lint) and each chart's README against its values.yaml,
+    # the release's package/push/pull, then ct install of javv-opensearch: the demo certificates,
+    # a certificate from a Secret, and one from cert-manager.
+    name: Helm lint, packaging and javv-opensearch
     runs-on: ubuntu-latest
     env:
       # OpenSearch's rules: 8+ characters with upper, lower, digit and special, and not a weak one
@@ -532,6 +532,50 @@ jobs:
         with:
           cluster_name: chart-testing
 
+      - name: ct install, javv-opensearch
+        run: |
+          development/scripts/helm-ci-fixtures.sh javv-ci
+          ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv-opensearch
+
+      - name: Cluster state
+        if: failure()
+        run: |
+          kubectl --context kind-chart-testing -n javv-ci get all,secrets,certificates,events || true
+          kubectl --context kind-chart-testing -n javv-ci logs -l app.kubernetes.io/name=opensearch --all-containers --tail 100 || true
+          df -h /
+
+  helm-app:
+    # javv: next to a store with a cert-manager certificate, on images built from this commit,
+    # then a real sign-in, a stopped backend (502) and an upgrade with a rollback. javv-scanner:
+    # in a second kind cluster that plays the monitored one, on the published scanner images,
+    # pushing to that JAVV; one cycle of each scanner lands.
+    name: Helm javv and javv-scanner
+    runs-on: ubuntu-latest
+    env:
+      # OpenSearch's rules: 8+ characters with upper, lower, digit and special, and not a weak one
+      JAVV_CI_OPENSEARCH_PASSWORD: Ci-only-OpenSearch-725!
+      JAVV_CI_OPENSEARCH_BACKEND_PASSWORD: Ci-only-javv-729
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      # chart-testing runs yamllint and yamale in Python
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+
+      - uses: helm/chart-testing-action@6ec842c01de15ebb84c8627d2744a0c2f2755c9f # v2.8.0
+
+      - name: OpenSearch's memory map limit
+        run: sudo sysctl -w vm.max_map_count=262144
+
+      - uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        with:
+          cluster_name: chart-testing
+
       # built under the release's names, which the javv chart's values use, and imported straight
       # into the node's containerd: the images carry an attestation manifest, and an import that
       # misses one shows up only later, as ImagePullBackOff
@@ -545,11 +589,6 @@ jobs:
           done
           docker exec chart-testing-control-plane crictl images | grep "danube-labs/javv-"
           [ "$(docker exec chart-testing-control-plane crictl images | grep -c "danube-labs/javv-")" = 2 ]
-
-      - name: ct install, javv-opensearch
-        run: |
-          development/scripts/helm-ci-fixtures.sh javv-ci
-          ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv-opensearch
 
       - name: A store for the app, with a cert-manager certificate
         run: |
@@ -606,11 +645,9 @@ jobs:
       - name: Cluster state
         if: failure()
         run: |
-          for ns in javv-ci javv; do
-            kubectl --context kind-chart-testing -n "$ns" get all,secrets,certificates,events || true
-            kubectl --context kind-chart-testing -n "$ns" logs -l app.kubernetes.io/name=opensearch --all-containers --tail 100 || true
-            kubectl --context kind-chart-testing -n "$ns" logs -l app.kubernetes.io/name=javv --all-containers --tail 100 || true
-          done
+          kubectl --context kind-chart-testing -n javv get all,secrets,certificates,events || true
+          kubectl --context kind-chart-testing -n javv logs -l app.kubernetes.io/name=opensearch --all-containers --tail 100 || true
+          kubectl --context kind-chart-testing -n javv logs -l app.kubernetes.io/name=javv --all-containers --tail 100 || true
           kubectl --context kind-monitored -n javv-scan get all,pvc,events || true
           kubectl --context kind-monitored -n javv-scan logs -l app.kubernetes.io/name=javv-scanner --all-containers --tail 100 || true
           df -h /
