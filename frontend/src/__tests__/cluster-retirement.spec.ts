@@ -176,6 +176,18 @@ describe('RetiredClustersCard, issue 778', () => {
     expect(gamma!.text()).not.toContain('did not finish')
   })
 
+  it('tells an admin who cannot delete that someone who can must finish it', async () => {
+    signIn(['can_manage_settings'])
+    listing([fleetRow('beta', true, 'beta', { delete_started: true })])
+    const w = mount(RetiredClustersCard)
+    await flushPromises()
+    const row = w.find('tbody tr')
+    expect(row.findAll('button')).toHaveLength(0)
+    expect(row.text()).toContain(
+      'Its delete did not finish. Someone who can delete clusters must delete it again.',
+    )
+  })
+
   it('after bringing back a manual retire, says its scanners need a new token', async () => {
     signIn(['can_manage_settings'])
     listing([fleetRow('beta', true, 'beta', { retirement_mode: 'manual' })])

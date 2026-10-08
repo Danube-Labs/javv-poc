@@ -91,9 +91,11 @@ async function onDeleted() {
                 <span v-if="row.cluster_name !== row.cluster_id" class="mono-cell sm id-cell">{{
                   row.cluster_id
                 }}</span>
-                <span v-if="row.delete_started" class="unfinished-cell"
-                  >Its delete did not finish. Delete it again.</span
-                >
+                <span v-if="row.delete_started" class="unfinished-cell">{{
+                  canDelete
+                    ? 'Its delete did not finish. Delete it again.'
+                    : 'Its delete did not finish. Someone who can delete clusters must delete it again.'
+                }}</span>
               </td>
               <td class="fit mono-cell sm nowrap" :title="row.last_scan_at ?? undefined">
                 {{ lastDataAt(row.last_scan_at) }}
