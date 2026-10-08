@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.6.2](https://github.com/Danube-Labs/javv-poc/compare/v0.6.1...v0.6.2) (2026-10-08)
+
+
+### Features
+
+* a countdown, a fleet chip and a bell notice before a silent cluster is retired ([#777](https://github.com/Danube-Labs/javv-poc/issues/777)) ([f6b2fcb](https://github.com/Danube-Labs/javv-poc/commit/f6b2fcbb66b87774aa9b01126890f3f6f4b0a81a))
+* a reset command for a forgotten password when no admin can sign in ([#762](https://github.com/Danube-Labs/javv-poc/issues/762)) ([21ae542](https://github.com/Danube-Labs/javv-poc/commit/21ae5425a4cf8b440dfd47e17a17235ba0de9d6d))
+* delete a retired cluster, everything but its audit rows, matched by its exact id ([#775](https://github.com/Danube-Labs/javv-poc/issues/775)) ([b483e27](https://github.com/Danube-Labs/javv-poc/commit/b483e2732f899b18b7ee81aed081bfc8e561676f))
+* refuse bring back mid-delete, say a manual retire needs a new token, and recheck deletes ([#779](https://github.com/Danube-Labs/javv-poc/issues/779)) ([f868a07](https://github.com/Danube-Labs/javv-poc/commit/f868a07e91ee9ee1cefeb40dcd321d398b139b65))
+* retire silent clusters automatically or by hand, off the cluster list with their data kept ([#768](https://github.com/Danube-Labs/javv-poc/issues/768)) ([6579ff0](https://github.com/Danube-Labs/javv-poc/commit/6579ff0e7b53dcca87972ed9a40a83ae9a551e5b))
+* retire, bring back and delete clusters, and the retirement window, in settings cluster ([#776](https://github.com/Danube-Labs/javv-poc/issues/776)) ([ae186a8](https://github.com/Danube-Labs/javv-poc/commit/ae186a835b3c12a29a7a62ca6d29282b2c5f8be1))
+* the sign-in screen says what to do about a forgotten password ([#763](https://github.com/Danube-Labs/javv-poc/issues/763)) ([2aed81e](https://github.com/Danube-Labs/javv-poc/commit/2aed81e4c240353b119ec3a49fac3df19edfe044))
+
+
+### Bug Fixes
+
+* drop minio from the dev seed, since docker hub no longer serves its pinned tag ([#767](https://github.com/Danube-Labs/javv-poc/issues/767)) ([49a5c55](https://github.com/Danube-Labs/javv-poc/commit/49a5c55bc57486a55c2fbf4ab50b3e3155640311))
+
 ## [0.6.1](https://github.com/Danube-Labs/javv-poc/compare/v0.6.0...v0.6.1) (2026-10-06)
 
 
