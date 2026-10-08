@@ -85,9 +85,9 @@ Same dance in the UI. Cookies land in `backend/cookies.txt` for curl work.
 (`docs/CONFIGURATION.md` §1; `JAVV_SCHEDULER_ENABLED=false` stops that, which is what you want on a dev
 store whose data you care about: the lifecycle sweep drops history past retention and the staleness
 sweep marks old findings stale). They can also be run by hand from `backend/`:
-`staleness` · `lifecycle` · `findings_cleanup` · `report_drain` · `report_sweep` · `session_sweep` ·
-`rebuild_state` (`uv run python -m backend.jobs.<name>`). Every one of them takes the
-`system-jobs` lease for its kind (`jobs/registry.py` lists the seven), which also records the run;
+`staleness` · `lifecycle` · `findings_cleanup` · `cluster_retirement` · `report_drain` · `report_sweep` ·
+`session_sweep` · `rebuild_state` (`uv run python -m backend.jobs.<name>`). Every one of them takes the
+`system-jobs` lease for its kind (`jobs/registry.py` lists the eight), which also records the run;
 `staleness`, `lifecycle` and `rebuild_state` share that lease with their Data inspector buttons,
 and `report_drain` additionally claims each report under the reports lease.
 

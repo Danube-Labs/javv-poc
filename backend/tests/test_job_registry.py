@@ -9,6 +9,7 @@ import pytest
 from opensearchpy import AsyncOpenSearch
 
 from backend.jobs import (
+    cluster_retirement,
     findings_cleanup,
     lifecycle,
     registry,
@@ -21,11 +22,17 @@ from backend.jobs.registry import JOBS, run_job
 from backend.routers import admin_jobs
 from os_env import requires_opensearch
 
-SCHEDULED_ONLY = {"findings_cleanup", "session_sweep", "report_sweep", "report_drain"}
+SCHEDULED_ONLY = {
+    "findings_cleanup",
+    "cluster_retirement",
+    "session_sweep",
+    "report_sweep",
+    "report_drain",
+}
 STARTABLE = {"rebuild_state", "staleness_sweep", "lifecycle_sweep"}
 
 
-def test_the_registry_lists_the_seven_kinds_once() -> None:
+def test_the_registry_lists_the_eight_kinds_once() -> None:
     assert set(JOBS) == SCHEDULED_ONLY | STARTABLE
     assert all(job.kind == kind for kind, job in JOBS.items())
 
@@ -39,7 +46,8 @@ def test_only_the_three_repair_actions_can_be_started_from_the_ui() -> None:
 
 
 def test_only_the_repair_actions_write_a_job_trigger_audit_row() -> None:
-    # findings_cleanup and session_sweep journal their own row with counts; the report jobs run
+    # findings_cleanup and session_sweep journal their own row with counts, cluster_retirement one
+    # per cluster it retires or brings back; the report jobs run
     # many times a day and would bury the audit log
     assert {k for k, job in JOBS.items() if job.journal} == STARTABLE
 
@@ -137,6 +145,7 @@ async def test_a_kind_already_running_is_skipped_not_run_twice(real_os, monkeypa
         (session_sweep, "session_sweep"),
         (report_sweep, "report_sweep"),
         (findings_cleanup, "findings_cleanup"),
+        (cluster_retirement, "cluster_retirement"),
         (report_drain, "report_drain"),
     ],
 )

@@ -94,6 +94,11 @@ backend:
     JAVV_INSPECT_MAX_RESPONSE_BYTES: "2097152"
     # seconds before an inspector query gives up
     JAVV_INSPECT_TIMEOUT_SECONDS: "10.0"
+    # cluster retirement: the fleet defaults until a value is saved at runtime
+    # days without an accepted scan before a cluster is retired (0 = never)
+    JAVV_CLUSTER_RETIRE_AFTER_DAYS: "45"
+    # days before retirement that the warning banner and the bell start
+    JAVV_CLUSTER_RETIREMENT_WARN_DAYS: "7"
 
     # --- background jobs: cron expressions read in TZ; empty = never on a schedule ---
     # false stops every schedule; the jobs can still be run from the Data inspector
@@ -108,6 +113,8 @@ backend:
     JAVV_JOB_LIFECYCLE_SWEEP_CRON: "0 3 * * *"
     # removes findings gone from every scan for longer than the cleanup window
     JAVV_JOB_FINDINGS_CLEANUP_CRON: "0 4 * * *"
+    # retires clusters silent past their window, brings back the ones that scan again
+    JAVV_JOB_CLUSTER_RETIREMENT_CRON: "15 4 * * *"
     # deletes expired sign-in sessions
     JAVV_JOB_SESSION_SWEEP_CRON: "30 4 * * *"
 

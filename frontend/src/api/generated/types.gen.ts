@@ -563,6 +563,24 @@ export type RetentionPut = {
 };
 
 /**
+ * RetirementPut
+ */
+export type RetirementPut = {
+    /**
+     * Cluster Id
+     */
+    cluster_id?: string | null;
+    /**
+     * Retire After Days
+     */
+    retire_after_days: number | null;
+    /**
+     * Warn Days
+     */
+    warn_days: number;
+};
+
+/**
  * RolePatch
  */
 export type RolePatch = {
@@ -1622,9 +1640,23 @@ export type ReceiveClientEventsApiV1ClientEventsPostResponse = ReceiveClientEven
 export type ListClustersApiV1ClustersGetData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        /**
+         * Include Retired
+         */
+        include_retired?: boolean;
+    };
     url: '/api/v1/clusters';
 };
+
+export type ListClustersApiV1ClustersGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type ListClustersApiV1ClustersGetError = ListClustersApiV1ClustersGetErrors[keyof ListClustersApiV1ClustersGetErrors];
 
 export type ListClustersApiV1ClustersGetResponses = {
     /**
@@ -1672,6 +1704,74 @@ export type RenameClusterApiV1ClustersClusterIdNamePutResponses = {
 };
 
 export type RenameClusterApiV1ClustersClusterIdNamePutResponse = RenameClusterApiV1ClustersClusterIdNamePutResponses[keyof RenameClusterApiV1ClustersClusterIdNamePutResponses];
+
+export type RetireApiV1ClustersClusterIdRetirePostData = {
+    body?: never;
+    path: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+    };
+    query?: never;
+    url: '/api/v1/clusters/{cluster_id}/retire';
+};
+
+export type RetireApiV1ClustersClusterIdRetirePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type RetireApiV1ClustersClusterIdRetirePostError = RetireApiV1ClustersClusterIdRetirePostErrors[keyof RetireApiV1ClustersClusterIdRetirePostErrors];
+
+export type RetireApiV1ClustersClusterIdRetirePostResponses = {
+    /**
+     * Response Retire Api V1 Clusters  Cluster Id  Retire Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type RetireApiV1ClustersClusterIdRetirePostResponse = RetireApiV1ClustersClusterIdRetirePostResponses[keyof RetireApiV1ClustersClusterIdRetirePostResponses];
+
+export type UnretireApiV1ClustersClusterIdUnretirePostData = {
+    body?: never;
+    path: {
+        /**
+         * Cluster Id
+         */
+        cluster_id: string;
+    };
+    query?: never;
+    url: '/api/v1/clusters/{cluster_id}/unretire';
+};
+
+export type UnretireApiV1ClustersClusterIdUnretirePostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type UnretireApiV1ClustersClusterIdUnretirePostError = UnretireApiV1ClustersClusterIdUnretirePostErrors[keyof UnretireApiV1ClustersClusterIdUnretirePostErrors];
+
+export type UnretireApiV1ClustersClusterIdUnretirePostResponses = {
+    /**
+     * Response Unretire Api V1 Clusters  Cluster Id  Unretire Post
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type UnretireApiV1ClustersClusterIdUnretirePostResponse = UnretireApiV1ClustersClusterIdUnretirePostResponses[keyof UnretireApiV1ClustersClusterIdUnretirePostResponses];
 
 export type ContributorsApiV1ContributorsGetData = {
     body?: never;
@@ -3641,6 +3741,69 @@ export type PutRetentionApiV1SettingsRetentionPutResponses = {
 };
 
 export type PutRetentionApiV1SettingsRetentionPutResponse = PutRetentionApiV1SettingsRetentionPutResponses[keyof PutRetentionApiV1SettingsRetentionPutResponses];
+
+export type GetRetirementApiV1SettingsRetirementGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Cluster Id
+         */
+        cluster_id?: string | null;
+    };
+    url: '/api/v1/settings/retirement';
+};
+
+export type GetRetirementApiV1SettingsRetirementGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetRetirementApiV1SettingsRetirementGetError = GetRetirementApiV1SettingsRetirementGetErrors[keyof GetRetirementApiV1SettingsRetirementGetErrors];
+
+export type GetRetirementApiV1SettingsRetirementGetResponses = {
+    /**
+     * Response Get Retirement Api V1 Settings Retirement Get
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type GetRetirementApiV1SettingsRetirementGetResponse = GetRetirementApiV1SettingsRetirementGetResponses[keyof GetRetirementApiV1SettingsRetirementGetResponses];
+
+export type PutRetirementApiV1SettingsRetirementPutData = {
+    body: RetirementPut;
+    path?: never;
+    query?: never;
+    url: '/api/v1/settings/retirement';
+};
+
+export type PutRetirementApiV1SettingsRetirementPutErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type PutRetirementApiV1SettingsRetirementPutError = PutRetirementApiV1SettingsRetirementPutErrors[keyof PutRetirementApiV1SettingsRetirementPutErrors];
+
+export type PutRetirementApiV1SettingsRetirementPutResponses = {
+    /**
+     * Response Put Retirement Api V1 Settings Retirement Put
+     *
+     * Successful Response
+     */
+    200: {
+        [key: string]: unknown;
+    };
+};
+
+export type PutRetirementApiV1SettingsRetirementPutResponse = PutRetirementApiV1SettingsRetirementPutResponses[keyof PutRetirementApiV1SettingsRetirementPutResponses];
 
 export type PutRolloverApiV1SettingsRolloverPutData = {
     body: RolloverPut;

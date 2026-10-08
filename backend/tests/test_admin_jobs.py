@@ -233,7 +233,13 @@ async def test_dry_run_still_needs_the_lifecycle_capability(env):
     assert r.status_code == 403
 
 
-SCHEDULED_ONLY = {"findings_cleanup", "session_sweep", "report_sweep", "report_drain"}
+SCHEDULED_ONLY = {
+    "findings_cleanup",
+    "cluster_retirement",
+    "session_sweep",
+    "report_sweep",
+    "report_drain",
+}
 RO = ZoneInfo("Europe/Bucharest")
 NOON = datetime(2026, 6, 10, 12, 0, tzinfo=RO)
 

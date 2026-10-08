@@ -31,6 +31,7 @@ SCHEDULED = (
     "staleness_sweep",
     "lifecycle_sweep",
     "findings_cleanup",
+    "cluster_retirement",
     "session_sweep",
 )
 
@@ -117,8 +118,10 @@ async def test_each_job_runs_when_its_own_time_comes(real_os, clock, runs) -> No
     assert await drain(sch) == ["report_drain", "lifecycle_sweep", "report_sweep"]
     clock.to(2026, 6, 10, 4, 0)
     assert await drain(sch) == ["report_drain", "findings_cleanup", "report_sweep"]
+    clock.to(2026, 6, 10, 4, 15)
+    assert await drain(sch) == ["report_drain", "cluster_retirement", "report_sweep"]
     clock.to(2026, 6, 10, 4, 30)
-    assert await drain(sch) == ["report_drain", "session_sweep", "report_sweep"]
+    assert await drain(sch) == ["report_drain", "session_sweep"]
     assert "rebuild_state" not in runs  # it has no schedule
 
 
@@ -143,6 +146,7 @@ async def test_one_at_a_time_and_the_export_drain_first(real_os, clock, runs) ->
         "staleness_sweep",
         "lifecycle_sweep",
         "findings_cleanup",
+        "cluster_retirement",
         "session_sweep",
         "report_sweep",
     ]

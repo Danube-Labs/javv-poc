@@ -119,6 +119,7 @@ SCHEDULED_KINDS = (
     "staleness_sweep",
     "lifecycle_sweep",
     "findings_cleanup",
+    "cluster_retirement",
     "session_sweep",
 )
 
@@ -141,6 +142,7 @@ def test_the_default_schedules_are_the_ruled_ones(monkeypatch) -> None:
         "staleness_sweep": "0 2 * * *",
         "lifecycle_sweep": "0 3 * * *",
         "findings_cleanup": "0 4 * * *",
+        "cluster_retirement": "15 4 * * *",
         "session_sweep": "30 4 * * *",
     }
 
@@ -177,3 +179,26 @@ async def test_a_malformed_schedule_aborts_startup(monkeypatch) -> None:
     with pytest.raises(RuntimeError, match="JAVV_JOB_STALENESS_SWEEP_CRON"):
         async with app.router.lifespan_context(app):
             pass
+
+
+def test_a_warning_as_long_as_the_retirement_window_is_refused() -> None:
+    with pytest.raises(ValidationError, match="cluster_retirement_warn_days"):
+        Settings(cluster_retire_after_days=5, cluster_retirement_warn_days=5)
+    # 0 = never retire: any warning length is fine then
+    assert Settings(cluster_retire_after_days=0, cluster_retirement_warn_days=30)
+
+
+def test_the_retirement_seeds_reach_the_window_and_zero_means_never(monkeypatch) -> None:
+    from backend.admin.cluster_retirement import RetirementWindow
+
+    monkeypatch.setenv("JAVV_CLUSTER_RETIRE_AFTER_DAYS", "60")
+    monkeypatch.setenv("JAVV_CLUSTER_RETIREMENT_WARN_DAYS", "10")
+    get_settings.cache_clear()
+    try:
+        assert RetirementWindow() == RetirementWindow(retire_after_days=60, warn_days=10)
+        monkeypatch.setenv("JAVV_CLUSTER_RETIRE_AFTER_DAYS", "0")
+        get_settings.cache_clear()
+        assert RetirementWindow().retire_after_days is None
+    finally:
+        monkeypatch.undo()
+        get_settings.cache_clear()

@@ -33,7 +33,7 @@
 | `system-notifications` | mutable | none | **no** | bounded delete (old/read) |
 | `system-reports` | mutable | none | **no** | TTL sweep (`JAVV_EXPORT_TTL_HOURS`, default 24h) |
 | `system-report-chunks` | mutable | none | **no** | TTL sweep with its parent report |
-| `system-jobs` | mutable (one lease/status doc per background job kind: the three repair actions, issue 406, and since issue 691 the four scheduled-only jobs too) | none | **no** | none — bounded at one doc per job kind |
+| `system-jobs` | mutable (one lease/status doc per background job kind: the three repair actions, issue 406, and since issue 691 the scheduled-only jobs too: four, and `cluster_retirement` since issue 765) | none | **no** | none — bounded at one doc per job kind |
 | `restored-*` | copies a restore writes (**Settings › Data & OpenSearch**, `restored-<index>`), never read by JAVV | none | **no** | none: promoting or deleting a copy is a manual step |
 
 **OpenSearch's `javv` role (issue 729) is drawn from this table:** `findings`, `javv-*` and `system-*` for everything JAVV reads and writes, and `restored-*`, the one pattern outside them, which it may only create and write (a restore). A new index outside these patterns needs the role changed with it (`docs/DEPLOYING.md` § An OpenSearch of your own, the compose file's `configs`).
@@ -388,7 +388,8 @@ revoked           boolean       revoke-on-role-change / logout-all
 
 ### `system-config` · `system-tags` (planned) · `system-views` · `system-notifications` · `system-reports` · `system-report-chunks` · `system-jobs`
 ```
-# system-config        : SLA policy, rollover/retention/staleness settings, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c)
+# system-config        : SLA policy, rollover/retention/staleness settings, snapshot-repo ref (creds in OS keystore, not here), scan_scope:<cluster_id> (D43), cluster-registry (D-5/M8c),
+#                        cluster-retirement:<cluster_id> (issue 765: one per cluster ever retired, {retired_at, by, mode: manual|auto, returned_at}; un-retire stamps returned_at and keeps the doc, so the sweep counts silence from the return)
 #                        doc shape: { key (= _id), value (opaque, not indexed), updated_at, updated_by }
 # system-tags          : { tag, kind: team|app|org, ... }   (planned: not created by bootstrap yet)
 # system-views         : { view_id, name, description, preset, workbench, owner, created_at,
@@ -415,7 +416,8 @@ revoked           boolean       revoke-on-role-change / logout-all
 #                          `data` is an {enabled:false} un-indexed _source field (never analysed). Written
 #                          under the drain's attempt_id; only the `done` attempt_id's chunks are canonical.
 # system-jobs           : { kind: rebuild_state|staleness_sweep|lifecycle_sweep|findings_cleanup|
-#                          session_sweep|report_sweep|report_drain (jobs/registry.py), status:
+#                          cluster_retirement|session_sweep|report_sweep|report_drain
+#                          (jobs/registry.py), status:
 #                          idle|running|done|failed, requested_by, attempt_id, started_at,
 #                          finished_at, heartbeat_at, result {enabled:false}, error }   the repair-
 #                          actions surface (issue 406): _id = kind, so the index is bounded at #kinds

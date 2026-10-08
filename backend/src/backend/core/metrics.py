@@ -86,7 +86,8 @@ CAS_CONFLICTS = Counter(
     "javv_cas_conflicts_total",
     "seq_no/primary_term CAS conflicts by site — early warning for multi-writer contention (D40)",
     ["site"],  # watermarks | scan_orders | reproject | report_claim (M7 slice 2) |
-    # inventory_orders | reconcile | merge (issue 510 — the commit-race drain loops)
+    # inventory_orders | reconcile | merge (issue 510 — the commit-race drain loops) |
+    # retirement (issue 765: an un-retire that lost to a concurrent retire)
 )
 
 # --- M-4: limit pressure ----------------------------------------------------------
@@ -129,6 +130,12 @@ SCHEDULER_TICK_ERRORS = Counter(
     "Scheduler ticks that failed before a job could start (the store was away); a sustained"
     " rate means no job is running",
 )
+RETIREMENT_HELD = Counter(
+    "javv_cluster_retirement_held_total",
+    "Retirement sweeps that retired nothing because no cluster had a scan accepted within its"
+    " scanner-down timer (issue 765): that points at JAVV itself, an outage or a rejected"
+    " scanner version",
+)
 
 
 def install_http_metrics(app: FastAPI) -> None:
@@ -170,6 +177,7 @@ __all__ = [
     "OS_BACKOFF_RETRIES",
     "OS_REQUEST_ERRORS",
     "PITS_OPEN",
+    "RETIREMENT_HELD",
     "SCHEDULER_TICK_ERRORS",
     "generate_latest",
     "install_http_metrics",

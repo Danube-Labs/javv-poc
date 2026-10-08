@@ -13,8 +13,9 @@ record and the same one-at-a-time guarantee as the rest. The report jobs keep th
 per-report lease (`reports/lease.py`) underneath.
 
 `journal` is off where the row would be noise: `findings_cleanup` and `session_sweep` already
-write their own audit row per run with their counts, and the report jobs run many times a day
-with their work visible on the reports themselves.
+write their own audit row per run with their counts, `cluster_retirement` writes one per cluster
+it retires or brings back, and the report jobs run many times a day with their work visible on
+the reports themselves.
 """
 
 from collections.abc import Awaitable, Callable
@@ -23,6 +24,7 @@ from typing import Any
 
 from opensearchpy import AsyncOpenSearch
 
+from backend.jobs.cluster_retirement import run_retirement_sweep
 from backend.jobs.findings_cleanup import run_findings_cleanup
 from backend.jobs.lifecycle import run_lifecycle_sweep
 from backend.jobs.rebuild_state import run_rebuild_state
@@ -64,6 +66,10 @@ async def _findings_cleanup(client: AsyncOpenSearch) -> dict[str, Any]:
     return dict(await run_findings_cleanup(client))
 
 
+async def _cluster_retirement(client: AsyncOpenSearch) -> dict[str, Any]:
+    return dict(await run_retirement_sweep(client))
+
+
 async def _session_sweep(client: AsyncOpenSearch) -> dict[str, Any]:
     return dict(await sweep_sessions(client))
 
@@ -85,6 +91,7 @@ JOBS: dict[str, Job] = {
         Job("staleness_sweep", _staleness, "can_manage_settings", journal=True),
         Job("lifecycle_sweep", _lifecycle, "can_drop_index", journal=True),
         Job("findings_cleanup", _findings_cleanup, None, journal=False),
+        Job("cluster_retirement", _cluster_retirement, None, journal=False),
         Job("session_sweep", _session_sweep, None, journal=False),
         Job("report_sweep", _report_sweep, None, journal=False),
         Job("report_drain", _report_drain, None, journal=False),

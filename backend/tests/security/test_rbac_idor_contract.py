@@ -157,6 +157,13 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         capability="can_manage_settings",
         body={"freshness_days": 3, "scanner_down_days": 7},
     ),
+    MutatingEndpoint(  # issue 765 — the cluster retirement window (settings-tier, journaled)
+        method="PUT",
+        path="/api/v1/settings/retirement",
+        route_path="/api/v1/settings/retirement",
+        capability="can_manage_settings",
+        body={"retire_after_days": 45, "warn_days": 7, "cluster_id": "c-rbac-sample"},
+    ),
     MutatingEndpoint(  # M9e slice 3 — scan scope write (D43; the bearer GET stays scanner-only)
         method="PUT",
         path="/api/v1/scan-scope",
@@ -210,6 +217,18 @@ REGISTRY: tuple[MutatingEndpoint, ...] = (
         route_path="/api/v1/clusters/{cluster_id}/name",
         capability="can_manage_settings",
         body={"cluster_name": "RBAC probe"},
+    ),
+    MutatingEndpoint(  # issue 765 — retire a cluster (off the list, its tokens revoked)
+        method="POST",
+        path="/api/v1/clusters/c-rbac-sample1/retire",
+        route_path="/api/v1/clusters/{cluster_id}/retire",
+        capability="can_manage_settings",
+    ),
+    MutatingEndpoint(  # issue 765 — bring a retired cluster back
+        method="POST",
+        path="/api/v1/clusters/c-rbac-sample1/unretire",
+        route_path="/api/v1/clusters/{cluster_id}/unretire",
+        capability="can_manage_settings",
     ),
     MutatingEndpoint(  # issue 406 repair actions — per-KIND capability inside the handler
         # (rebuild_state→can_rebuild_state, lifecycle_sweep→can_drop_index); the registry probes
