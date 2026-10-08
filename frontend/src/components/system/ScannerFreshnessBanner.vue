@@ -81,8 +81,8 @@ const clusterName = computed(() => clusterStore.selected?.cluster_name ?? cluste
 
 <template>
   <Transition name="t-fade">
-    <div v-if="silent.length" class="banner" role="alert">
-      <AppIcon name="alert" :size="15" />
+    <div v-if="silent.length" class="sys-line tone-down" role="alert">
+      <AppIcon class="sys-icon" name="alert" :size="15" />
       <span>
         Data may be stale on <strong class="mono">{{ clusterName }}</strong>:
         <template v-for="(row, i) in silent" :key="row.scanner">
@@ -96,8 +96,8 @@ const clusterName = computed(() => clusterStore.selected?.cluster_name ?? cluste
     </div>
     <!-- freshness unknown is a degraded state, not a note: the health ramp's amber step between
          fine (no line) and down (the red banner), operator ruling on built specimens 2026-10-01 -->
-    <div v-else-if="check.kind === 'failed' || lastChecked" class="check-line" role="status">
-      <AppIcon name="alert" :size="15" />
+    <div v-else-if="check.kind === 'failed' || lastChecked" class="sys-line tone-degraded" role="status">
+      <AppIcon class="sys-icon" name="alert" :size="15" />
       <span v-if="check.kind === 'failed'"
         >Couldn't check scanner freshness on <strong class="mono">{{ clusterName }}</strong>. JAVV retries
         every 10 minutes.</span
@@ -109,35 +109,3 @@ const clusterName = computed(() => clusterStore.selected?.cluster_name ?? cluste
     </div>
   </Transition>
 </template>
-
-<style scoped>
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  background: var(--health-down-bg);
-  /* prose is ink — the hue lives in the wash + icon, never same-hue words on a tint */
-  color: var(--ink);
-  border-bottom: 1px solid var(--line);
-  font-size: var(--text-body);
-}
-.banner svg {
-  color: var(--health-down-fg);
-  flex: none;
-}
-.check-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  color: var(--ink);
-  border-bottom: 1px solid var(--line);
-  background: var(--health-degraded-bg);
-  font-size: var(--text-body);
-}
-.check-line svg {
-  color: var(--health-degraded-fg);
-  flex: none;
-}
-</style>

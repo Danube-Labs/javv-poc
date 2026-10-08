@@ -37,34 +37,16 @@ const urgent = computed(() => (status.value ? isUrgent(status.value, alone.value
 
 <template>
   <Transition name="t-fade">
-    <div v-if="silence" class="retire-line" :class="{ urgent }" :role="urgent ? 'alert' : 'status'">
-      <AppIcon name="alert" :size="15" />
+    <div
+      v-if="silence"
+      class="retire-line sys-line"
+      :class="urgent ? 'tone-down' : 'tone-degraded'"
+      :role="urgent ? 'alert' : 'status'"
+    >
+      <AppIcon class="sys-icon" name="alert" :size="15" />
       <span
         ><strong class="mono">{{ clusterStore.selected?.cluster_name }}</strong> {{ silence }} {{ countdown }}</span
       >
     </div>
   </Transition>
 </template>
-
-<style scoped>
-.retire-line {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  color: var(--ink);
-  border-bottom: 1px solid var(--line);
-  background: var(--health-degraded-bg);
-  font-size: var(--text-body);
-}
-.retire-line svg {
-  color: var(--health-degraded-fg);
-  flex: none;
-}
-.retire-line.urgent {
-  background: var(--health-down-bg);
-}
-.retire-line.urgent svg {
-  color: var(--health-down-fg);
-}
-</style>

@@ -7,7 +7,7 @@ const health = useHealthStore()
 
 <template>
   <Transition name="t-fade">
-    <div v-if="health.bannerVisible" class="banner" role="alert">
+    <div v-if="health.bannerVisible" class="sys-line tone-down" role="alert">
       <AppIcon name="alert" :size="15" />
       <span v-if="health.reason === 'backend'">The backend is not answering. Screens cannot load until it is back.</span>
       <span v-else>Search backend unavailable. Check OpenSearch health.</span>
@@ -19,16 +19,6 @@ const health = useHealthStore()
 </template>
 
 <style scoped>
-.banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  background: var(--health-down-bg);
-  color: var(--ink);
-  border-bottom: 1px solid var(--line);
-  font-size: var(--text-body);
-}
 .dismiss {
   margin-left: auto;
   background: none;
