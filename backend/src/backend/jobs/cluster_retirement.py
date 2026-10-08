@@ -264,18 +264,27 @@ async def run_retirement_sweep(
         for cid in plan.warn
         if (since := schedules[cid].silent_since) and (retires_at := schedules[cid].retires_at)
     }
-    # a retired cluster keeps its notice; one that scanned again, or now has another silence,
-    # loses it before the new one is written
+    # a notice lives as long as its silence (operator ruling 2026-10-08): a scan or a return from
+    # retirement starts a new one, and only then is it withdrawn. A settings change that moves the
+    # dates, or the fleet shrinking to one cluster, keeps it. A retired cluster keeps its notice.
     retired = set(plan.retire) | {
         cid
         for cid, r in retirements.items()
         if is_retired(r, a.last_scan_at if (a := activity.get(cid)) else None)
     }
-    keep: dict[str, datetime | None] = {cid: None for cid in retired}
-    keep |= {cid: since for cid, (since, _) in warning.items()}
+    keep: dict[str, datetime | None] = {
+        cid: s.silent_since for cid, s in schedules.items() if s.silent_since is not None
+    }
+    keep |= {cid: None for cid in retired}
     withdrawn = announced = 0
     try:
         withdrawn = await withdraw_stale(client, keep, prefix=prefix)
+    except Exception as exc:  # noqa: BLE001 - the run's retirements stand; the next run retries
+        RETIREMENT_NOTIFY_FAILURES.inc()
+        log.warning(
+            "cluster retirement notices not withdrawn", error=f"{type(exc).__name__}: {exc}"
+        )
+    try:
         announced = await notify_retiring(client, warning, now=now, prefix=prefix)
     except Exception as exc:  # noqa: BLE001 - the run's retirements stand; the next run retries
         RETIREMENT_NOTIFY_FAILURES.inc()

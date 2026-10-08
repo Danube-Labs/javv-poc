@@ -128,8 +128,8 @@ onUnmounted(() => {
         Cluster list unavailable, and every read needs it. Check the backend, then reload.
       </p>
       <Transition name="t-fade">
-        <div v-if="!timeTravel.isNow" class="history-banner" role="status">
-          <AppIcon name="rewind" :size="15" />
+        <div v-if="!timeTravel.isNow" class="sys-line tone-hist" role="status">
+          <AppIcon class="sys-icon" name="rewind" :size="15" />
           Viewing history: as scanned at
           <span class="mono">{{ new Date(timeTravel.t as string).toLocaleString(undefined, { hour12: false }) }}</span>
           <button class="back-to-now" @click="timeTravel.backToNow()">Back to now</button>
@@ -262,21 +262,6 @@ onUnmounted(() => {
 }
 
 /* ---- banners + content ---- */
-.history-banner {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  background: var(--hist-bg);
-  /* prose is ink — hue lives in the bg/border/icon, never same-hue words on a tint */
-  color: var(--ink);
-  border-bottom: 1px solid var(--hist-line);
-  font-size: var(--text-body);
-}
-.history-banner svg {
-  color: var(--hist-fg);
-  flex: none;
-}
 .back-to-now {
   margin-left: auto;
   border: 1px solid var(--hist-line);

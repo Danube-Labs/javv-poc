@@ -120,14 +120,14 @@ describe('style rules — one shared skeleton pulse', () => {
 
 /**
  * One set of shared skins (issue 765): `.set-flush`, `.modal-error`, `.confirm-copy` and the
- * system line `.sys-line` live in base.css. Each had been copied into three to five views, panels,
- * dialogs and banners, some under other names, so a component whose styles define its own copy
- * fails here instead of drifting. Only style rules count: comments, templates and scripts are not
- * read.
+ * system line `.sys-line` with its `.sys-icon` live in base.css. Each had been copied into three
+ * to five views, panels, dialogs and banners, some under other names, so a component whose styles
+ * define its own copy fails here instead of drifting. Only style rules count: comments, templates
+ * and scripts are not read.
  */
 describe('style rules: one shared set of skins', () => {
   it('no skin defined outside base.css', () => {
-    const skin = /\.(set-flush|modal-error|confirm-copy|sys-line)(?![\w-])[^{};]*\{/
+    const skin = /\.(set-flush|modal-error|confirm-copy|sys-line|sys-icon)(?![\w-])[^{};]*\{/
     const styles = (rel: string): string => {
       const source = readFileSync(join(SRC, rel), 'utf8')
       if (rel.endsWith('.css')) return source

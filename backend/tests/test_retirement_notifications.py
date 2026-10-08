@@ -201,12 +201,12 @@ async def test_with_no_one_to_tell_no_marker_is_written(real_os) -> None:
     )
 
 
-async def _put_window(client: AsyncOpenSearch, prefix: str, warn_days: int) -> None:
+async def _put_window(
+    client: AsyncOpenSearch, prefix: str, warn_days: int, retire_after_days: int = 45
+) -> None:
+    value = {"retire_after_days": retire_after_days, "warn_days": warn_days}
     await _put(
-        client,
-        f"{prefix}system-config",
-        "retirement",
-        {"key": "retirement", "value": {"retire_after_days": 45, "warn_days": warn_days}},
+        client, f"{prefix}system-config", "retirement", {"key": "retirement", "value": value}
     )
 
 
@@ -325,3 +325,48 @@ async def test_a_retired_cluster_keeps_its_notice(real_os) -> None:
     # and a later run does not withdraw it either
     again = await run_retirement_sweep(client, now=later + timedelta(days=0.2), prefix=prefix)
     assert again["withdrawn"] == 0
+
+
+@requires_opensearch
+async def test_a_window_moved_past_the_warning_keeps_the_notice_for_that_silence(real_os) -> None:
+    client, prefix = real_os
+    await _people(client, prefix)
+    await _token(client, prefix, "c-warn-0010", _ago(40))
+    await _token(client, prefix, "c-live-0010", _ago(1))
+    await run_retirement_sweep(client, now=NOW, prefix=prefix)
+
+    # 60 days now: the warning starts 13 days from NOW; the silence is the same one
+    await _put_window(client, prefix, warn_days=7, retire_after_days=60)
+    counts = await run_retirement_sweep(client, now=NOW, prefix=prefix)
+    assert (counts["withdrawn"], counts["announced"]) == (0, 0)
+    assert len(await _bell(client, prefix)) == 2
+
+    # back inside the warning, same silence: nothing new, and a dismissed notice stays dismissed
+    first = (await _bell(client, prefix))[0]["notification_id"]
+    await client.delete(
+        index=f"{prefix}{NOTIFICATIONS_INDEX}", id=first, params={"refresh": "true"}
+    )
+    later = await run_retirement_sweep(client, now=NOW + timedelta(days=14), prefix=prefix)
+    assert (later["withdrawn"], later["announced"]) == (0, 0)
+    assert len(await _bell(client, prefix)) == 1
+
+
+@requires_opensearch
+async def test_a_failed_withdrawal_still_announces(
+    real_os, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    client, prefix = real_os
+
+    async def unavailable(*_args: object, **_kwargs: object) -> int:
+        raise RuntimeError("store away")
+
+    monkeypatch.setattr(cluster_retirement, "withdraw_stale", unavailable)
+    await _people(client, prefix)
+    await _token(client, prefix, "c-warn-0011", _ago(40))
+    await _token(client, prefix, "c-live-0011", _ago(1))
+    before = _notify_failures()
+
+    counts = await run_retirement_sweep(client, now=NOW, prefix=prefix)
+
+    assert (counts["withdrawn"], counts["announced"]) == (0, 1)
+    assert _notify_failures() == before + 1

@@ -143,8 +143,8 @@ CLUSTER_DELETE_INCOMPLETE = Counter(
 )
 RETIREMENT_NOTIFY_FAILURES = Counter(
     "javv_cluster_retirement_notify_failures_total",
-    "Retirement sweeps whose bell notifications could not be written (issue 765); the run's"
-    " retirements stand and the next run announces again",
+    "Retirement sweep steps whose bell notifications could not be written or withdrawn (issue"
+    " 765); the run's retirements stand and the next run tries again",
 )
 
 

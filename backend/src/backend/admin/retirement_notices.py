@@ -8,12 +8,12 @@ silent again has a new `silent_since`, and is announced again.
 
 Notification ids are derived from (cluster, user, silent_since) and written with
 `op_type=create`, so a sweep that stopped between the notifications and the marker repeats none
-on its next run.
+still in the bell on its next run (one dismissed in between is written again).
 
-A notice that stops being true is withdrawn (operator ruling, 2026-10-08): when the cluster
-scanned again, or its window moved it out of the warning, its notices and marker are deleted, and
-a later silence is announced afresh. A retired cluster keeps its notice; clicking it says the
-cluster is no longer listed."""
+A notice lives as long as its silence (operator ruling, 2026-10-08): when the cluster scans
+again, or a return from retirement starts a new silence, its notices and marker are deleted, and
+a later silence is announced afresh. A settings change that moves the dates keeps them. A retired
+cluster keeps its notice; the bell row then says it has been retired."""
 
 import contextlib
 import hashlib

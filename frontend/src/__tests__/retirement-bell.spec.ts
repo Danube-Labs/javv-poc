@@ -83,6 +83,7 @@ beforeEach(() => {
   setActivePinia(createPinia())
   vi.clearAllMocks()
   useClusterStore().clusters = [ALPHA, BETA]
+  useClusterStore().loaded = true
   useClusterStore().selectedId = 'c-alpha'
   listing([ALPHA, BETA])
 })
@@ -106,6 +107,12 @@ describe('the cluster_retiring bell row', () => {
     expect(row().textContent).toContain(
       'beta was due to be retired on 1 Oct and will be retired unless a scan arrives.',
     )
+  })
+
+  it('says a cluster retired since has been retired, not that it is due', async () => {
+    await openBell(notice('c-gone', '2026-10-01T12:00:00+00:00'))
+    expect(row().textContent).toContain('c-gone has been retired.')
+    expect(row().textContent).not.toContain('due')
   })
 
   it('opens Settings › Cluster with that cluster selected and closes the drawer', async () => {

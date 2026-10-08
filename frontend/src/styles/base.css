@@ -962,9 +962,10 @@ button.stat-cell:hover .cell-go,
 }
 
 /* ---- system lines (issue 765): the one-line notices under the top bar, the backend-down line,
-   the scanner-freshness line and its check line, and the retirement countdown. Prose is ink: the
-   hue lives in the wash and in the icon, never same-hue words on a tint. An icon takes the tone
-   only when it carries `sys-icon`; the backend-down line keeps an ink icon. */
+   the scanner-freshness line and its check line, the retirement countdown, and the history line
+   while time-travelling. Prose is ink: the hue lives in the wash, the border and the icon, never
+   same-hue words on a tint. An icon takes the tone only when it carries `sys-icon`; the
+   backend-down line keeps an ink icon. AppIcon already keeps its own size (`flex: none`). */
 .sys-line {
   display: flex;
   align-items: center;
@@ -973,9 +974,6 @@ button.stat-cell:hover .cell-go,
   color: var(--ink);
   border-bottom: 1px solid var(--line);
   font-size: var(--text-body);
-}
-.sys-line .sys-icon {
-  flex: none;
 }
 .sys-line.tone-down {
   background: var(--health-down-bg);
@@ -988,4 +986,11 @@ button.stat-cell:hover .cell-go,
 }
 .sys-line.tone-degraded .sys-icon {
   color: var(--health-degraded-fg);
+}
+.sys-line.tone-hist {
+  background: var(--hist-bg);
+  border-bottom-color: var(--hist-line);
+}
+.sys-line.tone-hist .sys-icon {
+  color: var(--hist-fg);
 }
