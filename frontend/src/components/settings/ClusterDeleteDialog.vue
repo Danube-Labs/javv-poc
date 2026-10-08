@@ -86,12 +86,6 @@ async function confirm() {
 </template>
 
 <style scoped>
-.confirm-copy {
-  margin: 0;
-  max-width: 440px;
-  line-height: 1.5;
-  color: var(--ink);
-}
 .gone-list {
   margin: 8px 0 0;
   padding-left: 18px;
@@ -105,10 +99,5 @@ async function confirm() {
 }
 .mono {
   font-family: var(--font-mono);
-}
-.modal-error {
-  margin: 10px 0 0;
-  font-size: var(--text-sm);
-  color: var(--health-down-fg);
 }
 </style>

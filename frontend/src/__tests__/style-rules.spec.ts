@@ -119,6 +119,22 @@ describe('style rules — one shared skeleton pulse', () => {
 })
 
 /**
+ * One set of settings skins (issue 765): `.set-flush`, `.modal-error` and `.confirm-copy` live in
+ * base.css. Each had been copied into three or four Settings views and panels, so a view that
+ * defines its own copy fails here instead of drifting.
+ */
+describe('style rules: one shared set of settings skins', () => {
+  it('no settings skin defined outside base.css', () => {
+    const skin = /\.(set-flush|modal-error|confirm-copy)\b[^{};]*\{/
+    const hits = walk(SRC)
+      .map((p) => relative(SRC, p).split('\\').join('/'))
+      .filter((rel) => rel !== 'styles/base.css')
+      .filter((rel) => skin.test(readFileSync(join(SRC, rel), 'utf8')))
+    expect(hits, `settings skin(s) redefined outside base.css: ${hits.join(', ')}`).toEqual([])
+  })
+})
+
+/**
  * "Never same-hue text on its own tint" (DESIGN.md §2, operator ruling 2026-07-09; bitten twice
  * by 2026-07-10): a rule block that pairs `color: var(--X-fg)` with `background: var(--X-bg)`
  * of the SAME hue family ships low-contrast prose. Chips/tags are the ruled exception (short

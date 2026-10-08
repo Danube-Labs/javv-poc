@@ -186,12 +186,6 @@ async function retire() {
   color: var(--ink);
   word-break: break-all;
 }
-.confirm-copy {
-  margin: 0;
-  max-width: 440px;
-  line-height: 1.5;
-  color: var(--ink);
-}
 .lock-tag {
   flex: none;
   font-family: var(--font-mono);

@@ -106,14 +106,6 @@ async function onDeleted() {
 
 <style scoped>
 /* the table IS the card body, full-bleed under the head hairline (the token table's grammar) */
-.set-flush {
-  margin: -4px -16px -14px;
-}
-.set-flush .tbl-wrap {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
 .name-cell {
   display: block;
   color: var(--ink);

@@ -340,14 +340,6 @@ const fmt = (iso: string | null) =>
 <style scoped>
 /* the table IS the card body, full-bleed under the head hairline (the data-panel grammar) —
    no empty body strip, no card-in-card */
-.set-flush {
-  margin: -4px -16px -14px;
-}
-.set-flush .tbl-wrap {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
 .stack {
   display: flex;
   flex-direction: column;
@@ -395,17 +387,6 @@ const fmt = (iso: string | null) =>
   margin: 8px 0 0;
   font-size: var(--text-sm);
   color: var(--soft);
-}
-.modal-error {
-  margin: 10px 0 0;
-  font-size: var(--text-sm);
-  color: var(--health-down-fg);
-}
-.confirm-copy {
-  margin: 0;
-  max-width: 440px;
-  line-height: 1.5;
-  color: var(--ink);
 }
 .empty-note,
 .cap-note {
