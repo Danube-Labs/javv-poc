@@ -597,16 +597,21 @@ jobs:
             -f deploy/helm/javv-opensearch/ci/cert-manager-values.yaml
 
       # ct keeps the release (issue 780): the checks below and the scanners' JAVV run on it
-      # rather than on a second install of the same values
+      # rather than on a second install of the same values. ct names it after the chart plus a
+      # random suffix.
       - name: ct install, javv
         run: |
           ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv --namespace javv \
-            --release-name javv --skip-clean-up
+            --skip-clean-up
+          release=$(development/scripts/helm-ci-release.sh kind-chart-testing javv javv)
+          echo "JAVV_CI_RELEASE=$release" >> "$GITHUB_ENV"
 
       - name: Sign-in, a stopped backend, upgrade and rollback
         env:
           JAVV_CI_ADMIN_PASSWORD: ci-only-admin-passphrase
-        run: development/scripts/helm-ci-app-checks.sh javv javv deploy/helm/javv/ci/default-values.yaml
+        run: |
+          development/scripts/helm-ci-app-checks.sh javv "$JAVV_CI_RELEASE" \
+            deploy/helm/javv/ci/default-values.yaml
 
       # a cluster of its own, as a monitored cluster is: the scanners reach JAVV at the first
       # cluster's node address on the kind network. It becomes the current context.
@@ -618,11 +623,12 @@ jobs:
           JAVV_CI_ADMIN_PASSWORD: ci-only-admin-passphrase
         run: |
           url=$(development/scripts/helm-ci-scanner-checks.sh prepare \
-            kind-chart-testing javv javv kind-monitored javv-scan | tail -n 1)
+            kind-chart-testing javv "$JAVV_CI_RELEASE" kind-monitored javv-scan | tail -n 1)
           echo "JAVV_CI_BACKEND_URL=$url" >> "$GITHUB_ENV"
           ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv-scanner \
-            --namespace javv-scan --helm-extra-set-args "--set=backendUrl=$url" \
-            --release-name scanner --skip-clean-up
+            --namespace javv-scan --helm-extra-set-args "--set=backendUrl=$url" --skip-clean-up
+          release=$(development/scripts/helm-ci-release.sh kind-monitored javv-scan javv-scanner)
+          echo "JAVV_CI_SCANNER_RELEASE=$release" >> "$GITHUB_ENV"
 
       # on the release ct kept, whose vuln DB refresh at install has already started
       - name: A cycle of each scanner lands in JAVV
@@ -630,7 +636,7 @@ jobs:
           JAVV_CI_ADMIN_PASSWORD: ci-only-admin-passphrase
         run: |
           development/scripts/helm-ci-scanner-checks.sh cycle \
-            kind-monitored javv-scan scanner "$JAVV_CI_BACKEND_URL"
+            kind-monitored javv-scan "$JAVV_CI_SCANNER_RELEASE" "$JAVV_CI_BACKEND_URL"
           df -h /
 
       # issue 729: the backend signed in as javv through every step above; nothing it did was
@@ -638,7 +644,7 @@ jobs:
       - name: OpenSearch refused the backend nothing
         shell: bash
         run: |
-          if kubectl --context kind-chart-testing -n javv logs deploy/javv-backend |
+          if kubectl --context kind-chart-testing -n javv logs "deploy/$JAVV_CI_RELEASE-backend" |
             grep -E 'status:403|security_exception'; then
             echo "::error::OpenSearch refused the backend a call"; exit 1
           fi

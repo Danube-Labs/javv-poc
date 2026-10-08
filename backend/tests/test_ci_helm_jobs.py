@@ -4,7 +4,7 @@ unexplained. These tests hold the split:
 - every chart under deploy/helm is `ct install`ed by exactly one Helm job;
 - each Helm job, when it fails, dumps the state of every namespace it installs into;
 - javv and javv-scanner are installed once: ct keeps the release the later checks run on, which
-  holds only while each has a single ci values file (a second would reuse the release's name).
+  holds only while each has a single ci values file (a second would keep a second release).
 """
 
 import re
