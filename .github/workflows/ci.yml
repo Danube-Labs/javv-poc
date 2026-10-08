@@ -596,16 +596,17 @@ jobs:
           helm install store deploy/helm/javv-opensearch -n javv --wait --timeout 10m \
             -f deploy/helm/javv-opensearch/ci/cert-manager-values.yaml
 
+      # ct keeps the release (issue 780): the checks below and the scanners' JAVV run on it
+      # rather than on a second install of the same values
       - name: ct install, javv
-        run: ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv --namespace javv
+        run: |
+          ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv --namespace javv \
+            --release-name javv --skip-clean-up
 
       - name: Sign-in, a stopped backend, upgrade and rollback
         env:
           JAVV_CI_ADMIN_PASSWORD: ci-only-admin-passphrase
-        run: |
-          helm install javv deploy/helm/javv -n javv --wait --timeout 10m \
-            -f deploy/helm/javv/ci/default-values.yaml
-          development/scripts/helm-ci-app-checks.sh javv javv deploy/helm/javv/ci/default-values.yaml
+        run: development/scripts/helm-ci-app-checks.sh javv javv deploy/helm/javv/ci/default-values.yaml
 
       # a cluster of its own, as a monitored cluster is: the scanners reach JAVV at the first
       # cluster's node address on the kind network. It becomes the current context.
@@ -620,14 +621,14 @@ jobs:
             kind-chart-testing javv javv kind-monitored javv-scan | tail -n 1)
           echo "JAVV_CI_BACKEND_URL=$url" >> "$GITHUB_ENV"
           ct install --config deploy/helm/ct.yaml --charts deploy/helm/javv-scanner \
-            --namespace javv-scan --helm-extra-set-args "--set=backendUrl=$url"
+            --namespace javv-scan --helm-extra-set-args "--set=backendUrl=$url" \
+            --release-name scanner --skip-clean-up
 
+      # on the release ct kept, whose vuln DB refresh at install has already started
       - name: A cycle of each scanner lands in JAVV
         env:
           JAVV_CI_ADMIN_PASSWORD: ci-only-admin-passphrase
         run: |
-          helm install scanner deploy/helm/javv-scanner -n javv-scan \
-            -f deploy/helm/javv-scanner/ci/default-values.yaml --set backendUrl="$JAVV_CI_BACKEND_URL"
           development/scripts/helm-ci-scanner-checks.sh cycle \
             kind-monitored javv-scan scanner "$JAVV_CI_BACKEND_URL"
           df -h /
