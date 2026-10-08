@@ -576,6 +576,11 @@ jobs:
         with:
           cluster_name: chart-testing
 
+      # a cluster of its own, as a monitored cluster is, made while the steps below run: the
+      # scanners reach JAVV at the first cluster's node address on the kind network
+      - name: A second kind cluster, the monitored one, in the background
+        run: development/scripts/helm-ci-monitored.sh start "$RUNNER_TEMP/monitored"
+
       # built under the release's names, which the javv chart's values use, and imported straight
       # into the node's containerd: the images carry an attestation manifest, and an import that
       # misses one shows up only later, as ImagePullBackOff
@@ -607,10 +612,9 @@ jobs:
             -f deploy/helm/javv/ci/default-values.yaml
           development/scripts/helm-ci-app-checks.sh javv javv deploy/helm/javv/ci/default-values.yaml
 
-      # a cluster of its own, as a monitored cluster is: the scanners reach JAVV at the first
-      # cluster's node address on the kind network. It becomes the current context.
-      - name: A second kind cluster, the monitored one
-        run: kind create cluster --name monitored --wait 2m
+      # with the scanner images already pulled on its node; it becomes the current context
+      - name: The monitored cluster is ready
+        run: development/scripts/helm-ci-monitored.sh wait "$RUNNER_TEMP/monitored"
 
       - name: ct install, javv-scanner, pushing to that JAVV
         env:
