@@ -12,7 +12,8 @@ cluster is retired; the route checks both.
    and its re-creation auto-creates a concrete index under the alias's name;
 3. its rows in the shared indices: `findings`, `javv-scan-watermarks`, `javv-scan-orders`,
    `system-decisions`, `system-reports` (with their chunks) and `system-notifications`;
-4. its `system-config` docs: scan scope, the four per-cluster overrides, its registry name;
+4. its `system-config` docs: scan scope, the four per-cluster overrides, its retirement-warning
+   marker, its registry name;
 5. its retirement record, last, so a delete that stopped halfway still reads as a retired cluster
    and a retry finishes it.
 
@@ -32,6 +33,7 @@ from opensearchpy import AsyncOpenSearch, NotFoundError
 
 from backend.admin.cluster_registry import set_registry_name
 from backend.admin.cluster_retirement import WINDOW_KEY, retirement_doc_id
+from backend.admin.retirement_notices import warned_doc_id
 from backend.admin.scan_scope import scan_scope_doc_id
 from backend.audit.writer import append_field_change
 from backend.jobs.findings_cleanup import FINDINGS_CLEANUP_KEY
@@ -152,7 +154,7 @@ async def delete_cluster(
         )
     counts[REPORTS_INDEX] = await _delete_rows(client, f"{prefix}{REPORTS_INDEX}", term)
 
-    config_ids = [scan_scope_doc_id(cluster_id)] + [
+    config_ids = [scan_scope_doc_id(cluster_id), warned_doc_id(cluster_id)] + [
         f"{k}:{cluster_id}" for k in _PER_CLUSTER_CONFIG
     ]
     for doc_id in config_ids:

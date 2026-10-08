@@ -14,7 +14,7 @@ test('readyz down shows the degraded banner; the shell stays up; recovery clears
   await login(page)
   await page.route('**/readyz', (route) => route.fulfill({ status: 503, body: 'down' }))
   await page.goto(`${BASE}/overview`)
-  const banner = page.locator('.banner[role=alert]')
+  const banner = page.locator('.sys-line.tone-down[role=alert]')
   await expect(banner).toBeVisible({ timeout: 15_000 })
   // chrome stays up — degraded is a banner, never a dead app (observability.md §2)
   await expect(page.locator('.topbar')).toBeVisible()

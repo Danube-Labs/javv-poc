@@ -52,8 +52,13 @@ const MODES = [
 
 async function save() {
   const error = await form.save()
-  if (error) toast.error(error)
-  else toast.success('Retirement window saved. The next daily sweep applies it')
+  if (error) {
+    toast.error(error)
+    return
+  }
+  toast.success('Retirement window saved. The next retirement sweep applies it')
+  // the countdown banner reads the schedule off the cluster list
+  await clusterStore.refresh()
 }
 </script>
 
@@ -85,7 +90,7 @@ async function save() {
       </SettingsRow>
       <SettingsRow
         label="Warn before"
-        hint="How long before retirement the warning starts."
+        hint="How long before retirement the countdown banner shows."
       >
         <SettingsInput
           id="retire-warn"

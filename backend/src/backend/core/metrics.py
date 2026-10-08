@@ -141,6 +141,11 @@ CLUSTER_DELETE_INCOMPLETE = Counter(
     "Cluster deletes that stopped halfway and answered 503 (issue 765): a step stayed contended or"
     " the store was away; a retry finishes the delete",
 )
+RETIREMENT_NOTIFY_FAILURES = Counter(
+    "javv_cluster_retirement_notify_failures_total",
+    "Retirement sweep steps whose bell notifications could not be written or withdrawn (issue"
+    " 765); the run's retirements stand and the next run tries again",
+)
 
 
 def install_http_metrics(app: FastAPI) -> None:
@@ -184,6 +189,7 @@ __all__ = [
     "OS_REQUEST_ERRORS",
     "PITS_OPEN",
     "RETIREMENT_HELD",
+    "RETIREMENT_NOTIFY_FAILURES",
     "SCHEDULER_TICK_ERRORS",
     "generate_latest",
     "install_http_metrics",

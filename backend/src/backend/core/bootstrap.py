@@ -286,7 +286,7 @@ _REPORT_CHUNKS_PROPERTIES: dict[str, Any] = {
 _NOTIFICATIONS_PROPERTIES: dict[str, Any] = {
     "notification_id": _KW,
     "user_id": _KW,
-    "type": _KW,  # sla_breach|assignment|report_ready
+    "type": _KW,  # sla_breach|assignment|report_ready|cluster_retiring
     "ref": _KW,  # referenced entity id (e.g. report_id)
     "cluster_id": _KW,
     "created_at": _DATE,

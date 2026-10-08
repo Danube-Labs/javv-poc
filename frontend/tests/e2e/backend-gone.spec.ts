@@ -21,7 +21,7 @@ test('signed in: the banner names the backend at the first failed request', asyn
   await expect(page.locator('.tbl tbody tr').first()).toBeVisible({ timeout: 20_000 })
   await kill(page)
   await page.locator('.sidebar a.side-item[href^="/images"]').click()
-  const banner = page.locator('.banner[role="alert"]')
+  const banner = page.locator('.sys-line.tone-down[role="alert"]')
   await expect(banner).toContainText('The backend is not answering', { timeout: 10_000 })
   await expect(banner).not.toContainText('OpenSearch')
   await expect(page.locator('.sidebar .sweep')).toContainText('Backend not answering')

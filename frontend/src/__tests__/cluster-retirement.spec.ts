@@ -148,6 +148,8 @@ describe('RetiredClustersCard', () => {
     )
     expect(w.findAll('tbody tr')).toHaveLength(0)
     expect(w.text()).toContain('No retired clusters')
+    // the switcher's list too, so it is selectable at once
+    expect(useClusterStore().clusters.map((c) => c.cluster_id)).toEqual(['beta'])
   })
 })
 
@@ -420,15 +422,21 @@ describe('ClusterView retire', () => {
     expect(useClusterStore().clusters.map((c) => c.cluster_id)).toEqual(['alpha'])
   })
 
-  it('retires the selected cluster on confirm', async () => {
+  it('retires the selected cluster on confirm, and it leaves the switcher', async () => {
     vi.mocked(sdk.retireApiV1ClustersClusterIdRetirePost).mockResolvedValue(ok)
     const w = await mountView()
+    listing([fleetRow('alpha', true), fleetRow('beta', false)])
     await buttons(w, 'Retire cluster…')[0]!.trigger('click')
     await buttons(w, 'Retire cluster').find((b) => b.text() === 'Retire cluster')!.trigger('click')
     await flushPromises()
     expect(sdk.retireApiV1ClustersClusterIdRetirePost).toHaveBeenCalledWith(
       expect.objectContaining({ path: { cluster_id: 'alpha' } }),
     )
+    expect(useClusterStore().clusters.map((c) => c.cluster_id)).toEqual(['beta'])
+    expect(useClusterStore().selectedId).toBe('beta')
+    // one toast: the retire says what happened, the re-read does not repeat it
+    const { useToastStore } = await import('@/stores/toast')
+    expect(JSON.stringify(useToastStore().$state)).not.toContain('no longer on the cluster list')
   })
 })
 

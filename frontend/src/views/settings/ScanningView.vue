@@ -133,6 +133,8 @@ async function save() {
   // the freshness banner thresholds on these timers live — drop its cache so it re-reads
   useStalenessStore().invalidate()
   toast.success('Staleness timers saved. The next daily sweep applies them')
+  // the scanner-down timer bounds the retirement window: the countdown banner re-reads it
+  await clusterStore.refresh()
 }
 
 function discard() {

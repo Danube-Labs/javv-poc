@@ -7,15 +7,18 @@ import { defineStore } from 'pinia'
 
 import { client } from '@/api/client'
 import { listClustersApiV1ClustersGet } from '@/api/generated'
+import type { RetirementSchedule } from '@/system/retirement'
 import { logger } from '@/lib/logger'
 import { useToastStore } from '@/stores/toast'
 
-export interface ClusterEntry {
+export interface ClusterEntry extends RetirementSchedule {
   cluster_id: string
   cluster_name: string
 }
 
 const STORAGE_KEY = 'javv.selected_cluster_id'
+
+let refreshSeq = 0
 
 export const useClusterStore = defineStore('cluster', {
   state: () => ({
@@ -56,6 +59,37 @@ export const useClusterStore = defineStore('cluster', {
         logger.warn('clusters_fetch_failed', { status: response?.status })
       }
       this.loaded = true
+    },
+    /** Re-read the list and keep the selection while its cluster is still listed. A cluster
+     * retired meanwhile falls back as at load, with a toast, since every screen re-scopes
+     * (`quiet`: the caller retired it and says so itself). For the countdown banner's poll and
+     * the Settings writes that move a schedule or the list. Unlike `fetchClusters`, it never
+     * trades a deep-linked selection for the remembered one. Only the newest call applies: a
+     * poll answered after a later write's re-read is dropped. */
+    async refresh({ quiet = false } = {}): Promise<void> {
+      const seq = ++refreshSeq
+      const { data, response } = await listClustersApiV1ClustersGet({ client })
+      if (seq !== refreshSeq) return
+      if (!response?.ok || !data) {
+        logger.warn('clusters_refresh_failed', { status: response?.status })
+        return
+      }
+      const was = this.selected
+      this.clusters = (data as { clusters: ClusterEntry[] }).clusters ?? []
+      this.failed = false
+      const known = (id: string | null): id is string =>
+        id !== null && this.clusters.some((c) => c.cluster_id === id)
+      if (known(this.selectedId)) return
+      const remembered = localStorage.getItem(STORAGE_KEY)
+      this.selectedId = known(remembered) ? remembered : (this.clusters[0]?.cluster_id ?? null)
+      if (was && !quiet) {
+        const now = this.selected?.cluster_name
+        useToastStore().info(
+          now
+            ? `${was.cluster_name} is no longer on the cluster list. Showing ${now}.`
+            : `${was.cluster_name} is no longer on the cluster list.`,
+        )
+      }
     },
     select(clusterId: string) {
       this.selectedId = clusterId

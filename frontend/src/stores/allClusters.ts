@@ -15,6 +15,7 @@ import {
 import { logger } from '@/lib/logger'
 import type { FacetBucket } from '@/stores/overview'
 import type { FreshnessRow } from '@/system/freshness'
+import type { RetirementSchedule } from '@/system/retirement'
 
 type Facets = Record<string, FacetBucket[]>
 
@@ -27,9 +28,11 @@ export interface ClusterRow {
   imagesCount: number | null
   replicas: number | null
   failed: boolean
+  /** the listing's retirement schedule, for the countdown (issue 765) */
+  schedule: RetirementSchedule
 }
 
-interface ClusterEntry {
+interface ClusterEntry extends RetirementSchedule {
   cluster_id: string
   cluster_name: string
 }
@@ -80,6 +83,7 @@ export const useAllClustersStore = defineStore('allClusters', {
         imagesCount: null,
         replicas: null,
         failed: false,
+        schedule: { last_scan_at: c.last_scan_at, warns_at: c.warns_at, retires_at: c.retires_at },
       }
       if (facets.response?.ok && facets.data) {
         row.facets = (facets.data as { facets: Facets }).facets ?? {}

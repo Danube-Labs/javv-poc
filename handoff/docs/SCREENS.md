@@ -49,6 +49,16 @@ Place the real brand SVGs (`brand/lockup.svg`, dark variants in dark chrome) —
   `silent_for_seconds`; drives the **ScannerFreshnessBanner** ("data as of T; scanner silent
   since T′") and the sidebar sweep-health chip. Never-ingested → nulls → "no data yet" chip, not
   an error.
+- The selected cluster's row of `GET /api/v1/clusters` (`last_scan_at`, `warns_at`, `retires_at`)
+  drives the **retirement countdown** (issue 765), its own line under the freshness banner, shown
+  only inside the cluster's last `warn_days` before automatic retirement: "**beta** has sent no
+  scans for 40 days. It will be retired in 5 days unless a scan arrives." Amber (`role=status`)
+  while there is time, red (`role=alert`) on the last day and once past its date, when it says
+  the next retirement sweep retires it unless a scan arrives. "No scans for" reads `last_scan_at`.
+  The only cluster listed gets no countdown (the sweep never retires it: nothing else shows that
+  scans still reach JAVV); its line says so and points at retiring it by hand. The list is
+  re-read on the banner's 10-minute tick and after every Settings write that moves a schedule,
+  keeping the selected cluster while it is still listed.
 
 **Time picker (C-1, D28/FR-23).** Two visibly distinct controls in one group (V4-DELTA conflict 4):
 the **time-travel `T`** (Now / rewind / jump-to-date → amber "Viewing history: as scanned at T"
@@ -119,6 +129,10 @@ Fleet landing page; layout preserved (KPI strip → cluster table with MixBar).
   per cluster row; buckets are **per-scanner** — the MixBar renders one bar per scanner (or a
   scanner toggle), never a merged bar.
 - Health chip + Last sweep: `GET /api/v1/scanners/freshness?cluster_id=<id>`.
+- Retirement countdown (issue 765): a status chip under the cluster's name, "retires in 5 days"
+  (amber) or, on the last day and past its date, red ("retirement due" once past it), from the
+  cluster list's `warns_at` / `retires_at`; nothing outside the warning window, and none for the
+  only cluster listed.
 
 **States:** loading (skeleton rows); empty (no clusters registered — cold-start copy); degraded;
 **T<now → `LimitedHistoricalNotice`**: "Historical all-clusters view is limited until the v1.1
@@ -607,7 +621,12 @@ slice 3), BLOCKED until then**. Badge count is the server-computed unread count;
 broker, NFR-9).
 **Categories:** SLA-overdue-assigned-to-you · newly-assigned · **ready-export** — the export item
 shows **"expires in Xh"** (C-2) and opens `GET /api/v1/reports/{id}/download`; on **410** the
-item flips to "expired — re-run the export" (never a dead link).
+item flips to "expired — re-run the export" (never a dead link). **Cluster retiring** (issue 765):
+written once per silence to every settings admin; names the cluster and the date it is due to be
+retired (`ref` = `retires_at`; the sweep retires on its first run from then), or that it was due
+and is held while no cluster scans, or that it has been retired; withdrawn by the sweep when the cluster scans again; opens
+Settings › Cluster for that cluster, or says it is no longer listed and opens the panel with
+Retired clusters.
 **States:** loading; empty; 410-expired per item; degraded (badge pauses, no stale count).
 **Changed vs SCREENS.md:** ready-export category + expiry/410 affordances (C-2/C-7); endpoint
 BLOCKED (D-3).
@@ -807,6 +826,8 @@ grammar is the prototype's — substituting it needs a live ruling (DESIGN.md §
 | 13.7 | — | Panel additions beyond the contract: report/export-TTL setting (row 11: now runtime-editable), findings-cleanup window (D37/M12), read-only **OpenSearch runtime** card (§D), snapshots restore into `restored-*` copies only | M9e README rows 10/11 + §D |
 | 13.8 | `schema_version: 3` | **4** (M8d ptype bump) | M9e README row 9 |
 | 13.8 | (not in the contract) | **Cluster retirement** (issue 765): retire row in the Cluster card, a Cluster retirement window card and a Retired clusters card on the same panel (not a new Settings section); delete confirm lists what goes and what stays and needs the name typed | 2026-10-07 §8.5 A/B rulings on built specimens: placement A (Cluster panel), window card moved to the Cluster panel, delete dialog B (list + typed name) |
+| global · 1 | (not in the contract) | **Retirement countdown** (issue 765): its own amber line under the freshness banner, red on the last day; on All clusters a chip under the cluster's name | 2026-10-07 §8.5 A/B rulings on built specimens: B (own line) over a sentence inside the freshness banner, B (chip) over a Retires in column, which pushed the full-width table past the screen at 1440 px |
+| 14 | (not in the contract) | **Cluster retiring** bell row (issue 765): title names the event ("Cluster retiring"), the description names the cluster and its date; opens Settings › Cluster for it | 2026-10-07 §8.5 A/B ruling on built specimens: A (event title) over the cluster's name in the title |
 | global | FE freshness banner on a build-time env var | Banner + fleet chips read the **live staleness timers** (selected cluster's effective window); `VITE_FRESHNESS_BANNER_HOURS` removed | M9e README row 14 |
 | global | — | Severity everywhere is the **six-word canonical vocabulary** (D46); verbatim scanner casing is display-only | D46/#274 |
 | 2 | (v4 prototype had no Scan-activity card; the built one duplicated IngestLens) | Scan-activity card **dropped**; slot carries **Top components** (restored prototype card, ≤100-package server board w/ per-scanner unique-CVE counts, now-only read) + **Riskiest images** (ranked running images off the images read, rewindable) — both on the shared table skin + GridPager; Overview goes `wide` | 2026-07-16 §8.5 ruling on built specimens: **keep both** |
