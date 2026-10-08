@@ -6,6 +6,8 @@ other, and an index auto-created under the alias's own name goes too; a retry af
 stopped halfway finishes it, through the route as well (503, then 200), for a cluster that only
 its retirement record still names; the store away answers 503, a bug stays 500; the route
 refuses a cluster that is not retired (409) or unknown (404), and journals before it deletes.
+A delete marks its start before the tokens go (issue 778): while the mark stands, bringing the
+cluster back is refused and the listing says so, and a finished delete clears it.
 The 401/403 axes live in the RBAC/IDOR suite."""
 
 import uuid
@@ -18,7 +20,12 @@ from opensearchpy.exceptions import ConnectionTimeout, RequestError
 from prometheus_client import REGISTRY
 
 from backend.admin import cluster_delete
-from backend.admin.cluster_delete import SHARED_INDICES, delete_cluster
+from backend.admin.cluster_delete import (
+    SHARED_INDICES,
+    delete_cluster,
+    delete_marker_id,
+    deletes_started,
+)
 from backend.admin.cluster_registry import read_registry, set_registry_name
 from backend.admin.cluster_retirement import read_retirements, retire_cluster
 from backend.auth.passwords import hash_password
@@ -171,6 +178,37 @@ async def test_a_delete_that_stopped_halfway_is_finished_by_a_retry(real_os, mon
     assert await _left(client, prefix, GONE) == []
 
 
+async def test_a_delete_marks_its_start_before_the_tokens_go(real_os, monkeypatch) -> None:
+    client, prefix = real_os
+    await _seed(client, prefix, GONE)
+    await _seed(client, prefix, KEPT)
+    await retire_cluster(client, GONE, actor="t", mode="manual", prefix=prefix)
+    seen: list[bool] = []
+    real_delete_rows = cluster_delete._delete_rows
+
+    async def tokens_step(client_: Any, index: str, query: dict[str, Any]) -> int:
+        if index.endswith("system-tokens"):  # the first step: the mark must already stand
+            seen.append(GONE in await deletes_started(client, prefix=prefix))
+        return await real_delete_rows(client_, index, query)
+
+    async def stopped(*_args: Any, **_kwargs: Any) -> list[str]:
+        raise cluster_delete.DeleteIncomplete("stopped after the tokens")
+
+    monkeypatch.setattr(cluster_delete, "_delete_rows", tokens_step)
+    monkeypatch.setattr(cluster_delete, "_history_indices", stopped)
+    with pytest.raises(cluster_delete.DeleteIncomplete):
+        await delete_cluster(client, GONE, actor="the-admin", prefix=prefix)
+
+    assert seen == [True]
+    assert await deletes_started(client, prefix=prefix) == {GONE}  # kept: the delete stopped
+    mark = await client.get(index=f"{prefix}system-config", id=delete_marker_id(GONE))
+    assert mark["_source"]["value"]["by"] == "the-admin"
+
+    monkeypatch.undo()
+    await delete_cluster(client, GONE, actor="t", prefix=prefix)
+    assert await deletes_started(client, prefix=prefix) == set()
+
+
 # --- the route --------------------------------------------------------------------------------
 
 
@@ -287,3 +325,31 @@ async def test_the_store_away_answers_503_and_a_bug_stays_500(env, monkeypatch) 
     monkeypatch.setattr(cluster_delete, "_history_indices", malformed)
     with pytest.raises(RequestError):  # unhandled: the app's 500, not a "retry it" 503
         await http.delete(f"/api/v1/clusters/{cid}")
+
+
+async def test_bring_back_is_refused_once_a_delete_has_started(env, monkeypatch) -> None:
+    http, client = env
+    cid = await _route_cluster(client)
+    assert (await http.post(f"/api/v1/clusters/{cid}/retire")).status_code == 200
+    listed = await http.get("/api/v1/clusters", params={"include_retired": "true"})
+    row = {c["cluster_id"]: c for c in listed.json()["clusters"]}[cid]
+    assert row["delete_started"] is False
+
+    async def stopped(*_args: Any, **_kwargs: Any) -> list[str]:
+        raise cluster_delete.DeleteIncomplete("stopped after the tokens")
+
+    monkeypatch.setattr(cluster_delete, "_history_indices", stopped)
+    assert (await http.delete(f"/api/v1/clusters/{cid}")).status_code == 503
+
+    r = await http.post(f"/api/v1/clusters/{cid}/unretire")
+    assert r.status_code == 409
+    assert r.json()["title"] == "its delete did not finish: delete it again"
+    assert cid in await read_retirements(client)  # still retired, nothing stamped
+    assert (await read_retirements(client))[cid].returned_at is None
+    listed = await http.get("/api/v1/clusters", params={"include_retired": "true"})
+    row = {c["cluster_id"]: c for c in listed.json()["clusters"]}[cid]
+    assert (row["retired"], row["delete_started"]) == (True, True)
+
+    monkeypatch.undo()
+    assert (await http.delete(f"/api/v1/clusters/{cid}")).status_code == 200
+    assert (await http.post(f"/api/v1/clusters/{cid}/unretire")).status_code == 404

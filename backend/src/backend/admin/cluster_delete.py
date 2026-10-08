@@ -2,7 +2,9 @@
 `cluster_id`, except its audit rows. Manual only, `can_manage_retention`, and only after the
 cluster is retired; the route checks both.
 
-**What goes, in this order:**
+**What goes, in this order**, after a `system-config` marker `cluster-delete:<cluster_id>` that
+says the delete has started (issue 778): while it stands, the cluster cannot be brought back, so a
+half-deleted cluster is never put back on the list with part of its data gone.
 1. its token docs, first, so a scanner still pushing gets 401 from here on;
 2. its five history series (occurrences, scan-events, images, inventory runs, ingest failures),
    as whole-index drops. Indices are matched by exact name, `<series>-<cluster_id>-NNNNNN`, never
@@ -14,8 +16,9 @@ cluster is retired; the route checks both.
    `system-decisions`, `system-reports` (with their chunks) and `system-notifications`;
 4. its `system-config` docs: scan scope, the four per-cluster overrides, its retirement-warning
    marker, its registry name;
-5. its retirement record, last, so a delete that stopped halfway still reads as a retired cluster
-   and a retry finishes it.
+5. its retirement record, so a delete that stopped halfway still reads as a retired cluster and a
+   retry finishes it;
+6. the marker, last.
 
 **`delete_by_query` here is a sanctioned use** (operator ruling on issue 765, named in the backend
 rules): every query is an exact `term` on `cluster_id`, so it can only ever match that tenant (the
@@ -26,10 +29,12 @@ Snapshots taken before the delete still hold the data; deleting does not reach t
 
 import contextlib
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
 from opensearchpy import AsyncOpenSearch, NotFoundError
+from opensearchpy.exceptions import ConflictError
 
 from backend.admin.cluster_registry import set_registry_name
 from backend.admin.cluster_retirement import WINDOW_KEY, retirement_doc_id
@@ -54,6 +59,47 @@ SHARED_INDICES = (
 )
 _PER_CLUSTER_CONFIG = (STALENESS_KEY, LIFECYCLE_KEY, FINDINGS_CLEANUP_KEY, WINDOW_KEY)
 _RETRIES = 5  # delete_by_query passes per index while concurrent writes conflict
+DELETE_MARKER_PREFIX = "cluster-delete:"
+
+
+def delete_marker_id(cluster_id: str) -> str:
+    return f"{DELETE_MARKER_PREFIX}{cluster_id}"
+
+
+async def deletes_started(client: AsyncOpenSearch, *, prefix: str = "") -> set[str]:
+    """The clusters whose delete has started and not finished."""
+    try:
+        marks = await search_to_exhaustion(
+            client,
+            index=f"{prefix}system-config",
+            body={
+                "size": 500,
+                "sort": [{"key": "asc"}],
+                "query": {"prefix": {"key": DELETE_MARKER_PREFIX}},
+            },
+        )
+    except NotFoundError:
+        return set()
+    return {m["cluster_id"] for m in marks}
+
+
+async def _mark_started(client: AsyncOpenSearch, cluster_id: str, actor: str, prefix: str) -> None:
+    doc_id = delete_marker_id(cluster_id)
+    now = datetime.now(UTC).isoformat()
+    # a retry keeps the first start and who made it
+    with contextlib.suppress(ConflictError):
+        await client.index(
+            index=f"{prefix}system-config",
+            id=doc_id,
+            body={
+                "key": doc_id,
+                "cluster_id": cluster_id,
+                "value": {"started_at": now, "by": actor},
+                "updated_at": now,
+                "updated_by": actor,
+            },
+            params={"op_type": "create", "refresh": "true"},
+        )
 
 
 class DeleteIncomplete(Exception):
@@ -132,6 +178,7 @@ async def delete_cluster(
         cluster_id=cluster_id,
         prefix=prefix,
     )
+    await _mark_started(client, cluster_id, actor, prefix)
     term = {"term": {"cluster_id": cluster_id}}
     counts: dict[str, int] = {}
 
@@ -169,6 +216,12 @@ async def delete_cluster(
         await client.delete(
             index=f"{prefix}system-config",
             id=retirement_doc_id(cluster_id),
+            params={"refresh": "true"},
+        )
+    with contextlib.suppress(NotFoundError):
+        await client.delete(
+            index=f"{prefix}system-config",
+            id=delete_marker_id(cluster_id),
             params={"refresh": "true"},
         )
     log.info("cluster deleted", cluster_id=cluster_id, counts=counts)

@@ -603,6 +603,10 @@ retention/rollover offered **only** for time-partitioned append families; the mu
   what goes and what stays (audit history; earlier snapshots) and enables only once the cluster's
   name is typed, and cannot be closed while the delete runs; `DELETE /api/v1/clusters/{cluster_id}`,
   503 = finish it by deleting again, 409 = it was brought back meanwhile (the list reloads).
+  A cluster whose delete did not finish (`delete_started`, issue 778) offers only `Delete…`, with
+  "Its delete did not finish. Delete it again." under its name; un-retiring it is refused (409).
+  Bringing back a cluster retired by hand (`retirement_mode: manual`) says its tokens were revoked
+  and its scanners need a new one; an automatic retire left them working, so its toast does not.
 
 **States (all sections):** loading; 403-capability-hidden (section hidden from sub-nav without
 its capability); save-bar dirty/saved; degraded; 409/422 inline errors as noted.
@@ -826,6 +830,7 @@ grammar is the prototype's — substituting it needs a live ruling (DESIGN.md §
 | 13.7 | — | Panel additions beyond the contract: report/export-TTL setting (row 11: now runtime-editable), findings-cleanup window (D37/M12), read-only **OpenSearch runtime** card (§D), snapshots restore into `restored-*` copies only | M9e README rows 10/11 + §D |
 | 13.8 | `schema_version: 3` | **4** (M8d ptype bump) | M9e README row 9 |
 | 13.8 | (not in the contract) | **Cluster retirement** (issue 765): retire row in the Cluster card, a Cluster retirement window card and a Retired clusters card on the same panel (not a new Settings section); delete confirm lists what goes and what stays and needs the name typed | 2026-10-07 §8.5 A/B rulings on built specimens: placement A (Cluster panel), window card moved to the Cluster panel, delete dialog B (list + typed name) |
+| 13.8 | (not in the contract) | **Unfinished delete** (issue 778): a Retired clusters row whose delete did not finish offers only Delete, with a note under the name | 2026-10-08 §8.5 A/B ruling on built specimens: B (note) over A (Bring back hidden, no note) |
 | global · 1 | (not in the contract) | **Retirement countdown** (issue 765): its own amber line under the freshness banner, red on the last day; on All clusters a chip under the cluster's name | 2026-10-07 §8.5 A/B rulings on built specimens: B (own line) over a sentence inside the freshness banner, B (chip) over a Retires in column, which pushed the full-width table past the screen at 1440 px |
 | 14 | (not in the contract) | **Cluster retiring** bell row (issue 765): title names the event ("Cluster retiring"), the description names the cluster and its date; opens Settings › Cluster for it | 2026-10-07 §8.5 A/B ruling on built specimens: A (event title) over the cluster's name in the title |
 | global | FE freshness banner on a build-time env var | Banner + fleet chips read the **live staleness timers** (selected cluster's effective window); `VITE_FRESHNESS_BANNER_HOURS` removed | M9e README row 14 |

@@ -3,7 +3,9 @@
  * Retired clusters (issue 765): a card on the Cluster panel listing every retired cluster, since
  * a retired one leaves the switcher and can no longer be selected. Bring back and Delete live on
  * its rows; Delete needs `can_manage_retention`. Placement ruled on built A/B specimens
- * (2026-10-07). The table is the Settings table skin (the token table's grammar).
+ * (2026-10-07). The table is the Settings table skin (the token table's grammar). A cluster whose
+ * delete did not finish offers only Delete, with a note saying so (issue 778, ruled B on built
+ * specimens 2026-10-08): bringing it back would list a cluster with part of its data gone.
  */
 import { computed, onMounted, ref } from 'vue'
 
@@ -25,6 +27,7 @@ const busy = ref(false)
 const deleting = ref<FleetCluster | null>(null)
 
 const retired = computed(() => fleet.rows.value.filter((c) => c.retired))
+
 const canDelete = computed(() => auth.hasCapability('can_manage_retention'))
 
 onMounted(() => void fleet.load())
@@ -37,7 +40,13 @@ async function bringBack(row: FleetCluster) {
   if (error) {
     toast.error(error)
   } else {
-    toast.success(`${row.cluster_name} is back on the cluster list`)
+    // a manual retire revoked its tokens; an automatic one left them working (operator wording,
+    // issue 778)
+    toast.success(
+      row.retirement_mode === 'manual'
+        ? `${row.cluster_name} is back on the cluster list. Its tokens were revoked when it was retired: mint a new one for its scanners.`
+        : `${row.cluster_name} is back on the cluster list`,
+    )
     await clusterStore.refresh()
   }
   await fleet.load()
@@ -83,13 +92,18 @@ async function onDeleted() {
                 <span v-if="row.cluster_name !== row.cluster_id" class="mono-cell sm id-cell">{{
                   row.cluster_id
                 }}</span>
+                <span v-if="row.delete_started" class="unfinished-cell"
+                  >Its delete did not finish. Delete it again.</span
+                >
               </td>
               <td class="fit mono-cell sm nowrap" :title="row.last_scan_at ?? undefined">
                 {{ lastDataAt(row.last_scan_at) }}
               </td>
               <td class="fit">
                 <span class="row-actions">
-                  <UiButton :disabled="busy" @click="bringBack(row)">Bring back</UiButton>
+                  <UiButton v-if="!row.delete_started" :disabled="busy" @click="bringBack(row)"
+                    >Bring back</UiButton
+                  >
                   <UiButton v-if="canDelete" :disabled="busy" @click="deleting = row">Delete…</UiButton>
                 </span>
               </td>
@@ -116,6 +130,11 @@ async function onDeleted() {
 }
 .id-cell {
   display: block;
+  color: var(--soft);
+}
+.unfinished-cell {
+  display: block;
+  font-size: var(--text-sm);
   color: var(--soft);
 }
 .row-actions {
