@@ -9,7 +9,9 @@
  * The table rides the shared tbl-card + GridPager grammar (pages are display slices of the
  * one server answer, the ScannerRunsTable idiom). Prototype deltas (ruled, row 7): no
  * registries/imagePullSecrets rows (post-MVP settings issue), no static transport row;
- * optional expiry at mint (task E m-7) via the shared UiDateTime calendar pair.
+ * optional expiry at mint (task E m-7) via the shared UiDateTime calendar pair. Retired clusters
+ * (issue 765) are listed apart in the mint picker: a scan on a new token brings one back, as the
+ * retire confirm says (operator ruling 2026-10-07).
  */
 import { computed, ref } from 'vue'
 
@@ -35,6 +37,7 @@ import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useToastStore } from '@/stores/toast'
 
+import { useFleetClusters } from './clusterRetirement'
 import { mintExpiry, TOKEN_STATUS_TONE, tokenStatus, type TokenRow } from './tokensForm'
 
 const clusterStore = useClusterStore()
@@ -66,6 +69,12 @@ async function load() {
 }
 void load()
 
+// the switcher's list leaves retired clusters out; this one has them, for names and minting
+const fleet = useFleetClusters()
+void fleet.load()
+const activeClusters = computed(() => fleet.rows.value.filter((c) => !c.retired))
+const retiredClusters = computed(() => fleet.rows.value.filter((c) => c.retired))
+
 const now = () => new Date()
 
 // display slices of the one server answer (the ScannerRunsTable idiom)
@@ -79,7 +88,9 @@ function setSize(next: number) {
 }
 
 const clusterName = (id: string) =>
-  clusterStore.clusters.find((c) => c.cluster_id === id)?.cluster_name ?? id
+  clusterStore.clusters.find((c) => c.cluster_id === id)?.cluster_name ??
+  fleet.rows.value.find((c) => c.cluster_id === id)?.cluster_name ??
+  id
 
 // ── mint ────────────────────────────────────────────────────────────────────────────────
 const mintOpen = ref(false)
@@ -93,6 +104,7 @@ const SCANNER_OPTS = [
 ]
 
 const mintExpiryInvalid = computed(() => mintExpiry(mintExpiryParts.value, now()).kind === 'invalid')
+const mintRetired = computed(() => retiredClusters.value.find((c) => c.cluster_id === mintCluster.value) ?? null)
 
 function openMint() {
   mintCluster.value = clusterStore.selectedId ?? clusterStore.clusters[0]?.cluster_id ?? ''
@@ -100,6 +112,7 @@ function openMint() {
   mintExpiryParts.value = { date: '', time: '' }
   mintError.value = ''
   mintOpen.value = true
+  void fleet.load()
 }
 
 // the raw-token-once modal (mint AND rotate land here)
@@ -254,11 +267,20 @@ const fmt = (iso: string | null) =>
     <ModalShell v-if="mintOpen" title="Mint a push token" subtitle="scoped to one (cluster, scanner) pair" @close="mintOpen = false">
       <UiField label="Cluster" first for="mint-cluster">
         <select id="mint-cluster" v-model="mintCluster" class="set-select">
-          <option v-for="c in clusterStore.clusters" :key="c.cluster_id" :value="c.cluster_id">
+          <option v-for="c in activeClusters" :key="c.cluster_id" :value="c.cluster_id">
             {{ c.cluster_name }}
           </option>
+          <optgroup v-if="retiredClusters.length" label="Retired">
+            <option v-for="c in retiredClusters" :key="c.cluster_id" :value="c.cluster_id">
+              {{ c.cluster_name }} (retired)
+            </option>
+          </optgroup>
         </select>
       </UiField>
+      <p v-if="mintRetired" class="fld-hint" role="status">
+        {{ mintRetired.cluster_name }} is retired. Its first scan on this token brings it back to the cluster
+        list.
+      </p>
       <UiField label="Scanner" hint="per-scanner is sacred: one token each">
         <UiSegControl v-model="mintScanner" :options="SCANNER_OPTS" />
       </UiField>
@@ -316,16 +338,6 @@ const fmt = (iso: string | null) =>
 </template>
 
 <style scoped>
-/* the table IS the card body, full-bleed under the head hairline (the data-panel grammar) —
-   no empty body strip, no card-in-card */
-.set-flush {
-  margin: -4px -16px -14px;
-}
-.set-flush .tbl-wrap {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
 .stack {
   display: flex;
   flex-direction: column;
@@ -373,17 +385,6 @@ const fmt = (iso: string | null) =>
   margin: 8px 0 0;
   font-size: var(--text-sm);
   color: var(--soft);
-}
-.modal-error {
-  margin: 10px 0 0;
-  font-size: var(--text-sm);
-  color: var(--health-down-fg);
-}
-.confirm-copy {
-  margin: 0;
-  max-width: 440px;
-  line-height: 1.5;
-  color: var(--ink);
 }
 .empty-note,
 .cap-note {

@@ -11,13 +11,19 @@ import { computed, ref, watch } from 'vue'
 
 import { renameClusterApiV1ClustersClusterIdNamePut } from '@/api/generated'
 import { client } from '@/api/client'
+import RetiredClustersCard from '@/components/settings/RetiredClustersCard.vue'
+import RetirementWindowCard from '@/components/settings/RetirementWindowCard.vue'
 import SaveBar from '@/components/settings/SaveBar.vue'
 import SettingsCard from '@/components/settings/SettingsCard.vue'
 import SettingsInput from '@/components/settings/SettingsInput.vue'
 import SettingsRow from '@/components/settings/SettingsRow.vue'
+import ModalShell from '@/components/ui/ModalShell.vue'
+import UiButton from '@/components/ui/UiButton.vue'
 import { logger } from '@/lib/logger'
 import { useClusterStore } from '@/stores/cluster'
 import { useToastStore } from '@/stores/toast'
+
+import { useFleetClusters } from './clusterRetirement'
 
 // the envelope contract version this backend accepts (D44 schema v3 → v4 joint stamp; the
 // ruled §13.8 display value — bump alongside the ingest contract)
@@ -70,10 +76,32 @@ function discard() {
 }
 
 const ingestEndpoint = computed(() => `${window.location.origin}/api/v1/ingest/scan`)
+
+// ── retire (issue 765) ──────────────────────────────────────────────────────────────────
+const fleet = useFleetClusters()
+const retireOpen = ref(false)
+const retiredCard = ref<InstanceType<typeof RetiredClustersCard> | null>(null)
+
+async function retire() {
+  const id = clusterStore.selectedId
+  const name = clusterStore.selected?.cluster_name ?? id
+  if (!id) return
+  busy.value = true
+  const error = await fleet.retire(id)
+  busy.value = false
+  retireOpen.value = false
+  if (error) {
+    toast.error(error)
+    return
+  }
+  toast.success(`${name} retired. Bring it back from Retired clusters`)
+  await clusterStore.fetchClusters()
+  await retiredCard.value?.reload()
+}
 </script>
 
 <template>
-  <div>
+  <div class="stack">
     <SettingsCard title="Cluster" subtitle="identity & ingest contract">
       <SettingsRow label="cluster_id" hint="The immutable tenant key: indices and every query route on it." stack>
         <div class="static-row">
@@ -97,13 +125,49 @@ const ingestEndpoint = computed(() => `${window.location.origin}/api/v1/ingest/s
       <SettingsRow label="schema_version" hint="The envelope contract version this backend accepts.">
         <span class="static-value mono-sm">{{ SCHEMA_VERSION }}</span>
       </SettingsRow>
+      <SettingsRow
+        label="Retire"
+        hint="Takes this cluster off the cluster list and revokes its push tokens. Its data is kept. It comes back by hand, or on its first scan with a new token."
+      >
+        <UiButton :disabled="busy || clusterStore.selectedId == null" @click="retireOpen = true">
+          Retire cluster…
+        </UiButton>
+      </SettingsRow>
     </SettingsCard>
 
     <SaveBar :dirty="dirty" :invalid="invalid" :busy="busy" @save="save" @discard="discard" />
+
+    <RetirementWindowCard />
+
+    <RetiredClustersCard ref="retiredCard" />
+
+    <ModalShell
+      v-if="retireOpen"
+      :title="`Retire ${clusterStore.selected?.cluster_name ?? ''}?`"
+      subtitle="you can bring it back"
+      @close="retireOpen = false"
+    >
+      <p class="confirm-copy">
+        It leaves the cluster list, the switcher and All clusters. Its push tokens are revoked, so
+        its scanners are refused until you mint new ones, and the first scan on a new token brings it
+        back. Its findings and history are kept.
+      </p>
+      <template #actions>
+        <UiButton variant="ghost" @click="retireOpen = false">Cancel</UiButton>
+        <UiButton variant="primary" :disabled="busy" @click="retire">
+          {{ busy ? 'Retiring…' : 'Retire cluster' }}
+        </UiButton>
+      </template>
+    </ModalShell>
   </div>
 </template>
 
 <style scoped>
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
 .mono-sm {
   font-family: var(--font-mono);
   font-size: var(--text-mono-cell);
