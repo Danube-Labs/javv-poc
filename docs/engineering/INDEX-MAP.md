@@ -392,7 +392,7 @@ revoked           boolean       revoke-on-role-change / logout-all
 #                        cluster-retirement:<cluster_id> (issue 765: one per cluster ever retired, {retired_at, by, mode: manual|auto, returned_at}; un-retire stamps returned_at and keeps the doc, so the sweep counts silence from the return)
 #                        cluster-delete:<cluster_id> (issue 778: {started_at, by}, written by a cluster delete before its first step and removed after its last; while it stands the cluster cannot be un-retired, and the listing says delete_started)
 #                        retirement-warned:<cluster_id> (issue 765: {silent_since} of the silence the settings admins were told about, so a dismissed notice, or a settings change that moves the dates, sends nothing again; a new silence sends again; deleted with the cluster's notices when it scans again or a return from retirement starts a new silence (a settings change keeps both), kept while it is retired, deleted with the cluster)
-#                        doc shape: { key (= _id), value (opaque, not indexed), updated_at, updated_by }
+#                        doc shape: { key (= _id), value (opaque, not indexed), updated_at, updated_by }; the per-cluster docs of issues 765/778 also carry cluster_id, unmapped (_source only)
 # system-tags          : { tag, kind: team|app|org, ... }   (planned: not created by bootstrap yet)
 # system-views         : { view_id, name, description, preset, workbench, owner, created_at,
 #                          updated_at, schema_version }

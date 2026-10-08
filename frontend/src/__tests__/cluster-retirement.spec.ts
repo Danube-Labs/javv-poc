@@ -505,9 +505,9 @@ describe('ClusterView retire', () => {
 })
 
 describe('minting for a retired cluster', () => {
-  async function mountTokens() {
+  async function mountTokens(extra: ReturnType<typeof fleetRow>[] = []) {
     signIn(['can_manage_tokens'])
-    listing([fleetRow('alpha', false), fleetRow('c-old-01', true, 'old')])
+    listing([fleetRow('alpha', false), fleetRow('c-old-01', true, 'old'), ...extra])
     vi.mocked(sdk.listTokensApiV1AdminTokensGet).mockResolvedValue({
       response: { ok: true },
       data: {
@@ -534,6 +534,14 @@ describe('minting for a retired cluster', () => {
     await flushPromises()
     return w
   }
+
+  it('does not offer a cluster whose delete did not finish (issue 778)', async () => {
+    const w = await mountTokens([fleetRow('c-half-01', true, 'half', { delete_started: true })])
+    await buttons(w, 'Mint token')[0]!.trigger('click')
+    await flushPromises()
+    const retired = w.findAll('select#mint-cluster optgroup option').map((o) => o.text())
+    expect(retired).toEqual(['old (retired)'])
+  })
 
   it('names a retired cluster’s tokens instead of showing its id', async () => {
     const w = await mountTokens()

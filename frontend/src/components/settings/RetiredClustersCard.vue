@@ -27,7 +27,6 @@ const busy = ref(false)
 const deleting = ref<FleetCluster | null>(null)
 
 const retired = computed(() => fleet.rows.value.filter((c) => c.retired))
-
 const canDelete = computed(() => auth.hasCapability('can_manage_retention'))
 
 onMounted(() => void fleet.load())

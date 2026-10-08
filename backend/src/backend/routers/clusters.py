@@ -149,12 +149,11 @@ async def unretire(
     request: Request, cluster_id: ClusterIdPath, principal: ManageSettings
 ) -> dict[str, Any]:
     client = cast(Any, request.app.state.opensearch)
-    retired = await _require_known(client, cluster_id)
+    if cluster_id not in await _require_known(client, cluster_id):
+        raise HTTPException(409, "cluster is not retired")
     if cluster_id in await deletes_started(client):
         # its tokens and part of its data are gone: bringing it back would list a broken cluster
         raise HTTPException(409, "its delete did not finish: delete it again")
-    if cluster_id not in retired:
-        raise HTTPException(409, "cluster is not retired")
     if not await unretire_cluster(client, cluster_id, actor=principal.user_id):
         raise HTTPException(409, "cluster is not retired")  # a concurrent write got there first
     return {"cluster_id": cluster_id, "retired": False}
@@ -167,7 +166,7 @@ async def delete_retired_cluster(
     """Delete everything JAVV holds for a retired cluster but its audit rows (issue 765,
     `admin/cluster_delete.py`). It must be retired first. A delete that could not finish, a step
     contended or the store away or overloaded, answers 503, and a retry finishes it: every step
-    can be re-run and the retirement record goes last."""
+    can be re-run, the retirement record goes after the data and the delete's own marker last."""
     client = cast(Any, request.app.state.opensearch)
     if cluster_id not in await _require_known(client, cluster_id):
         raise HTTPException(409, "retire the cluster before deleting it")

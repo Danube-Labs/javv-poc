@@ -80,7 +80,7 @@ async def deletes_started(client: AsyncOpenSearch, *, prefix: str = "") -> set[s
         )
     except NotFoundError:
         return set()
-    return {m["cluster_id"] for m in marks}
+    return {m["key"].removeprefix(DELETE_MARKER_PREFIX) for m in marks}
 
 
 async def _mark_started(client: AsyncOpenSearch, cluster_id: str, actor: str, prefix: str) -> None:

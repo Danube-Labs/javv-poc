@@ -73,7 +73,9 @@ void load()
 const fleet = useFleetClusters()
 void fleet.load()
 const activeClusters = computed(() => fleet.rows.value.filter((c) => !c.retired))
-const retiredClusters = computed(() => fleet.rows.value.filter((c) => c.retired))
+// a cluster whose delete did not finish is not offered: a scan on a new token would bring it back
+// with part of its data gone (issue 778)
+const retiredClusters = computed(() => fleet.rows.value.filter((c) => c.retired && !c.delete_started))
 
 const now = () => new Date()
 

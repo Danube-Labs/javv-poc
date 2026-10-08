@@ -27,7 +27,7 @@ from backend.admin.cluster_delete import (
     deletes_started,
 )
 from backend.admin.cluster_registry import read_registry, set_registry_name
-from backend.admin.cluster_retirement import read_retirements, retire_cluster
+from backend.admin.cluster_retirement import read_retirements, retire_cluster, retirement_doc_id
 from backend.auth.passwords import hash_password
 from backend.jobs.lifecycle import SERIES
 from backend.main import create_app
@@ -203,10 +203,33 @@ async def test_a_delete_marks_its_start_before_the_tokens_go(real_os, monkeypatc
     assert await deletes_started(client, prefix=prefix) == {GONE}  # kept: the delete stopped
     mark = await client.get(index=f"{prefix}system-config", id=delete_marker_id(GONE))
     assert mark["_source"]["value"]["by"] == "the-admin"
+    # a retry that stops again keeps the first start and who made it
+    with pytest.raises(cluster_delete.DeleteIncomplete):
+        await delete_cluster(client, GONE, actor="someone-else", prefix=prefix)
+    again = await client.get(index=f"{prefix}system-config", id=delete_marker_id(GONE))
+    assert again["_source"]["value"] == mark["_source"]["value"]
 
     monkeypatch.undo()
     await delete_cluster(client, GONE, actor="t", prefix=prefix)
     assert await deletes_started(client, prefix=prefix) == set()
+
+
+async def test_the_marker_outlives_the_retirement_record(real_os, monkeypatch) -> None:
+    client, prefix = real_os
+    await _seed(client, prefix, GONE)
+    await retire_cluster(client, GONE, actor="t", mode="manual", prefix=prefix)
+    real_delete = client.delete
+
+    async def record_step_fails(*args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("id") == retirement_doc_id(GONE):
+            raise cluster_delete.DeleteIncomplete("stopped at the retirement record")
+        return await real_delete(*args, **kwargs)
+
+    monkeypatch.setattr(client, "delete", record_step_fails)
+    with pytest.raises(cluster_delete.DeleteIncomplete):
+        await delete_cluster(client, GONE, actor="t", prefix=prefix)
+    assert GONE in await read_retirements(client, prefix=prefix)
+    assert await deletes_started(client, prefix=prefix) == {GONE}
 
 
 # --- the route --------------------------------------------------------------------------------
@@ -353,3 +376,21 @@ async def test_bring_back_is_refused_once_a_delete_has_started(env, monkeypatch)
     monkeypatch.undo()
     assert (await http.delete(f"/api/v1/clusters/{cid}")).status_code == 200
     assert (await http.post(f"/api/v1/clusters/{cid}/unretire")).status_code == 404
+
+
+async def test_a_live_cluster_with_a_stray_marker_is_not_retired(env) -> None:
+    http, client = env
+    cid = await _route_cluster(client)  # live: never retired
+    await client.index(
+        index="system-config",
+        id=delete_marker_id(cid),
+        body={"key": delete_marker_id(cid), "cluster_id": cid, "value": {"started_at": "x"}},
+        params={"refresh": "true"},
+    )
+    try:
+        r = await http.post(f"/api/v1/clusters/{cid}/unretire")
+        assert (r.status_code, r.json()["title"]) == (409, "cluster is not retired")
+    finally:
+        await client.delete(
+            index="system-config", id=delete_marker_id(cid), params={"refresh": "true"}
+        )
