@@ -216,14 +216,28 @@ async def test_the_sweep_retires_brings_back_and_journals(real_os) -> None:
 
     counts = await run_retirement_sweep(client, now=NOW, prefix=prefix)
 
-    assert counts == {"retired": 1, "returned": 1, "held": 0, "announced": 0, "withdrawn": 0}
+    assert counts == {
+        "retired": 1,
+        "returned": 1,
+        "held": 0,
+        "announced": 0,
+        "withdrawn": 0,
+        "delete_rechecked": 0,
+    }
     records = await read_retirements(client, prefix=prefix)
     assert records["c-gone-0001"].mode == "auto" and records["c-gone-0001"].retired_at == NOW
     assert records["c-gone-0001"].returned_at is None
     assert records["c-back-0001"].returned_at == _ago(1)  # kept, stamped with its scan time
     # a second run journals nothing more: the return is recorded once
     again = await run_retirement_sweep(client, now=NOW, prefix=prefix)
-    assert again == {"retired": 0, "returned": 0, "held": 0, "announced": 0, "withdrawn": 0}
+    assert again == {
+        "retired": 0,
+        "returned": 0,
+        "held": 0,
+        "announced": 0,
+        "withdrawn": 0,
+        "delete_rechecked": 0,
+    }
     await client.indices.refresh(index=f"{prefix}system-audit-log-*")
     rows = await client.search(
         index=f"{prefix}system-audit-log-*",
@@ -245,7 +259,14 @@ async def test_the_sweep_holds_when_every_cluster_is_silent(real_os) -> None:
 
     counts = await run_retirement_sweep(client, now=NOW, prefix=prefix)
 
-    assert counts == {"retired": 0, "returned": 0, "held": 2, "announced": 0, "withdrawn": 0}
+    assert counts == {
+        "retired": 0,
+        "returned": 0,
+        "held": 2,
+        "announced": 0,
+        "withdrawn": 0,
+        "delete_rechecked": 0,
+    }
     assert await read_retirements(client, prefix=prefix) == {}
     assert _held() == before + 1
 

@@ -136,6 +136,16 @@ RETIREMENT_HELD = Counter(
     " scanner-down timer (issue 765): that points at JAVV itself, an outage or a rejected"
     " scanner version",
 )
+CLUSTER_DELETE_LEFTOVERS = Counter(
+    "javv_cluster_delete_leftovers_total",
+    "Deleted clusters whose next-night pass found rows written after the delete (issue 778), a"
+    " push in flight or a job running at the time; the pass removed them",
+)
+CLUSTER_DELETE_RECHECK_FAILURES = Counter(
+    "javv_cluster_delete_recheck_failures_total",
+    "Retirement sweeps whose pass over deleted clusters failed (issue 778); the run's retirements"
+    " stand and the next run passes again",
+)
 CLUSTER_DELETE_INCOMPLETE = Counter(
     "javv_cluster_delete_incomplete_total",
     "Cluster deletes that stopped halfway and answered 503 (issue 765): a step stayed contended or"
@@ -173,6 +183,8 @@ __all__ = [
     "AUTH_FAILURES",
     "CAS_CONFLICTS",
     "CLUSTER_DELETE_INCOMPLETE",
+    "CLUSTER_DELETE_LEFTOVERS",
+    "CLUSTER_DELETE_RECHECK_FAILURES",
     "CONFIG_WARNINGS",
     "CONTENT_TYPE_LATEST",
     "EXPORT_BYTES",

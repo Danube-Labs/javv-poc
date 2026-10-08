@@ -64,7 +64,12 @@ describe('windowProblem', () => {
   })
 })
 
-const fleetRow = (cluster_id: string, retired: boolean, cluster_name = cluster_id) => ({
+const fleetRow = (
+  cluster_id: string,
+  retired: boolean,
+  cluster_name = cluster_id,
+  extra: { delete_started?: boolean; retirement_mode?: 'manual' | 'auto' | null } = {},
+) => ({
   cluster_id,
   cluster_name,
   retired,
@@ -72,6 +77,9 @@ const fleetRow = (cluster_id: string, retired: boolean, cluster_name = cluster_i
   silent_since: '2026-08-01T00:00:00+00:00',
   warns_at: null,
   retires_at: null,
+  delete_started: false,
+  retirement_mode: (retired ? 'auto' : null) as 'manual' | 'auto' | null,
+  ...extra,
 })
 
 /** The listing as the backend serves it: retired clusters only with `include_retired`. */
@@ -150,6 +158,74 @@ describe('RetiredClustersCard', () => {
     expect(w.text()).toContain('No retired clusters')
     // the switcher's list too, so it is selectable at once
     expect(useClusterStore().clusters.map((c) => c.cluster_id)).toEqual(['beta'])
+  })
+})
+
+describe('RetiredClustersCard, issue 778', () => {
+  const toasts = async () => JSON.stringify((await import('@/stores/toast')).useToastStore().$state)
+
+  it('offers only Delete for a cluster whose delete did not finish', async () => {
+    signIn(['can_manage_settings', 'can_manage_retention'])
+    listing([fleetRow('beta', true, 'beta', { delete_started: true }), fleetRow('gamma', true)])
+    const w = mount(RetiredClustersCard)
+    await flushPromises()
+    const [beta, gamma] = w.findAll('tbody tr')
+    expect(beta!.findAll('button').map((b) => b.text())).toEqual(['Delete…'])
+    expect(beta!.text()).toContain('Its delete did not finish. Delete it again.')
+    expect(gamma!.findAll('button').map((b) => b.text())).toEqual(['Bring back', 'Delete…'])
+    expect(gamma!.text()).not.toContain('did not finish')
+  })
+
+  it('tells an admin who cannot delete that someone who can must finish it', async () => {
+    signIn(['can_manage_settings'])
+    listing([fleetRow('beta', true, 'beta', { delete_started: true })])
+    const w = mount(RetiredClustersCard)
+    await flushPromises()
+    const row = w.find('tbody tr')
+    expect(row.findAll('button')).toHaveLength(0)
+    expect(row.text()).toContain(
+      'Its delete did not finish. Someone who can delete clusters must delete it again.',
+    )
+  })
+
+  it('after bringing back a manual retire, says its scanners need a new token', async () => {
+    signIn(['can_manage_settings'])
+    listing([fleetRow('beta', true, 'beta', { retirement_mode: 'manual' })])
+    vi.mocked(sdk.unretireApiV1ClustersClusterIdUnretirePost).mockResolvedValue(ok)
+    const w = mount(RetiredClustersCard)
+    await flushPromises()
+    await buttons(w, 'Bring back')[0]!.trigger('click')
+    await flushPromises()
+    expect(await toasts()).toContain(
+      'beta is back on the cluster list. Its tokens were revoked when it was retired: mint a new one for its scanners.',
+    )
+  })
+
+  it('after bringing back an automatic retire, does not ask for a token', async () => {
+    signIn(['can_manage_settings'])
+    listing([fleetRow('beta', true, 'beta', { retirement_mode: 'auto' })])
+    vi.mocked(sdk.unretireApiV1ClustersClusterIdUnretirePost).mockResolvedValue(ok)
+    const w = mount(RetiredClustersCard)
+    await flushPromises()
+    await buttons(w, 'Bring back')[0]!.trigger('click')
+    await flushPromises()
+    expect(await toasts()).toContain('beta is back on the cluster list')
+    expect(await toasts()).not.toContain('token')
+  })
+
+  it('says so when a delete started after the list was read', async () => {
+    signIn(['can_manage_settings'])
+    listing([fleetRow('beta', true)])
+    vi.mocked(sdk.unretireApiV1ClustersClusterIdUnretirePost).mockResolvedValue({
+      response: { ok: false, status: 409 },
+      error: { title: 'its delete did not finish: delete it again' },
+      data: undefined,
+    } as never)
+    const w = mount(RetiredClustersCard)
+    await flushPromises()
+    await buttons(w, 'Bring back')[0]!.trigger('click')
+    await flushPromises()
+    expect(await toasts()).toContain('Its delete did not finish. Delete it again.')
   })
 })
 
@@ -441,9 +517,9 @@ describe('ClusterView retire', () => {
 })
 
 describe('minting for a retired cluster', () => {
-  async function mountTokens() {
+  async function mountTokens(extra: ReturnType<typeof fleetRow>[] = []) {
     signIn(['can_manage_tokens'])
-    listing([fleetRow('alpha', false), fleetRow('c-old-01', true, 'old')])
+    listing([fleetRow('alpha', false), fleetRow('c-old-01', true, 'old'), ...extra])
     vi.mocked(sdk.listTokensApiV1AdminTokensGet).mockResolvedValue({
       response: { ok: true },
       data: {
@@ -470,6 +546,14 @@ describe('minting for a retired cluster', () => {
     await flushPromises()
     return w
   }
+
+  it('does not offer a cluster whose delete did not finish (issue 778)', async () => {
+    const w = await mountTokens([fleetRow('c-half-01', true, 'half', { delete_started: true })])
+    await buttons(w, 'Mint token')[0]!.trigger('click')
+    await flushPromises()
+    const retired = w.findAll('select#mint-cluster optgroup option').map((o) => o.text())
+    expect(retired).toEqual(['old (retired)'])
+  })
 
   it('names a retired cluster’s tokens instead of showing its id', async () => {
     const w = await mountTokens()

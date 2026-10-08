@@ -28,7 +28,7 @@ from opensearchpy.exceptions import ConnectionError as OSConnectionError
 from opensearchpy.exceptions import TransportError
 from pydantic import BaseModel, ConfigDict, Field
 
-from backend.admin.cluster_delete import DeleteIncomplete, delete_cluster
+from backend.admin.cluster_delete import DeleteIncomplete, delete_cluster, deletes_started
 from backend.admin.cluster_registry import read_registry, set_registry_name
 from backend.admin.cluster_retirement import (
     Retirement,
@@ -104,6 +104,7 @@ async def list_clusters(
     names, activity, retirements, known, retired = await _fleet(client)
     shown = sorted(cid for cid in known if include_retired or cid not in retired)
     schedules = await read_schedules(client, activity, shown, returned=returned_at(retirements))
+    deleting = await deletes_started(client)
     return {
         "clusters": [
             {
@@ -114,6 +115,9 @@ async def list_clusters(
                 "silent_since": _iso(schedules[cid].silent_since),
                 "warns_at": _iso(schedules[cid].warns_at),
                 "retires_at": _iso(schedules[cid].retires_at),
+                "delete_started": cid in deleting,
+                # a manual retire revoked the tokens, so bringing it back needs a new one
+                "retirement_mode": retirements[cid].mode if cid in retired else None,
             }
             for cid in shown
         ]
@@ -147,6 +151,9 @@ async def unretire(
     client = cast(Any, request.app.state.opensearch)
     if cluster_id not in await _require_known(client, cluster_id):
         raise HTTPException(409, "cluster is not retired")
+    if cluster_id in await deletes_started(client):
+        # its tokens and part of its data are gone: bringing it back would list a broken cluster
+        raise HTTPException(409, "its delete did not finish: delete it again")
     if not await unretire_cluster(client, cluster_id, actor=principal.user_id):
         raise HTTPException(409, "cluster is not retired")  # a concurrent write got there first
     return {"cluster_id": cluster_id, "retired": False}
@@ -159,7 +166,7 @@ async def delete_retired_cluster(
     """Delete everything JAVV holds for a retired cluster but its audit rows (issue 765,
     `admin/cluster_delete.py`). It must be retired first. A delete that could not finish, a step
     contended or the store away or overloaded, answers 503, and a retry finishes it: every step
-    can be re-run and the retirement record goes last."""
+    can be re-run, the retirement record goes after the data and the delete's own marker last."""
     client = cast(Any, request.app.state.opensearch)
     if cluster_id not in await _require_known(client, cluster_id):
         raise HTTPException(409, "retire the cluster before deleting it")

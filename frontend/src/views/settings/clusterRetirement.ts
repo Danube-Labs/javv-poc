@@ -11,6 +11,7 @@ import {
   retireApiV1ClustersClusterIdRetirePost,
   unretireApiV1ClustersClusterIdUnretirePost,
 } from '@/api/generated'
+import { detailOr } from '@/api/problem'
 import { logger } from '@/lib/logger'
 
 export interface FleetCluster {
@@ -21,6 +22,8 @@ export interface FleetCluster {
   silent_since: string | null
   warns_at: string | null
   retires_at: string | null
+  delete_started: boolean
+  retirement_mode: 'manual' | 'auto' | null
 }
 
 export function useFleetClusters() {
@@ -57,12 +60,15 @@ export function useFleetClusters() {
   }
 
   async function unretire(clusterId: string): Promise<string | null> {
-    const { response } = await unretireApiV1ClustersClusterIdUnretirePost({
+    const { response, error } = await unretireApiV1ClustersClusterIdUnretirePost({
       client,
       path: { cluster_id: clusterId },
     })
     if (response?.ok) return null
     logger.warn('cluster_unretire_failed', { status: response?.status })
+    // a delete started since the list was read (issue 778): its tokens and part of its data are gone
+    if (response?.status === 409 && detailOr(error, '').startsWith('its delete did not finish'))
+      return 'Its delete did not finish. Delete it again.'
     if (response?.status === 409) return 'It is not retired any more.'
     if (response?.status === 403) return 'Bringing a cluster back needs the can_manage_settings capability.'
     return 'Bringing it back failed. The cluster stays retired.'

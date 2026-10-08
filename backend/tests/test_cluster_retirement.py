@@ -4,7 +4,8 @@ Contract pins: a retired cluster leaves the default listing (the switcher and Al
 it) and comes back with `?include_retired=true`; a manual retire revokes that cluster's tokens and
 no other cluster's; an automatic one keeps them; both journal before anything changes (D17), so a
 journal failure leaves the cluster as it was; un-retire brings it back and its tokens stay
-revoked. The 401/403 axes live in the RBAC/IDOR suite."""
+revoked. The listing says how a retired cluster was retired, so the screen can say a manual one
+needs a new token (issue 778). The 401/403 axes live in the RBAC/IDOR suite."""
 
 import uuid
 from datetime import datetime
@@ -179,6 +180,24 @@ async def test_unretire_brings_it_back_and_the_tokens_stay_revoked(env) -> None:
     assert len(await _audit_rows(client, cid, "cluster_unretire")) == 1
     # the record is kept and stamped, so the sweep counts silence from the return
     assert (await read_retirements(client))[cid].returned_at is not None
+
+
+async def test_the_listing_says_how_a_retired_cluster_was_retired(env) -> None:
+    http, client, _ = env
+    by_hand, by_sweep, live = _cid(), _cid(), _cid()
+    for cid in (by_hand, by_sweep, live):
+        await _seed_token(client, cid)
+    assert (await http.post(f"/api/v1/clusters/{by_hand}/retire")).status_code == 200
+    await retire_cluster(client, by_sweep, actor="system", mode="auto")
+
+    r = await http.get("/api/v1/clusters", params={"include_retired": "true"})
+    mode = {c["cluster_id"]: c["retirement_mode"] for c in r.json()["clusters"]}
+    assert (mode[by_hand], mode[by_sweep], mode[live]) == ("manual", "auto", None)
+
+    # brought back: no longer retired, so no mode
+    assert (await http.post(f"/api/v1/clusters/{by_hand}/unretire")).status_code == 200
+    r = await http.get("/api/v1/clusters", params={"include_retired": "true"})
+    assert {c["cluster_id"]: c["retirement_mode"] for c in r.json()["clusters"]}[by_hand] is None
 
 
 async def test_an_unretired_cluster_counts_its_silence_from_the_return(env) -> None:

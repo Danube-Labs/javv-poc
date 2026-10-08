@@ -3345,7 +3345,7 @@
     },
     "/api/v1/clusters/{cluster_id}": {
       "delete": {
-        "description": "Delete everything JAVV holds for a retired cluster but its audit rows (issue 765,\n`admin/cluster_delete.py`). It must be retired first. A delete that could not finish, a step\ncontended or the store away or overloaded, answers 503, and a retry finishes it: every step\ncan be re-run and the retirement record goes last.",
+        "description": "Delete everything JAVV holds for a retired cluster but its audit rows (issue 765,\n`admin/cluster_delete.py`). It must be retired first. A delete that could not finish, a step\ncontended or the store away or overloaded, answers 503, and a retry finishes it: every step\ncan be re-run, the retirement record goes after the data and the delete's own marker last.",
         "operationId": "delete_retired_cluster_api_v1_clusters__cluster_id__delete",
         "parameters": [
           {
