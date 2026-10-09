@@ -2,8 +2,8 @@
 
 The status view mints it for a `done`, unexpired report; the download endpoint verifies it ON TOP
 of the session (belt and braces: a pasted download URL goes stale in minutes even though report
-ids are unguessable uuid4 and the endpoint is session-gated anyway). Stateless HMAC over the
-deployment pepper — no new secret, no storage. Format: `<exp_epoch>.<hex sig>`.
+ids are unguessable uuid4 and the endpoint is session-gated anyway). Stateless HMAC keyed by the
+deployment's secret key: no new secret, no storage. Format: `<exp_epoch>.<hex sig>`.
 """
 
 import hashlib
@@ -16,9 +16,9 @@ TOKEN_TTL_SECONDS = 900  # 15 min — frozen internal constant, refetch the stat
 
 
 def _sig(report_id: str, exp: int) -> str:
-    pepper = get_settings().token_pepper.encode()
+    key = get_settings().secret_key.encode()
     msg = f"report-download|{report_id}|{exp}".encode()
-    return hmac.new(pepper, msg, hashlib.sha256).hexdigest()
+    return hmac.new(key, msg, hashlib.sha256).hexdigest()
 
 
 def mint(report_id: str, *, now: float | None = None) -> str:

@@ -52,7 +52,7 @@ JAVV never writes to the clusters it monitors; the scanners push to it.
 
 - **Never in the repo.** Real values live in the deployment's secret store; dev values in a local,
   untracked env file.
-- **`JAVV_TOKEN_PEPPER`** hashes every ingest token and session id. A production process refuses
+- **`JAVV_SECRET_KEY`** hashes every ingest token and session id, and signs download links. A production process refuses
   to start on the dev default (`core/settings.py`, `assert_production_ready`). Rotating it
   invalidates every token and session.
 - **The bootstrap admin password** is only a first-login credential; it must be changed at once.

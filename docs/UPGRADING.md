@@ -200,7 +200,7 @@ From the release that carries issue 691, **the backend starts its own background
 those jobs were only ever run by hand, or never, will see their first scheduled runs do everything at once:
 
 - **The lifecycle sweep** (03:00 by default) drops all scan history older than each cluster's retention
-  (90 days by default). Time-travel can no longer reach it. Before the first night, look at what it would
+  (90 days by default). Time-travel can no longer reach it. Before the jobs run for the first time, look at what it would
   do: **Data inspector → Repair actions → Lifecycle sweep → Dry run**, and raise the retention in
   **Settings → Data & OpenSearch** if that is more than you want to lose.
 - **The staleness sweep** (02:00) marks every finding no scan has confirmed for 3 days as stale, and all of a
@@ -228,6 +228,29 @@ automatically on the first start.
 | Release | Store schema | Report formats accepted | What to do |
 |---|---|---|---|
 | *(no entries yet)* | | | |
+
+**0.7.0: `JAVV_TOKEN_PEPPER` is now `JAVV_SECRET_KEY`.** Only the name changes. Keep the same
+value: if you change it, every scanner gets 401, every user must sign in again, and every open
+download link stops working. The stored data cannot restore them: each scanner then needs a new token. A
+backend that still finds the old name stops at start and names the new one.
+
+- **docker compose:** in `.env`, rename the variable and keep its value:
+  ```bash
+  sed -i 's/^JAVV_TOKEN_PEPPER=/JAVV_SECRET_KEY=/' .env
+  ```
+  Until you do, `docker compose up` stops with `set JAVV_SECRET_KEY in .env`.
+- **Helm, with the value in your values file:** rename `secrets.tokenPepper` to `secrets.secretKey`
+  and keep its value. Until you do, the upgrade stops with
+  `additional properties 'tokenPepper' not allowed`. If you set it with `--set`, get your values
+  first (`helm get values javv -o yaml > values.yaml`), rename the key there, and upgrade with
+  `-f values.yaml`.
+- **Helm, with `secrets.existingSecret`:** the chart now reads the key `secret-key` from that
+  Secret. Copy the value of `token-pepper` into it before the upgrade:
+  ```bash
+  kubectl patch secret <your-secret> --type merge -p \
+    "{\"data\":{\"secret-key\":\"$(kubectl get secret <your-secret> -o jsonpath='{.data.token-pepper}')\"}}"
+  ```
+  Remove `token-pepper` after the upgrade works.
 
 **The release after 0.5.1: how the backend connects to OpenSearch (issue 715).** Two changes, both
 on purpose:

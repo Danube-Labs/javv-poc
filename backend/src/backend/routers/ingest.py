@@ -147,7 +147,7 @@ async def ingest_scan(request: Request) -> dict[str, Any]:
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer ") or len(auth) > 512:
         raise _reject(401, "bad_token", "invalid token", warn=False)
-    candidate = hash_token(auth.removeprefix("Bearer "), pepper=settings.token_pepper)
+    candidate = hash_token(auth.removeprefix("Bearer "), pepper=settings.secret_key)
 
     if _limiter.is_limited(candidate, settings.ingest_rate_limit_per_minute):
         first_in_window = not _rate_limit_warned.is_limited(candidate, 1)

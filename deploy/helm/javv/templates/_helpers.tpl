@@ -22,7 +22,7 @@ app.kubernetes.io/instance: {{ .root.Release.Name }}
 app.kubernetes.io/component: {{ .component }}
 {{- end -}}
 
-{{/* the Secret with the pepper and the bootstrap admin password */}}
+{{/* the Secret with the secret key and the bootstrap admin password */}}
 {{- define "javv.secretName" -}}
 {{- .Values.secrets.existingSecret | default (printf "%s-secrets" (include "javv.fullname" .)) -}}
 {{- end -}}

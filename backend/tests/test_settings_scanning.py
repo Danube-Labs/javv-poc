@@ -131,7 +131,7 @@ async def test_ui_saved_scope_is_what_the_scanner_bearer_get_serves(env) -> None
         index="system-tokens",
         id=token_id,
         body={
-            "token_hash": hash_token(raw, pepper=get_settings().token_pepper),
+            "token_hash": hash_token(raw, pepper=get_settings().secret_key),
             "cluster_id": cluster,
             "scanner": "trivy",
             "disabled": False,

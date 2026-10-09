@@ -22,7 +22,7 @@ from os_env import OS_URL, requires_opensearch
 
 GOLDEN = (Path(__file__).parent / "fixtures/envelope-trivy-golden.json").read_text()
 CLUSTER = json.loads(GOLDEN)["cluster_id"]
-PEPPER = get_settings().token_pepper
+PEPPER = get_settings().secret_key
 
 
 class FakeOS:

@@ -8,7 +8,7 @@ CSRF — a cross-site HTML form can smuggle a JSON-shaped body only as `text/pla
 route accepts JSON content types only (fetch+application/json from another origin dies in CORS
 preflight; no CORS middleware is configured — also pinned). m-10: a login that arrives with a
 still-valid session cookie revokes THAT session — switching accounts can't orphan a live session.
-Audit M3: the dev-only token pepper must fail startup in a production profile."""
+Audit M3: the dev-only secret key must fail startup in a production profile."""
 
 import uuid
 from typing import Any
@@ -77,18 +77,33 @@ async def test_revoke_all_retries_until_zero_conflicts() -> None:
     assert updated == 3
 
 
-# --- audit M3: pepper fail-fast in a production profile (pure) ---------------------------
+# --- audit M3: secret-key fail-fast in a production profile (pure) ---------------------------
 
 
-def test_dev_pepper_refuses_to_start_in_production() -> None:
-    prod_default = Settings(env="production", token_pepper="dev-only-pepper")
-    with pytest.raises(RuntimeError, match="(?i)pepper"):
+def test_dev_secret_key_refuses_to_start_in_production() -> None:
+    prod_default = Settings(env="production", secret_key="dev-only-secret-key")
+    with pytest.raises(RuntimeError, match="JAVV_SECRET_KEY"):
         assert_production_ready(prod_default)
 
 
-def test_real_pepper_or_dev_profile_is_fine() -> None:
-    assert_production_ready(Settings(env="production", token_pepper=uuid.uuid4().hex * 2))
-    assert_production_ready(Settings(env="dev", token_pepper="dev-only-pepper"))
+def test_real_secret_key_or_dev_profile_is_fine() -> None:
+    assert_production_ready(Settings(env="production", secret_key=uuid.uuid4().hex * 2))
+    assert_production_ready(Settings(env="dev", secret_key="dev-only-secret-key"))
+
+
+def test_the_old_secret_key_name_stops_start_and_names_the_new_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # an upgrade that still sets JAVV_TOKEN_PEPPER would otherwise run on the dev default and
+    # refuse every scanner token, in any profile
+    monkeypatch.setenv("JAVV_TOKEN_PEPPER", "old-value-that-must-never-print")
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(RuntimeError, match="JAVV_TOKEN_PEPPER is now JAVV_SECRET_KEY") as exc:
+            get_settings()
+        assert "old-value-that-must-never-print" not in str(exc.value)
+    finally:
+        get_settings.cache_clear()
 
 
 # --- m-8 / m-10: the login route (real OpenSearch) ---------------------------------------

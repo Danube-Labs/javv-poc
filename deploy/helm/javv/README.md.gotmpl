@@ -25,7 +25,7 @@ helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <v
 # then JAVV, signing in with the store's Secret
 read -rs -p 'First JAVV admin password (12 characters or more): ' pw && echo
 kubectl create secret generic javv-secrets \
-  --from-file=token-pepper=<(openssl rand -hex 32 | tr -d '\n') \
+  --from-file=secret-key=<(openssl rand -hex 32 | tr -d '\n') \
   --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
 unset pw
 helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \
@@ -55,7 +55,7 @@ certificate.
 
 Every backend setting is under `backend.config`, at its default, by the name the backend reads,
 with the comment the compose file gives it; `docs/CONFIGURATION.md` has the long form. Secrets are
-not settings here: the pepper and the bootstrap password come from `secrets`, OpenSearch's
+not settings here: the secret key and the bootstrap password come from `secrets`, OpenSearch's
 password and CA from `opensearch`.
 
 `values.schema.json` makes a mistyped key fail the install, except inside `backend.config` and

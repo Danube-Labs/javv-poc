@@ -61,7 +61,7 @@ until curl -s localhost:9200/_cluster/health | jq -e '.status=="green" or .statu
 # 2. backend (foreground; re-runs bootstrap, seeds admin + default roles, then serves)
 cd backend
 export JAVV_OPENSEARCH_URL=http://localhost:9200
-export JAVV_TOKEN_PEPPER='local-dev-pepper-change-me'          # peppers ingest tokens + session ids
+export JAVV_SECRET_KEY='local-dev-pepper-change-me'            # hashes ingest tokens + session ids
 export JAVV_BOOTSTRAP_ADMIN_USERNAME='admin'
 export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'  # used once; new one needs 12+
 export JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50   # default 10 starves UI navigation/rigs with 429s

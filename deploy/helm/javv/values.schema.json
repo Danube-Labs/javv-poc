@@ -178,7 +178,7 @@
         "existingSecret": {
           "type": "string"
         },
-        "tokenPepper": {
+        "secretKey": {
           "type": "string"
         },
         "bootstrapAdminPassword": {

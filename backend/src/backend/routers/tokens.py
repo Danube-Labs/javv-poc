@@ -79,7 +79,7 @@ async def _write_token(
     audit #188); returns the RAW token — the raw value's only server-side moment."""
     raw = mint_token()
     doc = {
-        "token_hash": hash_token(raw, pepper=get_settings().token_pepper),
+        "token_hash": hash_token(raw, pepper=get_settings().secret_key),
         "cluster_id": cluster_id,
         "scanner": scanner,
         "scope": "push:findings",

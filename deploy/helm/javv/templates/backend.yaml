@@ -53,11 +53,11 @@ spec:
             - name: JAVV_OPENSEARCH_VERIFY_CERTS
               value: "true"
             {{- end }}
-            - name: JAVV_TOKEN_PEPPER
+            - name: JAVV_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "javv.secretName" . }}
-                  key: token-pepper
+                  key: secret-key
             - name: JAVV_BOOTSTRAP_ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:

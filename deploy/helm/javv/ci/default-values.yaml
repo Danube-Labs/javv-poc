@@ -1,8 +1,8 @@
 # ct install: the app next to a javv-opensearch store with a cert-manager certificate, in the same
 # namespace, which the CI job installs first: javv's password Secret and its CA, so the backend checks
-# the store's certificate. The pepper and the bootstrap password are throwaway values.
+# the store's certificate. The secret key and the bootstrap password are throwaway values.
 secrets:
-  tokenPepper: ci-only-pepper-for-the-helm-check
+  secretKey: ci-only-secret-key-for-the-helm-check
   bootstrapAdminPassword: ci-only-admin-passphrase
 opensearch:
   passwordSecret:

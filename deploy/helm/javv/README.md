@@ -25,7 +25,7 @@ helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <v
 # then JAVV, signing in with the store's Secret
 read -rs -p 'First JAVV admin password (12 characters or more): ' pw && echo
 kubectl create secret generic javv-secrets \
-  --from-file=token-pepper=<(openssl rand -hex 32 | tr -d '\n') \
+  --from-file=secret-key=<(openssl rand -hex 32 | tr -d '\n') \
   --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
 unset pw
 helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \
@@ -55,7 +55,7 @@ certificate.
 
 Every backend setting is under `backend.config`, at its default, by the name the backend reads,
 with the comment the compose file gives it; `docs/CONFIGURATION.md` has the long form. Secrets are
-not settings here: the pepper and the bootstrap password come from `secrets`, OpenSearch's
+not settings here: the secret key and the bootstrap password come from `secrets`, OpenSearch's
 password and CA from `opensearch`.
 
 `values.schema.json` makes a mistyped key fail the install, except inside `backend.config` and
@@ -81,5 +81,5 @@ the backend. `backend/tests/test_compose_settings.py` holds this file's own sett
 | opensearch.passwordSecret | object | `{"key":"password","name":""}` | The Secret with the password of javv, the OpenSearch user JAVV signs in as: the javv-opensearch chart's (`opensearch.javv.backend.existingSecret` there, or `<its release>-javv-opensearch-backend`). Never the admin's: the backend needs only javv. |
 | podSecurityContext | object | `{"fsGroup":65532,"runAsGroup":65532,"runAsNonRoot":true,"runAsUser":65532,"seccompProfile":{"type":"RuntimeDefault"}}` | Both containers run as the images' own user, with a read-only root and an emptyDir on /tmp. |
 | secrets.bootstrapAdminPassword | string | `""` | The first JAVV admin's password, used once when that admin does not exist yet (12 characters or more). |
-| secrets.existingSecret | string | `""` | A Secret with the keys `token-pepper` and `bootstrap-admin-password`. Set this, or both values below. The chart never makes up a pepper: a new one invalidates every ingest token and session. |
-| secrets.tokenPepper | string | `""` | Hashes ingest tokens and session ids: a long random string (`openssl rand -hex 32`), kept for good. The chart puts it in a Secret. |
+| secrets.existingSecret | string | `""` | A Secret with the keys `secret-key` and `bootstrap-admin-password`. Set this, or both values below. The chart never makes up a secret key: a new one makes every ingest token and session unusable. |
+| secrets.secretKey | string | `""` | The backend's secret key (`JAVV_SECRET_KEY`): it hashes ingest tokens and session ids and signs download links. A long random string (`openssl rand -hex 32`), kept for good: change it, and every scanner gets 401, every user must sign in again, and each scanner needs a new token. The chart puts it in a Secret. |
