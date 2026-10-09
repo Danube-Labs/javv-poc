@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.3](https://github.com/Danube-Labs/javv-poc/compare/v0.6.2...v0.6.3) (2026-10-09)
+
+
+### Bug Fixes
+
+* **deps:** update dependency fastapi to &gt;=0.143,&lt;0.144 ([#783](https://github.com/Danube-Labs/javv-poc/issues/783)) ([5a23216](https://github.com/Danube-Labs/javv-poc/commit/5a23216f15cee6549f9bdadb9df8c62618ef6a4e))
+
 ## [0.6.2](https://github.com/Danube-Labs/javv-poc/compare/v0.6.1...v0.6.2) (2026-10-08)
 
 
