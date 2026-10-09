@@ -149,6 +149,15 @@ def test_fenced_code_blocks_are_enabled() -> None:
     assert "pymdownx.superfences" in names
 
 
+def test_the_site_follows_the_readers_light_or_dark_setting() -> None:
+    palette = CONFIG["theme"]["palette"]
+    assert {p["media"]: p["scheme"] for p in palette} == {
+        "(prefers-color-scheme: light)": "default",
+        "(prefers-color-scheme: dark)": "slate",
+    }
+    assert all("toggle" in p for p in palette)
+
+
 def _superfences() -> dict[str, Any]:
     for entry in CONFIG["markdown_extensions"]:
         if isinstance(entry, dict) and "pymdownx.superfences" in entry:

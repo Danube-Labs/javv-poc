@@ -16,6 +16,18 @@ site_dir: site
 
 theme:
   name: material
+  # light or dark from the reader's system setting, with a toggle in the header
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark theme
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light theme
   features:
     - navigation.sections
     - content.code.copy

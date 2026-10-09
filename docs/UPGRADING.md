@@ -200,7 +200,7 @@ From the release that carries issue 691, **the backend starts its own background
 those jobs were only ever run by hand, or never, will see their first scheduled runs do everything at once:
 
 - **The lifecycle sweep** (03:00 by default) drops all scan history older than each cluster's retention
-  (90 days by default). Time-travel can no longer reach it. Before the first night, look at what it would
+  (90 days by default). Time-travel can no longer reach it. Before the jobs run for the first time, look at what it would
   do: **Data inspector → Repair actions → Lifecycle sweep → Dry run**, and raise the retention in
   **Settings → Data & OpenSearch** if that is more than you want to lose.
 - **The staleness sweep** (02:00) marks every finding no scan has confirmed for 3 days as stale, and all of a
