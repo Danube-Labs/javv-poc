@@ -13,9 +13,9 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
   `bump-minor-pre-major` and `bump-patch-for-minor-pre-major`, so a `feat` bumps the patch version
   and a breaking change the minor one; a minor bump beyond that is set with a `Release-As:` footer
   (0.5.0 and 0.6.0 were). The first tag, `v0.1.0`, was pinned with a one-time `release-as` that has
-  since been removed. The **MVP release** closes the deploy bolt (M10) in the 0.6 line. **`1.0.0`**
-  comes after a hardening phase, once JAVV installs plug-and-play and is as close to bug-free as we
-  can make it.
+  since been removed. The **MVP release** closes the deploy bolt (M10) as **0.7.0** (operator,
+  2026-10-09); the 0.6 line was the first deployable releases. **`1.0.0`** comes after a hardening
+  phase, once JAVV installs plug-and-play and is as close to bug-free as we can make it.
 - JAVV is a **deployed app** (FastAPI + Vue, shipped via Helm/k3s), **not a published library**.
   A "release" here is a tag + changelog + GitHub Release that a deploy can pin to, plus the
   backend and frontend images published under that version (issue 452), each signed with cosign
