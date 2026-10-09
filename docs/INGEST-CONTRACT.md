@@ -1,77 +1,83 @@
-# JAVV public ingest contract
+# JAVV ingest contract
 
-How to push scan results into JAVV **without running the JAVV scanners**, from any
-environment that can produce the envelope JSON (Kubernetes, Nomad, plain Docker hosts, CI
-pipelines). This is the "cheap now" slice of #327: the wire schema, the call protocol, and the
-validation rules, published and CI-pinned. What it does **not** yet give you: a scanner
-identity of your own (see [Current limitation](#current-limitation-the-scanner-vocabulary)).
+This page tells you how to push scan results into JAVV **without the JAVV scanners**. Use it from
+any environment that can make the envelope JSON: Kubernetes, Nomad, Docker hosts or CI pipelines.
 
-The machine-readable schema lives beside this file:
-**[`ingest-envelope.schema.json`](ingest-envelope.schema.json)**, generated from the backend's
-Pydantic wire model (`backend/src/backend/models/envelope.py::IngestEnvelope`) and pinned by a
-CI test (`backend/tests/test_ingest_contract_doc.py`), so it cannot drift from what the server
-actually enforces. Regeneration command: in that test's docstring.
+The page gives the schema of the envelope, the sequence of calls, and the validation rules. JAVV
+accepts only two scanner names, `trivy` and `grype`. Thus you must push as one of them (see
+[Limit: two scanner names](#limit-two-scanner-names)).
 
-## The protocol: four calls
+The machine-readable schema is
+**[`ingest-envelope.schema.json`](ingest-envelope.schema.json)**. JAVV makes it from the model that
+the backend uses to validate each envelope. A CI test compares the two, so the schema always agrees
+with the backend.
 
-| Step | Call | Auth | When |
+## Push one scan cycle
+
+A scan cycle is one full scan of all images in one cluster, by one scanner. Do these calls in this
+sequence:
+
+| Step | Call | Authentication | When |
 |---|---|---|---|
-| 0 | `GET/POST /api/v1/admin/tokens`: mint a machine token scoped to your `(cluster_id, scanner)` | admin session (`can_manage_tokens`), or `python -m backend.core.tokens` | once (rotate/revoke via the admin API) |
-| 1 | `POST /api/v1/scan-runs` → `{"scan_order": <int>}` | machine token | once per scan **cycle**, before pushing |
-| 2 | `POST /api/v1/ingest/scan`: one envelope per image | machine token | per image in the cycle |
-| 3 | `POST /api/v1/inventory-runs`, body `{"scan_run_id", "expected_count", "started_at"}` | machine token | once at cycle **end** |
+| 0 | `GET/POST /api/v1/admin/tokens`: create a machine token for your `(cluster_id, scanner)` pair | An admin session with `can_manage_tokens`, or `python -m backend.core.tokens` | One time. Rotate or revoke the token with the admin API. |
+| 1 | `POST /api/v1/scan-runs`. The reply is `{"scan_order": <int>}`. | The machine token | One time for each scan **cycle**, before the pushes |
+| 2 | `POST /api/v1/ingest/scan`: one envelope for each image | The machine token | For each image in the cycle |
+| 3 | `POST /api/v1/inventory-runs`, with the body `{"scan_run_id", "expected_count", "started_at"}` | The machine token | One time, at the **end** of the cycle |
 
-Notes that keep the data model accurate:
+Obey these rules:
 
-- **`scan_order` comes from step 1; never invent it.** It is the strictly-increasing
-  per-`(cluster, scanner)` ordering key (D45) that the whole correctness model sorts by; every
-  envelope in the cycle carries the same `scan_order` + your own `scan_run_id`.
-- **Scan everything, every cycle** (D30): the model is stateless full sweeps: the server
-  reconciles what a committed run no longer reports. Do not push incremental diffs.
-- **Step 3 certifies the cycle**: `expected_count` = images you discovered; the server counts
-  what actually landed and marks the inventory run `committed` only if complete. Without it,
-  "running at T" queries won't trust the cycle.
-- The token is **scope-bound** (SEC-3): a payload whose `cluster_id`/`scanner` doesn't match
-  the token's scope is a `403`, not a shrug.
+- **Get `scan_order` from step 1. Do not make up a value.** JAVV puts the scans of each cluster and
+  scanner in sequence with this number, and it uses the sequence to decide which data is current.
+  Each envelope in the cycle has the same `scan_order` and the same `scan_run_id`. You choose the
+  `scan_run_id`.
+- **Scan all images in each cycle.** Each cycle is a full scan. JAVV marks each finding that a completed
+  cycle does not report again as no longer present. Do not push only the changes.
+- **Step 3 completes the cycle.** Set `expected_count` to the number of images that you found. JAVV
+  counts the images that it received. It marks the inventory run `committed` only when the two
+  numbers agree. Without step 3, the "running at a time" queries do not use the cycle.
+- **The token is for one cluster and one scanner.** JAVV refuses with `403` each envelope whose
+  `cluster_id` or `scanner` is different from the token.
 
-## Portable field semantics (nothing here is Kubernetes-specific)
+## Fields
 
-| Field | What it really is |
+None of these fields is specific to Kubernetes.
+
+| Field | Meaning |
 |---|---|
-| `cluster_id` | Any **stable, immutable** environment id: lowercase alnum/hyphen, 8–64 chars. It routes storage; never rename it (labels/display names live elsewhere). |
-| `namespaces` | Plain `list[str]` grouping labels for where the image runs. Kube namespaces for us; **Nomad job names, compose project names, host groups** all slot straight in. |
-| `replicas` | Instance count of the image in that grouping, any integer ≥ 0. |
-| `image_digest` | `sha256:<hex>`, the content identity everything dedupes on. |
-| `last_seen_at` etc. | Timestamps must be **timezone-aware** ISO-8601 (`…Z` or offset). |
-| `severity` | The scanner's **verbatim** word (D16 raw fidelity). The server derives the canonical bucket itself and never trusts `severity_canonical` from the wire (send it anyway: the schema requires it; verbatim-lowercase is fine). |
-| `effective_config` | The tuning + scope the cycle actually ran with: audit/display only, but **required** and its `tuning` shape must match `scanner`. |
+| `cluster_id` | An environment ID that **never changes**: lowercase letters, digits and hyphens, 8–64 characters. JAVV stores the data under this ID. Do not change it. The names that JAVV shows for a cluster are in a different place. |
+| `namespaces` | A `list[str]` of labels that tell where the image runs. For Kubernetes, these are namespaces. You can also use Nomad job names, compose project names or host groups. |
+| `replicas` | The number of instances of the image in that group: an integer, 0 or more. |
+| `image_digest` | `sha256:<hex>`. JAVV identifies each image by this digest. |
+| `last_seen_at` and the other times | Each time must include a **time zone**, in ISO-8601 (`…Z` or an offset). |
+| `severity` | The word that the scanner gave, **exactly as the scanner wrote it**. JAVV calculates its own severity from this word. JAVV ignores the `severity_canonical` that you send. Send it all the same, because the schema requires it. The scanner word in lowercase is correct. |
+| `effective_config` | The scan settings and the scope that the cycle used. JAVV only shows and records them, but the field is **required**. The shape of `tuning` must agree with `scanner`. |
 
-## Validation: what gets you a 422 (and friends)
+## Validation
 
-The envelope is validated with `extra="forbid"` at every level: an unknown field anywhere is a
-rejection, not a warning. The specific tripwires:
+JAVV validates the envelope with `extra="forbid"` at each level. An unknown field anywhere causes a
+refusal, not a warning. JAVV refuses the envelope with `422` in these conditions:
 
-- **Counts invariant**: `counts.total` must equal the six severity buckets' sum **and**
-  `len(findings)`. (Bucket *column names* are the historical `crit/med` shorthand; severity
-  *values* are always full words.)
-- **`cluster_id` shape** (it flows into index names: injection guard): lowercase
-  alnum/hyphen, 8–64 chars.
-- **`image_digest`**: must match `^sha256:[a-fA-F0-9]{6,64}$`.
-- **`scanner` ↔ `effective_config.tuning` mismatch** (a trivy envelope with grype tuning is a
-  lying client).
-- **`schema_version`** outside the accepted window (currently 3 or 4, from the M8d `ptype`
-  rollout; v3 findings simply have no `ptype`).
-- Naive (timezone-less) timestamps.
+- **The counts do not agree.** `counts.total` must be equal to the sum of the six severity counts,
+  **and** to `len(findings)`. The count fields have short names (`crit`, `med`). The severity values
+  are always full words.
+- **`cluster_id` has a different shape** from lowercase letters, digits and hyphens, 8–64
+  characters. JAVV puts the ID into index names, so it refuses all other characters.
+- **`image_digest`** does not agree with `^sha256:[a-fA-F0-9]{6,64}$`.
+- **`scanner` and `effective_config.tuning` do not agree**, for example a `trivy` envelope with
+  Grype settings.
+- **`schema_version`** is not 3 or 4. Version 4 added `ptype`. Version 3 findings have no `ptype`.
+- **A time has no time zone.**
 
-The full error table for `POST /ingest/scan` (400/401/403/413/422/429/503, gzip support, size
-caps) is in [`API.md`](API.md) § "the hardened surface". Success is `202` with
-`{accepted, findings, commit}`, and pushes are **idempotent** (deterministic doc ids): safe to
-retry a failed cycle.
+[`API.md`](API.md#post-apiv1ingestscan-the-hardened-surface) has the full list of errors for
+`POST /ingest/scan`: 400, 401, 403, 413, 422, 429 and 503, gzip and the size limits. On success,
+JAVV replies `202` with `{accepted, findings, commit}`. JAVV makes the same document IDs from the
+same data. Thus you can send a failed cycle again with no risk.
 
-## Worked example
+## Example
 
-A complete, minimal envelope (1 finding, a real one validated by the golden fixture family;
-`backend/tests/fixtures/envelope-trivy-v3-golden.json` is the fuller 29-finding template):
+This example is a complete envelope with one finding. The example is a real finding, and a test
+validates it. For a larger example with 29 findings, see
+`backend/tests/fixtures/envelope-trivy-v3-golden.json` in the repository.
 
 ```bash
 TOKEN=…            # from step 0, scoped to (my-nomad-fleet-01, trivy)
@@ -137,22 +143,21 @@ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/
   -d "{\"scan_run_id\": \"cycle-2026-07-10-a\", \"expected_count\": 1, \"started_at\": \"2026-07-10T11:55:00Z\"}"
 ```
 
-## Current limitation: the scanner vocabulary
+## Limit: two scanner names
 
-`scanner` is `"trivy" | "grype"`: **a third-party pusher must produce trivy- or
-grype-compatible output and push AS that scanner** (mint the token for it, match its tuning
-shape). This is deliberate for now: per-scanner-is-sacred (never merged, never deduped) means
-every scanner value is a facet across the entire system: normalizer coverage (D16),
-disagreement pairing, per-scanner tokens. Opening the vocabulary is a **v1.1 ruling**
-(a registered-scanner registry, not a free string) tracked on
-[#327](https://github.com/Danube-Labs/javv-poc/issues/327); a `generic` tuning shape rides the
-same ruling. If you're wrapping a different engine (Snyk, Clair, …) today, map its output onto
-one of the two identities and pin your mapping, or wait for the vocabulary.
+`scanner` is `"trivy"` or `"grype"`. Thus **a different tool must make output that agrees with Trivy
+or with Grype, and push as that scanner.** Create the token for that scanner, and use the settings
+shape of that scanner.
 
-## Related
+JAVV keeps the results of each scanner apart, and it never merges them. Thus each scanner name
+changes many parts of JAVV: the severity calculation, the comparison between scanners, and the
+tokens. A list of registered scanners will permit more names
+([issue 327](https://github.com/Danube-Labs/javv-poc/issues/327)). That change also adds a general
+settings shape.
 
-- [`API.md`](API.md): full endpoint reference (auth, error tables, metrics).
-- `docs/engineering/INDEX-MAP.md`: where the data lands.
-- D16 (raw-fidelity normalizer) · D30 (stateless full sweeps) · D45 (`scan_order`) ·
-  SEC-3 (token scope-binding) · M8d/#241 (the v4 bump that added `ptype`; an envelope bump and
-  this schema doc travel together).
+Until then, if you use a different tool (for example Snyk or Clair), convert its output to one of
+the two scanners, and keep your conversion the same each time.
+
+## Related pages
+
+- [`API.md`](API.md): all the endpoints, with authentication, errors and metrics.

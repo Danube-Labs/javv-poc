@@ -921,6 +921,9 @@ jobs:
           ls docs-site/site/assets/stylesheets/modern/main.*.min.css
           grep -q '<pre' docs-site/site/docs/DEPLOYING/index.html
           grep -q '<pre class="mermaid">' docs-site/site/docs/DEPLOYING/index.html
+      - name: No list on the site rendered as a paragraph
+        # the strict build passes a list GitHub nests with 3 spaces, which the site shows as text
+        run: python3 development/scripts/check-docs-site-lists.py docs-site/site
 
   dependency-audit:
     # Issue 552: pip-audit (backend, scanner, libs) and npm audit (frontend) on every PR and push.
