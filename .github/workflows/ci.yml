@@ -914,12 +914,13 @@ jobs:
           enable-cache: true
       - name: Strict build
         run: uv run --project docs-site --frozen zensical build -f docs-site/mkdocs.yml --strict
-      - name: The theme's own files were written, and code blocks render
-        # the strict build passes without either: pages with no styling, or every fenced block
-        # flattened into inline code (issue 639)
+      - name: The theme's own files were written, and code blocks and diagrams render
+        # the strict build passes without any of them: pages with no styling, every fenced block
+        # flattened into inline code, or a mermaid diagram shown as its source (issue 639)
         run: |
           ls docs-site/site/assets/stylesheets/modern/main.*.min.css
           grep -q '<pre' docs-site/site/docs/DEPLOYING/index.html
+          grep -q '<pre class="mermaid">' docs-site/site/docs/DEPLOYING/index.html
 
   dependency-audit:
     # Issue 552: pip-audit (backend, scanner, libs) and npm audit (frontend) on every PR and push.

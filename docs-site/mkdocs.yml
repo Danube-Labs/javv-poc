@@ -4,8 +4,8 @@
 # src/ holds a symlink to each published file, laid out as in the repository, so each file
 # renders where it lives and the links between them work the same on GitHub and here. src/ is the
 # list of what is published: nothing else in the repository reaches the site. (Zensical follows
-# file symlinks, not folder ones.) backend/tests/test_docs_site.py holds src/, the nav and the
-# links in step.
+# file symlinks, not folder ones.) The one real file there is the site's stylesheet.
+# backend/tests/test_docs_site.py holds src/, the nav and the links in step.
 site_name: JAVV
 site_description: Operator docs for JAVV, Just Another Vulnerability Viewer
 site_url: https://danube-labs.github.io/javv-poc/
@@ -35,13 +35,21 @@ markdown_extensions:
   - tables
   - pymdownx.highlight
   - pymdownx.inlinehilite
-  - pymdownx.superfences
+  - pymdownx.superfences:
+      # a ```mermaid block renders as a diagram only through this fence; without it, as code
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: pymdownx.superfences.fence_code_format
   - toc:
       permalink: true
   - pymdownx.snippets:
       # resolved from the folder the build runs in: the repository root, for README.md's table
       base_path: ["."]
       check_paths: true
+
+extra_css:
+  - stylesheets/javv.css
 
 extra:
   version:

@@ -3,11 +3,13 @@
 `docs-site/src/` holds a symlink to each published file, laid out as in the repository; that tree
 is the list of what is published. Zensical's strict build checks links between pages, but not
 links to other files, nor that the tree publishes only operator files. These tests hold the rest:
-- src/ is exactly the operator files, each a symlink to the same path in the repository;
+- src/ is exactly the operator files, each a symlink to the same path in the repository, plus
+  the site's own stylesheet, which the config loads;
 - every published page is in the nav and every nav entry is published;
 - every relative link in a published page reaches a published file;
 - the supported-versions page includes README's table, which check-versions.sh keeps in step;
-- CI builds the site strict and checks the theme's files were written;
+- CI builds the site strict and checks the theme's files were written and blocks render;
+- no published page carries an em dash;
 - the publish workflow runs for every published file.
 """
 
@@ -45,6 +47,8 @@ PAGES = {
 # Files the pages link to, published as they are.
 FILES = {"docs/ingest-envelope.schema.json", "versions.yaml", "deploy/compose/compose.yaml"}
 PUBLISHED = PAGES | FILES
+# The site's own files: real files in src/, not copies of anything in the repository.
+SITE_FILES = {"stylesheets/javv.css"}
 
 _LINK = re.compile(r"\]\(([^)\s]+)\)")
 
@@ -84,7 +88,13 @@ def _workflow(name: str) -> dict[Any, Any]:
 
 
 def test_src_is_exactly_the_operator_files() -> None:
-    assert _src_entries() == PUBLISHED
+    assert _src_entries() == PUBLISHED | SITE_FILES
+
+
+def test_the_sites_own_files_are_real_files_the_config_loads() -> None:
+    for name in SITE_FILES:
+        assert (SRC / name).is_file() and not (SRC / name).is_symlink()
+    assert set(CONFIG["extra_css"]) == {n for n in SITE_FILES if n.endswith(".css")}
 
 
 @pytest.mark.parametrize("published", sorted(PUBLISHED))
@@ -129,12 +139,36 @@ def test_ci_builds_the_site_strict_with_the_themes_files() -> None:
     # when fenced code renders as inline code
     assert "docs-site/site/assets/stylesheets/" in runs
     assert "grep -q '<pre' docs-site/site/docs/DEPLOYING/index.html" in runs
+    # a mermaid block with no mermaid fence renders as code, and the strict build passes
+    assert "grep -q '<pre class=\"mermaid\">' docs-site/site/docs/DEPLOYING/index.html" in runs
 
 
 def test_fenced_code_blocks_are_enabled() -> None:
     # listing markdown_extensions replaces the defaults; without superfences no ``` block renders
     names = {e if isinstance(e, str) else next(iter(e)) for e in CONFIG["markdown_extensions"]}
     assert "pymdownx.superfences" in names
+
+
+def _superfences() -> dict[str, Any]:
+    for entry in CONFIG["markdown_extensions"]:
+        if isinstance(entry, dict) and "pymdownx.superfences" in entry:
+            return entry["pymdownx.superfences"]
+    return {}
+
+
+@pytest.mark.parametrize("page", sorted(p for p in PAGES if "```mermaid" in (ROOT / p).read_text()))
+def test_mermaid_blocks_render_as_diagrams(page: str) -> None:
+    fences = {f["name"]: f for f in _superfences().get("custom_fences", [])}
+    assert "mermaid" in fences, f"{page} has a mermaid block, and the site renders it as code"
+    assert fences["mermaid"]["class"] == "mermaid"
+    assert fences["mermaid"]["format"] == "pymdownx.superfences.fence_code_format"
+
+
+@pytest.mark.parametrize("page", sorted(PAGES))
+def test_published_pages_carry_no_em_dash(page: str) -> None:
+    lines = (ROOT / page).read_text().splitlines()
+    found = [n for n, line in enumerate(lines, 1) if "\u2014" in line]
+    assert not found, f"{page} has an em dash on lines {found}"
 
 
 def test_the_publish_workflow_runs_for_every_published_file() -> None:
