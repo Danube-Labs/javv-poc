@@ -1555,7 +1555,7 @@ helm<span class="w"> </span><span class="nb">test</span><span class="w"> </span>
 </code></pre></div>
     <code>helm test</code> verifies that JAVV replies at that address, and that it accepts each token. Without
     Kubernetes, run the scanner image with <code>JAVV_BACKEND_URL</code>, <code>JAVV_TOKEN</code> and <code>JAVV_CLUSTER_ID</code>
-    (<a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §2</a>).</p>
+    (<a href="../CONFIGURATION/#scanner-settings">Scanner settings</a>).</p>
 </li>
 </ol>
 <p>The first push shows in <strong>Scanner status</strong>. Its findings show when the scan is complete.</p>
@@ -1724,7 +1724,7 @@ curl<span class="w"> </span>-u<span class="w"> </span>admin<span class="w"> </sp
 <span class="p">}</span>
 </code></pre></div>
 <p>Then set <code>JAVV_OPENSEARCH_USERNAME=javv</code> and <code>JAVV_OPENSEARCH_PASSWORD</code>
-(<a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §1</a>). For snapshots, you must register a repository
+(<a href="../CONFIGURATION/#connection-to-opensearch">Connection to OpenSearch</a>). For snapshots, you must register a repository
 (<code>PUT _snapshot/&lt;name&gt;</code>, with its credentials in the keystore of OpenSearch). The JAVV role cannot
 do this.</p>
 <h2 id="a-forgotten-password">A forgotten password<a class="headerlink" href="#a-forgotten-password" title="Permanent link">&para;</a></h2>
@@ -1754,7 +1754,7 @@ admin does not exist.</p>
   required setting). Thus 0.6.0 has no images and no charts. Use the release after it.</li>
 <li><strong>An OpenSearch of your own with its security plugin on</strong> works from the 0.6 releases. Set
   <code>JAVV_OPENSEARCH_URL</code> to its address. Set <code>JAVV_OPENSEARCH_USERNAME</code>, <code>JAVV_OPENSEARCH_PASSWORD</code>
-  and, for a private CA, <code>JAVV_OPENSEARCH_CA_BUNDLE</code> (<a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §1</a>).
+  and, for a private CA, <code>JAVV_OPENSEARCH_CA_BUNDLE</code> (<a href="../CONFIGURATION/#connection-to-opensearch">Connection to OpenSearch</a>).
   The user needs the <code>javv</code> role (<a href="#an-opensearch-of-your-own">An OpenSearch of your own</a>).</li>
 <li><strong>The OpenSearch of the compose file uses demo certificates</strong> (see
   <a href="#ports-and-access">Ports and access</a>). For your own certificates, operate your own OpenSearch,
@@ -1764,7 +1764,7 @@ admin does not exist.</p>
   front of JAVV, there is no switch yet
   (<a href="https://github.com/Danube-Labs/javv-poc/issues/719">issue 719</a>).</li>
 <li><strong>The build of the frontend image sets the <code>VITE_*</code> settings</strong>
-  (<a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §2b</a>). You cannot change them later. A published image has
+  (<a href="../CONFIGURATION/#frontend-build-settings">Frontend build settings</a>). You cannot change them later. A published image has
   their default values.</li>
 <li><strong>TLS is your work.</strong> JAVV serves plain http. Put <code>https</code> in front of it with the tools that you
   already operate, and keep the session cookie <code>Secure</code>.</li>

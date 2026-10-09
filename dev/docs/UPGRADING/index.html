@@ -1342,7 +1342,7 @@ own deployment. To install JAVV, see <a href="../DEPLOYING/"><code>DEPLOYING.md<
     tell you what a release needs from you.</li>
 <li><strong>Make a snapshot.</strong> Use <strong>Settings → Data &amp; OpenSearch → Snapshot now</strong>, or
     <code>POST /api/v1/admin/snapshots</code>. The request needs <code>can_manage_retention</code>. It returns 409 when
-    OpenSearch has no snapshot repository. <a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §5–6</a> tells you how
+    OpenSearch has no snapshot repository. <a href="../CONFIGURATION/#snapshots">Snapshots</a> tells you how
     to add the repository. The upgrade does not need the snapshot. The snapshot protects your data.</li>
 <li><strong>Check the OpenSearch version.</strong> CI tests JAVV with the version in <code>datastore.opensearch</code> in
     <a href="../../versions.yaml"><code>versions.yaml</code></a>.</li>
@@ -1477,7 +1477,7 @@ the new image. To go back, run <code>helm rollback scanner</code> in that cluste
 to the previous JAVV release.</p>
 <p><strong>To change an OpenSearch password</strong> (of <code>admin</code>, or of <code>javv</code>, the user that the backend signs in
 as), see the
-<a href="../../deploy/helm/javv-opensearch/#changing-a-password"><code>javv-opensearch</code> chart README</a>.
+<a href="../../deploy/helm/javv-opensearch/#change-a-password"><code>javv-opensearch</code> chart README</a>.
 After you change the <code>javv</code> password, restart the backend. Then it reads the new password from the
 same Secret: <code>kubectl rollout restart deploy/javv-backend</code>. The same section of the README tells
 you how to load the <code>javv</code> role and its mapping into an OpenSearch that first started without them.</p>
@@ -1556,7 +1556,7 @@ only manually, or never, the first scheduled runs do all the work at the same ti
 </ul>
 <p>A job does not run because the backend started. Each job waits for its next scheduled time. To
 stop all the jobs, start the backend with <code>JAVV_SCHEDULER_ENABLED=false</code>. To stop one job, set its
-<code>JAVV_JOB_&lt;KIND&gt;_CRON</code> to an empty value. <a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §1</a> gives the
+<code>JAVV_JOB_&lt;KIND&gt;_CRON</code> to an empty value. <a href="../CONFIGURATION/#job-schedules-and-the-time-zone">Job schedules and the time zone</a> gives the
 schedules, and the time zone that the backend uses for them.</p>
 <p>If you ran these jobs from your own cron or from CronJobs, delete them. The scheduler of the
 backend replaces them. If both run, nothing breaks: the backend does not start a job that is
@@ -1632,7 +1632,7 @@ it logs a warning. This condition shows a problem in JAVV, not in the clusters.<
 <li><strong>A <code>JAVV_OPENSEARCH_URL</code> that holds a user or a password stops the backend at start.</strong> Earlier
   releases sent <code>https://user:pass@host</code> (or <code>user:pass@host</code>, with no scheme) to the client. Move
   the credentials into <code>JAVV_OPENSEARCH_USERNAME</code> and <code>JAVV_OPENSEARCH_PASSWORD</code>
-  (<a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §1</a>).</li>
+  (<a href="../CONFIGURATION/#connection-to-opensearch">Connection to OpenSearch</a>).</li>
 <li><strong>A wrong setting stops the start, with one line for each variable:</strong>
   <code>invalid settings: JAVV_&lt;NAME&gt;: &lt;reason&gt;</code>. The line holds no value from your environment.
   Earlier releases showed part of the environment, and secrets could be in it.</li>
