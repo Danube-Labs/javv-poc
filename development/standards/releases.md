@@ -24,7 +24,9 @@ discipline (see [git-workflow.md](git-workflow.md)) is the input that drives all
   `Publish charts` job then publishes the three Helm charts at `oci://ghcr.io/danube-labs/charts`
   under the same version, each signed (issue 725), with the scanner images pinned by digest in
   `javv-scanner`. It runs only after the images are published. If either job fails, the release notes
-  say so at the top. When the cause is outside the workflow (a registry or Sigstore outage), re-run
+  say so at the top. The `Publish docs` job runs last: it publishes the release's operator docs
+  as its `major.minor` version and as `latest`, which the docs site opens on (issue 639). It adds
+  no note when it fails; the site keeps opening the version before until the job is re-run. When the cause is outside the workflow (a registry or Sigstore outage), re-run
   the failed jobs once it clears, then delete the note. A re-run uses the workflow as it was at the
   release commit, so a cause in the workflow itself can only be fixed by a fix on `main` and the
   next release. 0.6.0's smoke step lacked a variable compose requires, so 0.6.0 published nothing
