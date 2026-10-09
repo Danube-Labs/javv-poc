@@ -46,7 +46,7 @@ router = APIRouter(prefix="/api/v1/client-events", tags=["client-events"])
 
 Authenticated = Annotated[Principal, Depends(get_current_principal)]
 
-# --- shape caps: request SCHEMA, not dials (docs/CONFIGURATION.md §8) -------------------------
+# --- shape caps: request SCHEMA, not dials (docs/CONFIGURATION.md, "Fixed values") -------------
 _MAX_BATCH = 20  # events per POST — the beacon batches, it does not stream
 _MAX_KEYS_PER_OBJECT = 25
 _MAX_DEPTH = 3

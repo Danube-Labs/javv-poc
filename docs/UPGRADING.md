@@ -27,7 +27,7 @@ own deployment. To install JAVV, see [`DEPLOYING.md`](DEPLOYING.md).
     tell you what a release needs from you.
 2. **Make a snapshot.** Use **Settings → Data & OpenSearch → Snapshot now**, or
     `POST /api/v1/admin/snapshots`. The request needs `can_manage_retention`. It returns 409 when
-    OpenSearch has no snapshot repository. [`CONFIGURATION.md` §5–6](CONFIGURATION.md) tells you how
+    OpenSearch has no snapshot repository. [Snapshots](CONFIGURATION.md#snapshots) tells you how
     to add the repository. The upgrade does not need the snapshot. The snapshot protects your data.
 3. **Check the OpenSearch version.** CI tests JAVV with the version in `datastore.opensearch` in
     [`versions.yaml`](../versions.yaml).
@@ -189,7 +189,7 @@ to the previous JAVV release.
 
 **To change an OpenSearch password** (of `admin`, or of `javv`, the user that the backend signs in
 as), see the
-[`javv-opensearch` chart README](../deploy/helm/javv-opensearch/README.md#changing-a-password).
+[`javv-opensearch` chart README](../deploy/helm/javv-opensearch/README.md#change-a-password).
 After you change the `javv` password, restart the backend. Then it reads the new password from the
 same Secret: `kubectl rollout restart deploy/javv-backend`. The same section of the README tells
 you how to load the `javv` role and its mapping into an OpenSearch that first started without them.
@@ -244,7 +244,7 @@ only manually, or never, the first scheduled runs do all the work at the same ti
 
 A job does not run because the backend started. Each job waits for its next scheduled time. To
 stop all the jobs, start the backend with `JAVV_SCHEDULER_ENABLED=false`. To stop one job, set its
-`JAVV_JOB_<KIND>_CRON` to an empty value. [`CONFIGURATION.md` §1](CONFIGURATION.md) gives the
+`JAVV_JOB_<KIND>_CRON` to an empty value. [Job schedules and the time zone](CONFIGURATION.md#job-schedules-and-the-time-zone) gives the
 schedules, and the time zone that the backend uses for them.
 
 If you ran these jobs from your own cron or from CronJobs, delete them. The scheduler of the
@@ -317,7 +317,7 @@ There are two changes, both on purpose:
 - **A `JAVV_OPENSEARCH_URL` that holds a user or a password stops the backend at start.** Earlier
   releases sent `https://user:pass@host` (or `user:pass@host`, with no scheme) to the client. Move
   the credentials into `JAVV_OPENSEARCH_USERNAME` and `JAVV_OPENSEARCH_PASSWORD`
-  ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
+  ([Connection to OpenSearch](CONFIGURATION.md#connection-to-opensearch)).
 - **A wrong setting stops the start, with one line for each variable:**
   `invalid settings: JAVV_<NAME>: <reason>`. The line holds no value from your environment.
   Earlier releases showed part of the environment, and secrets could be in it.

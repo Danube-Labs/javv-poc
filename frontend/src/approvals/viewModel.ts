@@ -21,7 +21,7 @@ export interface ApprovalRow {
 }
 
 /** Amber window before expiry (days). Build-time `VITE_EXPIRY_WARN_DAYS`, default 7 —
- * documented in docs/CONFIGURATION.md §frontend. */
+ * documented in docs/CONFIGURATION.md, "Frontend build settings". */
 const RAW_WARN = Number(import.meta.env.VITE_EXPIRY_WARN_DAYS)
 export const EXPIRY_WARN_DAYS = Number.isFinite(RAW_WARN) && RAW_WARN > 0 ? RAW_WARN : 7
 

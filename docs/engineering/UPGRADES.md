@@ -43,7 +43,7 @@ sequenceDiagram
   store that is already current, it checks 20 indices and templates with two reads each. That took
   0.8 s end to end on the dev store, including interpreter start.
 - **`JAVV_BOOTSTRAP_ON_STARTUP=false` skips all of it,** including seeding the roles and the admin. It
-  exists for unit tests. A deployment must leave it at `true` ([CONFIGURATION.md §1](../CONFIGURATION.md)).
+  exists for unit tests. A deployment must leave it at `true` ([CONFIGURATION.md, Connection to OpenSearch](../CONFIGURATION.md#connection-to-opensearch)).
 
 ### Why not a Helm pre-upgrade hook Job
 

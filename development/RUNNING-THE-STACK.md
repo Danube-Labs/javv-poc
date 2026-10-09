@@ -200,7 +200,7 @@ curl -s "localhost:9200/system-audit-log-*/_search?size=5" -H 'content-type: app
 
 ### A9. The background jobs
 
-The backend starts these itself on the schedules in `JAVV_JOB_<KIND>_CRON` (`docs/CONFIGURATION.md` §1).
+The backend starts these itself on the schedules in `JAVV_JOB_<KIND>_CRON` (`docs/CONFIGURATION.md`, "Background jobs").
 On a dev store you want to keep, start the backend with `JAVV_SCHEDULER_ENABLED=false`: the lifecycle
 sweep drops history past retention and the staleness sweep marks findings stale, both of which a store
 full of old demo data will feel. To run one by hand (from `backend/`, with `JAVV_OPENSEARCH_URL`

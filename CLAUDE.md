@@ -82,7 +82,7 @@ rotated): `POST /auth/login` -> `POST /auth/password` -> `GET /auth/me` shows `m
 Same dance in the UI. Cookies land in `backend/cookies.txt` for curl work.
 
 **Background jobs** are started by the backend itself, on the schedules in `JAVV_JOB_<KIND>_CRON`
-(`docs/CONFIGURATION.md` §1; `JAVV_SCHEDULER_ENABLED=false` stops that, which is what you want on a dev
+(`docs/CONFIGURATION.md`, "Background jobs"; `JAVV_SCHEDULER_ENABLED=false` stops that, which is what you want on a dev
 store whose data you care about: the lifecycle sweep drops history past retention and the staleness
 sweep marks old findings stale). They can also be run by hand from `backend/`:
 `staleness` · `lifecycle` · `findings_cleanup` · `cluster_retirement` · `report_drain` · `report_sweep` ·

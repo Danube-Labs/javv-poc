@@ -1,6 +1,6 @@
-# JAVV's backend and frontend (issue 725). Built from deploy/compose/compose.yaml: the same
-# settings, the same defaults, the same comments. backend/tests/test_compose_settings.py holds the
-# settings below to the code exactly as it holds the compose file. Guide: docs/DEPLOYING.md.
+# JAVV's backend and frontend. Built from deploy/compose/compose.yaml: the same settings, the same
+# defaults, the same comments. backend/tests/test_compose_settings.py holds the settings below to
+# the code exactly as it holds the compose file. Guide: docs/DEPLOYING.md.
 #
 # The store is the javv-opensearch chart (same namespace by default); scanners in each monitored
 # cluster are the javv-scanner chart.
@@ -8,14 +8,15 @@
 backend:
   image:
     repository: ghcr.io/danube-labs/javv-backend
-    # -- the release this chart ships with; release-please moves it
+    # -- The release of this chart. release-please changes it.
     tag: "0.7.0"  # x-release-please-version
     pullPolicy: IfNotPresent
 
-  # -- Every backend setting, at its default, by the name the backend reads
-  # (docs/CONFIGURATION.md §1). Set one with `--set backend.config.TZ=Europe/Bucharest` or in your
-  # own values file. Secrets are not here: see `secrets` and `opensearch`.
-  # @default -- every setting at its code default; the list is in values.yaml
+  # -- Each backend setting, at its default, by the name that the backend reads
+  # (docs/CONFIGURATION.md, "Backend settings"). Set one with `--set
+  # backend.config.TZ=Europe/Bucharest`, or in your values file. The secrets are not here: see
+  # `secrets` and `opensearch`.
+  # @default -- every setting at its code default. values.yaml has the list.
   config:
     # --- deployment ---
     # prod refuses to start on the dev secret key (the image itself defaults to dev)
@@ -25,13 +26,13 @@ backend:
     # the zone the job schedules below are read in; a container has none of its own
     TZ: "UTC"
 
-    # slice 1's javv-opensearch Service in this namespace, over https
+    # the javv-opensearch Service in this namespace, over https
     JAVV_OPENSEARCH_URL: "https://javv-opensearch:9200"
     # seconds before a store request gives up
     JAVV_REQUEST_TIMEOUT: "30.0"
     # check the store and create or update the indices before serving
     JAVV_BOOTSTRAP_ON_STARTUP: "true"
-    # the user JAVV signs in to OpenSearch as: javv, which holds only the javv role (issue 729)
+    # the user JAVV signs in to OpenSearch as: javv, which holds only the javv role
     JAVV_OPENSEARCH_USERNAME: "javv"
     # a PEM file of CA certificates; leave it empty here: opensearch.caSecret sets it
     JAVV_OPENSEARCH_CA_BUNDLE: ""
@@ -119,23 +120,24 @@ backend:
     JAVV_JOB_SESSION_SWEEP_CRON: "30 4 * * *"
 
 
-  # -- More environment variables, in Kubernetes' own form (`name`, `value` or `valueFrom`).
+  # -- More environment variables, in the form of Kubernetes (`name`, `value` or `valueFrom`).
   extraEnv: []
 
-  # -- Holds off the liveness check while the backend starts: it checks the store and creates or
-  # updates the indices before it opens its port. 30 tries 10 s apart, ten JAVV_REQUEST_TIMEOUT
-  # periods (docs/engineering/UPGRADES.md).
+  # -- Stops the liveness probe while the backend starts. The backend verifies that OpenSearch
+  # replies, and creates or updates the indices before it opens its port. 30 tries, 10 s apart: ten
+  # JAVV_REQUEST_TIMEOUT periods.
   startupProbe:
     httpGet: {path: /healthz, port: http}
     periodSeconds: 10
     failureThreshold: 30
-  # -- Takes the backend out of its Service while the store is unreachable (/readyz is then 503).
+  # -- While OpenSearch is unreachable, /readyz replies 503, and the Service sends no requests to
+  # the backend.
   readinessProbe:
     httpGet: {path: /readyz, port: http}
     periodSeconds: 10
     failureThreshold: 3
-  # -- Restarts a backend that stopped answering; /healthz needs no store, so a store outage
-  # degrades the app instead of restarting it.
+  # -- Restarts a backend that does not reply. /healthz does not need OpenSearch. Thus when
+  # OpenSearch stops, the app works with less, and Kubernetes does not restart it.
   livenessProbe:
     httpGet: {path: /healthz, port: http}
     periodSeconds: 20
@@ -152,14 +154,14 @@ backend:
 frontend:
   image:
     repository: ghcr.io/danube-labs/javv-frontend
-    # -- the release this chart ships with; release-please moves it
+    # -- The release of this chart. release-please changes it.
     tag: "0.7.0"  # x-release-please-version
     pullPolicy: IfNotPresent
 
-  # -- The frontend holds no state, so it can run more than one.
+  # -- The frontend holds no state. Thus you can run more than one.
   replicas: 1
 
-  # -- The frontend server's settings (docs/CONFIGURATION.md §2b).
+  # -- The settings of the frontend server (docs/CONFIGURATION.md, "Frontend server settings").
   config:
     # where /api, /auth and /readyz are forwarded; empty = this chart's backend Service
     JAVV_BACKEND_URL: ""
@@ -169,14 +171,14 @@ frontend:
     # debug | info | warning | error
     JAVV_LOG_LEVEL: "info"
 
-  # -- Browsers and scanners both use this Service: scanners push to /api/v1/ingest/scan through
-  # it. Nothing in front of it is required; an Ingress or gateway of your own can point at it.
+  # -- Browsers and scanners both use this Service. The scanners push to /api/v1/ingest/scan
+  # through it. You need nothing in front of it. Your own Ingress or gateway can point at it.
   service:
     type: ClusterIP
     port: 8080
 
-  # -- The frontend serves the app without the backend, so it stays ready while the backend is
-  # down and answers 502 for /api, /auth and /readyz, which the app reads as "backend down".
+  # -- The frontend serves the app without the backend. Thus it stays ready while the backend is
+  # down. It then replies 502 for /api, /auth and /readyz, and the app shows "backend down".
   readinessProbe:
     httpGet: {path: /, port: http}
     periodSeconds: 10
@@ -194,34 +196,37 @@ frontend:
   podAnnotations: {}
 
 secrets:
-  # -- A Secret with the keys `secret-key` and `bootstrap-admin-password`. Set this, or both values
-  # below. The chart never makes up a secret key: a new one makes every ingest token and session
-  # unusable.
+  # -- A Secret with the keys `secret-key` and `bootstrap-admin-password`. Set this value, or the
+  # two values below. The chart never makes a secret key: a new key stops each ingest token and
+  # each session.
   existingSecret: ""
-  # -- The backend's secret key (`JAVV_SECRET_KEY`): it hashes ingest tokens and session ids and
-  # signs download links. A long random string (`openssl rand -hex 32`), kept for good: change it,
-  # and every scanner gets 401, every user must sign in again, and each scanner needs a new token. The chart
-  # puts it in a Secret.
+  # -- The secret key of the backend (`JAVV_SECRET_KEY`). It hashes the ingest tokens and the
+  # session ids, and it signs the download links. Use a long random string (`openssl rand -hex 32`),
+  # and keep it. If you change it, each scanner gets 401, and each user must sign in again. Each
+  # scanner then needs a new token. The chart puts the key in a Secret.
   secretKey: ""
-  # -- The first JAVV admin's password, used once when that admin does not exist yet (12 characters
-  # or more).
+  # -- The password of the first JAVV admin, 12 characters or more. The backend uses it one time,
+  # when that admin does not exist.
   bootstrapAdminPassword: ""
 
 opensearch:
-  # -- The Secret with the password of javv, the OpenSearch user JAVV signs in as: the
-  # javv-opensearch chart's (`opensearch.javv.backend.existingSecret` there, or
-  # `<its release>-javv-opensearch-backend`). Never the admin's: the backend needs only javv.
+  # -- The Secret with the password of javv, the OpenSearch user that JAVV signs in as. Use the
+  # Secret of the javv-opensearch chart: `opensearch.javv.backend.existingSecret` there, or
+  # `<its release>-javv-opensearch-backend`. Never use the admin Secret: the backend needs only
+  # javv.
   passwordSecret:
     name: ""
     key: password
-  # -- A Secret with the CA that signed OpenSearch's certificate (for javv-opensearch with
-  # cert-manager: `<its release>-javv-opensearch-tls`). Set, it is mounted, JAVV_OPENSEARCH_CA_BUNDLE
-  # points at it and JAVV_OPENSEARCH_VERIFY_CERTS is true. Empty: the demo certificates, unchecked.
+  # -- A Secret with the CA of the OpenSearch certificate. For javv-opensearch with cert-manager,
+  # it is `<its release>-javv-opensearch-tls`. When you set it, the chart mounts it, sets
+  # JAVV_OPENSEARCH_CA_BUNDLE to it and sets JAVV_OPENSEARCH_VERIFY_CERTS to true. When it is
+  # empty, the backend does not verify the demo certificates.
   caSecret:
     name: ""
     key: ca.crt
 
-# -- Both containers run as the images' own user, with a read-only root and an emptyDir on /tmp.
+# -- Both containers run as the user of their images, with a read-only root and an emptyDir on
+# /tmp.
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 65532

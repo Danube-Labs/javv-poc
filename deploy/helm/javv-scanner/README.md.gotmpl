@@ -2,21 +2,22 @@
 
 {{ template "chart.versionBadge" . }}{{ template "chart.appVersionBadge" . }}
 
-JAVV's scanners for one monitored cluster: a Trivy CronJob and a Grype CronJob, each pushing its
-own results to JAVV (they are never merged). Install it in every cluster JAVV should scan. JAVV
-itself, the [`javv`](../javv/README.md) chart, can run in that cluster or anywhere the scanners
-reach over HTTP. The full guide is `docs/DEPLOYING.md`, "Point scanners at it".
+This chart installs the JAVV scanners in one cluster that you scan: a Trivy CronJob and a Grype
+CronJob. Each scanner pushes its own results to JAVV. JAVV never merges them. Install the chart in
+each cluster that you scan. JAVV itself, the [`javv`](../javv/README.md) chart, can run in that
+cluster or at each place that the scanners can reach over HTTP.
+[Connect the scanners](../../../docs/DEPLOYING.md#connect-the-scanners) gives the full procedure.
 
 ## Install
 
-Each scanner needs its own ingest token, minted in JAVV for this cluster (**Settings › Access &
-tokens › Mint token**, with the cluster id below and the scanner's name):
+Each scanner needs its own ingest token for this cluster. Make it in JAVV: **Settings › Access &
+tokens › Mint token**, with the cluster id from the first command and the name of the scanner.
 
 ```bash
-kubectl get namespace kube-system -o jsonpath='{.metadata.uid}'   # this cluster's id in JAVV
+kubectl get namespace kube-system -o jsonpath='{.metadata.uid}'   # the id of this cluster in JAVV
 
 kubectl create namespace javv-scanner
-for s in trivy grype; do  # each token at a prompt: out of shell history and process arguments
+for s in trivy grype; do  # each token at a prompt: not in shell history, not in process arguments
   read -rs -p "$s token: " token && echo
   printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
     --from-file=token=/dev/stdin
@@ -29,43 +30,55 @@ helm install scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version <ve
 helm test scanner -n javv-scanner
 ```
 
-Each JAVV release publishes this chart at `oci://ghcr.io/danube-labs/charts`, signed
-(`docs/DEPLOYING.md`, "Verify the images and charts"). From a checkout, use the chart's
-folder in `deploy/helm/` instead.
+Each JAVV release publishes this chart at `oci://ghcr.io/danube-labs/charts`, and signs it
+([Verify the images and charts](../../../docs/DEPLOYING.md#verify-the-images-and-charts)). From a
+checkout, use the folder of the chart in `deploy/helm/`.
 
-`helm test` checks that JAVV answers at `backendUrl` and accepts each token, without scanning.
-Each scanner then runs on its `schedule`. To start a cycle at once, `NOTES` gives the safe order:
-pause the CronJob, wait until none of that scanner's Jobs is running, create the Job from the
-CronJob, and resume it after.
+`helm test` verifies that JAVV replies at `backendUrl` and accepts each token. It does not scan.
+Each scanner then runs on its `schedule`. To start a cycle now, follow the safe sequence in
+`NOTES`:
 
-## What it runs
+1. Pause the CronJob.
+2. Wait until no Job of that scanner runs.
+3. Make a Job from the CronJob.
+4. Start the CronJob again.
 
-- **One CronJob per scanner**, `concurrencyPolicy: Forbid`: the CronJob never starts a cycle while
-  one of its own runs. A Job made by hand from it is not counted, hence the order in `NOTES`. A
-  cycle is stopped after `activeDeadlineSeconds` and not retried until the next schedule.
-- **A vuln-DB cache per scanner:** a `ReadWriteOnce` PersistentVolumeClaim at `/var/cache/javv`.
-  Each run first refreshes the DB there with the scanner's own binary, from the vendor's source or
-  the one in `vulnDb`, then scans with updates off: every image in a cycle is checked against one
-  DB and nothing upstream is called mid-scan (Trivy's misconfig checks are the ones built into
-  its binary). A failed refresh falls back to the cached DB, a DB that cannot be read is dropped
-  and fetched once more, and with no readable DB the run fails and its log says so. Trivy's Java
-  DB is checked too: a cut one fails no scan, it only drops the jars it cannot name. Grype refuses
-  a DB older than 5 days.
-- **Mirrors:** `trivy.vulnDb.repository` and `trivy.vulnDb.javaRepository` take OCI repositories;
-  `grype.vulnDb.updateUrl` takes the address of a DB listing. Anything else the vendors read
-  (`GRYPE_DB_CA_CERT`, registry logins for a private mirror) goes in `extraEnv`.
-- **Kubernetes access:** one ClusterRole: `list` pods (to find the running images) and `get` the
-  `kube-system` namespace (its UID is the cluster's id). No Secrets: images from private
-  registries are not scanned yet (issue 739).
-- Both run as the images' user `65532`, with a read-only root, the cache volume, and `emptyDir`s on
-  `/var/lib/javv` (the dead-letter file) and `/tmp`.
+## What the chart runs
+
+- **One CronJob for each scanner,** with `concurrencyPolicy: Forbid`. The CronJob never starts a
+  cycle while one of its own cycles runs. It does not count a Job that you make by hand, so use
+  the sequence in `NOTES`. Kubernetes stops a cycle after `activeDeadlineSeconds`. The stopped
+  cycle does not run again before the next schedule.
+- **A cache of the vulnerability database for each scanner:** a `ReadWriteOnce`
+  PersistentVolumeClaim at `/var/cache/javv`. Each run first refreshes the database there with the
+  binary of the scanner, from the source of the vendor or from the source in `vulnDb`. Then it
+  scans with updates off. Thus each image in a cycle gets the same database, and the scan does not
+  connect to the vendor. Trivy uses the misconfiguration rules in its binary.
+    - If the refresh fails, the run uses the database in the cache.
+    - If the scanner cannot read the database, the refresh deletes it and downloads it one more
+      time.
+    - With no database that it can read, the run fails, and its log tells you why.
+    - The refresh also verifies the Java database of Trivy. A damaged Java database fails no scan:
+      Trivy only skips the jars that it cannot name.
+    - Grype refuses a database older than 5 days.
+- **Mirrors:** `trivy.vulnDb.repository` and `trivy.vulnDb.javaRepository` take OCI repositories.
+  `grype.vulnDb.updateUrl` takes the address of a list of database builds. Put each other setting
+  that the vendors read in `extraEnv`, for example `GRYPE_DB_CA_CERT` or the registry login for a
+  private mirror.
+- **Kubernetes access:** one ClusterRole. It can `list` pods, to find the running images. It can
+  `get` the `kube-system` namespace, because its UID is the id of the cluster. It cannot read
+  Secrets. Thus the scanners do not scan images from private registries yet
+  ([issue 739](https://github.com/Danube-Labs/javv-poc/issues/739)).
+- Both scanners run as the user of their images, `65532`, with a read-only root file system. They
+  have the cache volume, an `emptyDir` on `/var/lib/javv` for the dead-letter file, and an
+  `emptyDir` on `/tmp`.
 
 ## Images
 
-`image.tag` is the scanner version from the repository's `versions.yaml`. JAVV republishes that tag
-when it changes the scanner, so the default `pullPolicy` is `Always`. To run one exact build, set
-`image.digest`. **The chart a release publishes sets it:** each scanner's digest is the one its tag
-named when the release was made, after cosign checked that `scanner-images.yml` signed it. A
-checkout of the repository has the tag only.
+`image.tag` is the scanner version from `versions.yaml` in the repository. JAVV publishes that tag
+again when it changes the scanner image. Thus the default `pullPolicy` is `Always`. To run one
+exact build, set `image.digest`. **The chart of a release sets the digest.** For each scanner, it
+is the digest that the tag named when JAVV made the release, after cosign verified the signature
+of `scanner-images.yml`. A checkout of the repository has the tag only.
 
 {{ template "chart.valuesSection" . }}

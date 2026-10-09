@@ -157,7 +157,7 @@ this repository whenever they change on `main`.
 | [docs/API.md](docs/API.md) | The shipped HTTP surface at a glance (auth regimes, capabilities) |
 | [docs/DEPLOYING.md](docs/DEPLOYING.md) | Deploy JAVV: docker compose on one machine, and pointing scanners at it |
 | [docs/UPGRADING.md](docs/UPGRADING.md) | Move a running JAVV to a newer release |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration setting: default, tier, UI-controllability |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Every configuration setting: its default, what it does, where you set it |
 | [development/RUNNING-THE-STACK.md](development/RUNNING-THE-STACK.md) | Bring the stack up by hand (backend / full-stack / frontend) |
 | [docs/research/](docs/research/) | Stack best-practices, tooling/MCP, audits backing v4 |
 | [design/](design/) | Brand source of record (logos, tokens, guide) |

@@ -2,27 +2,30 @@
 
 ![Version: 0.7.0](https://img.shields.io/badge/Version-0.7.0-informational?style=flat-square) ![AppVersion: 3.9.0](https://img.shields.io/badge/AppVersion-3.9.0-informational?style=flat-square)
 
-OpenSearch for JAVV: one node, with its security plugin on and two password users, `admin` and
-`javv`, the user JAVV's backend signs in as. A wrapper around the official
+This chart installs OpenSearch for JAVV: one node, with its security plugin on and two users with
+a password. The users are `admin` and `javv`, the user that the JAVV backend signs in as. The chart
+wraps the official
 [`opensearch` chart](https://github.com/opensearch-project/helm-charts/tree/main/charts/opensearch)
-3.9.0, set to what JAVV's
-[compose file](../../compose/compose.yaml) runs.
+3.9.0. It sets the same values as the JAVV
+[compose file](../../compose/compose.yaml).
 
-The Service is `javv-opensearch`, https on port 9200. JAVV signs in to it as `javv`
-(`JAVV_OPENSEARCH_URL=https://javv-opensearch:9200`, `JAVV_OPENSEARCH_USERNAME=javv`,
-`JAVV_OPENSEARCH_PASSWORD` from javv's Secret; `docs/CONFIGURATION.md` §1), which holds only the
-`javv` role: JAVV's own indices, their snapshots and cluster health (`docs/DEPLOYING.md`, "An
-OpenSearch of your own", issue 729).
+The Service is `javv-opensearch`, https on port 9200. JAVV signs in to it as `javv`, with
+`JAVV_OPENSEARCH_URL=https://javv-opensearch:9200`, `JAVV_OPENSEARCH_USERNAME=javv` and
+`JAVV_OPENSEARCH_PASSWORD` from the Secret of `javv`
+([Connection to OpenSearch](../../../docs/CONFIGURATION.md#connection-to-opensearch)). This user
+has only the `javv` role: the indices of JAVV, their snapshots and the health of the cluster
+([An OpenSearch of your own](../../../docs/DEPLOYING.md#an-opensearch-of-your-own)).
 
 ## Install
 
-Each password comes from a Secret with the key `password`, or from a value the chart puts in
-one: admin's from `opensearch.javv.auth`, javv's from `opensearch.javv.backend`. OpenSearch
-refuses a weak admin password: 8 characters or more, with upper and lower case, a digit and a
-special character, and not a common one. javv's is best a long random string.
+Each password comes from a Secret with the key `password`, or from a value that the chart puts in
+a Secret. The password of `admin` comes from `opensearch.javv.auth`. The password of `javv` comes
+from `opensearch.javv.backend`. OpenSearch refuses a weak admin password. The password must have 8
+characters or more, with upper case, lower case, a digit and a special character. It must not be
+a common password. For `javv`, use a long random string.
 
-The admin password is read at a prompt and javv's is made on the spot, so neither is in your
-shell history or any process's arguments:
+The commands read the admin password at a prompt, and make the password of `javv` in place. Thus
+neither password goes into your shell history or into the arguments of a process:
 
 ```bash
 read -rs -p 'OpenSearch admin password: ' pw && echo
@@ -36,81 +39,85 @@ helm install javv-opensearch oci://ghcr.io/danube-labs/charts/javv-opensearch --
 helm test javv-opensearch
 ```
 
-The javv chart then signs in with `opensearch.passwordSecret.name=javv-opensearch-backend`.
+Then the `javv` chart signs in with `opensearch.passwordSecret.name=javv-opensearch-backend`.
 
-Each JAVV release publishes this chart at `oci://ghcr.io/danube-labs/charts`, signed
-(`docs/DEPLOYING.md`, "Verify the images and charts"). From a checkout, use the chart's
-folder in `deploy/helm/` instead.
+Each JAVV release publishes this chart at `oci://ghcr.io/danube-labs/charts`, and signs it
+([Verify the images and charts](../../../docs/DEPLOYING.md#verify-the-images-and-charts)). From a
+checkout, use the folder of the chart in `deploy/helm/`.
 
-`helm test` checks that a request without a login is refused, that `admin` and `javv` are the
-only users in OpenSearch's user list, that `javv` holds the `javv` role alone and is refused the
-security API, that one of the demo users OpenSearch would otherwise add (`readall`) is refused,
-and, with your own certificate, that the https endpoint passes a check against your CA.
+`helm test` verifies these points:
+
+- OpenSearch refuses a request without a sign-in.
+- `admin` and `javv` are the only users in the user list of OpenSearch.
+- `javv` holds only the `javv` role, and the security API refuses it.
+- OpenSearch refuses `readall`, one of the demo users that OpenSearch would otherwise add.
+- With your own certificate, the certificate of the https endpoint is valid for your CA.
 
 ## Certificates
 
 | | Set | What the node uses |
 |---|---|---|
-| Default | nothing | OpenSearch's demo certificates. Their private key ships in the public image, so the traffic is not private from anything that can reach the Service. The demo admin certificate in the image (`kirk.pem`) also has full access with no password. |
-| Your own | `opensearch.javv.tls.existingSecret`: a Secret with `tls.crt`, `tls.key` (PKCS#8) and `ca.crt` | That certificate, for https and for the node's transport layer, so it needs both server and client usage, and names the Service (`javv-opensearch`, `javv-opensearch.<namespace>.svc`). The demo setup stays off. |
-| cert-manager | `opensearch.javv.tls.certManager.enabled=true` and `issuerRef` | A `Certificate` the chart renders for the Service's names, into `<release>-javv-opensearch-tls`. |
+| Default | nothing | The demo certificates of OpenSearch. Their private key is in the public image. Thus each system that can connect to the Service can read the traffic. The demo admin certificate in the image (`kirk.pem`) also has full access, with no password. |
+| Your own | `opensearch.javv.tls.existingSecret`: a Secret with `tls.crt`, `tls.key` (PKCS#8) and `ca.crt` | That certificate, for https and for the transport layer of the node. Thus it needs server and client usage. It must name the Service: `javv-opensearch` and `javv-opensearch.<namespace>.svc`. The demo setup stays off. |
+| cert-manager | `opensearch.javv.tls.certManager.enabled=true` and `issuerRef` | A `Certificate` that the chart makes for the names of the Service, in `<release>-javv-opensearch-tls`. |
 
-With your own certificate, a renewal reaches the node without a restart: the Secret is mounted as
-a directory and `plugins.security.ssl.certificates_hot_reload.enabled` is on. The chart never
-makes a certificate itself.
+With your own certificate, the node reads a new certificate without a restart. The chart mounts
+the Secret as a folder, and sets `plugins.security.ssl.certificates_hot_reload.enabled`. The chart
+never makes a certificate itself.
 
 ## Users and roles
 
-The image's users file holds `admin` and six demo users whose passwords are their own names, and
-no setting turns them off (issue 736). An init container replaces that file with one holding
-`admin` and `javv` (issue 729), each hashed from its Secret by OpenSearch's own `hash.sh`, which
-reads it from the environment. The `javv` role and its mapping (`admin` on `all_access`, `javv` on
-`javv`) come from the chart's `files/`, the same as the compose file's, and replace the image's
-demo ones. OpenSearch loads these files on its first start; after that its security index holds
-them.
+The users file of the image holds `admin` and six demo users whose passwords are their own names.
+No setting turns them off. An init container puts a new file in its place, with only `admin` and
+`javv`. The init container hashes each password from its Secret with `hash.sh` of OpenSearch,
+which reads the password from the environment. The `javv` role and its mapping come from the
+`files/` folder of the chart, as in the compose file. The mapping is `admin` on `all_access`, and
+`javv` on `javv`. These files replace the demo files of the image. OpenSearch loads them at its
+first start. After that, its security index holds them.
 
-## Changing a password
+## Change a password
 
-A new password in the Secret alone changes nothing: the store keeps the one in its security index.
-To change it and keep the data:
+A new password in the Secret alone changes nothing: OpenSearch keeps the password in its security
+index. To change a password and keep the data:
 
-1. Put the new password in its Secret (or the chart's value, then `helm upgrade`).
-2. Restart the node, so the init container writes the users file with the new password:
-   `kubectl rollout restart statefulset/javv-opensearch-master`. The old password still works.
-3. Load the file into the security index with OpenSearch's `securityadmin.sh`, which signs in
-   with an admin certificate. With the demo certificates, the image's own:
-   ```bash
-   kubectl exec javv-opensearch-master-0 -c opensearch -- \
-     plugins/opensearch-security/tools/securityadmin.sh \
-     -f config/opensearch-security/internal_users.yml -t internalusers -icl -nhnv \
-     -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem
-   ```
-   With your own certificates: a client certificate signed by the CA in your Secret, whose subject
-   is in `opensearch.javv.tls.adminDn`. Copy it and its PKCS#8 key into the pod (`kubectl cp`),
-   run the same command with `-cacert config/certs/ca.crt -cert <it> -key <its key>`, and delete
-   them afterwards.
+1. Put the new password in its Secret, or in the value of the chart and run `helm upgrade`.
+2. Restart the node. The init container then writes the users file with the new password:
+    `kubectl rollout restart statefulset/javv-opensearch-master`. The old password still works.
+3. Load the file into the security index with `securityadmin.sh` of OpenSearch. This tool signs in
+    with an admin certificate. With the demo certificates, use the certificate of the image:
+    ```bash
+    kubectl exec javv-opensearch-master-0 -c opensearch -- \
+      plugins/opensearch-security/tools/securityadmin.sh \
+      -f config/opensearch-security/internal_users.yml -t internalusers -icl -nhnv \
+      -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem
+    ```
+    With your own certificates, use a client certificate that the CA in your Secret signed. Its
+    subject must be in `opensearch.javv.tls.adminDn`. Copy it and its PKCS#8 key into the pod with
+    `kubectl cp`. Run the same command with
+    `-cacert config/certs/ca.crt -cert <the certificate> -key <its key>`. Then delete the two files.
 
-It ends with `Done with success`. The new password works from then on, and the old one no longer
-does. For javv's, restart JAVV's backend so it reads the new one from the same Secret
-(`kubectl rollout restart deploy/<its release>-javv-backend`).
+The command ends with `Done with success`. From then on, the new password works and the old
+password does not. For the password of `javv`, restart the JAVV backend. It then reads the new
+password from the same Secret: `kubectl rollout restart deploy/<its release>-javv-backend`.
 
-The same command with `-f config/opensearch-security/roles.yml -t roles`, then
-`-f config/opensearch-security/roles_mapping.yml -t rolesmapping`, loads the role and mapping
-files, for a store first started without them or a release that changes the role.
+The same command loads the role file and the mapping file. Use
+`-f config/opensearch-security/roles.yml -t roles`, then
+`-f config/opensearch-security/roles_mapping.yml -t rolesmapping`. Do this for an OpenSearch that
+started without these files, or for a release that changes the role.
 
 ## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| opensearch.image.tag | string | `"3.9.0"` | versions.yaml datastore.opensearch; check-versions.sh holds it. Set explicitly because the official chart's version and the OpenSearch it ships can differ. |
-| opensearch.javv.auth.existingSecret | string | `""` | A Secret with the admin password under the key `password`. Set this or `password`. |
-| opensearch.javv.auth.password | string | `""` | The admin password; the chart puts it in a Secret. OpenSearch's rules: 8 characters or more, with upper and lower case, a digit and a special character, and not a common one. |
-| opensearch.javv.backend.existingSecret | string | `""` | A Secret with the password of `javv`, the user JAVV's backend signs in as, under the key `password`. Set this or `password`. The javv chart reads it (`opensearch.passwordSecret`). |
-| opensearch.javv.backend.password | string | `""` | javv's password; the chart puts it in a Secret, `<release>-javv-opensearch-backend`. A long random string (`openssl rand -hex 24`). |
-| opensearch.javv.tls.adminDn | list | `[]` | Subject DNs of client certificates allowed to run OpenSearch's securityadmin.sh, which changing the admin password needs, with your own certificates. The demo setup has its own. |
-| opensearch.javv.tls.certManager.enabled | bool | `false` | Ask cert-manager for the certificate, into the Secret `<release>-javv-opensearch-tls`. |
-| opensearch.javv.tls.certManager.issuerRef | object | `{}` | The cert-manager Issuer or ClusterIssuer to ask: `name`, and `kind` if not Issuer. |
-| opensearch.javv.tls.existingSecret | string | `""` | A Secret with your certificate: `tls.crt`, `tls.key` (PKCS#8) and `ca.crt`. Empty, with `certManager.enabled` false: OpenSearch's demo certificates, whose key is public. |
+| opensearch.image.tag | string | `"3.9.0"` | `datastore.opensearch` in versions.yaml. `check-versions.sh` keeps it equal. The chart sets it, because the version of the official chart and its OpenSearch version can be different. |
+| opensearch.javv.auth.existingSecret | string | `""` | A Secret with the admin password under the key `password`. Set this value or `password`. |
+| opensearch.javv.auth.password | string | `""` | The admin password. The chart puts it in a Secret. The rules of OpenSearch: 8 characters or more, with upper case, lower case, a digit and a special character, and not a common password. |
+| opensearch.javv.backend.existingSecret | string | `""` | A Secret with the password of `javv`, under the key `password`. `javv` is the user that the JAVV backend signs in as. Set this value or `password`. The javv chart reads it (`opensearch.passwordSecret`). |
+| opensearch.javv.backend.password | string | `""` | The password of `javv`. The chart puts it in the Secret `<release>-javv-opensearch-backend`. Use a long random string (`openssl rand -hex 24`). |
+| opensearch.javv.tls.adminDn | list | `[]` | With your own certificates: the subject DNs of the client certificates that can run securityadmin.sh of OpenSearch. A change of the admin password needs this tool. The demo setup has its own. |
+| opensearch.javv.tls.certManager.enabled | bool | `false` | Get the certificate from cert-manager, in the Secret `<release>-javv-opensearch-tls`. |
+| opensearch.javv.tls.certManager.issuerRef | object | `{}` | The cert-manager Issuer or ClusterIssuer: `name`, and `kind` if it is not an Issuer. |
+| opensearch.javv.tls.existingSecret | string | `""` | A Secret with your certificate: `tls.crt`, `tls.key` (PKCS#8) and `ca.crt`. When it is empty and `certManager.enabled` is false, OpenSearch uses its demo certificates. Their key is public. |
 | opensearch.opensearchJavaOpts | string | `"-Xms1g -Xmx1g"` | The OpenSearch heap, as in compose. |
-| opensearch.persistence.enableInitChown | bool | `false` | Off: the official chart would otherwise add an init container that runs as root on an unpinned busybox image to chown the volume. The pod's `fsGroup` (1000, the official chart's) already makes the volume writable by OpenSearch. |
-| opensearch.singleNode | bool | `true` | One node: JAVV runs one store (NFR-9, D23). The install fails with anything else. |
+| opensearch.persistence.enableInitChown | bool | `false` | Off. When it is on, the official chart adds an init container that changes the owner of the volume. That container runs as root, on a busybox image with no pinned version. The `fsGroup` of the pod (1000, from the official chart) already lets OpenSearch write to the volume. |
+| opensearch.singleNode | bool | `true` | One node: JAVV runs one OpenSearch. With a different value, the install fails. |

@@ -32,8 +32,9 @@ export function serverFailed(status: number | undefined): boolean {
 export const SERVER_DOWN_COPY = 'The server is not answering. This page checks again on its own.'
 
 /** Mirror `MIN_LENGTH` and `MAX_LENGTH` in `backend/src/backend/auth/passwords.py`
- * (CONFIGURATION.md §8), so the form can say the rule and refuse a short password before sending
- * it. The server stays the authority; `password-change.spec.ts` fails when they differ. */
+ * (CONFIGURATION.md, "Fixed values"), so the form can say the rule and refuse a short password
+ * before sending it. The server stays the authority; `password-change.spec.ts` fails when they
+ * differ. */
 export const PASSWORD_MIN_LENGTH = 12
 export const PASSWORD_MAX_LENGTH = 256
 

@@ -197,7 +197,7 @@ async def test_conflicts_that_settle_return_the_summed_updates() -> None:
 async def test_exhausted_drain_is_observable_not_just_raised(monkeypatch) -> None:
     """Ops parity (.claude/rules/logging.md): a bounded path that hits its ceiling logs a
     WARNING and bumps its metric — the raise alone tells the caller, not the operator. The
-    ceiling is documented as a pathology signal (CONFIGURATION.md §frozen constants), which is
+    ceiling is documented as a pathology signal (CONFIGURATION.md, "Fixed values"), which is
     only true if reaching it is visible."""
     from backend.core.metrics import CAS_CONFLICTS
     from backend.services import reconcile as reconcile_module

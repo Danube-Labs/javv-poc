@@ -1,381 +1,590 @@
-# JAVV configuration reference
+# Configuring JAVV
 
-> Every configuration setting across JAVV and its dependencies: what it is, its default, **how you set
-> it today**, and **whether it will be UI-controllable**. Kept versioned in-repo (reviewed in PRs) so
-> it can't drift. This documents the **current** state of the code plus the **planned** UI ownership
-> per the bolts; where something is a gap (envisioned but unowned), it says so explicitly.
->
-> **Backend `JAVV_*` values are validated at boot (#219):** zero/negative limits, a malformed PIT
-> keep-alive, or inverted cap pairs (compressed > decompressed, inline > max-targets) **abort
-> startup** with the offending variable named, so a borked deployment crash-loops readably instead of
-> passing `/readyz` while every request fails.
+This page lists the settings of JAVV. For each setting, it gives the default, what the setting does
+and where you set it. It is for the people who install and operate JAVV.
 
-## Configuration philosophy: three tiers
+## Where the settings are
 
-JAVV config lives in one of three places by nature; picking the wrong tier is how secrets leak or
-things get hardcoded:
-
-| Tier | What lives here | How it's set | Changeable at runtime? |
-|---|---|---|---|
-| **① Build-time / GitOps** | pinned tool versions, vuln-DB schema, the scanner scan flags *(today)* | `versions.yaml` + Dockerfile `ARG`; image rebuilt + tag swapped | No: swap the published image tag (D41/D42) |
-| **② Process env** | per-process setup (URLs, tokens, limits) | `JAVV_*` / OpenSearch env vars, injected at container start | On restart |
-| **③ Runtime data** | operational policy (retention, staleness, SLA, snapshot schedule) | a doc in `system-config`, edited via API/**UI** | Yes, live (FR-19/D26) |
-
-**Rule:** credentials never go in ① or ③, only in a secret store (OpenSearch keystore, k8s Secret).
-
-A **fourth category sits outside configuration entirely: frozen internal constants** (§8): code-level
-batch sizes and safety ceilings that are deliberately *not* exposed as settings. See §8 for the motive
-and the frozen-vs-setting test.
-
-Legend for the **UI?** column below: ✅ **UI-editable** · **read-only display** (shown in Settings, set by
-deploy - C-4) · ⚙️ **GitOps** (set on the manifest, never UI, by design) · 🔒 secret · **n/a** (deploy, build or
-dev time; not a UI concern) · **no** (a build-time value with no UI).
-
----
-
-## 1. JAVV Backend (FastAPI): `JAVV_*` env vars
-
-Source: `backend/src/backend/core/settings.py` (tier ②). All are `JAVV_`-prefixed; unknown env vars ignored.
-**⏳ = decided but not yet shipped**: the row describes the target state, gated on the linked PR; the running code still uses the old value until it merges.
-
-| Env var | Default | Meaning | UI? |
-|---|---|---|---|
-| `JAVV_ENV` | `dev` | Deployment profile (task C #140). `prod`/`production` turns dev conveniences into **startup failures**. Currently: the dev `JAVV_SECRET_KEY` refuses to boot (`assert_production_ready`). Set on any real deployment. | n/a (deploy) |
-| `JAVV_LOG_LEVEL` | `info` | Log threshold for the shared pipeline (`libs/javv-common`, #156): `debug`\|`info`\|`warning`\|`error`; unknown value fails startup. At `debug` the opensearch-py client's **per-request lines** surface (every OpenSearch touch: method/path/status/took); request/response **bodies** never emit at any level; both the client logger's own DEBUG body dump and `opensearchpy.trace` are capped (one cycle of bodies = 6 MB of log, #158). One JSON stream: uvicorn + client libs are bridged through the same redaction. | n/a (deploy) |
-| `JAVV_OPENSEARCH_URL` | `http://localhost:9200` | OpenSearch endpoint the backend connects to. A URL that carries a user or password (`https://user:pass@host`, or `user:pass@host` with no scheme, which the client reads as plain `http`) stops the backend at start: credentials go in the two settings below (issue 715). | n/a (deploy) |
-| `JAVV_OPENSEARCH_USERNAME` | *(empty = no login)* | The OpenSearch user JAVV signs in as (issue 715). Set it together with the password, or leave both empty for an OpenSearch without its security plugin (the dev store, CI). The user needs the `javv` role (issue 729), given in `docs/DEPLOYING.md` § An OpenSearch of your own; compose creates the user as `javv` and sets it here. | n/a (deploy) |
-| `JAVV_OPENSEARCH_PASSWORD` | *(empty)* | 🔒 That user's password. Never printed: not in a log line, a settings error or a start-up error. A start-up check that OpenSearch answers with 401 or 403 stops the backend with "OpenSearch refused the credentials…". Credentials with an `http://` URL start, with a warning (`javv_config_warnings_total{setting="JAVV_OPENSEARCH_URL"}`), since the password then travels in clear. | 🔒 secret |
-| `JAVV_OPENSEARCH_CA_BUNDLE` | *(empty = the system's CAs plus certifi's)* | Path to a PEM file of CA certificates, for an OpenSearch whose certificate comes from a private CA. A path with no readable file stops the backend at start; an empty value is unset. | n/a (deploy) |
-| `JAVV_OPENSEARCH_VERIFY_CERTS` | `true` | Check OpenSearch's certificate and host name on an `https` URL. `false` only for a store you trust by other means, such as OpenSearch's demo certificates on a network nothing else reaches: the backend then starts with one warning and `javv_config_warnings_total{setting="JAVV_OPENSEARCH_VERIFY_CERTS"}`. `false` together with a CA bundle stops the backend at start, since the bundle would not be used. | n/a (deploy) |
-| `JAVV_BULK_INLINE_LIMIT` | `5000` | Bulk triage (M5d): **synchronous-apply ceiling**: a frozen target set at/under this applies now (200 + result, one audit row). Above it → **413** (narrow the selector, or use M7's scheduled bulk). Audit A-Mc/[#189](https://github.com/Danube-Labs/javv-poc/issues/189): bounded-synchronous, no volatile 202. | n/a (deploy) |
-| `JAVV_BULK_MAX_TARGETS` | `10000` | Bulk triage **hard cap**: `freeze_targets` never materializes more than this many ids; a selector matching more → **413** ("selector too broad"). Bounds the freeze *memory* independently of the apply cost (audit A-Mc/[#189](https://github.com/Danube-Labs/javv-poc/issues/189)). | n/a (deploy) |
-| `JAVV_SEARCH_PIT_KEEP_ALIVE` | `2m` | Findings search (M6): PIT keep-alive per page of the cursor walk. Each page renews it; an abandoned cursor's PIT self-expires after this. Longer = clients can idle between pages; shorter = fewer lingering PITs. | n/a (deploy) |
-| `JAVV_EXPORT_MAX_ROWS` | `50000` | Inline "run now" export hard row cap (audit A-M6/[#189](https://github.com/Danube-Labs/javv-poc/issues/189)), shared by every inline export: findings CSV + VEX, audit CSV, contributors CSV, approvals CSV (both [#359](https://github.com/Danube-Labs/javv-poc/issues/359)). On the swept exports a cheap pre-count runs before any PIT/stream; a lens over this → **413** (narrow the filters, or use M7's scheduled export). The contributors CSV is an aggregation, not a sweep: its row count only exists after the query, so there the cap is a **post-count backstop** and is not reached in practice (the leaderboard is already bounded by its 100-actor board). Applies to the inline path only. | n/a (deploy) |
-| `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL` | `10` | Read-side guard (audit A-m12/[#189](https://github.com/Danube-Labs/javv-poc/issues/189)): max simultaneous open PIT contexts (search cursors + exports) per authenticated principal; past it → **429** with `Retry-After`. In-memory per pod (like the ingest/login limiters): N replicas ⇒ N× the budget; a slot frees itself at `keep_alive` + margin. | n/a (deploy) |
-| `JAVV_EXPORT_TTL_HOURS` | `24` | Scheduled reports (M7): global retention for a completed export. The result (stored in OpenSearch as chunks) is TTL-swept this long after completion; a download past it → **410**. **Now a runtime setting (M9e slice 4):** the jobs read the `system-config` `report_ttl` setting (§6) and fall back to this env when no doc exists: the env is the default seed, the panel edit wins. | ✅ UI-editable |
-| `JAVV_EXPORT_MAX_BYTES` | `524288000` (500 MiB) | Scheduled reports (M7): per-export hard size ceiling: the drain marks a job **failed** past it, so one job can't fill the store. | n/a (deploy) |
-| `JAVV_REPORT_DRAIN_SLEEP_MS` | `200` | Scheduled reports (M7): off-peak throttle: the drain sleeps this long between export pages so a large run doesn't starve ingest (the PLAN gate). | n/a (deploy) |
-| `JAVV_REPORT_LEASE_TTL_SECONDS` | `300` | Scheduled reports (M7): a claimed job's lease. A worker refreshes `heartbeat_at`; past `lease_expires_at` (no heartbeat) the next drain reclaims it (`retry_count`++). Match to the drain's schedule (`JAVV_JOB_REPORT_DRAIN_CRON`). **Also the repair-actions lease** ([#406](https://github.com/Danube-Labs/javv-poc/issues/406) follow-up): a `system-jobs` running doc whose heartbeat outlives this reads `stale` and a new trigger may reclaim it: same semantics, one setting. | n/a (deploy) |
-| `JAVV_INSPECT_MAX_HITS` | `500` | Data inspector ([#406](https://github.com/Danube-Labs/javv-poc/issues/406)): `size` ceiling per console search; a body over it → **422** with the reason verbatim. | n/a (deploy) |
-| `JAVV_INSPECT_MAX_RESPONSE_BYTES` | `2097152` (2 MiB) | Data inspector: serialized-response cap; past it → **413** ("narrow the query") + warning + `LIMIT_REJECTIONS{inspect_bytes}`. | n/a (deploy) |
-| `JAVV_INSPECT_TIMEOUT_SECONDS` | `10.0` | Data inspector: per-query OpenSearch timeout, tighter than `JAVV_REQUEST_TIMEOUT`: a console query must never hog the store. | n/a (deploy) |
-| `JAVV_CLUSTER_RETIRE_AFTER_DAYS` | `45` | The fleet-wide cluster retirement window until one is saved (§6, issue 765): a cluster with no accepted scan for this many days is retired by the daily sweep, off the cluster list with its data kept. `0` = never. Must be longer than `JAVV_CLUSTER_RETIREMENT_WARN_DAYS` (checked at start). | seed; editable at runtime (§6) |
-| `JAVV_CLUSTER_RETIREMENT_WARN_DAYS` | `7` | How many days before retirement the warning banner counts down and each admin's bell rings, until a value is saved (§6). | seed; editable at runtime (§6) |
-| `JAVV_REQUEST_TIMEOUT` | `30.0` | OpenSearch client request timeout (seconds) | n/a (deploy) |
-| `JAVV_BOOTSTRAP_ON_STARTUP` | `true` | Ping OpenSearch + run index bootstrap before serving (fail-fast). Tests set `false`. A deployment leaves it `true`: with it `false` nothing is checked at start, so a wrong OpenSearch password shows only later, as `/readyz` 503 and as every request that reaches the store failing, each logged by opensearch-py at `warning` with the 401. | n/a (deploy) |
-| `JAVV_SECRET_KEY` | `dev-only-secret-key` | 🔒 The backend's secret key. The backend hashes every ingest token and session id with it before it stores them. It also signs report download links with it. **Set it to a long random string in any deployment, and keep it.** If you change it, every scanner gets 401, every user must sign in again, and every open download link stops working. The stored data cannot restore them: each scanner needs a new token. With `JAVV_ENV=production`, the dev default **stops the backend at start**. Before 0.7.0, the name was `JAVV_TOKEN_PEPPER`. A backend that finds that name stops at start ([Upgrading](UPGRADING.md#version-notes)). | 🔒 secret |
-| `JAVV_INGEST_MAX_COMPRESSED_BYTES` | `10485760` (10 MiB) | Max ingest body on the wire (streamed cap) | n/a (deploy) |
-| `JAVV_INGEST_MAX_BODY_BYTES` | `62914560` (60 MiB) | Max decompressed ingest body (zip-bomb cap) | n/a (deploy) |
-| `JAVV_INGEST_RATE_LIMIT_PER_MINUTE` | `120` | Per-token ingest rate limit | n/a (deploy) |
-| `JAVV_SESSION_TTL_HOURS` | `24.0` | Server-side human-session TTL (M5a/SEC-5): `system-sessions.expires_at` is authoritative, the cookie's lifetime is advisory | n/a (deploy) |
-| `JAVV_SESSION_COOKIE_SECURE` | `true` | The session cookie's `Secure` flag (issue 452). A browser keeps a `Secure` cookie only from `https` or `localhost`, so an install served over plain `http` (a LAN VM with no TLS in front) sets `false`, or login fails on the next request. Leave it `true` behind anything that terminates TLS: JAVV cannot see that, so it never turns the flag on by itself. Logout clears the cookie with the same flag | n/a (deploy) |
-| `JAVV_SESSION_SWEEP_GRACE_HOURS` | `24.0` | How long an expired session row stays in `system-sessions` before the session sweep (`python -m backend.jobs.session_sweep`, [#532](https://github.com/Danube-Labs/javv-poc/issues/532)) deletes it. The sweep deletes rows whose `expires_at` is older than now minus this grace; revoked sessions go the same way once they are past it. An expired row is already refused at login lookup and holds only a hash of the cookie, so keeping it any longer only costs disk. The default of one extra TTL keeps recent expiries on hand in case the product ever tells a user "your session just expired". `0` deletes at expiry. Each run writes one `session_sweep_run` row to the audit log with its counts. | n/a (deploy) |
-| `JAVV_LOGIN_MAX_ATTEMPTS` | `5` | Login lockout (M5a): failed attempts per username within the window before 429 | n/a (deploy) |
-| `JAVV_LOGIN_LOCKOUT_MINUTES` | `15.0` | Login lockout sliding window. In-memory per pod (like the ingest limiter): N replicas ⇒ N× the budget | n/a (deploy) |
-| `JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE` | `60` | Client-events beacon (issue 453): per-**principal** cap on browser warn/error **batches** per minute (a batch carries ≤ 20 events), same sliding-window shape as the ingest limiter and in-memory per pod, so N replicas ⇒ N× the budget. It bounds log **volume**, not a correctness invariant, so it is sized well above a normal session's flush rate: the browser never retries a dropped beacon, which makes a 429 here **silent telemetry loss** rather than backpressure. Shape caps (batch ≤ 20, field/depth/length) are schema, not settings; see §8 | n/a (deploy) |
-| `JAVV_BOOTSTRAP_ADMIN_USERNAME` | `admin` | Bootstrap admin username (M5a/SEC-6) | n/a (deploy) |
-| `JAVV_BOOTSTRAP_ADMIN_PASSWORD` | *(empty = don't seed)* | 🔒 Initial admin password from a mounted k8s Secret. **Seed-once**: consumed only when the admin doesn't exist yet. Rotating the mounted value later has NO effect (change the password in-app); the seeded account is forced through `must_change` on first login | 🔒 secret |
-| `JAVV_SCHEDULER_ENABLED` | `true` | Background-job scheduler (issue 691): the backend runs its own jobs, so a deployment is one backend container and one frontend container, with no CronJob per job. `false` stops the scheduler and leaves the schedules below untouched; the jobs can still be run by hand (`python -m backend.jobs.<name>`) or from the Data inspector. The test suite and CI run with it off. | n/a (deploy) |
-| `JAVV_JOB_REPORT_DRAIN_CRON` | `*/5 * * * *` | When the report drain runs (builds queued exports and bulk actions). A five-field cron expression, read on the **local wall clock** of the backend process (see the timezone note below). Empty = never on a schedule. A malformed expression stops the backend at boot and names this variable. When several jobs are due this one starts first. | read-only display |
-| `JAVV_JOB_REPORT_SWEEP_CRON` | `15 * * * *` | When the report sweep runs (deletes expired exports, old failures and leftover chunks). Same format and rules as above. | read-only display |
-| `JAVV_JOB_STALENESS_SWEEP_CRON` | `0 2 * * *` | When the staleness sweep runs (marks findings stale on the two timers of §6, and returns findings to open when a risk acceptance expires). Same format and rules. | read-only display |
-| `JAVV_JOB_LIFECYCLE_SWEEP_CRON` | `0 3 * * *` | When the lifecycle sweep runs (rolls the append series over and drops whole indices past each cluster's retention, §6). Same format and rules. | read-only display |
-| `JAVV_JOB_FINDINGS_CLEANUP_CRON` | `0 4 * * *` | When the findings cleanup runs (removes long-absent rows from the `findings` cache, window in §6). Same format and rules. | read-only display |
-| `JAVV_JOB_CLUSTER_RETIREMENT_CRON` | `15 4 * * *` | When the retirement sweep runs (retires clusters silent past their window, brings back the ones that scanned again, and removes rows written after a cluster delete, §6). Same format and rules. | read-only display |
-| `JAVV_JOB_SESSION_SWEEP_CRON` | `30 4 * * *` | When the session sweep runs (deletes sessions expired longer than `JAVV_SESSION_SWEEP_GRACE_HOURS`). Same format and rules. | read-only display |
-
-> These are deployment/ops settings, tuned per environment. `deploy/compose/compose.yaml` lists every
-> one with its default (`backend/tests/test_compose_settings.py` keeps it equal to the code), and the
-> `javv` Helm chart sets each under `backend.config` (below).
-> Not user-facing settings.
-
-**Job schedules and the timezone (issue 691).** The schedules are cron expressions with five fields
-(minute, hour, day of month, month, day of week); shortcuts such as `@daily` are not accepted.
-`rebuild_state` has no schedule: it is only ever run by hand. One job runs at a time, the report drain first when several are due; a job with no run yet waits for its next scheduled time, so nothing runs because the backend started; a run cut off by a restart is picked up again once its lease goes stale (`JAVV_REPORT_LEASE_TTL_SECONDS`). The expressions are read in the
-backend's **local timezone**, which is the `TZ` environment variable (for example
-`TZ=Europe/Bucharest`), or else the zone `/etc/localtime` links to, or else **UTC**. A `TZ` name the zone database does not know also means UTC: the backend still starts (operator ruling on issue 691), and the scheduler's startup log line shows what it settled on (`scheduler started`, with `zone` and `zone_source`: `TZ`, `system` or `default`), so check that line after changing `TZ`. A container has
-no zone unless it is given one, so set `TZ` if `0 3 * * *` should mean 03:00 local. Backends that
-share a store must share one timezone. On the night clocks go back, a local time that happens twice
-runs once; on the night they go forward, a local time that does not exist runs at the first valid
-time after the gap, so a daily job never misses a day (`backend/tests/test_job_schedule.py`).
-
-### The `javv` Helm chart (issue 725)
-
-`deploy/helm/javv` sets every setting above under `backend.config`, by its environment name, at the
-default and with the comment the compose file gives it; `backend/tests/test_compose_settings.py`
-holds both to the code. Change one with `--set backend.config.<NAME>=<value>` or in a values file.
-The secrets are not settings there:
-
-| Value | Default | Meaning | UI? |
-|---|---|---|---|
-| `secrets.existingSecret` | `""` | 🔒 a Secret with `secret-key` (`JAVV_SECRET_KEY`) and `bootstrap-admin-password` (`JAVV_BOOTSTRAP_ADMIN_PASSWORD`); or `secrets.secretKey` and `secrets.bootstrapAdminPassword`, which the chart puts in one. The install fails without them; the chart never makes up a secret key | 🔒 secret |
-| `opensearch.passwordSecret.name` / `.key` | `""` / `password` | 🔒 the Secret with `JAVV_OPENSEARCH_PASSWORD`, javv's: the `javv-opensearch` chart's backend Secret (issue 729), never the admin's. The install fails without it | 🔒 secret |
-| `opensearch.caSecret.name` / `.key` | `""` / `ca.crt` | a Secret with the CA of OpenSearch's certificate. Set, it is mounted at `/etc/javv/opensearch-ca/`, `JAVV_OPENSEARCH_CA_BUNDLE` points at it and `JAVV_OPENSEARCH_VERIFY_CERTS` is `true` (the one setting the chart derives) | n/a (deploy) |
-| `backend.startupProbe` | `GET /healthz`, every 10 s, 30 tries | 300 s, ten `JAVV_REQUEST_TIMEOUT` periods, for the first start: the backend creates or updates the indices before it opens its port (`docs/engineering/UPGRADES.md`) | n/a (deploy) |
-| `backend.readinessProbe` / `livenessProbe` | `GET /readyz` every 10 s / `GET /healthz` every 20 s, 3 failures each | out of its Service while the store is unreachable; restarted only when the backend itself stops answering | n/a (deploy) |
-| `frontend.config` | `JAVV_BACKEND_URL` empty (the chart's backend Service), `JAVV_BACKEND_CONNECT_TIMEOUT` `5`, `JAVV_LOG_LEVEL` `info` | §2b's settings | n/a (deploy) |
-| `frontend.replicas` / `frontend.service.type` / `.port` | `1` / `ClusterIP` / `8080` | the Service browsers and scanners use; no Ingress (issue 452) | n/a (deploy) |
-
-The backend runs as one replica with `strategy: Recreate`, which no value changes (issue 691).
-
----
-
-## 2. JAVV Scanner (CronJob): `JAVV_*` env vars
-
-Source: `scanner/src/scanner/run.py` (tier ②). One CronJob per scanner; stateless per cycle.
-**Every set value is validated at startup (#97):** a garbage value (typo'd scanner, scheme-less URL,
-malformed cluster id, unknown flag token…) exits 2 / raises with the env-var name, never a silent
-fallback or a per-image error loop. Unset always means the documented default.
-
-| Env var | Default | Meaning | UI? |
-|---|---|---|---|
-| `JAVV_SCANNER` | `trivy` | Which scanner this pod runs (`trivy`\|`grype`). Also baked into each image's `ENV`. Any other value → exit 2 with an error (never silently falls back, #97). | ⚙️ GitOps (per-image) |
-| `JAVV_LOG_LEVEL` | `info` | Same shared pipeline as the backend (#156). INFO = per-image progress (`scanning image` → `scan done`, findings + duration) + cycle summary; WARNING = skipped image / dead-letter; a skipped image's line carries `reason` (`scanner_exit`\|`timeout`\|`error`), the `exit_code` and `scanner_stderr`, the last 5 lines of the scanner's own error output capped at 1000 characters (issue 633). The `cycle complete` line reports `discovered`, `scanned` and `scan_failed`. `scanner`/`cluster_id`/`scan_run_id` are bound on every line. | n/a (deploy) |
-| `JAVV_BACKEND_URL` | `http://localhost:8000` | Backend ingest endpoint | n/a (deploy) |
-| `JAVV_TOKEN` | *(unset)* | 🔒 Ingest bearer token (`push:findings` scope). **Effectively required**: since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed). | 🔒 secret |
-| `JAVV_CLUSTER_ID` | *(kube-system UID)* | Tenant identity = the immutable `kube-system` namespace UID (never `cluster_name`). Setting it **asserts** which cluster the cycle is for rather than relabelling one: if it does not equal the UID of the cluster the kube client actually reached, the cycle is refused with exit 2 (issue 470). | n/a (deploy) |
-| `JAVV_KUBE_CONTEXT` | *(current context)* | Out-of-cluster only: names the kubeconfig context to scan. In-cluster this is ignored (`load_incluster_config()` wins). Unset, the scanner follows whatever the current context happens to be, which is why the `JAVV_CLUSTER_ID` assertion above exists. | n/a (dev) |
-| `JAVV_DEAD_LETTER` | `<scanner>.dead-letter.jsonl` (the images set `/var/lib/javv/<scanner>.dead-letter.jsonl`) | Path for per-image scan failures (isolate + continue) | n/a (deploy) |
-
-**The published images run as a fixed non-root user, `65532:65532`** (issue 632), with `python -m scanner` from the project venv as the entrypoint. The process writes to three places only, so the root filesystem can be mounted read-only:
-
-| Path | Set by | What |
+| Kind | Where you set it | When a change applies |
 |---|---|---|
-| `/var/cache/javv/<scanner>` | `TRIVY_CACHE_DIR` / `GRYPE_DB_CACHE_DIR` (the vendors' own variables, image `ENV`) | the vuln-DB cache; the `javv-scanner` chart mounts each scanner's own volume at `/var/cache/javv` (NFR-11) |
-| `/var/lib/javv` | `JAVV_DEAD_LETTER` (image `ENV`) | the dead-letter file |
-| `/tmp` | the scanners | image layers pulled during a scan |
+| Backend, frontend server and scanner settings | Environment variables: `.env` for compose, the chart values for Helm | When the container starts again. A scanner reads its settings at the start of each cycle. |
+| [Runtime settings](#runtime-settings): retention, staleness, SLA, scan scope, retirement | The **Settings** pages of the web app, or the API | JAVV keeps them in OpenSearch. Each reader uses the new value at its next read. |
+| Scanner and OpenSearch versions | The image tag | When you change the tag. The web app has no control to select a version. |
+| [Frontend build settings](#frontend-build-settings) | The build of the frontend image | Only when you build a new image. A published image has the default values. |
 
-Override any of them per CronJob; whatever is mounted there must be writable by UID 65532. Out of a cluster, a mounted kubeconfig must be readable by that UID too.
+Credentials go only in a secret store: `.env`, a Kubernetes Secret or the OpenSearch keystore.
+JAVV never keeps a credential in an image or in its runtime settings. In the tables below, a
+**Secret** row holds a credential.
 
-### The `javv-scanner` Helm chart (issue 725)
+The backend checks its settings when it starts. A value that is not valid stops the start, and
+the error names the setting. Thus a bad value does not let the backend pass `/readyz` and then fail
+each request. Examples of bad values:
 
-`deploy/helm/javv-scanner` runs one CronJob per scanner in a monitored cluster. Each scanner's block
-(`trivy`, `grype`) has its own image, token, schedule, vuln-DB source and cache, and a `config` with
-its §3 or §4 settings and `JAVV_LOG_LEVEL`, by their environment names, at their defaults (empty
-means unset); `scanner/tests/test_helm_config.py` holds them to the code. The rest:
+- a limit of zero or less
+- a keep-alive that is not a duration
+- a compressed limit larger than the decompressed limit
+- a bulk inline limit larger than the bulk maximum.
 
-| Value | Default | Meaning | UI? |
-|---|---|---|---|
-| `backendUrl` | `""` | `JAVV_BACKEND_URL`: JAVV's frontend Service as this cluster reaches it. The install fails without it | n/a (deploy) |
-| `clusterId` | `""` | `JAVV_CLUSTER_ID`; empty, the scanners read the `kube-system` UID | n/a (deploy) |
-| `<scanner>.token.existingSecret` / `.key` / `.value` | `""` / `token` / `""` | 🔒 `JAVV_TOKEN`: that scanner's own Secret, or a value the chart puts in one. The install fails without it | 🔒 secret |
-| `<scanner>.schedule` | `0 */6 * * *` (Trivy), `30 */6 * * *` (Grype) | when a cycle starts; `timeZone` sets the zone | ⚙️ GitOps |
-| `<scanner>.activeDeadlineSeconds` | `19800` | a cycle still running after 5 h 30 min is stopped; the CronJob starts no cycle while one of its own runs (`Forbid`; a Job made by hand is not counted, see the chart's `NOTES`), and retries none until the next schedule | n/a (deploy) |
-| `<scanner>.image.tag` / `.digest` / `.pullPolicy` | `versions.yaml` `scanners.<s>.current` / `""` / `Always` | the scanner version (D41; `check-versions.sh` holds the tag to `versions.yaml`). The tag moves when JAVV republishes that version, hence `Always`; a digest runs one exact build. The chart a release publishes sets each digest to the one the tag named at the release, signature-checked (issue 725 slice 4); the repository's chart leaves it empty | ⚙️ GitOps |
-| `trivy.vulnDb.repository` / `.javaRepository` | `""` | `TRIVY_DB_REPOSITORY` / `TRIVY_JAVA_DB_REPOSITORY` for the refresh; empty is Trivy's own (`mirror.gcr.io/aquasec/trivy-db:2`, then `ghcr.io/aquasecurity/trivy-db:2`; the Java DB likewise) | ⚙️ GitOps |
-| `grype.vulnDb.updateUrl` | `""` | `GRYPE_DB_UPDATE_URL` for the refresh; empty is Grype's own (`https://grype.anchore.io/databases`) | ⚙️ GitOps |
-| `<scanner>.vulnDb.size` / `.storageClass` / `.existingClaim` | `10Gi` / `""` / `""` | the scanner's cache volume, `ReadWriteOnce`. Measured in October 2026: Trivy's two DBs 2.9 GB, Grype's 3.0 GB | n/a (deploy) |
+## Change a setting
 
-Each cycle starts with an init container on the scanner's own image that refreshes the DB in the
-cache volume; the scan then runs with the vendors' update switches off (`TRIVY_SKIP_DB_UPDATE`,
-`TRIVY_SKIP_JAVA_DB_UPDATE`, `TRIVY_SKIP_CHECK_UPDATE`, `GRYPE_DB_AUTO_UPDATE=false`, which the
-chart sets), so a cycle reads one DB and calls nothing upstream mid-scan. A failed refresh falls back to the cached DB; with none,
-the cycle fails. Grype refuses a DB older than 5 days (its `GRYPE_DB_MAX_ALLOWED_BUILT_AGE`, settable
-in `extraEnv`). The install runs the same refresh once as a Job, which also binds the volume; an
-upgrade that changes the refresh container (the image, the DB source, `extraEnv`, `resources` or
-`pullPolicy`) runs it again. Misconfig scans (`JAVV_TRIVY_SCANNERS` with `misconfig`) use the
-checks built into the Trivy binary, so they too call nothing upstream mid-scan. A DB that cannot be read (the refresh checks with a lookup) is
-dropped and fetched once more before the cycle gives up. Trivy gets two lookups, because a cut
-Java DB fails no scan: Trivy skips each jar it cannot look up and exits 0, so its lookup must find
-a known CVE in a jar only the Java DB can name.
+### With docker compose
 
----
+1. Add `NAME=value` to the `.env` file next to `compose.yaml`.
+2. Run `docker compose up -d`. Compose starts again each container whose settings changed.
 
-## 2b. JAVV Frontend (Vue/Vite): `VITE_*` build-time env
+[`compose.yaml`](../deploy/compose/compose.yaml) lists each setting, with its default and a short
+description.
 
-Source: `frontend/src/lib/logger.ts` (tier ①: Vite inlines `VITE_*` at build; changing it means a
-rebuild, not a restart).
+### With Helm
 
-| Env var | Default | Meaning | UI? |
-|---|---|---|---|
-| `VITE_LOG_LEVEL` | `debug` (dev) / `warn` (prod build) | Browser-console threshold for the frontend structured logger (`debug`\|`info`\|`warn`\|`error`), the FE analog of `JAVV_LOG_LEVEL` (observability.md §1: same `timestamp→level→event` line shape; raw `console.*` is ESLint-banned in app code). Unknown value falls back to the default. | n/a (build) |
-| ~~`VITE_FRESHNESS_BANNER_HOURS`~~ | none | **REMOVED (M9e slice 4, ruling row 14):** the banner and the fleet health chips now read the LIVE staleness timers via `GET /api/v1/settings/staleness` (`stores/staleness.ts`: the selected cluster's effective window for the banner, the fleet default for cross-cluster chips), so a settings-panel edit takes effect without a rebuild. The D20 seed (3 days) is the only in-code fallback, used while the read is in flight. | ✅ removed |
-| `VITE_DB_AGE_WARN_DAYS` | `7` | Days before the scanner-status card flags the vuln DB as stale (amber `· N days old` next to *DB built*, `frontend/src/system/freshness.ts`); a running scanner with an old database quietly under-reports (D41: the fix is swapping the published image, never in-app). Non-numeric/≤0 falls back to the default. | no |
-| `VITE_EXPIRY_WARN_DAYS` | `7` | Days before a risk-acceptance's expiry that the Approvals queue's status chip turns amber `expires in Nd` (`frontend/src/approvals/viewModel.ts`), the review nudge window; at expiry the chip goes alarm-red (the acceptance has released its findings back to open, D19). Non-numeric/≤0 falls back to the default. | no |
-| `VITE_CLIENT_EVENTS` | *(unset)* → **on** in prod builds, **off** in dev | Client-events beacon ([#453](https://github.com/Danube-Labs/javv-poc/issues/453)): whether `logger.warn`/`logger.error` are also shipped to `POST /api/v1/client-events`, so a browser error survives the tab being closed. `false`/`0` disables; any other value enables. Call sites are unaware: the transport lives inside `lib/logger.ts`. Deliberately lossy telemetry: **never retried**, and the queue caps at one batch (20) flushed on a fixed 5s window, so an error storm drops events rather than bursting requests past the endpoint's per-principal rate cap (§1), whose 429 would itself be silent loss, since nothing retries. **Lossy but not silently so** ([#519](https://github.com/Danube-Labs/javv-poc/issues/519)): a window that dropped events leads its next batch with a `beacon events dropped` summary carrying the count, so a gap in the stream reads as a storm rather than as a quiet session. The count covers storm drops only: an event refused for its own sake (an unshippable name, a fields object the clip cannot walk) is dropped silently, since a permanent call-site fault would otherwise report a fresh storm on every load of that screen. Field values are clipped to the endpoint's 512-char per-value cap on the way in, so one oversized value (a `?cluster=` deep link) cannot 422 the batch it rides in; a clipped value ends in `…` ([#525](https://github.com/Danube-Labs/javv-poc/issues/525)), so it reads as clipped rather than as exactly 512 characters, and a value at or under the cap arrives untouched. Also flushes on `pagehide`/tab-hide. | n/a (build) |
-| ~~`VITE_APP_VERSION`~~ | none | **REMOVED (issue 261):** the sidebar footer (`components/chrome/SideNav.vue`) now reads the running versions from `GET /api/v1/meta` and shows the release, `store schema v{mapping_version}` and `scanner schema v{newest accepted envelope}`, one per line. The version is the release, kept in `backend/src/backend/version.py` by release-please (`extra-files` in `release-please-config.json`), so no build step sets it. A failed read shows `version unavailable`. The frontend's own version (the About page, issue 341) comes the same way from `frontend/src/version.ts`, not from an env var. | ✅ removed |
+1. Set the value in your values file, or with `--set`:
+    - a backend setting: `backend.config.<NAME>` in the `javv` chart
+    - a frontend server setting: `frontend.config.<NAME>` in the `javv` chart
+    - a scanner setting: `trivy.config.<NAME>` or `grype.config.<NAME>` in the `javv-scanner` chart.
+2. Run `helm upgrade` with your values. Kubernetes starts new pods with the new value.
 
-### Frontend container server: runtime env (issue 452)
+### In the web app
 
-Source: `frontend/server/serve.mjs`. The frontend image runs a small Node server that serves the
-built SPA and forwards `/api`, `/auth` and `/readyz` to the backend, so the browser sees one origin.
-These are read when the container starts (a restart applies them, no rebuild).
+1. Sign in as a user with the permission that the setting needs ([Runtime settings](#runtime-settings)).
+2. Open **Settings**, then the page that holds the setting.
+3. Change the value, then save it.
 
-| Env var | Default | Meaning | UI? |
-|---|---|---|---|
-| `JAVV_BACKEND_URL` | `http://backend:8000` | Where the frontend server forwards `/api`, `/auth` and `/readyz`: the backend's address as the frontend container sees it (a compose service name, a Kubernetes Service, an IP). `http` or `https`. When nothing answers there, the server replies 502 with the error envelope, which the SPA reads as "backend down" | n/a (deploy) |
-| `JAVV_BACKEND_CONNECT_TIMEOUT` | `5` | Seconds a connection to the backend may take to open; for an `https:` backend, through its TLS handshake. Past it the answer is the same 502 (the warning line gives `reason: connect timeout`). Only the opening is timed: once connected, a slow or streamed answer (an export) is never cut. Kubernetes refuses at once when a Service has no ready pod, but an address whose pod is gone without being removed yet (its node died) does not answer at all, and the request would hang (issue 725). A value that is not a number of seconds above 0 stops the server at start | n/a (deploy) |
-| `JAVV_FRONTEND_PORT` | `8080` | The port the frontend server listens on inside its container | n/a (deploy) |
-| `JAVV_LOG_LEVEL` *(shared)* | `info` | Also the frontend server's threshold (`debug`\|`info`\|`warning`\|`error`); an unknown name stops it at start, as in the backend | n/a (deploy) |
+## Backend settings
 
----
+The backend reads these environment variables. It ignores a `JAVV_` name that it does not know.
+[`compose.yaml`](../deploy/compose/compose.yaml) lists each one with its default. The `javv` chart
+sets each one under `backend.config`. `backend/tests/test_compose_settings.py` keeps both equal to
+the code.
 
-## 3. Trivy: scan parameters
+### Deployment
 
-Source: `scanner/src/scanner/config.py` + `adapters/trivy.py`. **Phase 1 of #91 done:** scan flags are
-now `JAVV_TRIVY_*` env vars (tier ②), each defaulting to the previously-hardcoded value; an unset env
-reproduces the old command exactly. Set them on the scanner CronJob manifest (GitOps). `--format json`
-stays fixed (the parser depends on it). Runtime/UI control was "Phase 2", RULED read-only for MVP (C-4, 2026-07-07); writable-from-UI via the D43 fetch pattern = post-MVP #403.
-Set values are validated against the pinned binary's accepted sets: scanners ∈ `vuln,misconfig,secret,license`,
-severities ∈ `UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL`, pkg-types ∈ `os,library`, timeout = Go duration (#97).
-
-| Env var | Default | Effect | UI? |
-|---|---|---|---|
-| `JAVV_TRIVY_SCANNERS` | `vuln` | `--scanners` (e.g. `vuln,secret,misconfig`) | read-only display (C-4); writable = post-MVP #403 |
-| `JAVV_TRIVY_IGNORE_UNFIXED` | `false` | adds `--ignore-unfixed` | read-only display (C-4) |
-| `JAVV_TRIVY_SEVERITIES` | *(unset)* | `--severity CRITICAL,HIGH` (unset = all) | read-only display (C-4) |
-| `JAVV_TRIVY_PKG_TYPES` | *(unset)* | `--pkg-types os,library` | read-only display (C-4) |
-| `JAVV_TRIVY_TIMEOUT` | *(unset)* | `--timeout 5m0s` (unset = trivy's own default) | read-only display (C-4) |
-| Output format | `json` | fixed: the parser depends on it | n/a |
-| **Trivy version** | `0.75.0` | `versions.yaml` → `scanners.trivy.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
-| **Vuln-DB** | schema 2 (fails loud if incompatible) | tracked in `versions.yaml`; refreshed at the start of each cycle by the `javv-scanner` chart (§2), at scan time without it; stamped per envelope via a per-cycle `trivy version --format json` (#96) | ⚙️ read-only display |
-
----
-
-## 4. Grype: scan parameters
-
-Source: `scanner/src/scanner/config.py` + `adapters/grype.py`. **Phase 1 of #91 done:** `JAVV_GRYPE_*`
-env vars (tier ②), each defaulting to today's value. `-o json` stays fixed (parser depends on it).
-
-| Env var | Default | Effect | UI? |
-|---|---|---|---|
-| `JAVV_GRYPE_ONLY_FIXED` | `false` | adds `--only-fixed` | read-only display (C-4); writable = post-MVP #403 |
-| `JAVV_GRYPE_SCOPE` | *(unset)* | `--scope squashed\|all-layers\|deep-squashed` (validated, #97; unset = grype default) | read-only display (C-4) |
-| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | subprocess hard-kill seconds (grype has no scan-timeout flag); non-integer → fail-fast with a clear error (#97) | read-only display (C-4) |
-| Output format | `json` | fixed: the parser depends on it | n/a |
-| **Grype version** | `0.120.1` | `versions.yaml` → `scanners.grype.current` + Dockerfile `ARG`; rebuild + swap tag | ⚙️ GitOps (read-only display) |
-| **Vuln-DB** | schema 6 (`min_live_version 0.88.0` floor) | `versions.yaml`; refreshed at the start of each cycle by the `javv-scanner` chart (§2), at scan time without it | ⚙️ read-only display |
-
----
-
-## 5. OpenSearch: deployment config
-
-Source: `development/setup/opensearch-dev.yml` (dev) + `.github/workflows/ci.yml` service (CI).
-Deployments: `deploy/compose/compose.yaml`, and the `javv-opensearch` Helm chart (below). Version pin:
-`versions.yaml` → `datastore.opensearch`.
-
-| Setting | Dev/CI value | Meaning | Prod note |
-|---|---|---|---|
-| image | `opensearchproject/opensearch:3.9.0` | pinned in `versions.yaml` (D42) | same pin |
-| `discovery.type` | `single-node` | single-node dev cluster | multi-node in prod |
-| `DISABLE_SECURITY_PLUGIN` | `true` | **Dev, CI and the pytest store only**: no TLS/auth on :9200 | **not set** in `deploy/compose/compose.yaml` since issue 715: the security plugin is on, with OpenSearch's demo certificates. Your own OpenSearch: on, with your own certificates (§1: `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`, `JAVV_OPENSEARCH_CA_BUNDLE`) |
-| `plugins.security.audit.type` | n/a (security off) | OpenSearch's own audit log. Compose sets `noop` (issue 715): the demo security setup would otherwise write a new `security-auditlog-<date>` index every day, and with ISM off nothing deletes them. JAVV's own audit trail is `system-audit-log` | your own OpenSearch: your choice; JAVV does not read it |
-| `OPENSEARCH_INITIAL_ADMIN_PASSWORD` | n/a (security off) | 🔒 The `admin` password OpenSearch's demo security setup creates on its **first** start with security on (issue 715). Compose fills it from `JAVV_OPENSEARCH_ADMIN_PASSWORD`; the backend never gets it (it signs in as `javv`, issue 729). Later changes are ignored by the store (`UPGRADING.md`); a weak one stops the container | 🔒 secret, from `.env` |
-| `OPENSEARCH_JAVV_PASSWORD` | n/a (security off) | 🔒 The password of `javv`, the user the backend signs in as (issue 729). Compose fills it from `JAVV_OPENSEARCH_PASSWORD`, the backend's own setting, and its `opensearch` entrypoint hashes it into the users file with OpenSearch's `hash.sh`; an empty one stops the container. Read on the store's first start with security on, like admin's | 🔒 secret, from `.env` |
-| OpenSearch users | n/a (security off) | Who can sign in to the store. OpenSearch's demo security setup loads every user in the image's `config/opensearch-security/internal_users.yml`, including six whose passwords are their own names, and no setting turns them off. Compose's `opensearch` entrypoint keeps only `_meta` and `admin` in that file before OpenSearch's own entrypoint runs (issue 736), and adds `javv` (issue 729), so `admin` and `javv` are the only users that sign in with a password. OpenSearch reads the file on its first start with security on. The demo admin certificate in the image (`kirk.pem`, used by the password change in `UPGRADING.md`) also has full access, with no password | your own OpenSearch: your users; JAVV signs in as `JAVV_OPENSEARCH_USERNAME`. The `javv-opensearch` chart writes a users file with `admin` and `javv` from an init container (below) |
-| OpenSearch roles and role mapping | n/a (security off) | What each user may do. Compose mounts its own `roles.yml` (the `javv` role alone) and `roles_mapping.yml` (`admin` on `all_access`, `javv` on `javv`) in place of the image's demo ones, from the compose file's `configs` (issue 729). Read on the store's first start with security on; `UPGRADING.md` loads them into an older store | your own OpenSearch: create the `javv` role from `docs/DEPLOYING.md`. The `javv-opensearch` chart mounts the same two files from its `files/` |
-| `OPENSEARCH_JAVA_OPTS` | dev `-Xms1g -Xmx1g` · CI `-Xms512m -Xmx512m` | JVM heap. Dev was raised off 512m: the parent circuit breaker is 95% of heap and the e2e corpus rested at ~83% of it, so bulk ingest tripped it. CI keeps 512m: a fresh store per run has no resting corpus. | sized per node |
-| `path.repo` | `/usr/share/opensearch/data/snapshots` | fs snapshot repo root (M2 restore drill) | s3/MinIO repo in prod (creds → keystore) |
-| snapshot repo creds | n/a (fs) | 🔒 s3 access/secret keys | 🔒 OpenSearch **keystore** only, never a doc |
-
-### The `javv-opensearch` Helm chart (issue 725)
-
-`deploy/helm/javv-opensearch` runs the same OpenSearch settings as compose, as values of the
-official chart under `opensearch:`. JAVV's own keys sit under `opensearch.javv` (a wrapper chart
-cannot compute its subchart's values, so they live where both can read them). The full list,
-with the official chart's keys this chart sets, is the chart's
-[`README.md`](../deploy/helm/javv-opensearch/README.md), written from its `values.yaml`.
-
-| Value | Default | Meaning | UI? |
-|---|---|---|---|
-| `opensearch.javv.auth.existingSecret` | `""` | 🔒 a Secret with the admin password under `password`. Set this or `password`; the install fails with neither or both | n/a |
-| `opensearch.javv.auth.password` | `""` | 🔒 the admin password; the chart puts it in the Secret `<release>-javv-opensearch-admin`. OpenSearch reads it on its first start only | n/a |
-| `opensearch.javv.backend.existingSecret` | `""` | 🔒 a Secret with javv's password under `password`: javv is the user JAVV's backend signs in as, holding only the `javv` role (issue 729). Set this or `password`; the install fails with neither or both | n/a |
-| `opensearch.javv.backend.password` | `""` | 🔒 javv's password; the chart puts it in the Secret `<release>-javv-opensearch-backend`, which the javv chart's `opensearch.passwordSecret` names. OpenSearch reads it on its first start only | n/a |
-| `opensearch.javv.tls.existingSecret` | `""` | a Secret with `tls.crt`, `tls.key` (PKCS#8) and `ca.crt`; switches the demo certificates off | n/a |
-| `opensearch.javv.tls.certManager.enabled` / `.issuerRef` | `false` / `{}` | a cert-manager `Certificate` for the Service, into `<release>-javv-opensearch-tls`; switches the demo certificates off | n/a |
-| `opensearch.javv.tls.adminDn` | `[]` | client certificate DNs allowed to run `securityadmin.sh` with your own certificates | n/a |
-| `opensearch.singleNode` | `true` | one node; the install fails with `false` | n/a |
-| `opensearch.image.tag` | `versions.yaml` `datastore.opensearch` | the OpenSearch image tag, held to that pin by `check-versions.sh` | n/a |
-
----
-
-## 6. Runtime / operational config: `system-config` (tier ③, UI-editable)
-
-Stored as data in the `system-config` index; edited via API/**UI** at runtime. This is the "right"
-home for policy that operators change: no rebuild, no restart.
-
-| Config | Owner bolt | Mechanism | UI? |
-|---|---|---|---|
-| Snapshot repo **ref** (non-secret) + schedule/retention | **M2** (backend) / **M9e** (UI) | `system-config` doc `snapshot_repo` + SM policy. M9e slice 4 UI: `GET/POST /api/v1/admin/snapshots` (list + manual take, `can_manage_retention`) and `POST .../{name}/restore` (`can_restore_snapshot`, restores into `restored-*` copies, never onto live indices); registering the repo itself stays deploy-side (keystore creds) | ✅ Shipped (M9e §13.7) |
-| **Lifecycle** settings: rollover (`max_age_days` 30, `max_docs` 5M, `max_size_gb` 50) + per-`cluster_id` `retention_days` (90) | **M4** (backend) / **M9e** (UI) | `system-config`: **per-cluster** `lifecycle:<cluster_id>` overrides the fleet-wide `lifecycle` default (D26); read live by the daily `jobs/lifecycle.py` sweep (rollover via `_rollover`+conditions, retention = drop-whole-index, never `delete_by_query`). Managed series: `javv-scan-events`, `javv-images`, `javv-finding-occurrences`, `javv-inventory-runs`, `javv-ingest-failures` (issue 357: failed-ingest records share the same window; no separate knob). UI: `PUT /api/v1/settings/retention` + `PUT /api/v1/settings/rollover` (`can_manage_retention`, journaled). Interim CLI: `python -m backend.jobs.lifecycle --set-max-age-days N --set-max-docs N --set-max-size-gb N --set-retention-days N [--cluster <id>]` | ✅ Shipped (M9e §13.7) |
-| **Report/export TTL** (`hours`, default = `JAVV_EXPORT_TTL_HOURS` 24) | **M9e slice 4** (row 11: now runtime-editable) | `system-config` doc `report_ttl` (fleet-wide); `admin/report_ttl.py` `read_report_ttl_hours` falls back to the env seed when no doc exists; consumed by `jobs/report_drain.py` (stamps `expires_at`) and `jobs/report_sweep.py` (deletes failed ones past it). `PUT /api/v1/settings/report-ttl` (`can_manage_retention`, journaled) | ✅ Shipped (M9e §13.7) |
-| **Findings cleanup window** (`cleanup_days`, default **180**) | **M9e**, D37/M12 | `system-config` doc `findings_cleanup` (fleet default) + per-cluster `findings_cleanup:<cluster_id>` override (D26 pattern; issue 431): `findings` cache rows `present=false` whose `resolved_at` predates the window are deleted by the `jobs/findings_cleanup.py` sweep (`python -m backend.jobs.findings_cleanup`; the backend runs it on `JAVV_JOB_FINDINGS_CLEANUP_CRON`, §1); watermarks whose digest has no remaining rows prune with them (D40 guard kept otherwise). The sweep runs per cluster with each tenant's effective window, read live each run, so an edit applies at the next sweep; history indices are never touched. Deliberately independent of, and much longer than, both the staleness timers and the append-family retention. `PUT /api/v1/settings/findings-cleanup` (`can_manage_retention`, journaled); each run journals its counts (`findings_cleanup_run`) | ✅ Shipped (setting + sweep, M9e) |
-| **Staleness** two-timer windows (`freshness_days` N=3, `scanner_down_days` M=7) | **M3** (backend) / **M9e** (UI) | `system-config`: **per-cluster** `staleness:<cluster_id>` overrides the fleet-wide `staleness` default (FR-6); read by the daily `jobs/staleness.py` sweep, **never hardcoded** (D20). Interim CLI: `python -m backend.jobs.staleness --set-freshness-days N --set-scanner-down-days M [--cluster <id>]` | ✅ Shipped (M9e: **Settings › Scanning**) |
-| **Cluster retirement window** (`retire_after_days`, seeded by `JAVV_CLUSTER_RETIRE_AFTER_DAYS`, 45; `null` = never) + **warning** (`warn_days`, seeded by `JAVV_CLUSTER_RETIREMENT_WARN_DAYS`, 7) | issue 765 | `system-config` doc `retirement` (fleet default) + per-cluster `retirement:<cluster_id>` override (D26 pattern); the env seeds apply until a fleet value is saved. How long a cluster may go without an accepted scan before the retirement sweep retires it: off the cluster list, data kept, tokens left alone, back on its next scan. A manual retire revokes the tokens instead, and the cluster comes back on a scan sent with a new one, or by hand. A window not longer than the cluster's effective scanner-down timer (Staleness, above) is refused (422), and the sweep never uses a window shorter than that timer, so an outage short enough to only stale findings never retires a cluster. Silence counts from the newest accepted scan, or the first token's mint for a cluster that never scanned. When clusters are due and no cluster at all, whatever its window, has had a scan accepted within its scanner-down timer, the sweep retires nothing and logs a warning (`javv_cluster_retirement_held_total`): that points at JAVV, not the clusters. Un-retiring stamps the record's `returned_at`, and silence counts from it, so the next sweep does not undo an un-retire. Run by `jobs/cluster_retirement.py` on `JAVV_JOB_CLUSTER_RETIREMENT_CRON` (§1), which also passes over deleted clusters for rows written after their delete (issue 778). When a cluster enters its last `warn_days`, the sweep notifies every user holding `can_manage_settings` once per silence (`cluster_retiring` in the bell; a change to these settings sends nothing new and withdraws nothing; the notice is withdrawn when the cluster scans again or a return from retirement starts a new silence, and a retired cluster keeps it), and the UI shows a countdown banner; the only cluster listed is never retired by the sweep, so it gets no notice and the banner says it is not retired automatically. `GET/PUT /api/v1/settings/retirement` (read = any session, write = `can_manage_settings`, journaled `retirement_window_change`) | ✅ Shipped: Settings › Cluster (retire, the window card, Retired clusters) |
-| **SLA policy** (days per severity + KEV override) | **M5d** (backend **built**) | `system-config` doc `sla` (fleet-wide; crit 2 / high 7 / med 30 / low 90 + `kev_days` 1; `negligible`/`unknown` carry **no SLA**). `GET/PUT /api/v1/settings/sla`: read = any principal, write = `can_manage_settings`, journaled with full old/new policy (D17). Overdue is READ-TIME (D21: earliest `first_seen_at` per `(cve_id, image_digest)`; a package bump never resets the clock) | ✅ Shipped (M9e: **Settings › SLA policy**) |
-| **Scan scope** (namespaces/images/kinds to scan) | **#94** (backend) / **M9e** (UI) | `system-config` `scan_scope:<cluster_id>`; scanner fetches via `GET /api/v1/scan-scope` (D43) | ✅ Shipped (M9e: **Settings › Scan scope**) |
-| Ingest **push tokens** (mint/rotate/revoke/list) | **M5a** (backend **built**) / **M9e** (UI, §13.5) | `POST/GET /api/v1/admin/tokens` (+ `/{id}/rotate`, `/{id}/revoke`), capability `can_manage_tokens`, journaled; raw token shown exactly once; optional `expiry` on mint (rotate inherits it: rotation is not extension, task E #142); lists paginate (`size`/`offset`). Interim CLI: `python -m backend.core.tokens --cluster <id> --scanner <trivy\|grype>` | ✅ Shipped (**Settings › Access & tokens**) |
-| Users / RBAC (capability bundles, D33) | **M5a** (backend **built**) | `system-roles` docs (`_id` = role) hold the bundles: **seed-once defaults** (`viewer`/`triager`/`security_lead`/`admin="*"`); edit the doc to customize, restarts never overwrite it. Users carry a `role` + denormalized `capabilities` in `system-users` | M9e renders the 4 bundles **read-only** (A-4); bundle *editing* stays doc-level (post-MVP) |
-| **User administration** (create / role / disable / password-reset) | **Task D #141** (backend **built**) | `POST/GET /api/v1/admin/users` (+ `PATCH /{u}/role`, `PATCH /{u}/disabled`, `POST /{u}/password-reset`), capability `can_manage_users`, journaled. Created/reset users start `must_change: true` (temp password, SEC-6); a role change updates role+capabilities together and **revokes the user's sessions** (D33); disable revokes too; the **last enabled admin** can't be demoted/disabled (409). Role-bundle *editing* stays doc-level (row above) | ✅ Shipped (M9e §13.6: **Settings › Users & roles**) |
-
----
-
-## 7. Scanner config: status (#91)
-
-**Phase 1: done.** Scan-behaviour flags are now `JAVV_TRIVY_*` / `JAVV_GRYPE_*` **env vars** (§3/§4),
-defaulting to the previously-hardcoded values (unset env = identical command). Set them in the
-`javv-scanner` chart's `<scanner>.config` (§2), or on the scanner's own environment without the chart:
-GitOps, no code edit, scanner stays stateless. This closes the immediate hardcoding
-gap for the flags people actually tune.
-
-**Intentionally still GitOps (never UI):** scanner **version** + **vuln-DB** are build-time
-(`versions.yaml` + Dockerfile `ARG`, tag-swap, D41/D42). "Version select" must never return as a control.
-
-**Scan *scope* is different: UI-configurable now (D43/#94).** *Which* namespaces/images/kinds to scan
-is operational policy (not tuning), so it lives in `system-config` (tier ③) and the scanner **fetches it
-from the backend** (`GET /api/v1/scan-scope`) at cycle start and never reads OpenSearch directly. Fetch is
-**fail-closed** (backend down → skip the cycle; fetched-empty → scan all). This is the backend-mediated
-pattern D43 blesses; scanner **tuning** flags deliberately do **not** use it (they stay env/GitOps).
-
-**Scanner tuning in the UI = read-only (shipped, D44/#91).** Every envelope (schema **v3**) stamps
-`effective_config` (the effective *tuning* flags + the *scope* applied that cycle), persisted on
-scan-events for the M9e per-scanner cards and audit. Display, not control: there is no
-`scanner_config` write path; tuning stays env-var/GitOps. The v2→v3 bump is a **flag-day**: scanner
-images and backend deploy in lockstep (older envelopes 422 by design).
-
----
-
-## 8. Frozen internal constants: deliberately *not* settings
-
-> Not every literal is configuration. These are code-level **batch sizes** and **safety ceilings**
-> fixed as private module constants (`_UPPER_SNAKE`). They are intentionally **not** `JAVV_*` env vars
-> (§1) or `system-config` policy (§6): exposing them would add operator surface for values nobody
-> should tune, and a "wrong" value would *mask* a bug rather than shape a workload. Cataloged here,
-> with the motive, so the choice is explicit and reviewable (the category was challenged in audit #186).
->
-> **The frozen-vs-setting test:** does an operator ever have a legitimate reason to change it for *their*
-> workload? If yes → it's a setting (§1). If the only reason to touch it is "a bug is making us hit the
-> bound" → it stays frozen; fix the bug. When a bound genuinely crosses into workload-shaping territory
-> it *does* become a setting: e.g. the bulk freeze **cap** is `JAVV_BULK_MAX_TARGETS` (§1, an
-> operator-relevant DoS limit), while the freeze **page size** (`_FREEZE_PAGE`) stays frozen.
-
-| Family | Constants (value) | Why frozen |
+| Setting | Default | What it does |
 |---|---|---|
-| **Scheduler tick**: how often the backend looks for a due job | `jobs/scheduler.TICK_SECONDS` (30 s) | A schedule cannot be finer than a minute, so twice a minute never misses one. Faster buys nothing and slower can start a job late; the schedules themselves are the settings (§1, `JAVV_JOB_<KIND>_CRON`). |
-| **Queue order**: which due job starts first | `jobs/schedule.FIRST_IN_QUEUE` (`report_drain`), then the order of `jobs/registry.JOBS` | A ruling, not a dial (issue 691): a person is waiting for an export, nobody is waiting for a sweep. |
-| **Scanner error text in the log**: how much of a failed scan's stderr one log line carries | `scanner/run.STDERR_TAIL_LINES` (5) · `STDERR_TAIL_CHARS` (1000) | Bounds one log line. The scanner prints its final error last; the full output is the scanner's own, not ours to archive (issue 633). |
-| **Read page size**: the reader *pages*, so this is a batch size, never a cap on results | `decisions/reproject._PAGE` (10k) · `triage/bulk._FREEZE_PAGE` (10k) · `services/disagreement._SEARCH_PAGE` (10k) · `jobs/rebuild_state._PAGE` (1k) · `export/sweep._PAGE_SIZE` (500) · `routers/findings._GROUP_CLOCK_PAGE` (1k, audit #187) · `routers/contributors._ROWS_PAGE_SIZE` (10k, audit #190) · `query/pit._ROW_PAGE` (10k) + `query/human_at._ROW_PAGE` (10k) + the `jobs/rebuild_state` + `jobs/staleness` row walks (10k, issue #391); all `search_after` walks via `query/paging.search_to_exhaustion` (audit F-05/F-06, issue #377) | At/under OpenSearch's `from`/`size` 10k ceiling (smaller for constant-memory sweeps). Because the caller pages to exhaustion, completeness holds for *any* value; it only trades round-trips against memory, never correctness or policy. |
-| **CAS / conflict-drain ceiling**: a livelock guard, not a tuning dial | `decisions/reproject._CONFLICT_RETRIES` (8) · `services/reconcile._CONFLICT_RETRIES` (10) · `services/merge._CONFLICT_RETRIES` (10) · `decisions/lifecycle._CAS_RETRIES` (8) · `triage/service._CAS_RETRIES` (8) · `services/scan_orders._CAS_RETRIES` (32) · `services/watermarks._CAS_RETRIES` (32) | Real contention is ~1 (one CronJob per scanner, `Forbid`). Reaching the ceiling signals a pathology to investigate; raising it would hide the problem, not serve a workload. The two 10s (reconcile drain + merge 409 re-issue, [#510](https://github.com/Danube-Labs/javv-poc/issues/510)) guard the same commit race from opposite sides and back off exponentially via `repositories/bulk.race_backoff_delay` (0.02s → 2s cap, ≈ 8.5s worst-case total, sized to outlast a racing pass's own `_bulk` backoff, ≤ 7.5s saturated). |
-| **Client-events request shape**: the wire contract, not a dial ([#453](https://github.com/Danube-Labs/javv-poc/issues/453)) | `routers/client_events._MAX_BATCH` (20) · `_MAX_KEYS_PER_OBJECT` (25) · `_MAX_DEPTH` (3) · `_MAX_KEY_CHARS` (64) · `_MAX_VALUE_CHARS` (512) · `_MAX_LIST_ITEMS` (20) · `_EVENT_NAME` (`^[a-z0-9][a-z0-9 ._-]{0,63}$`) | These *are* the OpenAPI schema: they appear in the generated client, so changing one is a contract change that both stacks must agree on, not an environment tuning. Passing them would also make a 422 environment-dependent: the same payload would validate on one deployment and fail on another. Untrusted browser input, so the value-type walk is an **allowlist**; the name pattern admits the house convention (spaces, as in `backend degraded`) while refusing what threatens the `client.<name>` concatenation (newlines, tabs, quotes, control chars). The per-principal *rate* cap is genuinely operational and IS a setting (§1). |
-| **Password length**: the rule every local password meets ([#726](https://github.com/Danube-Labs/javv-poc/issues/726)) | `auth/passwords.MIN_LENGTH` (12) · `MAX_LENGTH` (256), mirrored as `PASSWORD_MIN_LENGTH` · `PASSWORD_MAX_LENGTH` in `frontend/src/stores/auth.ts` | A security floor, not a workload dial. The password form states the minimum and refuses a shorter password before sending it, so the frontend keeps a copy; `password-change.spec.ts` reads the backend file and fails when the two differ. The server stays the authority. |
-| **Fixed agg / vocabulary size**: sized to a known-bounded domain | `query/aggs._FACET_TERMS_SIZE` (16, ≥ the largest facet vocabulary) · `query/contributors._BOARD_SIZE` (100 leaderboard) | Bounded by the data model / product spec, not the workload; a bigger value would return buckets that can't exist. |
+| `JAVV_ENV` | `dev` | The deployment profile. `prod` or `production` changes dev conveniences into start failures. At this time, the start stops when `JAVV_SECRET_KEY` has its dev value. Set `prod` on each real deployment. |
+| `JAVV_LOG_LEVEL` | `info` | The log level: `debug`, `info`, `warning` or `error`. A different value stops the start. At `debug`, the log also shows one line for each OpenSearch request, with its method, path, status and time. The log never shows the body of a request or a reply. All lines go to one JSON stream, with the same redaction. |
+| `JAVV_SECRET_KEY` | `dev-only-secret-key` | **Secret.** The secret key of the backend. The backend hashes each ingest token and session id with it before it stores them. It also signs the download links of reports with it. **Set it to a long random string on each deployment, and keep it**. If you change it, each scanner gets 401, each user must sign in again, and each open download link stops working. The stored data cannot restore them: each scanner needs a new token. With `JAVV_ENV=production`, the dev default **stops the start**. Before 0.7.0, the name was `JAVV_TOKEN_PEPPER`. A backend that finds that name stops at start ([Upgrading](UPGRADING.md#version-notes)). |
+| `JAVV_BOOTSTRAP_ADMIN_USERNAME` | `admin` | The user name of the first admin. |
+| `JAVV_BOOTSTRAP_ADMIN_PASSWORD` | empty: no first admin | **Secret.** The password of the first admin. The backend uses it only when that admin does not exist. A later change of this value has no effect: change the password in the web app. The first admin must change the password at the first sign-in. |
 
-> **History:** `routers/findings._GROUP_FETCH_SIZE` and `routers/contributors._ROWS_FETCH_SIZE` were
-> once *un*guarded fixed 10k fetches whose truncation was a correctness bug. Audit #187 and #190
-> reworked them into the properly-paged reads now listed under **Read page size** above (composite
-> `after_key` paging and PIT + `search_after` respectively), so they're frozen page sizes now, not caps.
-> The same class of bug hit `query/pit.py` + `query/human_at.py` (`_MAX_ROWS`, a terminal 10k cap on
-> historical snapshot/replay reads, 2026-07-12 independent audit F-05/F-06): fixed in #377 by the shared
-> `search_to_exhaustion` walk; the constants were renamed `_ROW_PAGE` to say what they now are.
+### Connection to OpenSearch
 
-### CI gate parameters (audit F-14/#383): floors, not settings
-
-Dev-facing gate values, cataloged here because they look tunable and are deliberately not:
-
-| Gate | Value (where) | Rule |
+| Setting | Default | What it does |
 |---|---|---|
-| Backend coverage floor | `--cov-fail-under=90` (`.github/workflows/ci.yml`, backend job) | Measured 92.4% lines on 2026-07-15, floored at −2pts. **Floor: raise it when coverage grows, never lower it.** A PR that can't meet the floor adds tests, it doesn't move the bar. |
-| Frontend coverage floor | `thresholds.lines: 77` (`frontend/vitest.config.ts`) | Measured 79.7% lines on 2026-07-15 over the unit-testable denominator (TS logic modules; views are proven by the route smoke, `src/api/generated` is generated). Same floor rule. |
-| Smoke PIT budget | `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50` (CI smoke job env) | The §1 setting, raised for the walk only: it hops routes faster than a human and slots free themselves slower than it navigates. Not a production recommendation. |
-| Smoke seed | `backend/tests/fixtures/envelope-trivy-golden.json` via `development/scripts/seed-smoke.sh` | The golden contract fixture IS the seed: one source of truth; an ingest-contract change updates both in the same PR. It is pushed to two clusters (the second id is rewritten at seed time, no second file) so the smoke can click between them (issue 666). |
+| `JAVV_OPENSEARCH_URL` | `http://localhost:9200` | The address of OpenSearch. A URL that holds a user or a password stops the start. Examples are `https://user:pass@host`, and `user:pass@host` with no scheme, which the client reads as plain `http`. Put the credentials in the two settings below. |
+| `JAVV_OPENSEARCH_USERNAME` | empty: no sign-in | The OpenSearch user that JAVV signs in as. Set it together with the password. Leave both empty only for an OpenSearch without its security plugin. The user needs the `javv` role ([An OpenSearch of your own](DEPLOYING.md#an-opensearch-of-your-own)). Compose makes the user `javv` and sets it here. |
+| `JAVV_OPENSEARCH_PASSWORD` | empty | **Secret.** The password of that user. The backend never writes it: not in a log line, a settings error or a start error. If OpenSearch replies 401 or 403 at start, the backend stops with "OpenSearch refused the credentials…". With an `http://` URL, the credentials go in clear text. Then the backend starts with a warning and `javv_config_warnings_total{setting="JAVV_OPENSEARCH_URL"}`. |
+| `JAVV_OPENSEARCH_CA_BUNDLE` | empty: the CAs of the system and of certifi | The path to a PEM file of CA certificates, for an OpenSearch certificate from a private CA. A path with no readable file stops the start. An empty value means no file. |
+| `JAVV_OPENSEARCH_VERIFY_CERTS` | `true` | Check the certificate and the host name of OpenSearch on an `https` URL. Set `false` only for an OpenSearch that you trust for other reasons. An example is the demo certificates of OpenSearch on a network that nothing else can reach. With `false`, the backend starts with one warning and `javv_config_warnings_total{setting="JAVV_OPENSEARCH_VERIFY_CERTS"}`. `false` together with a CA bundle stops the start, because the backend would not use the bundle. |
+| `JAVV_REQUEST_TIMEOUT` | `30.0` | Seconds that the backend waits for OpenSearch to reply to a request. |
+| `JAVV_BOOTSTRAP_ON_STARTUP` | `true` | Before it serves, the backend checks OpenSearch and creates or updates its indices. If the check fails, the backend stops. Keep `true` on a deployment. With `false`, the backend checks nothing at start. Then a wrong OpenSearch password shows only later: `/readyz` replies 503, and each request to OpenSearch fails. opensearch-py logs each failure at `warning`, with the 401. |
+
+### Sign-in
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_SESSION_TTL_HOURS` | `24.0` | Hours that a sign-in lasts. The session record on the server decides. The lifetime of the cookie is only advice to the browser. |
+| `JAVV_SESSION_COOKIE_SECURE` | `true` | The `Secure` flag of the session cookie. A browser keeps a `Secure` cookie only from `https` or `localhost`. If users open JAVV over plain `http`, set `false`, or the sign-in fails at the next request. An example is a machine on a LAN with no TLS in front. Keep `true` behind each proxy that ends TLS. JAVV cannot see that proxy, so it never sets the flag itself. Sign-out clears the cookie with the same flag. |
+| `JAVV_SESSION_SWEEP_GRACE_HOURS` | `24.0` | Hours that the record of an expired session stays before the session sweep deletes it. A revoked session goes the same way after this time. An expired record cannot sign in, and it holds only a hash of the cookie. Thus a longer time costs only disk space. `0` deletes the record when it expires. Each run writes one `session_sweep_run` entry to the audit log, with its counts. |
+| `JAVV_LOGIN_MAX_ATTEMPTS` | `5` | Failed sign-ins for one user name in the window. After this number, the backend replies 429. |
+| `JAVV_LOGIN_LOCKOUT_MINUTES` | `15.0` | The window of the sign-in lock, in minutes. The backend keeps the count in its memory. |
+
+### Scanner pushes
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_INGEST_MAX_COMPRESSED_BYTES` | `10485760` (10 MiB) | The largest push on the wire. The backend counts the bytes while it reads them. |
+| `JAVV_INGEST_MAX_BODY_BYTES` | `62914560` (60 MiB) | The largest push after decompression. This limit stops a zip bomb. |
+| `JAVV_INGEST_RATE_LIMIT_PER_MINUTE` | `120` | Pushes for each token in one minute. |
+
+### Triage, search and exports
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_BULK_INLINE_LIMIT` | `5000` | A bulk triage action on this number of findings or fewer applies at once. The reply is 200 with the result, and the audit log gets one entry. Above this number, the backend replies 413. Then make the selection smaller, or use a scheduled bulk action. |
+| `JAVV_BULK_MAX_TARGETS` | `10000` | The most findings that a bulk selection can hold. A selection that matches more gets 413 ("selector too broad"). This limit bounds the memory that a bulk action uses. |
+| `JAVV_SEARCH_PIT_KEEP_ALIVE` | `2m` | How long a findings search (a point in time, PIT) stays open between two pages. Each page starts this time again. A search that the client stops using closes itself after this time. A longer time lets a client wait longer between pages. A shorter time keeps fewer searches open. |
+| `JAVV_EXPORT_MAX_ROWS` | `50000` | The most rows of an immediate ("run now") export: findings CSV and VEX, audit CSV, contributors CSV and approvals CSV. Before it reads the rows, the backend counts them. Above the limit, it replies 413. Then make the filters smaller, or use a scheduled export. The contributors CSV counts its rows only after the query. Its list holds 100 people at most, so it does not get to this limit. Scheduled exports do not use this limit. |
+| `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL` | `10` | The most searches and exports that one user or token can keep open at one time. Above this number, the backend replies 429 with `Retry-After`. The backend keeps the count in its memory. A search that the client does not close frees its slot after the keep-alive and a small margin. |
+| `JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE` | `60` | Batches of browser warnings and errors that one user can send in one minute. A batch holds 20 events at most. The browser never sends a batch again, so a 429 here loses those events without a sign. Thus the default is well above the rate of a normal session. This limit controls only the volume of the log. The shape limits of a batch are part of the API ([Fixed values](#fixed-values)). |
+
+### Scheduled exports
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_EXPORT_TTL_HOURS` | `24` | Hours that JAVV keeps a finished export. After this time, the report sweep deletes the export, and a download gets 410. **Settings › Data & OpenSearch** can change it. This value applies until you save a value there. |
+| `JAVV_EXPORT_MAX_BYTES` | `524288000` (500 MiB) | The largest single export. The report drain marks a larger export as failed. Thus one export cannot fill OpenSearch. |
+| `JAVV_REPORT_DRAIN_SLEEP_MS` | `200` | The pause between two pages of an export, in milliseconds. Thus a large export does not slow the scanner pushes. |
+| `JAVV_REPORT_LEASE_TTL_SECONDS` | `300` | Seconds that a running export or background job holds its lease. The worker writes a heartbeat. After this time with no heartbeat, the next run takes the work and counts one retry. Make this time fit `JAVV_JOB_REPORT_DRAIN_CRON`. A background job with no heartbeat for this time shows as `stale`, and a new start can take it. |
+
+### Data inspector
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_INSPECT_MAX_HITS` | `500` | The largest `size` of one search in the Data inspector. A larger request gets 422, with the reason. |
+| `JAVV_INSPECT_MAX_RESPONSE_BYTES` | `2097152` (2 MiB) | The largest reply of the Data inspector. A larger reply gets 413 ("narrow the query"). The backend also logs a warning and adds one to `javv_limit_rejections_total{limit="inspect_bytes"}`. |
+| `JAVV_INSPECT_TIMEOUT_SECONDS` | `10.0` | Seconds that a query of the Data inspector can run in OpenSearch. This time is shorter than `JAVV_REQUEST_TIMEOUT`. Thus a query in the inspector cannot hold OpenSearch for long. |
+
+### Cluster retirement
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_CLUSTER_RETIRE_AFTER_DAYS` | `45` | Days with no accepted scan before the daily sweep retires a cluster. A retired cluster is not on the cluster list, and JAVV keeps its data. `0` means never. This value must be larger than `JAVV_CLUSTER_RETIREMENT_WARN_DAYS`. The backend checks this at start. **Settings › Cluster** can change it. This value applies until you save a value there. |
+| `JAVV_CLUSTER_RETIREMENT_WARN_DAYS` | `7` | Days before the retirement when the warning banner starts and each user with `can_manage_settings` gets a notification. **Settings › Cluster** can change it. This value applies until you save a value there. |
+
+### Background jobs
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_SCHEDULER_ENABLED` | `true` | The backend runs its background jobs itself. Thus a deployment is one backend container and one frontend container, with no CronJob for a job. `false` stops all the schedules and keeps the values below. You can still run a job by hand (`python -m backend.jobs.<name>`), or from the Data inspector. |
+| `JAVV_JOB_REPORT_DRAIN_CRON` | `*/5 * * * *` | When the report drain runs. It builds the queued exports and bulk actions. When several jobs are due, this job starts first. |
+| `JAVV_JOB_REPORT_SWEEP_CRON` | `15 * * * *` | When the report sweep runs. It deletes expired exports, old failures and their remaining chunks. |
+| `JAVV_JOB_STALENESS_SWEEP_CRON` | `0 2 * * *` | When the staleness sweep runs. It marks findings stale on the two [staleness](#staleness) timers. It also opens findings again when their risk acceptance expires. |
+| `JAVV_JOB_LIFECYCLE_SWEEP_CRON` | `0 3 * * *` | When the lifecycle sweep runs. It starts new history indices (rollover), and it deletes the indices that are older than the [retention](#retention-and-rollover) of each cluster. |
+| `JAVV_JOB_FINDINGS_CLEANUP_CRON` | `0 4 * * *` | When the findings cleanup runs. It deletes rows of the `findings` cache that no scan found for longer than the [cleanup window](#findings-cleanup). |
+| `JAVV_JOB_CLUSTER_RETIREMENT_CRON` | `15 4 * * *` | When the retirement sweep runs. It retires the clusters that sent no scan for longer than their [window](#cluster-retirement-window). It returns the clusters that scan again. It also deletes the rows that arrived after the deletion of their cluster. |
+| `JAVV_JOB_SESSION_SWEEP_CRON` | `30 4 * * *` | When the session sweep runs. It deletes the sessions that expired longer ago than `JAVV_SESSION_SWEEP_GRACE_HOURS`. |
+
+### Job schedules and the time zone
+
+Each `JAVV_JOB_<KIND>_CRON` is a cron expression with five fields: minute, hour, day of month,
+month and day of week. The backend does not accept shortcuts such as `@daily`. An empty value
+means that the job never runs on a schedule. An expression that is not valid stops the start,
+and the error names the setting.
+
+- One job runs at a time. When several jobs are due, the report drain starts first.
+- A job does not run because the backend started. Each job waits for its next scheduled time.
+- A restart can stop a job before it ends. That job runs again when its lease becomes stale
+  (`JAVV_REPORT_LEASE_TTL_SECONDS`).
+- `rebuild_state` has no schedule. You run it only by hand.
+
+The backend reads the expressions in its local time zone. It finds the zone in this sequence:
+
+1. the `TZ` environment variable, for example `TZ=Europe/Bucharest`
+2. the zone that `/etc/localtime` links to
+3. UTC.
+
+A `TZ` name that the zone database does not know also gives UTC, and the backend still starts.
+The log line `scheduler started` shows the zone that the backend uses, in `zone` and `zone_source`
+(`TZ`, `system` or `default`). Examine that line after you change `TZ`.
+
+A container has no zone of its own. Thus set `TZ` if `0 3 * * *` must mean 03:00 local time.
+Backends that use the same OpenSearch must use the same zone.
+
+When the clock goes back one hour, a local time that occurs two times runs one time. When the
+clock goes forward, a local time that does not exist runs at the first time after the gap. Thus
+a daily job runs on each day.
+
+### The javv chart
+
+The `javv` chart sets each backend setting under `backend.config`, by its environment name and at
+its default. To change one, use `--set backend.config.<NAME>=<value>` or your values file. The
+secrets are not in `backend.config`. These values are not settings of the backend:
+
+| Value | Default | What it does |
+|---|---|---|
+| `secrets.existingSecret` | `""` | **Secret.** A Secret with the keys `secret-key` (`JAVV_SECRET_KEY`) and `bootstrap-admin-password` (`JAVV_BOOTSTRAP_ADMIN_PASSWORD`). Or set `secrets.secretKey` and `secrets.bootstrapAdminPassword`, and the chart puts them in a Secret. Without them, the install fails. The chart never makes a secret key. |
+| `opensearch.passwordSecret.name` / `.key` | `""` / `password` | **Secret.** The Secret with the password of `javv` (`JAVV_OPENSEARCH_PASSWORD`). Use the backend Secret of the `javv-opensearch` chart, never the admin password. Without it, the install fails. |
+| `opensearch.caSecret.name` / `.key` | `""` / `ca.crt` | A Secret with the CA of the OpenSearch certificate. When you set it, the chart mounts it at `/etc/javv/opensearch-ca/`. The chart then sets `JAVV_OPENSEARCH_CA_BUNDLE` to it and `JAVV_OPENSEARCH_VERIFY_CERTS` to `true`. These are the only settings that the chart calculates. |
+| `backend.startupProbe` | `GET /healthz`, each 10 s, 30 tries | 300 s for the first start, which is ten `JAVV_REQUEST_TIMEOUT` periods. The backend creates or updates the indices before it opens its port. |
+| `backend.readinessProbe` / `livenessProbe` | `GET /readyz` each 10 s / `GET /healthz` each 20 s, 3 failures each | While OpenSearch is unreachable, the Service sends no requests to the backend. It restarts the backend only when the backend itself does not reply. |
+| `frontend.config` | `JAVV_BACKEND_URL` empty (the backend Service of the chart), `JAVV_BACKEND_CONNECT_TIMEOUT` `5`, `JAVV_LOG_LEVEL` `info` | The [frontend server settings](#frontend-server-settings). |
+| `frontend.replicas` / `frontend.service.type` / `.port` | `1` / `ClusterIP` / `8080` | The Service that browsers and scanners use. The chart makes no Ingress. |
+
+The backend runs as one replica with `strategy: Recreate`. No value changes this.
+
+## Scanner settings
+
+Each scanner runs as a CronJob in a cluster that you scan. It keeps no state from one cycle to the
+next. The scanner checks each value that you set when it starts. A value that is not valid stops
+the scanner with exit code 2, and the error names the setting. Examples are an unknown scanner
+name, a URL with no scheme, a cluster id with a bad shape and an unknown flag. A setting that you
+do not set always has the default in the table.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_SCANNER` | `trivy` | The scanner that this pod runs: `trivy` or `grype`. Each image sets it in its `ENV`. A different value stops the scanner with exit code 2. |
+| `JAVV_LOG_LEVEL` | `info` | The log level, as for the backend. At `info`, the log shows the progress of each image (`scanning image`, then `scan done` with the findings and the time) and a summary of the cycle. At `warning`, it shows the skipped images and the dead-letter entries. The line for a skipped image has `reason` (`scanner_exit`, `timeout` or `error`), `exit_code` and `scanner_stderr`. `scanner_stderr` holds the last 5 lines of the error output of the scanner, 1000 characters at most. The `cycle complete` line gives `discovered`, `scanned` and `scan_failed`. Each line has `scanner`, `cluster_id` and `scan_run_id`. |
+| `JAVV_BACKEND_URL` | `http://localhost:8000` | The JAVV address that the scanner pushes to. |
+| `JAVV_TOKEN` | not set | **Secret.** The ingest token, with the `push:findings` scope. You must set it. At the start of a cycle, the scanner gets its scan scope from JAVV. Without a token, that request gets 401, and the scanner skips the cycle. |
+| `JAVV_CLUSTER_ID` | the UID of `kube-system` | The id of the cluster in JAVV: the UID of the `kube-system` namespace, which never changes. JAVV never uses the cluster name for this. When you set it, the scanner compares it with the UID of the cluster that it connected to. If the two are different, the scanner stops the cycle with exit code 2. |
+| `JAVV_KUBE_CONTEXT` | the current context | Only outside a cluster: the kubeconfig context to scan. Inside a cluster, the scanner ignores it. When you do not set it, the scanner uses the current context. For this reason, `JAVV_CLUSTER_ID` can check the cluster. |
+| `JAVV_DEAD_LETTER` | `<scanner>.dead-letter.jsonl`. The images set `/var/lib/javv/<scanner>.dead-letter.jsonl`. | The file for the images whose scan failed. The scanner writes the failure there and continues with the next image. |
+
+### Files that the scanner writes
+
+The published scanner images run as a user that is not root, `65532:65532`. The entrypoint is
+`python -m scanner`, from the virtual environment of the project. The process writes to three
+places only. Thus the root file system can be read-only.
+
+| Path | Set by | What it holds |
+|---|---|---|
+| `/var/cache/javv/<scanner>` | `TRIVY_CACHE_DIR` or `GRYPE_DB_CACHE_DIR`, in the `ENV` of the image | The cache of the vulnerability database. The `javv-scanner` chart mounts a volume for each scanner at `/var/cache/javv`. |
+| `/var/lib/javv` | `JAVV_DEAD_LETTER`, in the `ENV` of the image | The dead-letter file. |
+| `/tmp` | the scanners | The image layers that a scan pulls. |
+
+You can change each path for each CronJob. User 65532 must be able to write to each path that you
+mount. Outside a cluster, user 65532 must also be able to read the kubeconfig that you mount.
+
+### Scan scope, scan settings and versions
+
+- **Scan scope** (the namespaces, images and kinds to scan) is a
+  [runtime setting](#scan-scope). At the start of each cycle, the scanner gets the scope from JAVV
+  (`GET /api/v1/scan-scope`). The scanner never reads OpenSearch. If JAVV does not reply, the
+  scanner skips the cycle. An empty scope means: scan all.
+- **Scan settings** (the [Trivy](#trivy-settings) and [Grype](#grype-settings) tables) are
+  environment variables only. The web app shows them on the card of each scanner, but it cannot
+  change them. Each push holds the scan settings and the scope of its cycle, and JAVV keeps them
+  with the scan.
+- **Versions** of the scanners and of their databases come from the image. To change a version,
+  change the image tag. The web app shows the version and has no control to select one.
+
+### The javv-scanner chart
+
+The `javv-scanner` chart runs one CronJob for each scanner in a cluster that you scan. Each scanner
+block (`trivy`, `grype`) has its own image, token, schedule, database source and cache. Each block
+also has `config`: its settings from the [Trivy](#trivy-settings) or [Grype](#grype-settings) table
+and `JAVV_LOG_LEVEL`, by environment name, at their defaults. An empty value means not set.
+`scanner/tests/test_helm_config.py` keeps them equal to the code. The other values:
+
+| Value | Default | What it does |
+|---|---|---|
+| `backendUrl` | `""` | `JAVV_BACKEND_URL`: the frontend Service of JAVV, at the address that this cluster uses for it. Without it, the install fails. |
+| `clusterId` | `""` | `JAVV_CLUSTER_ID`. When it is empty, the scanners read the UID of `kube-system`. |
+| `<scanner>.token.existingSecret` / `.key` / `.value` | `""` / `token` / `""` | **Secret.** `JAVV_TOKEN`: the Secret of that scanner, or a value that the chart puts in a Secret. Without it, the install fails. |
+| `<scanner>.schedule` | `0 */6 * * *` (Trivy), `30 */6 * * *` (Grype) | When a cycle starts. `timeZone` sets the zone. |
+| `<scanner>.activeDeadlineSeconds` | `19800` | Kubernetes stops a cycle that runs for longer than 5 h 30 min. The CronJob does not start a cycle while one of its own cycles runs (`Forbid`). It does not count a Job that you make by hand: the `NOTES` of the chart give the safe sequence. A stopped cycle does not run again before the next schedule. |
+| `<scanner>.image.tag` / `.digest` / `.pullPolicy` | `scanners.<s>.current` in `versions.yaml` / `""` / `Always` | The scanner version. `check-versions.sh` keeps the tag equal to `versions.yaml`. JAVV publishes the tag again when it changes the image for that version, thus `Always`. A digest runs one exact build. The chart of a release sets each digest to the build that its tag named at the release, with a verified signature. The chart in the repository has no digest. |
+| `trivy.vulnDb.repository` / `.javaRepository` | `""` | `TRIVY_DB_REPOSITORY` / `TRIVY_JAVA_DB_REPOSITORY` for the refresh. Empty means the source of Trivy: `mirror.gcr.io/aquasec/trivy-db:2`, then `ghcr.io/aquasecurity/trivy-db:2`. The Java database works the same way. |
+| `grype.vulnDb.updateUrl` | `""` | `GRYPE_DB_UPDATE_URL` for the refresh. Empty means the source of Grype (`https://grype.anchore.io/databases`). |
+| `<scanner>.vulnDb.size` / `.storageClass` / `.existingClaim` | `10Gi` / `""` / `""` | The cache volume of the scanner, `ReadWriteOnce`. In October 2026, the two Trivy databases used 2.9 GB, and the Grype database used 3.0 GB. |
+
+### The database refresh
+
+Each cycle starts with an init container on the image of the scanner. This container refreshes
+the database in the cache volume. Then the scan runs with the update switches of the vendor off:
+`TRIVY_SKIP_DB_UPDATE`, `TRIVY_SKIP_JAVA_DB_UPDATE`, `TRIVY_SKIP_CHECK_UPDATE` and
+`GRYPE_DB_AUTO_UPDATE=false`. The chart sets them. Thus a cycle reads one database and does not
+connect to the vendor during the scan.
+
+- If the refresh fails, the scan uses the database in the cache. With no database in the cache,
+  the cycle fails.
+- The refresh checks the database with a lookup. If the scanner cannot read the database, the
+  refresh deletes it and downloads it one more time. If that also fails, the cycle fails.
+- Trivy gets two lookups, because a damaged Java database does not fail a scan. Trivy skips each
+  jar that it cannot look up, and exits with 0. Thus its lookup must find a known CVE in a jar
+  that only the Java database can name.
+- Grype refuses a database older than 5 days. To change this, set
+  `GRYPE_DB_MAX_ALLOWED_BUILT_AGE` in `extraEnv`.
+- Misconfiguration scans (`JAVV_TRIVY_SCANNERS` with `misconfig`) use the checks in the Trivy
+  binary. Thus they also do not connect to the vendor during the scan.
+- The install runs the same refresh one time, as a Job. This Job also binds the volume. An upgrade
+  runs it again when the refresh container changes: the image, the database source, `extraEnv`,
+  `resources` or `pullPolicy`.
+
+## Trivy settings
+
+The scanner reads these environment variables. Set them on the CronJob of the scanner, or in
+`trivy.config` of the `javv-scanner` chart. A setting that you do not set has the default in the
+table. The output format stays `json`, because the parser of JAVV needs it.
+
+The scanner checks each value against the values that the pinned Trivy binary accepts:
+
+- scanners: `vuln`, `misconfig`, `secret`, `license`
+- severities: `UNKNOWN`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`
+- package types: `os`, `library`
+- timeout: a Go duration.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_TRIVY_SCANNERS` | `vuln` | `--scanners`, for example `vuln,secret,misconfig`. |
+| `JAVV_TRIVY_IGNORE_UNFIXED` | `false` | Adds `--ignore-unfixed`. |
+| `JAVV_TRIVY_SEVERITIES` | not set: all | `--severity`, for example `CRITICAL,HIGH`. |
+| `JAVV_TRIVY_PKG_TYPES` | not set | `--pkg-types`, for example `os,library`. |
+| `JAVV_TRIVY_TIMEOUT` | not set: the Trivy default | `--timeout`, for example `5m0s`. |
+| **Trivy version** | `0.75.0` | `scanners.trivy.current` in `versions.yaml`, and the `ARG` in the Dockerfile. To change it, use a different image tag. |
+| **Vulnerability database** | schema 2 | `versions.yaml` holds the schema. A database with a different schema fails with a clear error. The `javv-scanner` chart refreshes the database at the start of each cycle. Without the chart, Trivy refreshes it at scan time. Each push holds the database version, from `trivy version --format json` in each cycle. |
+
+## Grype settings
+
+The scanner reads these environment variables. Set them on the CronJob of the scanner, or in
+`grype.config` of the `javv-scanner` chart. A setting that you do not set has the default in the
+table. The output format stays `json`, because the parser of JAVV needs it.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_GRYPE_ONLY_FIXED` | `false` | Adds `--only-fixed`. |
+| `JAVV_GRYPE_SCOPE` | not set: the Grype default | `--scope`: `squashed`, `all-layers` or `deep-squashed`. The scanner checks the value. |
+| `JAVV_GRYPE_SCAN_TIMEOUT` | `600` | Seconds before the scanner stops one Grype scan. Grype has no flag for a scan time limit. A value that is not a whole number stops the scanner with a clear error. |
+| **Grype version** | `0.120.1` | `scanners.grype.current` in `versions.yaml`, and the `ARG` in the Dockerfile. To change it, use a different image tag. |
+| **Vulnerability database** | schema 6, from Grype 0.88.0 | `versions.yaml` holds the schema. The `javv-scanner` chart refreshes the database at the start of each cycle. Without the chart, Grype refreshes it at scan time. |
+
+## Frontend settings
+
+### Frontend server settings
+
+The frontend image runs a small Node server. The server sends the web app to the browser, and
+sends the requests to `/api`, `/auth` and `/readyz` on to the backend. Thus the browser uses one
+address. The server reads these settings when its container starts. A restart applies a change,
+with no new build.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `JAVV_BACKEND_URL` | `http://backend:8000` | The address of the backend, as the frontend container sees it: a compose service name, a Kubernetes Service or an IP address. `http` or `https`. When nothing replies there, the server replies 502 with the error envelope. The web app shows this as "backend down". |
+| `JAVV_BACKEND_CONNECT_TIMEOUT` | `5` | Seconds that a connection to the backend can take to open. For an `https` backend, this time includes the TLS handshake. After this time, the reply is the same 502, and the warning line gives `reason: connect timeout`. The server measures only the opening. It never stops a slow reply, for example an export. Kubernetes refuses a connection at once when a Service has no ready pod. But an address whose pod stopped, and that is still in the Service, does not reply. Without this time, the request would wait with no end. A value that is not a number of seconds above 0 stops the server at start. |
+| `JAVV_FRONTEND_PORT` | `8080` | The port that the server listens on in its container. |
+| `JAVV_LOG_LEVEL` | `info` | The log level of the server: `debug`, `info`, `warning` or `error`. An unknown name stops the server at start, as in the backend. |
+
+### Frontend build settings
+
+These settings apply only when you build the frontend image yourself. Vite writes them into the web
+app at build time. To change one, build the image again. A published image has the defaults.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `VITE_LOG_LEVEL` | `debug` in a dev build, `warn` in a production build | The level of the logger in the browser console: `debug`, `info`, `warn` or `error`. An unknown value gives the default. |
+| `VITE_DB_AGE_WARN_DAYS` | `7` | Days after which the scanner card shows the vulnerability database as old: amber `· N days old` next to **DB built**. A scanner with an old database finds fewer vulnerabilities. To fix it, use a newer scanner image. A value that is not a number above 0 gives the default. |
+| `VITE_EXPIRY_WARN_DAYS` | `7` | Days before a risk acceptance expires when its chip in the Approvals queue turns amber: `expires in Nd`. At the expiry, the chip turns red, and the findings of the acceptance open again. A value that is not a number above 0 gives the default. |
+| `VITE_CLIENT_EVENTS` | not set: on in a production build, off in a dev build | When it is on, the browser also sends each `logger.warn` and `logger.error` to `POST /api/v1/client-events`. Thus an error stays in the log after the user closes the tab. `false` or `0` turns it off. Each other value turns it on. See the [browser warnings](#browser-warnings-and-errors) below. |
+
+#### Browser warnings and errors
+
+The browser sends its warnings and errors in batches, and it accepts some loss:
+
+- The browser never sends a batch again.
+- The queue holds one batch of 20 events. The browser sends it each 5 seconds, and also when the
+  tab closes or goes to the background. Thus a flood of errors loses events, but it does not go
+  above `JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE`. A 429 would also lose the events.
+- When a window loses events, its next batch starts with a `beacon events dropped` entry, with the
+  count. Thus a gap in the log shows as a flood, not as a quiet session.
+- That count includes only the events lost in a flood. The browser drops an event that it cannot
+  send, for example an event with a bad name, without a count. Otherwise a fault in one call
+  would report a new flood each time that screen opens.
+- The browser cuts each field value to 512 characters, the limit of the endpoint. Thus one long
+  value cannot cause a 422 for its batch. A cut value ends in `…`. A value of 512 characters or
+  fewer arrives with no change.
+
+## OpenSearch settings
+
+These settings belong to OpenSearch. The compose file and the `javv-opensearch` chart set them.
+When you operate your own OpenSearch, you set them. `datastore.opensearch` in
+[`versions.yaml`](../versions.yaml) gives the version that JAVV supports.
+
+| Setting | Compose value | What it does | With your own OpenSearch |
+|---|---|---|---|
+| image | `opensearchproject/opensearch:3.9.0` | The OpenSearch version, from `versions.yaml`. | Use the same version. CI tests JAVV with it. |
+| `discovery.type` | `single-node` | One node. | Your choice. CI tests JAVV with one node. |
+| Security plugin | on, with the demo certificates of OpenSearch | Sign-in and TLS for OpenSearch. | On, with your own certificates. Set `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD` and `JAVV_OPENSEARCH_CA_BUNDLE` ([Connection to OpenSearch](#connection-to-opensearch)). |
+| `plugins.security.audit.type` | `noop` | The audit log of OpenSearch. With the demo security setup, it writes a new `security-auditlog-<date>` index each day. JAVV turns off index state management, so nothing deletes these indices. JAVV keeps its own audit log in `system-audit-log`. | Your choice. JAVV does not read it. |
+| `OPENSEARCH_INITIAL_ADMIN_PASSWORD` | from `JAVV_OPENSEARCH_ADMIN_PASSWORD` in `.env` | **Secret.** The password of `admin`, which the demo security setup makes at the first start with security on. The backend never gets it: it signs in as `javv`. OpenSearch ignores later changes of this value ([Change an OpenSearch password](UPGRADING.md#change-an-opensearch-password)). A weak password stops the container. | Not used. |
+| `OPENSEARCH_JAVV_PASSWORD` | from `JAVV_OPENSEARCH_PASSWORD` in `.env` | **Secret.** The password of `javv`, the user that the backend signs in as. The `opensearch` entrypoint of compose hashes it into the users file with `hash.sh` of OpenSearch. An empty password stops the container. OpenSearch reads it at its first start with security on, as for `admin`. | Not used. |
+| Users | `admin` and `javv` | Who can sign in to OpenSearch. The demo security setup loads each user in `config/opensearch-security/internal_users.yml` of the image. Six of these users have their own name as password, and no setting turns them off. The `opensearch` entrypoint of compose keeps only `_meta` and `admin` in that file, and adds `javv`. OpenSearch reads the file at its first start with security on. The demo admin certificate in the image (`kirk.pem`) also has full access, with no password. | Your users. JAVV signs in as `JAVV_OPENSEARCH_USERNAME`. |
+| Roles and role mapping | the `javv` role, `admin` on `all_access`, `javv` on `javv` | What each user can do. Compose mounts its own `roles.yml` and `roles_mapping.yml` in place of the demo files. OpenSearch reads them at its first start with security on. [Upgrading](UPGRADING.md) tells you how to load them into an older OpenSearch. | Make the `javv` role from [An OpenSearch of your own](DEPLOYING.md#an-opensearch-of-your-own). |
+| `OPENSEARCH_JAVA_OPTS` | `-Xms1g -Xmx1g` | The JVM heap. | Size it for each node ([Sizing OpenSearch](runbooks/opensearch-sizing.md)). |
+| `path.repo` | `/usr/share/opensearch/data/snapshots` | The root of the file system snapshot repository. **Settings › Data & OpenSearch** makes its snapshots there. | An S3 or MinIO repository. Its credentials go in the keystore. |
+| Snapshot repository credentials | none | **Secret.** The access key and the secret key of an S3 repository. | Only in the OpenSearch keystore, never in a JAVV setting. |
+
+### The javv-opensearch chart
+
+The `javv-opensearch` chart runs the same OpenSearch settings as compose, as values of the
+official chart under `opensearch:`. The keys of JAVV are under `opensearch.javv`. A wrapper chart
+cannot calculate the values of its subchart, so these keys are at a place that both charts can
+read. The [chart README](../deploy/helm/javv-opensearch/README.md) gives the full list, with the
+keys of the official chart that this chart sets.
+
+| Value | Default | What it does |
+|---|---|---|
+| `opensearch.javv.auth.existingSecret` | `""` | **Secret.** A Secret with the admin password under `password`. Set this value or `password`. With neither or both, the install fails. |
+| `opensearch.javv.auth.password` | `""` | **Secret.** The admin password. The chart puts it in the Secret `<release>-javv-opensearch-admin`. OpenSearch reads it at its first start only. |
+| `opensearch.javv.backend.existingSecret` | `""` | **Secret.** A Secret with the password of `javv` under `password`. `javv` is the user that the backend of JAVV signs in as, and it holds only the `javv` role. Set this value or `password`. With neither or both, the install fails. |
+| `opensearch.javv.backend.password` | `""` | **Secret.** The password of `javv`. The chart puts it in the Secret `<release>-javv-opensearch-backend`, which `opensearch.passwordSecret` of the `javv` chart names. OpenSearch reads it at its first start only. |
+| `opensearch.javv.tls.existingSecret` | `""` | A Secret with `tls.crt`, `tls.key` (PKCS#8) and `ca.crt`. It turns off the demo certificates. |
+| `opensearch.javv.tls.certManager.enabled` / `.issuerRef` | `false` / `{}` | A cert-manager `Certificate` for the Service, in `<release>-javv-opensearch-tls`. It turns off the demo certificates. |
+| `opensearch.javv.tls.adminDn` | `[]` | The DNs of the client certificates that can run `securityadmin.sh` with your own certificates. |
+| `opensearch.singleNode` | `true` | One node. With `false`, the install fails. |
+| `opensearch.image.tag` | `datastore.opensearch` in `versions.yaml` | The tag of the OpenSearch image. `check-versions.sh` keeps it equal to `versions.yaml`. |
+
+## Runtime settings
+
+JAVV keeps these settings as data in OpenSearch, in the `system-config` index. You change them in
+the web app or with the API, while JAVV runs. You do not need a new build or a restart. Each
+change writes an entry to the audit log. A per-cluster value replaces the fleet value for that
+cluster.
+
+| Setting | Default | Scope | Where in the web app | Permission to change it |
+|---|---|---|---|---|
+| [Snapshots](#snapshots) | no repository | fleet | **Settings › Data & OpenSearch** | `can_manage_retention`. A restore needs `can_restore_snapshot`. |
+| [Retention and rollover](#retention-and-rollover) | 90 days. Rollover at 30 days, 5,000,000 documents or 50 GB. | fleet and per cluster | **Settings › Data & OpenSearch** | `can_manage_retention` |
+| [Export lifetime](#export-lifetime) | `JAVV_EXPORT_TTL_HOURS` (24 hours) | fleet | **Settings › Data & OpenSearch** | `can_manage_retention` |
+| [Findings cleanup](#findings-cleanup) | 180 days | fleet and per cluster | **Settings › Data & OpenSearch** | `can_manage_retention` |
+| [Staleness](#staleness) | 3 days and 7 days | fleet and per cluster | **Settings › Scanning** | `can_manage_settings` |
+| [Cluster retirement window](#cluster-retirement-window) | `JAVV_CLUSTER_RETIRE_AFTER_DAYS` (45 days), warning `JAVV_CLUSTER_RETIREMENT_WARN_DAYS` (7 days) | fleet and per cluster | **Settings › Cluster** | `can_manage_settings` |
+| [SLA policy](#sla-policy) | critical 2, high 7, medium 30, low 90 days. KEV 1 day. | fleet | **Settings › SLA policy** | `can_manage_settings` |
+| [Scan scope](#scan-scope) | empty: scan all | per cluster | **Settings › Scan scope** | `can_manage_settings` |
+| [Ingest tokens](#ingest-tokens) | none | per cluster and scanner | **Settings › Access & tokens** | `can_manage_tokens` |
+| [Users and roles](#users-and-roles) | the first admin, four roles | fleet | **Settings › Users & roles** | `can_manage_users` |
+
+### Snapshots
+
+- `GET /api/v1/admin/snapshots` lists the snapshots, and `POST /api/v1/admin/snapshots` makes one.
+- `POST /api/v1/admin/snapshots/{name}/restore` restores a snapshot into `restored-*` copies. It
+  never writes over the live indices.
+- You register the snapshot repository when you deploy, with its credentials in the keystore of
+  OpenSearch. The `system-config` document `snapshot_repo` holds its name, with no credentials.
+- JAVV does not make scheduled snapshots yet
+  ([issue 664](https://github.com/Danube-Labs/javv-poc/issues/664)).
+
+### Retention and rollover
+
+- **Retention** (`retention_days`) is the number of days that JAVV keeps history. The daily
+  lifecycle sweep deletes each history index that is older than the retention of its cluster. It
+  deletes complete indices only, never single documents.
+- **Rollover** starts a new history index when the current index gets to one limit:
+  `max_age_days`, `max_docs` or `max_size_gb`.
+- The history indices are `javv-scan-events`, `javv-images`, `javv-finding-occurrences`,
+  `javv-inventory-runs` and `javv-ingest-failures`. The records of failed pushes thus have the same
+  retention.
+- The fleet value is the `lifecycle` document. A `lifecycle:<cluster_id>` document replaces it for
+  one cluster. The sweep reads them at each run.
+- API: `PUT /api/v1/settings/retention` and `PUT /api/v1/settings/rollover`.
+- Command line:
+  `python -m backend.jobs.lifecycle --set-max-age-days N --set-max-docs N --set-max-size-gb N --set-retention-days N [--cluster <id>]`.
+
+### Export lifetime
+
+- The hours that JAVV keeps a finished export: the `report_ttl` document. Until you save a value,
+  JAVV uses `JAVV_EXPORT_TTL_HOURS`.
+- The report drain writes the expiry time on each export. The report sweep deletes the failed
+  exports that are older than this time.
+- API: `PUT /api/v1/settings/report-ttl`.
+
+### Findings cleanup
+
+- `cleanup_days`: the cleanup deletes each row of the `findings` cache that is not present
+  (`present=false`) and whose `resolved_at` is older than this window. It also deletes the scan
+  watermarks of an image with no rows left.
+- The fleet value is the `findings_cleanup` document. A `findings_cleanup:<cluster_id>` document
+  replaces it for one cluster. The cleanup runs for each cluster with its own window, and reads
+  the window at each run.
+- The cleanup never changes the history indices. Its window is independent of the staleness timers
+  and of the retention, and much longer than both.
+- The backend runs it on `JAVV_JOB_FINDINGS_CLEANUP_CRON`. You can also run it by hand:
+  `python -m backend.jobs.findings_cleanup`.
+- Each run writes its counts to the audit log (`findings_cleanup_run`).
+- API: `PUT /api/v1/settings/findings-cleanup`.
+
+### Staleness
+
+- The two timers of the daily staleness sweep: `freshness_days` (3) and `scanner_down_days` (7).
+  The sweep reads them at each run.
+- The fleet value is the `staleness` document. A `staleness:<cluster_id>` document replaces it for
+  one cluster.
+- API: `PUT /api/v1/settings/staleness`.
+- Command line:
+  `python -m backend.jobs.staleness --set-freshness-days N --set-scanner-down-days M [--cluster <id>]`.
+
+### Cluster retirement window
+
+- `retire_after_days`: the days that a cluster can go with no accepted scan. After this time, the
+  retirement sweep retires the cluster. `null` means never. `warn_days`: the days of warning before
+  the retirement.
+- The fleet value is the `retirement` document. A `retirement:<cluster_id>` document replaces it
+  for one cluster. Until you save a fleet value, JAVV uses `JAVV_CLUSTER_RETIRE_AFTER_DAYS` and
+  `JAVV_CLUSTER_RETIREMENT_WARN_DAYS`.
+- A retired cluster is not on the cluster list. JAVV keeps its data and does not change its
+  tokens. Its next scan returns it.
+- A retirement by hand revokes the tokens of the cluster. The cluster returns when it sends a scan
+  with a new token, or when you return it by hand.
+- JAVV refuses a window that is not longer than the scanner-down timer of the cluster
+  ([Staleness](#staleness)), with 422. The sweep never uses a window shorter than that timer. Thus
+  an outage that is only long enough to make findings stale never retires a cluster.
+- The silence starts at the newest accepted scan. For a cluster that never sent a scan, it starts
+  when JAVV made its first token. When a cluster returns from retirement, JAVV writes `returned_at`
+  on the record, and the silence starts again from that time. Thus the next sweep does not retire
+  the cluster again at once.
+- Sometimes clusters are due, but no cluster had a scan accepted within its scanner-down timer.
+  Then the sweep retires nothing and logs a warning (`javv_cluster_retirement_held_total`). This
+  points at JAVV, not at the clusters.
+- When a cluster enters its last `warn_days`, the sweep sends one notification for each silence to
+  each user with `can_manage_settings` (`cluster_retiring`, in the bell). The web app also shows a
+  banner with the count of days. A change of these settings does not send or delete a
+  notification. JAVV deletes the notification when the cluster scans again, or when a return from
+  retirement starts a new silence. A retired cluster keeps its notification.
+- The sweep never retires the only cluster on the list. That cluster gets no notification, and
+  the banner says that JAVV does not retire it automatically.
+- The backend runs the sweep on `JAVV_JOB_CLUSTER_RETIREMENT_CRON`. The same run also looks at
+  deleted clusters for rows that arrived after their deletion.
+- API: `GET /api/v1/settings/retirement` (each signed-in user) and
+  `PUT /api/v1/settings/retirement`. The audit log entry is `retirement_window_change`.
+
+### SLA policy
+
+- The days to fix a finding, for each severity: critical 2, high 7, medium 30, low 90. A finding
+  in the KEV catalog has `kev_days`, 1 day. `negligible` and `unknown` have no SLA.
+- The `sla` document holds the policy, for all clusters.
+- JAVV calculates "overdue" when it reads. The clock starts at the earliest `first_seen_at` for
+  each CVE and image. A new package version does not start the clock again.
+- API: `GET /api/v1/settings/sla` (each signed-in user or token) and `PUT /api/v1/settings/sla`.
+  The audit log keeps the full old and new policy.
+
+### Scan scope
+
+- The namespaces, images and kinds that the scanners of one cluster scan: the
+  `scan_scope:<cluster_id>` document.
+- The scanner gets it at the start of each cycle with `GET /api/v1/scan-scope`
+  ([Scanner settings](#scan-scope-scan-settings-and-versions)).
+
+### Ingest tokens
+
+- `POST /api/v1/admin/tokens` makes a token, and `GET /api/v1/admin/tokens` lists the tokens.
+  `/{id}/rotate` and `/{id}/revoke` rotate and revoke one. The lists use pages (`size`, `offset`).
+- JAVV shows the raw token one time only.
+- A new token can have an expiry. A rotation keeps the same expiry: a rotation does not extend a
+  token.
+- Command line: `python -m backend.core.tokens --cluster <id> --scanner <trivy|grype>`.
+
+### Users and roles
+
+- `POST /api/v1/admin/users` makes a user, and `GET /api/v1/admin/users` lists the users.
+  `PATCH /api/v1/admin/users/{u}/role`, `PATCH /api/v1/admin/users/{u}/disabled` and
+  `POST /api/v1/admin/users/{u}/password-reset` change one.
+- A new user, and a user after a password reset, gets a temporary password and must change it.
+- A role change sets the role and its capabilities together, and ends the sessions of the user. A
+  user that you disable also loses the sessions.
+- You cannot demote or disable the last enabled admin: the reply is 409.
+- The roles are documents in `system-roles`: `viewer`, `triager`, `security_lead` and `admin`
+  (all capabilities). JAVV makes them at the first start and never writes them again. To change a
+  role, edit its document. The web app shows the four roles, but cannot change them.
+- Each user has a role and a copy of the capabilities of that role, in `system-users`.
+
+## Fixed values
+
+Some values in the code never change. They are not `JAVV_*` settings and not runtime settings. A
+setting for them would add work for operators. Also, a wrong value would hide a bug, not change a
+workload.
+
+To decide, ask this question: does an operator have a reason to change the value for their
+workload? If yes, the value is a setting. If the only reason is "a bug makes us get to the limit",
+the value stays in the code: fix the bug. For example, the bulk limit is a setting
+(`JAVV_BULK_MAX_TARGETS`), but the page size of a bulk selection (`_FREEZE_PAGE`) stays in the code.
+
+| Kind | Values | Why they are not settings |
+|---|---|---|
+| **Scheduler tick:** how frequently the backend looks for a due job | `jobs/scheduler.TICK_SECONDS` (30 s) | A schedule is a minute or longer, so two looks each minute never miss one. A shorter tick gives nothing. A longer tick can start a job late. The schedules themselves are settings (`JAVV_JOB_<KIND>_CRON`). |
+| **Queue order:** the due job that starts first | `jobs/schedule.FIRST_IN_QUEUE` (`report_drain`), then the order of `jobs/registry.JOBS` | A person waits for an export. Nobody waits for a sweep. |
+| **Scanner error text in the log:** how much of the error output of a failed scan one log line holds | `scanner/run.STDERR_TAIL_LINES` (5), `STDERR_TAIL_CHARS` (1000) | These values bound one log line. The scanner writes its final error last. JAVV does not keep the full output of the scanner. |
+| **Read page size:** the reader reads in pages, so this value is a batch size, not a limit on results | `decisions/reproject._PAGE` (10k), `triage/bulk._FREEZE_PAGE` (10k), `services/disagreement._SEARCH_PAGE` (10k), `jobs/rebuild_state._PAGE` (1k), `export/sweep._PAGE_SIZE` (500), `routers/findings._GROUP_CLOCK_PAGE` (1k), `routers/contributors._ROWS_PAGE_SIZE` (10k), `query/pit._ROW_PAGE` (10k), `query/human_at._ROW_PAGE` (10k), and the row walks of `jobs/rebuild_state` and `jobs/staleness` (10k). All `search_after` walks use `query/paging.search_to_exhaustion`. | Each value is at or below the `from`/`size` limit of OpenSearch, 10k. A sweep uses a smaller value to keep its memory constant. The caller reads pages until there are no more, so each value gives complete results. A value changes only the number of round trips and the memory. |
+| **Conflict retries:** a guard against a loop, not a dial | `decisions/reproject._CONFLICT_RETRIES` (8), `services/reconcile._CONFLICT_RETRIES` (10), `services/merge._CONFLICT_RETRIES` (10), `decisions/lifecycle._CAS_RETRIES` (8), `triage/service._CAS_RETRIES` (8), `services/scan_orders._CAS_RETRIES` (32), `services/watermarks._CAS_RETRIES` (32) | Real contention is about 1: one CronJob for each scanner, with `Forbid`. A run that gets to the limit shows a fault to examine. A larger limit would hide the fault. The two values of 10 guard the same commit race from the two sides. They wait longer after each retry with `repositories/bulk.race_backoff_delay`: from 0.02 s to 2 s, about 8.5 s in total. This total is longer than the `_bulk` backoff of a racing pass, 7.5 s at most. |
+| **Shape of a client-events request:** the contract of the API, not a dial | `routers/client_events._MAX_BATCH` (20), `_MAX_KEYS_PER_OBJECT` (25), `_MAX_DEPTH` (3), `_MAX_KEY_CHARS` (64), `_MAX_VALUE_CHARS` (512), `_MAX_LIST_ITEMS` (20), `_EVENT_NAME` (`^[a-z0-9][a-z0-9 ._-]{0,63}$`) | These values are the OpenAPI schema. They are in the generated client, so a change is a contract change for the backend and the frontend. As settings, they would make a 422 depend on the deployment. The input comes from the browser and is not trusted, so the check of value types is an allowlist. The name pattern accepts spaces, as in `backend degraded`. It refuses newlines, tabs, quotes and control characters, which could break the `client.<name>` name. The rate limit for each user is a setting (`JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE`). |
+| **Password length:** the rule for each local password | `auth/passwords.MIN_LENGTH` (12), `MAX_LENGTH` (256). The frontend has a copy in `frontend/src/stores/auth.ts`: `PASSWORD_MIN_LENGTH` and `PASSWORD_MAX_LENGTH`. | A security minimum, not a dial. The password form shows the minimum and refuses a shorter password before it sends it, so the frontend keeps a copy. `password-change.spec.ts` reads the backend file and fails when the two are different. The server makes the decision. |
+| **Fixed aggregation sizes:** sized to a domain with a known limit | `query/aggs._FACET_TERMS_SIZE` (16, at least the largest facet vocabulary), `query/contributors._BOARD_SIZE` (100 people on the leaderboard) | The data model and the product set these limits, not the workload. A larger value would ask for buckets that cannot exist. |
+
+## CI gate values
+
+These values belong to the CI of JAVV. They look like settings, but they are not.
+
+| Gate | Value and place | Rule |
+|---|---|---|
+| Backend coverage minimum | `--cov-fail-under=90`, in the backend job of `.github/workflows/ci.yml` | On 2026-07-15, the line coverage was 92.4%. The minimum is 2 points below. **Increase the minimum when coverage increases. Never decrease it.** A PR that does not meet the minimum adds tests. It does not move the minimum. |
+| Frontend coverage minimum | `thresholds.lines: 77`, in `frontend/vitest.config.ts` | On 2026-07-15, the line coverage was 79.7%. The count includes the TypeScript logic modules only. The route smoke test covers the views, and the build generates `src/api/generated`. The same rule applies. |
+| Smoke search limit | `JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50`, in the env of the CI smoke job | The [backend setting](#triage-search-and-exports), larger for the smoke test only. The test opens pages faster than a person, and slots become free slower than it opens pages. Do not use this value in production. |
+| Smoke data | `backend/tests/fixtures/envelope-trivy-golden.json`, through `development/scripts/seed-smoke.sh` | The golden fixture of the contract is the seed. Thus there is one source of truth. A change of the ingest contract changes both in the same PR. The script pushes it to two clusters, with the second cluster id changed at seed time. Thus the smoke test can go from one cluster to the other. |
