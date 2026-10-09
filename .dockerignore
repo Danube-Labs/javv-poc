@@ -5,6 +5,7 @@
 !frontend/
 !libs/
 !scanner/
+!NOTICE
 
 # a local env file would be baked into an image (Vite reads frontend/.env* at build)
 **/.env
