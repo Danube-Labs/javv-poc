@@ -66,7 +66,7 @@ re-bootstrap; `test_logging_discipline.py` build-bans `print()`/`getLogger()` in
 |---|---|
 | **`docs/engineering/`** | **CANONICAL design.** `PLAN` (decisions D1-D47, data model, M0-M10) · `SPEC` (FR/NFR) · `ARCHITECTURE` (layers, Mermaid) · `INDEX-MAP` (every index + mapping - **read before touching any index**) · `FLOW-EXAMPLE` (worked ingest/query/time-travel) · `AUDIT-RESPONSE` (external-audit fixes, rounds 1-4) · `AUDIT` (2nd audit + resolutions) · `UPGRADES` (how a rollout runs the index bootstrap, rollback, what the Helm chart must do) |
 | **`docs/API.md`** | The shipped HTTP surface at a glance: all routes, 3 auth regimes, capability column (sourced from the RBAC registry), error tables. **Route change → update it in the same PR** (DoD §6) |
-| **`docs/CONFIGURATION.md`** | Every configuration setting: default, tier, UI-controllability. **New setting → same PR** |
+| **`docs/CONFIGURATION.md`** | Every configuration setting: its default, what it does, where you set it. **New setting → same PR** |
 | **`docs/DEPLOYING.md`** | The operator deploy guide: the three containers, docker compose on one machine (http or https, what is exposed, settings, data), pointing scanners at it, known limits |
 | **`docs/UPGRADING.md`** | The operator upgrade runbook: before, order (backend → frontend → scanners), how to check what's running, rollback, per-release version notes |
 | **`docs/runbooks/`** | Operator runbooks, published on the docs site: `opensearch-sizing.md` (what grows, the shard limit, heap, disk) and `multi-pod.md` (scaling and failures: what the charts run, why one backend is the only supported setup, how each part recovers) |

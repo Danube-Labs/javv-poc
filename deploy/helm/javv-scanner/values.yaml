@@ -1,63 +1,68 @@
-# JAVV's scanners for one monitored cluster (issue 725, slice 3). Install it in every cluster JAVV
-# should scan; JAVV itself (the javv chart) can run anywhere the scanners reach over HTTP. Each
-# scanner is its own CronJob with its own token, settings and vuln-DB cache: Trivy and Grype are
-# never merged. Guide: docs/DEPLOYING.md, "Point scanners at it".
+# JAVV's scanners for one monitored cluster. Install it in every cluster JAVV should scan; JAVV
+# itself (the javv chart) can run anywhere the scanners reach over HTTP. Each scanner is its own
+# CronJob with its own token, settings and vuln-DB cache: Trivy and Grype are never merged. Guide:
+# docs/DEPLOYING.md, "Connect the scanners".
 
-# -- JAVV's address as the scanners reach it: the javv chart's frontend Service, or whatever you
-# put in front of it (`http://javv.javv.svc:8080` in the same cluster, `https://javv.example.com`
-# from another). Required.
+# -- The address of JAVV, as the scanners reach it: the frontend Service of the javv chart, or
+# what you put in front of it. Examples: `http://javv.javv.svc:8080` in the same cluster, and
+# `https://javv.example.com` from a different cluster. You must set it.
 backendUrl: ""
 
-# -- This cluster's id in JAVV. Empty: the scanners read it (the `kube-system` namespace UID). Set,
-# it is asserted: a cycle that reaches a different cluster stops without scanning (issue 470).
+# -- The id of this cluster in JAVV. When it is empty, the scanners read the UID of the
+# `kube-system` namespace. When you set it, the scanners verify it: a cycle that reaches a
+# different cluster stops, and does not scan.
 clusterId: ""
 
 trivy:
   # -- Run the Trivy CronJob.
   enabled: true
-  # -- When a cycle starts, in the CronJob's time zone. Every 6 hours keeps each finding well inside
-  # JAVV's 3-day staleness window; Grype runs half an hour later so their downloads don't overlap.
+  # -- When a cycle starts, in the time zone of the CronJob. A cycle each 6 hours keeps each
+  # finding well inside the 3-day staleness window of JAVV. Grype runs half an hour later, so the
+  # two downloads do not occur at the same time.
   schedule: "0 */6 * * *"
-  # -- The zone `schedule` is read in (`Europe/Bucharest`); empty is the cluster's, UTC on most.
+  # -- The time zone of `schedule`, for example `Europe/Bucharest`. When it is empty, the zone of
+  # the cluster applies, which is UTC on most clusters.
   timeZone: ""
-  # -- A cycle still running after this many seconds is stopped. With one cycle at a time, a hung
-  # one would otherwise hold back every later one.
+  # -- Kubernetes stops a cycle that runs for longer than this number of seconds. Only one cycle
+  # runs at a time, so a cycle that does not end would stop each later cycle.
   activeDeadlineSeconds: 19800
 
   image:
     repository: ghcr.io/danube-labs/javv-scanner-trivy
-    # -- The Trivy version, from versions.yaml (`scanners.trivy.current`). The tag moves when JAVV
-    # republishes the image for that version, so it is pulled on every run.
+    # -- The Trivy version, from versions.yaml (`scanners.trivy.current`). JAVV publishes the tag
+    # again when it changes the image for that version. Thus each run pulls the image.
     tag: "0.75.0"  # versions.yaml scanners.trivy.current
-    # -- `sha256:...`: run exactly that image; it wins over `tag`. Empty in the repository; the
-    # chart a release publishes sets it to the digest the tag named at the release.
+    # -- `sha256:...`: run exactly that image. It replaces `tag`. It is empty in the repository.
+    # The chart of a release sets it to the digest that the tag named at the release.
     digest: ""
     pullPolicy: Always
 
-  # -- The ingest token JAVV minted for this cluster and Trivy (Settings, Access & tokens). Name a
-  # Secret that holds it under `key`, or give `value` and the chart puts it in a Secret.
+  # -- The ingest token that JAVV made for this cluster and Trivy (Settings › Access & tokens).
+  # Give a Secret that holds it under `key`. Or give `value`, and the chart puts it in a Secret.
   token:
     existingSecret: ""
     key: token
     value: ""
 
   vulnDb:
-    # -- Where the vulnerability DB comes from (`--db-repository`, OCI repositories in order).
-    # Empty: Trivy's own, `mirror.gcr.io/aquasec/trivy-db:2` then `ghcr.io/aquasecurity/trivy-db:2`.
+    # -- The source of the vulnerability database (`--db-repository`, OCI repositories in sequence).
+    # When it is empty, Trivy uses `mirror.gcr.io/aquasec/trivy-db:2`, then
+    # `ghcr.io/aquasecurity/trivy-db:2`.
     repository: ""
-    # -- Where the Java index DB comes from (`--java-db-repository`). Empty: Trivy's own,
-    # `mirror.gcr.io/aquasec/trivy-java-db:1` then `ghcr.io/aquasecurity/trivy-java-db:1`.
+    # -- The source of the Java index database (`--java-db-repository`). When it is empty, Trivy
+    # uses `mirror.gcr.io/aquasec/trivy-java-db:1`, then `ghcr.io/aquasecurity/trivy-java-db:1`.
     javaRepository: ""
-    # -- The cache volume. Trivy's two DBs took 2.9 GB in October 2026; the size leaves room for
-    # them to grow.
+    # -- The cache volume. In October 2026, the two Trivy databases used 2.9 GB. This size gives
+    # them space to grow.
     size: 10Gi
-    # -- Empty: the cluster's default StorageClass.
+    # -- When it is empty, the default StorageClass of the cluster applies.
     storageClass: ""
-    # -- A PersistentVolumeClaim of your own; the chart then makes none.
+    # -- Your own PersistentVolumeClaim. The chart then makes no claim.
     existingClaim: ""
 
-  # -- Trivy's scan settings (docs/CONFIGURATION.md §3), at their defaults; empty means unset.
-  # @default -- every setting at its code default; the list is in values.yaml
+  # -- The scan settings of Trivy (docs/CONFIGURATION.md, "Trivy settings"), at their defaults.
+  # An empty value means not set.
+  # @default -- every setting at its code default. values.yaml has the list.
   config:
     # debug | info | warning | error
     JAVV_LOG_LEVEL: "info"
@@ -72,7 +77,7 @@ trivy:
     # one image's scan limit (5m0s); empty is Trivy's default
     JAVV_TRIVY_TIMEOUT: ""
 
-  # -- More environment variables for the refresh and the scan, in Kubernetes' own form.
+  # -- More environment variables for the refresh and the scan, in the form of Kubernetes.
   extraEnv: []
   resources: {}
   nodeSelector: {}
@@ -85,44 +90,46 @@ trivy:
 grype:
   # -- Run the Grype CronJob.
   enabled: true
-  # -- When a cycle starts, in the CronJob's time zone.
+  # -- When a cycle starts, in the time zone of the CronJob.
   schedule: "30 */6 * * *"
-  # -- The zone `schedule` is read in; empty is the cluster's, UTC on most.
+  # -- The time zone of `schedule`. When it is empty, the zone of the cluster applies, which is
+  # UTC on most clusters.
   timeZone: ""
-  # -- A cycle still running after this many seconds is stopped.
+  # -- Kubernetes stops a cycle that runs for longer than this number of seconds.
   activeDeadlineSeconds: 19800
 
   image:
     repository: ghcr.io/danube-labs/javv-scanner-grype
-    # -- The Grype version, from versions.yaml (`scanners.grype.current`). The tag moves when JAVV
-    # republishes the image for that version, so it is pulled on every run.
+    # -- The Grype version, from versions.yaml (`scanners.grype.current`). JAVV publishes the tag
+    # again when it changes the image for that version. Thus each run pulls the image.
     tag: "0.120.1"  # versions.yaml scanners.grype.current
-    # -- `sha256:...`: run exactly that image; it wins over `tag`. Empty in the repository; the
-    # chart a release publishes sets it to the digest the tag named at the release.
+    # -- `sha256:...`: run exactly that image. It replaces `tag`. It is empty in the repository.
+    # The chart of a release sets it to the digest that the tag named at the release.
     digest: ""
     pullPolicy: Always
 
-  # -- The ingest token JAVV minted for this cluster and Grype. Name a Secret that holds it under
-  # `key`, or give `value` and the chart puts it in a Secret.
+  # -- The ingest token that JAVV made for this cluster and Grype. Give a Secret that holds it
+  # under `key`. Or give `value`, and the chart puts it in a Secret.
   token:
     existingSecret: ""
     key: token
     value: ""
 
   vulnDb:
-    # -- Where the vulnerability DB comes from (`GRYPE_DB_UPDATE_URL`, the listing of DB builds).
-    # Empty: Grype's own, `https://grype.anchore.io/databases`.
+    # -- The source of the vulnerability database (`GRYPE_DB_UPDATE_URL`, the list of database
+    # builds). When it is empty, Grype uses `https://grype.anchore.io/databases`.
     updateUrl: ""
-    # -- The cache volume. Grype's DB took 3.0 GB in October 2026; the size leaves room for them
-    # to grow.
+    # -- The cache volume. In October 2026, the Grype database used 3.0 GB. This size gives it
+    # space to grow.
     size: 10Gi
-    # -- Empty: the cluster's default StorageClass.
+    # -- When it is empty, the default StorageClass of the cluster applies.
     storageClass: ""
-    # -- A PersistentVolumeClaim of your own; the chart then makes none.
+    # -- Your own PersistentVolumeClaim. The chart then makes no claim.
     existingClaim: ""
 
-  # -- Grype's scan settings (docs/CONFIGURATION.md §4), at their defaults; empty means unset.
-  # @default -- every setting at its code default; the list is in values.yaml
+  # -- The scan settings of Grype (docs/CONFIGURATION.md, "Grype settings"), at their defaults.
+  # An empty value means not set.
+  # @default -- every setting at its code default. values.yaml has the list.
   config:
     # debug | info | warning | error
     JAVV_LOG_LEVEL: "info"
@@ -133,7 +140,7 @@ grype:
     # seconds before one image's scan is stopped
     JAVV_GRYPE_SCAN_TIMEOUT: "600"
 
-  # -- More environment variables for the refresh and the scan, in Kubernetes' own form.
+  # -- More environment variables for the refresh and the scan, in the form of Kubernetes.
   extraEnv: []
   resources: {}
   nodeSelector: {}
@@ -143,8 +150,8 @@ grype:
   podLabels: {}
   podAnnotations: {}
 
-# -- Both scanners run as the images' own user, with a read-only root; they write only the vuln-DB
-# cache, the dead-letter file and /tmp (issue 632).
+# -- Both scanners run as the user of their images, with a read-only root. They write only to the
+# database cache, the dead-letter file and /tmp.
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 65532

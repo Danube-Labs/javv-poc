@@ -307,7 +307,7 @@ network. Each pair of a cluster and a scanner has its own token.
     ```
     `helm test` verifies that JAVV replies at that address, and that it accepts each token. Without
     Kubernetes, run the scanner image with `JAVV_BACKEND_URL`, `JAVV_TOKEN` and `JAVV_CLUSTER_ID`
-    ([`CONFIGURATION.md` §2](CONFIGURATION.md)).
+    ([Scanner settings](CONFIGURATION.md#scanner-settings)).
 
 The first push shows in **Scanner status**. Its findings show when the scan is complete.
 
@@ -495,7 +495,7 @@ with `javv-role.json`:
 ```
 
 Then set `JAVV_OPENSEARCH_USERNAME=javv` and `JAVV_OPENSEARCH_PASSWORD`
-([`CONFIGURATION.md` §1](CONFIGURATION.md)). For snapshots, you must register a repository
+([Connection to OpenSearch](CONFIGURATION.md#connection-to-opensearch)). For snapshots, you must register a repository
 (`PUT _snapshot/<name>`, with its credentials in the keystore of OpenSearch). The JAVV role cannot
 do this.
 
@@ -532,7 +532,7 @@ admin does not exist.
   required setting). Thus 0.6.0 has no images and no charts. Use the release after it.
 - **An OpenSearch of your own with its security plugin on** works from the 0.6 releases. Set
   `JAVV_OPENSEARCH_URL` to its address. Set `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`
-  and, for a private CA, `JAVV_OPENSEARCH_CA_BUNDLE` ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
+  and, for a private CA, `JAVV_OPENSEARCH_CA_BUNDLE` ([Connection to OpenSearch](CONFIGURATION.md#connection-to-opensearch)).
   The user needs the `javv` role ([An OpenSearch of your own](#an-opensearch-of-your-own)).
 - **The OpenSearch of the compose file uses demo certificates** (see
   [Ports and access](#ports-and-access)). For your own certificates, operate your own OpenSearch,
@@ -542,7 +542,7 @@ admin does not exist.
   front of JAVV, there is no switch yet
   ([issue 719](https://github.com/Danube-Labs/javv-poc/issues/719)).
 - **The build of the frontend image sets the `VITE_*` settings**
-  ([`CONFIGURATION.md` §2b](CONFIGURATION.md)). You cannot change them later. A published image has
+  ([Frontend build settings](CONFIGURATION.md#frontend-build-settings)). You cannot change them later. A published image has
   their default values.
 - **TLS is your work.** JAVV serves plain http. Put `https` in front of it with the tools that you
   already operate, and keep the session cookie `Secure`.

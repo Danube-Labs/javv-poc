@@ -30,7 +30,7 @@ and the app **degrades loudly, not blindly** when its datastore is unavailable.
   is the ONLY pipeline (leveled, structured, `timestamp→level→event` lines shaped like backend.log);
   raw `console.*` in app code is **ESLint-banned** (the FE "never `print()`"), with the logger module
   as the single sanctioned touchpoint. Threshold via `VITE_LOG_LEVEL` (build-time; `debug` dev /
-  `warn` prod — see `docs/CONFIGURATION.md` §2b). The never-log list applies unchanged: no tokens,
+  `warn` prod — see `docs/CONFIGURATION.md`, "Frontend build settings"). The never-log list applies unchanged: no tokens,
   no cookie values, no raw response bodies — shapes/sizes/ids.
 - **Frontend server (issue 452):** the frontend container's Node process (`frontend/server/`) logs
   through `server/log.mjs` only: JSON lines to stdout in the backend's shape and level names,

@@ -769,7 +769,7 @@ lists are drawn elsewhere.
   the timezone the schedules are read in, and says so when the scheduler is switched off.
 - **Schedule cell:** the cron expression the operator set, not rewritten in words; `by hand only`
   for a runnable job with none (Rebuild state), `switched off` for a scheduled-only job with none.
-  Not editable here: schedules belong to the deployment (`docs/CONFIGURATION.md` §1).
+  Not editable here: schedules belong to the deployment (`docs/CONFIGURATION.md`, "Background jobs").
 - **Status chip** (the kit's dot-and-word chip, on every row): `on schedule` (ok), `late` (warn),
   `failed` (down), `not run yet`, `scheduler off` and `not scheduled` (muted). `late` means the job
   missed a whole scheduled run (docs/API.md, `health`).

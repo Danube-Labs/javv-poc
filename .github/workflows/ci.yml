@@ -233,7 +233,7 @@ jobs:
         # tests' sessions (broke main 2026-07-07). A plain local `pytest` runs everything serially.
         # Coverage floor (#383): 92.4% lines measured 2026-07-15, floored at −2pts on the
         # parallel pass (the serial pass adds a sliver — the floor stays conservative).
-        # Raise when coverage grows, never lower (docs/CONFIGURATION.md §8).
+        # Raise when coverage grows, never lower (docs/CONFIGURATION.md, "CI gate values").
         run: |
           uv run pytest -n 2 -m "not serial" --cov=src/backend --cov-fail-under=90
           uv run pytest -m serial

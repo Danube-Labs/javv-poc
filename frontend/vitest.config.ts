@@ -19,7 +19,7 @@ export default mergeConfig(
         include: ['src/**/*.ts', 'server/**/*.mjs'],
         exclude: ['src/api/generated/**', 'src/main.ts'],
         // the #383 coverage floor: 79.7% lines measured 2026-07-15, floored at −2pts.
-        // Raise when coverage grows, never lower (docs/CONFIGURATION.md §8).
+        // Raise when coverage grows, never lower (docs/CONFIGURATION.md, "CI gate values").
         thresholds: { lines: 77 },
       },
     },

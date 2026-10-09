@@ -29,11 +29,11 @@ Both images run as `65532:65532` with `python -m scanner` (the project venv) as 
 write only to the vuln-DB cache (`/var/cache/javv/<scanner>`), the dead-letter file (`/var/lib/javv`) and
 `/tmp`. So they run with a read-only root filesystem (issue 632). Mounts there must be writable by that
 UID; a kubeconfig mounted for an out-of-cluster run must be readable by it. Paths and overrides:
-[`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md) §2.
+[`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md), "Scanner settings".
 
 Scan tuning (`JAVV_TRIVY_*`: severities, scanners, package types, ignore-unfixed, timeout;
 `JAVV_GRYPE_*`: only-fixed, scope, scan timeout) and every default are in
-[`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md) §2–§4. Unset means the pinned default command; a
+[`docs/CONFIGURATION.md`](../docs/CONFIGURATION.md), "Scanner settings" to "Grype settings". Unset means the pinned default command; a
 garbage value exits 2 at startup.
 
 ### What one cycle asks the backend first

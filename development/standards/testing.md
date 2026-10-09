@@ -88,7 +88,7 @@ backend stdout to `development/e2e/logs/backend.log` for it). Selectors and logi
   warn-only screenshots and flips to gating when a responsive pass lands.
 - **Determinism rules:** event-based waits only in the gate (no arbitrary sleeps beyond the
   route-settle pacing); deep interactions (dialogs, forced states, drafts) stay in the rig, out of
-  the gate; the walk's PIT-budget env raise is documented in `docs/CONFIGURATION.md` §8.
+  the gate; the walk's PIT-budget env raise is documented in `docs/CONFIGURATION.md`, "CI gate values".
 
 ## Conventions
 - **Deterministic:** freeze time; no calls to real registries/vuln-DBs; seed any randomness.
