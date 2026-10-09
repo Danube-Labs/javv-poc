@@ -9,6 +9,7 @@ links to other files, nor that the tree publishes only operator files. These tes
 - every relative link in a published page reaches a published file;
 - the supported-versions page includes README's table, which check-versions.sh keeps in step;
 - CI builds the site strict and checks the theme's files were written and blocks render;
+- a release publishes its docs as its `major.minor` version and as `latest`;
 - no published page carries an em dash;
 - the publish workflow runs for every published file.
 """
@@ -178,6 +179,24 @@ def test_published_pages_carry_no_em_dash(page: str) -> None:
     lines = (ROOT / page).read_text().splitlines()
     found = [n for n, line in enumerate(lines, 1) if "\u2014" in line]
     assert not found, f"{page} has an em dash on lines {found}"
+
+
+def test_the_release_publishes_its_docs_as_its_version_and_latest() -> None:
+    job = _workflow("release-please.yml")["jobs"]["publish-docs"]
+    # only a created release, and only once its charts are out: `latest` names an installable one
+    assert job["if"] == "needs.release-please.outputs.release_created == 'true'"
+    assert "publish-charts" in job["needs"]
+    checkout = next(s for s in job["steps"] if s.get("uses", "").startswith("actions/checkout@"))
+    assert checkout["with"]["ref"] == "${{ needs.release-please.outputs.tag_name }}"
+    runs = " ".join(" ".join(s.get("run", "").split()) for s in job["steps"]).replace("\\ ", "")
+    assert 'minor="${VERSION%.*}"' in runs
+    assert (
+        "mike deploy --config-file docs-site/mkdocs.yml --push --update-aliases"
+        ' --alias-type=redirect "$minor" latest'
+    ) in runs
+    assert "mike set-default --config-file docs-site/mkdocs.yml --push latest" in runs
+    # docs.yml pushes the same branch: one job at a time
+    assert job["concurrency"]["group"] == _workflow("docs.yml")["concurrency"]["group"]
 
 
 def test_the_publish_workflow_runs_for_every_published_file() -> None:

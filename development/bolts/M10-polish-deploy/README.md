@@ -51,7 +51,8 @@ Everything in [`standards/definition-of-done.md`](../../standards/definition-of-
   run by CI's `helm-app` job). The `_reindex` runbook (D25) moved to the hardening phase (2026-09-29).
 - ~~VEX export accepted by `trivy --vex` / `grype` in an integration check~~ **dropped (2026-10-09):** neither
   scanner applies the export today; issue 791 (after 1.0).
-- The docs site builds with `--strict` in CI, and each release publishes its numbered docs version.
+- The docs site builds with `--strict` in CI, and each release publishes its numbered docs version
+  (the `publish-docs` job in `release-please.yml`; `test_docs_site.py`).
 
 ## Tests to write
 See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bolt needs:
@@ -79,6 +80,19 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > **Never `print()`, never `logging.getLogger()`, never a private logging setup.**
 
 ## Updates
+- **2026-10-09: M10 closes with 0.7.0 (issue 41).** What shipped after the rulings below:
+  - #792: the root `NOTICE`, and the trivy and grype license files in the scanner images.
+  - #793: the operator docs site, built by Zensical from the repository, `dev` published from
+    `main`.
+  - #794: the sizing and scaling runbooks as pages of the site.
+  - #795: the site's fixes (the mermaid diagram, readable tables, a dark theme, no em dashes), and
+    `JAVV_TOKEN_PEPPER` renamed `JAVV_SECRET_KEY`, with the 0.7.0 upgrade steps in
+    `docs/UPGRADING.md`. A deployment that still sets the old name stops at start.
+  - The last PR: each release publishes its docs as its `major.minor` version and as `latest`, which
+    the site opens on. Shown first on a scratch clone: `/` redirects to `latest/`, and `latest/`
+    to `0.7/`.
+  - **After 0.7.0, not in this bolt:** the operator docs in strict STE without internal references
+    (issue 796, operator ruling: 0.7.0 does not wait for it), then the first bug hunt (issue 790).
 - **2026-10-09: what is left of M10 (operator rulings on issue 41):**
   - **Prometheus alert rules: dropped.** `/metrics` stays as it is; operators who scrape it build
     their own alerts. The JAVV UI already shows scanner freshness, failed ingests and retiring
