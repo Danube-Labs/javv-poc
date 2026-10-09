@@ -1021,69 +1021,73 @@
 
 
 <h1 id="scaling-and-failures">Scaling and failures<a class="headerlink" href="#scaling-and-failures" title="Permanent link">&para;</a></h1>
-<p>JAVV runs as <strong>one backend, one frontend and one OpenSearch node</strong>. That is what the compose file
-and the charts install, what CI tests, and the only setup JAVV supports. This page says why, and
-how each part recovers when it fails.</p>
+<p>This page tells you how many copies of each part of JAVV run, and why. It also tells you how each
+part recovers when it fails.</p>
+<p>JAVV runs as <strong>one backend, one frontend and one OpenSearch node</strong>. The compose file and the charts
+install this setup. CI tests this setup. JAVV supports only this setup.</p>
 <h2 id="what-the-charts-run">What the charts run<a class="headerlink" href="#what-the-charts-run" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
 <th>Part</th>
 <th>Copies</th>
-<th>Can you change it?</th>
+<th>Can you change the number?</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Backend (<code>javv</code> chart)</td>
 <td>1, with <code>strategy: Recreate</code></td>
-<td><strong>No.</strong> The chart refuses a <code>backend.replicas</code> value. More than one backend is untested and unsupported</td>
+<td><strong>No.</strong> The chart refuses a <code>backend.replicas</code> value. Nobody tested more than one backend, and JAVV does not support it.</td>
 </tr>
 <tr>
 <td>Frontend (<code>javv</code> chart)</td>
 <td><code>frontend.replicas</code>, 1 by default</td>
-<td>The chart accepts more, since the frontend holds no state, but only one has been tested</td>
+<td>The chart accepts more than one, because the frontend keeps no state. Nobody tested more than one.</td>
 </tr>
 <tr>
 <td>OpenSearch (<code>javv-opensearch</code> chart, compose)</td>
 <td>1 node</td>
-<td><strong>No.</strong> The chart refuses any other setting. For more nodes, run an OpenSearch of your own</td>
+<td><strong>No.</strong> The chart refuses all other values. For more nodes, use an OpenSearch that you operate.</td>
 </tr>
 <tr>
-<td>Scanners (<code>javv-scanner</code> chart, per monitored cluster)</td>
-<td>one CronJob per scanner, one cycle at a time (<code>concurrencyPolicy: Forbid</code>)</td>
+<td>Scanners (<code>javv-scanner</code> chart, in each cluster that you scan)</td>
+<td>One CronJob for each scanner. Only one cycle runs at a time (<code>concurrencyPolicy: Forbid</code>).</td>
 <td>No</td>
 </tr>
 </tbody>
 </table>
 <h2 id="why-one-backend">Why one backend<a class="headerlink" href="#why-one-backend" title="Permanent link">&para;</a></h2>
-<p>The backend runs JAVV's background jobs itself, on schedules (<code>JAVV_JOB_*_CRON</code> in
-<a href="../../CONFIGURATION/">Configuration</a>): staleness, lifecycle, findings cleanup, cluster retirement,
-report drain and sweep, and session sweep. There are no CronJobs for them and no second container,
-so the backend is a single process by design.</p>
-<p>A rolling update would briefly run two backends, so the Deployment uses <code>Recreate</code>: the old pod
-stops before the new one starts. An upgrade therefore has a short gap while the new backend
-starts:</p>
+<p>The backend runs the background jobs of JAVV on schedules. The schedules are the <code>JAVV_JOB_*_CRON</code>
+settings in <a href="../../CONFIGURATION/">Configuration</a>. The jobs are staleness, lifecycle, findings
+cleanup, cluster retirement, report drain, report sweep and session sweep. No CronJob and no second
+container runs these jobs. Thus the backend is one process.</p>
+<p>A rolling update can run two backends for a short time. To prevent this, the Deployment uses
+<code>Recreate</code>: Kubernetes stops the old pod before it starts the new pod. During an upgrade, there is
+a short time when no backend runs:</p>
 <ul>
-<li>browsers show a banner that the backend can't be reached, which clears when it answers again;</li>
-<li>scanner pushes in that gap are retried with backoff, and a push whose retries run out is kept in
-  the scanner's dead-letter file and scanned again next cycle.</li>
+<li>The browsers show a banner that tells you that the backend is not available. The banner goes
+  away when the backend replies again.</li>
+<li>The scanners try each push again, with a longer wait each time. When all tries fail, a scanner
+  keeps the push in its dead-letter file. In its next cycle, it scans the image again.</li>
 </ul>
 <h2 id="failures-and-recovery">Failures and recovery<a class="headerlink" href="#failures-and-recovery" title="Permanent link">&para;</a></h2>
-<p>JAVV adds no high-availability layer of its own. Each part is a single copy that Kubernetes or
-docker compose restarts when it fails:</p>
+<p>JAVV has no high-availability layer of its own. Each part is one copy. Kubernetes or docker compose
+starts the part again when it fails.</p>
 <ul>
-<li><strong>The backend</strong> exits at start if OpenSearch is unreachable, and its restart policy brings it
-  back until the store answers. While OpenSearch is down it reports not ready (<code>/readyz</code>), so its
-  Service stops sending it requests without restarting it.</li>
-<li><strong>The frontend</strong> holds no state; a restarted one serves again at once. A scanner push it was
-  forwarding when it stopped is retried.</li>
-<li><strong>OpenSearch</strong> keeps its data on its volume; a restart reloads it. A store that survives losing a
-  node needs more nodes and replica shards: an OpenSearch of your own, which JAVV connects to with
-  no change. See <a href="../../DEPLOYING/#an-opensearch-of-your-own">Deploying: an OpenSearch of your own</a>
-  and <a href="../opensearch-sizing/">Sizing OpenSearch</a>.</li>
-<li><strong>Backups</strong> are taken by hand today, in <strong>Settings › Data &amp; OpenSearch › Snapshots</strong>; scheduled
-  snapshots are planned.</li>
+<li><strong>The backend</strong> stops at start when it cannot connect to OpenSearch. Its restart policy starts it
+  again until OpenSearch replies. When OpenSearch stops, the backend reports that it is not ready
+  (<code>/readyz</code>). Then its Service stops sending requests to it, and nothing restarts it.</li>
+<li><strong>The frontend</strong> keeps no state. A new frontend is ready immediately. When a frontend stops during
+  a scanner push, the scanner sends that push again.</li>
+<li><strong>OpenSearch</strong> keeps its data on its volume. When OpenSearch starts again, it reads the data
+  again. To keep the data available when a node fails, you need more nodes and replica shards. For
+  this, use an OpenSearch that you operate. JAVV connects to it with no change. See
+  <a href="../../DEPLOYING/#an-opensearch-of-your-own">Deploying: an OpenSearch of your own</a> and
+  <a href="../opensearch-sizing/">Sizing OpenSearch</a>.</li>
+<li><strong>Backups:</strong> make a snapshot manually in <strong>Settings › Data &amp; OpenSearch › Snapshots</strong>. JAVV does
+  not make scheduled snapshots yet
+  (<a href="https://github.com/Danube-Labs/javv-poc/issues/664">issue 664</a>).</li>
 </ul>
 
 

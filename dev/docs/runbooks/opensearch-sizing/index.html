@@ -599,10 +599,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-takes-the-space" class="md-nav__link">
+  <a href="#calculate-the-size-of-the-history" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        What takes the space
+        Calculate the size of the history
       </span>
     </span>
   </a>
@@ -610,10 +610,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-first-limit-shards" class="md-nav__link">
+  <a href="#check-the-shard-count" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        The first limit: shards
+        Check the shard count
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#make-space-for-more-shards" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Make space for more shards
       </span>
     </span>
   </a>
@@ -990,10 +1001,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-takes-the-space" class="md-nav__link">
+  <a href="#calculate-the-size-of-the-history" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        What takes the space
+        Calculate the size of the history
       </span>
     </span>
   </a>
@@ -1001,10 +1012,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-first-limit-shards" class="md-nav__link">
+  <a href="#check-the-shard-count" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        The first limit: shards
+        Check the shard count
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#make-space-for-more-shards" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Make space for more shards
       </span>
     </span>
   </a>
@@ -1065,107 +1087,144 @@
 
 
 <h1 id="sizing-opensearch">Sizing OpenSearch<a class="headerlink" href="#sizing-opensearch" title="Permanent link">&para;</a></h1>
-<p>JAVV keeps everything in one OpenSearch: the scanners' results, their history, and every triage
-decision. This page says what grows, which limit you meet first, how to see where you are, and
-what to change. The figures marked <em>measured</em> come from one development install with 4 clusters
-and about 1.7 million documents, on OpenSearch 3.9.0 with a 1 GB heap.</p>
-<h2 id="what-takes-the-space">What takes the space<a class="headerlink" href="#what-takes-the-space" title="Permanent link">&para;</a></h2>
-<p>Every scan writes a full snapshot of what it found: one document per finding, per image, per
-scanner, per scan cycle. That history is what time travel reads, and it is almost all of the
-store.</p>
+<p>This page tells you how much shard space, memory and disk OpenSearch needs for your clusters. It
+also tells you which limit you get to first, and what to change when you get near a limit.</p>
+<p>JAVV keeps all of its data in one OpenSearch: the scan results, their history, and each triage
+decision. The figures marked <em>measured</em> come from one development install: 4 clusters, about 1.7
+million documents, OpenSearch 3.9.0 and a 1 GB heap.</p>
+<h2 id="calculate-the-size-of-the-history">Calculate the size of the history<a class="headerlink" href="#calculate-the-size-of-the-history" title="Permanent link">&para;</a></h2>
+<p>Each scan writes a full copy of what it found. JAVV writes one document for each finding, for each
+image, for each scanner and for each scan cycle. Time travel reads this history. The history is
+almost all of the data in OpenSearch.</p>
 <table>
 <thead>
 <tr>
 <th>Index</th>
-<th>What it holds</th>
+<th>Contents</th>
 <th>Measured</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>javv-finding-occurrences-&lt;cluster&gt;-*</code></td>
-<td>the history: one document per finding per scan</td>
+<td>The history: one document for each finding in each scan</td>
 <td>1.54 M documents, 436 MB, about <strong>280 bytes each</strong></td>
 </tr>
 <tr>
 <td><code>findings</code></td>
-<td>the current state of each finding, with its triage</td>
+<td>The current state of each finding, with its triage</td>
 <td>123 k documents, 60 MB, about 490 bytes each</td>
 </tr>
 <tr>
 <td><code>javv-scan-events-*</code>, <code>javv-images-*</code>, <code>javv-inventory-runs-*</code>, <code>javv-ingest-failures-*</code></td>
-<td>one document per scan or per image per cycle</td>
-<td>under 6 MB together</td>
+<td>One document for each scan, or for each image in each cycle</td>
+<td>Less than 6 MB in total</td>
 </tr>
 <tr>
 <td><code>system-*</code></td>
-<td>users, sessions, decisions, the audit log, settings, reports</td>
-<td>under 4 MB together</td>
+<td>Users, sessions, decisions, the audit log, settings and reports</td>
+<td>Less than 4 MB in total</td>
 </tr>
 </tbody>
 </table>
-<p>Sizes are of the primary copy. To estimate the history for your fleet:</p>
+<p>The sizes are for the primary copy. To calculate the size of the history for your clusters, use
+these two formulas:</p>
 <div class="highlight"><pre><span></span><code>documents per day ≈ for each scanner: images × findings per image × scan cycles per day
 history size      ≈ documents per day × (retention days + 30) × 280 bytes
 </code></pre></div>
-<p>The <code>+ 30</code> is because an index is dropped only when its newest document is older than the
-retention, and an index takes up to 30 days of documents before it rolls over. The scanner
-chart runs each scanner every 6 hours by default (4 cycles a day). For example, 500 images with
-40 findings each, two scanners, 4 cycles a day and the default 90-day retention:
-500 × 40 × 2 × 4 = 160,000 documents a day, × 120 days × 280 bytes ≈ 5.4 GB.</p>
-<p>Reports exported to run later are stored in OpenSearch too until they expire
-(<code>JAVV_EXPORT_TTL_HOURS</code>, 24 h by default), each capped at <code>JAVV_EXPORT_MAX_BYTES</code> (500 MiB).</p>
-<h2 id="the-first-limit-shards">The first limit: shards<a class="headerlink" href="#the-first-limit-shards" title="Permanent link">&para;</a></h2>
-<p>Each index has <strong>one primary shard</strong>, and each cluster you monitor has five series of them. A
-series rolls over to a new index after 30 days, 5 million documents or 50 GB, whichever comes
-first, and an index is dropped once all of its data is older than the cluster's retention. With
-the defaults (30-day rollover, 90-day retention), each series keeps about five indices, so
-<strong>each monitored cluster holds about 25 shards</strong>. On top of that are about 15 shards that do not
-grow with clusters, and the audit log, which rolls every 30 days and is never dropped.</p>
-<p>OpenSearch allows <strong>1,000 shards per node</strong> by default (<code>cluster.max_shards_per_node</code>). With
-the default settings that is room for <strong>about 38 monitored clusters on one node</strong>. This is
-arithmetic from the defaults, not a load test. Every shard also costs heap, however small it is.</p>
-<p>To see where you are: <strong>Settings › Data &amp; OpenSearch</strong> shows the active shards on its runtime
-card, or ask OpenSearch with <code>GET _cluster/health</code> (<code>active_shards</code>).</p>
-<p>To make room, in order of preference:</p>
+<p>The formula adds 30 days for two reasons:</p>
+<ul>
+<li>An index can hold up to 30 days of documents before JAVV starts a new index.</li>
+<li>JAVV deletes an index only when its newest document is older than the retention.</li>
+</ul>
+<p>The scanner chart runs each scanner every 6 hours by default. That is 4 cycles each day.</p>
+<p><strong>Example:</strong> 500 images, 40 findings for each image, two scanners, 4 cycles each day and the
+default retention of 90 days:</p>
+<ul>
+<li>500 × 40 × 2 × 4 = 160,000 documents each day.</li>
+<li>160,000 × 120 days × 280 bytes ≈ 5.4 GB.</li>
+</ul>
+<p>OpenSearch also keeps each scheduled export until the export expires. The expiry time is
+<code>JAVV_EXPORT_TTL_HOURS</code> (24 hours by default). The maximum size of one export is
+<code>JAVV_EXPORT_MAX_BYTES</code> (500 MiB).</p>
+<h2 id="check-the-shard-count">Check the shard count<a class="headerlink" href="#check-the-shard-count" title="Permanent link">&para;</a></h2>
+<p>Shards are usually the first limit. Each index has <strong>one primary shard</strong>. Each cluster that you
+scan has five series of indices.</p>
+<p>JAVV starts a new index in a series at the first of these limits: 30 days, 5 million documents or
+50 GB. JAVV deletes an index when all of its data is older than the retention of the cluster. With
+the default settings (a new index each 30 days, a retention of 90 days), each series keeps about
+five indices. Thus <strong>each cluster that you scan uses about 25 shards</strong>.</p>
+<p>Other indices use about 15 shards. This number does not change when you add clusters. The audit
+log is not in that count. It starts a new index each 30 days, and JAVV never deletes it.</p>
+<p>By default, OpenSearch permits <strong>1,000 shards on each node</strong> (<code>cluster.max_shards_per_node</code>).
+With the default settings, one node has space for <strong>about 38 clusters that you scan</strong>. This number
+is a calculation from the default settings. Nobody did a load test to get it. Each shard also uses
+heap memory, whatever its size.</p>
+<p>To see the current shard count, do one of these steps:</p>
+<ul>
+<li>In JAVV, go to <strong>Settings › Data &amp; OpenSearch</strong>. The runtime card shows the active shards.</li>
+<li>Send <code>GET _cluster/health</code> to OpenSearch, and read <code>active_shards</code>.</li>
+</ul>
+<h2 id="make-space-for-more-shards">Make space for more shards<a class="headerlink" href="#make-space-for-more-shards" title="Permanent link">&para;</a></h2>
+<p>Do these steps in this sequence. Stop when the shard count is low enough.</p>
 <ol>
-<li><strong>Shorter retention</strong> for clusters that don't need long history: <strong>Settings › Data &amp;
-   OpenSearch › Retention</strong>, per cluster. It also shortens how far back time travel reaches.</li>
-<li><strong>Longer rollover</strong> (the same panel): fewer, larger indices. A rollover still happens at
-   5 million documents or 50 GB.</li>
-<li><strong>Retire clusters that went silent.</strong> A retired cluster stops counting once it is deleted
-   (<strong>Settings › Cluster</strong>).</li>
-<li><strong>More nodes</strong>, with an OpenSearch of your own (below), or a higher
-   <code>cluster.max_shards_per_node</code> with more heap to match.</li>
+<li><strong>Decrease the retention</strong> of the clusters that do not need a long history. Go to <strong>Settings ›
+    Data &amp; OpenSearch › Retention</strong>, and set the retention for each cluster. A shorter retention
+    also decreases how far time travel can go back.</li>
+<li><strong>Increase the time between new indices</strong> in the same panel. This gives fewer, larger indices.
+    JAVV still starts a new index at 5 million documents or at 50 GB.</li>
+<li><strong>Delete the clusters that stopped sending scans.</strong> JAVV retires these clusters. A retired
+    cluster uses shards until you delete it in <strong>Settings › Cluster</strong>.</li>
+<li><strong>Add nodes.</strong> For this, use an OpenSearch that you operate (see
+    <a href="#beyond-one-node">Beyond one node</a>). Alternatively, increase <code>cluster.max_shards_per_node</code>,
+    and increase the heap by the same proportion.</li>
 </ol>
 <h2 id="memory">Memory<a class="headerlink" href="#memory" title="Permanent link">&para;</a></h2>
-<p>The default heap is <strong>1 GB</strong>: <code>OPENSEARCH_JAVA_OPTS</code> in the compose file and <code>opensearchJavaOpts</code>
-in the <code>javv-opensearch</code> chart. <em>Measured:</em> 4 clusters, 1.7 million documents and 42 shards
-used about half of it.</p>
-<p>Raise the heap when it stays high, or when OpenSearch's log shows <code>circuit_breaking_exception</code>:
-the store is then refusing work to protect its memory. Give OpenSearch
-about twice the heap as memory, since it also needs memory outside the heap, and keep the heap
-below 32 GB. In compose, set <code>OPENSEARCH_JAVA_OPTS</code> (for example <code>-Xms2g -Xmx2g</code>); with the chart,
-set <code>opensearchJavaOpts</code> and the pod's memory <code>resources</code> together.</p>
-<h2 id="disk">Disk<a class="headerlink" href="#disk" title="Permanent link">&para;</a></h2>
-<p>At <strong>95 %</strong> disk use (OpenSearch's flood-stage watermark) OpenSearch makes the indices
-read-only. Writes then fail, and JAVV answers scanner pushes with <strong>503</strong> (a write the store
-refuses is reported as <code>storage_error</code>): the scanners retry with backoff and, when their retries
-run out, keep the push in their dead-letter file and scan the image again next cycle. Nothing already stored is lost, but new scans wait until there is room.</p>
+<p>The default heap is <strong>1 GB</strong>. The compose file sets it in <code>OPENSEARCH_JAVA_OPTS</code>. The
+<code>javv-opensearch</code> chart sets it in <code>opensearchJavaOpts</code>. <em>Measured:</em> 4 clusters, 1.7 million
+documents and 42 shards used about half of the heap.</p>
+<p>Increase the heap in these two conditions:</p>
 <ul>
-<li>Keep use <strong>under about 80 %</strong> so a burst of scans never reaches the stages above.</li>
-<li><strong>Snapshots are written inside the data volume</strong> (<code>path.repo</code> is
-  <code>/usr/share/opensearch/data/snapshots</code> in both the compose file and the chart), so they count
-  against the same disk. Delete old ones, or point the repository at other storage.</li>
-<li>Shorter retention frees disk the night after you save it: the lifecycle job drops whole
-  indices (<code>JAVV_JOB_LIFECYCLE_SWEEP_CRON</code>, 03:00 by default).</li>
+<li>The heap use stays high.</li>
+<li>The OpenSearch log shows <code>circuit_breaking_exception</code>. This message tells you that OpenSearch
+  refuses work to protect its memory.</li>
+</ul>
+<p>Follow these rules when you increase the heap:</p>
+<ul>
+<li>Give the OpenSearch container about two times the heap as memory. OpenSearch also uses memory
+  outside the heap.</li>
+<li>Keep the heap less than 32 GB.</li>
+<li>In compose, set <code>OPENSEARCH_JAVA_OPTS</code>, for example <code>-Xms2g -Xmx2g</code>.</li>
+<li>With the chart, set <code>opensearchJavaOpts</code> and the memory <code>resources</code> of the pod together.</li>
+</ul>
+<h2 id="disk">Disk<a class="headerlink" href="#disk" title="Permanent link">&para;</a></h2>
+<p>At <strong>95 %</strong> disk use, OpenSearch makes the indices read-only. This limit is the flood-stage
+watermark of OpenSearch. When it occurs:</p>
+<ul>
+<li>Writes fail.</li>
+<li>JAVV sends <strong>503</strong> in reply to each scanner push. JAVV records the refused write as
+  <code>storage_error</code>.</li>
+<li>The scanners try the push again, with a longer wait each time. When all tries fail, a scanner
+  keeps the push in its dead-letter file. In its next cycle, it scans the image again.</li>
+<li>OpenSearch keeps all the data that it stored before. New scans wait until there is disk space.</li>
+</ul>
+<p>To prevent this condition:</p>
+<ul>
+<li>Keep the disk use <strong>less than about 80 %</strong>. Then a large number of scans cannot get to the limit.</li>
+<li>Remember that <strong>snapshots are on the data volume</strong>. In the compose file and in the chart,
+  <code>path.repo</code> is <code>/usr/share/opensearch/data/snapshots</code>. Thus snapshots use the same disk. Delete
+  old snapshots, or use a snapshot repository on different storage.</li>
+<li>Decrease the retention to make disk space. The lifecycle job deletes whole indices at its next
+  run. It runs at 03:00 by default (<code>JAVV_JOB_LIFECYCLE_SWEEP_CRON</code>).</li>
 </ul>
 <h2 id="beyond-one-node">Beyond one node<a class="headerlink" href="#beyond-one-node" title="Permanent link">&para;</a></h2>
-<p>The compose file and the <code>javv-opensearch</code> chart run <strong>one OpenSearch node</strong>, by design; the chart
-refuses any other setting. For more capacity or for a store that survives a node failure, run an
-OpenSearch of your own with more nodes and replica shards, and point JAVV at it: see
-<a href="../../DEPLOYING/#an-opensearch-of-your-own">Deploying: an OpenSearch of your own</a>. JAVV needs no
-change for that; <a href="../multi-pod/">Scaling and failures</a> says what scales on JAVV's side.</p>
+<p>The compose file and the <code>javv-opensearch</code> chart run <strong>one OpenSearch node</strong>. The chart refuses
+all other values.</p>
+<p>You can need more capacity, or OpenSearch data that stays available when a node fails. For these
+conditions, operate your own OpenSearch with more nodes and with replica shards, and connect JAVV
+to it. See <a href="../../DEPLOYING/#an-opensearch-of-your-own">Deploying: an OpenSearch of your own</a>.
+JAVV needs no change for this. <a href="../multi-pod/">Scaling and failures</a> tells you which parts of JAVV
+scale.</p>
 
 
 

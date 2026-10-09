@@ -973,28 +973,29 @@
 
 
 <h1 id="javv-operator-docs">JAVV operator docs<a class="headerlink" href="#javv-operator-docs" title="Permanent link">&para;</a></h1>
-<p>JAVV finds the container images running in your Kubernetes clusters, scans them with Trivy and
-Grype side by side, and gives every vulnerability its own audited triage lifecycle. These pages
-are for the people who install and run it.</p>
+<p>JAVV finds the container images that run in your Kubernetes clusters. It scans each image with
+Trivy and with Grype, and it keeps the results of each scanner apart. For each vulnerability, JAVV
+records each triage decision in an audit log.</p>
+<p>These pages are for the people who install and operate JAVV.</p>
 <h2 id="start-here">Start here<a class="headerlink" href="#start-here" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>To</th>
+<th>To do this</th>
 <th>Read</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Install JAVV with docker compose or Helm</td>
+<td>Install JAVV with docker compose or with Helm</td>
 <td><a href="DEPLOYING/">Deploying</a></td>
 </tr>
 <tr>
-<td>Run the scanners in the clusters you watch</td>
-<td><a href="DEPLOYING/#point-scanners-at-it">Deploying: point scanners at it</a> and the <a href="../deploy/helm/javv-scanner/">scanner chart</a></td>
+<td>Run the scanners in the clusters that you scan</td>
+<td><a href="DEPLOYING/#connect-the-scanners">Deploying: connect the scanners</a> and the <a href="../deploy/helm/javv-scanner/">scanner chart</a></td>
 </tr>
 <tr>
-<td>Check which scanner and OpenSearch versions a release supports</td>
+<td>Find the scanner and OpenSearch versions that a release supports</td>
 <td><a href="supported-versions/">Supported versions</a></td>
 </tr>
 <tr>
@@ -1002,15 +1003,15 @@ are for the people who install and run it.</p>
 <td><a href="CONFIGURATION/">Configuration</a></td>
 </tr>
 <tr>
-<td>Size OpenSearch for your fleet</td>
+<td>Calculate the OpenSearch size for your clusters</td>
 <td><a href="runbooks/opensearch-sizing/">Sizing OpenSearch</a></td>
 </tr>
 <tr>
-<td>Know what scales, and what happens when a part fails</td>
+<td>Learn which parts scale, and what occurs when a part fails</td>
 <td><a href="runbooks/multi-pod/">Scaling and failures</a></td>
 </tr>
 <tr>
-<td>Upgrade, or roll back</td>
+<td>Upgrade JAVV, or go back to the previous release</td>
 <td><a href="UPGRADING/">Upgrading</a> and the <a href="../CHANGELOG/">release notes</a></td>
 </tr>
 <tr>
@@ -1018,16 +1019,16 @@ are for the people who install and run it.</p>
 <td><a href="DEPLOYING/#verify-the-images-and-charts">Deploying: verify the images and charts</a></td>
 </tr>
 <tr>
-<td>Script against JAVV, or push findings from your own tooling</td>
+<td>Send requests to JAVV from a script, or push results from your own tools</td>
 <td><a href="API/">API</a> and the <a href="INGEST-CONTRACT/">ingest contract</a></td>
 </tr>
 <tr>
-<td>Report a security issue</td>
+<td>Report a security problem</td>
 <td><a href="../SECURITY/">Security</a></td>
 </tr>
 </tbody>
 </table>
-<p>Each JAVV release has its own version of these docs; pick it in the version menu.</p>
+<p>Each JAVV release has its own version of these docs. Select the version in the version menu.</p>
 
 
 

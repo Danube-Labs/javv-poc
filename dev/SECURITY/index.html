@@ -883,10 +883,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#reporting-a-vulnerability" class="md-nav__link">
+  <a href="#report-a-vulnerability" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Reporting a vulnerability
+        Report a vulnerability
       </span>
     </span>
   </a>
@@ -927,10 +927,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#design-notes-worth-knowing-before-you-test" class="md-nav__link">
+  <a href="#design-decisions-to-know-before-you-test" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Design notes worth knowing before you test
+        Design decisions to know before you test
       </span>
     </span>
   </a>
@@ -986,10 +986,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#reporting-a-vulnerability" class="md-nav__link">
+  <a href="#report-a-vulnerability" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Reporting a vulnerability
+        Report a vulnerability
       </span>
     </span>
   </a>
@@ -1030,10 +1030,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#design-notes-worth-knowing-before-you-test" class="md-nav__link">
+  <a href="#design-decisions-to-know-before-you-test" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Design notes worth knowing before you test
+        Design decisions to know before you test
       </span>
     </span>
   </a>
@@ -1061,24 +1061,28 @@
 
 
 <h1 id="security-policy">Security policy<a class="headerlink" href="#security-policy" title="Permanent link">&para;</a></h1>
-<p>JAVV is a vulnerability-management tool, so we hold its own security to the standard we help
-teams enforce. Thank you for taking the time to report an issue responsibly.</p>
-<h2 id="reporting-a-vulnerability">Reporting a vulnerability<a class="headerlink" href="#reporting-a-vulnerability" title="Permanent link">&para;</a></h2>
-<p><strong>Please do not open a public issue for a security vulnerability.</strong></p>
-<p>Report it privately through GitHub's
-<a href="https://github.com/Danube-Labs/javv-poc/security/advisories/new"><strong>Report a vulnerability</strong></a>
-form (Security tab → Advisories). It creates a private thread visible only to the maintainers,
-and it lets us credit you in the advisory when the fix ships.</p>
-<p>Helpful things to include, as far as you can:</p>
-<ul>
-<li>the affected component (backend API, ingest endpoint, frontend, a published scanner image, a job)</li>
-<li>the version or commit you tested against</li>
-<li>reproduction steps, a proof of concept, or a failing request</li>
-<li>the impact you believe it has, and any preconditions (authentication, a specific capability, a
-  particular cluster configuration)</li>
+<p>This page tells you how to report a security problem in JAVV, and what occurs after you report it.</p>
+<p>JAVV is a tool that manages vulnerabilities. Thus we apply to JAVV the same standard that JAVV
+helps teams to apply. Thank you for your report.</p>
+<h2 id="report-a-vulnerability">Report a vulnerability<a class="headerlink" href="#report-a-vulnerability" title="Permanent link">&para;</a></h2>
+<p><strong>Do not open a public issue for a security vulnerability.</strong></p>
+<ol>
+<li>Open the GitHub form
+    <a href="https://github.com/Danube-Labs/javv-poc/security/advisories/new"><strong>Report a vulnerability</strong></a>
+    (<strong>Security</strong> tab, then <strong>Advisories</strong>). The form makes a private thread that only the
+    maintainers can see. When we publish the fix, we can name you in the advisory.</li>
+<li>Include as much of this data as you can:<ul>
+<li>The component: the backend API, the ingest endpoint, the frontend, a published scanner image,
+    or a job.</li>
+<li>The version or the commit that you tested.</li>
+<li>The steps to show the problem, a proof of concept, or a request that fails.</li>
+<li>The effect of the problem, and the conditions that it needs. Examples of conditions are a
+    sign-in, a specific capability, or a specific cluster configuration.</li>
 </ul>
+</li>
+</ol>
 <h2 id="what-to-expect">What to expect<a class="headerlink" href="#what-to-expect" title="Permanent link">&para;</a></h2>
-<p>JAVV is maintained by a small team, so please treat these as good-faith targets rather than an SLA:</p>
+<p>A small team maintains JAVV. These times are our targets. They are not a service-level agreement.</p>
 <table>
 <thead>
 <tr>
@@ -1088,65 +1092,69 @@ and it lets us credit you in the advisory when the fix ships.</p>
 </thead>
 <tbody>
 <tr>
-<td>Acknowledgement of your report</td>
-<td>within 3 business days</td>
+<td>We tell you that we received your report</td>
+<td>3 business days or less</td>
 </tr>
 <tr>
-<td>Initial assessment and severity call</td>
-<td>within 7 business days</td>
+<td>We do the first assessment and give a severity</td>
+<td>7 business days or less</td>
 </tr>
 <tr>
-<td>Fix or documented mitigation for a confirmed issue</td>
-<td>as fast as severity warrants</td>
+<td>We release a fix or a documented workaround for a problem that we accept as a vulnerability</td>
+<td>As fast as the severity requires</td>
 </tr>
 </tbody>
 </table>
-<p>We will keep you updated while we work, tell you plainly if we decide something is not a
-vulnerability and why, and publish an advisory when a fix ships. Please give us a reasonable window
-to release before disclosing publicly.</p>
+<p>While we work on the report, we tell you about our progress. If we decide that the problem is not a
+vulnerability, we tell you why. When we release the fix, we publish an advisory. Before you make
+the problem public, give us a reasonable time to release the fix.</p>
 <h2 id="supported-versions">Supported versions<a class="headerlink" href="#supported-versions" title="Permanent link">&para;</a></h2>
-<p>JAVV is pre-1.0 and moves quickly. Security fixes land on <code>main</code> and go out in the next release, so
-<strong>only the latest release is supported</strong>. See
-<a href="https://github.com/Danube-Labs/javv-poc/releases">Releases</a> for the current cut.</p>
+<p>JAVV is before version 1.0 and changes quickly. Security fixes go into <code>main</code> and into the next
+release. Thus <strong>we support only the latest release</strong>. See
+<a href="https://github.com/Danube-Labs/javv-poc/releases">Releases</a> for the current release.</p>
 <h2 id="scope">Scope<a class="headerlink" href="#scope" title="Permanent link">&para;</a></h2>
-<p><strong>In scope</strong> (anything JAVV itself owns):</p>
+<p><strong>In scope</strong>, all parts that JAVV owns:</p>
 <ul>
-<li>the FastAPI backend, especially the <strong>ingest surface</strong>, which parses untrusted scanner output</li>
-<li>authentication, sessions, ingest tokens, and the capability-based RBAC model</li>
-<li>OpenSearch query construction, including tenant isolation by <code>cluster_id</code> and injection into
-  query DSL</li>
-<li>the Vue frontend, including anything that could leak another tenant's data into a browser</li>
-<li>the <strong>scanner images JAVV publishes</strong> (<code>ghcr.io/danube-labs/javv-scanner-{trivy,grype}</code>) and the
-  Dockerfiles that build them</li>
-<li>CI/release tooling in this repository, where a flaw could compromise a published artifact</li>
+<li>The FastAPI backend, and specially the <strong>ingest endpoint</strong>. This endpoint reads scanner output
+  that JAVV cannot trust.</li>
+<li>Sign-in, sessions, ingest tokens, and the access model that uses capabilities.</li>
+<li>The queries that JAVV sends to OpenSearch. This includes the isolation of each cluster by
+  <code>cluster_id</code>, and injection into the query DSL.</li>
+<li>The Vue frontend. This includes all problems that can show the data of a different cluster in a
+  browser.</li>
+<li>The <strong>scanner images that JAVV publishes</strong> (<code>ghcr.io/danube-labs/javv-scanner-{trivy,grype}</code>) and
+  the Dockerfiles that make them.</li>
+<li>The CI and release tools in this repository, where a problem can change a published artifact.</li>
 </ul>
 <p><strong>Out of scope:</strong></p>
 <ul>
-<li>vulnerabilities in <strong>Trivy or Grype themselves</strong>. Report those to
+<li>Vulnerabilities in <strong>Trivy or Grype</strong>. Report them to
   <a href="https://github.com/aquasecurity/trivy/security">aquasecurity/trivy</a> or
-  <a href="https://github.com/anchore/grype/security">anchore/grype</a>. If a JAVV-pinned version ships a known
-  flaw, that is in scope for us as a <strong>version-bump</strong> issue and a normal issue is fine.</li>
-<li>vulnerabilities in OpenSearch, Kubernetes, or other upstream dependencies, unless JAVV's
-  configuration or usage of them is what creates the exposure</li>
-<li>findings that require an already-compromised cluster, host, or administrator account</li>
-<li>a JAVV deployment that an operator has configured insecurely, where JAVV's documented defaults are
-  safe. Note that some hardening is deliberately the operator's job, and
-  <a href="../docs/CONFIGURATION/"><code>docs/CONFIGURATION.md</code></a> is the reference for every setting.</li>
+  <a href="https://github.com/anchore/grype/security">anchore/grype</a>. When a scanner version that JAVV pins
+  has a known problem, open a normal issue that asks for a new version. That issue is in scope.</li>
+<li>Vulnerabilities in OpenSearch, Kubernetes or other dependencies. The exception is a problem that
+  the configuration of JAVV, or the use of the dependency by JAVV, causes.</li>
+<li>Problems that need an attacker who already controls a cluster, a host or an administrator
+  account.</li>
+<li>An installation that its operator configured without security, when the documented defaults of
+  JAVV are safe. Some hardening is the work of the operator. See
+  <a href="../docs/CONFIGURATION/"><code>docs/CONFIGURATION.md</code></a> for each setting.</li>
 </ul>
-<h2 id="design-notes-worth-knowing-before-you-test">Design notes worth knowing before you test<a class="headerlink" href="#design-notes-worth-knowing-before-you-test" title="Permanent link">&para;</a></h2>
-<p>These are deliberate decisions, not oversights, though we still want to hear it if you can break
-one of them:</p>
+<h2 id="design-decisions-to-know-before-you-test">Design decisions to know before you test<a class="headerlink" href="#design-decisions-to-know-before-you-test" title="Permanent link">&para;</a></h2>
+<p>We made these decisions on purpose. If you can break one of them, tell us.</p>
 <ul>
-<li><strong>Ingest is token-authenticated, not signed.</strong> Scanners push over per-cluster bearer tokens
-  (peppered SHA-256, constant-time comparison) with token-to-payload scope binding, so a token
-  scoped to one cluster cannot push another cluster's data.</li>
-<li><strong>The data inspector is structurally read-only.</strong> It is a hard allowlist of read verbs, it denies
-  credential indices, and every query is journaled to the audit log. Getting a write through it
-  would be a genuine finding.</li>
-<li><strong>Tenant isolation is enforced server-side</strong>, in the query layer rather than the UI. Every read
-  carries an explicit <code>cluster_id</code> filter.</li>
-<li><strong>JAVV never writes to the clusters it monitors.</strong> It only reads workload metadata to discover
-  running images.</li>
+<li><strong>A token protects each push. JAVV does not check a signature.</strong> Each scanner pushes with a
+  bearer token for one cluster and one scanner. JAVV keeps only a keyed hash of each token, and it
+  compares hashes in constant time. A token for one cluster cannot push the data of a different
+  cluster.</li>
+<li><strong>The data inspector can only read.</strong> It permits only a fixed list of read requests. It refuses
+  the indices that hold credentials. JAVV writes each query to the audit log. A write through the
+  data inspector is a real finding.</li>
+<li><strong>The backend isolates each cluster.</strong> The query layer adds an explicit <code>cluster_id</code> filter to
+  each read. The frontend does not do this isolation.</li>
+<li><strong>JAVV never writes to the clusters that it scans.</strong> The JAVV backend never connects to these
+  clusters. The scanners in each cluster read only the pods, to find the images that run, and the
+  <code>kube-system</code> namespace.</li>
 </ul>
 
 
