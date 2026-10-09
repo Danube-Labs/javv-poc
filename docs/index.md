@@ -12,6 +12,8 @@ are for the people who install and run it.
 | Run the scanners in the clusters you watch | [Deploying: point scanners at it](DEPLOYING.md#point-scanners-at-it) and the [scanner chart](../deploy/helm/javv-scanner/README.md) |
 | Check which scanner and OpenSearch versions a release supports | [Supported versions](supported-versions.md) |
 | Change a setting | [Configuration](CONFIGURATION.md) |
+| Size OpenSearch for your fleet | [Sizing OpenSearch](runbooks/opensearch-sizing.md) |
+| Scale out, or plan for a pod failing | [Running more than one pod](runbooks/multi-pod.md) |
 | Upgrade, or roll back | [Upgrading](UPGRADING.md) and the [release notes](../CHANGELOG.md) |
 | Verify the published images and charts | [Deploying: verify the images and charts](DEPLOYING.md#verify-the-images-and-charts) |
 | Script against JAVV, or push findings from your own tooling | [API](API.md) and the [ingest contract](INGEST-CONTRACT.md) |

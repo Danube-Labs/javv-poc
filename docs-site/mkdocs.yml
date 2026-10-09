@@ -49,6 +49,9 @@ nav:
       - "Chart: javv-opensearch": deploy/helm/javv-opensearch/README.md
       - "Chart: javv-scanner": deploy/helm/javv-scanner/README.md
   - Configure: docs/CONFIGURATION.md
+  - Operate:
+      - Sizing OpenSearch: docs/runbooks/opensearch-sizing.md
+      - Running more than one pod: docs/runbooks/multi-pod.md
   - Upgrade:
       - Upgrading: docs/UPGRADING.md
       - Release notes: CHANGELOG.md
