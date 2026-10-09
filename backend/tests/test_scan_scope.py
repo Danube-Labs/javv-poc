@@ -17,7 +17,7 @@ from backend.core.settings import get_settings
 from backend.main import create_app
 from os_env import OS_URL, drop_prefix, requires_opensearch
 
-PEPPER = get_settings().token_pepper
+PEPPER = get_settings().secret_key
 
 
 # --- unit: the model ---------------------------------------------------------

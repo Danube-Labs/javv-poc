@@ -25,10 +25,10 @@ CHART = ROOT / "deploy" / "helm" / "javv"
 MANIFEST = ROOT / ".release-please-manifest.json"
 RELEASE_PLEASE = ROOT / "release-please-config.json"
 
-PEPPER = "pepper-725-render"
+SECRET_KEY = "secret-key-725-render"
 ADMIN = "admin-725-render"
 VALUES = (
-    f"secrets.tokenPepper={PEPPER}",
+    f"secrets.secretKey={SECRET_KEY}",
     f"secrets.bootstrapAdminPassword={ADMIN}",
     "opensearch.passwordSecret.name=store-backend",
 )
@@ -103,7 +103,7 @@ def test_secrets_by_reference(sets: tuple[str, ...]) -> None:
     docs = _render(*sets)
     env = _env(_container(docs, "j-javv-backend"))
     secret = "javv-secrets" if sets is EXISTING else "j-javv-secrets"
-    assert env["JAVV_TOKEN_PEPPER"] == {"secretKeyRef": {"name": secret, "key": "token-pepper"}}
+    assert env["JAVV_SECRET_KEY"] == {"secretKeyRef": {"name": secret, "key": "secret-key"}}
     assert env["JAVV_BOOTSTRAP_ADMIN_PASSWORD"] == {
         "secretKeyRef": {"name": secret, "key": "bootstrap-admin-password"}
     }
@@ -119,9 +119,9 @@ def test_secrets_by_reference(sets: tuple[str, ...]) -> None:
 def test_no_secret_value_outside_its_secret() -> None:
     docs = _render(*VALUES)
     (secret,) = [d for d in docs if d["kind"] == "Secret"]
-    assert secret["stringData"] == {"token-pepper": PEPPER, "bootstrap-admin-password": ADMIN}
+    assert secret["stringData"] == {"secret-key": SECRET_KEY, "bootstrap-admin-password": ADMIN}
     rest = yaml.safe_dump_all([d for d in docs if d is not secret])
-    assert PEPPER not in rest and ADMIN not in rest
+    assert SECRET_KEY not in rest and ADMIN not in rest
 
 
 def test_without_a_ca_the_store_certificate_is_not_checked() -> None:
@@ -180,10 +180,10 @@ def test_the_chart_and_images_carry_this_release() -> None:
     ("sets", "message"),
     [
         (("opensearch.passwordSecret.name=s",), "secrets: set existingSecret"),
-        ((f"secrets.tokenPepper={PEPPER}", "opensearch.passwordSecret.name=s"), "both tokenPepper"),
+        ((f"secrets.secretKey={SECRET_KEY}", "opensearch.passwordSecret.name=s"), "both secretKey"),
         ((*VALUES, "secrets.existingSecret=x"), "not both"),
         (
-            (f"secrets.tokenPepper={PEPPER}", f"secrets.bootstrapAdminPassword={ADMIN}"),
+            (f"secrets.secretKey={SECRET_KEY}", f"secrets.bootstrapAdminPassword={ADMIN}"),
             "opensearch.passwordSecret.name",
         ),
         (
@@ -191,8 +191,18 @@ def test_the_chart_and_images_carry_this_release() -> None:
             "JAVV_OPENSEARCH_CA_BUNDLE: leave it empty",
         ),
         ((*VALUES, "frontend.service.type=Ingress"), "frontend/service/type"),
+        # the value's name before 0.7.0: an upgrade that still sets it stops, it is never ignored
+        ((*VALUES, "secrets.tokenPepper=x"), "tokenPepper"),
     ],
-    ids=["no-secrets", "half-secrets", "two-sources", "no-store-password", "ca-twice", "type"],
+    ids=[
+        "no-secrets",
+        "half-secrets",
+        "two-sources",
+        "no-store-password",
+        "ca-twice",
+        "type",
+        "old-secret-name",
+    ],
 )
 def test_the_install_fails_with_its_reason(sets: tuple[str, ...], message: str) -> None:
     out = _helm(*sets)

@@ -26,7 +26,7 @@ INDEX = "system-sessions"
 
 def _session_hash(raw: str) -> str:
     # domain separation: a session hash can never collide with an ingest-token hash
-    return hash_token(f"session:{raw}", pepper=get_settings().token_pepper)
+    return hash_token(f"session:{raw}", pepper=get_settings().secret_key)
 
 
 async def mint_session(

@@ -16,7 +16,7 @@ from backend.main import create_app
 from backend.services.scan_orders import allocate_scan_order
 from os_env import requires_opensearch
 
-PEPPER = get_settings().token_pepper
+PEPPER = get_settings().secret_key
 
 
 # --- endpoint (fake OpenSearch) ----------------------------------------------

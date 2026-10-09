@@ -1,10 +1,10 @@
 {{- /* Rules values.schema.json cannot say. A failed rule stops the install with its message. */ -}}
 {{- $s := .Values.secrets -}}
-{{- if and $s.existingSecret (or $s.tokenPepper $s.bootstrapAdminPassword) -}}
-{{- fail "secrets: set existingSecret, or tokenPepper and bootstrapAdminPassword, not both" -}}
+{{- if and $s.existingSecret (or $s.secretKey $s.bootstrapAdminPassword) -}}
+{{- fail "secrets: set existingSecret, or secretKey and bootstrapAdminPassword, not both" -}}
 {{- end -}}
-{{- if and (not $s.existingSecret) (not (and $s.tokenPepper $s.bootstrapAdminPassword)) -}}
-{{- fail "secrets: set existingSecret (keys token-pepper and bootstrap-admin-password), or both tokenPepper and bootstrapAdminPassword" -}}
+{{- if and (not $s.existingSecret) (not (and $s.secretKey $s.bootstrapAdminPassword)) -}}
+{{- fail "secrets: set existingSecret (keys secret-key and bootstrap-admin-password), or both secretKey and bootstrapAdminPassword" -}}
 {{- end -}}
 {{- if not .Values.opensearch.passwordSecret.name -}}
 {{- fail "opensearch.passwordSecret.name: name the Secret with javv's OpenSearch password (the javv-opensearch chart's backend Secret)" -}}

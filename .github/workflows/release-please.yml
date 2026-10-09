@@ -110,7 +110,7 @@ jobs:
       # the release's own compose file, on the images just built: nothing is pushed unless they run
       - name: Smoke the release's compose file
         env:
-          JAVV_TOKEN_PEPPER: release-smoke-only-pepper
+          JAVV_SECRET_KEY: release-smoke-only-secret-key
           JAVV_BOOTSTRAP_ADMIN_PASSWORD: release-smoke-only-passphrase
           JAVV_OPENSEARCH_ADMIN_PASSWORD: Release-smoke-OpenSearch-715!
           JAVV_OPENSEARCH_PASSWORD: Release-smoke-javv-729

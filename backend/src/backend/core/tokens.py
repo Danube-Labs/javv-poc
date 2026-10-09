@@ -18,7 +18,7 @@ async def mint(cluster_id: str, scanner: str) -> str:
     settings = get_settings()
     token = mint_token()
     doc = {
-        "token_hash": hash_token(token, pepper=settings.token_pepper),
+        "token_hash": hash_token(token, pepper=settings.secret_key),
         "cluster_id": cluster_id,
         "scanner": scanner,
         "scope": "push:findings",

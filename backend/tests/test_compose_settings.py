@@ -44,9 +44,9 @@ CHART_VALUES = ROOT / "deploy" / "helm" / "javv" / "values.yaml"
 # set on purpose to something other than the code default (issue 452, plan v7 ruling 3)
 NOT_THE_CODE_DEFAULT = {
     "JAVV_OPENSEARCH_URL",  # the compose service, not localhost
-    "JAVV_TOKEN_PEPPER",  # required from .env
+    "JAVV_SECRET_KEY",  # required from .env
     "JAVV_BOOTSTRAP_ADMIN_PASSWORD",  # required from .env
-    "JAVV_ENV",  # prod: the dev pepper refuses to start
+    "JAVV_ENV",  # prod: the dev secret key refuses to start
     # issue 715: the compose store runs with its security plugin on, with demo certificates
     # issue 729: javv, which holds only the javv role, and its password, which the store sets
     "JAVV_OPENSEARCH_USERNAME",
@@ -132,7 +132,7 @@ def test_each_value_is_the_code_default(field: str) -> None:
 def test_the_named_exceptions_are_what_a_deployment_needs() -> None:
     backend = _environment("backend")
     for secret in (
-        "JAVV_TOKEN_PEPPER",
+        "JAVV_SECRET_KEY",
         "JAVV_BOOTSTRAP_ADMIN_PASSWORD",
         "JAVV_OPENSEARCH_PASSWORD",
     ):
@@ -149,7 +149,7 @@ def test_the_named_exceptions_are_what_a_deployment_needs() -> None:
 
 
 # required in compose (`:?`); in the chart they come from Secrets, never from backend.config
-SECRETS = {"JAVV_TOKEN_PEPPER", "JAVV_BOOTSTRAP_ADMIN_PASSWORD", "JAVV_OPENSEARCH_PASSWORD"}
+SECRETS = {"JAVV_SECRET_KEY", "JAVV_BOOTSTRAP_ADMIN_PASSWORD", "JAVV_OPENSEARCH_PASSWORD"}
 
 
 def _chart(block: str) -> dict[str, str]:

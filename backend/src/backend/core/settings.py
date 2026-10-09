@@ -6,11 +6,11 @@ limits, garbage PIT grammar, inverted cap pairs) raise at the first `get_setting
 happens in the app lifespan, so a borked deployment CRASHES AT BOOT with the offending variable
 named, instead of booting green and failing every request. `opensearch_url` stays a plain str (the
 startup ping fail-fasts it with a better error), but a URL that carries a user or password is
-refused: credentials go in their own settings (issue 715). The pepper rule is owned by
+refused: credentials go in their own settings (issue 715). The secret-key rule is owned by
 `assert_production_ready` (env-profile aware), never duplicated here.
 
 **The failure names the variable and never echoes a value** (issue 715): pydantic's own error
-carries the raw input dict, pepper and passwords included, so `get_settings()` re-raises it as a
+carries the raw input dict, secret key and passwords included, so `get_settings()` re-raises it as a
 `RuntimeError` built from the messages alone."""
 
 import os
@@ -41,9 +41,11 @@ class Settings(BaseSettings):
     # startup contract: ping OpenSearch + run bootstrap before serving (fail-fast). Unit tests that
     # run the app without an OpenSearch set this false.
     bootstrap_on_startup: bool = True
-    # ingest hardening (M1). The pepper MUST be set in any real deployment (D38/M14);
-    # the dev default exists only so the app boots locally.
-    token_pepper: str = "dev-only-pepper"
+    # The backend's secret key: it hashes every ingest token and session id before they are stored,
+    # and signs report download links. It MUST be set in any real deployment (D38/M14), and kept:
+    # a new value makes every stored token and session unusable. The dev default exists only so
+    # the app boots locally.
+    secret_key: str = "dev-only-secret-key"
     ingest_max_compressed_bytes: int = Field(default=10 * 1024 * 1024, gt=0)  # 10 MiB on the wire
     ingest_max_body_bytes: int = Field(default=60 * 1024 * 1024, gt=0)  # decompressed (zip-bomb)
     ingest_rate_limit_per_minute: int = Field(default=120, ge=1)
@@ -189,8 +191,19 @@ def describe_errors(exc: ValidationError) -> str:
     return "invalid settings: " + "; ".join(lines)
 
 
+# Retired names: a deployment still setting one stops at start, rather than running on the dev
+# default and refusing every scanner token without a word.
+_RENAMED = {"JAVV_TOKEN_PEPPER": "JAVV_SECRET_KEY"}
+
+
 @lru_cache
 def get_settings() -> Settings:
+    for old, new in _RENAMED.items():
+        if old in os.environ:
+            raise RuntimeError(
+                f"{old} is now {new}: rename it and keep the same value. A new value stops every"
+                " scanner token, session and download link from working."
+            )
     try:
         return Settings()
     except ValidationError as exc:
@@ -198,7 +211,7 @@ def get_settings() -> Settings:
         raise RuntimeError(describe_errors(exc)) from None
 
 
-_DEV_PEPPER = "dev-only-pepper"
+_DEV_SECRET_KEY = "dev-only-secret-key"
 
 
 def assert_production_ready(settings: Settings) -> None:
@@ -206,8 +219,8 @@ def assert_production_ready(settings: Settings) -> None:
     dev conveniences. Called at the top of the app lifespan — raising here aborts startup."""
     if settings.env.lower() not in ("prod", "production"):
         return
-    if settings.token_pepper == _DEV_PEPPER:
+    if settings.secret_key == _DEV_SECRET_KEY:
         raise RuntimeError(
-            "JAVV_ENV is production but JAVV_TOKEN_PEPPER is the dev default — every ingest-token"
-            " and session hash would be forgeable-by-documentation. Set a real secret."
+            "JAVV_ENV is production but JAVV_SECRET_KEY is the dev default: every ingest-token"
+            " and session hash would be forgeable from the docs. Set a real secret."
         )

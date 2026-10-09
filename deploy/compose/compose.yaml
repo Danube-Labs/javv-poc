@@ -106,7 +106,7 @@ services:
         condition: service_healthy
     environment:
       # --- deployment ---
-      # prod refuses to start on the dev pepper (the image itself defaults to dev)
+      # prod refuses to start on the dev secret key (the image itself defaults to dev)
       JAVV_ENV: ${JAVV_ENV:-prod}
       # debug | info | warning | error; an unknown name stops the backend at start
       JAVV_LOG_LEVEL: ${JAVV_LOG_LEVEL:-info}
@@ -131,8 +131,9 @@ services:
       JAVV_OPENSEARCH_VERIFY_CERTS: ${JAVV_OPENSEARCH_VERIFY_CERTS:-false}
 
       # --- secrets (required, from .env) ---
-      # hashes ingest tokens and session ids; a long random string, kept for good
-      JAVV_TOKEN_PEPPER: ${JAVV_TOKEN_PEPPER:?set JAVV_TOKEN_PEPPER in .env}
+      # the backend's secret key: hashes ingest tokens and session ids, signs download links.
+      # A long random string, kept for good: a new one stops every scanner token and session.
+      JAVV_SECRET_KEY: ${JAVV_SECRET_KEY:?set JAVV_SECRET_KEY in .env}
       # the first admin's password, used once when the admin does not exist yet
       JAVV_BOOTSTRAP_ADMIN_PASSWORD: ${JAVV_BOOTSTRAP_ADMIN_PASSWORD:?set JAVV_BOOTSTRAP_ADMIN_PASSWORD in .env}
       # the first admin's user name

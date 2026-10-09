@@ -182,8 +182,8 @@ def test_an_empty_ca_bundle_is_unset(monkeypatch, value: str) -> None:
     ],
 )
 def test_a_broken_settings_error_carries_no_secret(monkeypatch, broken, named) -> None:
-    """pydantic's own error prints its input dict, the pepper's head included (review, v1)."""
-    monkeypatch.setenv("JAVV_TOKEN_PEPPER", PEPPER)
+    """pydantic's own error prints its input dict, the secret key's head included (review, v1)."""
+    monkeypatch.setenv("JAVV_SECRET_KEY", PEPPER)
     monkeypatch.setenv("JAVV_OPENSEARCH_USERNAME", "javv")
     monkeypatch.setenv("JAVV_OPENSEARCH_PASSWORD", PASSWORD)
     for key, value in broken.items():

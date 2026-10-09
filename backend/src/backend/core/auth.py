@@ -20,7 +20,7 @@ async def require_token(request: Request) -> dict[str, Any]:
     auth = request.headers.get("authorization", "")
     if not auth.startswith("Bearer ") or len(auth) > 512:
         raise HTTPException(401, "invalid token")
-    candidate = hash_token(auth.removeprefix("Bearer "), pepper=get_settings().token_pepper)
+    candidate = hash_token(auth.removeprefix("Bearer "), pepper=get_settings().secret_key)
     client = cast(Any, request.app.state.opensearch)
     hits = await client.search(
         index="system-tokens",

@@ -24,7 +24,7 @@ from backend.snapshots.inventory_runs import (
 )
 from os_env import requires_opensearch
 
-PEPPER = get_settings().token_pepper
+PEPPER = get_settings().secret_key
 STARTED = datetime(2026, 7, 7, 12, 0, tzinfo=UTC)
 
 

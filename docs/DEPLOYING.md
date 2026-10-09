@@ -1,6 +1,7 @@
 # Deploying JAVV
 
-JAVV is three containers and, somewhere else, its scanners:
+JAVV runs as three containers. The scanners run in the clusters that you scan, and send their
+results to JAVV:
 
 ```mermaid
 flowchart LR
@@ -41,7 +42,8 @@ and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<versio
    cp .env.example .env
    ```
    Set four secrets. The compose file refuses to start without them.
-   - `JAVV_TOKEN_PEPPER`: a long random string (`openssl rand -hex 32`), kept for good.
+   - `JAVV_SECRET_KEY`: the backend's secret key, a long random string (`openssl rand -hex 32`).
+     Keep it for good (see the warning below).
    - `JAVV_BOOTSTRAP_ADMIN_PASSWORD`: the first JAVV admin's password, used once.
    - `JAVV_OPENSEARCH_ADMIN_PASSWORD`: OpenSearch's admin password. It stays with OpenSearch and its
      health check; JAVV never gets it. OpenSearch takes it once, when it first starts, and refuses
@@ -53,6 +55,11 @@ and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<versio
      as, which holds only the `javv` role ([An OpenSearch of your own](#an-opensearch-of-your-own)
      lists what it can do). OpenSearch also takes it once, when it first starts. Use a long random
      string (`openssl rand -hex 24`).
+
+   > **Warning: keep the secret key.** Set `JAVV_SECRET_KEY` once and do not change it. The
+   > backend uses it to hash every scanner token and session, and to sign download links. If you
+   > change it, every scanner gets 401, every user must sign in again, and every open download link stops
+   > working. The stored data cannot restore them: each scanner needs a new token.
 
    Changing either OpenSearch password later is in
    [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
@@ -179,10 +186,16 @@ release, use `deploy/helm/<chart>` in place of `oci://ghcr.io/danube-labs/charts
    ```bash
    read -rs -p 'First JAVV admin password (12 characters or more): ' pw && echo
    kubectl create secret generic javv-secrets \
-     --from-file=token-pepper=<(openssl rand -hex 32 | tr -d '\n') \
+     --from-file=secret-key=<(openssl rand -hex 32 | tr -d '\n') \
      --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
    unset pw
    ```
+   `secret-key` is the backend's secret key, `JAVV_SECRET_KEY`.
+
+   > **Warning: keep the secret key.** Set `JAVV_SECRET_KEY` once and do not change it. The
+   > backend uses it to hash every scanner token and session, and to sign download links. If you
+   > change it, every scanner gets 401, every user must sign in again, and every open download link stops
+   > working. The stored data cannot restore them: each scanner needs a new token.
 3. **JAVV**, signing in to the store as `javv`, with javv's Secret:
    ```bash
    helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \

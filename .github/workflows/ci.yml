@@ -333,7 +333,7 @@ jobs:
     name: Compose stack
     runs-on: ubuntu-latest
     env:
-      JAVV_TOKEN_PEPPER: ci-only-pepper-for-the-compose-check
+      JAVV_SECRET_KEY: ci-only-secret-key-for-the-compose-check
       JAVV_BOOTSTRAP_ADMIN_PASSWORD: ci-only-admin-passphrase
       # OpenSearch's rules: 8+ characters with upper, lower, digit and special, and not a weak one
       JAVV_OPENSEARCH_ADMIN_PASSWORD: Ci-only-OpenSearch-715!

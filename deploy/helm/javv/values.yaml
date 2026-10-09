@@ -18,7 +18,7 @@ backend:
   # @default -- every setting at its code default; the list is in values.yaml
   config:
     # --- deployment ---
-    # prod refuses to start on the dev pepper (the image itself defaults to dev)
+    # prod refuses to start on the dev secret key (the image itself defaults to dev)
     JAVV_ENV: "prod"
     # debug | info | warning | error; an unknown name stops the backend at start
     JAVV_LOG_LEVEL: "info"
@@ -194,12 +194,15 @@ frontend:
   podAnnotations: {}
 
 secrets:
-  # -- A Secret with the keys `token-pepper` and `bootstrap-admin-password`. Set this, or both values
-  # below. The chart never makes up a pepper: a new one invalidates every ingest token and session.
+  # -- A Secret with the keys `secret-key` and `bootstrap-admin-password`. Set this, or both values
+  # below. The chart never makes up a secret key: a new one makes every ingest token and session
+  # unusable.
   existingSecret: ""
-  # -- Hashes ingest tokens and session ids: a long random string (`openssl rand -hex 32`), kept for
-  # good. The chart puts it in a Secret.
-  tokenPepper: ""
+  # -- The backend's secret key (`JAVV_SECRET_KEY`): it hashes ingest tokens and session ids and
+  # signs download links. A long random string (`openssl rand -hex 32`), kept for good: change it,
+  # and every scanner gets 401, every user must sign in again, and each scanner needs a new token. The chart
+  # puts it in a Secret.
+  secretKey: ""
   # -- The first JAVV admin's password, used once when that admin does not exist yet (12 characters
   # or more).
   bootstrapAdminPassword: ""

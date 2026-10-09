@@ -53,14 +53,14 @@ echo "opensearch is up"
 
 ### A2. Configure + start the backend
 
-The backend reads `JAVV_*` env vars (see `docs/CONFIGURATION.md`). For a real run set a **token
-pepper** (any non-empty secret) and a **bootstrap-admin password** so you get a login:
+The backend reads `JAVV_*` env vars (see `docs/CONFIGURATION.md`). For a real run set a **secret
+key** (any non-empty secret) and a **bootstrap-admin password** so you get a login:
 
 ```bash
 cd backend
 
 export JAVV_OPENSEARCH_URL=http://localhost:9200
-export JAVV_TOKEN_PEPPER='local-dev-pepper-change-me'      # peppers ingest tokens + session ids
+export JAVV_SECRET_KEY='local-dev-pepper-change-me'        # hashes ingest tokens + session ids
 export JAVV_BOOTSTRAP_ADMIN_USERNAME='admin'
 export JAVV_BOOTSTRAP_ADMIN_PASSWORD='dev-admin-passphrase-12+'   # ≥12 chars (password policy)
 export JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL=50   # default 10 starves rapid UI navigation/rigs with 429s
@@ -444,8 +444,8 @@ rm -f backend/cookies.txt scanner/*.dead-letter.jsonl
   on a non-TLS host (tracked for M10 in #134).
 - **Ingest 403 `scope_mismatch`** — the token's `cluster_id`/`scanner` must equal the envelope's
   (SEC-3 binding). Mint a token for the exact pair you're pushing.
-- **Ingest 401** — wrong/expired token, or `JAVV_TOKEN_PEPPER` differs between the process that
-  minted the token and the running backend. Keep the pepper stable.
+- **Ingest 401**: wrong/expired token, or `JAVV_SECRET_KEY` differs between the process that
+  minted the token and the running backend. Keep the secret key stable.
 - **Scanner "scan scope unavailable — skipping cycle"** — the backend is unreachable from the
   scanner, or the token 401s the scope fetch. Fail-closed is intentional.
 - **Scanner finds nothing** — no running pods matched the scope, or `kubectl get pods -A` is empty.
