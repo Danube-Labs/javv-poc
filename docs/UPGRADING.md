@@ -3,7 +3,7 @@
 > How to move a running JAVV to a newer release: what to check before you start, the order to upgrade
 > the parts in, how to confirm what's running afterwards, and how to roll back. The reasoning behind
 > it (where the index bootstrap runs and why an older release can run against a newer store) is in the design
-> note [`docs/engineering/UPGRADES.md`](engineering/UPGRADES.md).
+> note [`docs/engineering/UPGRADES.md`](https://github.com/Danube-Labs/javv-poc/blob/main/docs/engineering/UPGRADES.md).
 
 JAVV has three parts you upgrade separately:
 

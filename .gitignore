@@ -67,3 +67,8 @@ tmp/
 
 # the design-review skill's local snapshots — one developer's score history, not the repo's
 .impeccable/critique/
+
+# the docs site build and Zensical's cache (docs-site/mkdocs.yml)
+/docs-site/site/
+/docs-site/.cache/
+/.cache/
