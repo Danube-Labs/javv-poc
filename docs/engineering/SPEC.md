@@ -167,7 +167,8 @@ from an env/secret and must change the password on first login - FR-18.)
   payload sizes, **decompression ratio**, queue depth, latency, memory); structured logs (structlog). M1.
 - **FR-21 Risk metadata.** Capture **EPSS/KEV** from Grype (explicit mapped fields; absent for Trivy).
 - **FR-22 VEX export (MVP); import (v1.1).** **Export** (M6): serialize `state`/`vex_justification` →
-  OpenVEX/CycloneDX (consumable by Trivy/Grype `--vex`). **Import → v1.1:** a VEX `not_affected` statement
+  OpenVEX/CycloneDX, a standard record of the triage decisions. *(2026-10-09: trivy and grype do not
+  apply it as exported; making them do is issue 791, after 1.0.)* **Import → v1.1:** a VEX `not_affected` statement
   becoming a `system-decisions` record is deferred; **MVP ingests only the scanner JSON envelope.** The
   two-field model (FR-7) keeps import additive when it lands.
 - **FR-23 Whole-app time-travel (global rewind - D28).** A global time picker (days/hours/minutes ago;

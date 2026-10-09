@@ -86,6 +86,13 @@ See [`standards/testing.md`](../../standards/testing.md) for the *how*. This bol
 > whether it's UI-controllable. That file is the single tracker for every configuration knob (DoD §6).
 
 ## Updates
+- **2026-10-09: the VEX goldens prove a valid file, not a scanner that applies it (issue 41):** the
+  fixtures name a made-up image (`registry.local/team/app`, `sha256:vexgold01`), so running
+  `trivy --vex` with them, as the 2026-07-06 entry below records, could only show that trivy
+  parses the files. On a real image, neither trivy 0.75.0 nor grype 0.120.1 applies the export:
+  both refuse the CycloneDX form, and both keep reporting a finding the OpenVEX form marks
+  `not_affected`, because the package is written as `pkg:generic/...`. The export stays as a
+  standard record of the triage decisions (operator ruling on issue 41); the fix is issue 791.
 - **2026-07-06 (slices 5–7, one PR — closes the bolt):** CSV export = `export/sweep.py`
   (shared constant-memory PIT sweep, PIT deleted in `finally`) + `export/csv_stream.py`
   (sanitizer neutralizes leading `=`/`+`/`-`/`@`/tab/CR with a leading apostrophe; golden
