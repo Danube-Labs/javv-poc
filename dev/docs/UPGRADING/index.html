@@ -1,0 +1,1337 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Operator docs for JAVV, Just Another Vulnerability Viewer">
+      
+      
+      
+        <link rel="canonical" href="https://danube-labs.github.io/javv-poc/dev/docs/UPGRADING/">
+      
+      
+        <link rel="prev" href="../CONFIGURATION/">
+      
+      
+        <link rel="next" href="../../CHANGELOG/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.69">
+    
+    
+      
+        <title>Upgrading - JAVV</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.e15858d4.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="JAVV" class="md-header__button md-logo" aria-label="JAVV" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JAVV
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Upgrading
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/Danube-Labs/javv-poc" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="JAVV" class="md-nav__button md-logo" aria-label="JAVV" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    JAVV
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Danube-Labs/javv-poc" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Install
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Install
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DEPLOYING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Deploying
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../supported-versions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Supported versions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deploy/helm/javv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Chart: javv
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deploy/helm/javv-opensearch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Chart: javv-opensearch
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deploy/helm/javv-scanner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Chart: javv-scanner
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONFIGURATION/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Configure
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrade
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Upgrade
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrading
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrading
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Before you upgrade
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#order-of-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Order of operations
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Order of operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-docker-compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        With docker compose
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on-kubernetes-helm" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        On Kubernetes (Helm)
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#check-whats-running" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Check what's running
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rolling-back" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Rolling back
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-first-run-of-the-background-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The first run of the background jobs
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Version notes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../CHANGELOG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Release notes
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Integrate
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Integrate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../INGEST-CONTRACT/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Ingest contract
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SECURITY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Security
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-upgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Before you upgrade
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#order-of-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Order of operations
+      </span>
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Order of operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#with-docker-compose" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        With docker compose
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#on-kubernetes-helm" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        On Kubernetes (Helm)
+      </span>
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#check-whats-running" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Check what's running
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rolling-back" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Rolling back
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-first-run-of-the-background-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The first run of the background jobs
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#version-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Version notes
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+  
+  
+
+
+<h1 id="upgrading-javv">Upgrading JAVV<a class="headerlink" href="#upgrading-javv" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>How to move a running JAVV to a newer release: what to check before you start, the order to upgrade
+the parts in, how to confirm what's running afterwards, and how to roll back. The reasoning behind
+it (where the index bootstrap runs and why an older release can run against a newer store) is in the design
+note <a href="https://github.com/Danube-Labs/javv-poc/blob/main/docs/engineering/UPGRADES.md"><code>docs/engineering/UPGRADES.md</code></a>.</p>
+</blockquote>
+<p>JAVV has three parts you upgrade separately:</p>
+<table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What changes it</th>
+<th>Version source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>backend</strong> (FastAPI)</td>
+<td>the JAVV release</td>
+<td>the release tag; <code>GET /api/v1/meta</code> → <code>version</code></td>
+</tr>
+<tr>
+<td><strong>frontend</strong> (Vue)</td>
+<td>the JAVV release, together with the backend</td>
+<td>the same release</td>
+</tr>
+<tr>
+<td><strong>scanner images</strong> (Trivy, Grype)</td>
+<td>you swap the published image tag in your deploy (D41)</td>
+<td><a href="../../versions.yaml"><code>versions.yaml</code></a> lists the supported scanner versions</td>
+</tr>
+</tbody>
+</table>
+<p>JAVV never changes versions inside a monitored cluster. Every version change is a tag you set in your
+own deploy. How to deploy in the first place is <a href="../DEPLOYING/"><code>DEPLOYING.md</code></a>.</p>
+<h2 id="before-you-upgrade">Before you upgrade<a class="headerlink" href="#before-you-upgrade" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Read the release notes.</strong> Every release has a GitHub Release and a <a href="../../CHANGELOG/"><code>CHANGELOG.md</code></a>
+   entry. Then check <a href="#version-notes"><em>Version notes</em></a> below for anything the release needs from you.</li>
+<li><strong>Take a snapshot.</strong> Use <strong>Settings → Data &amp; OpenSearch → Snapshot now</strong>, or
+   <code>POST /api/v1/admin/snapshots</code> (needs <code>can_manage_retention</code>; returns 409 when no snapshot repository is
+   configured). Setting up the repository is covered in <a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §5–6</a>. An
+   upgrade doesn't need the snapshot to succeed; it's your safety net for data.</li>
+<li><strong>Check the OpenSearch version.</strong> The version JAVV is tested against is <code>datastore.opensearch</code> in
+   <a href="../../versions.yaml"><code>versions.yaml</code></a>.</li>
+</ol>
+<h2 id="order-of-operations">Order of operations<a class="headerlink" href="#order-of-operations" title="Permanent link">&para;</a></h2>
+<p><strong>Backend first, then frontend, then the scanner images.</strong></p>
+<ol>
+<li><strong>Backend.</strong> Each new backend pod upgrades the indices itself as it starts: it compares every index
+   and template with the release's schema version and adds what's missing. It opens its port only
+   after that finishes, so it takes no traffic before its indices are ready. Nothing needs to run
+   by hand.</li>
+<li><strong>Frontend.</strong> Upgrade it with the backend or right after it. A newer frontend against an older
+   backend can call routes that don't exist yet.</li>
+<li><strong>Scanner images.</strong> Swap the Trivy and Grype image tags once the backend is running the new release.
+   A newer scanner can send a report format (<code>schema_version</code>) that only the newer backend accepts. The
+   backend lists the formats it accepts in <code>GET /api/v1/meta</code> → <code>envelope_versions</code>.</li>
+</ol>
+<p>There is one backend, and an upgrade replaces it (issue 691), so two backend releases never serve
+together. An older backend does meet a newer store after a rollback. That is safe because every
+schema change so far only adds fields: an older backend ignores fields it doesn't know, and a newer
+one treats a missing field as absent.</p>
+<h3 id="with-docker-compose">With docker compose<a class="headerlink" href="#with-docker-compose" title="Permanent link">&para;</a></h3>
+<p>Each release publishes <code>ghcr.io/danube-labs/javv-backend</code> and <code>javv-frontend</code> under its version, and
+its <code>deploy/compose/compose.yaml</code> names them. To upgrade:</p>
+<ol>
+<li>Replace your <code>compose.yaml</code> with the new release's. Keep your <code>.env</code>: it holds your settings.</li>
+<li>Run <code>docker compose pull</code>, then <code>docker compose up -d</code>.</li>
+</ol>
+<p>There is one backend, so JAVV is unavailable for the seconds the new backend takes to start and
+upgrade the indices. The frontend waits for it to report healthy (<code>depends_on</code>). To roll back, put
+the older release's <code>compose.yaml</code> back and run the same two commands.</p>
+<p><strong>The upgrade that turns on OpenSearch's login</strong> (the release after 0.5.1, issues 715 and 729).
+Before step 2, add <code>JAVV_OPENSEARCH_ADMIN_PASSWORD</code> (OpenSearch's admin) and
+<code>JAVV_OPENSEARCH_PASSWORD</code> (javv's, the user the backend signs in as) to your <code>.env</code>: the compose
+file refuses to start without them, and OpenSearch refuses a weak admin password
+(<a href="../DEPLOYING/"><code>DEPLOYING.md</code></a> has the rules). Your data stays: on
+first start with its login on, OpenSearch keeps every index and sets up its security on top of
+them. Rolling back to a 0.5.x <code>compose.yaml</code> also works on the same data; OpenSearch runs without
+its login again. This was tried on the real compose files, from a 0.5.1 store with data.</p>
+<p><strong>Changing an OpenSearch password.</strong> OpenSearch takes <code>JAVV_OPENSEARCH_ADMIN_PASSWORD</code> and
+<code>JAVV_OPENSEARCH_PASSWORD</code> only on its first start with its login on, and keeps them in its data.
+A new value in <code>.env</code> alone is ignored by the store. A new admin password: OpenSearch never reports
+healthy (its health check uses the new value), the backend waits for it, and
+<code>docker compose up -d</code> fails after a few minutes. A new javv password: the backend stops with
+"refused the credentials in JAVV_OPENSEARCH_USERNAME". To change either and keep the data:</p>
+<ol>
+<li>Put the new password in <code>.env</code>.</li>
+<li>Start OpenSearch on its own: <code>docker compose up -d opensearch</code>. It still takes only the old
+   password.</li>
+<li>Load the new one into its security index, with the demo admin certificate that ships in the
+   image:
+   <code>bash
+   docker compose exec opensearch plugins/opensearch-security/tools/securityadmin.sh \
+     -f config/opensearch-security/internal_users.yml -t internalusers -icl -nhnv \
+     -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem</code>
+   It ends with <code>Done with success</code>. The compose file writes that file from <code>.env</code> on every start,
+   so it holds both new passwords.</li>
+<li><code>docker compose up -d</code>.</li>
+</ol>
+<p><code>docker compose down -v</code> also takes a new password, but it deletes all JAVV data with the store.
+OpenSearch's account API cannot change admin's password: <code>admin</code> is a reserved user there (403).</p>
+<p><strong>A store started from <code>main</code> between issues 715 and 729</strong> (no release had it) has only <code>admin</code> in
+its security index, because OpenSearch reads the users, roles and role-mapping files only on its
+first start with its login on. There, <code>JAVV_OPENSEARCH_PASSWORD</code> was admin's password: move that
+value to <code>JAVV_OPENSEARCH_ADMIN_PASSWORD</code>, and give <code>JAVV_OPENSEARCH_PASSWORD</code> a new one for
+javv. Then start OpenSearch on its own (<code>docker compose up -d opensearch</code>) and load all three
+files with the same certificate, once, before <code>docker compose up -d</code>:</p>
+<p><code>bash
+for f in internal_users:internalusers roles:roles roles_mapping:rolesmapping; do
+  docker compose exec opensearch plugins/opensearch-security/tools/securityadmin.sh \
+    -f "config/opensearch-security/${f%%:*}.yml" -t "${f#*:}" -icl -nhnv \
+    -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem
+done</code></p>
+<p>Each file ends with <code>Done with success</code>. A <code>java.nio.channels.ClosedSelectorException</code> printed after it,
+now and then, is the tool's HTTP client closing, after the load. The same loop loads a changed
+<code>javv</code> role, if a release ever changes it; its notes will say so. This upgrade was tried on the
+real compose files, from a store started with <code>main</code>'s.</p>
+<h3 id="on-kubernetes-helm">On Kubernetes (Helm)<a class="headerlink" href="#on-kubernetes-helm" title="Permanent link">&para;</a></h3>
+<p>The JAVV and store charts (<a href="../DEPLOYING/#on-kubernetes-with-helm"><code>DEPLOYING.md</code></a>) carry a
+release's version: each release publishes them at <code>oci://ghcr.io/danube-labs/charts</code> under it.
+Keep your settings in a values file of your own, so an upgrade is the new release's chart with the
+same file:</p>
+<p><code>bash
+helm upgrade store oci://ghcr.io/danube-labs/charts/javv-opensearch --version &lt;new version&gt; \
+  -f my-store-values.yaml   # when the store chart changed
+helm upgrade javv oci://ghcr.io/danube-labs/charts/javv --version &lt;new version&gt; -f my-javv-values.yaml
+helm test javv</code></p>
+<p>The backend runs as one pod with <code>strategy: Recreate</code> (issue 691: it runs the background jobs
+itself, so two must never run at once). The old pod stops before the new one starts, and JAVV is
+unavailable for the seconds the new one takes to check the store and upgrade the indices; the
+startup probe allows 300 s for that. Meanwhile the frontend answers 502, which the app shows as
+"backend not answering". The frontend itself rolls over without a gap.</p>
+<p><strong>Rolling back</strong> is one command. <code>helm history javv</code> lists the revisions:</p>
+<p><code>bash
+helm rollback javv          # to the revision before the current one
+helm rollback javv 3        # or to a given one</code></p>
+<p>The settings and images of that revision come back; the indices stay as the newer release left
+them, which an older backend reads (see <a href="#rolling-back">Rolling back</a>). CI runs an upgrade and a
+rollback on every change to the charts.</p>
+<p><strong>The scanners come last,</strong> in each monitored cluster, once JAVV runs the new release: a newer
+scanner can send a report format only the newer backend accepts. The <code>javv-scanner</code> chart carries
+the scanner versions of its release; your values file (<code>backendUrl</code>, the token Secrets) stays:</p>
+<p><code>bash
+helm upgrade scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version &lt;new version&gt; \
+  -n javv-scanner -f my-scanner-values.yaml</code></p>
+<p>The upgrade starts a vuln-DB refresh when the refresh container changed (the image, the DB
+source, <code>extraEnv</code>, <code>resources</code> or <code>pullPolicy</code>); the next
+cycle uses the new image. To roll back, <code>helm rollback scanner</code> in that cluster, before rolling JAVV
+back.</p>
+<p><strong>Changing an OpenSearch password</strong> (admin's, or javv's, the user the backend signs in as) is in
+the <a href="../../deploy/helm/javv-opensearch/#changing-a-password"><code>javv-opensearch</code> chart's README</a>.
+After javv's, restart the backend so it reads the new password from the same Secret:
+<code>kubectl rollout restart deploy/javv-backend</code>. The same section loads the <code>javv</code> role and its
+mapping into a store first started without them (issue 729).</p>
+<h2 id="check-whats-running">Check what's running<a class="headerlink" href="#check-whats-running" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Where</th>
+<th>Expect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Store reachable</td>
+<td><code>GET /readyz</code> (no login)</td>
+<td><code>200</code></td>
+</tr>
+<tr>
+<td>Running versions</td>
+<td><code>GET /api/v1/meta</code> (logged-in session)</td>
+<td><code>{"version": "&lt;release&gt;", "mapping_version": &lt;n&gt;, "envelope_versions": [...]}</code></td>
+</tr>
+<tr>
+<td>Running versions, in the UI</td>
+<td>the bottom of the sidebar</td>
+<td>three lines: <code>v&lt;release&gt;</code>, <code>store schema v&lt;n&gt;</code>, <code>scanner schema v&lt;n&gt;</code></td>
+</tr>
+<tr>
+<td>What the upgrade did</td>
+<td>the backend log, one line per pod start</td>
+<td>event <code>bootstrap complete</code> with <code>app_version</code>, <code>mapping_version</code>, and the indices listed under <code>created</code>, <code>updated</code> or <code>unchanged</code></td>
+</tr>
+<tr>
+<td>Scanners upgraded</td>
+<td><strong>Scanner status</strong> page, after the next scan cycle</td>
+<td>the new scanner version per cluster</td>
+</tr>
+</tbody>
+</table>
+<p>On the first start of a new release, <code>updated</code> lists the indices whose schema changed. Later restarts
+list everything as <code>unchanged</code>.</p>
+<h2 id="rolling-back">Rolling back<a class="headerlink" href="#rolling-back" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Rolling the backend back is safe for the indices.</strong> The index setup only moves forward. An older
+  release finds indices already at a newer schema version and leaves them alone. The fields the newer
+  release added stay in place, unused.</li>
+<li><strong>Settings saved by the newer release still read after a rollback.</strong> If the newer release added a
+  field to a setting and you saved it, the older release ignores that field. The backend logs
+  <code>stored setting has unknown keys</code> once per setting and counts every such read in
+  <code>javv_stored_setting_unknown_fields_total</code> (<a href="../API/#metrics-metrics-prometheus"><code>API.md</code> § Metrics</a>).
+  If you <strong>save</strong> that setting while the older release runs, it stores only the fields it knows, so
+  after you upgrade again the newer field is back at its default. This holds for rollbacks to any
+  release that includes <a href="https://github.com/Danube-Labs/javv-poc/issues/640">#640</a>, which is every
+  release from the MVP (0.6) on.</li>
+<li><strong>Roll the scanners back first</strong> when you roll back across a report-format change, so they don't send
+  a format the older backend rejects.</li>
+<li><strong>A snapshot is not a one-step rollback.</strong> Restoring one creates <code>restored-*</code> copies next to the live
+  indices, never on top of them (<code>POST /api/v1/admin/snapshots/{snapshot_name}/restore</code>). Promoting a
+  copy is a manual step.</li>
+</ul>
+<h2 id="the-first-run-of-the-background-jobs">The first run of the background jobs<a class="headerlink" href="#the-first-run-of-the-background-jobs" title="Permanent link">&para;</a></h2>
+<p>From the release that carries issue 691, <strong>the backend starts its own background jobs</strong>. An install where
+those jobs were only ever run by hand, or never, will see their first scheduled runs do everything at once:</p>
+<ul>
+<li><strong>The lifecycle sweep</strong> (03:00 by default) drops all scan history older than each cluster's retention
+  (90 days by default). Time-travel can no longer reach it. Before the first night, look at what it would
+  do: <strong>Data inspector → Repair actions → Lifecycle sweep → Dry run</strong>, and raise the retention in
+  <strong>Settings → Data &amp; OpenSearch</strong> if that is more than you want to lose.</li>
+<li><strong>The staleness sweep</strong> (02:00) marks every finding no scan has confirmed for 3 days as stale, and all of a
+  scanner's findings when it has been silent for 7.</li>
+<li><strong>The findings cleanup</strong> (04:00) removes findings absent from every scan for longer than its window
+  (180 days).</li>
+</ul>
+<p>Nothing runs because the backend started: each job waits for its next scheduled time. To hold them off
+entirely, start the backend with <code>JAVV_SCHEDULER_ENABLED=false</code>, or empty one job's <code>JAVV_JOB_&lt;KIND&gt;_CRON</code>.
+The schedules, and the timezone they are read in, are in <a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §1</a>. If you
+ran these jobs from your own cron or from CronJobs, remove those: the backend's scheduler replaces them
+(running both is safe, since a job that is already running is skipped, but it is wasted work).</p>
+<h2 id="version-notes">Version notes<a class="headerlink" href="#version-notes" title="Permanent link">&para;</a></h2>
+<p>A release gets an entry here when it needs something from you. That covers:</p>
+<ul>
+<li>a store schema change (<code>mapping_version</code>);</li>
+<li>a change in the report formats the backend accepts (<code>envelope_versions</code>);</li>
+<li>scanner images that must be republished or swapped with it.</li>
+</ul>
+<p>Entries start with the MVP release (0.6). All schema changes before it only add fields and are applied
+automatically on the first start.</p>
+<table>
+<thead>
+<tr>
+<th>Release</th>
+<th>Store schema</th>
+<th>Report formats accepted</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><em>(no entries yet)</em></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>The release after 0.5.1: how the backend connects to OpenSearch (issue 715).</strong> Two changes, both
+on purpose:</p>
+<ul>
+<li><strong>A <code>JAVV_OPENSEARCH_URL</code> with a user or password in it stops the backend at start.</strong> Earlier
+  releases passed <code>https://user:pass@host</code> (or <code>user:pass@host</code>, with no scheme) through to the client. Move the credentials into
+  <code>JAVV_OPENSEARCH_USERNAME</code> and <code>JAVV_OPENSEARCH_PASSWORD</code> (<a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §1</a>).</li>
+<li><strong>A broken setting now stops start-up with one line per variable</strong>, <code>invalid settings:
+  JAVV_&lt;NAME&gt;: &lt;reason&gt;</code>, and no value from your environment in it. Earlier releases printed part
+  of the environment, which could include secrets.</li>
+</ul>
+<p>The token command line (<code>python -m backend.core.tokens</code>) and the scan-scope command line also gain
+the <code>JAVV_REQUEST_TIMEOUT</code> the rest of the backend already used (30 seconds by default).</p>
+<p><strong>The release after 0.6.1: silent clusters are retired (issue 765).</strong> A new daily job retires a
+cluster that has sent no accepted scan for 45 days (<code>JAVV_CLUSTER_RETIRE_AFTER_DAYS</code>): it leaves the
+cluster list, the switcher and All clusters, and keeps all of its data and its tokens. It comes back
+on its next accepted scan, or by hand (<code>POST /api/v1/clusters/{cluster_id}/unretire</code>). Its first run (04:15 by default) retires every
+cluster that is already silent that long, such as a cluster you recreated, which comes back under a new
+id. To keep one, set its window to never (<code>PUT /api/v1/settings/retirement</code> with its <code>cluster_id</code> and
+<code>retire_after_days: null</code>, <code>warn_days</code> as before), or set <code>JAVV_CLUSTER_RETIRE_AFTER_DAYS=0</code> to
+turn it off for the fleet. If no cluster at all has had a scan accepted within its scanner-down timer, the job
+retires nothing and logs a warning instead: that points at JAVV, not at the clusters.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+          
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.sections","content.code.copy"],"redirect":"../../redirect.json","search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.8b1c90bd.min.js"></script>
+      
+    
+  </body>
+</html>

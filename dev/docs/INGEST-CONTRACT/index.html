@@ -1,0 +1,1158 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Operator docs for JAVV, Just Another Vulnerability Viewer">
+      
+      
+      
+        <link rel="canonical" href="https://danube-labs.github.io/javv-poc/dev/docs/INGEST-CONTRACT/">
+      
+      
+        <link rel="prev" href="../API/">
+      
+      
+        <link rel="next" href="../../SECURITY/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.69">
+    
+    
+      
+        <title>Ingest contract - JAVV</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../../assets/stylesheets/modern/main.e15858d4.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    <body dir="ltr">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-hidden="true"></label>
+    <div data-md-component="skip">
+      <a href="#__skip" class="md-skip">
+        Skip to content
+      </a>
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="JAVV" class="md-header__button md-logo" aria-label="JAVV" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            JAVV
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Ingest contract
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+        <a href="https://github.com/Danube-Labs/javv-poc" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="JAVV" class="md-nav__button md-logo" aria-label="JAVV" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 5v16M20.001 19A2 2 0 0 0 22 17V5a2 2 0 0 0-1.999-2L16 3.002A5 5 0 0 0 12 5a5 5 0 0 0-4-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 1.999 2H8a5 5 0 0 1 4 2 5 5 0 0 1 4-2z"/></svg>
+
+    </a>
+    JAVV
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/Danube-Labs/javv-poc" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.3.1 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2026 Fonticons, Inc.--><path fill="currentColor" d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Home
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Install
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_2">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Install
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../DEPLOYING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Deploying
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../supported-versions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Supported versions
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deploy/helm/javv/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Chart: javv
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deploy/helm/javv-opensearch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Chart: javv-opensearch
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../deploy/helm/javv-scanner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Chart: javv-scanner
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../CONFIGURATION/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Configure
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrade
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Upgrade
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../UPGRADING/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrading
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../CHANGELOG/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Release notes
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Integrate
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_5">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Integrate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  API
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Ingest contract
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="././" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Ingest contract
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-protocol-four-calls" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The protocol — four calls
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#portable-field-semantics-nothing-here-is-kubernetes-specific" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Portable field semantics (nothing here is Kubernetes-specific)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-what-gets-you-a-422-and-friends" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Validation — what gets you a 422 (and friends)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Worked example
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../SECURITY/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Security
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-protocol-four-calls" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        The protocol — four calls
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#portable-field-semantics-nothing-here-is-kubernetes-specific" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Portable field semantics (nothing here is Kubernetes-specific)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validation-what-gets-you-a-422-and-friends" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Validation — what gets you a 422 (and friends)
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#worked-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Worked example
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                <a id="__skip" tabindex="-1"></a>
+                
+                  
+
+  
+  
+
+
+<h1 id="javv-public-ingest-contract">JAVV public ingest contract<a class="headerlink" href="#javv-public-ingest-contract" title="Permanent link">&para;</a></h1>
+<p>How to push scan results into JAVV <strong>without running the JAVV scanners</strong> — from any
+environment that can produce the envelope JSON (Kubernetes, Nomad, plain Docker hosts, CI
+pipelines). This is the "cheap now" slice of #327: the wire schema, the call protocol, and the
+validation rules, published and CI-pinned. What it does <strong>not</strong> yet give you: a scanner
+identity of your own (see <a href="#current-limitation-the-scanner-vocabulary">Current limitation</a>).</p>
+<p>The machine-readable schema lives beside this file:
+<strong><a href="../ingest-envelope.schema.json"><code>ingest-envelope.schema.json</code></a></strong> — generated from the backend's
+Pydantic wire model (<code>backend/src/backend/models/envelope.py::IngestEnvelope</code>) and pinned by a
+CI test (<code>backend/tests/test_ingest_contract_doc.py</code>), so it cannot drift from what the server
+actually enforces. Regeneration command: in that test's docstring.</p>
+<h2 id="the-protocol-four-calls">The protocol — four calls<a class="headerlink" href="#the-protocol-four-calls" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Step</th>
+<th>Call</th>
+<th>Auth</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td><code>GET/POST /api/v1/admin/tokens</code> — mint a machine token scoped to your <code>(cluster_id, scanner)</code></td>
+<td>admin session (<code>can_manage_tokens</code>), or <code>python -m backend.core.tokens</code></td>
+<td>once (rotate/revoke via the admin API)</td>
+</tr>
+<tr>
+<td>1</td>
+<td><code>POST /api/v1/scan-runs</code> → <code>{"scan_order": &lt;int&gt;}</code></td>
+<td>machine token</td>
+<td>once per scan <strong>cycle</strong>, before pushing</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>POST /api/v1/ingest/scan</code> — one envelope per image</td>
+<td>machine token</td>
+<td>per image in the cycle</td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>POST /api/v1/inventory-runs</code> — body <code>{"scan_run_id", "expected_count", "started_at"}</code></td>
+<td>machine token</td>
+<td>once at cycle <strong>end</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Notes that keep the data model accurate:</p>
+<ul>
+<li><strong><code>scan_order</code> comes from step 1 — never invent it.</strong> It is the strictly-increasing
+  per-<code>(cluster, scanner)</code> ordering key (D45) that the whole correctness model sorts by; every
+  envelope in the cycle carries the same <code>scan_order</code> + your own <code>scan_run_id</code>.</li>
+<li><strong>Scan everything, every cycle</strong> (D30): the model is stateless full sweeps — the server
+  reconciles what a committed run no longer reports. Do not push incremental diffs.</li>
+<li><strong>Step 3 certifies the cycle</strong>: <code>expected_count</code> = images you discovered; the server counts
+  what actually landed and marks the inventory run <code>committed</code> only if complete. Without it,
+  "running at T" queries won't trust the cycle.</li>
+<li>The token is <strong>scope-bound</strong> (SEC-3): a payload whose <code>cluster_id</code>/<code>scanner</code> doesn't match
+  the token's scope is a <code>403</code>, not a shrug.</li>
+</ul>
+<h2 id="portable-field-semantics-nothing-here-is-kubernetes-specific">Portable field semantics (nothing here is Kubernetes-specific)<a class="headerlink" href="#portable-field-semantics-nothing-here-is-kubernetes-specific" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>What it really is</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cluster_id</code></td>
+<td>Any <strong>stable, immutable</strong> environment id — lowercase alnum/hyphen, 8–64 chars. It routes storage; never rename it (labels/display names live elsewhere).</td>
+</tr>
+<tr>
+<td><code>namespaces</code></td>
+<td>Plain <code>list[str]</code> grouping labels for where the image runs. Kube namespaces for us; <strong>Nomad job names, compose project names, host groups</strong> all slot straight in.</td>
+</tr>
+<tr>
+<td><code>replicas</code></td>
+<td>Instance count of the image in that grouping — any integer ≥ 0.</td>
+</tr>
+<tr>
+<td><code>image_digest</code></td>
+<td><code>sha256:&lt;hex&gt;</code> — the content identity everything dedupes on.</td>
+</tr>
+<tr>
+<td><code>last_seen_at</code> etc.</td>
+<td>Timestamps must be <strong>timezone-aware</strong> ISO-8601 (<code>…Z</code> or offset).</td>
+</tr>
+<tr>
+<td><code>severity</code></td>
+<td>The scanner's <strong>verbatim</strong> word (D16 raw fidelity). The server derives the canonical bucket itself and never trusts <code>severity_canonical</code> from the wire (send it anyway — the schema requires it; verbatim-lowercase is fine).</td>
+</tr>
+<tr>
+<td><code>effective_config</code></td>
+<td>The tuning + scope the cycle actually ran with — audit/display only, but <strong>required</strong> and its <code>tuning</code> shape must match <code>scanner</code>.</td>
+</tr>
+</tbody>
+</table>
+<h2 id="validation-what-gets-you-a-422-and-friends">Validation — what gets you a 422 (and friends)<a class="headerlink" href="#validation-what-gets-you-a-422-and-friends" title="Permanent link">&para;</a></h2>
+<p>The envelope is validated with <code>extra="forbid"</code> at every level: an unknown field anywhere is a
+rejection, not a warning. The specific tripwires:</p>
+<ul>
+<li><strong>Counts invariant</strong>: <code>counts.total</code> must equal the six severity buckets' sum <strong>and</strong>
+  <code>len(findings)</code>. (Bucket <em>column names</em> are the historical <code>crit/med</code> shorthand; severity
+  <em>values</em> are always full words.)</li>
+<li><strong><code>cluster_id</code> shape</strong> (it flows into index names — injection guard): lowercase
+  alnum/hyphen, 8–64 chars.</li>
+<li><strong><code>image_digest</code></strong>: must match <code>^sha256:[a-fA-F0-9]{6,64}$</code>.</li>
+<li><strong><code>scanner</code> ↔ <code>effective_config.tuning</code> mismatch</strong> (a trivy envelope with grype tuning is a
+  lying client).</li>
+<li><strong><code>schema_version</code></strong> outside the accepted window (currently 3 or 4 — the M8d <code>ptype</code>
+  rollout; v3 findings simply have no <code>ptype</code>).</li>
+<li>Naive (timezone-less) timestamps.</li>
+</ul>
+<p>The full error table for <code>POST /ingest/scan</code> (400/401/403/413/422/429/503, gzip support, size
+caps) is in <a href="../API/"><code>API.md</code></a> § "the hardened surface". Success is <code>202</code> with
+<code>{accepted, findings, commit}</code> — and pushes are <strong>idempotent</strong> (deterministic doc ids): safe to
+retry a failed cycle.</p>
+<h2 id="worked-example">Worked example<a class="headerlink" href="#worked-example" title="Permanent link">&para;</a></h2>
+<p>A complete, minimal envelope (1 finding — a real one validated by the golden fixture family;
+<code>backend/tests/fixtures/envelope-trivy-v3-golden.json</code> is the fuller 29-finding template):</p>
+<p>```bash
+TOKEN=…            # from step 0, scoped to (my-nomad-fleet-01, trivy)
+ORDER=$(curl -s -X POST -H "Authorization: Bearer $TOKEN" \
+  https://javv.example/api/v1/scan-runs | jq .scan_order)</p>
+<p>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  https://javv.example/api/v1/ingest/scan -d @- &lt;&lt;EOF
+{
+  "schema_version": 4,
+  "cluster_id": "my-nomad-fleet-01",
+  "scanner": "trivy",
+  "image_digest": "sha256:aa11bb22cc33dd44ee55ff667788990011223344556677889900aabbccddeeff",
+  "image_ref": "python:3.9.16-slim",
+  "namespaces": ["billing-job"],
+  "replicas": 3,
+  "scan_run_id": "cycle-2026-07-10-a",
+  "scan_order": $ORDER,
+  "last_seen_at": "2026-07-10T12:00:00Z",
+  "scanner_version": "0.71.2",
+  "scanner_db_version": "2",
+  "scanner_db_built": "2026-07-10T01:09:26Z",
+  "effective_config": {
+    "tuning": {
+      "scanners": "vuln",
+      "ignore_unfixed": false,
+      "severities": null,
+      "pkg_types": null,
+      "timeout": null
+    },
+    "scope": {
+      "include_namespaces": [],
+      "ignore_namespaces": [],
+      "exclude_images": [],
+      "ignore_kinds": []
+    }
+  },
+  "counts": {
+    "crit": 0, "high": 1, "med": 0, "low": 0,
+    "negligible": 0, "unknown": 0, "total": 1, "fixable": 1
+  },
+  "findings": [
+    {
+      "vuln_id": "CVE-2024-5535",
+      "package_name": "openssl",
+      "package_version": "1.1.1n-0+deb11u2",
+      "severity": "HIGH",
+      "cvss": 9.1,
+      "fixable": true,
+      "fixed_version": "1.1.1w-0+deb11u2",
+      "epss": null,
+      "kev": false,
+      "ptype": "deb",
+      "severity_canonical": "high"
+    }
+  ]
+}
+EOF</p>
+<h1 id="cycle-end-certify-the-inventory-expected_count-images-you-discovered-this-cycle">cycle end — certify the inventory (expected_count = images you discovered this cycle)<a class="headerlink" href="#cycle-end-certify-the-inventory-expected_count-images-you-discovered-this-cycle" title="Permanent link">&para;</a></h1>
+<p>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  https://javv.example/api/v1/inventory-runs \
+  -d "{\"scan_run_id\": \"cycle-2026-07-10-a\", \"expected_count\": 1, \"started_at\": \"2026-07-10T11:55:00Z\"}"
+```</p>
+<h2 id="current-limitation-the-scanner-vocabulary">Current limitation: the scanner vocabulary<a class="headerlink" href="#current-limitation-the-scanner-vocabulary" title="Permanent link">&para;</a></h2>
+<p><code>scanner</code> is <code>"trivy" | "grype"</code> — <strong>a third-party pusher must produce trivy- or
+grype-compatible output and push AS that scanner</strong> (mint the token for it, match its tuning
+shape). This is deliberate for now: per-scanner-is-sacred (never merged, never deduped) means
+every scanner value is a facet across the entire system — normalizer coverage (D16),
+disagreement pairing, per-scanner tokens. Opening the vocabulary is a <strong>v1.1 ruling</strong>
+(a registered-scanner registry, not a free string) tracked on
+<a href="https://github.com/Danube-Labs/javv-poc/issues/327">#327</a>; a <code>generic</code> tuning shape rides the
+same ruling. If you're wrapping a different engine (Snyk, Clair, …) today, map its output onto
+one of the two identities and pin your mapping — or wait for the vocabulary.</p>
+<h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../API/"><code>API.md</code></a> — full endpoint reference (auth, error tables, metrics).</li>
+<li><code>docs/engineering/INDEX-MAP.md</code> — where the data lands.</li>
+<li>D16 (raw-fidelity normalizer) · D30 (stateless full sweeps) · D45 (<code>scan_order</code>) ·
+  SEC-3 (token scope-binding) · M8d/#241 (the v4 bump that added <code>ptype</code>; an envelope bump and
+  this schema doc travel together).</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog" role="status" aria-atomic="true">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      
+        
+        
+          
+        
+      <script id="__config" type="application/json">{"annotate":null,"base":"../..","features":["navigation.sections","content.code.copy"],"redirect":"../../redirect.json","search":"../../assets/javascripts/workers/search.7d14d953.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","clipboard.error":"Could not copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":{"provider":"mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.8b1c90bd.min.js"></script>
+      
+    
+  </body>
+</html>
