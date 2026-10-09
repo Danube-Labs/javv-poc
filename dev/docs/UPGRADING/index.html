@@ -13,7 +13,7 @@
         <link rel="canonical" href="https://danube-labs.github.io/javv-poc/dev/docs/UPGRADING/">
       
       
-        <link rel="prev" href="../CONFIGURATION/">
+        <link rel="prev" href="../runbooks/multi-pod/">
       
       
         <link rel="next" href="../../CHANGELOG/">
@@ -444,6 +444,119 @@
       
   
   
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Operate
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbooks/opensearch-sizing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Sizing OpenSearch
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbooks/multi-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Scaling and failures
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -462,10 +575,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -483,8 +596,8 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-            <label class="md-nav__title" for="__nav_4">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_5">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -716,10 +829,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -737,8 +850,8 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-            <label class="md-nav__title" for="__nav_5">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_6">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -1083,10 +1196,10 @@ healthy (its health check uses the new value), the backend waits for it, and
    password.</li>
 <li>Load the new one into its security index, with the demo admin certificate that ships in the
    image:
-   <code>bash
-   docker compose exec opensearch plugins/opensearch-security/tools/securityadmin.sh \
-     -f config/opensearch-security/internal_users.yml -t internalusers -icl -nhnv \
-     -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem</code>
+   <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>opensearch<span class="w"> </span>plugins/opensearch-security/tools/securityadmin.sh<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-f<span class="w"> </span>config/opensearch-security/internal_users.yml<span class="w"> </span>-t<span class="w"> </span>internalusers<span class="w"> </span>-icl<span class="w"> </span>-nhnv<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-cacert<span class="w"> </span>config/root-ca.pem<span class="w"> </span>-cert<span class="w"> </span>config/kirk.pem<span class="w"> </span>-key<span class="w"> </span>config/kirk-key.pem
+</code></pre></div>
    It ends with <code>Done with success</code>. The compose file writes that file from <code>.env</code> on every start,
    so it holds both new passwords.</li>
 <li><code>docker compose up -d</code>.</li>
@@ -1099,12 +1212,12 @@ first start with its login on. There, <code>JAVV_OPENSEARCH_PASSWORD</code> was 
 value to <code>JAVV_OPENSEARCH_ADMIN_PASSWORD</code>, and give <code>JAVV_OPENSEARCH_PASSWORD</code> a new one for
 javv. Then start OpenSearch on its own (<code>docker compose up -d opensearch</code>) and load all three
 files with the same certificate, once, before <code>docker compose up -d</code>:</p>
-<p><code>bash
-for f in internal_users:internalusers roles:roles roles_mapping:rolesmapping; do
-  docker compose exec opensearch plugins/opensearch-security/tools/securityadmin.sh \
-    -f "config/opensearch-security/${f%%:*}.yml" -t "${f#*:}" -icl -nhnv \
-    -cacert config/root-ca.pem -cert config/kirk.pem -key config/kirk-key.pem
-done</code></p>
+<div class="highlight"><pre><span></span><code><span class="k">for</span><span class="w"> </span>f<span class="w"> </span><span class="k">in</span><span class="w"> </span>internal_users:internalusers<span class="w"> </span>roles:roles<span class="w"> </span>roles_mapping:rolesmapping<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<span class="w">  </span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>opensearch<span class="w"> </span>plugins/opensearch-security/tools/securityadmin.sh<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-f<span class="w"> </span><span class="s2">"config/opensearch-security/</span><span class="si">${</span><span class="nv">f</span><span class="p">%%:*</span><span class="si">}</span><span class="s2">.yml"</span><span class="w"> </span>-t<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">f</span><span class="p">#*:</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-icl<span class="w"> </span>-nhnv<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-cacert<span class="w"> </span>config/root-ca.pem<span class="w"> </span>-cert<span class="w"> </span>config/kirk.pem<span class="w"> </span>-key<span class="w"> </span>config/kirk-key.pem
+<span class="k">done</span>
+</code></pre></div>
 <p>Each file ends with <code>Done with success</code>. A <code>java.nio.channels.ClosedSelectorException</code> printed after it,
 now and then, is the tool's HTTP client closing, after the load. The same loop loads a changed
 <code>javv</code> role, if a release ever changes it; its notes will say so. This upgrade was tried on the
@@ -1114,29 +1227,29 @@ real compose files, from a store started with <code>main</code>'s.</p>
 release's version: each release publishes them at <code>oci://ghcr.io/danube-labs/charts</code> under it.
 Keep your settings in a values file of your own, so an upgrade is the new release's chart with the
 same file:</p>
-<p><code>bash
-helm upgrade store oci://ghcr.io/danube-labs/charts/javv-opensearch --version &lt;new version&gt; \
-  -f my-store-values.yaml   # when the store chart changed
-helm upgrade javv oci://ghcr.io/danube-labs/charts/javv --version &lt;new version&gt; -f my-javv-values.yaml
-helm test javv</code></p>
+<div class="highlight"><pre><span></span><code>helm<span class="w"> </span>upgrade<span class="w"> </span>store<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv-opensearch<span class="w"> </span>--version<span class="w"> </span>&lt;new<span class="w"> </span>version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-f<span class="w"> </span>my-store-values.yaml<span class="w">   </span><span class="c1"># when the store chart changed</span>
+helm<span class="w"> </span>upgrade<span class="w"> </span>javv<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv<span class="w"> </span>--version<span class="w"> </span>&lt;new<span class="w"> </span>version&gt;<span class="w"> </span>-f<span class="w"> </span>my-javv-values.yaml
+helm<span class="w"> </span><span class="nb">test</span><span class="w"> </span>javv
+</code></pre></div>
 <p>The backend runs as one pod with <code>strategy: Recreate</code> (issue 691: it runs the background jobs
 itself, so two must never run at once). The old pod stops before the new one starts, and JAVV is
 unavailable for the seconds the new one takes to check the store and upgrade the indices; the
 startup probe allows 300 s for that. Meanwhile the frontend answers 502, which the app shows as
 "backend not answering". The frontend itself rolls over without a gap.</p>
 <p><strong>Rolling back</strong> is one command. <code>helm history javv</code> lists the revisions:</p>
-<p><code>bash
-helm rollback javv          # to the revision before the current one
-helm rollback javv 3        # or to a given one</code></p>
+<div class="highlight"><pre><span></span><code>helm<span class="w"> </span>rollback<span class="w"> </span>javv<span class="w">          </span><span class="c1"># to the revision before the current one</span>
+helm<span class="w"> </span>rollback<span class="w"> </span>javv<span class="w"> </span><span class="m">3</span><span class="w">        </span><span class="c1"># or to a given one</span>
+</code></pre></div>
 <p>The settings and images of that revision come back; the indices stay as the newer release left
 them, which an older backend reads (see <a href="#rolling-back">Rolling back</a>). CI runs an upgrade and a
 rollback on every change to the charts.</p>
 <p><strong>The scanners come last,</strong> in each monitored cluster, once JAVV runs the new release: a newer
 scanner can send a report format only the newer backend accepts. The <code>javv-scanner</code> chart carries
 the scanner versions of its release; your values file (<code>backendUrl</code>, the token Secrets) stays:</p>
-<p><code>bash
-helm upgrade scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version &lt;new version&gt; \
-  -n javv-scanner -f my-scanner-values.yaml</code></p>
+<div class="highlight"><pre><span></span><code>helm<span class="w"> </span>upgrade<span class="w"> </span>scanner<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv-scanner<span class="w"> </span>--version<span class="w"> </span>&lt;new<span class="w"> </span>version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-n<span class="w"> </span>javv-scanner<span class="w"> </span>-f<span class="w"> </span>my-scanner-values.yaml
+</code></pre></div>
 <p>The upgrade starts a vuln-DB refresh when the refresh container changed (the image, the DB
 source, <code>extraEnv</code>, <code>resources</code> or <code>pullPolicy</code>); the next
 cycle uses the new image. To roll back, <code>helm rollback scanner</code> in that cluster, before rolling JAVV

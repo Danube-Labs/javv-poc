@@ -563,7 +563,7 @@
   <span class="md-ellipsis">
     
   
-  Upgrade
+  Operate
 
     
   </span>
@@ -576,6 +576,119 @@
         
           <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
             <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/runbooks/opensearch-sizing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Sizing OpenSearch
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/runbooks/multi-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Scaling and failures
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrade
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -666,10 +779,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -687,8 +800,8 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-            <label class="md-nav__title" for="__nav_5">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_6">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -898,21 +1011,21 @@ reach over HTTP. The full guide is <code>docs/DEPLOYING.md</code>, "Point scanne
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <p>Each scanner needs its own ingest token, minted in JAVV for this cluster (<strong>Settings › Access &amp;
 tokens › Mint token</strong>, with the cluster id below and the scanner's name):</p>
-<p>```bash
-kubectl get namespace kube-system -o jsonpath='{.metadata.uid}'   # this cluster's id in JAVV</p>
-<p>kubectl create namespace javv-scanner
-for s in trivy grype; do  # each token at a prompt: out of shell history and process arguments
-  read -rs -p "$s token: " token &amp;&amp; echo
-  printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
-    --from-file=token=/dev/stdin
-done; unset token
-helm install scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version <version> \
-  -n javv-scanner \
-  --set backendUrl=http://<JAVV's address>:8080 \
-  --set trivy.token.existingSecret=javv-trivy-token \
-  --set grype.token.existingSecret=javv-grype-token
-helm test scanner -n javv-scanner
-```</p>
+<div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>namespace<span class="w"> </span>kube-system<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.metadata.uid}'</span><span class="w">   </span><span class="c1"># this cluster's id in JAVV</span>
+
+kubectl<span class="w"> </span>create<span class="w"> </span>namespace<span class="w"> </span>javv-scanner
+<span class="k">for</span><span class="w"> </span>s<span class="w"> </span><span class="k">in</span><span class="w"> </span>trivy<span class="w"> </span>grype<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w">  </span><span class="c1"># each token at a prompt: out of shell history and process arguments</span>
+<span class="w">  </span><span class="nb">read</span><span class="w"> </span>-rs<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="nv">$s</span><span class="s2"> token: "</span><span class="w"> </span>token<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span>
+<span class="w">  </span><span class="nb">printf</span><span class="w"> </span><span class="s1">'%s'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>kubectl<span class="w"> </span>-n<span class="w"> </span>javv-scanner<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span><span class="s2">"javv-</span><span class="nv">$s</span><span class="s2">-token"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--from-file<span class="o">=</span><span class="nv">token</span><span class="o">=</span>/dev/stdin
+<span class="k">done</span><span class="p">;</span><span class="w"> </span><span class="nb">unset</span><span class="w"> </span>token
+helm<span class="w"> </span>install<span class="w"> </span>scanner<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv-scanner<span class="w"> </span>--version<span class="w"> </span>&lt;version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-n<span class="w"> </span>javv-scanner<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span><span class="nv">backendUrl</span><span class="o">=</span>http://&lt;JAVV<span class="err">'</span>s<span class="w"> </span>address&gt;:8080<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>trivy.token.existingSecret<span class="o">=</span>javv-trivy-token<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>grype.token.existingSecret<span class="o">=</span>javv-grype-token
+helm<span class="w"> </span><span class="nb">test</span><span class="w"> </span>scanner<span class="w"> </span>-n<span class="w"> </span>javv-scanner
+</code></pre></div>
 <p>Each JAVV release publishes this chart at <code>oci://ghcr.io/danube-labs/charts</code>, signed
 (<code>docs/DEPLOYING.md</code>, "Verify the images and charts"). From a checkout, use the chart's
 folder in <code>deploy/helm/</code> instead.</p>

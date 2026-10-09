@@ -470,7 +470,7 @@
   <span class="md-ellipsis">
     
   
-  Upgrade
+  Operate
 
     
   </span>
@@ -483,6 +483,119 @@
         
           <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
             <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbooks/opensearch-sizing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Sizing OpenSearch
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbooks/multi-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Scaling and failures
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrade
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -575,10 +688,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -596,8 +709,8 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
-            <label class="md-nav__title" for="__nav_5">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+            <label class="md-nav__title" for="__nav_6">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -742,6 +855,28 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#current-limitation-the-scanner-vocabulary" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Current limitation: the scanner vocabulary
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Related
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -863,6 +998,28 @@
     <span class="md-ellipsis">
       <span class="md-typeset">
         Worked example
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-limitation-the-scanner-vocabulary" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Current limitation: the scanner vocabulary
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#related" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Related
       </span>
     </span>
   </a>
@@ -1012,67 +1169,68 @@ retry a failed cycle.</p>
 <h2 id="worked-example">Worked example<a class="headerlink" href="#worked-example" title="Permanent link">&para;</a></h2>
 <p>A complete, minimal envelope (1 finding — a real one validated by the golden fixture family;
 <code>backend/tests/fixtures/envelope-trivy-v3-golden.json</code> is the fuller 29-finding template):</p>
-<p>```bash
-TOKEN=…            # from step 0, scoped to (my-nomad-fleet-01, trivy)
-ORDER=$(curl -s -X POST -H "Authorization: Bearer $TOKEN" \
-  https://javv.example/api/v1/scan-runs | jq .scan_order)</p>
-<p>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  https://javv.example/api/v1/ingest/scan -d @- &lt;&lt;EOF
-{
-  "schema_version": 4,
-  "cluster_id": "my-nomad-fleet-01",
-  "scanner": "trivy",
-  "image_digest": "sha256:aa11bb22cc33dd44ee55ff667788990011223344556677889900aabbccddeeff",
-  "image_ref": "python:3.9.16-slim",
-  "namespaces": ["billing-job"],
-  "replicas": 3,
-  "scan_run_id": "cycle-2026-07-10-a",
-  "scan_order": $ORDER,
-  "last_seen_at": "2026-07-10T12:00:00Z",
-  "scanner_version": "0.71.2",
-  "scanner_db_version": "2",
-  "scanner_db_built": "2026-07-10T01:09:26Z",
-  "effective_config": {
-    "tuning": {
-      "scanners": "vuln",
-      "ignore_unfixed": false,
-      "severities": null,
-      "pkg_types": null,
-      "timeout": null
-    },
-    "scope": {
-      "include_namespaces": [],
-      "ignore_namespaces": [],
-      "exclude_images": [],
-      "ignore_kinds": []
-    }
-  },
-  "counts": {
-    "crit": 0, "high": 1, "med": 0, "low": 0,
-    "negligible": 0, "unknown": 0, "total": 1, "fixable": 1
-  },
-  "findings": [
-    {
-      "vuln_id": "CVE-2024-5535",
-      "package_name": "openssl",
-      "package_version": "1.1.1n-0+deb11u2",
-      "severity": "HIGH",
-      "cvss": 9.1,
-      "fixable": true,
-      "fixed_version": "1.1.1w-0+deb11u2",
-      "epss": null,
-      "kev": false,
-      "ptype": "deb",
-      "severity_canonical": "high"
-    }
-  ]
-}
-EOF</p>
-<h1 id="cycle-end-certify-the-inventory-expected_count-images-you-discovered-this-cycle">cycle end — certify the inventory (expected_count = images you discovered this cycle)<a class="headerlink" href="#cycle-end-certify-the-inventory-expected_count-images-you-discovered-this-cycle" title="Permanent link">&para;</a></h1>
-<p>curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  https://javv.example/api/v1/inventory-runs \
-  -d "{\"scan_run_id\": \"cycle-2026-07-10-a\", \"expected_count\": 1, \"started_at\": \"2026-07-10T11:55:00Z\"}"
-```</p>
+<div class="highlight"><pre><span></span><code><span class="nv">TOKEN</span><span class="o">=</span>…<span class="w">            </span><span class="c1"># from step 0, scoped to (my-nomad-fleet-01, trivy)</span>
+<span class="nv">ORDER</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>https://javv.example/api/v1/scan-runs<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.scan_order<span class="k">)</span>
+
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>https://javv.example/api/v1/ingest/scan<span class="w"> </span>-d<span class="w"> </span>@-<span class="w"> </span><span class="s">&lt;&lt;EOF</span>
+<span class="s">{</span>
+<span class="s">  "schema_version": 4,</span>
+<span class="s">  "cluster_id": "my-nomad-fleet-01",</span>
+<span class="s">  "scanner": "trivy",</span>
+<span class="s">  "image_digest": "sha256:aa11bb22cc33dd44ee55ff667788990011223344556677889900aabbccddeeff",</span>
+<span class="s">  "image_ref": "python:3.9.16-slim",</span>
+<span class="s">  "namespaces": ["billing-job"],</span>
+<span class="s">  "replicas": 3,</span>
+<span class="s">  "scan_run_id": "cycle-2026-07-10-a",</span>
+<span class="s">  "scan_order": $ORDER,</span>
+<span class="s">  "last_seen_at": "2026-07-10T12:00:00Z",</span>
+<span class="s">  "scanner_version": "0.71.2",</span>
+<span class="s">  "scanner_db_version": "2",</span>
+<span class="s">  "scanner_db_built": "2026-07-10T01:09:26Z",</span>
+<span class="s">  "effective_config": {</span>
+<span class="s">    "tuning": {</span>
+<span class="s">      "scanners": "vuln",</span>
+<span class="s">      "ignore_unfixed": false,</span>
+<span class="s">      "severities": null,</span>
+<span class="s">      "pkg_types": null,</span>
+<span class="s">      "timeout": null</span>
+<span class="s">    },</span>
+<span class="s">    "scope": {</span>
+<span class="s">      "include_namespaces": [],</span>
+<span class="s">      "ignore_namespaces": [],</span>
+<span class="s">      "exclude_images": [],</span>
+<span class="s">      "ignore_kinds": []</span>
+<span class="s">    }</span>
+<span class="s">  },</span>
+<span class="s">  "counts": {</span>
+<span class="s">    "crit": 0, "high": 1, "med": 0, "low": 0,</span>
+<span class="s">    "negligible": 0, "unknown": 0, "total": 1, "fixable": 1</span>
+<span class="s">  },</span>
+<span class="s">  "findings": [</span>
+<span class="s">    {</span>
+<span class="s">      "vuln_id": "CVE-2024-5535",</span>
+<span class="s">      "package_name": "openssl",</span>
+<span class="s">      "package_version": "1.1.1n-0+deb11u2",</span>
+<span class="s">      "severity": "HIGH",</span>
+<span class="s">      "cvss": 9.1,</span>
+<span class="s">      "fixable": true,</span>
+<span class="s">      "fixed_version": "1.1.1w-0+deb11u2",</span>
+<span class="s">      "epss": null,</span>
+<span class="s">      "kev": false,</span>
+<span class="s">      "ptype": "deb",</span>
+<span class="s">      "severity_canonical": "high"</span>
+<span class="s">    }</span>
+<span class="s">  ]</span>
+<span class="s">}</span>
+<span class="s">EOF</span>
+
+<span class="c1"># cycle end — certify the inventory (expected_count = images you discovered this cycle)</span>
+curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>https://javv.example/api/v1/inventory-runs<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-d<span class="w"> </span><span class="s2">"{\"scan_run_id\": \"cycle-2026-07-10-a\", \"expected_count\": 1, \"started_at\": \"2026-07-10T11:55:00Z\"}"</span>
+</code></pre></div>
 <h2 id="current-limitation-the-scanner-vocabulary">Current limitation: the scanner vocabulary<a class="headerlink" href="#current-limitation-the-scanner-vocabulary" title="Permanent link">&para;</a></h2>
 <p><code>scanner</code> is <code>"trivy" | "grype"</code> — <strong>a third-party pusher must produce trivy- or
 grype-compatible output and push AS that scanner</strong> (mint the token for it, match its tuning

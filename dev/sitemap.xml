@@ -34,6 +34,12 @@
         <loc>https://danube-labs.github.io/javv-poc/dev/docs/UPGRADING/</loc>
       </url>
       <url>
+        <loc>https://danube-labs.github.io/javv-poc/dev/docs/runbooks/multi-pod/</loc>
+      </url>
+      <url>
+        <loc>https://danube-labs.github.io/javv-poc/dev/docs/runbooks/opensearch-sizing/</loc>
+      </url>
+      <url>
         <loc>https://danube-labs.github.io/javv-poc/dev/docs/supported-versions/</loc>
       </url>
 </urlset>

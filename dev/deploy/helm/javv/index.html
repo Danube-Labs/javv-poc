@@ -403,6 +403,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#what-it-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        What it runs
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Settings
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#values" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Values
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -530,7 +563,7 @@
   <span class="md-ellipsis">
     
   
-  Upgrade
+  Operate
 
     
   </span>
@@ -543,6 +576,119 @@
         
           <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
             <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/runbooks/opensearch-sizing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Sizing OpenSearch
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../../docs/runbooks/multi-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Scaling and failures
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrade
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -633,10 +779,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -654,8 +800,8 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-            <label class="md-nav__title" for="__nav_5">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_6">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -803,6 +949,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#what-it-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        What it runs
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Settings
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#values" class="md-nav__link">
+    <span class="md-ellipsis">
+      <span class="md-typeset">
+        Values
+      </span>
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -834,23 +1013,23 @@ cluster are the <code>javv-scanner</code> chart. The full guide is <code>docs/DE
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <p>Each secret is read at a prompt or made on the spot, so it stays out of your shell history and
 every process's arguments (bash):</p>
-<p>```bash</p>
-<h1 id="the-store-first-its-readme-has-the-certificate-choices">the store first (its README has the certificate choices)<a class="headerlink" href="#the-store-first-its-readme-has-the-certificate-choices" title="Permanent link">&para;</a></h1>
-<p>read -rs -p 'OpenSearch admin password: ' pw &amp;&amp; echo
-printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
-helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <version> \
-  --set opensearch.javv.auth.existingSecret=javv-opensearch-admin</p>
-<h1 id="then-javv-signing-in-with-the-stores-secret">then JAVV, signing in with the store's Secret<a class="headerlink" href="#then-javv-signing-in-with-the-stores-secret" title="Permanent link">&para;</a></h1>
-<p>read -rs -p 'First JAVV admin password (12 characters or more): ' pw &amp;&amp; echo
-kubectl create secret generic javv-secrets \
-  --from-file=token-pepper=&lt;(openssl rand -hex 32 | tr -d '\n') \
-  --from-file=bootstrap-admin-password=&lt;(printf '%s' "$pw")
-unset pw
-helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \
-  --set secrets.existingSecret=javv-secrets \
-  --set opensearch.passwordSecret.name=javv-opensearch-admin
-helm test javv
-```</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># the store first (its README has the certificate choices)</span>
+<span class="nb">read</span><span class="w"> </span>-rs<span class="w"> </span>-p<span class="w"> </span><span class="s1">'OpenSearch admin password: '</span><span class="w"> </span>pw<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">'%s'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$pw</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>javv-opensearch-admin<span class="w"> </span>--from-file<span class="o">=</span><span class="nv">password</span><span class="o">=</span>/dev/stdin
+helm<span class="w"> </span>install<span class="w"> </span>store<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv-opensearch<span class="w"> </span>--version<span class="w"> </span>&lt;version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>opensearch.javv.auth.existingSecret<span class="o">=</span>javv-opensearch-admin
+
+<span class="c1"># then JAVV, signing in with the store's Secret</span>
+<span class="nb">read</span><span class="w"> </span>-rs<span class="w"> </span>-p<span class="w"> </span><span class="s1">'First JAVV admin password (12 characters or more): '</span><span class="w"> </span>pw<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span>
+kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>javv-secrets<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--from-file<span class="o">=</span>token-pepper<span class="o">=</span>&lt;<span class="o">(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\n'</span><span class="o">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--from-file<span class="o">=</span>bootstrap-admin-password<span class="o">=</span>&lt;<span class="o">(</span><span class="nb">printf</span><span class="w"> </span><span class="s1">'%s'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$pw</span><span class="s2">"</span><span class="o">)</span>
+<span class="nb">unset</span><span class="w"> </span>pw
+helm<span class="w"> </span>install<span class="w"> </span>javv<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv<span class="w"> </span>--version<span class="w"> </span>&lt;version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>secrets.existingSecret<span class="o">=</span>javv-secrets<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>opensearch.passwordSecret.name<span class="o">=</span>javv-opensearch-admin
+helm<span class="w"> </span><span class="nb">test</span><span class="w"> </span>javv
+</code></pre></div>
 <p>Each JAVV release publishes this chart at <code>oci://ghcr.io/danube-labs/charts</code>, signed
 (<code>docs/DEPLOYING.md</code>, "Verify the images and charts"). From a checkout, use the chart's
 folder in <code>deploy/helm/</code> instead.</p>

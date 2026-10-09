@@ -674,7 +674,7 @@
   <span class="md-ellipsis">
     
   
-  Upgrade
+  Operate
 
     
   </span>
@@ -687,6 +687,119 @@
         
           <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
             <label class="md-nav__title" for="__nav_4">
+              <span class="md-nav__icon md-icon"></span>
+              
+  
+  Operate
+
+            </label>
+            <ul class="md-nav__list" data-md-scrollfix>
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbooks/opensearch-sizing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Sizing OpenSearch
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+                
+                  
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbooks/multi-pod/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Scaling and failures
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+                
+              
+            </ul>
+          </nav>
+        
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+  Upgrade
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_5">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -777,10 +890,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -798,8 +911,8 @@
           </label>
         
         
-          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-            <label class="md-nav__title" for="__nav_5">
+          <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+            <label class="md-nav__title" for="__nav_6">
               <span class="md-nav__icon md-icon"></span>
               
   
@@ -1113,12 +1226,12 @@
 
 <h1 id="deploying-javv">Deploying JAVV<a class="headerlink" href="#deploying-javv" title="Permanent link">&para;</a></h1>
 <p>JAVV is three containers and, somewhere else, its scanners:</p>
-<p><code>mermaid
-flowchart LR
+<div class="highlight"><pre><span></span><code>flowchart LR
   browser[Browser] --&gt;|":8080"| fe[javv-frontend]
   scanner[JAVV scanner, any cluster] --&gt;|"POST /api/v1/ingest/scan"| fe
   fe --&gt;|"/api, /auth, /readyz"| be[javv-backend]
-  be --&gt; os[(OpenSearch)]</code></p>
+  be --&gt; os[(OpenSearch)]
+</code></pre></div>
 <ul>
 <li><strong>javv-frontend</strong> serves the web app and forwards <code>/api</code>, <code>/auth</code> and <code>/readyz</code> to the backend,
   so browsers and scanners use one address. Nothing has to sit in front of it.</li>
@@ -1139,11 +1252,11 @@ and frontend images under its version (<code>ghcr.io/danube-labs/javv-backend:&l
 <ol>
 <li><strong>Give OpenSearch its memory map limit</strong> (once per host; add it to <code>/etc/sysctl.conf</code> to keep
    it after a reboot):
-   <code>bash
-   sudo sysctl -w vm.max_map_count=262144</code></li>
+   <div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>sysctl<span class="w"> </span>-w<span class="w"> </span>vm.max_map_count<span class="o">=</span><span class="m">262144</span>
+</code></pre></div></li>
 <li><strong>Fill in <code>.env</code></strong>, in the folder that holds the two files:
-   <code>bash
-   cp .env.example .env</code>
+   <div class="highlight"><pre><span></span><code>cp<span class="w"> </span>.env.example<span class="w"> </span>.env
+</code></pre></div>
    Set four secrets. The compose file refuses to start without them.</li>
 <li><code>JAVV_TOKEN_PEPPER</code>: a long random string (<code>openssl rand -hex 32</code>), kept for good.</li>
 <li><code>JAVV_BOOTSTRAP_ADMIN_PASSWORD</code>: the first JAVV admin's password, used once.</li>
@@ -1172,9 +1285,9 @@ and frontend images under its version (<code>ghcr.io/danube-labs/javv-backend:&l
    both.</p>
 <p>Decide the session cookie (next section).
 3. <strong>Start it:</strong>
-   <code>bash
-   docker compose up -d   # pulls the release's images the first time
-   docker compose ps      # opensearch, backend and frontend all "healthy"</code>
+   <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w">   </span><span class="c1"># pulls the release's images the first time</span>
+docker<span class="w"> </span>compose<span class="w"> </span>ps<span class="w">      </span><span class="c1"># opensearch, backend and frontend all "healthy"</span>
+</code></pre></div>
    The backend creates its indices on the first start.
 4. <strong>Sign in</strong> at <code>http://&lt;this machine&gt;:8080</code> as <code>admin</code> with the password from <code>.env</code>. JAVV asks
    for a new password (12 characters or more) before anything else.</p>
@@ -1249,32 +1362,32 @@ release, use <code>deploy/helm/&lt;chart&gt;</code> in place of <code>oci://ghcr
    admin password (the rules are the compose ones above). Each secret here is read at a prompt or
    made on the spot, so it stays out of your shell history and every process's arguments (the
    commands need bash).
-   <code>bash
-   read -rs -p 'OpenSearch admin password: ' pw &amp;&amp; echo
-   printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
-   unset pw
-   kubectl create secret generic javv-opensearch-backend \
-     --from-file=password=&lt;(openssl rand -hex 24 | tr -d '\n')
-   helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version &lt;version&gt; \
-     --set opensearch.javv.auth.existingSecret=javv-opensearch-admin \
-     --set opensearch.javv.backend.existingSecret=javv-opensearch-backend</code>
+   <div class="highlight"><pre><span></span><code><span class="nb">read</span><span class="w"> </span>-rs<span class="w"> </span>-p<span class="w"> </span><span class="s1">'OpenSearch admin password: '</span><span class="w"> </span>pw<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span>
+<span class="nb">printf</span><span class="w"> </span><span class="s1">'%s'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$pw</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>javv-opensearch-admin<span class="w"> </span>--from-file<span class="o">=</span><span class="nv">password</span><span class="o">=</span>/dev/stdin
+<span class="nb">unset</span><span class="w"> </span>pw
+kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>javv-opensearch-backend<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--from-file<span class="o">=</span><span class="nv">password</span><span class="o">=</span>&lt;<span class="o">(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">24</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\n'</span><span class="o">)</span>
+helm<span class="w"> </span>install<span class="w"> </span>store<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv-opensearch<span class="w"> </span>--version<span class="w"> </span>&lt;version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>opensearch.javv.auth.existingSecret<span class="o">=</span>javv-opensearch-admin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>opensearch.javv.backend.existingSecret<span class="o">=</span>javv-opensearch-backend
+</code></pre></div>
    That runs OpenSearch's demo certificates, as compose does. For your own, set
    <code>opensearch.javv.tls.existingSecret</code> (a Secret with <code>tls.crt</code>, a PKCS#8 <code>tls.key</code> and
    <code>ca.crt</code>) or <code>opensearch.javv.tls.certManager</code> (the chart asks your cert-manager Issuer); the
    <a href="../../deploy/helm/javv-opensearch/">chart's README</a> has both.</li>
 <li><strong>JAVV's own two secrets</strong>, the same ones <code>.env</code> holds for compose:
-   <code>bash
-   read -rs -p 'First JAVV admin password (12 characters or more): ' pw &amp;&amp; echo
-   kubectl create secret generic javv-secrets \
-     --from-file=token-pepper=&lt;(openssl rand -hex 32 | tr -d '\n') \
-     --from-file=bootstrap-admin-password=&lt;(printf '%s' "$pw")
-   unset pw</code></li>
+   <div class="highlight"><pre><span></span><code><span class="nb">read</span><span class="w"> </span>-rs<span class="w"> </span>-p<span class="w"> </span><span class="s1">'First JAVV admin password (12 characters or more): '</span><span class="w"> </span>pw<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span>
+kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>javv-secrets<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--from-file<span class="o">=</span>token-pepper<span class="o">=</span>&lt;<span class="o">(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\n'</span><span class="o">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--from-file<span class="o">=</span>bootstrap-admin-password<span class="o">=</span>&lt;<span class="o">(</span><span class="nb">printf</span><span class="w"> </span><span class="s1">'%s'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$pw</span><span class="s2">"</span><span class="o">)</span>
+<span class="nb">unset</span><span class="w"> </span>pw
+</code></pre></div></li>
 <li><strong>JAVV</strong>, signing in to the store as <code>javv</code>, with javv's Secret:
-   <code>bash
-   helm install javv oci://ghcr.io/danube-labs/charts/javv --version &lt;version&gt; \
-     --set secrets.existingSecret=javv-secrets \
-     --set opensearch.passwordSecret.name=javv-opensearch-backend
-   helm test javv</code>
+   <div class="highlight"><pre><span></span><code>helm<span class="w"> </span>install<span class="w"> </span>javv<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv<span class="w"> </span>--version<span class="w"> </span>&lt;version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>secrets.existingSecret<span class="o">=</span>javv-secrets<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>opensearch.passwordSecret.name<span class="o">=</span>javv-opensearch-backend
+helm<span class="w"> </span><span class="nb">test</span><span class="w"> </span>javv
+</code></pre></div>
    With the store's own certificate, add <code>--set opensearch.caSecret.name=&lt;the Secret with its
    ca.crt&gt;</code> (for cert-manager: <code>store-javv-opensearch-tls</code>): the backend then checks it.</li>
 <li><strong>Sign in</strong> through the <code>javv</code> Service on port 8080, as <code>admin</code> with the bootstrap password.
@@ -1300,25 +1413,25 @@ use the image's demo admin certificate, as on the compose network.</p>
 Each pair of cluster and scanner has its own token.</p>
 <ol>
 <li>Find the cluster's id: the <code>kube-system</code> namespace UID.
-   <code>bash
-   kubectl get namespace kube-system -o jsonpath='{.metadata.uid}'</code></li>
+   <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>get<span class="w"> </span>namespace<span class="w"> </span>kube-system<span class="w"> </span>-o<span class="w"> </span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.metadata.uid}'</span>
+</code></pre></div></li>
 <li>In JAVV, <strong>Settings › Access &amp; tokens › Mint token</strong>: that cluster id and the scanner (<code>trivy</code>
    or <code>grype</code>). The token is shown once.</li>
 <li>Install the <code>javv-scanner</code> chart in that cluster, each token in its own Secret, with JAVV's
    address as that cluster reaches it:
-   <code>bash
-   kubectl create namespace javv-scanner
-   for s in trivy grype; do  # each token at a prompt: out of shell history and process arguments
-     read -rs -p "$s token: " token &amp;&amp; echo
-     printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
-       --from-file=token=/dev/stdin
-   done; unset token
-   helm install scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version &lt;version&gt; \
-     -n javv-scanner \
-     --set backendUrl=http://&lt;JAVV's address&gt;:8080 \
-     --set trivy.token.existingSecret=javv-trivy-token \
-     --set grype.token.existingSecret=javv-grype-token
-   helm test scanner -n javv-scanner</code>
+   <div class="highlight"><pre><span></span><code>kubectl<span class="w"> </span>create<span class="w"> </span>namespace<span class="w"> </span>javv-scanner
+<span class="k">for</span><span class="w"> </span>s<span class="w"> </span><span class="k">in</span><span class="w"> </span>trivy<span class="w"> </span>grype<span class="p">;</span><span class="w"> </span><span class="k">do</span><span class="w">  </span><span class="c1"># each token at a prompt: out of shell history and process arguments</span>
+<span class="w">  </span><span class="nb">read</span><span class="w"> </span>-rs<span class="w"> </span>-p<span class="w"> </span><span class="s2">"</span><span class="nv">$s</span><span class="s2"> token: "</span><span class="w"> </span>token<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span>
+<span class="w">  </span><span class="nb">printf</span><span class="w"> </span><span class="s1">'%s'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$token</span><span class="s2">"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>kubectl<span class="w"> </span>-n<span class="w"> </span>javv-scanner<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span><span class="s2">"javv-</span><span class="nv">$s</span><span class="s2">-token"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--from-file<span class="o">=</span><span class="nv">token</span><span class="o">=</span>/dev/stdin
+<span class="k">done</span><span class="p">;</span><span class="w"> </span><span class="nb">unset</span><span class="w"> </span>token
+helm<span class="w"> </span>install<span class="w"> </span>scanner<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv-scanner<span class="w"> </span>--version<span class="w"> </span>&lt;version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-n<span class="w"> </span>javv-scanner<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span><span class="nv">backendUrl</span><span class="o">=</span>http://&lt;JAVV<span class="err">'</span>s<span class="w"> </span>address&gt;:8080<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>trivy.token.existingSecret<span class="o">=</span>javv-trivy-token<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--set<span class="w"> </span>grype.token.existingSecret<span class="o">=</span>javv-grype-token
+helm<span class="w"> </span><span class="nb">test</span><span class="w"> </span>scanner<span class="w"> </span>-n<span class="w"> </span>javv-scanner
+</code></pre></div>
    <code>helm test</code> checks that JAVV answers at that address and accepts each token. Without
    Kubernetes, run the scanner image with <code>JAVV_BACKEND_URL</code>, <code>JAVV_TOKEN</code> and <code>JAVV_CLUSTER_ID</code>
    (<a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §2</a>).</li>
@@ -1353,22 +1466,22 @@ certificate comes from the release workflow's GitHub identity and is logged in t
 transparency log. Each image also carries a <strong>signed SPDX SBOM attestation</strong>, the list of what is
 inside it. Both bind to the image's digest, not its tag. To check one with cosign 3.x (the version
 the release signs with, <code>versions.yaml</code> <code>supply_chain.cosign</code>):</p>
-<p>```bash
-IMAGE=ghcr.io/danube-labs/javv-backend:<version>   # or javv-frontend
-IDENTITY='^https://github.com/Danube-Labs/javv-poc/.github/workflows/release-please.yml@refs/heads/main$'
-ISSUER=https://token.actions.githubusercontent.com</p>
-<p>cosign verify "$IMAGE" --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
-cosign verify-attestation "$IMAGE" --type spdxjson \
-  --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER" &gt; /dev/null &amp;&amp; echo "SBOM attestation OK"
-```</p>
+<div class="highlight"><pre><span></span><code><span class="nv">IMAGE</span><span class="o">=</span>ghcr.io/danube-labs/javv-backend:&lt;version&gt;<span class="w">   </span><span class="c1"># or javv-frontend</span>
+<span class="nv">IDENTITY</span><span class="o">=</span><span class="s1">'^https://github\.com/Danube-Labs/javv-poc/\.github/workflows/release-please\.yml@refs/heads/main$'</span>
+<span class="nv">ISSUER</span><span class="o">=</span>https://token.actions.githubusercontent.com
+
+cosign<span class="w"> </span>verify<span class="w"> </span><span class="s2">"</span><span class="nv">$IMAGE</span><span class="s2">"</span><span class="w"> </span>--certificate-identity-regexp<span class="w"> </span><span class="s2">"</span><span class="nv">$IDENTITY</span><span class="s2">"</span><span class="w"> </span>--certificate-oidc-issuer<span class="w"> </span><span class="s2">"</span><span class="nv">$ISSUER</span><span class="s2">"</span>
+cosign<span class="w"> </span>verify-attestation<span class="w"> </span><span class="s2">"</span><span class="nv">$IMAGE</span><span class="s2">"</span><span class="w"> </span>--type<span class="w"> </span>spdxjson<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--certificate-identity-regexp<span class="w"> </span><span class="s2">"</span><span class="nv">$IDENTITY</span><span class="s2">"</span><span class="w"> </span>--certificate-oidc-issuer<span class="w"> </span><span class="s2">"</span><span class="nv">$ISSUER</span><span class="s2">"</span><span class="w"> </span>&gt;<span class="w"> </span>/dev/null<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">"SBOM attestation OK"</span>
+</code></pre></div>
 <p>The identity accepts only the release workflow running on this repository's <code>main</code>, so an image
 built anywhere else fails. The release runs these same two commands, signed out, before it
 finishes. Images released before signing started (0.5.1 and earlier) carry no signature.</p>
 <p>The three charts are signed by the same workflow, with the same identity. A chart holds no
 software packages, so it carries a signature and no SBOM:</p>
-<p><code>bash
-cosign verify ghcr.io/danube-labs/charts/javv:&lt;version&gt; \
-  --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER"</code></p>
+<div class="highlight"><pre><span></span><code>cosign<span class="w"> </span>verify<span class="w"> </span>ghcr.io/danube-labs/charts/javv:&lt;version&gt;<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--certificate-identity-regexp<span class="w"> </span><span class="s2">"</span><span class="nv">$IDENTITY</span><span class="s2">"</span><span class="w"> </span>--certificate-oidc-issuer<span class="w"> </span><span class="s2">"</span><span class="nv">$ISSUER</span><span class="s2">"</span>
+</code></pre></div>
 <p>The scanner images are signed the same way by their own workflow; their identity is in
 <a href="https://github.com/Danube-Labs/javv-poc/blob/main/scanner/README.md#verify-a-published-image"><code>scanner/README.md</code></a>. The release checks that
 signature on each scanner image before it names the image's digest in the published
@@ -1397,83 +1510,83 @@ cluster settings, register a snapshot repository, or use the security API (issue
 </ul>
 <p>Each permission was shown needed: the role walk fails without it (the runs are on issue 729).</p>
 <p>To create them on a cluster you run, as a user that may change security (OpenSearch's <code>admin</code>):</p>
-<p><code>bash
-OS=https://&lt;your opensearch&gt;:9200
-curl -u admin -X PUT "$OS/_plugins/_security/api/roles/javv" \
-  -H 'content-type: application/json' --data-binary @javv-role.json
-curl -u admin -X PUT "$OS/_plugins/_security/api/internalusers/javv" \
-  -H 'content-type: application/json' -d '{"password": "&lt;a long random password&gt;"}'
-curl -u admin -X PUT "$OS/_plugins/_security/api/rolesmapping/javv" \
-  -H 'content-type: application/json' -d '{"users": ["javv"]}'</code></p>
+<div class="highlight"><pre><span></span><code><span class="nv">OS</span><span class="o">=</span>https://&lt;your<span class="w"> </span>opensearch&gt;:9200
+curl<span class="w"> </span>-u<span class="w"> </span>admin<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">"</span><span class="nv">$OS</span><span class="s2">/_plugins/_security/api/roles/javv"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span>--data-binary<span class="w"> </span>@javv-role.json
+curl<span class="w"> </span>-u<span class="w"> </span>admin<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">"</span><span class="nv">$OS</span><span class="s2">/_plugins/_security/api/internalusers/javv"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">'{"password": "&lt;a long random password&gt;"}'</span>
+curl<span class="w"> </span>-u<span class="w"> </span>admin<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">"</span><span class="nv">$OS</span><span class="s2">/_plugins/_security/api/rolesmapping/javv"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-H<span class="w"> </span><span class="s1">'content-type: application/json'</span><span class="w"> </span>-d<span class="w"> </span><span class="s1">'{"users": ["javv"]}'</span>
+</code></pre></div>
 <p>with <code>javv-role.json</code>:</p>
-<p><code>json
-{
-  "description": "JAVV backend: its own indices, their snapshots, and cluster health",
-  "cluster_permissions": [
-    "cluster:monitor/main",
-    "cluster:monitor/health",
-    "cluster:monitor/nodes/info",
-    "cluster:monitor/nodes/stats",
-    "cluster:monitor/state",
-    "cluster:monitor/shards",
-    "indices:admin/index_template/get",
-    "indices:admin/index_template/put",
-    "cluster:admin/snapshot/get",
-    "cluster:admin/snapshot/create",
-    "cluster:admin/snapshot/restore",
-    "indices:data/write/bulk",
-    "indices:data/read/mget",
-    "indices:data/read/scroll*"
-  ],
-  "index_permissions": [
-    {
-      "index_patterns": [
-        "findings",
-        "javv-*",
-        "system-*"
-      ],
-      "allowed_actions": [
-        "indices:data/read/*",
-        "indices:data/write/*",
-        "indices:admin/create",
-        "indices:admin/get",
-        "indices:admin/mapping/put",
-        "indices:admin/mappings/get",
-        "indices:admin/aliases",
-        "indices:admin/aliases/get",
-        "indices:admin/refresh*",
-        "indices:monitor/*"
-      ]
-    },
-    {
-      "index_patterns": [
-        "javv-*",
-        "system-audit-log*"
-      ],
-      "allowed_actions": [
-        "indices:admin/rollover"
-      ]
-    },
-    {
-      "index_patterns": [
-        "javv-*"
-      ],
-      "allowed_actions": [
-        "indices:admin/delete"
-      ]
-    },
-    {
-      "index_patterns": [
-        "restored-*"
-      ],
-      "allowed_actions": [
-        "indices:admin/create",
-        "indices:data/write/*",
-        "indices:monitor/*"
-      ]
-    }
-  ]
-}</code></p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">"description"</span><span class="p">:</span><span class="w"> </span><span class="s2">"JAVV backend: its own indices, their snapshots, and cluster health"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"cluster_permissions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="s2">"cluster:monitor/main"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"cluster:monitor/health"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"cluster:monitor/nodes/info"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"cluster:monitor/nodes/stats"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"cluster:monitor/state"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"cluster:monitor/shards"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"indices:admin/index_template/get"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"indices:admin/index_template/put"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"cluster:admin/snapshot/get"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"cluster:admin/snapshot/create"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"cluster:admin/snapshot/restore"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"indices:data/write/bulk"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"indices:data/read/mget"</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">"indices:data/read/scroll*"</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">"index_permissions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"index_patterns"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">"findings"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"javv-*"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"system-*"</span>
+<span class="w">      </span><span class="p">],</span>
+<span class="w">      </span><span class="nt">"allowed_actions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">"indices:data/read/*"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:data/write/*"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:admin/create"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:admin/get"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:admin/mapping/put"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:admin/mappings/get"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:admin/aliases"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:admin/aliases/get"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:admin/refresh*"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:monitor/*"</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"index_patterns"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">"javv-*"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"system-audit-log*"</span>
+<span class="w">      </span><span class="p">],</span>
+<span class="w">      </span><span class="nt">"allowed_actions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">"indices:admin/rollover"</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"index_patterns"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">"javv-*"</span>
+<span class="w">      </span><span class="p">],</span>
+<span class="w">      </span><span class="nt">"allowed_actions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">"indices:admin/delete"</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">"index_patterns"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">"restored-*"</span>
+<span class="w">      </span><span class="p">],</span>
+<span class="w">      </span><span class="nt">"allowed_actions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">"indices:admin/create"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:data/write/*"</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">"indices:monitor/*"</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
 <p>Then set <code>JAVV_OPENSEARCH_USERNAME=javv</code> and <code>JAVV_OPENSEARCH_PASSWORD</code>
 (<a href="../CONFIGURATION/"><code>CONFIGURATION.md</code> §1</a>). Snapshots need a repository registered by you
 (<code>PUT _snapshot/&lt;name&gt;</code>, with any credentials in OpenSearch's keystore), which JAVV's role cannot do.</p>
@@ -1481,9 +1594,9 @@ curl -u admin -X PUT "$OS/_plugins/_security/api/rolesmapping/javv" \
 <p>A user who forgets theirs asks an admin, who gives them a temporary password with <strong>Reset
 password</strong> in <strong>Settings › Users &amp; roles</strong>. They choose their own at the next sign-in.</p>
 <p>When no admin can sign in, reset one from a shell where the backend runs (issue 761):</p>
-<p><code>bash
-docker compose exec backend python -m backend.auth.reset_password admin          # compose
-kubectl exec deploy/javv-backend -- python -m backend.auth.reset_password admin  # Helm, release javv</code></p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>backend<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>backend.auth.reset_password<span class="w"> </span>admin<span class="w">          </span><span class="c1"># compose</span>
+kubectl<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>deploy/javv-backend<span class="w"> </span>--<span class="w"> </span>python<span class="w"> </span>-m<span class="w"> </span>backend.auth.reset_password<span class="w"> </span>admin<span class="w">  </span><span class="c1"># Helm, release javv</span>
+</code></pre></div>
 <p>It prints a temporary password, once, and nothing else. Sign in with it and JAVV asks for a new one
 before anything else. It also ends every session of that user and writes a <code>pwd_reset</code> row to the
 Audit log, with <code>system</code> as the actor. A user whose password belongs to an identity provider is
