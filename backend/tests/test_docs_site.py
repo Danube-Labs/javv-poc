@@ -125,8 +125,16 @@ def test_ci_builds_the_site_strict_with_the_themes_files() -> None:
     steps = _workflow("ci.yml")["jobs"]["docs-site"]["steps"]
     runs = "\n".join(s.get("run", "") for s in steps)
     assert "zensical build -f docs-site/mkdocs.yml --strict" in runs
-    # the strict build passes when the theme's stylesheets are missing (pages with no styling)
+    # the strict build passes when the theme's stylesheets are missing (pages with no styling), or
+    # when fenced code renders as inline code
     assert "docs-site/site/assets/stylesheets/" in runs
+    assert "grep -q '<pre' docs-site/site/docs/DEPLOYING/index.html" in runs
+
+
+def test_fenced_code_blocks_are_enabled() -> None:
+    # listing markdown_extensions replaces the defaults; without superfences no ``` block renders
+    names = {e if isinstance(e, str) else next(iter(e)) for e in CONFIG["markdown_extensions"]}
+    assert "pymdownx.superfences" in names
 
 
 def test_the_publish_workflow_runs_for_every_published_file() -> None:
