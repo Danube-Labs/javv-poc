@@ -1,5 +1,9 @@
 # Deploying JAVV
 
+This page tells you how to install JAVV, with docker compose on one machine or with Helm on
+Kubernetes. It also tells you how to connect the scanners, how to verify the published images, and
+how to use an OpenSearch that you operate.
+
 JAVV runs as three containers. The scanners run in the clusters that you scan, and send their
 results to JAVV:
 
@@ -13,283 +17,338 @@ flowchart LR
   end
 ```
 
-- **javv-frontend** serves the web app and forwards `/api`, `/auth` and `/readyz` to the backend,
-  so browsers and scanners use one address. Nothing has to sit in front of it.
-- **javv-backend** is the API, ingest and the background jobs (staleness, lifecycle, exports,
-  cleanup), which it runs itself on cron schedules. One backend per store.
-- **OpenSearch** is the only store.
-- **Scanners** run in the clusters they scan and push results to JAVV over HTTP. They can be
-  anywhere that reaches the JAVV address; JAVV never connects to a monitored cluster.
+- **javv-frontend** serves the web app. It sends the requests to `/api`, `/auth` and `/readyz` on
+  to the backend. Thus browsers and scanners use one address. You do not need a proxy in front of
+  it.
+- **javv-backend** holds the API, the ingest endpoint and the background jobs (staleness,
+  lifecycle, exports and cleanup). It runs the jobs itself, on cron schedules. Use one backend for
+  each OpenSearch.
+- **OpenSearch** holds all the data.
+- **Scanners** run in the clusters that they scan. They push their results to JAVV over HTTP. A
+  scanner can be at any place that can connect to the JAVV address. JAVV never connects to a
+  cluster that you scan.
 
-There are two ways to deploy: **docker compose on one machine**, and **Helm charts on
-Kubernetes** (issue 725). Both run the same images with the same settings and defaults.
+There are two installation methods: **docker compose on one machine**, and **Helm charts on
+Kubernetes**. Both use the same images, with the same settings and defaults.
 
-## A machine with docker compose
+## Install with docker compose
 
-You need Docker Engine with the compose plugin, version 2.23.1 or later (the compose file carries
-OpenSearch's role for JAVV inline, as `configs`), and two files from the release you deploy:
-`deploy/compose/compose.yaml` and `deploy/compose/.env.example`. Each release publishes the backend
-and frontend images under its version (`ghcr.io/danube-labs/javv-backend:<version>` and
-`javv-frontend:<version>`), and its compose file names them.
+You need Docker Engine with the compose plugin, version 2.23.1 or later. The compose file holds the
+OpenSearch role for JAVV in `configs`, and older versions cannot read it. You also need two files
+from the release that you install: `deploy/compose/compose.yaml` and `deploy/compose/.env.example`.
 
-1. **Give OpenSearch its memory map limit** (once per host; add it to `/etc/sysctl.conf` to keep
-   it after a reboot):
-   ```bash
-   sudo sysctl -w vm.max_map_count=262144
-   ```
-2. **Fill in `.env`**, in the folder that holds the two files:
-   ```bash
-   cp .env.example .env
-   ```
-   Set four secrets. The compose file refuses to start without them.
-   - `JAVV_SECRET_KEY`: the backend's secret key, a long random string (`openssl rand -hex 32`).
-     Keep it for good (see the warning below).
-   - `JAVV_BOOTSTRAP_ADMIN_PASSWORD`: the first JAVV admin's password, used once.
-   - `JAVV_OPENSEARCH_ADMIN_PASSWORD`: OpenSearch's admin password. It stays with OpenSearch and its
-     health check; JAVV never gets it. OpenSearch takes it once, when it first starts, and refuses
-     to start on a weak one. Its rules: 8 characters or more, with an upper-case letter, a
-     lower-case letter, a digit and a special character, and not a common password such as
-     `Password123!`. A refused password stops the `opensearch` container, and OpenSearch writes the
-     refused value into its own log (`docker compose logs opensearch`).
-   - `JAVV_OPENSEARCH_PASSWORD`: the password of `javv`, the OpenSearch user the backend signs in
-     as, which holds only the `javv` role ([An OpenSearch of your own](#an-opensearch-of-your-own)
-     lists what it can do). OpenSearch also takes it once, when it first starts. Use a long random
-     string (`openssl rand -hex 24`).
+Each release publishes the backend image and the frontend image with its version
+(`ghcr.io/danube-labs/javv-backend:<version>` and `javv-frontend:<version>`). The compose file of
+the release names these images.
 
-   > **Warning: keep the secret key.** Set `JAVV_SECRET_KEY` once and do not change it. The
-   > backend uses it to hash every scanner token and session, and to sign download links. If you
-   > change it, every scanner gets 401, every user must sign in again, and every open download link stops
-   > working. The stored data cannot restore them: each scanner needs a new token.
+1. **Set the memory map limit for OpenSearch.** Do this one time on each host. To keep the limit
+    after a reboot, also add it to `/etc/sysctl.conf`.
+    ```bash
+    sudo sysctl -w vm.max_map_count=262144
+    ```
+2. **Make the `.env` file** in the folder that holds the two files:
+    ```bash
+    cp .env.example .env
+    ```
+    Set the four secrets. The compose file does not start without them.
 
-   Changing either OpenSearch password later is in
-   [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
+    - `JAVV_SECRET_KEY`: the secret key of the backend. Use a long random string
+        (`openssl rand -hex 32`). Keep it for the life of the installation (see the warning below).
+    - `JAVV_BOOTSTRAP_ADMIN_PASSWORD`: the password of the first JAVV admin. JAVV uses it one time.
+    - `JAVV_OPENSEARCH_ADMIN_PASSWORD`: the password of the OpenSearch admin. Only OpenSearch and its
+        `healthcheck` use it. JAVV never gets it. OpenSearch reads it one time, at its first start.
+        OpenSearch does not start with a weak password. The rules are:
+        - 8 characters or more.
+        - At least one uppercase letter, one lowercase letter, one digit and one special character.
+        - Not a common password, such as `Password123!`.
 
-   **In `.env`, write a `$` as `$$`, or put the whole value in single quotes** (`'pa$ss…'`).
-   Compose reads an unquoted `$name` as a variable and substitutes it, with only a warning, so
-   `pa$ss-Word1!` reaches OpenSearch and the backend as `pa-Word1!`: the stack comes up healthy
-   on a password you did not write. Three more things compose does to an unquoted value: a space
-   before `#` ends it (`pa #ss` is `pa`), trailing spaces are dropped, and a value that starts
-   with `"` or `'` is read as quoted. `"` and `\` anywhere else need nothing.
+        When OpenSearch refuses the password, the `opensearch` container stops. OpenSearch then writes
+        the refused value into its log (`docker compose logs opensearch`).
 
-   **If `opensearch` never reports healthy** while its log shows it running, the admin password in
-   `.env` and the one the store took on its first start disagree. If the backend stops with
-   "refused the credentials in JAVV_OPENSEARCH_USERNAME", javv's do. UPGRADING has the way out for
-   both.
+    - `JAVV_OPENSEARCH_PASSWORD`: the password of `javv`, the OpenSearch user that the backend
+        signs in as. This user has only the `javv` role. See
+        [An OpenSearch of your own](#an-opensearch-of-your-own) for what the role permits. OpenSearch
+        also reads this password one time, at its first start. Use a long random string
+        (`openssl rand -hex 24`).
 
-   Decide the session cookie (next section).
-3. **Start it:**
-   ```bash
-   docker compose up -d   # pulls the release's images the first time
-   docker compose ps      # opensearch, backend and frontend all "healthy"
-   ```
-   The backend creates its indices on the first start.
-4. **Sign in** at `http://<this machine>:8080` as `admin` with the password from `.env`. JAVV asks
-   for a new password (12 characters or more) before anything else.
+    > **Warning: keep the secret key.** Set `JAVV_SECRET_KEY` once and do not change it. The
+    > backend uses it to hash every scanner token and session, and to sign download links. If you
+    > change it, every scanner gets 401, every user must sign in again, and every open download link stops
+    > working. The stored data cannot restore them: each scanner needs a new token.
+
+    To change an OpenSearch password later, see
+    [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
+
+    **In `.env`, write each `$` as `$$`, or put the full value in single quotes** (`'pa$ss…'`).
+    Compose reads an unquoted `$name` as a variable and replaces it. It gives only a warning. For
+    example, `pa$ss-Word1!` gets to OpenSearch and to the backend as `pa-Word1!`. All containers
+    become healthy, with a password that you did not write. Compose also changes an unquoted value
+    in these three ways:
+
+    - A space before `#` ends the value: `pa #ss` becomes `pa`.
+    - Compose deletes the spaces at the end.
+    - Compose reads a value that starts with `"` or `'` as a quoted value.
+
+    `"` and `\` in other positions need no change.
+
+    **If `opensearch` never becomes healthy** and its log shows that it runs, the admin password in
+    `.env` is different from the password that OpenSearch took at its first start. If the backend
+    stops with "refused the credentials in JAVV_OPENSEARCH_USERNAME", the `javv` passwords are
+    different. [`UPGRADING.md`](UPGRADING.md#change-an-opensearch-password) tells you how to correct
+    both conditions.
+
+    Then set the session cookie (see [http or https](#http-or-https)).
+
+3. **Start JAVV:**
+    ```bash
+    docker compose up -d   # pulls the release's images the first time
+    docker compose ps      # opensearch, backend and frontend all "healthy"
+    ```
+    The backend makes its indices at its first start.
+
+4. **Sign in** at `http://<this machine>:8080` as `admin`, with the password from `.env`. JAVV
+    then asks for a new password (12 characters or more). You must set it before you can do other
+    work.
 
 To upgrade later, see [`UPGRADING.md` § With docker compose](UPGRADING.md#with-docker-compose).
 
-**A checkout that is not a release** (`main`, or a commit between releases): build the images first
-with `development/scripts/build-app-images.sh`. It tags them with the names the compose file uses,
-and `docker compose up -d` then runs them instead of pulling.
+**To install from a checkout that is not a release** (`main`, or a commit between two releases),
+make the images first with `development/scripts/build-app-images.sh`. The script gives the images
+the names that the compose file uses. Then `docker compose up -d` runs these images, and it pulls
+nothing.
 
 ### http or https
 
-The session cookie is marked `Secure` by default, and a browser keeps a `Secure` cookie only from
-`https` or `localhost`.
+By default, the session cookie has the `Secure` flag. A browser keeps a `Secure` cookie only from
+`https` or from `localhost`.
 
-- **Behind TLS** (a proxy, load balancer or gateway in front that terminates `https`): keep the
-  default. Remove `JAVV_SESSION_COOKIE_SECURE=false` from `.env`.
-- **Plain http** (for example `http://<machine>:8080` on a LAN): set
-  `JAVV_SESSION_COOKIE_SECURE=false` in `.env`, as `.env.example` does. Without it, sign-in
-  succeeds and the next request fails.
+- **With TLS in front of JAVV** (a proxy, a load balancer or a gateway that ends `https`): keep the
+  default. Delete `JAVV_SESSION_COOKIE_SECURE=false` from `.env`.
+- **With plain http** (for example `http://<machine>:8080` on a LAN): set
+  `JAVV_SESSION_COOKIE_SECURE=false` in `.env`. `.env.example` sets this value. Without it, the
+  sign-in succeeds, and the next request fails.
 
-JAVV cannot see a TLS terminator in front of it, so it never turns the flag on by itself.
+JAVV cannot see a TLS proxy in front of it. Thus it never sets the flag itself.
 
-### What is exposed
+### Ports and access
 
-One port, **8080**, on the frontend. Browsers and scanners both use it; scanner pushes reach the
-backend through the frontend's forward. To serve on another host port, change the left side of
+The frontend publishes one port, **8080**. Browsers and scanners both use it. The frontend sends
+the scanner pushes on to the backend. To use a different host port, change the left side of
 `8080:8080` in `compose.yaml`.
 
-- The backend's own port (8000) is not published. It also serves `/docs`, `/openapi.json` and a
-  `/metrics` that needs no sign-in, so publish it only for something that must reach it directly,
-  such as a Prometheus scrape (the commented `ports` block under `backend`).
-- OpenSearch is not published. Its security plugin is on (issue 715), and two users can sign in
-  with a password: `admin`, OpenSearch's superuser, and `javv`, which the backend uses and which
-  holds only the `javv` role (issue 729). OpenSearch's demo security setup would also add six users
-  whose passwords are their own names; the compose file removes them before OpenSearch first starts
-  (issue 736). The setup's demo admin certificate
-  (`kirk.pem`, which [`UPGRADING.md`](UPGRADING.md#with-docker-compose) uses to change the
-  password) also has full access, with no password. Its key ships in the public image, like the
-  demo certificates' own, so anything that can reach OpenSearch on the compose network can use
-  it. The traffic is not private from anyone on that network either; the backend does not
-  check the certificate and logs one warning at start saying so. The network holds only the three
-  JAVV containers. Do not publish OpenSearch's port.
-- Scanner pushes stream through the frontend container. Restarting it cuts a push in flight. The
-  scanner retries it with backoff; if the retries run out, it writes the envelope to its
-  dead-letter file, and its next cycle scans and pushes that image again.
+- **The backend port (8000) is not published.** This port also serves `/docs`, `/openapi.json` and
+  `/metrics`, and `/metrics` needs no sign-in. Publish the port only for a system that must connect
+  to the backend directly, for example a Prometheus scrape. For this, use the `ports` block in
+  comments under `backend`.
+- **OpenSearch is not published.** Its security plugin is on. Two users can sign in with a
+  password: `admin`, the superuser of OpenSearch, and `javv`. The backend uses `javv`, which has
+  only the `javv` role.
+- **The demo security setup of OpenSearch adds six more users.** The password of each of these
+  users is its own name. The compose file deletes them before the first start of OpenSearch.
+- **The demo admin certificate also has full access, with no password.** This is `kirk.pem`, and
+  [`UPGRADING.md`](UPGRADING.md#change-an-opensearch-password) uses it to change a password. Its
+  key is in the public image, as are the keys of the demo certificates. Thus each system that can
+  connect to OpenSearch on the compose network can use it.
+- **The traffic to OpenSearch is not private** from systems on that network. The backend does not
+  verify the certificate, and it logs one warning about this at start. The network holds only the
+  three JAVV containers. Do not publish the OpenSearch port.
+- **Scanner pushes go through the frontend container.** When the frontend container restarts, the
+  push that is in progress stops. The scanner tries the push again, with a longer wait each time.
+  When all tries fail, the scanner writes the envelope to its dead-letter file. In its next cycle,
+  it scans and pushes that image again.
 
 ### Settings
 
-Every setting is in [`deploy/compose/compose.yaml`](../deploy/compose/compose.yaml) with its default
-and what it does; [`CONFIGURATION.md`](CONFIGURATION.md) has the long form. To change one, add
-`NAME=value` to `.env` and run `docker compose up -d`. The ones most often changed:
+[`deploy/compose/compose.yaml`](../deploy/compose/compose.yaml) lists each setting, with its
+default and what it does. [`CONFIGURATION.md`](CONFIGURATION.md) gives more detail. To change a
+setting, add `NAME=value` to `.env`, and run `docker compose up -d`. These settings change most
+frequently:
 
-- `TZ`: the zone the job schedules are read in (default `UTC`).
+- `TZ`: the time zone of the job schedules (default `UTC`).
 - `OPENSEARCH_JAVA_OPTS`: the OpenSearch heap (default `-Xms1g -Xmx1g`).
 - `JAVV_JOB_<KIND>_CRON` and `JAVV_SCHEDULER_ENABLED`: when the background jobs run.
 
 ### Scheduled jobs
 
-The backend runs its background jobs on its own schedules (02:00 staleness, 03:00 lifecycle, 04:00
-findings cleanup, by default). On an install that already holds data, read
-[`UPGRADING.md` § The first run of the background jobs](UPGRADING.md#the-first-run-of-the-background-jobs)
+The backend runs its background jobs on its own schedules. The defaults are 02:00 for staleness,
+03:00 for lifecycle and 04:00 for the findings cleanup. If the installation already holds data,
+read [`UPGRADING.md` § The first run of the background jobs](UPGRADING.md#the-first-run-of-the-background-jobs)
 before the jobs run for the first time.
 
 ### Data
 
-OpenSearch keeps everything in the `opensearch-data` volume: `docker compose down` keeps it,
-`docker compose down -v` deletes it. Snapshots taken from **Settings › Data & OpenSearch** land
-inside the same volume (`path.repo`); copying them off the machine is up to you (issue 664).
+OpenSearch keeps all data in the `opensearch-data` volume. `docker compose down` keeps the volume.
+`docker compose down -v` deletes it.
 
-## On Kubernetes, with Helm
+The snapshots that you make in **Settings › Data & OpenSearch** are on the same volume
+(`path.repo`). You must copy them to a different machine yourself. JAVV does not make scheduled
+snapshots yet ([issue 664](https://github.com/Danube-Labs/javv-poc/issues/664)).
 
-Two charts, installed one after the other in the same namespace (issue 725), and a third,
-`javv-scanner`, in each cluster you scan ([below](#point-scanners-at-it)): `javv-opensearch`, the
-store, and `javv`, the backend and frontend. Each release publishes all three at
-`oci://ghcr.io/danube-labs/charts/<chart>`, under the release's version and signed
-([Verify the images and charts](#verify-the-images-and-charts)). From a checkout that is not a
-release, use `deploy/helm/<chart>` in place of `oci://ghcr.io/danube-labs/charts/<chart> --version
-<version>`. Each chart's README lists every value; this is the order and what each step needs.
+## Install on Kubernetes with Helm
 
-1. **The store, with its two passwords in Secrets:** admin's, which stays with OpenSearch, and
-   javv's, the user JAVV's backend signs in as, which holds only the `javv` role
-   ([An OpenSearch of your own](#an-opensearch-of-your-own) lists it). OpenSearch refuses a weak
-   admin password (the rules are the compose ones above). Each secret here is read at a prompt or
-   made on the spot, so it stays out of your shell history and every process's arguments (the
-   commands need bash).
-   ```bash
-   read -rs -p 'OpenSearch admin password: ' pw && echo
-   printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
-   unset pw
-   kubectl create secret generic javv-opensearch-backend \
-     --from-file=password=<(openssl rand -hex 24 | tr -d '\n')
-   helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <version> \
-     --set opensearch.javv.auth.existingSecret=javv-opensearch-admin \
-     --set opensearch.javv.backend.existingSecret=javv-opensearch-backend
-   ```
-   That runs OpenSearch's demo certificates, as compose does. For your own, set
-   `opensearch.javv.tls.existingSecret` (a Secret with `tls.crt`, a PKCS#8 `tls.key` and
-   `ca.crt`) or `opensearch.javv.tls.certManager` (the chart asks your cert-manager Issuer); the
-   [chart's README](../deploy/helm/javv-opensearch/README.md) has both.
-2. **JAVV's own two secrets**, the same ones `.env` holds for compose:
-   ```bash
-   read -rs -p 'First JAVV admin password (12 characters or more): ' pw && echo
-   kubectl create secret generic javv-secrets \
-     --from-file=secret-key=<(openssl rand -hex 32 | tr -d '\n') \
-     --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
-   unset pw
-   ```
-   `secret-key` is the backend's secret key, `JAVV_SECRET_KEY`.
+You use three charts:
 
-   > **Warning: keep the secret key.** Set `JAVV_SECRET_KEY` once and do not change it. The
-   > backend uses it to hash every scanner token and session, and to sign download links. If you
-   > change it, every scanner gets 401, every user must sign in again, and every open download link stops
-   > working. The stored data cannot restore them: each scanner needs a new token.
-3. **JAVV**, signing in to the store as `javv`, with javv's Secret:
-   ```bash
-   helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \
-     --set secrets.existingSecret=javv-secrets \
-     --set opensearch.passwordSecret.name=javv-opensearch-backend
-   helm test javv
-   ```
-   With the store's own certificate, add `--set opensearch.caSecret.name=<the Secret with its
-   ca.crt>` (for cert-manager: `store-javv-opensearch-tls`): the backend then checks it.
-4. **Sign in** through the `javv` Service on port 8080, as `admin` with the bootstrap password.
-   Nothing sits in front of it: put your own Ingress, gateway or load balancer there for `https`,
-   and keep the session cookie `Secure` (http or https, above, applies the same way). To look
-   before that, `kubectl port-forward svc/javv 8080` and set
-   `backend.config.JAVV_SESSION_COOKIE_SECURE=false`.
+- `javv-opensearch`: OpenSearch.
+- `javv`: the backend and the frontend.
+- `javv-scanner`: the scanners, in each cluster that you scan (see
+  [Connect the scanners](#connect-the-scanners)).
 
-**What it runs.** One backend (`strategy: Recreate`: it runs the background jobs itself, so a
-rolling update would briefly run two, issue 691), its ClusterIP Service on 8000, and the frontend
-Service on 8080 that browsers and scanners use. Both run as the images' user with a read-only
-root. Every backend setting is under `backend.config` in `deploy/helm/javv/values.yaml`, at the
-same default and with the same comment as in the compose file; change one with
-`--set backend.config.TZ=Europe/Bucharest` or in a values file of your own.
+Install `javv-opensearch` and `javv` in the same namespace, in that sequence. Each release
+publishes the three charts at `oci://ghcr.io/danube-labs/charts/<chart>`, with the version of the
+release, and signs them (see [Verify the images and charts](#verify-the-images-and-charts)). From a
+checkout that is not a release, use `deploy/helm/<chart>` in place of
+`oci://ghcr.io/danube-labs/charts/<chart> --version <version>`. The README of each chart lists all
+of its values. These are the steps:
 
-**What is exposed.** Only what you put in front of the `javv` Service. The backend's Service and
-OpenSearch's are ClusterIP; OpenSearch's login and certificates are as in step 1. With the demo
-certificates, anything in the cluster that can reach the store's Service can read its traffic or
-use the image's demo admin certificate, as on the compose network.
+1. **Install OpenSearch, with its two passwords in Secrets.** One password is for `admin`, and
+    only OpenSearch uses it. The other password is for `javv`, the user that the JAVV backend signs
+    in as. This user has only the `javv` role (see
+    [An OpenSearch of your own](#an-opensearch-of-your-own)). OpenSearch refuses a weak admin
+    password. The rules are the same as for compose (above). The commands read each secret at a
+    prompt, or make it in place. Thus no secret goes into your shell history or into the arguments of
+    a process. The commands need bash.
+    ```bash
+    read -rs -p 'OpenSearch admin password: ' pw && echo
+    printf '%s' "$pw" | kubectl create secret generic javv-opensearch-admin --from-file=password=/dev/stdin
+    unset pw
+    kubectl create secret generic javv-opensearch-backend \
+      --from-file=password=<(openssl rand -hex 24 | tr -d '\n')
+    helm install store oci://ghcr.io/danube-labs/charts/javv-opensearch --version <version> \
+      --set opensearch.javv.auth.existingSecret=javv-opensearch-admin \
+      --set opensearch.javv.backend.existingSecret=javv-opensearch-backend
+    ```
+    This uses the demo certificates of OpenSearch, as compose does. To use your own certificates,
+    set one of these values. The [chart README](../deploy/helm/javv-opensearch/README.md) describes
+    both.
 
-Upgrading and rolling back:
+    - `opensearch.javv.tls.existingSecret`: a Secret with `tls.crt`, a PKCS#8 `tls.key` and
+        `ca.crt`.
+    - `opensearch.javv.tls.certManager`: the chart asks your cert-manager Issuer for a certificate.
+2. **Make the two JAVV secrets.** For compose, `.env` holds the same two secrets.
+    ```bash
+    read -rs -p 'First JAVV admin password (12 characters or more): ' pw && echo
+    kubectl create secret generic javv-secrets \
+      --from-file=secret-key=<(openssl rand -hex 32 | tr -d '\n') \
+      --from-file=bootstrap-admin-password=<(printf '%s' "$pw")
+    unset pw
+    ```
+    `secret-key` is the secret key of the backend, `JAVV_SECRET_KEY`.
+
+    > **Warning: keep the secret key.** Set `JAVV_SECRET_KEY` once and do not change it. The
+    > backend uses it to hash every scanner token and session, and to sign download links. If you
+    > change it, every scanner gets 401, every user must sign in again, and every open download link stops
+    > working. The stored data cannot restore them: each scanner needs a new token.
+
+3. **Install JAVV.** The backend signs in to OpenSearch as `javv`, with the Secret of `javv`:
+    ```bash
+    helm install javv oci://ghcr.io/danube-labs/charts/javv --version <version> \
+      --set secrets.existingSecret=javv-secrets \
+      --set opensearch.passwordSecret.name=javv-opensearch-backend
+    helm test javv
+    ```
+    If OpenSearch uses its own certificate, also add `--set opensearch.caSecret.name=<the Secret with
+    its ca.crt>`. With cert-manager, this Secret is `store-javv-opensearch-tls`. The backend then
+    verifies the certificate.
+
+4. **Sign in** through the `javv` Service on port 8080, as `admin`, with the bootstrap password.
+    Nothing is in front of the Service. For `https`, put your own Ingress, gateway or load balancer
+    in front of it, and keep the session cookie `Secure` ([http or https](#http-or-https) applies in
+    the same way). To look at JAVV before you do this, run `kubectl port-forward svc/javv 8080`, and
+    set `backend.config.JAVV_SESSION_COOKIE_SECURE=false`.
+
+**What the `javv` chart runs:**
+
+- One backend, with `strategy: Recreate`. The backend runs the background jobs itself. A rolling
+  update can run two backends for a short time, so the chart does not use one.
+- The ClusterIP Service of the backend, on port 8000.
+- The Service of the frontend, on port 8080. Browsers and scanners use this Service.
+
+The backend and the frontend run as the user of their images, with a read-only root file system.
+Each backend setting is under `backend.config` in `deploy/helm/javv/values.yaml`. Each setting has
+the same default and the same comment as in the compose file. To change a setting, use
+`--set backend.config.TZ=Europe/Bucharest`, or your own values file.
+
+**Access:** only what you put in front of the `javv` Service. The backend Service and the
+OpenSearch Service are ClusterIP. The sign-in and the certificates of OpenSearch are as in step 1.
+With the demo certificates, each system in the cluster that can connect to the OpenSearch Service
+can read its traffic, and it can use the demo admin certificate of the image. This is the same as
+on the compose network.
+
+To upgrade, or to go back to a previous release, see
 [`UPGRADING.md` § On Kubernetes (Helm)](UPGRADING.md#on-kubernetes-helm).
 
-## Point scanners at it
+## Connect the scanners
 
-Scanners run in the cluster they scan, which can be a different cluster or a different network.
-Each pair of cluster and scanner has its own token.
+The scanners run in the cluster that they scan. This can be a different cluster, or a different
+network. Each pair of a cluster and a scanner has its own token.
 
-1. Find the cluster's id: the `kube-system` namespace UID.
-   ```bash
-   kubectl get namespace kube-system -o jsonpath='{.metadata.uid}'
-   ```
-2. In JAVV, **Settings › Access & tokens › Mint token**: that cluster id and the scanner (`trivy`
-   or `grype`). The token is shown once.
-3. Install the `javv-scanner` chart in that cluster, each token in its own Secret, with JAVV's
-   address as that cluster reaches it:
-   ```bash
-   kubectl create namespace javv-scanner
-   for s in trivy grype; do  # each token at a prompt: out of shell history and process arguments
-     read -rs -p "$s token: " token && echo
-     printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
-       --from-file=token=/dev/stdin
-   done; unset token
-   helm install scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version <version> \
-     -n javv-scanner \
-     --set backendUrl=http://<JAVV's address>:8080 \
-     --set trivy.token.existingSecret=javv-trivy-token \
-     --set grype.token.existingSecret=javv-grype-token
-   helm test scanner -n javv-scanner
-   ```
-   `helm test` checks that JAVV answers at that address and accepts each token. Without
-   Kubernetes, run the scanner image with `JAVV_BACKEND_URL`, `JAVV_TOKEN` and `JAVV_CLUSTER_ID`
-   ([`CONFIGURATION.md` §2](CONFIGURATION.md)).
+1. Find the ID of the cluster. The ID is the UID of the `kube-system` namespace:
+    ```bash
+    kubectl get namespace kube-system -o jsonpath='{.metadata.uid}'
+    ```
+2. In JAVV, go to **Settings › Access & tokens › Mint token**. Enter the cluster ID and the scanner
+    (`trivy` or `grype`). JAVV shows the token only one time.
 
-The first push appears in **Scanner status**; its findings appear once a scan is complete.
+3. Install the `javv-scanner` chart in that cluster. Put each token in its own Secret. Set the JAVV
+    address that this cluster can connect to:
+    ```bash
+    kubectl create namespace javv-scanner
+    for s in trivy grype; do  # each token at a prompt: out of shell history and process arguments
+      read -rs -p "$s token: " token && echo
+      printf '%s' "$token" | kubectl -n javv-scanner create secret generic "javv-$s-token" \
+        --from-file=token=/dev/stdin
+    done; unset token
+    helm install scanner oci://ghcr.io/danube-labs/charts/javv-scanner --version <version> \
+      -n javv-scanner \
+      --set backendUrl=http://<JAVV's address>:8080 \
+      --set trivy.token.existingSecret=javv-trivy-token \
+      --set grype.token.existingSecret=javv-grype-token
+    helm test scanner -n javv-scanner
+    ```
+    `helm test` verifies that JAVV replies at that address, and that it accepts each token. Without
+    Kubernetes, run the scanner image with `JAVV_BACKEND_URL`, `JAVV_TOKEN` and `JAVV_CLUSTER_ID`
+    ([`CONFIGURATION.md` §2](CONFIGURATION.md)).
+
+The first push shows in **Scanner status**. Its findings show when the scan is complete.
 
 ### What the scanner chart runs
 
-The [chart's README](../deploy/helm/javv-scanner/README.md) lists every value.
+The [chart README](../deploy/helm/javv-scanner/README.md) lists all of its values.
 
-- **One CronJob per scanner,** every 6 hours by default (Grype half an hour after Trivy), stopped
-  after 5 h 30 min. Each scanner has its own token, settings, image and cache. The CronJob never
-  starts a cycle while one of its own runs; a cycle you start by hand is not counted, so pause the
-  CronJob first and start yours when none is running (the chart's `NOTES` give the commands).
-- **A vuln-DB cache per scanner,** a 10Gi `ReadWriteOnce` volume. Each cycle first refreshes the
-  DB there, then scans every image against that one DB with updates off. The install runs one
-  refresh straight away, so the first cycle finds a DB in place and the volume is bound for
-  `helm install --wait`. A failed refresh falls back to the cached DB; Grype refuses one older
-  than 5 days.
-- **Where the DBs come from:** the vendors' own sources by default, which the scanners reach over
-  the internet. For a mirror, set `trivy.vulnDb.repository` and `trivy.vulnDb.javaRepository` (OCI
-  repositories) or `grype.vulnDb.updateUrl` (a DB listing).
-- **What it may read in the cluster:** pods, in every namespace (to find the running images), and
-  the `kube-system` namespace (its UID is the cluster id). Nothing else, and no Secrets.
+- **One CronJob for each scanner.** By default, each CronJob runs every 6 hours. Grype starts half
+  an hour after Trivy. Kubernetes stops a cycle after 5 hours and 30 minutes. Each scanner has its
+  own token, settings, image and cache.
+- **One cycle at a time.** A CronJob never starts a cycle while one of its own cycles runs. The
+  CronJob does not see a cycle that you start manually. Thus pause the CronJob first, and start your
+  cycle when no cycle runs. The `NOTES` of the chart give the commands.
+- **A vuln-DB cache for each scanner,** on a 10Gi `ReadWriteOnce` volume. Each cycle first updates
+  the DB on this volume. Then it scans all images against that DB, with updates off. The installation
+  runs one update immediately. Thus the first cycle finds a DB, and the volume is bound for
+  `helm install --wait`. When an update fails, the scanner uses the DB in the cache. Grype refuses a
+  DB that is older than 5 days.
+- **The DB sources:** by default, the sources of the scanner vendors. The scanners connect to them
+  over the internet. To use a mirror, set `trivy.vulnDb.repository` and `trivy.vulnDb.javaRepository`
+  (OCI repositories), or `grype.vulnDb.updateUrl` (a DB listing).
+- **What the scanners can read in the cluster:** the pods in all namespaces, to find the images that
+  run, and the `kube-system` namespace, because its UID is the cluster ID. They can read nothing
+  more, and no Secrets.
 - **The images** are the scanner versions in [`versions.yaml`](../versions.yaml). The published
-  chart names each one by the digest its version tag pointed at when the release was made, so a
-  cluster runs the scanner build that release shipped with. From a checkout, the chart has the
-  tag only, pulled on every run, because JAVV republishes a version's tag when it changes the
-  scanner; set `<scanner>.image.digest` there to run one exact build.
+  chart names each image by its digest at the time of the release. Thus a cluster runs the scanner
+  build of that release. From a checkout, the chart has only the tag, and Kubernetes pulls it at
+  each run. JAVV publishes the tag of a version again when it changes the scanner image. To run one
+  exact build from a checkout, set `<scanner>.image.digest`.
 
 ## Verify the images and charts
 
-Each release signs the backend and frontend images it publishes, with **cosign keyless**: the
-certificate comes from the release workflow's GitHub identity and is logged in the public Rekor
-transparency log. Each image also carries a **signed SPDX SBOM attestation**, the list of what is
-inside it. Both bind to the image's digest, not its tag. To check one with cosign 3.x (the version
-the release signs with, `versions.yaml` `supply_chain.cosign`):
+Each release signs the backend and frontend images that it publishes, with **cosign keyless**:
+
+- The certificate comes from the GitHub identity of the release workflow.
+- The public Rekor transparency log records the signature.
+- Each image also has a **signed SPDX SBOM attestation**: the list of the contents of the image.
+- The signature and the attestation are for the digest of the image, not for its tag.
+
+To verify an image with cosign 3.x (the release uses the version in `versions.yaml`
+`supply_chain.cosign`):
 
 ```bash
 IMAGE=ghcr.io/danube-labs/javv-backend:<version>   # or javv-frontend
@@ -301,50 +360,57 @@ cosign verify-attestation "$IMAGE" --type spdxjson \
   --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER" > /dev/null && echo "SBOM attestation OK"
 ```
 
-The identity accepts only the release workflow running on this repository's `main`, so an image
-built anywhere else fails. The release runs these same two commands, signed out, before it
-finishes. Images released before signing started (0.5.1 and earlier) carry no signature.
+The identity accepts only the release workflow when it runs on `main` of this repository. Thus an
+image that a different system made fails the verification. Before the release ends, it runs these two
+commands without a sign-in. The images of 0.5.1 and earlier releases have no signature.
 
-The three charts are signed by the same workflow, with the same identity. A chart holds no
-software packages, so it carries a signature and no SBOM:
+The same workflow signs the three charts, with the same identity. A chart holds no software
+packages. Thus a chart has a signature, but no SBOM:
 
 ```bash
 cosign verify ghcr.io/danube-labs/charts/javv:<version> \
   --certificate-identity-regexp "$IDENTITY" --certificate-oidc-issuer "$ISSUER"
 ```
 
-The scanner images are signed the same way by their own workflow; their identity is in
-[`scanner/README.md`](https://github.com/Danube-Labs/javv-poc/blob/main/scanner/README.md#verify-a-published-image). The release checks that
-signature on each scanner image before it names the image's digest in the published
-`javv-scanner` chart.
+A different workflow signs the scanner images in the same way.
+[`scanner/README.md`](https://github.com/Danube-Labs/javv-poc/blob/main/scanner/README.md#verify-a-published-image)
+gives its identity. Before the release puts the digest of a scanner image into the published
+`javv-scanner` chart, it verifies the signature of that image.
 
 ## An OpenSearch of your own
 
-JAVV signs in to OpenSearch as one user, which needs one role. The compose file and the
-`javv-opensearch` chart create both, as `javv`; the role holds what the backend calls and nothing
-more. Its own indices (`findings`,
-`javv-*`, `system-*`, and the `restored-*` copies a restore from **Settings › Data & OpenSearch**
-writes and its Data inspector lists, but never reads: a copy of `system-users` holds password
-hashes), their snapshots, and cluster health. It cannot read any other index's documents, change
-cluster settings, register a snapshot repository, or use the security API (issue 729).
+JAVV signs in to OpenSearch as one user, and that user needs one role. The compose file and the
+`javv-opensearch` chart make both, with the name `javv`. The role permits only the calls that the
+backend makes:
 
-Some permissions are checked by OpenSearch at cluster level, so they reach past JAVV's indices:
+- Its own indices: `findings`, `javv-*` and `system-*`.
+- The `restored-*` copies that a restore from **Settings › Data & OpenSearch** writes. The Data
+  inspector lists these copies, but it never reads them, because a copy of `system-users` holds
+  password hashes.
+- The snapshots of its indices, and the health of the cluster.
 
-- `cluster:monitor/state`, which the Data inspector's index list needs, also lets the user read
-  the cluster's metadata: the name, settings and mappings of every index, OpenSearch's own included.
-  Never their documents.
-- `cluster:admin/snapshot/create` is not limited to JAVV's indices: OpenSearch lets the user copy
-  any index into a repository you registered. JAVV only ever snapshots its own.
-- `cluster:monitor/nodes/stats` and `cluster:monitor/shards` (the runtime card and the inspector's
-  shard list) show statistics and the shard list of every index.
-- `indices:admin/index_template/put` can write a template for any index pattern; bootstrap only
-  writes JAVV's own.
-- The bulk, multi-get and scroll calls, whose documents are still checked against the index
+The role cannot read the documents of other indices. It cannot change the cluster settings,
+register a snapshot repository or use the security API.
+
+OpenSearch verifies some permissions at the cluster level. Thus these permissions apply to more than
+the JAVV indices:
+
+- `cluster:monitor/state`: the index list of the Data inspector needs it. It also lets the user read
+  the metadata of the cluster: the name, the settings and the mappings of each index, including the
+  indices of OpenSearch. It never gives their documents.
+- `cluster:admin/snapshot/create`: OpenSearch does not limit it to the JAVV indices. The user can
+  copy any index into a repository that you registered. JAVV makes snapshots only of its own indices.
+- `cluster:monitor/nodes/stats` and `cluster:monitor/shards`: the runtime card and the shard list
+  of the Data inspector use them. They show the statistics and the shards of each index.
+- `indices:admin/index_template/put`: it can write a template for any index pattern. The index setup
+  writes only the JAVV templates.
+- The bulk, multi-get and scroll calls. OpenSearch still verifies their documents against the index
   permissions.
 
-Each permission was shown needed: the role walk fails without it (the runs are on issue 729).
+We showed that JAVV needs each permission: the role test fails without it.
 
-To create them on a cluster you run, as a user that may change security (OpenSearch's `admin`):
+To make the user and the role on an OpenSearch that you operate, use a user that can change the
+security configuration (the `admin` of OpenSearch):
 
 ```bash
 OS=https://<your opensearch>:9200
@@ -429,53 +495,61 @@ with `javv-role.json`:
 ```
 
 Then set `JAVV_OPENSEARCH_USERNAME=javv` and `JAVV_OPENSEARCH_PASSWORD`
-([`CONFIGURATION.md` §1](CONFIGURATION.md)). Snapshots need a repository registered by you
-(`PUT _snapshot/<name>`, with any credentials in OpenSearch's keystore), which JAVV's role cannot do.
+([`CONFIGURATION.md` §1](CONFIGURATION.md)). For snapshots, you must register a repository
+(`PUT _snapshot/<name>`, with its credentials in the keystore of OpenSearch). The JAVV role cannot
+do this.
 
 ## A forgotten password
 
-A user who forgets theirs asks an admin, who gives them a temporary password with **Reset
-password** in **Settings › Users & roles**. They choose their own at the next sign-in.
+A user who forgets the password asks an admin. The admin gives the user a temporary password with
+**Reset password** in **Settings › Users & roles**. The user sets a new password at the next
+sign-in.
 
-When no admin can sign in, reset one from a shell where the backend runs (issue 761):
+When no admin can sign in, reset the password of an admin from a shell in the backend container:
 
 ```bash
 docker compose exec backend python -m backend.auth.reset_password admin          # compose
 kubectl exec deploy/javv-backend -- python -m backend.auth.reset_password admin  # Helm, release javv
 ```
 
-It prints a temporary password, once, and nothing else. Sign in with it and JAVV asks for a new one
-before anything else. It also ends every session of that user and writes a `pwd_reset` row to the
-Audit log, with `system` as the actor. A user whose password belongs to an identity provider is
-refused. A user locked out by too many failed sign-ins stays locked out for
-`JAVV_LOGIN_LOCKOUT_MINUTES` (15 by default), because the lockout lives in the running backend's
-memory: wait it out, or restart the backend.
+The command shows a temporary password one time, and nothing more. Sign in with it. JAVV then asks
+for a new password before you can do other work. The command also ends all sessions of that user.
+It writes a `pwd_reset` row to the audit log, with `system` as the actor.
 
-Changing `JAVV_BOOTSTRAP_ADMIN_PASSWORD` does not do this: it is read only when the admin does not
-exist yet.
+- The command refuses a user whose password belongs to an identity provider.
+- A user that too many failed sign-ins locked out stays locked out for `JAVV_LOGIN_LOCKOUT_MINUTES`
+  (15 by default). The lockout is in the memory of the running backend. Wait until it ends, or
+  restart the backend.
+
+A change to `JAVV_BOOTSTRAP_ADMIN_PASSWORD` does not reset a password. JAVV reads it only when the
+admin does not exist.
 
 ## Known limits
 
-- **amd64 only.** The images, like the scanner images, are built for amd64.
-- **Releases with published images:** 0.5.1, then the releases after 0.6.0. 0.5.0 predates the
-  images. 0.6.0's release run stopped before publishing (its compose smoke lacked a setting), so
-  its tag has no images and no charts; use the release after it.
-- **An OpenSearch of your own, with its security plugin on,** works from the 0.6 releases:
-  point `JAVV_OPENSEARCH_URL` at it and set `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`
+- **amd64 only.** The images and the scanner images are for amd64.
+- **Releases with published images:** 0.5.1, and the releases after 0.6.0. 0.5.0 has no images.
+  The release run of 0.6.0 stopped before it published (its compose test had no value for a
+  required setting). Thus 0.6.0 has no images and no charts. Use the release after it.
+- **An OpenSearch of your own with its security plugin on** works from the 0.6 releases. Set
+  `JAVV_OPENSEARCH_URL` to its address. Set `JAVV_OPENSEARCH_USERNAME`, `JAVV_OPENSEARCH_PASSWORD`
   and, for a private CA, `JAVV_OPENSEARCH_CA_BUNDLE` ([`CONFIGURATION.md` §1](CONFIGURATION.md)).
   The user needs the `javv` role ([An OpenSearch of your own](#an-opensearch-of-your-own)).
-- **The compose file's OpenSearch uses demo certificates** (see What is exposed). For certificates
-  of your own, run your own OpenSearch and point JAVV at it as above.
-- **No maintenance page without a proxy.** `frontend/public/maintenance.html` is shown by pointing
-  a proxy in front of JAVV at it (`development/RUNNING-THE-STACK.md` §R1). With nothing in front,
-  there is no switch yet. Issue 719.
-- **`VITE_*` settings are fixed when the frontend image is built** ([`CONFIGURATION.md`
-  §2b](CONFIGURATION.md)): an image carries their defaults.
-- **TLS is yours.** JAVV serves plain http; put `https` in front of it with whatever you already
-  run, and keep the session cookie `Secure`.
-- **Images from private registries are not scanned yet.** The scanners pull each image without a
-  login; one that fails to pull is skipped with a warning in the scanner's log. Issue 739.
-- **The scanners see every pod spec.** Listing pods, which finding the images needs, also shows
-  any value written straight into a pod's `env`. Keep secrets in Secrets.
-- **The first release with published charts is the one after 0.6.0.** For earlier releases,
-  install from a checkout's `deploy/helm/`.
+- **The OpenSearch of the compose file uses demo certificates** (see
+  [Ports and access](#ports-and-access)). For your own certificates, operate your own OpenSearch,
+  and connect JAVV to it as above.
+- **No maintenance page without a proxy.** To show `frontend/public/maintenance.html`, a proxy in
+  front of JAVV must send requests to it (`development/RUNNING-THE-STACK.md` §R1). With nothing in
+  front of JAVV, there is no switch yet
+  ([issue 719](https://github.com/Danube-Labs/javv-poc/issues/719)).
+- **The build of the frontend image sets the `VITE_*` settings**
+  ([`CONFIGURATION.md` §2b](CONFIGURATION.md)). You cannot change them later. A published image has
+  their default values.
+- **TLS is your work.** JAVV serves plain http. Put `https` in front of it with the tools that you
+  already operate, and keep the session cookie `Secure`.
+- **The scanners do not scan images from private registries yet.** They pull each image with no
+  sign-in. When a pull fails, the scanner skips the image, and it writes a warning in its log
+  ([issue 739](https://github.com/Danube-Labs/javv-poc/issues/739)).
+- **The scanners see each pod spec.** To find the images, they list the pods. This also shows each
+  value that is in the `env` of a pod. Keep secrets in Secrets.
+- **The first release with published charts is the release after 0.6.0.** For earlier releases,
+  install from `deploy/helm/` in a checkout.

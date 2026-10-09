@@ -8,15 +8,20 @@ links to other files, nor that the tree publishes only operator files. These tes
 - every published page is in the nav and every nav entry is published;
 - every relative link in a published page reaches a published file;
 - the supported-versions page includes README's table, which check-versions.sh keeps in step;
-- CI builds the site strict and checks the theme's files were written and blocks render;
+- CI builds the site strict and checks the theme's files were written, blocks render and no list
+  rendered as a paragraph;
 - a release publishes its docs as its `major.minor` version and as `latest`;
 - no published page carries an em dash;
+- the rewritten pages carry no engineering references (milestones, decisions, audit ids, issue
+  numbers), except links to issues that track a limit an operator meets today;
+- every `page.md#heading` link reaches a heading on that page;
 - the publish workflow runs for every published file.
 """
 
 import fnmatch
 import os
 import re
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -142,6 +147,8 @@ def test_ci_builds_the_site_strict_with_the_themes_files() -> None:
     assert "grep -q '<pre' docs-site/site/docs/DEPLOYING/index.html" in runs
     # a mermaid block with no mermaid fence renders as code, and the strict build passes
     assert "grep -q '<pre class=\"mermaid\">' docs-site/site/docs/DEPLOYING/index.html" in runs
+    # a list GitHub nests with 3 spaces, or one with no blank line before it, renders as text
+    assert "python3 development/scripts/check-docs-site-lists.py docs-site/site" in runs
 
 
 def test_fenced_code_blocks_are_enabled() -> None:
@@ -172,6 +179,67 @@ def test_mermaid_blocks_render_as_diagrams(page: str) -> None:
     assert "mermaid" in fences, f"{page} has a mermaid block, and the site renders it as code"
     assert fences["mermaid"]["class"] == "mermaid"
     assert fences["mermaid"]["format"] == "pymdownx.superfences.fence_code_format"
+
+
+# Issue 796: the operator pages carry no engineering references. A link to an issue stays only
+# where it tracks a limit an operator meets today, and it is listed here. The release notes keep
+# their links: each entry is a change and its pull request.
+OPEN_LIMIT_ISSUES = {327, 664, 719, 739}
+NOT_YET_REWRITTEN = {
+    "docs/CONFIGURATION.md",
+    "docs/API.md",
+    "deploy/helm/javv/README.md",
+    "deploy/helm/javv-opensearch/README.md",
+    "deploy/helm/javv-scanner/README.md",
+}
+_REFERENCE = re.compile(
+    r"\bissues? \d+|#\d{2,4}\b|\bM\d{1,2}[a-f]?\b|\b(?:D|FR-|NFR-|SEC-)\d+\b"
+    r"|\b[A-Z]-[0-9A-Za-z]{1,3}\b|\baudit (?:[A-Z]-|#)|\bslice \d|\bbolt\b",
+    re.IGNORECASE,
+)
+_ISSUE_LINK = re.compile(
+    r"\[issue (\d+)\]\(https://github\.com/Danube-Labs/javv-poc/issues/(\d+)\)"
+)
+
+
+def _prose(page: str) -> str:
+    """The page without its code blocks and inline code: commands and identifiers are not prose."""
+    text = re.sub(r"```.*?```", "", (ROOT / page).read_text(), flags=re.S)
+    return re.sub(r"`[^`\n]*`", "", text)
+
+
+@pytest.mark.parametrize("page", sorted(PAGES - NOT_YET_REWRITTEN - {"CHANGELOG.md"}))
+def test_published_pages_carry_no_internal_references(page: str) -> None:
+    text = _prose(page)
+    for shown, target in _ISSUE_LINK.findall(text):
+        assert shown == target and int(target) in OPEN_LIMIT_ISSUES, f"{page}: issue {target}"
+    found = _REFERENCE.findall(_ISSUE_LINK.sub("", text))
+    assert not found, f"{page} carries {found}"
+
+
+def _slug(heading: str) -> str:
+    """The anchor the site gives a heading (Python-Markdown's toc slug, on the heading's text)."""
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", heading).replace("`", "").replace("*", "")
+    text = unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode()
+    return re.sub(r"[-\s]+", "-", re.sub(r"[^\w\s-]", "", text).strip().lower())
+
+
+def _anchors(page: str) -> set[str]:
+    text = re.sub(r"```.*?```", "", (ROOT / page).read_text(), flags=re.S)
+    return {_slug(h) for h in re.findall(r"^#{1,6} (.+)$", text, re.M)}
+
+
+@pytest.mark.parametrize("page", sorted(PAGES))
+def test_links_to_a_heading_reach_it(page: str) -> None:
+    # the strict build checks that a linked page exists, not that its heading does: a renamed
+    # heading breaks every link to it without a word
+    for target in _LINK.findall((ROOT / page).read_text()):
+        if re.match(r"[a-z]+:", target) or "#" not in target:
+            continue
+        path, anchor = target.split("#", 1)
+        linked = _normalize(f"{Path(page).parent.as_posix()}/{path}") if path else page
+        if linked in PAGES:
+            assert anchor in _anchors(linked), f"{page} links to {target}: no such heading"
 
 
 @pytest.mark.parametrize("page", sorted(PAGES))
