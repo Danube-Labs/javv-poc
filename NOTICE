@@ -1,0 +1,28 @@
+JAVV - Just Another Vulnerability Viewer
+Copyright (c) 2026 Danube Labs
+
+JAVV is licensed under the Business Source License 1.1; see LICENSE.
+
+Third-party software redistributed in the JAVV images
+------------------------------------------------------
+
+The scanner images (javv-scanner-trivy, javv-scanner-grype) contain a scanner binary copied
+unmodified from the scanner's official image. Its license, and its NOTICE where it has one, are
+included in the image under /licenses/<scanner>/ and in this repository under
+scanner/licenses/<scanner>/.
+
+Trivy (javv-scanner-trivy)
+  Copyright 2019-2020 Aqua Security Software Ltd.
+  Licensed under the Apache License, Version 2.0.
+  https://github.com/aquasecurity/trivy
+
+Grype (javv-scanner-grype)
+  Licensed under the Apache License, Version 2.0.
+  https://github.com/anchore/grype
+
+Libraries
+---------
+
+Every published JAVV image carries a signed SPDX SBOM attestation that lists the packages inside
+it, with their versions and licenses. docs/DEPLOYING.md, "Verify the images and charts", shows how
+to read and verify it.

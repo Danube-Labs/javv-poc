@@ -1,8 +1,11 @@
 """VEX export (M6 slice 6, FR-22 export-only; import → v1.1).
 
 Pure serializers: a list of finding docs (ONE scanner — per-scanner is sacred, the route
-enforces it) → an OpenVEX document or a CycloneDX VEX BOM that a `trivy --vex` / `grype`
-consumer can apply. The two-field triage model maps as follows (ruling recorded here):
+enforces it) → an OpenVEX document or a CycloneDX VEX BOM: a standard record of the triage
+decisions. Trivy and grype do not apply it today: both refuse the CycloneDX form, and the
+OpenVEX form names the package `pkg:generic/...`, which neither matches (trivy also expects a
+Docker Hub image as `index.docker.io/...`). Issue 791 holds the fix. The two-field triage model
+maps as follows (ruling recorded here):
 
 | JAVV state                  | OpenVEX status        | CycloneDX analysis.state       |
 |-----------------------------|-----------------------|--------------------------------|
