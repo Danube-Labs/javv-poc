@@ -1,0 +1,1 @@
+../../../../docs/runbooks/opensearch-sizing.md

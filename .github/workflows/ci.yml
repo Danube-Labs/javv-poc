@@ -914,9 +914,12 @@ jobs:
           enable-cache: true
       - name: Strict build
         run: uv run --project docs-site --frozen zensical build -f docs-site/mkdocs.yml --strict
-      - name: The theme's own files were written
-        # the strict build passes without them, leaving pages with no styling (issue 639)
-        run: ls docs-site/site/assets/stylesheets/modern/main.*.min.css
+      - name: The theme's own files were written, and code blocks render
+        # the strict build passes without either: pages with no styling, or every fenced block
+        # flattened into inline code (issue 639)
+        run: |
+          ls docs-site/site/assets/stylesheets/modern/main.*.min.css
+          grep -q '<pre' docs-site/site/docs/DEPLOYING/index.html
 
   dependency-audit:
     # Issue 552: pip-audit (backend, scanner, libs) and npm audit (frontend) on every PR and push.

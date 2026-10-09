@@ -12,6 +12,7 @@ on:
     paths:
       - docs-site/**
       - docs/*.md
+      - docs/runbooks/*.md
       - docs/ingest-envelope.schema.json
       - SECURITY.md
       - CHANGELOG.md
