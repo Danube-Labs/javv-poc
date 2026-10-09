@@ -36,6 +36,11 @@
       
       <link rel="stylesheet" href="../../assets/stylesheets/modern/main.e15858d4.min.css">
       
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.b27955a4.min.css">
+      
       
 
 
@@ -53,6 +58,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/javv.css">
+    
     <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
@@ -62,7 +69,14 @@
   </head>
   
   
-    <body dir="ltr">
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -114,6 +128,32 @@
         </div>
       </div>
     </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark theme"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark theme" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light theme"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light theme" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
     
     
       <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
@@ -384,10 +424,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#the-first-night" class="md-nav__link">
+  <a href="#scheduled-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        The first night
+        Scheduled jobs
       </span>
     </span>
   </a>
@@ -1095,10 +1135,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#the-first-night" class="md-nav__link">
+  <a href="#scheduled-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        The first night
+        Scheduled jobs
       </span>
     </span>
   </a>
@@ -1225,13 +1265,15 @@
 
 
 <h1 id="deploying-javv">Deploying JAVV<a class="headerlink" href="#deploying-javv" title="Permanent link">&para;</a></h1>
-<p>JAVV is three containers and, somewhere else, its scanners:</p>
-<div class="highlight"><pre><span></span><code>flowchart LR
-  browser[Browser] --&gt;|":8080"| fe[javv-frontend]
-  scanner[JAVV scanner, any cluster] --&gt;|"POST /api/v1/ingest/scan"| fe
-  fe --&gt;|"/api, /auth, /readyz"| be[javv-backend]
-  be --&gt; os[(OpenSearch)]
-</code></pre></div>
+<p>JAVV runs as three containers. The scanners run in the clusters that you scan, and send their
+results to JAVV:</p>
+<pre class="mermaid"><code>flowchart LR
+  browser[Browser] --&gt;|"web app and API, :8080"| fe
+  scanner["Scanner CronJob, in each cluster you scan"] --&gt;|"scan results, :8080"| fe
+  subgraph javv[JAVV]
+    fe["javv-frontend: serves the web app"] --&gt;|"forwards /api, /auth, /readyz"| be[javv-backend]
+    be --&gt; os[(OpenSearch)]
+  end</code></pre>
 <ul>
 <li><strong>javv-frontend</strong> serves the web app and forwards <code>/api</code>, <code>/auth</code> and <code>/readyz</code> to the backend,
   so browsers and scanners use one address. Nothing has to sit in front of it.</li>
@@ -1258,7 +1300,8 @@ and frontend images under its version (<code>ghcr.io/danube-labs/javv-backend:&l
    <div class="highlight"><pre><span></span><code>cp<span class="w"> </span>.env.example<span class="w"> </span>.env
 </code></pre></div>
    Set four secrets. The compose file refuses to start without them.</li>
-<li><code>JAVV_TOKEN_PEPPER</code>: a long random string (<code>openssl rand -hex 32</code>), kept for good.</li>
+<li><code>JAVV_SECRET_KEY</code>: the backend's secret key, a long random string (<code>openssl rand -hex 32</code>).
+     Keep it for good (see the warning below).</li>
 <li><code>JAVV_BOOTSTRAP_ADMIN_PASSWORD</code>: the first JAVV admin's password, used once.</li>
 <li><code>JAVV_OPENSEARCH_ADMIN_PASSWORD</code>: OpenSearch's admin password. It stays with OpenSearch and its
      health check; JAVV never gets it. OpenSearch takes it once, when it first starts, and refuses
@@ -1271,6 +1314,12 @@ and frontend images under its version (<code>ghcr.io/danube-labs/javv-backend:&l
      lists what it can do). OpenSearch also takes it once, when it first starts. Use a long random
      string (<code>openssl rand -hex 24</code>).</li>
 </ol>
+<blockquote>
+<p><strong>Warning: keep the secret key.</strong> Set <code>JAVV_SECRET_KEY</code> once and do not change it. The
+backend uses it to hash every scanner token and session, and to sign download links. If you
+change it, every scanner gets 401, every user must sign in again, and every open download link stops
+working. The stored data cannot restore them: each scanner needs a new token.</p>
+</blockquote>
 <p>Changing either OpenSearch password later is in
    <a href="../UPGRADING/#with-docker-compose"><code>UPGRADING.md</code> § With docker compose</a>.</p>
 <p><strong>In <code>.env</code>, write a <code>$</code> as <code>$$</code>, or put the whole value in single quotes</strong> (<code>'pa$ss…'</code>).
@@ -1338,11 +1387,11 @@ and what it does; <a href="../CONFIGURATION/"><code>CONFIGURATION.md</code></a> 
 <li><code>OPENSEARCH_JAVA_OPTS</code>: the OpenSearch heap (default <code>-Xms1g -Xmx1g</code>).</li>
 <li><code>JAVV_JOB_&lt;KIND&gt;_CRON</code> and <code>JAVV_SCHEDULER_ENABLED</code>: when the background jobs run.</li>
 </ul>
-<h3 id="the-first-night">The first night<a class="headerlink" href="#the-first-night" title="Permanent link">&para;</a></h3>
+<h3 id="scheduled-jobs">Scheduled jobs<a class="headerlink" href="#scheduled-jobs" title="Permanent link">&para;</a></h3>
 <p>The backend runs its background jobs on its own schedules (02:00 staleness, 03:00 lifecycle, 04:00
 findings cleanup, by default). On an install that already holds data, read
 <a href="../UPGRADING/#the-first-run-of-the-background-jobs"><code>UPGRADING.md</code> § The first run of the background jobs</a>
-before the first night.</p>
+before the jobs run for the first time.</p>
 <h3 id="data">Data<a class="headerlink" href="#data" title="Permanent link">&para;</a></h3>
 <p>OpenSearch keeps everything in the <code>opensearch-data</code> volume: <code>docker compose down</code> keeps it,
 <code>docker compose down -v</code> deletes it. Snapshots taken from <strong>Settings › Data &amp; OpenSearch</strong> land
@@ -1378,24 +1427,31 @@ helm<span class="w"> </span>install<span class="w"> </span>store<span class="w">
 <li><strong>JAVV's own two secrets</strong>, the same ones <code>.env</code> holds for compose:
    <div class="highlight"><pre><span></span><code><span class="nb">read</span><span class="w"> </span>-rs<span class="w"> </span>-p<span class="w"> </span><span class="s1">'First JAVV admin password (12 characters or more): '</span><span class="w"> </span>pw<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span>
 kubectl<span class="w"> </span>create<span class="w"> </span>secret<span class="w"> </span>generic<span class="w"> </span>javv-secrets<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--from-file<span class="o">=</span>token-pepper<span class="o">=</span>&lt;<span class="o">(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\n'</span><span class="o">)</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--from-file<span class="o">=</span>secret-key<span class="o">=</span>&lt;<span class="o">(</span>openssl<span class="w"> </span>rand<span class="w"> </span>-hex<span class="w"> </span><span class="m">32</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tr<span class="w"> </span>-d<span class="w"> </span><span class="s1">'\n'</span><span class="o">)</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--from-file<span class="o">=</span>bootstrap-admin-password<span class="o">=</span>&lt;<span class="o">(</span><span class="nb">printf</span><span class="w"> </span><span class="s1">'%s'</span><span class="w"> </span><span class="s2">"</span><span class="nv">$pw</span><span class="s2">"</span><span class="o">)</span>
 <span class="nb">unset</span><span class="w"> </span>pw
-</code></pre></div></li>
-<li><strong>JAVV</strong>, signing in to the store as <code>javv</code>, with javv's Secret:
+</code></pre></div>
+   <code>secret-key</code> is the backend's secret key, <code>JAVV_SECRET_KEY</code>.</li>
+</ol>
+<blockquote>
+<p><strong>Warning: keep the secret key.</strong> Set <code>JAVV_SECRET_KEY</code> once and do not change it. The
+backend uses it to hash every scanner token and session, and to sign download links. If you
+change it, every scanner gets 401, every user must sign in again, and every open download link stops
+working. The stored data cannot restore them: each scanner needs a new token.
+3. <strong>JAVV</strong>, signing in to the store as <code>javv</code>, with javv's Secret:
    <div class="highlight"><pre><span></span><code>helm<span class="w"> </span>install<span class="w"> </span>javv<span class="w"> </span>oci://ghcr.io/danube-labs/charts/javv<span class="w"> </span>--version<span class="w"> </span>&lt;version&gt;<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--set<span class="w"> </span>secrets.existingSecret<span class="o">=</span>javv-secrets<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--set<span class="w"> </span>opensearch.passwordSecret.name<span class="o">=</span>javv-opensearch-backend
 helm<span class="w"> </span><span class="nb">test</span><span class="w"> </span>javv
 </code></pre></div>
    With the store's own certificate, add <code>--set opensearch.caSecret.name=&lt;the Secret with its
-   ca.crt&gt;</code> (for cert-manager: <code>store-javv-opensearch-tls</code>): the backend then checks it.</li>
-<li><strong>Sign in</strong> through the <code>javv</code> Service on port 8080, as <code>admin</code> with the bootstrap password.
+   ca.crt&gt;</code> (for cert-manager: <code>store-javv-opensearch-tls</code>): the backend then checks it.
+4. <strong>Sign in</strong> through the <code>javv</code> Service on port 8080, as <code>admin</code> with the bootstrap password.
    Nothing sits in front of it: put your own Ingress, gateway or load balancer there for <code>https</code>,
    and keep the session cookie <code>Secure</code> (http or https, above, applies the same way). To look
    before that, <code>kubectl port-forward svc/javv 8080</code> and set
-   <code>backend.config.JAVV_SESSION_COOKIE_SECURE=false</code>.</li>
-</ol>
+   <code>backend.config.JAVV_SESSION_COOKIE_SECURE=false</code>.</p>
+</blockquote>
 <p><strong>What it runs.</strong> One backend (<code>strategy: Recreate</code>: it runs the background jobs itself, so a
 rolling update would briefly run two, issue 691), its ClusterIP Service on 8000, and the frontend
 Service on 8080 that browsers and scanners use. Both run as the images' user with a read-only

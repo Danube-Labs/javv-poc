@@ -36,6 +36,11 @@
       
       <link rel="stylesheet" href="../../assets/stylesheets/modern/main.e15858d4.min.css">
       
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.b27955a4.min.css">
+      
       
 
 
@@ -53,6 +58,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/javv.css">
+    
     <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
@@ -62,7 +69,14 @@
   </head>
   
   
-    <body dir="ltr">
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -114,6 +128,32 @@
         </div>
       </div>
     </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark theme"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark theme" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light theme"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light theme" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
     
     
       <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
@@ -815,7 +855,7 @@
   <a href="#the-protocol-four-calls" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        The protocol — four calls
+        The protocol: four calls
       </span>
     </span>
   </a>
@@ -837,7 +877,7 @@
   <a href="#validation-what-gets-you-a-422-and-friends" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Validation — what gets you a 422 (and friends)
+        Validation: what gets you a 422 (and friends)
       </span>
     </span>
   </a>
@@ -964,7 +1004,7 @@
   <a href="#the-protocol-four-calls" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        The protocol — four calls
+        The protocol: four calls
       </span>
     </span>
   </a>
@@ -986,7 +1026,7 @@
   <a href="#validation-what-gets-you-a-422-and-friends" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Validation — what gets you a 422 (and friends)
+        Validation: what gets you a 422 (and friends)
       </span>
     </span>
   </a>
@@ -1047,17 +1087,17 @@
 
 
 <h1 id="javv-public-ingest-contract">JAVV public ingest contract<a class="headerlink" href="#javv-public-ingest-contract" title="Permanent link">&para;</a></h1>
-<p>How to push scan results into JAVV <strong>without running the JAVV scanners</strong> — from any
+<p>How to push scan results into JAVV <strong>without running the JAVV scanners</strong>, from any
 environment that can produce the envelope JSON (Kubernetes, Nomad, plain Docker hosts, CI
 pipelines). This is the "cheap now" slice of #327: the wire schema, the call protocol, and the
 validation rules, published and CI-pinned. What it does <strong>not</strong> yet give you: a scanner
 identity of your own (see <a href="#current-limitation-the-scanner-vocabulary">Current limitation</a>).</p>
 <p>The machine-readable schema lives beside this file:
-<strong><a href="../ingest-envelope.schema.json"><code>ingest-envelope.schema.json</code></a></strong> — generated from the backend's
+<strong><a href="../ingest-envelope.schema.json"><code>ingest-envelope.schema.json</code></a></strong>, generated from the backend's
 Pydantic wire model (<code>backend/src/backend/models/envelope.py::IngestEnvelope</code>) and pinned by a
 CI test (<code>backend/tests/test_ingest_contract_doc.py</code>), so it cannot drift from what the server
 actually enforces. Regeneration command: in that test's docstring.</p>
-<h2 id="the-protocol-four-calls">The protocol — four calls<a class="headerlink" href="#the-protocol-four-calls" title="Permanent link">&para;</a></h2>
+<h2 id="the-protocol-four-calls">The protocol: four calls<a class="headerlink" href="#the-protocol-four-calls" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1070,7 +1110,7 @@ actually enforces. Regeneration command: in that test's docstring.</p>
 <tbody>
 <tr>
 <td>0</td>
-<td><code>GET/POST /api/v1/admin/tokens</code> — mint a machine token scoped to your <code>(cluster_id, scanner)</code></td>
+<td><code>GET/POST /api/v1/admin/tokens</code>: mint a machine token scoped to your <code>(cluster_id, scanner)</code></td>
 <td>admin session (<code>can_manage_tokens</code>), or <code>python -m backend.core.tokens</code></td>
 <td>once (rotate/revoke via the admin API)</td>
 </tr>
@@ -1082,13 +1122,13 @@ actually enforces. Regeneration command: in that test's docstring.</p>
 </tr>
 <tr>
 <td>2</td>
-<td><code>POST /api/v1/ingest/scan</code> — one envelope per image</td>
+<td><code>POST /api/v1/ingest/scan</code>: one envelope per image</td>
 <td>machine token</td>
 <td>per image in the cycle</td>
 </tr>
 <tr>
 <td>3</td>
-<td><code>POST /api/v1/inventory-runs</code> — body <code>{"scan_run_id", "expected_count", "started_at"}</code></td>
+<td><code>POST /api/v1/inventory-runs</code>, body <code>{"scan_run_id", "expected_count", "started_at"}</code></td>
 <td>machine token</td>
 <td>once at cycle <strong>end</strong></td>
 </tr>
@@ -1096,10 +1136,10 @@ actually enforces. Regeneration command: in that test's docstring.</p>
 </table>
 <p>Notes that keep the data model accurate:</p>
 <ul>
-<li><strong><code>scan_order</code> comes from step 1 — never invent it.</strong> It is the strictly-increasing
+<li><strong><code>scan_order</code> comes from step 1; never invent it.</strong> It is the strictly-increasing
   per-<code>(cluster, scanner)</code> ordering key (D45) that the whole correctness model sorts by; every
   envelope in the cycle carries the same <code>scan_order</code> + your own <code>scan_run_id</code>.</li>
-<li><strong>Scan everything, every cycle</strong> (D30): the model is stateless full sweeps — the server
+<li><strong>Scan everything, every cycle</strong> (D30): the model is stateless full sweeps: the server
   reconciles what a committed run no longer reports. Do not push incremental diffs.</li>
 <li><strong>Step 3 certifies the cycle</strong>: <code>expected_count</code> = images you discovered; the server counts
   what actually landed and marks the inventory run <code>committed</code> only if complete. Without it,
@@ -1118,7 +1158,7 @@ actually enforces. Regeneration command: in that test's docstring.</p>
 <tbody>
 <tr>
 <td><code>cluster_id</code></td>
-<td>Any <strong>stable, immutable</strong> environment id — lowercase alnum/hyphen, 8–64 chars. It routes storage; never rename it (labels/display names live elsewhere).</td>
+<td>Any <strong>stable, immutable</strong> environment id: lowercase alnum/hyphen, 8–64 chars. It routes storage; never rename it (labels/display names live elsewhere).</td>
 </tr>
 <tr>
 <td><code>namespaces</code></td>
@@ -1126,11 +1166,11 @@ actually enforces. Regeneration command: in that test's docstring.</p>
 </tr>
 <tr>
 <td><code>replicas</code></td>
-<td>Instance count of the image in that grouping — any integer ≥ 0.</td>
+<td>Instance count of the image in that grouping, any integer ≥ 0.</td>
 </tr>
 <tr>
 <td><code>image_digest</code></td>
-<td><code>sha256:&lt;hex&gt;</code> — the content identity everything dedupes on.</td>
+<td><code>sha256:&lt;hex&gt;</code>, the content identity everything dedupes on.</td>
 </tr>
 <tr>
 <td><code>last_seen_at</code> etc.</td>
@@ -1138,36 +1178,36 @@ actually enforces. Regeneration command: in that test's docstring.</p>
 </tr>
 <tr>
 <td><code>severity</code></td>
-<td>The scanner's <strong>verbatim</strong> word (D16 raw fidelity). The server derives the canonical bucket itself and never trusts <code>severity_canonical</code> from the wire (send it anyway — the schema requires it; verbatim-lowercase is fine).</td>
+<td>The scanner's <strong>verbatim</strong> word (D16 raw fidelity). The server derives the canonical bucket itself and never trusts <code>severity_canonical</code> from the wire (send it anyway: the schema requires it; verbatim-lowercase is fine).</td>
 </tr>
 <tr>
 <td><code>effective_config</code></td>
-<td>The tuning + scope the cycle actually ran with — audit/display only, but <strong>required</strong> and its <code>tuning</code> shape must match <code>scanner</code>.</td>
+<td>The tuning + scope the cycle actually ran with: audit/display only, but <strong>required</strong> and its <code>tuning</code> shape must match <code>scanner</code>.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="validation-what-gets-you-a-422-and-friends">Validation — what gets you a 422 (and friends)<a class="headerlink" href="#validation-what-gets-you-a-422-and-friends" title="Permanent link">&para;</a></h2>
+<h2 id="validation-what-gets-you-a-422-and-friends">Validation: what gets you a 422 (and friends)<a class="headerlink" href="#validation-what-gets-you-a-422-and-friends" title="Permanent link">&para;</a></h2>
 <p>The envelope is validated with <code>extra="forbid"</code> at every level: an unknown field anywhere is a
 rejection, not a warning. The specific tripwires:</p>
 <ul>
 <li><strong>Counts invariant</strong>: <code>counts.total</code> must equal the six severity buckets' sum <strong>and</strong>
   <code>len(findings)</code>. (Bucket <em>column names</em> are the historical <code>crit/med</code> shorthand; severity
   <em>values</em> are always full words.)</li>
-<li><strong><code>cluster_id</code> shape</strong> (it flows into index names — injection guard): lowercase
+<li><strong><code>cluster_id</code> shape</strong> (it flows into index names: injection guard): lowercase
   alnum/hyphen, 8–64 chars.</li>
 <li><strong><code>image_digest</code></strong>: must match <code>^sha256:[a-fA-F0-9]{6,64}$</code>.</li>
 <li><strong><code>scanner</code> ↔ <code>effective_config.tuning</code> mismatch</strong> (a trivy envelope with grype tuning is a
   lying client).</li>
-<li><strong><code>schema_version</code></strong> outside the accepted window (currently 3 or 4 — the M8d <code>ptype</code>
+<li><strong><code>schema_version</code></strong> outside the accepted window (currently 3 or 4, from the M8d <code>ptype</code>
   rollout; v3 findings simply have no <code>ptype</code>).</li>
 <li>Naive (timezone-less) timestamps.</li>
 </ul>
 <p>The full error table for <code>POST /ingest/scan</code> (400/401/403/413/422/429/503, gzip support, size
 caps) is in <a href="../API/"><code>API.md</code></a> § "the hardened surface". Success is <code>202</code> with
-<code>{accepted, findings, commit}</code> — and pushes are <strong>idempotent</strong> (deterministic doc ids): safe to
+<code>{accepted, findings, commit}</code>, and pushes are <strong>idempotent</strong> (deterministic doc ids): safe to
 retry a failed cycle.</p>
 <h2 id="worked-example">Worked example<a class="headerlink" href="#worked-example" title="Permanent link">&para;</a></h2>
-<p>A complete, minimal envelope (1 finding — a real one validated by the golden fixture family;
+<p>A complete, minimal envelope (1 finding, a real one validated by the golden fixture family;
 <code>backend/tests/fixtures/envelope-trivy-v3-golden.json</code> is the fuller 29-finding template):</p>
 <div class="highlight"><pre><span></span><code><span class="nv">TOKEN</span><span class="o">=</span>…<span class="w">            </span><span class="c1"># from step 0, scoped to (my-nomad-fleet-01, trivy)</span>
 <span class="nv">ORDER</span><span class="o">=</span><span class="k">$(</span>curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">"</span><span class="w"> </span><span class="se">\</span>
@@ -1226,25 +1266,25 @@ curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>
 <span class="s">}</span>
 <span class="s">EOF</span>
 
-<span class="c1"># cycle end — certify the inventory (expected_count = images you discovered this cycle)</span>
+<span class="c1"># cycle end: certify the inventory (expected_count = images you discovered this cycle)</span>
 curl<span class="w"> </span>-s<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>-H<span class="w"> </span><span class="s2">"Authorization: Bearer </span><span class="nv">$TOKEN</span><span class="s2">"</span><span class="w"> </span>-H<span class="w"> </span><span class="s2">"Content-Type: application/json"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>https://javv.example/api/v1/inventory-runs<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-d<span class="w"> </span><span class="s2">"{\"scan_run_id\": \"cycle-2026-07-10-a\", \"expected_count\": 1, \"started_at\": \"2026-07-10T11:55:00Z\"}"</span>
 </code></pre></div>
 <h2 id="current-limitation-the-scanner-vocabulary">Current limitation: the scanner vocabulary<a class="headerlink" href="#current-limitation-the-scanner-vocabulary" title="Permanent link">&para;</a></h2>
-<p><code>scanner</code> is <code>"trivy" | "grype"</code> — <strong>a third-party pusher must produce trivy- or
+<p><code>scanner</code> is <code>"trivy" | "grype"</code>: <strong>a third-party pusher must produce trivy- or
 grype-compatible output and push AS that scanner</strong> (mint the token for it, match its tuning
 shape). This is deliberate for now: per-scanner-is-sacred (never merged, never deduped) means
-every scanner value is a facet across the entire system — normalizer coverage (D16),
+every scanner value is a facet across the entire system: normalizer coverage (D16),
 disagreement pairing, per-scanner tokens. Opening the vocabulary is a <strong>v1.1 ruling</strong>
 (a registered-scanner registry, not a free string) tracked on
 <a href="https://github.com/Danube-Labs/javv-poc/issues/327">#327</a>; a <code>generic</code> tuning shape rides the
 same ruling. If you're wrapping a different engine (Snyk, Clair, …) today, map its output onto
-one of the two identities and pin your mapping — or wait for the vocabulary.</p>
+one of the two identities and pin your mapping, or wait for the vocabulary.</p>
 <h2 id="related">Related<a class="headerlink" href="#related" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../API/"><code>API.md</code></a> — full endpoint reference (auth, error tables, metrics).</li>
-<li><code>docs/engineering/INDEX-MAP.md</code> — where the data lands.</li>
+<li><a href="../API/"><code>API.md</code></a>: full endpoint reference (auth, error tables, metrics).</li>
+<li><code>docs/engineering/INDEX-MAP.md</code>: where the data lands.</li>
 <li>D16 (raw-fidelity normalizer) · D30 (stateless full sweeps) · D45 (<code>scan_order</code>) ·
   SEC-3 (token scope-binding) · M8d/#241 (the v4 bump that added <code>ptype</code>; an envelope bump and
   this schema doc travel together).</li>

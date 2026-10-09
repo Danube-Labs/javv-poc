@@ -36,6 +36,11 @@
       
       <link rel="stylesheet" href="../../assets/stylesheets/modern/main.e15858d4.min.css">
       
+        
+          
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/modern/palette.b27955a4.min.css">
+      
       
 
 
@@ -53,6 +58,8 @@
       
     
     
+      <link rel="stylesheet" href="../../stylesheets/javv.css">
+    
     <script>__md_scope=new URL("../..",location),__md_scope.pathname.endsWith("/")||(__md_scope=new URL(__md_scope.pathname+"/",location)),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,_=__md_scope)=>JSON.parse(t.getItem(_.pathname+"."+e)),__md_set=(e,t,_=localStorage,a=__md_scope)=>{try{_.setItem(a.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
     
       
@@ -62,7 +69,14 @@
   </head>
   
   
-    <body dir="ltr">
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
   
     
     <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
@@ -114,6 +128,32 @@
         </div>
       </div>
     </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Dark theme"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Dark theme" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Light theme"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Light theme" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
     
     
       <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
@@ -483,7 +523,7 @@
   <a href="#configuration-philosophy-three-tiers" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Configuration philosophy — three tiers
+        Configuration philosophy: three tiers
       </span>
     </span>
   </a>
@@ -494,12 +534,12 @@
   <a href="#1-javv-backend-fastapi-javv_-env-vars" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        1. JAVV Backend (FastAPI) — <code>JAVV_*</code> env vars
+        1. JAVV Backend (FastAPI): <code>JAVV_*</code> env vars
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="1. JAVV Backend (FastAPI) — JAVV_* env vars">
+    <nav class="md-nav" aria-label="1. JAVV Backend (FastAPI): JAVV_* env vars">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -522,12 +562,12 @@
   <a href="#2-javv-scanner-cronjob-javv_-env-vars" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        2. JAVV Scanner (CronJob) — <code>JAVV_*</code> env vars
+        2. JAVV Scanner (CronJob): <code>JAVV_*</code> env vars
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="2. JAVV Scanner (CronJob) — JAVV_* env vars">
+    <nav class="md-nav" aria-label="2. JAVV Scanner (CronJob): JAVV_* env vars">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -550,19 +590,19 @@
   <a href="#2b-javv-frontend-vuevite-vite_-build-time-env" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        2b. JAVV Frontend (Vue/Vite) — <code>VITE_*</code> build-time env
+        2b. JAVV Frontend (Vue/Vite): <code>VITE_*</code> build-time env
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="2b. JAVV Frontend (Vue&#x2f;Vite) — VITE_* build-time env">
+    <nav class="md-nav" aria-label="2b. JAVV Frontend (Vue&#x2f;Vite): VITE_* build-time env">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#frontend-container-server-runtime-env-issue-452" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Frontend container server — runtime env (issue 452)
+        Frontend container server: runtime env (issue 452)
       </span>
     </span>
   </a>
@@ -578,7 +618,7 @@
   <a href="#3-trivy-scan-parameters" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        3. Trivy — scan parameters
+        3. Trivy: scan parameters
       </span>
     </span>
   </a>
@@ -589,7 +629,7 @@
   <a href="#4-grype-scan-parameters" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        4. Grype — scan parameters
+        4. Grype: scan parameters
       </span>
     </span>
   </a>
@@ -600,12 +640,12 @@
   <a href="#5-opensearch-deployment-config" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        5. OpenSearch — deployment config
+        5. OpenSearch: deployment config
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="5. OpenSearch — deployment config">
+    <nav class="md-nav" aria-label="5. OpenSearch: deployment config">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -628,7 +668,7 @@
   <a href="#6-runtime-operational-config-system-config-tier-3-ui-editable" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        6. Runtime / operational config — <code>system-config</code> (tier ③, UI-editable)
+        6. Runtime / operational config: <code>system-config</code> (tier ③, UI-editable)
       </span>
     </span>
   </a>
@@ -639,7 +679,7 @@
   <a href="#7-scanner-config-status-91" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        7. Scanner config — status (#91)
+        7. Scanner config: status (#91)
       </span>
     </span>
   </a>
@@ -650,19 +690,19 @@
   <a href="#8-frozen-internal-constants-deliberately-not-settings" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        8. Frozen internal constants — deliberately <em>not</em> settings
+        8. Frozen internal constants: deliberately <em>not</em> settings
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="8. Frozen internal constants — deliberately not settings">
+    <nav class="md-nav" aria-label="8. Frozen internal constants: deliberately not settings">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#ci-gate-parameters-audit-f-14383-floors-not-settings" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        CI gate parameters (audit F-14/#383) — floors, not settings
+        CI gate parameters (audit F-14/#383): floors, not settings
       </span>
     </span>
   </a>
@@ -1091,7 +1131,7 @@
   <a href="#configuration-philosophy-three-tiers" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Configuration philosophy — three tiers
+        Configuration philosophy: three tiers
       </span>
     </span>
   </a>
@@ -1102,12 +1142,12 @@
   <a href="#1-javv-backend-fastapi-javv_-env-vars" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        1. JAVV Backend (FastAPI) — <code>JAVV_*</code> env vars
+        1. JAVV Backend (FastAPI): <code>JAVV_*</code> env vars
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="1. JAVV Backend (FastAPI) — JAVV_* env vars">
+    <nav class="md-nav" aria-label="1. JAVV Backend (FastAPI): JAVV_* env vars">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1130,12 +1170,12 @@
   <a href="#2-javv-scanner-cronjob-javv_-env-vars" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        2. JAVV Scanner (CronJob) — <code>JAVV_*</code> env vars
+        2. JAVV Scanner (CronJob): <code>JAVV_*</code> env vars
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="2. JAVV Scanner (CronJob) — JAVV_* env vars">
+    <nav class="md-nav" aria-label="2. JAVV Scanner (CronJob): JAVV_* env vars">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1158,19 +1198,19 @@
   <a href="#2b-javv-frontend-vuevite-vite_-build-time-env" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        2b. JAVV Frontend (Vue/Vite) — <code>VITE_*</code> build-time env
+        2b. JAVV Frontend (Vue/Vite): <code>VITE_*</code> build-time env
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="2b. JAVV Frontend (Vue&#x2f;Vite) — VITE_* build-time env">
+    <nav class="md-nav" aria-label="2b. JAVV Frontend (Vue&#x2f;Vite): VITE_* build-time env">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#frontend-container-server-runtime-env-issue-452" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        Frontend container server — runtime env (issue 452)
+        Frontend container server: runtime env (issue 452)
       </span>
     </span>
   </a>
@@ -1186,7 +1226,7 @@
   <a href="#3-trivy-scan-parameters" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        3. Trivy — scan parameters
+        3. Trivy: scan parameters
       </span>
     </span>
   </a>
@@ -1197,7 +1237,7 @@
   <a href="#4-grype-scan-parameters" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        4. Grype — scan parameters
+        4. Grype: scan parameters
       </span>
     </span>
   </a>
@@ -1208,12 +1248,12 @@
   <a href="#5-opensearch-deployment-config" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        5. OpenSearch — deployment config
+        5. OpenSearch: deployment config
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="5. OpenSearch — deployment config">
+    <nav class="md-nav" aria-label="5. OpenSearch: deployment config">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1236,7 +1276,7 @@
   <a href="#6-runtime-operational-config-system-config-tier-3-ui-editable" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        6. Runtime / operational config — <code>system-config</code> (tier ③, UI-editable)
+        6. Runtime / operational config: <code>system-config</code> (tier ③, UI-editable)
       </span>
     </span>
   </a>
@@ -1247,7 +1287,7 @@
   <a href="#7-scanner-config-status-91" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        7. Scanner config — status (#91)
+        7. Scanner config: status (#91)
       </span>
     </span>
   </a>
@@ -1258,19 +1298,19 @@
   <a href="#8-frozen-internal-constants-deliberately-not-settings" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        8. Frozen internal constants — deliberately <em>not</em> settings
+        8. Frozen internal constants: deliberately <em>not</em> settings
       </span>
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="8. Frozen internal constants — deliberately not settings">
+    <nav class="md-nav" aria-label="8. Frozen internal constants: deliberately not settings">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
   <a href="#ci-gate-parameters-audit-f-14383-floors-not-settings" class="md-nav__link">
     <span class="md-ellipsis">
       <span class="md-typeset">
-        CI gate parameters (audit F-14/#383) — floors, not settings
+        CI gate parameters (audit F-14/#383): floors, not settings
       </span>
     </span>
   </a>
@@ -1304,16 +1344,16 @@
 
 <h1 id="javv-configuration-reference">JAVV configuration reference<a class="headerlink" href="#javv-configuration-reference" title="Permanent link">&para;</a></h1>
 <blockquote>
-<p>Every configuration setting across JAVV and its dependencies — what it is, its default, <strong>how you set
+<p>Every configuration setting across JAVV and its dependencies: what it is, its default, <strong>how you set
 it today</strong>, and <strong>whether it will be UI-controllable</strong>. Kept versioned in-repo (reviewed in PRs) so
 it can't drift. This documents the <strong>current</strong> state of the code plus the <strong>planned</strong> UI ownership
 per the bolts; where something is a gap (envisioned but unowned), it says so explicitly.</p>
 <p><strong>Backend <code>JAVV_*</code> values are validated at boot (#219):</strong> zero/negative limits, a malformed PIT
 keep-alive, or inverted cap pairs (compressed &gt; decompressed, inline &gt; max-targets) <strong>abort
-startup</strong> with the offending variable named — a borked deployment crash-loops readably instead of
+startup</strong> with the offending variable named, so a borked deployment crash-loops readably instead of
 passing <code>/readyz</code> while every request fails.</p>
 </blockquote>
-<h2 id="configuration-philosophy-three-tiers">Configuration philosophy — three tiers<a class="headerlink" href="#configuration-philosophy-three-tiers" title="Permanent link">&para;</a></h2>
+<h2 id="configuration-philosophy-three-tiers">Configuration philosophy: three tiers<a class="headerlink" href="#configuration-philosophy-three-tiers" title="Permanent link">&para;</a></h2>
 <p>JAVV config lives in one of three places by nature; picking the wrong tier is how secrets leak or
 things get hardcoded:</p>
 <table>
@@ -1330,7 +1370,7 @@ things get hardcoded:</p>
 <td><strong>① Build-time / GitOps</strong></td>
 <td>pinned tool versions, vuln-DB schema, the scanner scan flags <em>(today)</em></td>
 <td><code>versions.yaml</code> + Dockerfile <code>ARG</code>; image rebuilt + tag swapped</td>
-<td>No — swap the published image tag (D41/D42)</td>
+<td>No: swap the published image tag (D41/D42)</td>
 </tr>
 <tr>
 <td><strong>② Process env</strong></td>
@@ -1346,17 +1386,17 @@ things get hardcoded:</p>
 </tr>
 </tbody>
 </table>
-<p><strong>Rule:</strong> credentials never go in ① or ③ — only in a secret store (OpenSearch keystore, k8s Secret).</p>
-<p>A <strong>fourth category sits outside configuration entirely: frozen internal constants</strong> (§8) — code-level
+<p><strong>Rule:</strong> credentials never go in ① or ③, only in a secret store (OpenSearch keystore, k8s Secret).</p>
+<p>A <strong>fourth category sits outside configuration entirely: frozen internal constants</strong> (§8): code-level
 batch sizes and safety ceilings that are deliberately <em>not</em> exposed as settings. See §8 for the motive
 and the frozen-vs-setting test.</p>
 <p>Legend for the <strong>UI?</strong> column below: ✅ <strong>UI-editable</strong> · <strong>read-only display</strong> (shown in Settings, set by
 deploy - C-4) · ⚙️ <strong>GitOps</strong> (set on the manifest, never UI, by design) · 🔒 secret · <strong>n/a</strong> (deploy, build or
 dev time; not a UI concern) · <strong>no</strong> (a build-time value with no UI).</p>
 <hr />
-<h2 id="1-javv-backend-fastapi-javv_-env-vars">1. JAVV Backend (FastAPI) — <code>JAVV_*</code> env vars<a class="headerlink" href="#1-javv-backend-fastapi-javv_-env-vars" title="Permanent link">&para;</a></h2>
+<h2 id="1-javv-backend-fastapi-javv_-env-vars">1. JAVV Backend (FastAPI): <code>JAVV_*</code> env vars<a class="headerlink" href="#1-javv-backend-fastapi-javv_-env-vars" title="Permanent link">&para;</a></h2>
 <p>Source: <code>backend/src/backend/core/settings.py</code> (tier ②). All are <code>JAVV_</code>-prefixed; unknown env vars ignored.
-<strong>⏳ = decided but not yet shipped</strong> — the row describes the target state, gated on the linked PR; the running code still uses the old value until it merges.</p>
+<strong>⏳ = decided but not yet shipped</strong>: the row describes the target state, gated on the linked PR; the running code still uses the old value until it merges.</p>
 <table>
 <thead>
 <tr>
@@ -1370,13 +1410,13 @@ dev time; not a UI concern) · <strong>no</strong> (a build-time value with no U
 <tr>
 <td><code>JAVV_ENV</code></td>
 <td><code>dev</code></td>
-<td>Deployment profile (task C #140). <code>prod</code>/<code>production</code> turns dev conveniences into <strong>startup failures</strong> — currently: the dev <code>JAVV_TOKEN_PEPPER</code> refuses to boot (<code>assert_production_ready</code>). Set on any real deployment.</td>
+<td>Deployment profile (task C #140). <code>prod</code>/<code>production</code> turns dev conveniences into <strong>startup failures</strong>. Currently: the dev <code>JAVV_SECRET_KEY</code> refuses to boot (<code>assert_production_ready</code>). Set on any real deployment.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_LOG_LEVEL</code></td>
 <td><code>info</code></td>
-<td>Log threshold for the shared pipeline (<code>libs/javv-common</code>, #156): <code>debug</code>|<code>info</code>|<code>warning</code>|<code>error</code>; unknown value fails startup. At <code>debug</code> the opensearch-py client's <strong>per-request lines</strong> surface (every OpenSearch touch: method/path/status/took); request/response <strong>bodies</strong> never emit at any level — both the client logger's own DEBUG body dump and <code>opensearchpy.trace</code> are capped (one cycle of bodies = 6 MB of log, #158). One JSON stream — uvicorn + client libs are bridged through the same redaction.</td>
+<td>Log threshold for the shared pipeline (<code>libs/javv-common</code>, #156): <code>debug</code>|<code>info</code>|<code>warning</code>|<code>error</code>; unknown value fails startup. At <code>debug</code> the opensearch-py client's <strong>per-request lines</strong> surface (every OpenSearch touch: method/path/status/took); request/response <strong>bodies</strong> never emit at any level; both the client logger's own DEBUG body dump and <code>opensearchpy.trace</code> are capped (one cycle of bodies = 6 MB of log, #158). One JSON stream: uvicorn + client libs are bridged through the same redaction.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
@@ -1412,73 +1452,73 @@ dev time; not a UI concern) · <strong>no</strong> (a build-time value with no U
 <tr>
 <td><code>JAVV_BULK_INLINE_LIMIT</code></td>
 <td><code>5000</code></td>
-<td>Bulk triage (M5d): <strong>synchronous-apply ceiling</strong> — a frozen target set at/under this applies now (200 + result, one audit row). Above it → <strong>413</strong> (narrow the selector, or use M7's scheduled bulk). Audit A-Mc/<a href="https://github.com/Danube-Labs/javv-poc/issues/189">#189</a>: bounded-synchronous, no volatile 202.</td>
+<td>Bulk triage (M5d): <strong>synchronous-apply ceiling</strong>: a frozen target set at/under this applies now (200 + result, one audit row). Above it → <strong>413</strong> (narrow the selector, or use M7's scheduled bulk). Audit A-Mc/<a href="https://github.com/Danube-Labs/javv-poc/issues/189">#189</a>: bounded-synchronous, no volatile 202.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_BULK_MAX_TARGETS</code></td>
 <td><code>10000</code></td>
-<td>Bulk triage <strong>hard cap</strong>: <code>freeze_targets</code> never materializes more than this many ids — a selector matching more → <strong>413</strong> ("selector too broad"). Bounds the freeze <em>memory</em> independently of the apply cost (audit A-Mc/<a href="https://github.com/Danube-Labs/javv-poc/issues/189">#189</a>).</td>
+<td>Bulk triage <strong>hard cap</strong>: <code>freeze_targets</code> never materializes more than this many ids; a selector matching more → <strong>413</strong> ("selector too broad"). Bounds the freeze <em>memory</em> independently of the apply cost (audit A-Mc/<a href="https://github.com/Danube-Labs/javv-poc/issues/189">#189</a>).</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_SEARCH_PIT_KEEP_ALIVE</code></td>
 <td><code>2m</code></td>
-<td>Findings search (M6): PIT keep-alive per page of the cursor walk — each page renews it; an abandoned cursor's PIT self-expires after this. Longer = clients can idle between pages; shorter = fewer lingering PITs.</td>
+<td>Findings search (M6): PIT keep-alive per page of the cursor walk. Each page renews it; an abandoned cursor's PIT self-expires after this. Longer = clients can idle between pages; shorter = fewer lingering PITs.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_EXPORT_MAX_ROWS</code></td>
 <td><code>50000</code></td>
-<td>Inline "run now" export hard row cap (audit A-M6/<a href="https://github.com/Danube-Labs/javv-poc/issues/189">#189</a>), shared by every inline export: findings CSV + VEX, audit CSV, contributors CSV, approvals CSV (both <a href="https://github.com/Danube-Labs/javv-poc/issues/359">#359</a>). On the swept exports a cheap pre-count runs before any PIT/stream — a lens over this → <strong>413</strong> (narrow the filters, or use M7's scheduled export). The contributors CSV is an aggregation, not a sweep: its row count only exists after the query, so there the cap is a <strong>post-count backstop</strong> and is not reached in practice (the leaderboard is already bounded by its 100-actor board). Applies to the inline path only.</td>
+<td>Inline "run now" export hard row cap (audit A-M6/<a href="https://github.com/Danube-Labs/javv-poc/issues/189">#189</a>), shared by every inline export: findings CSV + VEX, audit CSV, contributors CSV, approvals CSV (both <a href="https://github.com/Danube-Labs/javv-poc/issues/359">#359</a>). On the swept exports a cheap pre-count runs before any PIT/stream; a lens over this → <strong>413</strong> (narrow the filters, or use M7's scheduled export). The contributors CSV is an aggregation, not a sweep: its row count only exists after the query, so there the cap is a <strong>post-count backstop</strong> and is not reached in practice (the leaderboard is already bounded by its 100-actor board). Applies to the inline path only.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_MAX_CONCURRENT_PITS_PER_PRINCIPAL</code></td>
 <td><code>10</code></td>
-<td>Read-side guard (audit A-m12/<a href="https://github.com/Danube-Labs/javv-poc/issues/189">#189</a>): max simultaneous open PIT contexts (search cursors + exports) per authenticated principal; past it → <strong>429</strong> with <code>Retry-After</code>. In-memory per pod (like the ingest/login limiters) — N replicas ⇒ N× the budget; a slot frees itself at <code>keep_alive</code> + margin.</td>
+<td>Read-side guard (audit A-m12/<a href="https://github.com/Danube-Labs/javv-poc/issues/189">#189</a>): max simultaneous open PIT contexts (search cursors + exports) per authenticated principal; past it → <strong>429</strong> with <code>Retry-After</code>. In-memory per pod (like the ingest/login limiters): N replicas ⇒ N× the budget; a slot frees itself at <code>keep_alive</code> + margin.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_EXPORT_TTL_HOURS</code></td>
 <td><code>24</code></td>
-<td>Scheduled reports (M7): global retention for a completed export — the result (stored in OpenSearch as chunks) is TTL-swept this long after completion; a download past it → <strong>410</strong>. <strong>Now a runtime setting (M9e slice 4):</strong> the jobs read the <code>system-config</code> <code>report_ttl</code> setting (§6) and fall back to this env when no doc exists — the env is the default seed, the panel edit wins.</td>
+<td>Scheduled reports (M7): global retention for a completed export. The result (stored in OpenSearch as chunks) is TTL-swept this long after completion; a download past it → <strong>410</strong>. <strong>Now a runtime setting (M9e slice 4):</strong> the jobs read the <code>system-config</code> <code>report_ttl</code> setting (§6) and fall back to this env when no doc exists: the env is the default seed, the panel edit wins.</td>
 <td>✅ UI-editable</td>
 </tr>
 <tr>
 <td><code>JAVV_EXPORT_MAX_BYTES</code></td>
 <td><code>524288000</code> (500 MiB)</td>
-<td>Scheduled reports (M7): per-export hard size ceiling — the drain marks a job <strong>failed</strong> past it, so one job can't fill the store.</td>
+<td>Scheduled reports (M7): per-export hard size ceiling: the drain marks a job <strong>failed</strong> past it, so one job can't fill the store.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_REPORT_DRAIN_SLEEP_MS</code></td>
 <td><code>200</code></td>
-<td>Scheduled reports (M7): off-peak throttle — the drain sleeps this long between export pages so a large run doesn't starve ingest (the PLAN gate).</td>
+<td>Scheduled reports (M7): off-peak throttle: the drain sleeps this long between export pages so a large run doesn't starve ingest (the PLAN gate).</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_REPORT_LEASE_TTL_SECONDS</code></td>
 <td><code>300</code></td>
-<td>Scheduled reports (M7): a claimed job's lease — a worker refreshes <code>heartbeat_at</code>; past <code>lease_expires_at</code> (no heartbeat) the next drain reclaims it (<code>retry_count</code>++). Match to the drain's schedule (<code>JAVV_JOB_REPORT_DRAIN_CRON</code>). <strong>Also the repair-actions lease</strong> (<a href="https://github.com/Danube-Labs/javv-poc/issues/406">#406</a> follow-up): a <code>system-jobs</code> running doc whose heartbeat outlives this reads <code>stale</code> and a new trigger may reclaim it — same semantics, one setting.</td>
+<td>Scheduled reports (M7): a claimed job's lease. A worker refreshes <code>heartbeat_at</code>; past <code>lease_expires_at</code> (no heartbeat) the next drain reclaims it (<code>retry_count</code>++). Match to the drain's schedule (<code>JAVV_JOB_REPORT_DRAIN_CRON</code>). <strong>Also the repair-actions lease</strong> (<a href="https://github.com/Danube-Labs/javv-poc/issues/406">#406</a> follow-up): a <code>system-jobs</code> running doc whose heartbeat outlives this reads <code>stale</code> and a new trigger may reclaim it: same semantics, one setting.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_INSPECT_MAX_HITS</code></td>
 <td><code>500</code></td>
-<td>Data inspector (<a href="https://github.com/Danube-Labs/javv-poc/issues/406">#406</a>): <code>size</code> ceiling per console search — a body over it → <strong>422</strong> with the reason verbatim.</td>
+<td>Data inspector (<a href="https://github.com/Danube-Labs/javv-poc/issues/406">#406</a>): <code>size</code> ceiling per console search; a body over it → <strong>422</strong> with the reason verbatim.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_INSPECT_MAX_RESPONSE_BYTES</code></td>
 <td><code>2097152</code> (2 MiB)</td>
-<td>Data inspector: serialized-response cap — past it → <strong>413</strong> ("narrow the query") + warning + <code>LIMIT_REJECTIONS{inspect_bytes}</code>.</td>
+<td>Data inspector: serialized-response cap; past it → <strong>413</strong> ("narrow the query") + warning + <code>LIMIT_REJECTIONS{inspect_bytes}</code>.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_INSPECT_TIMEOUT_SECONDS</code></td>
 <td><code>10.0</code></td>
-<td>Data inspector: per-query OpenSearch timeout, tighter than <code>JAVV_REQUEST_TIMEOUT</code> — a console query must never hog the store.</td>
+<td>Data inspector: per-query OpenSearch timeout, tighter than <code>JAVV_REQUEST_TIMEOUT</code>: a console query must never hog the store.</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
@@ -1506,9 +1546,9 @@ dev time; not a UI concern) · <strong>no</strong> (a build-time value with no U
 <td>n/a (deploy)</td>
 </tr>
 <tr>
-<td><code>JAVV_TOKEN_PEPPER</code></td>
-<td><code>dev-only-pepper</code></td>
-<td>🔒 Server-side pepper for hashing ingest tokens <strong>and session ids</strong> (domain-separated). <strong>MUST be a real secret in any deployment</strong> (D38) — with <code>JAVV_ENV=production</code> the dev default now <strong>fails startup</strong> (task C #140).</td>
+<td><code>JAVV_SECRET_KEY</code></td>
+<td><code>dev-only-secret-key</code></td>
+<td>🔒 The backend's secret key. The backend hashes every ingest token and session id with it before it stores them. It also signs report download links with it. <strong>Set it to a long random string in any deployment, and keep it.</strong> If you change it, every scanner gets 401, every user must sign in again, and every open download link stops working. The stored data cannot restore them: each scanner needs a new token. With <code>JAVV_ENV=production</code>, the dev default <strong>stops the backend at start</strong>. Before 0.7.0, the name was <code>JAVV_TOKEN_PEPPER</code>. A backend that finds that name stops at start (<a href="../UPGRADING/#version-notes">Upgrading</a>).</td>
 <td>🔒 secret</td>
 </tr>
 <tr>
@@ -1532,7 +1572,7 @@ dev time; not a UI concern) · <strong>no</strong> (a build-time value with no U
 <tr>
 <td><code>JAVV_SESSION_TTL_HOURS</code></td>
 <td><code>24.0</code></td>
-<td>Server-side human-session TTL (M5a/SEC-5) — <code>system-sessions.expires_at</code> is authoritative, the cookie's lifetime is advisory</td>
+<td>Server-side human-session TTL (M5a/SEC-5): <code>system-sessions.expires_at</code> is authoritative, the cookie's lifetime is advisory</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
@@ -1556,13 +1596,13 @@ dev time; not a UI concern) · <strong>no</strong> (a build-time value with no U
 <tr>
 <td><code>JAVV_LOGIN_LOCKOUT_MINUTES</code></td>
 <td><code>15.0</code></td>
-<td>Login lockout sliding window. In-memory per pod (like the ingest limiter) — N replicas ⇒ N× the budget</td>
+<td>Login lockout sliding window. In-memory per pod (like the ingest limiter): N replicas ⇒ N× the budget</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
 <td><code>JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE</code></td>
 <td><code>60</code></td>
-<td>Client-events beacon (issue 453): per-<strong>principal</strong> cap on browser warn/error <strong>batches</strong> per minute (a batch carries ≤ 20 events), same sliding-window shape as the ingest limiter and in-memory per pod — N replicas ⇒ N× the budget. It bounds log <strong>volume</strong>, not a correctness invariant, so it is sized well above a normal session's flush rate: the browser never retries a dropped beacon, which makes a 429 here <strong>silent telemetry loss</strong> rather than backpressure. Shape caps (batch ≤ 20, field/depth/length) are schema, not settings — see §8</td>
+<td>Client-events beacon (issue 453): per-<strong>principal</strong> cap on browser warn/error <strong>batches</strong> per minute (a batch carries ≤ 20 events), same sliding-window shape as the ingest limiter and in-memory per pod, so N replicas ⇒ N× the budget. It bounds log <strong>volume</strong>, not a correctness invariant, so it is sized well above a normal session's flush rate: the browser never retries a dropped beacon, which makes a 429 here <strong>silent telemetry loss</strong> rather than backpressure. Shape caps (batch ≤ 20, field/depth/length) are schema, not settings; see §8</td>
 <td>n/a (deploy)</td>
 </tr>
 <tr>
@@ -1574,13 +1614,7 @@ dev time; not a UI concern) · <strong>no</strong> (a build-time value with no U
 <tr>
 <td><code>JAVV_BOOTSTRAP_ADMIN_PASSWORD</code></td>
 <td><em>(empty = don't seed)</em></td>
-<td>🔒 Initial admin password from a mounted k8s Secret. <strong>Seed-once</strong>: consumed only when the admin doesn't exist yet — rotating the mounted value later has NO effect (change the password in-app); the seeded account is forced through <code>must_change</code> on first login</td>
-<td>🔒 secret</td>
-</tr>
-<tr>
-<td><code>JAVV_TOKEN_PEPPER</code> <em>(shared)</em></td>
-<td>—</td>
-<td>Also peppers <strong>session-id hashes</strong> (domain-separated <code>session:</code> prefix) since M5a</td>
+<td>🔒 Initial admin password from a mounted k8s Secret. <strong>Seed-once</strong>: consumed only when the admin doesn't exist yet. Rotating the mounted value later has NO effect (change the password in-app); the seeded account is forced through <code>must_change</code> on first login</td>
 <td>🔒 secret</td>
 </tr>
 <tr>
@@ -1666,7 +1700,7 @@ The secrets are not settings there:</p>
 <tr>
 <td><code>secrets.existingSecret</code></td>
 <td><code>""</code></td>
-<td>🔒 a Secret with <code>token-pepper</code> (<code>JAVV_TOKEN_PEPPER</code>) and <code>bootstrap-admin-password</code> (<code>JAVV_BOOTSTRAP_ADMIN_PASSWORD</code>); or <code>secrets.tokenPepper</code> and <code>secrets.bootstrapAdminPassword</code>, which the chart puts in one. The install fails without them; the chart never makes up a pepper</td>
+<td>🔒 a Secret with <code>secret-key</code> (<code>JAVV_SECRET_KEY</code>) and <code>bootstrap-admin-password</code> (<code>JAVV_BOOTSTRAP_ADMIN_PASSWORD</code>); or <code>secrets.secretKey</code> and <code>secrets.bootstrapAdminPassword</code>, which the chart puts in one. The install fails without them; the chart never makes up a secret key</td>
 <td>🔒 secret</td>
 </tr>
 <tr>
@@ -1709,10 +1743,10 @@ The secrets are not settings there:</p>
 </table>
 <p>The backend runs as one replica with <code>strategy: Recreate</code>, which no value changes (issue 691).</p>
 <hr />
-<h2 id="2-javv-scanner-cronjob-javv_-env-vars">2. JAVV Scanner (CronJob) — <code>JAVV_*</code> env vars<a class="headerlink" href="#2-javv-scanner-cronjob-javv_-env-vars" title="Permanent link">&para;</a></h2>
+<h2 id="2-javv-scanner-cronjob-javv_-env-vars">2. JAVV Scanner (CronJob): <code>JAVV_*</code> env vars<a class="headerlink" href="#2-javv-scanner-cronjob-javv_-env-vars" title="Permanent link">&para;</a></h2>
 <p>Source: <code>scanner/src/scanner/run.py</code> (tier ②). One CronJob per scanner; stateless per cycle.
 <strong>Every set value is validated at startup (#97):</strong> a garbage value (typo'd scanner, scheme-less URL,
-malformed cluster id, unknown flag token…) exits 2 / raises with the env-var name — never a silent
+malformed cluster id, unknown flag token…) exits 2 / raises with the env-var name, never a silent
 fallback or a per-image error loop. Unset always means the documented default.</p>
 <table>
 <thead>
@@ -1745,7 +1779,7 @@ fallback or a per-image error loop. Unset always means the documented default.</
 <tr>
 <td><code>JAVV_TOKEN</code></td>
 <td><em>(unset)</em></td>
-<td>🔒 Ingest bearer token (<code>push:findings</code> scope). <strong>Effectively required</strong> — since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed).</td>
+<td>🔒 Ingest bearer token (<code>push:findings</code> scope). <strong>Effectively required</strong>: since D43 the scanner fetches its scan scope first, and without a token that fetch 401s → the cycle skips (fail-closed).</td>
 <td>🔒 secret</td>
 </tr>
 <tr>
@@ -1757,7 +1791,7 @@ fallback or a per-image error loop. Unset always means the documented default.</
 <tr>
 <td><code>JAVV_KUBE_CONTEXT</code></td>
 <td><em>(current context)</em></td>
-<td>Out-of-cluster only — names the kubeconfig context to scan. In-cluster this is ignored (<code>load_incluster_config()</code> wins). Unset, the scanner follows whatever the current context happens to be, which is why the <code>JAVV_CLUSTER_ID</code> assertion above exists.</td>
+<td>Out-of-cluster only: names the kubeconfig context to scan. In-cluster this is ignored (<code>load_incluster_config()</code> wins). Unset, the scanner follows whatever the current context happens to be, which is why the <code>JAVV_CLUSTER_ID</code> assertion above exists.</td>
 <td>n/a (dev)</td>
 </tr>
 <tr>
@@ -1880,8 +1914,8 @@ dropped and fetched once more before the cycle gives up. Trivy gets two lookups,
 Java DB fails no scan: Trivy skips each jar it cannot look up and exits 0, so its lookup must find
 a known CVE in a jar only the Java DB can name.</p>
 <hr />
-<h2 id="2b-javv-frontend-vuevite-vite_-build-time-env">2b. JAVV Frontend (Vue/Vite) — <code>VITE_*</code> build-time env<a class="headerlink" href="#2b-javv-frontend-vuevite-vite_-build-time-env" title="Permanent link">&para;</a></h2>
-<p>Source: <code>frontend/src/lib/logger.ts</code> (tier ① — Vite inlines <code>VITE_*</code> at build; changing it means a
+<h2 id="2b-javv-frontend-vuevite-vite_-build-time-env">2b. JAVV Frontend (Vue/Vite): <code>VITE_*</code> build-time env<a class="headerlink" href="#2b-javv-frontend-vuevite-vite_-build-time-env" title="Permanent link">&para;</a></h2>
+<p>Source: <code>frontend/src/lib/logger.ts</code> (tier ①: Vite inlines <code>VITE_*</code> at build; changing it means a
 rebuild, not a restart).</p>
 <table>
 <thead>
@@ -1896,42 +1930,42 @@ rebuild, not a restart).</p>
 <tr>
 <td><code>VITE_LOG_LEVEL</code></td>
 <td><code>debug</code> (dev) / <code>warn</code> (prod build)</td>
-<td>Browser-console threshold for the frontend structured logger (<code>debug</code>|<code>info</code>|<code>warn</code>|<code>error</code>) — the FE analog of <code>JAVV_LOG_LEVEL</code> (observability.md §1: same <code>timestamp→level→event</code> line shape; raw <code>console.*</code> is ESLint-banned in app code). Unknown value falls back to the default.</td>
+<td>Browser-console threshold for the frontend structured logger (<code>debug</code>|<code>info</code>|<code>warn</code>|<code>error</code>), the FE analog of <code>JAVV_LOG_LEVEL</code> (observability.md §1: same <code>timestamp→level→event</code> line shape; raw <code>console.*</code> is ESLint-banned in app code). Unknown value falls back to the default.</td>
 <td>n/a (build)</td>
 </tr>
 <tr>
 <td>~~<code>VITE_FRESHNESS_BANNER_HOURS</code>~~</td>
-<td>—</td>
-<td><strong>REMOVED (M9e slice 4, ruling row 14):</strong> the banner and the fleet health chips now read the LIVE staleness timers via <code>GET /api/v1/settings/staleness</code> (<code>stores/staleness.ts</code> — the selected cluster's effective window for the banner, the fleet default for cross-cluster chips), so a settings-panel edit takes effect without a rebuild. The D20 seed (3 days) is the only in-code fallback, used while the read is in flight.</td>
+<td>none</td>
+<td><strong>REMOVED (M9e slice 4, ruling row 14):</strong> the banner and the fleet health chips now read the LIVE staleness timers via <code>GET /api/v1/settings/staleness</code> (<code>stores/staleness.ts</code>: the selected cluster's effective window for the banner, the fleet default for cross-cluster chips), so a settings-panel edit takes effect without a rebuild. The D20 seed (3 days) is the only in-code fallback, used while the read is in flight.</td>
 <td>✅ removed</td>
 </tr>
 <tr>
 <td><code>VITE_DB_AGE_WARN_DAYS</code></td>
 <td><code>7</code></td>
-<td>Days before the scanner-status card flags the vuln DB as stale (amber <code>· N days old</code> next to <em>DB built</em>, <code>frontend/src/system/freshness.ts</code>) — a running scanner with an old database quietly under-reports (D41: the fix is swapping the published image, never in-app). Non-numeric/≤0 falls back to the default.</td>
+<td>Days before the scanner-status card flags the vuln DB as stale (amber <code>· N days old</code> next to <em>DB built</em>, <code>frontend/src/system/freshness.ts</code>); a running scanner with an old database quietly under-reports (D41: the fix is swapping the published image, never in-app). Non-numeric/≤0 falls back to the default.</td>
 <td>no</td>
 </tr>
 <tr>
 <td><code>VITE_EXPIRY_WARN_DAYS</code></td>
 <td><code>7</code></td>
-<td>Days before a risk-acceptance's expiry that the Approvals queue's status chip turns amber <code>expires in Nd</code> (<code>frontend/src/approvals/viewModel.ts</code>) — the review nudge window; at expiry the chip goes alarm-red (the acceptance has released its findings back to open, D19). Non-numeric/≤0 falls back to the default.</td>
+<td>Days before a risk-acceptance's expiry that the Approvals queue's status chip turns amber <code>expires in Nd</code> (<code>frontend/src/approvals/viewModel.ts</code>), the review nudge window; at expiry the chip goes alarm-red (the acceptance has released its findings back to open, D19). Non-numeric/≤0 falls back to the default.</td>
 <td>no</td>
 </tr>
 <tr>
 <td><code>VITE_CLIENT_EVENTS</code></td>
 <td><em>(unset)</em> → <strong>on</strong> in prod builds, <strong>off</strong> in dev</td>
-<td>Client-events beacon (<a href="https://github.com/Danube-Labs/javv-poc/issues/453">#453</a>): whether <code>logger.warn</code>/<code>logger.error</code> are also shipped to <code>POST /api/v1/client-events</code>, so a browser error survives the tab being closed. <code>false</code>/<code>0</code> disables; any other value enables. Call sites are unaware — the transport lives inside <code>lib/logger.ts</code>. Deliberately lossy telemetry: <strong>never retried</strong>, and the queue caps at one batch (20) flushed on a fixed 5s window, so an error storm drops events rather than bursting requests past the endpoint's per-principal rate cap (§1) — whose 429 would itself be silent loss, since nothing retries. <strong>Lossy but not silently so</strong> (<a href="https://github.com/Danube-Labs/javv-poc/issues/519">#519</a>): a window that dropped events leads its next batch with a <code>beacon events dropped</code> summary carrying the count, so a gap in the stream reads as a storm rather than as a quiet session. The count covers storm drops only — an event refused for its own sake (an unshippable name, a fields object the clip cannot walk) is dropped silently, since a permanent call-site fault would otherwise report a fresh storm on every load of that screen. Field values are clipped to the endpoint's 512-char per-value cap on the way in, so one oversized value (a <code>?cluster=</code> deep link) cannot 422 the batch it rides in; a clipped value ends in <code>…</code> (<a href="https://github.com/Danube-Labs/javv-poc/issues/525">#525</a>), so it reads as clipped rather than as exactly 512 characters, and a value at or under the cap arrives untouched. Also flushes on <code>pagehide</code>/tab-hide.</td>
+<td>Client-events beacon (<a href="https://github.com/Danube-Labs/javv-poc/issues/453">#453</a>): whether <code>logger.warn</code>/<code>logger.error</code> are also shipped to <code>POST /api/v1/client-events</code>, so a browser error survives the tab being closed. <code>false</code>/<code>0</code> disables; any other value enables. Call sites are unaware: the transport lives inside <code>lib/logger.ts</code>. Deliberately lossy telemetry: <strong>never retried</strong>, and the queue caps at one batch (20) flushed on a fixed 5s window, so an error storm drops events rather than bursting requests past the endpoint's per-principal rate cap (§1), whose 429 would itself be silent loss, since nothing retries. <strong>Lossy but not silently so</strong> (<a href="https://github.com/Danube-Labs/javv-poc/issues/519">#519</a>): a window that dropped events leads its next batch with a <code>beacon events dropped</code> summary carrying the count, so a gap in the stream reads as a storm rather than as a quiet session. The count covers storm drops only: an event refused for its own sake (an unshippable name, a fields object the clip cannot walk) is dropped silently, since a permanent call-site fault would otherwise report a fresh storm on every load of that screen. Field values are clipped to the endpoint's 512-char per-value cap on the way in, so one oversized value (a <code>?cluster=</code> deep link) cannot 422 the batch it rides in; a clipped value ends in <code>…</code> (<a href="https://github.com/Danube-Labs/javv-poc/issues/525">#525</a>), so it reads as clipped rather than as exactly 512 characters, and a value at or under the cap arrives untouched. Also flushes on <code>pagehide</code>/tab-hide.</td>
 <td>n/a (build)</td>
 </tr>
 <tr>
 <td>~~<code>VITE_APP_VERSION</code>~~</td>
-<td>—</td>
+<td>none</td>
 <td><strong>REMOVED (issue 261):</strong> the sidebar footer (<code>components/chrome/SideNav.vue</code>) now reads the running versions from <code>GET /api/v1/meta</code> and shows the release, <code>store schema v{mapping_version}</code> and <code>scanner schema v{newest accepted envelope}</code>, one per line. The version is the release, kept in <code>backend/src/backend/version.py</code> by release-please (<code>extra-files</code> in <code>release-please-config.json</code>), so no build step sets it. A failed read shows <code>version unavailable</code>. The frontend's own version (the About page, issue 341) comes the same way from <code>frontend/src/version.ts</code>, not from an env var.</td>
 <td>✅ removed</td>
 </tr>
 </tbody>
 </table>
-<h3 id="frontend-container-server-runtime-env-issue-452">Frontend container server — runtime env (issue 452)<a class="headerlink" href="#frontend-container-server-runtime-env-issue-452" title="Permanent link">&para;</a></h3>
+<h3 id="frontend-container-server-runtime-env-issue-452">Frontend container server: runtime env (issue 452)<a class="headerlink" href="#frontend-container-server-runtime-env-issue-452" title="Permanent link">&para;</a></h3>
 <p>Source: <code>frontend/server/serve.mjs</code>. The frontend image runs a small Node server that serves the
 built SPA and forwards <code>/api</code>, <code>/auth</code> and <code>/readyz</code> to the backend, so the browser sees one origin.
 These are read when the container starts (a restart applies them, no rebuild).</p>
@@ -1972,12 +2006,12 @@ These are read when the container starts (a restart applies them, no rebuild).</
 </tbody>
 </table>
 <hr />
-<h2 id="3-trivy-scan-parameters">3. Trivy — scan parameters<a class="headerlink" href="#3-trivy-scan-parameters" title="Permanent link">&para;</a></h2>
+<h2 id="3-trivy-scan-parameters">3. Trivy: scan parameters<a class="headerlink" href="#3-trivy-scan-parameters" title="Permanent link">&para;</a></h2>
 <p>Source: <code>scanner/src/scanner/config.py</code> + <code>adapters/trivy.py</code>. <strong>Phase 1 of #91 done:</strong> scan flags are
-now <code>JAVV_TRIVY_*</code> env vars (tier ②), each defaulting to the previously-hardcoded value — an unset env
+now <code>JAVV_TRIVY_*</code> env vars (tier ②), each defaulting to the previously-hardcoded value; an unset env
 reproduces the old command exactly. Set them on the scanner CronJob manifest (GitOps). <code>--format json</code>
-stays fixed (the parser depends on it). Runtime/UI control was "Phase 2" — RULED read-only for MVP (C-4, 2026-07-07); writable-from-UI via the D43 fetch pattern = post-MVP #403.
-Set values are validated against the pinned binary's accepted sets — scanners ∈ <code>vuln,misconfig,secret,license</code>,
+stays fixed (the parser depends on it). Runtime/UI control was "Phase 2", RULED read-only for MVP (C-4, 2026-07-07); writable-from-UI via the D43 fetch pattern = post-MVP #403.
+Set values are validated against the pinned binary's accepted sets: scanners ∈ <code>vuln,misconfig,secret,license</code>,
 severities ∈ <code>UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL</code>, pkg-types ∈ <code>os,library</code>, timeout = Go duration (#97).</p>
 <table>
 <thead>
@@ -2022,7 +2056,7 @@ severities ∈ <code>UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL</code>, pkg-types ∈ <cod
 <tr>
 <td>Output format</td>
 <td><code>json</code></td>
-<td>fixed — parser depends on it</td>
+<td>fixed: the parser depends on it</td>
 <td>n/a</td>
 </tr>
 <tr>
@@ -2040,7 +2074,7 @@ severities ∈ <code>UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL</code>, pkg-types ∈ <cod
 </tbody>
 </table>
 <hr />
-<h2 id="4-grype-scan-parameters">4. Grype — scan parameters<a class="headerlink" href="#4-grype-scan-parameters" title="Permanent link">&para;</a></h2>
+<h2 id="4-grype-scan-parameters">4. Grype: scan parameters<a class="headerlink" href="#4-grype-scan-parameters" title="Permanent link">&para;</a></h2>
 <p>Source: <code>scanner/src/scanner/config.py</code> + <code>adapters/grype.py</code>. <strong>Phase 1 of #91 done:</strong> <code>JAVV_GRYPE_*</code>
 env vars (tier ②), each defaulting to today's value. <code>-o json</code> stays fixed (parser depends on it).</p>
 <table>
@@ -2074,7 +2108,7 @@ env vars (tier ②), each defaulting to today's value. <code>-o json</code> stay
 <tr>
 <td>Output format</td>
 <td><code>json</code></td>
-<td>fixed — parser depends on it</td>
+<td>fixed: the parser depends on it</td>
 <td>n/a</td>
 </tr>
 <tr>
@@ -2092,7 +2126,7 @@ env vars (tier ②), each defaulting to today's value. <code>-o json</code> stay
 </tbody>
 </table>
 <hr />
-<h2 id="5-opensearch-deployment-config">5. OpenSearch — deployment config<a class="headerlink" href="#5-opensearch-deployment-config" title="Permanent link">&para;</a></h2>
+<h2 id="5-opensearch-deployment-config">5. OpenSearch: deployment config<a class="headerlink" href="#5-opensearch-deployment-config" title="Permanent link">&para;</a></h2>
 <p>Source: <code>development/setup/opensearch-dev.yml</code> (dev) + <code>.github/workflows/ci.yml</code> service (CI).
 Deployments: <code>deploy/compose/compose.yaml</code>, and the <code>javv-opensearch</code> Helm chart (below). Version pin:
 <code>versions.yaml</code> → <code>datastore.opensearch</code>.</p>
@@ -2121,7 +2155,7 @@ Deployments: <code>deploy/compose/compose.yaml</code>, and the <code>javv-opense
 <tr>
 <td><code>DISABLE_SECURITY_PLUGIN</code></td>
 <td><code>true</code></td>
-<td><strong>Dev, CI and the pytest store only</strong> — no TLS/auth on :9200</td>
+<td><strong>Dev, CI and the pytest store only</strong>: no TLS/auth on :9200</td>
 <td><strong>not set</strong> in <code>deploy/compose/compose.yaml</code> since issue 715: the security plugin is on, with OpenSearch's demo certificates. Your own OpenSearch: on, with your own certificates (§1: <code>JAVV_OPENSEARCH_USERNAME</code>, <code>JAVV_OPENSEARCH_PASSWORD</code>, <code>JAVV_OPENSEARCH_CA_BUNDLE</code>)</td>
 </tr>
 <tr>
@@ -2157,7 +2191,7 @@ Deployments: <code>deploy/compose/compose.yaml</code>, and the <code>javv-opense
 <tr>
 <td><code>OPENSEARCH_JAVA_OPTS</code></td>
 <td>dev <code>-Xms1g -Xmx1g</code> · CI <code>-Xms512m -Xmx512m</code></td>
-<td>JVM heap. Dev was raised off 512m: the parent circuit breaker is 95% of heap and the e2e corpus rested at ~83% of it, so bulk ingest tripped it. CI keeps 512m — a fresh store per run has no resting corpus.</td>
+<td>JVM heap. Dev was raised off 512m: the parent circuit breaker is 95% of heap and the e2e corpus rested at ~83% of it, so bulk ingest tripped it. CI keeps 512m: a fresh store per run has no resting corpus.</td>
 <td>sized per node</td>
 </tr>
 <tr>
@@ -2247,9 +2281,9 @@ with the official chart's keys this chart sets, is the chart's
 </tbody>
 </table>
 <hr />
-<h2 id="6-runtime-operational-config-system-config-tier-3-ui-editable">6. Runtime / operational config — <code>system-config</code> (tier ③, UI-editable)<a class="headerlink" href="#6-runtime-operational-config-system-config-tier-3-ui-editable" title="Permanent link">&para;</a></h2>
+<h2 id="6-runtime-operational-config-system-config-tier-3-ui-editable">6. Runtime / operational config: <code>system-config</code> (tier ③, UI-editable)<a class="headerlink" href="#6-runtime-operational-config-system-config-tier-3-ui-editable" title="Permanent link">&para;</a></h2>
 <p>Stored as data in the <code>system-config</code> index; edited via API/<strong>UI</strong> at runtime. This is the "right"
-home for policy that operators change — no rebuild, no restart.</p>
+home for policy that operators change: no rebuild, no restart.</p>
 <table>
 <thead>
 <tr>
@@ -2263,31 +2297,31 @@ home for policy that operators change — no rebuild, no restart.</p>
 <tr>
 <td>Snapshot repo <strong>ref</strong> (non-secret) + schedule/retention</td>
 <td><strong>M2</strong> (backend) / <strong>M9e</strong> (UI)</td>
-<td><code>system-config</code> doc <code>snapshot_repo</code> + SM policy. M9e slice 4 UI: <code>GET/POST /api/v1/admin/snapshots</code> (list + manual take, <code>can_manage_retention</code>) and <code>POST .../{name}/restore</code> (<code>can_restore_snapshot</code>, restores into <code>restored-*</code> copies — never onto live indices); registering the repo itself stays deploy-side (keystore creds)</td>
+<td><code>system-config</code> doc <code>snapshot_repo</code> + SM policy. M9e slice 4 UI: <code>GET/POST /api/v1/admin/snapshots</code> (list + manual take, <code>can_manage_retention</code>) and <code>POST .../{name}/restore</code> (<code>can_restore_snapshot</code>, restores into <code>restored-*</code> copies, never onto live indices); registering the repo itself stays deploy-side (keystore creds)</td>
 <td>✅ Shipped (M9e §13.7)</td>
 </tr>
 <tr>
 <td><strong>Lifecycle</strong> settings: rollover (<code>max_age_days</code> 30, <code>max_docs</code> 5M, <code>max_size_gb</code> 50) + per-<code>cluster_id</code> <code>retention_days</code> (90)</td>
 <td><strong>M4</strong> (backend) / <strong>M9e</strong> (UI)</td>
-<td><code>system-config</code>: <strong>per-cluster</strong> <code>lifecycle:&lt;cluster_id&gt;</code> overrides the fleet-wide <code>lifecycle</code> default (D26); read live by the daily <code>jobs/lifecycle.py</code> sweep (rollover via <code>_rollover</code>+conditions, retention = drop-whole-index — never <code>delete_by_query</code>). Managed series: <code>javv-scan-events</code>, <code>javv-images</code>, <code>javv-finding-occurrences</code>, <code>javv-inventory-runs</code>, <code>javv-ingest-failures</code> (issue 357 — failed-ingest records share the same window; no separate knob). UI: <code>PUT /api/v1/settings/retention</code> + <code>PUT /api/v1/settings/rollover</code> (<code>can_manage_retention</code>, journaled). Interim CLI: <code>python -m backend.jobs.lifecycle --set-max-age-days N --set-max-docs N --set-max-size-gb N --set-retention-days N [--cluster &lt;id&gt;]</code></td>
+<td><code>system-config</code>: <strong>per-cluster</strong> <code>lifecycle:&lt;cluster_id&gt;</code> overrides the fleet-wide <code>lifecycle</code> default (D26); read live by the daily <code>jobs/lifecycle.py</code> sweep (rollover via <code>_rollover</code>+conditions, retention = drop-whole-index, never <code>delete_by_query</code>). Managed series: <code>javv-scan-events</code>, <code>javv-images</code>, <code>javv-finding-occurrences</code>, <code>javv-inventory-runs</code>, <code>javv-ingest-failures</code> (issue 357: failed-ingest records share the same window; no separate knob). UI: <code>PUT /api/v1/settings/retention</code> + <code>PUT /api/v1/settings/rollover</code> (<code>can_manage_retention</code>, journaled). Interim CLI: <code>python -m backend.jobs.lifecycle --set-max-age-days N --set-max-docs N --set-max-size-gb N --set-retention-days N [--cluster &lt;id&gt;]</code></td>
 <td>✅ Shipped (M9e §13.7)</td>
 </tr>
 <tr>
 <td><strong>Report/export TTL</strong> (<code>hours</code>, default = <code>JAVV_EXPORT_TTL_HOURS</code> 24)</td>
 <td><strong>M9e slice 4</strong> (row 11: now runtime-editable)</td>
-<td><code>system-config</code> doc <code>report_ttl</code> (fleet-wide); <code>admin/report_ttl.py</code> <code>read_report_ttl_hours</code> falls back to the env seed when no doc exists — consumed by <code>jobs/report_drain.py</code> (stamps <code>expires_at</code>) and <code>jobs/report_sweep.py</code> (deletes failed ones past it). <code>PUT /api/v1/settings/report-ttl</code> (<code>can_manage_retention</code>, journaled)</td>
+<td><code>system-config</code> doc <code>report_ttl</code> (fleet-wide); <code>admin/report_ttl.py</code> <code>read_report_ttl_hours</code> falls back to the env seed when no doc exists; consumed by <code>jobs/report_drain.py</code> (stamps <code>expires_at</code>) and <code>jobs/report_sweep.py</code> (deletes failed ones past it). <code>PUT /api/v1/settings/report-ttl</code> (<code>can_manage_retention</code>, journaled)</td>
 <td>✅ Shipped (M9e §13.7)</td>
 </tr>
 <tr>
 <td><strong>Findings cleanup window</strong> (<code>cleanup_days</code>, default <strong>180</strong>)</td>
-<td><strong>M9e</strong> — D37/M12</td>
-<td><code>system-config</code> doc <code>findings_cleanup</code> (fleet default) + per-cluster <code>findings_cleanup:&lt;cluster_id&gt;</code> override (D26 pattern; issue 431): <code>findings</code> cache rows <code>present=false</code> whose <code>resolved_at</code> predates the window are deleted by the <code>jobs/findings_cleanup.py</code> sweep (<code>python -m backend.jobs.findings_cleanup</code>; the backend runs it on <code>JAVV_JOB_FINDINGS_CLEANUP_CRON</code>, §1); watermarks whose digest has no remaining rows prune with them (D40 guard kept otherwise). The sweep runs per cluster with each tenant's effective window, read live each run — an edit applies at the next sweep; history indices are never touched. Deliberately independent of, and much longer than, both the staleness timers and the append-family retention. <code>PUT /api/v1/settings/findings-cleanup</code> (<code>can_manage_retention</code>, journaled); each run journals its counts (<code>findings_cleanup_run</code>)</td>
+<td><strong>M9e</strong>, D37/M12</td>
+<td><code>system-config</code> doc <code>findings_cleanup</code> (fleet default) + per-cluster <code>findings_cleanup:&lt;cluster_id&gt;</code> override (D26 pattern; issue 431): <code>findings</code> cache rows <code>present=false</code> whose <code>resolved_at</code> predates the window are deleted by the <code>jobs/findings_cleanup.py</code> sweep (<code>python -m backend.jobs.findings_cleanup</code>; the backend runs it on <code>JAVV_JOB_FINDINGS_CLEANUP_CRON</code>, §1); watermarks whose digest has no remaining rows prune with them (D40 guard kept otherwise). The sweep runs per cluster with each tenant's effective window, read live each run, so an edit applies at the next sweep; history indices are never touched. Deliberately independent of, and much longer than, both the staleness timers and the append-family retention. <code>PUT /api/v1/settings/findings-cleanup</code> (<code>can_manage_retention</code>, journaled); each run journals its counts (<code>findings_cleanup_run</code>)</td>
 <td>✅ Shipped (setting + sweep, M9e)</td>
 </tr>
 <tr>
 <td><strong>Staleness</strong> two-timer windows (<code>freshness_days</code> N=3, <code>scanner_down_days</code> M=7)</td>
 <td><strong>M3</strong> (backend) / <strong>M9e</strong> (UI)</td>
-<td><code>system-config</code>: <strong>per-cluster</strong> <code>staleness:&lt;cluster_id&gt;</code> overrides the fleet-wide <code>staleness</code> default (FR-6); read by the daily <code>jobs/staleness.py</code> sweep — <strong>never hardcoded</strong> (D20). Interim CLI: <code>python -m backend.jobs.staleness --set-freshness-days N --set-scanner-down-days M [--cluster &lt;id&gt;]</code></td>
+<td><code>system-config</code>: <strong>per-cluster</strong> <code>staleness:&lt;cluster_id&gt;</code> overrides the fleet-wide <code>staleness</code> default (FR-6); read by the daily <code>jobs/staleness.py</code> sweep, <strong>never hardcoded</strong> (D20). Interim CLI: <code>python -m backend.jobs.staleness --set-freshness-days N --set-scanner-down-days M [--cluster &lt;id&gt;]</code></td>
 <td>✅ Shipped (M9e: <strong>Settings › Scanning</strong>)</td>
 </tr>
 <tr>
@@ -2299,7 +2333,7 @@ home for policy that operators change — no rebuild, no restart.</p>
 <tr>
 <td><strong>SLA policy</strong> (days per severity + KEV override)</td>
 <td><strong>M5d</strong> (backend <strong>built</strong>)</td>
-<td><code>system-config</code> doc <code>sla</code> (fleet-wide; crit 2 / high 7 / med 30 / low 90 + <code>kev_days</code> 1 — <code>negligible</code>/<code>unknown</code> carry <strong>no SLA</strong>). <code>GET/PUT /api/v1/settings/sla</code>: read = any principal, write = <code>can_manage_settings</code>, journaled with full old/new policy (D17). Overdue is READ-TIME (D21: earliest <code>first_seen_at</code> per <code>(cve_id, image_digest)</code> — a package bump never resets the clock)</td>
+<td><code>system-config</code> doc <code>sla</code> (fleet-wide; crit 2 / high 7 / med 30 / low 90 + <code>kev_days</code> 1; <code>negligible</code>/<code>unknown</code> carry <strong>no SLA</strong>). <code>GET/PUT /api/v1/settings/sla</code>: read = any principal, write = <code>can_manage_settings</code>, journaled with full old/new policy (D17). Overdue is READ-TIME (D21: earliest <code>first_seen_at</code> per <code>(cve_id, image_digest)</code>; a package bump never resets the clock)</td>
 <td>✅ Shipped (M9e: <strong>Settings › SLA policy</strong>)</td>
 </tr>
 <tr>
@@ -2311,13 +2345,13 @@ home for policy that operators change — no rebuild, no restart.</p>
 <tr>
 <td>Ingest <strong>push tokens</strong> (mint/rotate/revoke/list)</td>
 <td><strong>M5a</strong> (backend <strong>built</strong>) / <strong>M9e</strong> (UI, §13.5)</td>
-<td><code>POST/GET /api/v1/admin/tokens</code> (+ <code>/{id}/rotate</code>, <code>/{id}/revoke</code>), capability <code>can_manage_tokens</code>, journaled; raw token shown exactly once; optional <code>expiry</code> on mint (rotate inherits it — rotation is not extension, task E #142); lists paginate (<code>size</code>/<code>offset</code>). Interim CLI: <code>python -m backend.core.tokens --cluster &lt;id&gt; --scanner &lt;trivy\|grype&gt;</code></td>
+<td><code>POST/GET /api/v1/admin/tokens</code> (+ <code>/{id}/rotate</code>, <code>/{id}/revoke</code>), capability <code>can_manage_tokens</code>, journaled; raw token shown exactly once; optional <code>expiry</code> on mint (rotate inherits it: rotation is not extension, task E #142); lists paginate (<code>size</code>/<code>offset</code>). Interim CLI: <code>python -m backend.core.tokens --cluster &lt;id&gt; --scanner &lt;trivy\|grype&gt;</code></td>
 <td>✅ Shipped (<strong>Settings › Access &amp; tokens</strong>)</td>
 </tr>
 <tr>
 <td>Users / RBAC (capability bundles, D33)</td>
 <td><strong>M5a</strong> (backend <strong>built</strong>)</td>
-<td><code>system-roles</code> docs (<code>_id</code> = role) hold the bundles — <strong>seed-once defaults</strong> (<code>viewer</code>/<code>triager</code>/<code>security_lead</code>/<code>admin="*"</code>); edit the doc to customize, restarts never overwrite it. Users carry a <code>role</code> + denormalized <code>capabilities</code> in <code>system-users</code></td>
+<td><code>system-roles</code> docs (<code>_id</code> = role) hold the bundles: <strong>seed-once defaults</strong> (<code>viewer</code>/<code>triager</code>/<code>security_lead</code>/<code>admin="*"</code>); edit the doc to customize, restarts never overwrite it. Users carry a <code>role</code> + denormalized <code>capabilities</code> in <code>system-users</code></td>
 <td>M9e renders the 4 bundles <strong>read-only</strong> (A-4); bundle <em>editing</em> stays doc-level (post-MVP)</td>
 </tr>
 <tr>
@@ -2329,36 +2363,36 @@ home for policy that operators change — no rebuild, no restart.</p>
 </tbody>
 </table>
 <hr />
-<h2 id="7-scanner-config-status-91">7. Scanner config — status (#91)<a class="headerlink" href="#7-scanner-config-status-91" title="Permanent link">&para;</a></h2>
-<p><strong>Phase 1 — done.</strong> Scan-behaviour flags are now <code>JAVV_TRIVY_*</code> / <code>JAVV_GRYPE_*</code> <strong>env vars</strong> (§3/§4),
+<h2 id="7-scanner-config-status-91">7. Scanner config: status (#91)<a class="headerlink" href="#7-scanner-config-status-91" title="Permanent link">&para;</a></h2>
+<p><strong>Phase 1: done.</strong> Scan-behaviour flags are now <code>JAVV_TRIVY_*</code> / <code>JAVV_GRYPE_*</code> <strong>env vars</strong> (§3/§4),
 defaulting to the previously-hardcoded values (unset env = identical command). Set them in the
 <code>javv-scanner</code> chart's <code>&lt;scanner&gt;.config</code> (§2), or on the scanner's own environment without the chart:
 GitOps, no code edit, scanner stays stateless. This closes the immediate hardcoding
 gap for the flags people actually tune.</p>
 <p><strong>Intentionally still GitOps (never UI):</strong> scanner <strong>version</strong> + <strong>vuln-DB</strong> are build-time
-(<code>versions.yaml</code> + Dockerfile <code>ARG</code>, tag-swap — D41/D42). "Version select" must never return as a control.</p>
-<p><strong>Scan <em>scope</em> is different — UI-configurable now (D43/#94).</strong> <em>Which</em> namespaces/images/kinds to scan
+(<code>versions.yaml</code> + Dockerfile <code>ARG</code>, tag-swap, D41/D42). "Version select" must never return as a control.</p>
+<p><strong>Scan <em>scope</em> is different: UI-configurable now (D43/#94).</strong> <em>Which</em> namespaces/images/kinds to scan
 is operational policy (not tuning), so it lives in <code>system-config</code> (tier ③) and the scanner <strong>fetches it
-from the backend</strong> (<code>GET /api/v1/scan-scope</code>) at cycle start — never reads OpenSearch directly. Fetch is
+from the backend</strong> (<code>GET /api/v1/scan-scope</code>) at cycle start and never reads OpenSearch directly. Fetch is
 <strong>fail-closed</strong> (backend down → skip the cycle; fetched-empty → scan all). This is the backend-mediated
 pattern D43 blesses; scanner <strong>tuning</strong> flags deliberately do <strong>not</strong> use it (they stay env/GitOps).</p>
 <p><strong>Scanner tuning in the UI = read-only (shipped, D44/#91).</strong> Every envelope (schema <strong>v3</strong>) stamps
-<code>effective_config</code> — the effective <em>tuning</em> flags + the <em>scope</em> applied that cycle — persisted on
+<code>effective_config</code> (the effective <em>tuning</em> flags + the <em>scope</em> applied that cycle), persisted on
 scan-events for the M9e per-scanner cards and audit. Display, not control: there is no
 <code>scanner_config</code> write path; tuning stays env-var/GitOps. The v2→v3 bump is a <strong>flag-day</strong>: scanner
 images and backend deploy in lockstep (older envelopes 422 by design).</p>
 <hr />
-<h2 id="8-frozen-internal-constants-deliberately-not-settings">8. Frozen internal constants — deliberately <em>not</em> settings<a class="headerlink" href="#8-frozen-internal-constants-deliberately-not-settings" title="Permanent link">&para;</a></h2>
+<h2 id="8-frozen-internal-constants-deliberately-not-settings">8. Frozen internal constants: deliberately <em>not</em> settings<a class="headerlink" href="#8-frozen-internal-constants-deliberately-not-settings" title="Permanent link">&para;</a></h2>
 <blockquote>
 <p>Not every literal is configuration. These are code-level <strong>batch sizes</strong> and <strong>safety ceilings</strong>
 fixed as private module constants (<code>_UPPER_SNAKE</code>). They are intentionally <strong>not</strong> <code>JAVV_*</code> env vars
 (§1) or <code>system-config</code> policy (§6): exposing them would add operator surface for values nobody
-should tune, and a "wrong" value would <em>mask</em> a bug rather than shape a workload. Cataloged here —
-with the motive — so the choice is explicit and reviewable (the category was challenged in audit #186).</p>
+should tune, and a "wrong" value would <em>mask</em> a bug rather than shape a workload. Cataloged here,
+with the motive, so the choice is explicit and reviewable (the category was challenged in audit #186).</p>
 <p><strong>The frozen-vs-setting test:</strong> does an operator ever have a legitimate reason to change it for <em>their</em>
 workload? If yes → it's a setting (§1). If the only reason to touch it is "a bug is making us hit the
 bound" → it stays frozen; fix the bug. When a bound genuinely crosses into workload-shaping territory
-it <em>does</em> become a setting — e.g. the bulk freeze <strong>cap</strong> is <code>JAVV_BULK_MAX_TARGETS</code> (§1, an
+it <em>does</em> become a setting: e.g. the bulk freeze <strong>cap</strong> is <code>JAVV_BULK_MAX_TARGETS</code> (§1, an
 operator-relevant DoS limit), while the freeze <strong>page size</strong> (<code>_FREEZE_PAGE</code>) stays frozen.</p>
 </blockquote>
 <table>
@@ -2371,57 +2405,57 @@ operator-relevant DoS limit), while the freeze <strong>page size</strong> (<code
 </thead>
 <tbody>
 <tr>
-<td><strong>Scheduler tick</strong> — how often the backend looks for a due job</td>
+<td><strong>Scheduler tick</strong>: how often the backend looks for a due job</td>
 <td><code>jobs/scheduler.TICK_SECONDS</code> (30 s)</td>
 <td>A schedule cannot be finer than a minute, so twice a minute never misses one. Faster buys nothing and slower can start a job late; the schedules themselves are the settings (§1, <code>JAVV_JOB_&lt;KIND&gt;_CRON</code>).</td>
 </tr>
 <tr>
-<td><strong>Queue order</strong> — which due job starts first</td>
+<td><strong>Queue order</strong>: which due job starts first</td>
 <td><code>jobs/schedule.FIRST_IN_QUEUE</code> (<code>report_drain</code>), then the order of <code>jobs/registry.JOBS</code></td>
 <td>A ruling, not a dial (issue 691): a person is waiting for an export, nobody is waiting for a sweep.</td>
 </tr>
 <tr>
-<td><strong>Scanner error text in the log</strong> — how much of a failed scan's stderr one log line carries</td>
+<td><strong>Scanner error text in the log</strong>: how much of a failed scan's stderr one log line carries</td>
 <td><code>scanner/run.STDERR_TAIL_LINES</code> (5) · <code>STDERR_TAIL_CHARS</code> (1000)</td>
 <td>Bounds one log line. The scanner prints its final error last; the full output is the scanner's own, not ours to archive (issue 633).</td>
 </tr>
 <tr>
-<td><strong>Read page size</strong> — the reader <em>pages</em>, so this is a batch size, never a cap on results</td>
-<td><code>decisions/reproject._PAGE</code> (10k) · <code>triage/bulk._FREEZE_PAGE</code> (10k) · <code>services/disagreement._SEARCH_PAGE</code> (10k) · <code>jobs/rebuild_state._PAGE</code> (1k) · <code>export/sweep._PAGE_SIZE</code> (500) · <code>routers/findings._GROUP_CLOCK_PAGE</code> (1k, audit #187) · <code>routers/contributors._ROWS_PAGE_SIZE</code> (10k, audit #190) · <code>query/pit._ROW_PAGE</code> (10k) + <code>query/human_at._ROW_PAGE</code> (10k) + the <code>jobs/rebuild_state</code> + <code>jobs/staleness</code> row walks (10k, issue #391) — all <code>search_after</code> walks via <code>query/paging.search_to_exhaustion</code> (audit F-05/F-06, issue #377)</td>
-<td>At/under OpenSearch's <code>from</code>/<code>size</code> 10k ceiling (smaller for constant-memory sweeps). Because the caller pages to exhaustion, completeness holds for <em>any</em> value — it only trades round-trips against memory, never correctness or policy.</td>
+<td><strong>Read page size</strong>: the reader <em>pages</em>, so this is a batch size, never a cap on results</td>
+<td><code>decisions/reproject._PAGE</code> (10k) · <code>triage/bulk._FREEZE_PAGE</code> (10k) · <code>services/disagreement._SEARCH_PAGE</code> (10k) · <code>jobs/rebuild_state._PAGE</code> (1k) · <code>export/sweep._PAGE_SIZE</code> (500) · <code>routers/findings._GROUP_CLOCK_PAGE</code> (1k, audit #187) · <code>routers/contributors._ROWS_PAGE_SIZE</code> (10k, audit #190) · <code>query/pit._ROW_PAGE</code> (10k) + <code>query/human_at._ROW_PAGE</code> (10k) + the <code>jobs/rebuild_state</code> + <code>jobs/staleness</code> row walks (10k, issue #391); all <code>search_after</code> walks via <code>query/paging.search_to_exhaustion</code> (audit F-05/F-06, issue #377)</td>
+<td>At/under OpenSearch's <code>from</code>/<code>size</code> 10k ceiling (smaller for constant-memory sweeps). Because the caller pages to exhaustion, completeness holds for <em>any</em> value; it only trades round-trips against memory, never correctness or policy.</td>
 </tr>
 <tr>
-<td><strong>CAS / conflict-drain ceiling</strong> — a livelock guard, not a tuning dial</td>
+<td><strong>CAS / conflict-drain ceiling</strong>: a livelock guard, not a tuning dial</td>
 <td><code>decisions/reproject._CONFLICT_RETRIES</code> (8) · <code>services/reconcile._CONFLICT_RETRIES</code> (10) · <code>services/merge._CONFLICT_RETRIES</code> (10) · <code>decisions/lifecycle._CAS_RETRIES</code> (8) · <code>triage/service._CAS_RETRIES</code> (8) · <code>services/scan_orders._CAS_RETRIES</code> (32) · <code>services/watermarks._CAS_RETRIES</code> (32)</td>
-<td>Real contention is ~1 (one CronJob per scanner, <code>Forbid</code>). Reaching the ceiling signals a pathology to investigate — raising it would hide the problem, not serve a workload. The two 10s (reconcile drain + merge 409 re-issue, <a href="https://github.com/Danube-Labs/javv-poc/issues/510">#510</a>) guard the same commit race from opposite sides and back off exponentially via <code>repositories/bulk.race_backoff_delay</code> (0.02s → 2s cap, ≈ 8.5s worst-case total — sized to outlast a racing pass's own <code>_bulk</code> backoff, ≤ 7.5s saturated).</td>
+<td>Real contention is ~1 (one CronJob per scanner, <code>Forbid</code>). Reaching the ceiling signals a pathology to investigate; raising it would hide the problem, not serve a workload. The two 10s (reconcile drain + merge 409 re-issue, <a href="https://github.com/Danube-Labs/javv-poc/issues/510">#510</a>) guard the same commit race from opposite sides and back off exponentially via <code>repositories/bulk.race_backoff_delay</code> (0.02s → 2s cap, ≈ 8.5s worst-case total, sized to outlast a racing pass's own <code>_bulk</code> backoff, ≤ 7.5s saturated).</td>
 </tr>
 <tr>
-<td><strong>Client-events request shape</strong> — the wire contract, not a dial (<a href="https://github.com/Danube-Labs/javv-poc/issues/453">#453</a>)</td>
+<td><strong>Client-events request shape</strong>: the wire contract, not a dial (<a href="https://github.com/Danube-Labs/javv-poc/issues/453">#453</a>)</td>
 <td><code>routers/client_events._MAX_BATCH</code> (20) · <code>_MAX_KEYS_PER_OBJECT</code> (25) · <code>_MAX_DEPTH</code> (3) · <code>_MAX_KEY_CHARS</code> (64) · <code>_MAX_VALUE_CHARS</code> (512) · <code>_MAX_LIST_ITEMS</code> (20) · <code>_EVENT_NAME</code> (<code>^[a-z0-9][a-z0-9 ._-]{0,63}$</code>)</td>
-<td>These <em>are</em> the OpenAPI schema — they appear in the generated client, so changing one is a contract change that both stacks must agree on, not an environment tuning. Passing them would also make a 422 environment-dependent: the same payload would validate on one deployment and fail on another. Untrusted browser input, so the value-type walk is an <strong>allowlist</strong>; the name pattern admits the house convention (spaces — <code>backend degraded</code>) while refusing what threatens the <code>client.&lt;name&gt;</code> concatenation (newlines, tabs, quotes, control chars). The per-principal <em>rate</em> cap is genuinely operational and IS a setting (§1).</td>
+<td>These <em>are</em> the OpenAPI schema: they appear in the generated client, so changing one is a contract change that both stacks must agree on, not an environment tuning. Passing them would also make a 422 environment-dependent: the same payload would validate on one deployment and fail on another. Untrusted browser input, so the value-type walk is an <strong>allowlist</strong>; the name pattern admits the house convention (spaces, as in <code>backend degraded</code>) while refusing what threatens the <code>client.&lt;name&gt;</code> concatenation (newlines, tabs, quotes, control chars). The per-principal <em>rate</em> cap is genuinely operational and IS a setting (§1).</td>
 </tr>
 <tr>
-<td><strong>Password length</strong> — the rule every local password meets (<a href="https://github.com/Danube-Labs/javv-poc/issues/726">#726</a>)</td>
+<td><strong>Password length</strong>: the rule every local password meets (<a href="https://github.com/Danube-Labs/javv-poc/issues/726">#726</a>)</td>
 <td><code>auth/passwords.MIN_LENGTH</code> (12) · <code>MAX_LENGTH</code> (256), mirrored as <code>PASSWORD_MIN_LENGTH</code> · <code>PASSWORD_MAX_LENGTH</code> in <code>frontend/src/stores/auth.ts</code></td>
 <td>A security floor, not a workload dial. The password form states the minimum and refuses a shorter password before sending it, so the frontend keeps a copy; <code>password-change.spec.ts</code> reads the backend file and fails when the two differ. The server stays the authority.</td>
 </tr>
 <tr>
-<td><strong>Fixed agg / vocabulary size</strong> — sized to a known-bounded domain</td>
+<td><strong>Fixed agg / vocabulary size</strong>: sized to a known-bounded domain</td>
 <td><code>query/aggs._FACET_TERMS_SIZE</code> (16, ≥ the largest facet vocabulary) · <code>query/contributors._BOARD_SIZE</code> (100 leaderboard)</td>
-<td>Bounded by the data model / product spec, not the workload — a bigger value would return buckets that can't exist.</td>
+<td>Bounded by the data model / product spec, not the workload; a bigger value would return buckets that can't exist.</td>
 </tr>
 </tbody>
 </table>
 <blockquote>
 <p><strong>History:</strong> <code>routers/findings._GROUP_FETCH_SIZE</code> and <code>routers/contributors._ROWS_FETCH_SIZE</code> were
-once <em>un</em>guarded fixed 10k fetches whose truncation was a correctness bug — audit #187 and #190
+once <em>un</em>guarded fixed 10k fetches whose truncation was a correctness bug. Audit #187 and #190
 reworked them into the properly-paged reads now listed under <strong>Read page size</strong> above (composite
 <code>after_key</code> paging and PIT + <code>search_after</code> respectively), so they're frozen page sizes now, not caps.
 The same class of bug hit <code>query/pit.py</code> + <code>query/human_at.py</code> (<code>_MAX_ROWS</code>, a terminal 10k cap on
-historical snapshot/replay reads — 2026-07-12 independent audit F-05/F-06): fixed in #377 by the shared
+historical snapshot/replay reads, 2026-07-12 independent audit F-05/F-06): fixed in #377 by the shared
 <code>search_to_exhaustion</code> walk; the constants were renamed <code>_ROW_PAGE</code> to say what they now are.</p>
 </blockquote>
-<h3 id="ci-gate-parameters-audit-f-14383-floors-not-settings">CI gate parameters (audit F-14/#383) — floors, not settings<a class="headerlink" href="#ci-gate-parameters-audit-f-14383-floors-not-settings" title="Permanent link">&para;</a></h3>
+<h3 id="ci-gate-parameters-audit-f-14383-floors-not-settings">CI gate parameters (audit F-14/#383): floors, not settings<a class="headerlink" href="#ci-gate-parameters-audit-f-14383-floors-not-settings" title="Permanent link">&para;</a></h3>
 <p>Dev-facing gate values, cataloged here because they look tunable and are deliberately not:</p>
 <table>
 <thead>
@@ -2450,7 +2484,7 @@ historical snapshot/replay reads — 2026-07-12 independent audit F-05/F-06): fi
 <tr>
 <td>Smoke seed</td>
 <td><code>backend/tests/fixtures/envelope-trivy-golden.json</code> via <code>development/scripts/seed-smoke.sh</code></td>
-<td>The golden contract fixture IS the seed — one source of truth; an ingest-contract change updates both in the same PR. It is pushed to two clusters (the second id is rewritten at seed time, no second file) so the smoke can click between them (issue 666).</td>
+<td>The golden contract fixture IS the seed: one source of truth; an ingest-contract change updates both in the same PR. It is pushed to two clusters (the second id is rewritten at seed time, no second file) so the smoke can click between them (issue 666).</td>
 </tr>
 </tbody>
 </table>
