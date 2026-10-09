@@ -93,5 +93,4 @@ The compose file and the `javv-opensearch` chart run **one OpenSearch node**, by
 refuses any other setting. For more capacity or for a store that survives a node failure, run an
 OpenSearch of your own with more nodes and replica shards, and point JAVV at it: see
 [Deploying: an OpenSearch of your own](../DEPLOYING.md#an-opensearch-of-your-own). JAVV needs no
-change for that, and the [multi-pod page](multi-pod.md) says what does and doesn't scale on
-JAVV's side.
+change for that; [Scaling and failures](multi-pod.md) says what scales on JAVV's side.
