@@ -15,6 +15,7 @@ name: CI
 #     helm-app runs ct install of javv and javv-scanner, the app's sign-in, upgrade and rollback,
 #     and a scanner cycle pushing from a second cluster
 #   - dependency-audit (issue 552): pip-audit + npm audit, report-only
+#   - docs-site (issue 639): the operator docs site's strict build (docs-site/mkdocs.yml, Zensical)
 #   - frontend: oxlint/eslint/stylelint + vue-tsc + vitest (coverage floor in
 #     vitest.config.ts, #383) + the I4/I7 contract gates (openapi.json snapshot must match
 #     the backend code, generated client must match the snapshot — this is what catches a
@@ -895,6 +896,27 @@ jobs:
       - name: Backend log on failure
         if: failure() && steps.detect.outputs.present == 'true'
         run: tail -100 development/e2e/logs/backend.log
+
+  docs-site:
+    # Issue 639: the operator docs site builds with --strict, which fails on a link to a page the
+    # site doesn't publish. Always runs, like every job here, so it can be a required check.
+    name: Docs site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Read uv pin from versions.yaml (D42)
+        id: uv
+        run: echo "version=$(yq -r '.toolchain.uv' versions.yaml)" >> "$GITHUB_OUTPUT"
+      - name: Set up uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7.6.0
+        with:
+          version: ${{ steps.uv.outputs.version }}
+          enable-cache: true
+      - name: Strict build
+        run: uv run --project docs-site --frozen zensical build -f docs-site/mkdocs.yml --strict
+      - name: The theme's own files were written
+        # the strict build passes without them, leaving pages with no styling (issue 639)
+        run: ls docs-site/site/assets/stylesheets/modern/main.*.min.css
 
   dependency-audit:
     # Issue 552: pip-audit (backend, scanner, libs) and npm audit (frontend) on every PR and push.

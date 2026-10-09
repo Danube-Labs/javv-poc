@@ -1,0 +1,58 @@
+# The operator docs site (issue 639), built by Zensical from the repository root:
+#   uv run --project docs-site --frozen zensical build -f docs-site/mkdocs.yml --strict
+#
+# src/ holds a symlink to each published file, laid out as in the repository, so each file
+# renders where it lives and the links between them work the same on GitHub and here. src/ is the
+# list of what is published: nothing else in the repository reaches the site. (Zensical follows
+# file symlinks, not folder ones.) backend/tests/test_docs_site.py holds src/, the nav and the
+# links in step.
+site_name: JAVV
+site_description: Operator docs for JAVV, Just Another Vulnerability Viewer
+site_url: https://danube-labs.github.io/javv-poc/
+repo_url: https://github.com/Danube-Labs/javv-poc
+edit_uri: edit/main/
+docs_dir: src
+site_dir: site
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - content.code.copy
+
+plugins:
+  - search
+  - redirects:
+      redirect_maps:
+        index.md: docs/index.md
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.snippets:
+      # resolved from the folder the build runs in: the repository root, for README.md's table
+      base_path: ["."]
+      check_paths: true
+
+extra:
+  version:
+    provider: mike
+
+nav:
+  - Home: docs/index.md
+  - Install:
+      - Deploying: docs/DEPLOYING.md
+      - Supported versions: docs/supported-versions.md
+      - "Chart: javv": deploy/helm/javv/README.md
+      - "Chart: javv-opensearch": deploy/helm/javv-opensearch/README.md
+      - "Chart: javv-scanner": deploy/helm/javv-scanner/README.md
+  - Configure: docs/CONFIGURATION.md
+  - Upgrade:
+      - Upgrading: docs/UPGRADING.md
+      - Release notes: CHANGELOG.md
+  - Integrate:
+      - API: docs/API.md
+      - Ingest contract: docs/INGEST-CONTRACT.md
+  - Security: SECURITY.md

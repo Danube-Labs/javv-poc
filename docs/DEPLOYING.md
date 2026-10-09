@@ -299,7 +299,7 @@ cosign verify ghcr.io/danube-labs/charts/javv:<version> \
 ```
 
 The scanner images are signed the same way by their own workflow; their identity is in
-[`scanner/README.md`](../scanner/README.md#verify-a-published-image). The release checks that
+[`scanner/README.md`](https://github.com/Danube-Labs/javv-poc/blob/main/scanner/README.md#verify-a-published-image). The release checks that
 signature on each scanner image before it names the image's digest in the published
 `javv-scanner` chart.
 

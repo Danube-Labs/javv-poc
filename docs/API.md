@@ -11,7 +11,7 @@
 > envelope shapes**, picked by pagination style (cursor → `data` + `next_cursor`; offset → a named
 > key + a bare `total`; unpaged → a named key alone) — the shapes, the two routes that break the
 > pattern, and how to read one without silently getting `0` are in
-> [`standards/api-design.md`](../development/standards/api-design.md) § *List response envelopes*.
+> [`standards/api-design.md`](https://github.com/Danube-Labs/javv-poc/blob/main/development/standards/api-design.md) § *List response envelopes*.
 
 ## Auth regimes (three classes)
 
