@@ -186,7 +186,7 @@ the Dockerfiles + dev compose in step. To change support, edit `versions.yaml`.
 | Component | Current | Also supported |
 |---|---|---|
 | Trivy | 0.75.0 | 0.70.0 |
-| Grype | 0.120.0 | 0.114.0 |
+| Grype | 0.120.1 | 0.114.0 |
 | OpenSearch | 3.9.0 | n/a |
 
 Scanner images are published per supported version as
