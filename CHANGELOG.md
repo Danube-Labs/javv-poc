@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.7.0](https://github.com/Danube-Labs/javv-poc/compare/v0.6.3...v0.7.0) (2026-10-09)
+
+
+### Features
+
+* rename JAVV_TOKEN_PEPPER to JAVV_SECRET_KEY, and fix the docs site ([#795](https://github.com/Danube-Labs/javv-poc/issues/795)) ([2a78774](https://github.com/Danube-Labs/javv-poc/commit/2a78774d13537d887614c74d2977723f6fd0b420))
+
+
+### Miscellaneous Chores
+
+* each release publishes its docs version and latest, and m10 closes with 0.7.0 ([#798](https://github.com/Danube-Labs/javv-poc/issues/798)) ([2d7e158](https://github.com/Danube-Labs/javv-poc/commit/2d7e15839a8b6b3a771fca837dc4afcf56b09bbb))
+
 ## [0.6.3](https://github.com/Danube-Labs/javv-poc/compare/v0.6.2...v0.6.3) (2026-10-09)
 
 
