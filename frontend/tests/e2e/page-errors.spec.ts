@@ -8,7 +8,16 @@
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { ABOUT_FILE, BASE, codeErrorEventInText, codeErrorLine, expect, login, test } from './helpers'
+import {
+  ABOUT_FILE,
+  BASE,
+  codeErrorEventInText,
+  codeErrorFromConsole,
+  codeErrorLine,
+  expect,
+  login,
+  test,
+} from './helpers'
 
 test('a page error, an app error and an uncaught rejection are each caught', async ({ page, codeErrors }) => {
   await login(page)
@@ -38,21 +47,26 @@ test('a page error, an app error and an uncaught rejection are each caught', asy
 
 test('a code error logged as the page leaves is still caught', async ({ page, codeErrors }) => {
   // issue 749's own case: the error lands as the spec moves on, so the object behind the console
-  // line is gone before the fixture can read it, and only the line's text is left
+  // line is often gone before the fixture can read it. Which path caught it varies run to run; the
+  // text path alone is pinned in 'only the code-error events count'.
   await page.goto(`${BASE}/login`)
   await page.evaluate(() => {
-    console.error({ timestamp: 't', level: 'error', event: 'page error', route: '/overview', info: 'watcher callback', message: 'left as the page went' })
-    location.href = '/login?again'
+    // the logger's field order: timestamp, level, event, then the boundary's route, message, info
+    console.error({ timestamp: 't', level: 'error', event: 'page error', route: '/overview', message: 'left as the page went', info: 'watcher callback' })
+    // after this evaluate returns, so it cannot be cut off by the navigation it starts
+    setTimeout(() => (location.href = '/login?again'), 0)
   })
   await page.waitForURL(/again/)
   await expect.poll(() => codeErrors.length, { timeout: 10_000 }).toBe(1)
   expect(codeErrors[0]).toMatch(/^page error/)
+  expect(codeErrors[0]).toContain('left as the page went')
   codeErrors.length = 0 // caused on purpose
 })
 
 test('a code error left in place fails the test', async ({ page, codeErrors }) => {
-  // the fixture's own check, after the body. test.fail() is also met if the body itself fails, so
-  // the poll below proves the error was caught first; deleting the check turns this test red
+  // the fixture's own check, after the body: deleting that check turns this test red. test.fail()
+  // is also met if the body itself fails, so this test does not prove the catching; the two tests
+  // above do
   test.fail()
   await page.goto(`${BASE}/login`)
   await page.evaluate(() => {
@@ -77,6 +91,14 @@ test('only the code-error events count', () => {
   expect(codeErrorEventInText('{timestamp: t, level: error, event: page crashed, route: /about}')).toBeNull()
   expect(codeErrorEventInText('{timestamp: t, level: error, event: page error message}')).toBeNull()
   expect(codeErrorEventInText('Failed to load resource: the server responded with a status of 503')).toBeNull()
+
+  // the whole decision: the object when the page still has it, the text once it has navigated
+  const preview = '{timestamp: t, level: error, event: page error, route: /overview, message: boom}'
+  expect(codeErrorFromConsole(preview, null)).toBe(`page error, logged as the page left: ${preview}`)
+  expect(codeErrorFromConsole(preview, { ...line, event: 'page error' })).toBe(
+    'page error on /overview (watcher callback): boom',
+  )
+  expect(codeErrorFromConsole('{timestamp: t, level: error, event: page crashed}', null)).toBeNull()
 })
 
 test('every spec takes test and expect from the helpers', () => {

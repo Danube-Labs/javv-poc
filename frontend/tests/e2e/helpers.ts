@@ -60,11 +60,18 @@ export function codeErrorEventInText(text: string): string | null {
   return event !== undefined && CODE_ERROR_EVENTS.includes(event) ? event : null
 }
 
+/** One line per code error in a console error message, from its object when the page still has
+ *  it (`entry`, null once the page has navigated) or else from its text. */
+export function codeErrorFromConsole(text: string, entry: unknown): string | null {
+  const detail = codeErrorLine(entry)
+  if (detail !== null) return detail
+  const event = codeErrorEventInText(text)
+  return event === null ? null : `${event}, logged as the page left: ${text}`
+}
+
 async function consoleCodeError(msg: ConsoleMessage): Promise<string | null> {
   if (msg.type() !== 'error') return null
-  const fromText = codeErrorEventInText(msg.text())
-  const detail = codeErrorLine(await msg.args()[0]?.jsonValue().catch(() => null))
-  return detail ?? (fromText === null ? null : `${fromText}, logged as the page left: ${msg.text()}`)
+  return codeErrorFromConsole(msg.text(), await msg.args()[0]?.jsonValue().catch(() => null))
 }
 
 export const test = base.extend<{ codeErrors: string[] }>({
