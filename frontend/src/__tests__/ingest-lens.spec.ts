@@ -16,6 +16,8 @@ import IngestLens from '@/components/dashboards/IngestLens.vue'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { CHART_SCANNER } from '@/styles/tokens'
 
+import { okWithoutBody } from './helpers/okWithoutBody'
+
 vi.mock('@/api/generated', async (importOriginal) =>
   (await import('./helpers/mockSdk')).mockSdk(importOriginal, {
     scansTrendApiV1TrendsScansGet: vi.fn<() => Promise<unknown>>(),
@@ -136,5 +138,27 @@ describe('IngestLens head (issue 341: the guide popover, plain copy)', () => {
     const empty = w.find('.il-empty').text()
     expect(empty).toMatch(/^No scans committed in this range: the table shows the state last updated/)
     expect(empty).not.toContain('—')
+  })
+})
+
+// issue 749: the Overview threw "reading 'series'" from this read during the e2e suite
+describe('IngestLens read', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('an OK reply whose body could not be read is a failed read, not a throw', async () => {
+    const thrown: string[] = []
+    vi.mocked(scansTrendApiV1TrendsScansGet).mockResolvedValue(okWithoutBody())
+    vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(okWithoutBody())
+    const w = mount(IngestLens, {
+      props: { clusterId: 'c-1' },
+      global: {
+        plugins: [createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] })],
+        stubs: { EChart: true },
+        config: { errorHandler: (err) => void thrown.push((err as Error).message) },
+      },
+    })
+    await flushPromises()
+    expect(thrown).toEqual([])
+    expect(w.find('.il-empty').text()).toBe('Ingest activity unavailable.')
   })
 })

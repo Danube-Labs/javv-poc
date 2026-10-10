@@ -10,13 +10,15 @@ import { useRoute, useRouter } from 'vue-router'
 import ErrorPage from '@/components/system/ErrorPage.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import { logger } from '@/lib/logger'
-import { errorMessage, pageCrashed, replacesPage } from '@/system/crash'
+import { errorMessage, errorStack, pageCrashed, replacesPage } from '@/system/crash'
 
 const route = useRoute()
 const router = useRouter()
 
 onErrorCaptured((err, _instance, info) => {
-  const fields = { route: route.path, info, message: errorMessage(err) }
+  // message before info: a console preview shows only the first five fields, and the message is
+  // the one that says what went wrong
+  const fields = { route: route.path, message: errorMessage(err), info, stack: errorStack(err) }
   if (replacesPage(info)) {
     logger.error('page crashed', fields)
     pageCrashed.value = true

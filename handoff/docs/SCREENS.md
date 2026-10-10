@@ -734,7 +734,9 @@ bar keep working, and moving to another page clears it.
 - **Where:** `components/system/CrashBoundary.vue` around the routed page in `AppShell`; the rule
   is `replacesPage` in `system/crash.ts`. Every caught error is logged (`page crashed`,
   `page error`, `page failed to load`, `app error`) and reaches the backend log through the
-  client-events beacon.
+  client-events beacon. Each line carries up to five frames from the top of the error's stack (`stack`,
+  without the page's origin), so it names the file that threw (issue 749). A promise rejection
+  that nothing caught is logged too, as `app error` with `info: unhandled rejection`.
 
 ### A backend that cannot be reached (issue 675)
 

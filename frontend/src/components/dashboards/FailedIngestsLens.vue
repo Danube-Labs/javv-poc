@@ -54,9 +54,9 @@ watch(
       client,
       query: { ...buildTrendQuery(id, days, t), interval: interval.value } as never,
     })
-    failed.value = !response?.ok
+    failed.value = !response?.ok || !data
     if (failed.value) logger.warn('failed_ingests_lens_failed', { status: response?.status })
-    series.value = response?.ok ? ((data as { series: IngestFailuresTrend }).series ?? {}) : {}
+    series.value = failed.value ? {} : ((data as { series: IngestFailuresTrend }).series ?? {})
     settled.value = true
   },
   { immediate: true },

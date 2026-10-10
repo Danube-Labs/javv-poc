@@ -9,7 +9,7 @@ import { defineComponent, h, nextTick, reactive, ref } from 'vue'
 
 import CrashBoundary from '@/components/system/CrashBoundary.vue'
 import { logger } from '@/lib/logger'
-import { errorMessage, pageCrashed, replacesPage } from '@/system/crash'
+import { errorMessage, errorStack, logUnhandledRejections, pageCrashed, replacesPage } from '@/system/crash'
 
 const route = reactive({ path: '/findings', fullPath: '/findings' })
 const push = vi.fn<(to: unknown) => void>()
@@ -46,6 +46,62 @@ describe('errorMessage', () => {
     expect(errorMessage(new Error('boom'))).toBe('boom')
     expect(errorMessage('plain')).toBe('plain')
     expect(errorMessage(undefined)).toBe('undefined')
+  })
+})
+
+describe('errorStack (issue 749)', () => {
+  const thrown = (stack: string) => Object.assign(new TypeError('boom'), { stack })
+  const CHROMIUM = [
+    "TypeError: Cannot read properties of undefined (reading 'series')",
+    '    at https://javv.example/assets/OverviewView-AbC12.js:1:2345',
+    '    at async Promise.all (index 0)',
+    '    at f (https://javv.example/assets/index-Xy9.js:2:10)',
+  ].join('\n')
+
+  it("keeps the frames, without the message line or the page's own origin", () => {
+    expect(errorStack(thrown(CHROMIUM), 'https://javv.example')).toEqual([
+      'at /assets/OverviewView-AbC12.js:1:2345',
+      'at async Promise.all (index 0)',
+      'at f (/assets/index-Xy9.js:2:10)',
+    ])
+  })
+
+  it('reads Firefox and Safari stacks, which list frames only', () => {
+    const stack = 'load@https://javv.example/assets/a.js:1:2\n@https://javv.example/assets/b.js:3:4\n'
+    expect(errorStack(thrown(stack), 'https://javv.example')).toEqual(['load@/assets/a.js:1:2', '@/assets/b.js:3:4'])
+  })
+
+  it('keeps at most five frames', () => {
+    const stack = ['TypeError: boom', ...Array.from({ length: 9 }, (_, i) => `    at f${i} (x.js:${i}:1)`)].join('\n')
+    expect(errorStack(thrown(stack), '')).toEqual([0, 1, 2, 3, 4].map((i) => `at f${i} (x.js:${i}:1)`))
+  })
+
+  it('gives nothing for a value that is not an Error', () => {
+    expect(errorStack('plain', 'https://javv.example')).toEqual([])
+    expect(errorStack(undefined)).toEqual([])
+    expect(errorStack({ stack: CHROMIUM })).toEqual([])
+  })
+})
+
+describe('logUnhandledRejections (issue 749)', () => {
+  it('logs a rejection nothing caught as an app error, with where it threw', () => {
+    // the same spy the boundary tests below share, so it is cleared, never restored
+    const logged = vi.spyOn(logger, 'error').mockImplementation(() => {})
+    logged.mockClear()
+    const target = new EventTarget()
+    logUnhandledRejections(target, () => '/overview')
+    const reason = new TypeError("Cannot read properties of undefined (reading 'facets')")
+    target.dispatchEvent(Object.assign(new Event('unhandledrejection'), { reason }))
+    expect(logged).toHaveBeenCalledWith('app error', {
+      route: '/overview',
+      info: 'unhandled rejection',
+      message: "Cannot read properties of undefined (reading 'facets')",
+      stack: errorStack(reason),
+    })
+    expect(errorStack(reason).length).toBeGreaterThan(0)
+    // a console preview shows five keys and the logger puts timestamp, level and event first, so
+    // the message must be one of the first two fields
+    expect(Object.keys(logged.mock.calls[0]![1] as object).slice(0, 2)).toContain('message')
   })
 })
 
@@ -107,6 +163,7 @@ describe('CrashBoundary', () => {
       route: '/findings',
       info: 'setup function',
       message: 'setup broke',
+      stack: expect.any(Array),
     })
   })
 
@@ -130,7 +187,10 @@ describe('CrashBoundary', () => {
       route: '/findings',
       info: 'native event handler',
       message: 'click broke',
+      stack: expect.any(Array),
     })
+    // the same five-key preview: the message must be one of the first two fields
+    expect(Object.keys(logged.mock.calls[0]![1] as object).slice(0, 2)).toContain('message')
   })
 
   it('"Try again" draws the page again', async () => {
