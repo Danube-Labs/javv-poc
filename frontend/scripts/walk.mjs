@@ -14,6 +14,11 @@ export const VIEWPORTS = {
   phone: { width: 390, height: 844 },
 }
 
+// A row of grid data. The grid's loading and empty messages are a body row too, and the Findings
+// grid shows "Loading findings…" until the cluster list arrives: a click there goes nowhere
+// (issue 786). Every wait for, or click on, a grid row uses this, never `.tbl tbody tr`.
+export const DATA_ROW = '.tbl tbody tr:not(.p-datatable-empty-message)'
+
 // Row-click detail routes are walked by clickDetail(), not listed here (their URLs carry
 // corpus-specific ids). Order matters: cheap shell screens first, data grids last so a
 // dead API fails on a named data route, not a generic one.
@@ -38,8 +43,8 @@ export const ROUTES = [
   // data panel: the family ledger renders only after GET /settings/data resolved
   { name: 'settings-data', path: '/settings/data-opensearch', ready: '.fam-row' },
   { name: 'settings-cluster', path: '/settings/cluster', ready: '.set-row' },
-  { name: 'findings', path: '/findings', ready: '.tbl tbody tr' },
-  { name: 'images', path: '/images', ready: '.tbl tbody tr' },
+  { name: 'findings', path: '/findings', ready: DATA_ROW },
+  { name: 'images', path: '/images', ready: DATA_ROW },
   // static content: the last section's card is the page fully rendered
   { name: 'guide', path: '/guide', ready: '#glossary .gl-row' },
   // the install rows, or the visible error when /meta failed
@@ -250,7 +255,7 @@ export async function walkRoutes(page, base, issues, { onRoute } = {}) {
 export async function clickDetail(page, base, listPath, detailReady, name, issues, { onRoute } = {}) {
   await page.goto(`${base}${listPath}`)
   // locator (not an element handle): the lazy grid re-renders rows on fetch, detaching handles
-  const cell = page.locator('.tbl tbody tr td').first()
+  const cell = page.locator(`${DATA_ROW} td`).first()
   const clicked = await cell
     .click({ timeout: 15_000 })
     .then(() => true)
