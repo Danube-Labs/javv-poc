@@ -3,11 +3,11 @@
  * title that jumps from the page's h1 to an h3 reads as a missing section. Walks every listed
  * route plus the two detail pages. Dialogs are opened on demand and are not part of the walk.
  */
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 // @ts-expect-error walk.mjs is the untyped shared walk module — the route owner
 import { ROUTES } from '../../scripts/walk.mjs'
-import { BASE, login } from './helpers'
+import { BASE, expect, login, test } from './helpers'
 
 /** Every visible heading in <main> that sits more than one level below the one before it. */
 async function skips(page: Page): Promise<string[]> {

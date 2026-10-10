@@ -3,12 +3,9 @@
  * the frame (issue 675). jsdom proves the boundary's rule; only a real build proves the phase
  * codes a production bundle reports, and that the sidebar still works afterwards.
  */
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
-import { BASE, login } from './helpers'
-
-// the About page's own file: `/src/views/AboutView.vue` on the dev server, a hashed chunk in a build
-const ABOUT_FILE = /AboutView(\.vue|-[\w-]+\.js)(\?.*)?$/
+import { ABOUT_FILE, BASE, expect, login, test } from './helpers'
 
 async function openAboutFromSidebar(page: Page) {
   await page.goto(`${BASE}/overview`)

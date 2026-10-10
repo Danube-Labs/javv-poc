@@ -4,9 +4,9 @@
  * password. The dead backend is simulated at the browser: every backend path answers 502, which
  * is what a proxy with nothing behind it sends.
  */
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
-import { BASE, DATA_ROW, PASS, USER, login } from './helpers'
+import { BASE, DATA_ROW, PASS, USER, expect, login, test } from './helpers'
 
 // the backend's own paths only: a bare /api/ pattern would also catch the dev server's /src/api/ modules
 const isBackend = (url: URL) => /^\/(api|auth|readyz)(\/|$)/.test(url.pathname)

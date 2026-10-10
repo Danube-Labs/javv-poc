@@ -3,9 +3,8 @@
  * shortcut. Wrong credentials fail loudly on the form; good ones land on /overview with the
  * chrome (sidebar + topbar) rendered.
  */
-import { expect, test } from '@playwright/test'
 
-import { BASE, DATA_ROW, USER, login } from './helpers'
+import { BASE, DATA_ROW, USER, expect, login, test } from './helpers'
 
 test('bad credentials stay on the form with a visible error', async ({ page }) => {
   await page.goto(`${BASE}/login`)
