@@ -188,7 +188,7 @@ async function main() {
     const saved = await context.tracing.stop(failed ? { path: TRACE } : {}).then(
       () => failed,
       (e) => {
-        console.error(`trace not saved: ${e.message}`)
+        if (failed) console.error(`trace not saved: ${e.message}`)
         return false
       },
     )
