@@ -1,8 +1,10 @@
 /**
- * A reply that arrives OK with no body (issue 749). The generated client catches a failed body
+ * An OK reply whose body could not be read (issue 749). The generated client catches a failed body
  * read or a failed parse and hands back the response it already had, so `response.ok` is true
  * while `data` is missing. Every reader of `data` relies on this shape, and `okWithoutBody()`
  * copies it for the component specs: if the client changes, this file fails first.
+ * An EMPTY body is another case: a 204, or a 200 with nothing in it, gives `data: {}`, which a
+ * `!data` guard lets through. The last test pins that, so the gap stays visible.
  */
 import { describe, expect, it } from 'vitest'
 
@@ -44,6 +46,11 @@ describe('the generated client, given a 200 whose body never arrives whole', () 
     }
     expect(r.response.ok).toBe(true)
     expect(r.data).toBeUndefined()
+  })
+
+  it('an empty body is not this case: the client gives data {}', async () => {
+    const r = (await clientServing('').get({ url: '/api/v1/trends/scans' })) as { data?: unknown }
+    expect(r.data).toEqual({})
   })
 
   it('okWithoutBody() has that shape', () => {

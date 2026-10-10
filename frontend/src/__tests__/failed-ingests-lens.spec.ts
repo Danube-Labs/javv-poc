@@ -115,7 +115,7 @@ describe('FailedIngestsLens (self-contained lens)', () => {
     expect(w.text()).toContain('Failed-ingest activity unavailable')
   })
 
-  it('a reply that arrives OK with no body is a failed read, not a throw (issue 749)', async () => {
+  it('an OK reply whose body could not be read is a failed read, not a throw (issue 749)', async () => {
     const thrown: string[] = []
     trendMock.mockResolvedValue(okWithoutBody())
     const w = mount(FailedIngestsLens, {

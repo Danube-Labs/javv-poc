@@ -1,5 +1,5 @@
 /**
- * The Overview store's load (issue 749): a reply that arrives OK with no body is a failed load.
+ * The Overview store's load (issue 749): an OK reply whose body could not be read is a failed load.
  * The view starts `load` from a watcher without awaiting it, so a throw here is a rejection
  * nothing catches.
  */
@@ -49,7 +49,7 @@ describe('useOverviewStore().load', () => {
   it.each([
     ['facets', facetFindingsApiV1FindingsFacetsGet],
     ['trend', findingsTrendApiV1TrendsFindingsGet],
-  ] as const)('a %s reply that arrives OK with no body fails the load', async (_name, call) => {
+  ] as const)('an OK %s reply whose body could not be read fails the load', async (_name, call) => {
     vi.mocked(call).mockResolvedValue(okWithoutBody())
     const store = useOverviewStore()
     await expect(store.load({ cluster_id: 'c-1' }, 30)).resolves.toBeUndefined()

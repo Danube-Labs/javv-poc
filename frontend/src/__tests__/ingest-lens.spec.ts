@@ -145,7 +145,7 @@ describe('IngestLens head (issue 341: the guide popover, plain copy)', () => {
 describe('IngestLens read', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('a reply that arrives OK with no body is a failed read, not a throw', async () => {
+  it('an OK reply whose body could not be read is a failed read, not a throw', async () => {
     const thrown: string[] = []
     vi.mocked(scansTrendApiV1TrendsScansGet).mockResolvedValue(okWithoutBody())
     vi.mocked(scannerFreshnessApiV1ScannersFreshnessGet).mockResolvedValue(okWithoutBody())
