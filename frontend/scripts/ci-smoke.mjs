@@ -14,12 +14,16 @@
  *     fleet row of the cluster that is NOT selected opens that cluster's Overview (the seed
  *     carries two clusters), and with --core-loop a saved view with a 7-day window opens
  *     Findings (the view is created for the check and deleted after it).
+ * A failed run saves a Playwright trace to development/e2e/logs/ci-smoke-trace.zip, which the CI
+ * job uploads with the backend log (issue 786). A clean run saves nothing.
  *
  *   JAVV_BASE=http://localhost:4173 JAVV_USER=… JAVV_PASS=… node scripts/ci-smoke.mjs [--core-loop]
  *
  * Deliberately shallow: dialogs, forced states and screenshots live in the authoring rig
  * (visual-capture.mjs), which imports the same walk — keep deep interactions out of the gate.
  */
+import { fileURLToPath } from 'node:url'
+
 import { chromium } from 'playwright'
 
 import { ROUTES, VIEWPORTS, collectPageIssues, walkRoutes, clickDetail, login } from './walk.mjs'
@@ -28,6 +32,8 @@ const BASE = process.env.JAVV_BASE ?? 'http://localhost:4173'
 const USER = process.env.JAVV_USER
 const PASS = process.env.JAVV_PASS
 const CORE_LOOP = process.argv.includes('--core-loop')
+// a failed run leaves its recording (screens, DOM, console, network) where CI uploads it (issue 786)
+const TRACE = fileURLToPath(new URL('../../development/e2e/logs/ci-smoke-trace.zip', import.meta.url))
 if (!USER || !PASS) {
   console.error('set JAVV_USER and JAVV_PASS')
   process.exit(2)
@@ -167,8 +173,26 @@ async function main() {
   const browser = await chromium.launch({ headless: true })
   const issues = []
 
-  const page = await browser.newPage({ viewport: VIEWPORTS.desktop })
+  const context = await browser.newContext({ viewport: VIEWPORTS.desktop })
+  await context.tracing.start({ screenshots: true, snapshots: true })
+  const page = await context.newPage()
+  let failed = true
+  try {
+    await walk(page, issues)
+    failed = issues.length > 0
+  } finally {
+    await context.tracing.stop(failed ? { path: TRACE } : {})
+    await browser.close()
+  }
+  if (failed) console.error(`trace of the failed run: ${TRACE}`)
+  if (issues.length) {
+    console.error(`SMOKE FAILED — ${issues.length} issue(s):\n  ${issues.join('\n  ')}`)
+    process.exit(1)
+  }
+  console.log('smoke: all routes clean (desktop)')
+}
 
+async function walk(page, issues) {
   // server-side-everything: rows must come from a backend search, not client math
   let findingsQueried = false
   page.on('request', (r) => {
@@ -187,13 +211,6 @@ async function main() {
   if (CORE_LOOP) await coreLoop(page, issues)
   // after the core loop: the fleet click moves this browser's selection off the golden cluster
   await oneClick(page, issues)
-
-  await browser.close()
-  if (issues.length) {
-    console.error(`SMOKE FAILED — ${issues.length} issue(s):\n  ${issues.join('\n  ')}`)
-    process.exit(1)
-  }
-  console.log('smoke: all routes clean (desktop)')
 }
 
 main().catch((e) => {
