@@ -56,10 +56,8 @@ async def enqueue_report(
 
     if body.kind == "bulk_triage":
         # slice 5 (audit A-Mc): a scheduled bulk is a WRITE — capability regime mirrors the
-        # inline bulk exactly (can_triage; +can_accept_audit_final when the patch risk-accepts;
-        # SEC-6: a must_change session may not mutate), checked BEFORE any store work.
-        if principal.must_change:
-            raise HTTPException(403, "password change required before any action")
+        # inline bulk exactly (can_triage; +can_accept_audit_final when the patch risk-accepts),
+        # checked BEFORE any store work.
         caps = principal.capabilities
         if "*" not in caps and "can_triage" not in caps:
             raise HTTPException(403, "bulk_triage reports require can_triage")

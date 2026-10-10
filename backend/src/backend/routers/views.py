@@ -173,10 +173,6 @@ async def list_views(request: Request, principal: Authenticated) -> dict[str, An
 async def create_view(
     request: Request, body: CreateView, principal: Authenticated
 ) -> dict[str, Any]:
-    # SEC-6: a must_change session may not mutate (this route is capability-EXEMPT, so the
-    # require_capability gate that normally enforces this doesn't run — the reports.py pattern)
-    if principal.must_change:
-        raise HTTPException(403, "password change required")
     client = cast(Any, request.app.state.opensearch)
     view_id = uuid4().hex
     now = datetime.now(UTC).isoformat()
@@ -223,8 +219,6 @@ async def update_view(
     body: UpdateView,
     principal: Authenticated,
 ) -> dict[str, Any]:
-    if principal.must_change:  # SEC-6 — capability-EXEMPT route guards itself
-        raise HTTPException(403, "password change required")
     client = cast(Any, request.app.state.opensearch)
     doc, cas = await _get_or_404(client, view_id)
     if not _may_mutate(principal, doc):
@@ -271,8 +265,6 @@ async def delete_view(
     view_id: Annotated[str, Path(max_length=64)],
     principal: Authenticated,
 ) -> None:
-    if principal.must_change:  # SEC-6 — capability-EXEMPT route guards itself
-        raise HTTPException(403, "password change required")
     client = cast(Any, request.app.state.opensearch)
     doc, cas = await _get_or_404(client, view_id)
     if not _may_mutate(principal, doc):

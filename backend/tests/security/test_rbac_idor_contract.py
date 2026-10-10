@@ -22,6 +22,7 @@ an always-applied data filter (D38/H9) — reads are guarded structurally by the
 grows the cross-tenant case for every registered endpoint.
 """
 
+import re
 import uuid
 from dataclasses import dataclass, field
 from typing import Any
@@ -436,6 +437,67 @@ async def test_must_change_is_403_even_with_the_capability(endpoint: MutatingEnd
         await _login_as(http, client, capabilities=[endpoint.capability], must_change=True)
         r = await http.request(endpoint.method, endpoint.path, json=endpoint.body)
         assert r.status_code == 403  # SEC-6: nothing but /auth/* until the password changes
+    finally:
+        await http.aclose()
+        await client.close()
+
+
+# ── a must_change session reaches nothing but /auth/*: every route, reads included ────────────
+# The registry above holds the gated writes only, which is how reads stayed open to a temporary
+# password (issue 803). This axis walks the whole route table instead, so a new read is covered
+# without registering it.
+
+# routes outside the session regime: the anonymous probes, the machine-token surface, and /auth/*
+# itself, the only way out of a must_change session
+_NOT_SESSION_ROUTES: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("GET", "/healthz"),
+        ("GET", "/readyz"),
+        ("GET", "/metrics"),
+        ("POST", "/api/v1/ingest/scan"),
+        ("GET", "/api/v1/scan-scope"),
+        ("POST", "/api/v1/scan-runs"),
+        ("POST", "/api/v1/inventory-runs"),
+    }
+)
+
+
+def _session_routes() -> list[tuple[str, str]]:
+    spec = create_app().openapi()  # app.routes is blind to included routers (module docstring)
+    return sorted(
+        (method.upper(), path)
+        for path, ops in spec["paths"].items()
+        for method in ops
+        if not path.startswith("/auth/") and (method.upper(), path) not in _NOT_SESSION_ROUTES
+    )
+
+
+def test_the_session_route_walk_is_not_blind() -> None:
+    routes = _session_routes()
+    assert len(routes) > 60, f"the walk found {len(routes)} session routes: too few to be real"
+    assert ("GET", "/api/v1/findings") in routes  # the read this axis exists for
+
+
+def test_no_non_session_route_is_stale() -> None:
+    spec = create_app().openapi()
+    live = {(m.upper(), p) for p, ops in spec["paths"].items() for m in ops}
+    assert not sorted(_NOT_SESSION_ROUTES - live)
+
+
+@requires_opensearch
+@pytest.mark.parametrize("route", _session_routes(), ids=lambda r: f"{r[0]} {r[1]}")
+async def test_a_must_change_session_gets_403_on_every_session_route(
+    route: tuple[str, str],
+) -> None:
+    method, template = route
+    # any value fills a path parameter: the refusal comes before the route reads it
+    path = re.sub(r"\{[^}]+\}", "sample-0803", template)
+    http, client = await _app_client()
+    try:
+        await _login_as(http, client, capabilities=["*"], must_change=True)
+        r = await http.request(method, path, params={"cluster_id": "c-rbac-sample1"}, json={})
+        assert r.status_code == 403, f"{method} {template} answered {r.status_code}"
+        assert r.json()["title"] == "password change required"
     finally:
         await http.aclose()
         await client.close()

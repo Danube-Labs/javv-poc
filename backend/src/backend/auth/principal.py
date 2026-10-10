@@ -21,12 +21,13 @@ class Principal:
     username: str
     role: str | None
     capabilities: frozenset[str]  # effective; "*" = Admin holds all (D33)
-    must_change: bool  # SEC-6: True locks everything but the /auth/* escape hatch
 
 
 async def get_current_principal(request: Request) -> Principal:
     """Session → user → Principal, else generic 401 (dead session and deleted/disabled user are
-    indistinguishable on purpose)."""
+    indistinguishable on purpose). A `must_change` user is refused here, so every session route
+    shares one gate, reads included (issue 803). `/auth/*` resolves the session through its own
+    `require_session`, which keeps the way to change the password open."""
     client: Any = request.app.state.opensearch
     session = await lookup_session(client, request.cookies.get(COOKIE_NAME, ""))
     if session is None:
@@ -38,6 +39,8 @@ async def get_current_principal(request: Request) -> Principal:
         raise HTTPException(401, "invalid credentials") from None
     if user.get("disabled"):
         raise HTTPException(401, "invalid credentials")
+    if user.get("must_change"):
+        raise HTTPException(403, "password change required")
 
     capabilities = user.get("capabilities")
     if capabilities is None and user.get("role"):  # not denormalized → resolve the role bundle
@@ -49,5 +52,4 @@ async def get_current_principal(request: Request) -> Principal:
         username=user["username"],
         role=user.get("role"),
         capabilities=frozenset(capabilities or []),
-        must_change=bool(user.get("must_change")),
     )

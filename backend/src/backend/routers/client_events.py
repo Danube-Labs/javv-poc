@@ -121,8 +121,6 @@ _limiter = SlidingWindowLimiter()
 
 @router.post("", status_code=204)
 async def receive_client_events(body: ClientEventBatch, principal: Authenticated) -> None:
-    if principal.must_change:  # SEC-6 — a capability-EXEMPT route guards itself (views.py)
-        raise HTTPException(403, "password change required")
     if _limiter.is_limited(principal.user_id, get_settings().client_events_rate_limit_per_minute):
         LIMIT_REJECTIONS.labels("client_events").inc()  # M-4 ops parity: metric AND warning
         log.warning("client events rate-limited", username=principal.username)
