@@ -1,35 +1,214 @@
-# JAVV API reference
+# JAVV API
 
-> Human-readable index of the backend's HTTP surface. The **live, authoritative** spec is the
-> app's auto-generated OpenAPI: run the backend and open **`/docs`** (Swagger UI) or
-> **`/openapi.json`**. This file is the at-a-glance map + the things OpenAPI doesn't capture (auth
-> regime, capabilities, metrics, error semantics). Kept versioned in-repo (reviewed in PRs) rather
-> than a wiki so it can't drift silently: **any route change updates this file in the same PR**
-> (`standards/definition-of-done.md` §6). Conventions (`standards/api-design.md`): `/api/v1`
-> prefix for data routes, snake_case, `extra="forbid"` request models, one problem-details error
-> envelope for every non-2xx (`status`/`title`/`request_id`). **List responses come in three
-> envelope shapes**, picked by pagination style (cursor → `data` + `next_cursor`; offset → a named
-> key + a bare `total`; unpaged → a named key alone). The shapes, the two routes that break the
-> pattern, and how to read one without silently getting `0` are in
-> [`standards/api-design.md`](https://github.com/Danube-Labs/javv-poc/blob/main/development/standards/api-design.md) § *List response envelopes*.
+This page describes the HTTP API of JAVV. It is for people who write scripts for JAVV or monitor
+it. The tasks come first. Then the reference tables give each endpoint, error and metric.
 
-## Auth regimes (three classes)
+The backend also publishes a description of its API, with each parameter and its limits. It is at
+`/docs` and `/openapi.json` on the backend port, 8000. The frontend does not send these two paths
+to the backend.
 
-| Regime | Mechanism | Used by |
+To push scan results from your own tools, read the [ingest contract](INGEST-CONTRACT.md). To
+connect the JAVV scanners, read [Connect the scanners](DEPLOYING.md#connect-the-scanners).
+
+## Sign in from a script
+
+A script uses the same address as a browser. The frontend sends `/api`, `/auth` and `/readyz` to
+the backend. These commands need bash, `curl` and `jq`.
+
+1. Set the address of JAVV:
+    ```bash
+    JAVV=https://javv.example.com
+    ```
+2. Sign in. The command keeps the session cookie in the file `jar`:
+    ```bash
+    read -rs -p 'Password: ' pw && echo
+    jq -n --arg u admin --arg p "$pw" '{username: $u, password: $p}' \
+      | curl -sf -c jar -b jar -H 'Content-Type: application/json' --data @- "$JAVV/auth/login"
+    ```
+    The reply shows `must_change`. If it is `true`, do step 3. If it is `false`, go to step 4.
+3. Change the password. The new password must have 12 characters or more:
+    ```bash
+    read -rs -p 'New password: ' new && echo
+    jq -n --arg c "$pw" --arg n "$new" '{current_password: $c, new_password: $n}' \
+      | curl -sf -c jar -b jar -H 'Content-Type: application/json' --data @- "$JAVV/auth/password"
+    unset new
+    ```
+    JAVV ends each session of the user, then writes a new session cookie to `jar`.
+4. Delete the password from the shell:
+    ```bash
+    unset pw
+    ```
+5. Send your requests with the cookie. For example, show your user and permissions:
+    ```bash
+    curl -sf -b jar "$JAVV/auth/me"
+    ```
+6. At the end of the script, sign out. JAVV then ends the session:
+    ```bash
+    curl -sf -b jar -X POST "$JAVV/auth/logout"
+    ```
+
+Keep the file `jar` private. Until the session ends, the cookie in it gives access as your user.
+
+## Read a list page by page
+
+A list endpoint gives one page of rows. [List responses](#list-responses) shows the three forms of
+a list. This procedure reads all the findings of one cluster with the cursor.
+
+1. Sign in ([Sign in from a script](#sign-in-from-a-script)).
+2. Find the id of the cluster:
+    ```bash
+    curl -sf -b jar "$JAVV/api/v1/clusters" | jq -r '.clusters[] | "\(.cluster_id) \(.cluster_name)"'
+    ```
+3. Set the id:
+    ```bash
+    cluster=<cluster_id>
+    ```
+4. Read each page, 500 rows at a time. Send `next_cursor` back as `cursor` until it is `null`:
+    ```bash
+    cursor=
+    while :; do
+      page=$(curl -sfG -b jar "$JAVV/api/v1/findings" --data-urlencode "cluster_id=$cluster" \
+        --data-urlencode size=500 ${cursor:+--data-urlencode "cursor=$cursor"}) || break
+      jq -c '.data[] | {cve_id, scanner, severity, state}' <<<"$page"
+      cursor=$(jq -r '.next_cursor // empty' <<<"$page")
+      [ -n "$cursor" ] || break
+    done > findings.jsonl
+    ```
+5. Compare the number of lines in `findings.jsonl` with `total.value` of a page. If they are not
+   equal, a page failed. Read the list again.
+
+A cursor stays valid for a short time only. If a page answers 410, start again at step 4.
+
+## Scrape the metrics
+
+The backend gives its metrics at `/metrics`, in the Prometheus format. This path needs no sign-in.
+The frontend does not send it to the backend. [Metrics](#metrics-metrics-prometheus) lists each metric.
+
+1. Let your Prometheus connect to the backend port, 8000:
+    - with docker compose: publish the port. Use the `ports` block in comments under `backend` in
+      `compose.yaml` ([Ports and access](DEPLOYING.md#ports-and-access)).
+    - with Helm: use the backend Service. For a release with the name `javv`, it is `javv-backend`.
+2. Add a scrape of `http://<backend>:8000/metrics` to your Prometheus.
+3. Look at the metrics from a machine that can connect to the port:
+    ```bash
+    curl -sf http://<backend>:8000/metrics | grep '^# TYPE javv_'
+    ```
+
+JAVV gives no alert rules. Make alerts from the metrics that apply to your setup.
+
+## Authentication
+
+Each endpoint uses one of three kinds of authentication.
+
+| Kind | What the request sends | Endpoints |
 |---|---|---|
-| **none** | none | `/healthz`, `/readyz`, `/metrics` (cluster-internal; restrict by scrape topology, not app auth) |
-| **machine** | `Authorization: Bearer <token>`: a per-`(cluster, scanner)` 256-bit token, peppered-SHA-256 at rest, scope-bound to the payload (SEC-3) | ingest, scan-scope, scan-runs |
-| **session** | httpOnly cookie from `/auth/login`, `Secure` unless `JAVV_SESSION_COOKIE_SECURE=false`; server-side TTL + revocation; login lockout | every human endpoint |
+| None | Nothing | `/healthz`, `/readyz` and `/metrics`. Control the access to these with your network. |
+| Scanner token | `Authorization: Bearer <token>`. Each token is for one cluster and one scanner. JAVV keeps only a hash of the token. | The scanner endpoints: ingest, scan scope, scan runs and inventory runs. A token can send data only for its own cluster and scanner. |
+| Session | The `javv_session` cookie from `POST /auth/login` | All other endpoints |
 
-Session endpoints marked with a **capability** additionally require it on the principal's role
-bundle (D33; roles: `viewer`: none, `triager`: `can_triage`, `security_lead`: `can_triage` +
-`can_accept_audit_final`, `admin`: `*`). A `must_change` session (fresh temp password, SEC-6)
-can reach **only `/auth/*`**; everything else 403s until the password is changed. The
-**capability column's source of truth** is `backend/tests/security/test_rbac_idor_contract.py`
-(registry + exemptions); if this table and the registry disagree, the registry wins.
+The session cookie has the `HttpOnly` and `SameSite=Lax` flags. It also has the `Secure` flag,
+unless `JAVV_SESSION_COOKIE_SECURE` is `false` ([http or https](DEPLOYING.md#http-or-https)).
 
-Tenancy: `cluster_id` is an always-applied data filter on every read/export (D38/H9), enforced in
-the query layer (tenant read path), not per-user grants (post-MVP).
+- **Session time:** a session ends `JAVV_SESSION_TTL_HOURS` after the sign-in (default 24), or at
+  sign-out. The server decides, not the cookie.
+- **Failed sign-ins:** after `JAVV_LOGIN_MAX_ATTEMPTS` failures (default 5) for one username in
+  `JAVV_LOGIN_LOCKOUT_MINUTES` (default 15), the sign-in answers 429. A successful sign-in sets
+  the count to zero.
+- **One answer for each failure:** a wrong username, a wrong password, a disabled user and an
+  expired session all get the same 401. Thus the answer does not show if a username exists.
+- **The login body:** `POST /auth/login` accepts only `Content-Type: application/json`. A body
+  that is not JSON gets 422. A different JSON type, for example `application/merge-patch+json`,
+  gets 415.
+
+### A temporary password
+
+A new user, and a user after a password reset, has a temporary password. The user must change it.
+Until then, the session gets 403 `password change required` from these endpoints:
+
+- each endpoint that needs a permission
+- the writes to saved views, reports and client events.
+
+The other session endpoints answer as for any session. Thus the session can read data. This is
+not the planned behavior ([issue 803](https://github.com/Danube-Labs/javv-poc/issues/803)).
+
+## Roles and permissions
+
+Some endpoints need a permission. The tables in [Endpoints](#endpoints) name it. A user gets the
+permissions of its role. The web app uses the `capabilities` from `GET /auth/me` to show or hide
+its controls. The backend checks the permission again on each request.
+
+At its first start, JAVV creates four roles:
+
+| Role | Permissions |
+|---|---|
+| `viewer` | None. The user can read data only. |
+| `triager` | `can_triage` |
+| `security_lead` | `can_triage`, `can_accept_audit_final` |
+| `admin` | All the permissions, also the permissions of later releases |
+
+| Permission | What it allows |
+|---|---|
+| `can_triage` | Triage findings. Make, change and revoke decisions. |
+| `can_accept_audit_final` | Accept a risk, in a decision or in triage. Read and export the approvals queue. |
+| `can_manage_tokens` | Make, revoke and rotate scanner tokens |
+| `can_manage_users` | Make users. Change their role, their status and their password. |
+| `can_manage_settings` | Change the SLA, staleness, retirement and scan scope settings, and the cluster names. Retire a cluster, and bring it back. Read the OpenSearch facts. Start the staleness sweep. Change or delete the saved views of other users. |
+| `can_manage_retention` | Read and change the data settings: retention, rollover, export lifetime and findings cleanup. Read and take snapshots. Delete a retired cluster. |
+| `can_restore_snapshot` | Restore a snapshot |
+| `can_inspect_store` | Use the data inspector. Read the status of the background jobs. |
+| `can_rebuild_state` | Start the job that builds the current state again |
+| `can_drop_index` | Start the lifecycle sweep, which deletes old indices |
+
+Each read and export applies the cluster that the request names. Each user can read each
+cluster. A `cluster_id` has 8 to 64 lowercase letters, digits or hyphens, and does not start with
+a hyphen.
+
+## Errors
+
+Each answer that is not a success has the same body, with the type `application/problem+json`:
+
+```json
+{"type": "about:blank", "title": "invalid credentials", "status": 401, "detail": null, "request_id": "b169be4a30444fdc"}
+```
+
+- `title`: a short text that names the error.
+- `detail`: on a 422 from a field check, the list of the fields that are not valid. Else it is
+  `null`.
+- `request_id`: the id of the request in the backend log. The `X-Request-ID` header of the answer
+  also has it, on each answer. To set the id yourself, send `X-Request-ID` with 1 to 64 letters,
+  digits or hyphens. If you send no id, or an id that is not valid, the backend makes one.
+
+| Status | Meaning |
+|---|---|
+| 400 | The ingest body is not valid gzip or JSON. On the other endpoints, a body that is not valid JSON gets 422. |
+| 401 | The request has no valid session or token. |
+| 403 | The user does not have the permission, or must change the password first. A scanner token sent data for a different cluster or scanner. |
+| 404 | The item does not exist. For an item of a different user, the answer is also 404. |
+| 409 | A different request changed the item first, or the item is not in the necessary state. |
+| 410 | The cursor or the export expired. Do the request again from the start. |
+| 413 | The request asks for too many rows, or its body is too large. Make the request smaller. |
+| 415 | The sign-in body has a JSON type that is not `application/json`. |
+| 422 | A field is not valid. `detail` names the field. |
+| 429 | Too many requests. Some answers have a `Retry-After` header with the seconds to wait. |
+| 503 | OpenSearch is not available. Do the request again later. |
+
+## List responses
+
+A list has one of three forms. The form comes from how the endpoint pages its rows.
+
+| Paging | Form | Endpoints |
+|---|---|---|
+| Cursor | `{"data": [...], "next_cursor": "...", "total": {"value": N, "relation": "eq"}}` | `/findings`, `/audit`, `/scanners/ingest-failures` |
+| Offset: `size` and `offset` | `{"<name>": [...], "total": N}` | `/decisions` (`decisions`), `/decisions/approvals` (`approvals`), `/admin/users` (`users`), `/admin/tokens` (`tokens`) |
+| None | `{"<name>": [...]}` | `/contributors` (`leaderboard`), `/images` (`images`), `/images/timeline` (`events`), `/findings/top-components` (`components`), `/clusters` (`clusters`), `/views` (`views`), `/notifications` (`items`), `/admin/jobs` (`jobs`), `/admin/roles` (`roles`), `/admin/snapshots` (`snapshots`), `/scanners/provenance` (`scanners`), `/scanners/freshness` (`scanners`) |
+
+- `/findings/groups` uses a cursor, but it has no `total`.
+- `/notifications` puts its rows in `items`, not in a key with the name of the resource.
+- Some answers have more keys next to the list. For example, `/images` also has `inventory`.
+- In a cursor list, `total` is an object. In an offset list, `total` is a number.
+
+Read a key by its name, and check that it exists. In `jq`, a key that does not exist gives `null`,
+and the length of `null` is 0. That looks the same as an empty list.
 
 ## Endpoints
 
