@@ -32,6 +32,7 @@ import pytest
 from opensearchpy import AsyncOpenSearch
 
 from backend.auth.passwords import hash_password
+from backend.core.metrics import AUTH_FAILURES
 from backend.main import create_app
 from os_env import OS_URL, requires_opensearch
 
@@ -495,9 +496,11 @@ async def test_a_must_change_session_gets_403_on_every_session_route(
     http, client = await _app_client()
     try:
         await _login_as(http, client, capabilities=["*"], must_change=True)
+        before = AUTH_FAILURES.labels("must_change")._value.get()
         r = await http.request(method, path, params={"cluster_id": "c-rbac-sample1"}, json={})
         assert r.status_code == 403, f"{method} {template} answered {r.status_code}"
         assert r.json()["title"] == "password change required"
+        assert AUTH_FAILURES.labels("must_change")._value.get() == before + 1
     finally:
         await http.aclose()
         await client.close()

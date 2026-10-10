@@ -40,6 +40,7 @@ async def get_current_principal(request: Request) -> Principal:
     if user.get("disabled"):
         raise HTTPException(401, "invalid credentials")
     if user.get("must_change"):
+        AUTH_FAILURES.labels("must_change").inc()  # metric only, like missing_capability
         raise HTTPException(403, "password change required")
 
     capabilities = user.get("capabilities")

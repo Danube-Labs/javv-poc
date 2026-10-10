@@ -128,7 +128,13 @@ async def test_bulk_429_retries_increment_the_backoff_counter() -> None:
 def test_cas_and_auth_counters_accept_their_bounded_sites() -> None:
     for site in ("watermarks", "scan_orders", "reproject"):
         CAS_CONFLICTS.labels(site).inc(0)
-    for reason in ("bad_credentials", "locked_out", "expired_session", "missing_capability"):
+    for reason in (
+        "bad_credentials",
+        "locked_out",
+        "expired_session",
+        "missing_capability",
+        "must_change",
+    ):
         AUTH_FAILURES.labels(reason).inc(0)
 
 
