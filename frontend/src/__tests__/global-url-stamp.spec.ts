@@ -13,6 +13,11 @@ const Page = { render: () => h('div') }
 // ticks: the window in which a re-stamp can land on top of it (issue 666)
 const lazy = () => Promise.resolve(Page)
 
+// a navigation the test holds open: `?hold=` waits at the guard until `release()`, and
+// `?hold=abort` is then refused. Issue 669: the cluster list can land while one is under way.
+let release: () => void = () => {}
+let gate: Promise<void> = Promise.resolve()
+
 function makeRouter(): Router {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -24,8 +29,12 @@ function makeRouter(): Router {
       { path: '/findings', component: lazy },
     ],
   })
-  router.beforeEach(async () => {
+  router.beforeEach(async (to) => {
     await Promise.resolve()
+    if (to.query.hold) {
+      await gate
+      return to.query.hold !== 'abort'
+    }
     return true
   })
   return router
@@ -51,6 +60,9 @@ const where = (router: Router) => router.currentRoute.value
 describe('useGlobalUrlStamp: the global range and cluster ride the URL', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    gate = new Promise((resolve) => {
+      release = resolve
+    })
   })
 
   it('selecting a cluster stamps it on the current page and stays there', async () => {
@@ -99,6 +111,56 @@ describe('useGlobalUrlStamp: the global range and cluster ride the URL', () => {
     await flushPromises()
     expect(where(router).path).toBe('/findings')
     expect(where(router).query).toEqual({ severity: 'critical', cluster: 'c-1', win: '7' })
+  })
+
+  // issue 669, case 2: the cluster list lands while a click's navigation is still resolving
+  it('a cluster chosen while a navigation is under way: it lands on the target, with that cluster', async () => {
+    useClusterStore().selectedId = 'c-1'
+    const router = await mountAt('/clusters?cluster=c-1')
+    void router.push('/guide?hold=1')
+    await flushPromises()
+    useClusterStore().selectedId = 'c-2'
+    await flushPromises()
+    release()
+    await flushPromises()
+    expect(where(router).path).toBe('/guide')
+    expect(where(router).query).toEqual({ hold: '1', cluster: 'c-2' })
+  })
+
+  // issue 669, case 1: a handler that navigates first and then changes the cluster
+  it('navigating and then picking a cluster lands on the target, with the new cluster', async () => {
+    useClusterStore().selectedId = 'c-1'
+    const router = await mountAt('/clusters?cluster=c-1')
+    void router.push('/overview')
+    useClusterStore().select('c-2')
+    await flushPromises()
+    expect(where(router).path).toBe('/overview')
+    expect(where(router).query.cluster).toBe('c-2')
+  })
+
+  it('a window change during a query-only navigation keeps both the new query and the window', async () => {
+    useClusterStore().selectedId = 'c-1'
+    const router = await mountAt('/clusters?cluster=c-1')
+    void router.push({ path: '/clusters', query: { cluster: 'c-1', hold: '1', severity: 'high' } })
+    await flushPromises()
+    useTimeTravelStore().setWindow(7)
+    await flushPromises()
+    release()
+    await flushPromises()
+    expect(where(router).path).toBe('/clusters')
+    expect(where(router).query).toEqual({ cluster: 'c-1', hold: '1', severity: 'high', win: '7' })
+  })
+
+  it('a navigation a guard refuses still leaves the current page stamped', async () => {
+    useClusterStore().selectedId = 'c-1'
+    const router = await mountAt('/clusters?cluster=c-1')
+    void router.push('/guide?hold=abort')
+    await flushPromises()
+    useClusterStore().select('c-2')
+    release()
+    await flushPromises()
+    expect(where(router).path).toBe('/clusters')
+    expect(where(router).query.cluster).toBe('c-2')
   })
 
   it('replaces nothing when the URL already carries the globals', async () => {

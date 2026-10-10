@@ -6,6 +6,7 @@
 import { watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { trackNavigations } from '@/router/navigating'
 import { useClusterStore } from '@/stores/cluster'
 import { useTimeTravelStore } from '@/stores/timeTravel'
 import { restampLocation, ttToQuery } from '@/system/globalUrl'
@@ -15,10 +16,13 @@ export function useGlobalUrlStamp(): void {
   const timeTravel = useTimeTravelStore()
   const router = useRouter()
   const route = useRoute()
+  const navigating = trackNavigations(router)
 
   // every stamp writes ALL global keys from the live state onto the settled route, so the
   // latest replace is always complete and two in a row can't leave a key behind
   function restamp() {
+    // a replace started now would cancel the navigation under way; its landing stamps instead
+    if (navigating.value > 0) return
     const tt = ttToQuery(timeTravel.t, timeTravel.windowDays)
     const cluster = clusterStore.selectedId ?? undefined
     if (
@@ -34,11 +38,18 @@ export function useGlobalUrlStamp(): void {
   // (operator bug report: set 24h → navigate → refresh → back to 30 days)
   watch(() => route.path, restamp)
   // sync, not the default pre-flush: a handler that changes the state and then navigates (a
-  // fleet row, a saved view) must have this replace start BEFORE its push, so the push
-  // supersedes it. Deferred, the replace starts while the push is in flight and the router
-  // cancels the push: the page stays and only its URL changes (issue 666). The landing is
-  // stamped by the path watcher above.
+  // fleet row, a saved view) starts this replace BEFORE its push, so the push supersedes it
+  // (issue 666). A change that comes while a navigation is under way (the cluster list
+  // arriving mid-click, or a handler that navigates first) waits for it (issue 669).
   watch(() => [timeTravel.t, timeTravel.windowDays, clusterStore.selectedId] as const, restamp, {
     flush: 'sync',
   })
+  // the landing of every navigation, query-only ones included
+  watch(
+    navigating,
+    (count) => {
+      if (count === 0) restamp()
+    },
+    { flush: 'sync' },
+  )
 }
