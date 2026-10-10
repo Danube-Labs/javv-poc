@@ -122,14 +122,10 @@ unless `JAVV_SESSION_COOKIE_SECURE` is `false` ([http or https](DEPLOYING.md#htt
 
 ### A temporary password
 
-A new user, and a user after a password reset, has a temporary password. The user must change it.
-Until then, the session gets 403 `password change required` from these endpoints:
-
-- each endpoint that needs a permission
-- the writes to saved views, reports and client events.
-
-The other session endpoints answer as for any session. Thus the session can read data. This is
-not the planned behavior ([issue 803](https://github.com/Danube-Labs/javv-poc/issues/803)).
+The first admin, a new user and a user after a password reset have a temporary password. The user
+must change it ([Sign in from a script](#sign-in-from-a-script), step 3). Until then, the session
+can use only `/auth/*`: show the user, change the password, and sign out. Each other endpoint
+answers 403 `password change required`, reads included.
 
 ## Roles and permissions
 
