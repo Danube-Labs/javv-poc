@@ -4,9 +4,8 @@
  * client echo) → revert, leaving the store as found. The reload re-reads the findings index,
  * which refreshes ~1s behind the write — poll the reload, never assert once.
  */
-import { expect, test } from '@playwright/test'
 
-import { BASE, DATA_ROW, login } from './helpers'
+import { BASE, DATA_ROW, expect, login, test } from './helpers'
 
 test('a triage action persists across reload, then is reverted', async ({ page }) => {
   await login(page)

@@ -13,9 +13,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { expect, test } from '@playwright/test'
-
-import { BASE, USER, login } from './helpers'
+import { BASE, USER, expect, login, test } from './helpers'
 
 const BACKEND_LOG = fileURLToPath(
   new URL('../../../development/e2e/logs/backend.log', import.meta.url),

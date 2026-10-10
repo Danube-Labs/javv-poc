@@ -13,9 +13,9 @@
  * Response shapes are NOT re-asserted here — that would duplicate the backend tests and go stale
  * with them.
  */
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
-import { BASE, DATA_ROW, login, loginViewer } from './helpers'
+import { BASE, DATA_ROW, expect, login, loginViewer, test } from './helpers'
 
 /** A repair row found by its LABEL, never by index: the rows come from the backend's job list,
  *  so their order is the API's to change (the fixed-column-index lesson from value-actions). */

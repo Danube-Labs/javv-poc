@@ -4,9 +4,8 @@
  * request; a filter click must re-query with the param; no interaction may change the table
  * without a backend round-trip (the no-client-side-counting hard constraint).
  */
-import { expect, test } from '@playwright/test'
 
-import { BASE, DATA_ROW, login } from './helpers'
+import { BASE, DATA_ROW, expect, login, test } from './helpers'
 
 test('grid paging and filtering go through backend queries', async ({ page }) => {
   const findingsCalls: string[] = []
