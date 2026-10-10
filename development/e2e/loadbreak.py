@@ -49,7 +49,6 @@ from pathlib import Path
 from typing import Any
 
 import httpx
-
 from backend.core.bootstrap import MAPPING_VERSION, MUTABLE_INDEXES
 
 BACKEND = os.environ.get("LB_BACKEND", "http://localhost:8000")
@@ -84,7 +83,7 @@ PTYPES = ("os", "python", "golang", "npm", "gomod")
 # a severity VALUE reading as a short/legacy token anywhere in a response = D46 regression. The
 # count COLUMN keys (crit/med) are a wire constant — matched only as object keys, never here.
 BAD_SEV_VALUE = re.compile(
-    r'"(?:severity|severity_canonical)"\s*:\s*"(crit|med|moderate)"', re.I
+    r'"(?:severity|severity_canonical)"\s*:\s*"(crit|med|moderate)"', re.IGNORECASE
 )
 
 
@@ -199,7 +198,8 @@ async def login(http: httpx.AsyncClient) -> dict[str, str]:
         json={"current_password": ADMIN_PW_INIT, "new_password": ADMIN_PW},
     )
     r.raise_for_status()
-    return hdr
+    # the change revoked the session above; the reply carries its replacement
+    return _session_header(r)
 
 
 async def mint_tokens(
@@ -236,7 +236,7 @@ async def store_vitals(http: httpx.AsyncClient, phase: str) -> dict[str, Any]:
             .json()
             .get("pits", [])
         )
-    except Exception as exc:  # vitals are best-effort telemetry, never a hard failure
+    except Exception as exc:  # noqa: BLE001 - vitals are best-effort telemetry, never a hard failure
         return {"phase": phase, "error": str(exc)}
     v = {
         "phase": phase,
@@ -387,9 +387,7 @@ async def phase_capture(
         url = f"{BACKEND}{path}"
         try:
             r = await http.get(url, headers=hdr, params=q)
-        except (
-            Exception
-        ) as exc:  # a read raising a transport error under load is worth recording
+        except Exception as exc:  # noqa: BLE001 - a transport error under load is worth recording
             log_line(
                 _slug("get", path), {"label": label, "path": path, "error": str(exc)}
             )
@@ -406,9 +404,7 @@ async def phase_capture(
         (CAPTURE_DIR / _slug("get", path)).open("a").write(json.dumps(rec) + "\n")
         captured += 1
         if r.status_code == 200 and (m := BAD_SEV_VALUE.findall(body_text)):
-            lint_hits.append(
-                {"path": path, "tokens": sorted(set(t.lower() for t in m))}
-            )
+            lint_hits.append({"path": path, "tokens": sorted({t.lower() for t in m})})
     # /metrics is text (prometheus), not JSON — captured separately
     metrics = (await http.get(f"{BACKEND}/metrics")).text
     (LOGS / "metrics-capture.txt").open("a").write(
@@ -667,7 +663,8 @@ async def phase_lifecycle(
             .text.strip()
             .splitlines()
         )
-        proc = subprocess.run(
+        # the lifecycle phase runs alone, so blocking the loop holds up nothing
+        proc = subprocess.run(  # noqa: ASYNC221
             [sys.executable, "-m", "backend.jobs.lifecycle"],
             env={
                 **os.environ,
@@ -678,6 +675,7 @@ async def phase_lifecycle(
             capture_output=True,
             text=True,
             cwd=str(HERE.parent.parent / "backend"),
+            check=False,
         )
         after = (
             (
@@ -808,7 +806,7 @@ async def chaos_store(
 
     def docker(*args: str) -> int:
         return subprocess.run(
-            ["docker", *args], capture_output=True, text=True
+            ["docker", *args], capture_output=True, text=True, check=False
         ).returncode
 
     result: dict[str, Any] = {}
@@ -857,9 +855,11 @@ async def chaos_store(
 def write_summary(sections: dict[str, Any]) -> None:
     lines = [
         f"# loadbreak run — {datetime.now(UTC).isoformat()}",
-        f"\nscale: heavy={HEAVY} · {CLUSTERS} clusters × {len(SCANNERS)} scanners × "
-        f"{DIGESTS} digests × {CYCLES} cycles × {FINDINGS} findings · "
-        f"concurrency {CONCURRENCY}\n",
+        (
+            f"\nscale: heavy={HEAVY} · {CLUSTERS} clusters × {len(SCANNERS)} scanners × "
+            f"{DIGESTS} digests × {CYCLES} cycles × {FINDINGS} findings · "
+            f"concurrency {CONCURRENCY}\n"
+        ),
     ]
     for name, sec in sections.items():
         verdict = sec.get("verdict", "n/a") if isinstance(sec, dict) else "n/a"
