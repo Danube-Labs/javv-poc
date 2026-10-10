@@ -82,7 +82,7 @@ A cursor stays valid for a short time only. If a page answers 410, start again a
 ## Scrape the metrics
 
 The backend gives its metrics at `/metrics`, in the Prometheus format. This path needs no sign-in.
-The frontend does not send it to the backend. [Metrics](#metrics-metrics-prometheus) lists each metric.
+The frontend does not send it to the backend. [Metrics](#metrics) lists each metric.
 
 1. Let your Prometheus connect to the backend port, 8000:
     - with docker compose: publish the port. Use the `ports` block in comments under `backend` in
@@ -230,7 +230,7 @@ of the data inspector.
 |---|---|---|---|
 | GET | `/healthz` | none | Liveness. It answers 200 while the process runs. It does not use OpenSearch. |
 | GET | `/readyz` | none | Readiness. It answers 200 `{"status": "ready"}` when OpenSearch answers, else 503 `{"status": "degraded"}`. |
-| GET | `/metrics` | none | The metrics, in the Prometheus format ([Metrics](#metrics-metrics-prometheus)) |
+| GET | `/metrics` | none | The metrics, in the Prometheus format ([Metrics](#metrics)) |
 | GET | `/api/v1/meta` | session | The versions that the backend runs: `version` (the JAVV release), `mapping_version`, `envelope_versions` (the ingest schema versions that it accepts), `opensearch_version` and `python_version`. If OpenSearch does not answer, `opensearch_version` is `null`. |
 
 The backend also writes the release and the mapping version in its `bootstrap complete` log line.
@@ -243,7 +243,7 @@ in a scan cycle.
 
 | Method | Path | Access | What it does |
 |---|---|---|---|
-| POST | `/api/v1/ingest/scan` | token | Accepts the results of one scan ([Ingest a scan](#post-apiv1ingestscan-the-hardened-surface)) |
+| POST | `/api/v1/ingest/scan` | token | Accepts the results of one scan ([Ingest a scan](#ingest-a-scan)) |
 | GET | `/api/v1/scan-scope` | token | Gives the scan scope of the cluster of the token |
 | POST | `/api/v1/scan-runs` | token | Gives the next `scan_order` for the cluster and scanner of the token. Each value is larger than the one before. |
 | POST | `/api/v1/inventory-runs` | token | Closes the inventory of a scan cycle. Body: `{scan_run_id, expected_count, started_at}`. The backend counts the images that it received. The run is `committed` only if that count is complete. A repeated call gives the first result again. |
@@ -563,122 +563,140 @@ The types are `report_ready`, `sla_breach`, `assignment` and `cluster_retiring`:
 - The sweep deletes these notifications when the cluster scans again, or when a return from
   retirement starts a new silence. A change of the settings keeps them.
 
-### POST `/api/v1/ingest/scan` (the hardened surface)
+## Ingest a scan
 
-Request: a **scanner envelope, schema v3 or v4** (the M8d ptype rollout window: anything
-outside it 422s; v3 = the D44 `effective_config` stamp), JSON, optionally
-`Content-Encoding: gzip`. **Third-party pushers:** the full public contract (JSON Schema,
-call protocol, worked example) is [`INGEST-CONTRACT.md`](INGEST-CONTRACT.md) (#327).
+`POST /api/v1/ingest/scan` accepts the results of one scan: an envelope with `schema_version` 3 or
+4, as JSON. The body can have `Content-Encoding: gzip`. The findings of a version 3 envelope have
+`ptype: null`. The [ingest contract](INGEST-CONTRACT.md) gives the schema, the order of the calls
+and an example.
 
-Defenses, in order: per-token rate limit → bearer auth → compressed-size cap (streamed) →
-decompression cap (zip-bomb) → JSON parse → full-envelope `extra="forbid"` validation →
-token↔payload scope binding → commit-then-cache writes (D39, deterministic `_id`s → idempotent).
+The backend does these checks in this order:
 
-| Code | When |
+1. The `Authorization` header starts with `Bearer `.
+2. The token is not over its rate limit. The limit applies to each token value, before the backend
+   looks for the token.
+3. The token exists, is not disabled, and is not expired.
+4. The compressed body is not larger than its limit. The backend counts the bytes as they arrive,
+   and does not trust `Content-Length`.
+5. The body after gzip is not larger than its limit.
+6. The body is JSON.
+7. The envelope is valid. A field that the schema does not have makes it not valid.
+8. The `cluster_id` and `scanner` of the envelope are the ones of the token.
+
+Then the backend writes the findings. Each finding has a fixed id. Thus when a scanner sends the
+same envelope again, JAVV keeps one copy.
+
+| Status | When |
 |---|---|
-| `202` | Accepted: `{accepted, findings, commit}` |
-| `400` | Body not valid JSON / not valid gzip |
-| `401` | Missing/invalid/disabled token (generic, no existence oracle) |
-| `403` | Token scope ≠ payload `cluster_id`/`scanner` (SEC-3) |
-| `413` | Compressed body > cap, or decompressed > cap (zip bomb) |
-| `422` | Envelope failed validation (extra field, bad `cluster_id` shape, counts invariant, `schema_version` outside the accepted window: v3/v4 during the M8d rollout) |
-| `429` | Per-token rate limit exceeded |
-| `503` | Storage temporarily unavailable (bulk retries exhausted) |
+| 202 | The backend accepted the envelope: `{accepted, findings, commit}` |
+| 400 | The body is not valid gzip, or not valid JSON. |
+| 401 | The token is missing, not valid, disabled or expired. Each of these gets the same answer. |
+| 403 | The `cluster_id` or the `scanner` of the envelope is not the one of the token. |
+| 413 | The compressed body or the body after gzip is larger than its limit. |
+| 422 | The envelope is not valid. Examples: a field that the schema does not have, a `cluster_id` that is not valid, or counts that do not agree. A `schema_version` that is not 3 or 4 also gets 422. |
+| 429 | The token is over its rate limit. |
+| 503 | OpenSearch could not keep the data. The scanner tries again. |
 
-**Logging of rejections** (issue 523). Every rejection increments `javv_ingest_rejected_total{reason}`.
-Every rejection after the token check (`400`, `403`, `413`, `422`, `503`) also logs one `ingest rejected`
-warning with `reason`, `status`, the token's `cluster_id` and `scanner`, and `failure_id` (the id of
-the failed-ingest record below, so a table row and its log line join), plus `limit_bytes` on a
-`413`, `errors` on a `422`, and `payload_cluster_id` / `payload_scanner` on a `403`. The token itself is
-never logged. A `429` logs at most one warning per token per minute. A `401` is counted only, because
-an unauthenticated sender could otherwise choose how much the backend writes to its log.
+[Configuring JAVV](CONFIGURATION.md#scanner-pushes) gives the limits and their defaults.
 
-**Recording of rejections** (issue 357). The same post-token rejections are also written as one doc
-each to `javv-ingest-failures-<cluster_id>` (INDEX-MAP), under the **token's** cluster and scanner,
-for the scanner-status failed-ingests table. The `401` and the `429` record nothing, for the same
-reason they don't log per request. The response is unchanged by recording: if the write fails, the
-scanner still gets the same status and body, and the backend logs `ingest failure not recorded`
-(with the `failure_id`) and increments `javv_ingest_failures_unrecorded_total{reason}`, because the
-table cannot show its own gaps.
+### Logs of a refused push
 
-## Metrics (`/metrics`, Prometheus)
+Each refused push increments `javv_ingest_rejected_total{reason}`. A push that the backend refused
+after the token check (400, 403, 413, 422 or 503) also writes one `ingest rejected` warning. The
+warning has these fields:
 
-| Metric | Type | Labels | Meaning |
+- always: `reason`, `status`, the `cluster_id` and `scanner` of the token, and `failure_id`
+- on a 413: `limit_bytes`
+- on a 422: `errors`, the count of errors
+- on a 403: `payload_cluster_id` and `payload_scanner`.
+
+The backend never logs the token. A 429 writes one warning for each token in each minute, at
+most. A 401 writes no warning, so that a sender with no token cannot fill the log.
+
+### Records of a refused push
+
+The backend also keeps each push that it refused after the token check. It writes one document to
+`javv-ingest-failures-<cluster_id>`, with the cluster and scanner of the token. The **Failed
+ingests** table on the **Scanner status** page and `GET /api/v1/scanners/ingest-failures` show
+these documents. A 401 and a 429 make no
+record.
+
+The answer to the scanner does not depend on the record. If the backend cannot write the record,
+it logs `ingest failure not recorded` with the `failure_id`. It also increments
+`javv_ingest_failures_unrecorded_total{reason}`.
+
+## Metrics
+
+`GET /metrics` gives these metrics, in the Prometheus format ([Scrape the metrics](#scrape-the-metrics)).
+
+| Metric | Type | Labels | What it counts |
 |---|---|---|---|
-| `javv_ingest_accepted_total` | counter | `scanner` | Envelopes accepted + committed |
-| `javv_ingest_rejected_total` | counter | `reason` | Envelopes rejected; `reason` ∈ `bad_token`, `rate_limited`, `too_large`, `bad_gzip`, `bad_json`, `invalid_envelope`, `scope_mismatch`, `storage_error` |
-| `javv_ingest_failures_unrecorded_total` | counter | `reason` | Post-token rejections whose failed-ingest record could not be written (issue 357). Non-zero means the scanner-status failed-ingests table is missing rows. `reason` ∈ the six post-token values above |
-| `javv_ingest_findings_written_total` | counter | `scanner` | Finding docs written |
-| `javv_http_request_duration_seconds` | histogram | `method`, `route`, `status` | Route-TEMPLATE labels (unrouted → one `unmatched` series); `/metrics` + probes excluded (#220 M-1) |
-| `javv_opensearch_request_errors_total` | counter | `kind` | `conn`, `timeout`, `429`, `503`: dependency failures on read + bulk paths (M-2) |
-| `javv_opensearch_backoff_retries_total` | counter | none | Per-item 429/503 bulk retries: the saturation signal (the only flow control without a broker) |
-| `javv_sla_clock_missing_total` | counter | none | Findings pages that held at least one row without a materialized `sla_clock_at` (issue 363). Those rows' SLA clock is computed by the per-pair aggregation instead, and the page also logs a `warning`. A sustained rate means the store needs the `rebuild_state` job to backfill the field |
-| `javv_cas_conflicts_total` | counter | `site` | `watermarks`, `scan_orders`, `reproject` (+ `report_claim`, M7 slice 2; `retirement`, issue 765: an un-retire that lost to a concurrent retire): multi-writer contention early warning (M-3) |
-| `javv_limit_rejections_total` | counter | `limit` | `pit_cap`, `export_rows`, `bulk_targets`, `bulk_inline` (M-4) |
-| `javv_pits_open` | gauge | none | Open PIT slots (per pod, like the guard) |
-| `javv_export_rows_total` / `javv_export_bytes_total` | counter | `format` | What was **actually** streamed (a disconnected client counts what it got) |
-| `javv_auth_failures_total` | counter | `reason` | `bad_credentials`, `locked_out`, `expired_session`, `missing_capability`; never a username label (M-5) |
-| `javv_config_warnings_total` | counter | `setting` | Start-ups whose settings leave the OpenSearch connection weaker than it looks (issue 715): `JAVV_OPENSEARCH_VERIFY_CERTS` (certificates not checked on `https`) or `JAVV_OPENSEARCH_URL` (a password over plain `http`). Each also logs one `warning` at start. |
-| `javv_stored_setting_unknown_fields_total` | counter | `setting` | Stored-setting reads that dropped fields this release doesn't know (issue 640). Non-zero after a rollback means a newer release saved that setting; the log warns once per setting doc per process, and this keeps counting. `setting` is the kind (`sla`, `scan_scope`, `snapshot_repo`, `report_ttl`, `lifecycle`, `findings_cleanup`, `staleness`, `retirement`, `cluster-retirement`), never the per-cluster doc id |
-| `javv_job_runs_total` | counter | `kind`, `outcome` | Background-job runs started by the scheduler (issue 691). `kind` is one of the eight in `jobs/registry.py`; `outcome` is `done`, `failed`, or `skipped` (another backend held the lease). A `failed` rate is a job that keeps failing; no `done` for a kind over its schedule is a job that is not running |
-| `javv_job_last_success_timestamp_seconds` | gauge | `kind` | Unix time of the kind's last successful scheduled run in this process; `0` until one succeeds after a restart. Alert on `time() - value` against the kind's schedule |
-| `javv_scheduler_tick_errors_total` | counter | none | Scheduler ticks that failed before a job could start, in practice the store being away. A sustained rate means no job is running |
-| `javv_cluster_retirement_held_total` | counter | | Retirement sweeps that retired nothing because no cluster had a scan accepted within its scanner-down timer (issue 765). That points at JAVV itself, an outage or a rejected scanner version, not at the clusters; each also logs one `warning` |
-| `javv_cluster_delete_incomplete_total` | counter | | Cluster deletes that stopped halfway and answered 503 (issue 765): a step stayed contended, or the store was away or pushing back. A retry finishes the delete; each also logs one `warning` |
-| `javv_cluster_delete_leftovers_total` | counter | | Deleted clusters whose next-night pass (the retirement sweep) found rows written after the delete, a push in flight or a job running at the time, and removed them (issue 778). Each also logs one `warning` |
-| `javv_cluster_delete_recheck_failures_total` | counter | | Retirement sweeps whose pass over deleted clusters failed (issue 778). The run's retirements stand and the next run passes again. Each also logs one `warning` |
-| `javv_cluster_retirement_notify_failures_total` | counter | | Retirement sweep steps whose bell notifications could not be written or withdrawn (issue 765). The run's retirements stand and the run records as done; the next run tries again, repeating no notification still in the bell. Each also logs one `warning` |
+| `javv_ingest_accepted_total` | counter | `scanner` | Envelopes that the backend accepted and wrote |
+| `javv_ingest_rejected_total` | counter | `reason` | Envelopes that the backend refused. `reason` is `bad_token`, `rate_limited`, `too_large`, `bad_gzip`, `bad_json`, `invalid_envelope`, `scope_mismatch` or `storage_error`. |
+| `javv_ingest_failures_unrecorded_total` | counter | `reason` | Refused pushes with no record ([Records of a refused push](#records-of-a-refused-push)). A value larger than 0 means that the **Failed ingests** table does not show all the refused pushes. |
+| `javv_ingest_findings_written_total` | counter | `scanner` | Findings that the backend wrote |
+| `javv_http_request_duration_seconds` | histogram | `method`, `route`, `status` | The time of each request. `route` is the route pattern, not the full path. A path with no route counts as `unmatched`. `/metrics` and the probes are not counted. |
+| `javv_opensearch_request_errors_total` | counter | `kind` | Failed requests to OpenSearch: `conn` and `timeout` on reads, `429` and `503` on writes |
+| `javv_opensearch_backoff_retries_total` | counter | none | Writes that OpenSearch refused with 429 or 503, and that the backend sent again. A high rate means that OpenSearch is too busy. |
+| `javv_sla_clock_missing_total` | counter | none | Pages of findings with a row that has no `sla_clock_at`. The backend calculates the value for these rows, and logs a warning. A steady rate means that the store needs the `rebuild_state` job. |
+| `javv_cas_conflicts_total` | counter | `site` | Writes that lost a race to a different writer: `watermarks`, `scan_orders`, `inventory_orders`, `reconcile`, `reproject`, `merge`, `report_claim` and `retirement`. A high rate means many writers on the same data. |
+| `javv_limit_rejections_total` | counter | `limit` | Requests that a limit refused: `pit_cap`, `export_rows`, `bulk_targets`, `bulk_inline`, `client_events` and `inspect_bytes` |
+| `javv_pits_open` | gauge | none | The cursors and exports that are open now |
+| `javv_export_rows_total` / `javv_export_bytes_total` | counter | `format` | The rows and bytes that the exports sent. If a client stops the download, the count shows what it received. |
+| `javv_auth_failures_total` | counter | `reason` | `bad_credentials`, `locked_out`, `expired_session` or `missing_capability`. The labels never show a username. |
+| `javv_config_warnings_total` | counter | `setting` | Starts with a weak connection to OpenSearch: `JAVV_OPENSEARCH_VERIFY_CERTS` (the certificate is not checked on `https`) or `JAVV_OPENSEARCH_URL` (a password over plain `http`). Each one also logs a warning at the start. |
+| `javv_stored_setting_unknown_fields_total` | counter | `setting` | Reads of a runtime setting that had fields this release does not know. The backend ignores these fields. After a rollback, a value larger than 0 means that a newer release saved that setting. `setting` is `sla`, `scan_scope`, `snapshot_repo`, `report_ttl`, `lifecycle`, `findings_cleanup`, `staleness`, `retirement` or `cluster-retirement`. |
+| `javv_job_runs_total` | counter | `kind`, `outcome` | Background jobs that the scheduler started. `outcome` is `done`, `failed` or `skipped`. `skipped` means that a different run held the job. A steady `failed` rate is a job that fails each time. No `done` over the schedule of a job is a job that does not run. |
+| `javv_job_last_success_timestamp_seconds` | gauge | `kind` | The Unix time of the last successful scheduled run in this process. It is 0 after a restart, until a run succeeds. Alert on `time() - value`, against the schedule of the job. |
+| `javv_scheduler_tick_errors_total` | counter | none | Scheduler ticks that failed before a job started, usually because OpenSearch was not available. A steady rate means that no job runs. |
+| `javv_cluster_retirement_held_total` | counter | none | Retirement sweeps that retired nothing, because no cluster sent an accepted scan in its scanner-down time. This points at JAVV, an outage or a refused scanner version, not at the clusters. Each one also logs a warning. |
+| `javv_cluster_delete_incomplete_total` | counter | none | Cluster deletes that stopped and answered 503. Send the delete again to finish it. Each one also logs a warning. |
+| `javv_cluster_delete_leftovers_total` | counter | none | Deleted clusters with rows that a push or a job wrote after the delete. The retirement sweep deleted those rows. Each one also logs a warning. |
+| `javv_cluster_delete_recheck_failures_total` | counter | none | Retirement sweeps that could not check the deleted clusters. The next run checks them again. Each one also logs a warning. |
+| `javv_cluster_retirement_notify_failures_total` | counter | none | Retirement sweeps that could not write or delete their notifications. The retirements stay, and the next run tries again. Each one also logs a warning. |
 
-Plus the default `prometheus_client` process/GC gauges. The scrape is **storage-free** (no
-OpenSearch call): it keeps working during an outage, exactly when it's needed. Single-process
-registry (one uvicorn worker); multi-worker needs the multiprocess mode (noted in
-`core/metrics.py`). JAVV ships no alerting rules: if you scrape `/metrics`, build alerts on it
-that fit your setup.
+The backend also gives the default process and garbage collection metrics of `prometheus_client`.
+A scrape does not use OpenSearch. Thus the metrics stay available during an OpenSearch outage.
+The backend runs one process, and the metrics are for that process.
 
-### Client events (issue 453)
+## Client events
 
-| Method | Path | Auth | Purpose |
+| Method | Path | Access | What it does |
 |---|---|---|---|
-| POST | `/api/v1/client-events` | session | Browser `warn`/`error` telemetry → the backend's own stdout stream (**204**, fire-and-forget). Body `{events: [{level, event, fields}]}`, 1–20 events, `extra="forbid"`. `level` is a `Literal['warn','error']`, so `debug`/`info` are **unrepresentable** (422), not filtered. **No storage, no index, no audit row**: the stream IS the destination |
+| POST | `/api/v1/client-events` | session | Writes the warnings and errors of the browser to the backend log, and answers 204. It keeps nothing in OpenSearch and writes no audit row. |
 
-Two properties defend the stream against its own untrusted input, both by construction:
+The body is `{events: [{level, event, fields}]}`, with 1 to 20 events:
 
-- **Namespaced names.** Every event re-emits as `client.<name>`, so a client posting
-  `event: "scan done"` can never collide with a real backend event: an operator's `grep`, or an
-  alerting rule keyed on an event name, cannot be fooled. `client_event=true` + `username` are
-  tagged too, but they only help a reader who filters on them; the namespace helps one who doesn't.
-- **Nested fields.** Client keys ride under a single `fields` key, never splatted as siblings, so
-  `fields: {"username": "admin"}` cannot forge the line's attribution. The redaction processor
-  recurses in, so `token`-ish keys and `Bearer …` values are masked inside the blob as well.
+- `level` is `warn` or `error`. Other values get 422.
+- `event` matches `^[a-z0-9][a-z0-9 ._-]{0,63}$`.
+- `fields` has at most 25 keys in each object, at most 3 levels, keys of at most 64 characters,
+  values of at most 512 characters, and lists of at most 20 items.
 
-Shape caps (batch ≤ 20, ≤ 25 keys/object, depth ≤ 3, keys ≤ 64 chars, values ≤ 512 chars, lists ≤
-20, and the event-name pattern `^[a-z0-9][a-z0-9 ._-]{0,63}$`) are the **schema**: violations are
-422 and owe no metric. Only the **per-principal rate cap** is a bounded path in the ops-parity
-sense: over it → **429** + `Retry-After` + `LIMIT_REJECTIONS{limit="client_events"}` + a warning
-(setting `JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE`). The limiter runs *after* body validation on
-purpose: it bounds what reaches the log stream, and a rejected batch emits nothing.
+A body that does not agree with these rules gets 422.
 
-RBAC: **registry-exempt**, not capability-gated: any authenticated user's browser reports its own
-events, so "without the capability → 403" is unrepresentable. The regime it carries instead (401
-anonymous, 403 on a `must_change` session, the rate cap) is asserted in `test_client_events_route`.
+The backend writes each event as `client.<event>`, with `client_event=true` and the `username`.
+Thus an event from a browser cannot look like an event of the backend. The `fields` of the event
+stay under one `fields` key. Thus a browser cannot set the `username` of the log line. The log
+redaction also applies inside `fields`.
 
-## Logging
+Each user can send `JAVV_CLIENT_EVENTS_RATE_LIMIT_PER_MINUTE` requests in each minute. One more
+gets 429 with `Retry-After`. It also increments `javv_limit_rejections_total{limit="client_events"}`
+and logs a warning. The backend checks the body before the rate limit. Thus a refused body writes
+nothing to the log.
 
-Structured JSON via the **shared `libs/javv-common` structlog pipeline only** (observability.md
-§1). Every request binds a `request_id` (from `X-Request-ID` if well-formed (`[A-Za-z0-9-]{1,64}`),
-else minted; echoed in the `X-Request-ID` response header and, on every non-2xx including a
-500, in the error body's `request_id`); ingest also binds `cluster_id`/`scanner`. An unhandled
-exception logs one `error` line, `unhandled error`, with the stack, `method`, `path` and the same
-`request_id`. uvicorn's own duplicate traceback is filtered out (issue 644). The
-redaction processor masks token/secret/password/authorization/pepper/session/cookie keys and
-scrubs `Bearer …` substrings from every event; tokens never reach a log line (tested at both
-layers). OpenSearch client request/response **bodies never log at any level**.
+A session with a temporary password gets 403. A request with no session gets 401.
 
-## Auth model (MVP): summary
+## Logs
 
-- **Machine:** per-`(cluster, scanner)` bearer tokens (`system-tokens`), peppered-SHA-256 at
-  rest, scope-bound, mint/revoke/rotate via the admin API (or `python -m backend.core.tokens`).
-- **Human:** local users (argon2id), server-side sessions, capability-based RBAC (D33), bootstrap
-  admin seeded from env/secret with forced first-login rotation (SEC-6), login lockout, no
-  user-existence oracles.
-- **Tenancy:** `cluster_id` always-applied data filter (per-user cluster grants post-MVP).
+The backend writes JSON log lines to its standard output.
+
+- **Request id:** each line of a request has its `request_id`. [Errors](#errors) tells how to set
+  it. Each line of a push also has the `cluster_id` and `scanner`.
+- **Unexpected errors:** an error with no handler logs one `unhandled error` line at the `error`
+  level, with the stack, `method`, `path` and `request_id`. The answer is a 500 with the same
+  `request_id`.
+- **Redaction:** the backend replaces the value of each key that contains `token`, `secret`,
+  `password`, `authorization`, `pepper`, `session` or `cookie`. It also replaces each `Bearer ...`
+  text. No log line has a token.
+- **OpenSearch bodies:** the backend never logs the body of a request to OpenSearch, or of its
+  answer, at any log level.
