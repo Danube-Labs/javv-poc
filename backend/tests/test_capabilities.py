@@ -1,6 +1,6 @@
 """Capability RBAC (M5a slice 4, D33/SEC-2/SEC-9): `require_capability` is the single enforcement
 point every protected route declares. 401 = who are you (no/dead session); 403 = you may not
-(missing capability, or a `must_change` session touching anything but the password routes). Admin
+(missing capability, or a `must_change` session, which the principal it depends on refuses). Admin
 holds all via the "*" marker. Real OpenSearch, real routes, unique per-test usernames."""
 
 import uuid

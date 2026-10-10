@@ -123,7 +123,7 @@ async def test_created_view_is_visible_to_everyone_and_journaled(env) -> None:
 
 
 async def test_a_must_change_session_cannot_save_a_view(env) -> None:
-    # SEC-6: the route is capability-EXEMPT, so it guards must_change itself (reports pattern)
+    # SEC-6: capability-EXEMPT, so the refusal comes from the session principal (issue 803)
     _, client, _ = env
     app = create_app()
     app.state.opensearch = client

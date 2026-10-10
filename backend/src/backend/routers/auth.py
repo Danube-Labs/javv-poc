@@ -7,8 +7,8 @@ secure context in browsers, so dev works either way); its `Max-Age` mirrors the 
 server-side `expires_at` is what actually decides.
 
 `must_change` (SEC-6): a fresh bootstrap admin can log in, read `/auth/me`, change its password,
-and log out — nothing else. The capability gate (slice 4, `require_capability`) rejects
-`must_change` principals on every other protected route; nothing here needs to.
+and log out — nothing else. `get_current_principal` (principal.py), which every other session
+route depends on, refuses a `must_change` user; the routes here use `require_session` instead.
 """
 
 from typing import Annotated, Any, cast

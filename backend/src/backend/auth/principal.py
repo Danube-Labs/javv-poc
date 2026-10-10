@@ -6,11 +6,14 @@ OIDC/LDAP seam: however the user authenticated, a session resolves the same way.
 from dataclasses import dataclass
 from typing import Any
 
+import structlog
 from fastapi import HTTPException, Request
 from opensearchpy import NotFoundError
 
 from backend.auth.sessions import COOKIE_NAME, lookup_session
 from backend.core.metrics import AUTH_FAILURES
+
+log = structlog.get_logger()
 
 USERS_INDEX = "system-users"
 
@@ -40,7 +43,9 @@ async def get_current_principal(request: Request) -> Principal:
     if user.get("disabled"):
         raise HTTPException(401, "invalid credentials")
     if user.get("must_change"):
-        AUTH_FAILURES.labels("must_change").inc()  # metric only, like missing_capability
+        # past authentication, so it logs as well as counts (logging rule, issue 523)
+        AUTH_FAILURES.labels("must_change").inc()
+        log.warning("password change required", username=user["username"])
         raise HTTPException(403, "password change required")
 
     capabilities = user.get("capabilities")
