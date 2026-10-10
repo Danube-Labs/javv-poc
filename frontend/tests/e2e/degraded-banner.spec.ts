@@ -4,9 +4,8 @@
  * mount (then every 30s) — intercepting BEFORE navigation makes the first check fail, so the
  * spec never waits on the poll. Recovery asserts via a clean reload, same reason.
  */
-import { expect, test } from '@playwright/test'
 
-import { BASE, login } from './helpers'
+import { BASE, expect, login, test } from './helpers'
 
 test('readyz down shows the degraded banner; the shell stays up; recovery clears it', async ({
   page,

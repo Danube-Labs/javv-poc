@@ -2,9 +2,8 @@
  * Layout at the 1024 design floor (issue 667). jsdom has no layout, so only a browser can prove
  * that one box does not sit on another or push the page sideways.
  */
-import { expect, test } from '@playwright/test'
 
-import { BASE, login } from './helpers'
+import { BASE, expect, login, test } from './helpers'
 
 test.use({ viewport: { width: 1024, height: 800 } })
 

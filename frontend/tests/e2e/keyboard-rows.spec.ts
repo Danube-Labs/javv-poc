@@ -2,9 +2,9 @@
  * A row that opens something can be opened from the keyboard (issue 674). jsdom can prove the
  * link exists; only a browser proves Tab reaches it and Enter follows it.
  */
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
-import { BASE, DATA_ROW, login } from './helpers'
+import { BASE, DATA_ROW, expect, login, test } from './helpers'
 
 /** Focus the first identifier link inside `scope`, press Enter, and require the new address. */
 async function openFirstRow(page: Page, scope: string, want: RegExp) {

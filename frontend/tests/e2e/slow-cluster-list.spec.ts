@@ -3,11 +3,11 @@
  * message, which PrimeVue renders as a row of the table body. A test that takes the first body row
  * clicks that message and goes nowhere, so the shared walk must wait for a data row.
  */
-import { expect, test, type Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 // @ts-expect-error walk.mjs is the untyped shared walk module — the selector owner
 import { clickDetail, DATA_ROW } from '../../scripts/walk.mjs'
-import { BASE, login } from './helpers'
+import { BASE, expect, login, test } from './helpers'
 
 async function slowClusterList(page: Page) {
   await page.route(

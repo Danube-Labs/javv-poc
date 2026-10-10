@@ -12,9 +12,8 @@
  *    If anyone pins the header, the wrong row gets the light bar — so the premise is asserted
  *    here rather than trusted.
  */
-import { expect, test } from '@playwright/test'
 
-import { BASE, DATA_ROW, login } from './helpers'
+import { BASE, DATA_ROW, expect, login, test } from './helpers'
 
 /**
  * The FIRST actionable cell in row 1, found rather than assumed. A fixed column index is wrong

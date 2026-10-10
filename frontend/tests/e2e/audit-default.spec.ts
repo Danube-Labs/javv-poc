@@ -2,9 +2,8 @@
  * The Audit log's sidebar entry opens it without sign-ins (issue 681), as a filter the user can
  * see and remove. Only a browser proves the link, the chip and the rows agree.
  */
-import { expect, test } from '@playwright/test'
 
-import { BASE, DATA_ROW, login } from './helpers'
+import { BASE, DATA_ROW, expect, login, test } from './helpers'
 
 test('the sidebar opens the Audit log with a removable "not Login" filter', async ({ page }) => {
   await login(page)
