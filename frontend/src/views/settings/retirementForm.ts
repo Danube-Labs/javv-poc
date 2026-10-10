@@ -83,7 +83,7 @@ export function useRetirementWindow(clusterId: Ref<string | null>, scannerDownDa
       })
       if (mine !== latest) return
       loading.value = false
-      failed.value = !response?.ok
+      failed.value = !response?.ok || !data
       if (failed.value) {
         logger.warn('retirement_window_load_failed', { status: response?.status })
         return

@@ -67,7 +67,7 @@ async function load() {
     listRolesApiV1AdminRolesGet({ client }),
   ])
   loading.value = false
-  failed.value = !u.response?.ok || !r.response?.ok
+  failed.value = !u.response?.ok || !r.response?.ok || !u.data || !r.data
   if (failed.value) {
     logger.warn('users_load_failed', { users: u.response?.status, roles: r.response?.status })
     return

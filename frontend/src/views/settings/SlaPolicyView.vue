@@ -43,7 +43,7 @@ async function load() {
   loading.value = true
   const { data, response } = await getSlaApiV1SettingsSlaGet({ client })
   loading.value = false
-  failed.value = !response?.ok
+  failed.value = !response?.ok || !data
   if (failed.value) {
     logger.warn('sla_policy_load_failed', { status: response?.status })
     return

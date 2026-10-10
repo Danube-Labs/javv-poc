@@ -52,7 +52,7 @@ async function load() {
       cursor: pager.cursor.value,
     }),
   })
-  failed.value = !response?.ok
+  failed.value = !response?.ok || !data
   if (failed.value) {
     logger.warn('ingest_failures_load_failed', { status: response?.status, scanner: props.scanner })
   } else {

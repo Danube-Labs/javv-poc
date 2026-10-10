@@ -58,7 +58,7 @@ async function load() {
     query: { size: LIST_SIZE },
   })
   loading.value = false
-  failed.value = !response?.ok
+  failed.value = !response?.ok || !data
   if (failed.value) {
     logger.warn('tokens_load_failed', { status: response?.status })
     return
@@ -144,8 +144,19 @@ async function submitMint() {
   }
   mintOpen.value = false
   copied.value = false
-  minted.value = data as { id: string; token: string }
+  showMinted(data)
   await load()
+}
+
+// the token exists once the reply is OK, but its value arrives only in the body: a reply whose body
+// never arrived leaves a token nobody can copy, and rotating it is the way to a new value
+function showMinted(data: unknown) {
+  if (data) {
+    minted.value = data as { id: string; token: string }
+    return
+  }
+  logger.warn('token_value_lost')
+  toast.error('The token was created, but its value did not reach this page. Rotate it to get a value you can copy.')
 }
 
 async function copyToken() {
@@ -173,7 +184,7 @@ async function runConfirmed() {
   }
   if (action.kind === 'rotate') {
     copied.value = false
-    minted.value = data as { id: string; token: string }
+    showMinted(data)
   } else {
     toast.success('Token revoked. Its next push will be rejected')
   }

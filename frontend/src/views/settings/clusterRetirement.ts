@@ -38,7 +38,7 @@ export function useFleetClusters() {
       query: { include_retired: true },
     })
     loading.value = false
-    failed.value = !response?.ok
+    failed.value = !response?.ok || !data
     if (failed.value) {
       logger.warn('fleet_clusters_load_failed', { status: response?.status })
       return

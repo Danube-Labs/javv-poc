@@ -68,8 +68,8 @@ const counts = ref<Record<string, number | null>>({})
 
 async function load() {
   const { response, data } = await listViewsApiV1ViewsGet()
-  failed.value = !response?.ok
-  views.value = response?.ok ? ((data as { views: ViewDoc[] }).views ?? []) : []
+  failed.value = !response?.ok || !data
+  views.value = failed.value ? [] : ((data as { views: ViewDoc[] }).views ?? [])
   loaded.value = true
   void loadCounts()
 }

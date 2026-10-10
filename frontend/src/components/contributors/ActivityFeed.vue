@@ -43,7 +43,7 @@ watch(
     const response = await readAuditLogApiV1AuditGet({
       query: { ...q, size: FEED_SIZE } as ReadAuditLogApiV1AuditGetData['query'],
     })
-    failed.value = !response.response?.ok
+    failed.value = !response.response?.ok || !response.data
     if (failed.value) {
       logger.warn('contrib_feed_failed', { status: response.response?.status })
       rows.value = []
