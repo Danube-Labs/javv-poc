@@ -4,7 +4,7 @@
  */
 import { expect, test, type Page } from '@playwright/test'
 
-import { BASE, login } from './helpers'
+import { BASE, DATA_ROW, login } from './helpers'
 
 /** Focus the first identifier link inside `scope`, press Enter, and require the new address. */
 async function openFirstRow(page: Page, scope: string, want: RegExp) {
@@ -22,7 +22,7 @@ test.beforeEach(async ({ page }) => {
 
 test('Findings: Tab reaches a row identifier and Enter opens the finding', async ({ page }) => {
   await page.goto(`${BASE}/findings`)
-  await expect(page.locator('.tbl tbody tr').first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator(DATA_ROW).first()).toBeVisible({ timeout: 20_000 })
   await page.locator('.tbl thead').click() // start the tab walk at the table, not the top bar
   let reached = false
   for (let i = 0; i < 40 && !reached; i++) {

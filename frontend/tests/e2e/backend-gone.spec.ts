@@ -6,7 +6,7 @@
  */
 import { expect, test, type Page } from '@playwright/test'
 
-import { BASE, PASS, USER, login } from './helpers'
+import { BASE, DATA_ROW, PASS, USER, login } from './helpers'
 
 // the backend's own paths only: a bare /api/ pattern would also catch the dev server's /src/api/ modules
 const isBackend = (url: URL) => /^\/(api|auth|readyz)(\/|$)/.test(url.pathname)
@@ -18,7 +18,7 @@ const kill = (page: Page) =>
 test('signed in: the banner names the backend at the first failed request', async ({ page }) => {
   await login(page)
   await page.goto(`${BASE}/findings`)
-  await expect(page.locator('.tbl tbody tr').first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator(DATA_ROW).first()).toBeVisible({ timeout: 20_000 })
   await kill(page)
   await page.locator('.sidebar a.side-item[href^="/images"]').click()
   const banner = page.locator('.sys-line.tone-down[role="alert"]')

@@ -6,12 +6,12 @@
  */
 import { expect, test } from '@playwright/test'
 
-import { BASE, login } from './helpers'
+import { BASE, DATA_ROW, login } from './helpers'
 
 test('a triage action persists across reload, then is reverted', async ({ page }) => {
   await login(page)
   await page.goto(`${BASE}/findings`)
-  await page.locator('.tbl tbody tr').first().click()
+  await page.locator(DATA_ROW).first().click()
   await expect(page.locator('.detail-head')).toBeVisible({ timeout: 20_000 })
   const url = page.url()
 
@@ -57,7 +57,7 @@ test('a triage action persists across reload, then is reverted', async ({ page }
 test('Undo takes a saved state change back, on the server', async ({ page }) => {
   await login(page)
   await page.goto(`${BASE}/findings`)
-  await page.locator('.tbl tbody tr').first().click()
+  await page.locator(DATA_ROW).first().click()
   await expect(page.locator('.detail-head')).toBeVisible({ timeout: 20_000 })
   const url = page.url()
 

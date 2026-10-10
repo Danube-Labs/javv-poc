@@ -38,8 +38,8 @@ export const ROUTES = [
   // per-panel walks: tokens/users prove DATA (the smoke seed mints a token; admin always exists)
   { name: 'settings-scanning', path: '/settings/scanning', ready: '.set-row' },
   { name: 'settings-sla', path: '/settings/sla', ready: '.set-row' },
-  { name: 'settings-tokens', path: '/settings/tokens', ready: '.tbl tbody tr' },
-  { name: 'settings-users', path: '/settings/users', ready: '.tbl tbody tr' },
+  { name: 'settings-tokens', path: '/settings/tokens', ready: DATA_ROW },
+  { name: 'settings-users', path: '/settings/users', ready: DATA_ROW },
   // data panel: the family ledger renders only after GET /settings/data resolved
   { name: 'settings-data', path: '/settings/data-opensearch', ready: '.fam-row' },
   { name: 'settings-cluster', path: '/settings/cluster', ready: '.set-row' },
