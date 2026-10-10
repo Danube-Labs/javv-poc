@@ -50,7 +50,7 @@ export const useOverviewStore = defineStore('overview', {
         }),
       ])
       this.loading = false
-      if (!facets.response?.ok || !trend.response?.ok) {
+      if (!facets.response?.ok || !trend.response?.ok || !facets.data || !trend.data) {
         this.failed = true
         logger.warn('overview_load_failed', {
           facets: facets.response?.status,

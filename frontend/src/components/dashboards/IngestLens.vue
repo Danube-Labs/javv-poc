@@ -69,11 +69,9 @@ watch(
       }),
       scannerFreshnessApiV1ScannersFreshnessGet({ client, query: { cluster_id: id } }),
     ])
-    failed.value = !scans.response?.ok
+    failed.value = !scans.response?.ok || !scans.data
     if (failed.value) logger.warn('ingest_lens_failed', { status: scans.response?.status })
-    series.value = scans.response?.ok
-      ? ((scans.data as { series: ScanActivityData }).series ?? {})
-      : {}
+    series.value = failed.value ? {} : ((scans.data as { series: ScanActivityData }).series ?? {})
     if (fresh.response?.ok && fresh.data) {
       freshness.value = (fresh.data as { scanners: FreshnessRow[] }).scanners ?? []
     }

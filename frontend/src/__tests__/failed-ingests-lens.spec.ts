@@ -17,6 +17,8 @@ vi.mock('@/api/client', () => ({ client: {} }))
 
 import { ingestFailuresTrendApiV1TrendsIngestFailuresGet } from '@/api/generated'
 
+import { okWithoutBody } from './helpers/okWithoutBody'
+
 const trendMock = vi.mocked(ingestFailuresTrendApiV1TrendsIngestFailuresGet)
 const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } }) as never
 const pts = (counts: number[]) =>
@@ -110,6 +112,18 @@ describe('FailedIngestsLens (self-contained lens)', () => {
     expect(w.text()).not.toContain('No refused pushes') // no claim before evidence
     resolve({ data: null, response: { ok: false, status: 500 } })
     await flushPromises()
+    expect(w.text()).toContain('Failed-ingest activity unavailable')
+  })
+
+  it('a reply that arrives OK with no body is a failed read, not a throw (issue 749)', async () => {
+    const thrown: string[] = []
+    trendMock.mockResolvedValue(okWithoutBody())
+    const w = mount(FailedIngestsLens, {
+      props,
+      global: { stubs, config: { errorHandler: (err) => void thrown.push((err as Error).message) } },
+    })
+    await flushPromises()
+    expect(thrown).toEqual([])
     expect(w.text()).toContain('Failed-ingest activity unavailable')
   })
 
