@@ -38,13 +38,12 @@ from os_env import OS_URL, requires_opensearch
 PASSWORD = "client-events-route-password"
 
 
-def _principal(*, username: str = "u-beacon", must_change: bool = False) -> Principal:
+def _principal(*, username: str = "u-beacon") -> Principal:
     return Principal(
         user_id=username,
         username=username,
         role="viewer",
         capabilities=frozenset(),
-        must_change=must_change,
     )
 
 

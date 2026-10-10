@@ -146,8 +146,6 @@ async def trigger_job(
     capability = JOB_KINDS[kind][0]
     if "*" not in principal.capabilities and capability not in principal.capabilities:
         raise HTTPException(403, f"{kind} requires {capability}")
-    if principal.must_change:
-        raise HTTPException(403, "password change required")
     client = request.app.state.opensearch
 
     if dry_run:

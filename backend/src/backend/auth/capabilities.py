@@ -1,7 +1,8 @@
 """Capability gate (M5a, D33/SEC-2/SEC-9) — `require_capability(cap)` is THE enforcement
 point: every mutating/protected route declares it and receives a `Principal`. 401 answers
-"who are you"; 403 answers "you may not" — including any `must_change` session touching anything
-beyond the /auth/* escape hatch (SEC-6). Admin holds all via the `"*"` marker.
+"who are you"; 403 answers "you may not". A `must_change` session never reaches this gate: the
+principal it depends on refuses it first (principal.py, SEC-6). Admin holds all via the `"*"`
+marker.
 
 Role bundles live in `system-roles` (doc `_id` = role); the defaults below seed once
 (`op_type=create`) so an operator's customized bundle is never overwritten. Destructive caps
@@ -34,8 +35,6 @@ def require_capability(capability: str):
     async def _gate(
         principal: Annotated[Principal, Depends(get_current_principal)],
     ) -> Principal:
-        if principal.must_change:
-            raise HTTPException(403, "password change required")  # SEC-6 restricted session
         if "*" not in principal.capabilities and capability not in principal.capabilities:
             AUTH_FAILURES.labels("missing_capability").inc()  # M-5 (#220)
             raise HTTPException(403, "missing capability")

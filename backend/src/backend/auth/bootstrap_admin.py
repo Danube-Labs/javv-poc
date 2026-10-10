@@ -5,7 +5,7 @@ Secret, never a ConfigMap/values file); at startup we create the admin user **ex
 (`op_type=create` — a concurrent pod or a restart is a clean no-op, and an existing admin is
 NEVER overwritten, so rotating the mounted secret later has no effect by design). The seeded
 account carries `must_change: true`: the first login gets a restricted session that can only
-change its password (enforced server-side in the routes/capability gate, not by the UI)."""
+change its password (enforced server-side by `get_current_principal`, not by the UI)."""
 
 from datetime import UTC, datetime
 
