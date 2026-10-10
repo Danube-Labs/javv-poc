@@ -1,8 +1,9 @@
 /**
  * Every read that issue 749 found checking only `response.ok` before reading `data` (ruling 1 on
- * the issue). Here every SDK call answers OK with no body (`okWithoutBody()`): each component must
- * show its own failure copy, with no error for Vue and no rejection nothing caught. Whatever else
- * a component reads on mount gets the same reply, so an unguarded read in a child fails here too.
+ * the issue). Here every SDK call answers OK with a body that could not be read (`okWithoutBody()`):
+ * each component must show its own failure copy, with no error for Vue and no rejection nothing
+ * caught. Whatever else a component reads on mount gets the same reply, so an unguarded read in a
+ * child fails here too.
  */
 import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
@@ -26,14 +27,17 @@ import { mintApiV1AdminTokensPost, rotateApiV1AdminTokensTokenIdRotatePost } fro
 import AuditLens from '@/components/dashboards/AuditLens.vue'
 import ActivityFeed from '@/components/contributors/ActivityFeed.vue'
 import ProgressPanel from '@/components/contributors/ProgressPanel.vue'
+import TopComponentsCard from '@/components/overview/TopComponentsCard.vue'
 import IngestFailuresTable from '@/components/scanners/IngestFailuresTable.vue'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useClusterStore } from '@/stores/cluster'
 import { useToastStore } from '@/stores/toast'
+import ApprovalsView from '@/views/ApprovalsView.vue'
 import ContributorsView from '@/views/ContributorsView.vue'
 import SavedViewsView from '@/views/SavedViewsView.vue'
 import ScannerStatusView from '@/views/ScannerStatusView.vue'
 import ScanningView from '@/views/settings/ScanningView.vue'
+import DataOpenSearchView from '@/views/settings/DataOpenSearchView.vue'
 import ScanScopeView from '@/views/settings/ScanScopeView.vue'
 import SlaPolicyView from '@/views/settings/SlaPolicyView.vue'
 import TokensView from '@/views/settings/TokensView.vue'
@@ -88,6 +92,10 @@ describe('a component whose read arrives OK with no body shows its failure copy'
     ['SlaPolicyView', SlaPolicyView, {}, 'SLA policy unavailable.'],
     ['TokensView', TokensView, {}, 'Token list unavailable.'],
     ['UsersRolesView', UsersRolesView, {}, 'User list unavailable.'],
+    // these three did not throw: they showed a loaded page with nothing, or with old data, in it
+    ['TopComponentsCard', TopComponentsCard, { scanner: 'all' }, 'Component ranking unavailable.'],
+    ['DataOpenSearchView', DataOpenSearchView, {}, 'Data settings unavailable.'],
+    ['ApprovalsView', ApprovalsView, {}, 'Could not load the queue.'],
   ] as const)('%s', async (_name, component, props, copy) => {
     const w = mountAll(component as Component, props)
     await flushPromises()
@@ -144,6 +152,8 @@ describe('a component with two reads, only one of which arrives OK with no body'
     await flushPromises()
     expect(thrown).toEqual([])
     expect(w.text()).not.toContain('Staleness timers unavailable.')
+    // loaded, not merely not failed: the form holds the timers the read returned
+    expect((w.find('input').element as HTMLInputElement).value).toBe('7')
   })
 })
 

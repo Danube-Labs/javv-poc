@@ -44,8 +44,8 @@ watch(
       client,
       query: { cluster_id: id } as never,
     })
-    failed.value = !response?.ok
-    if (response?.ok && data) {
+    failed.value = !response?.ok || !data
+    if (!failed.value) {
       rows.value = (data as { components: ComponentRow[] }).components ?? []
     } else {
       logger.warn('top_components_load_failed', { status: response?.status })
