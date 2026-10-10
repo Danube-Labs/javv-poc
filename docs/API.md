@@ -125,7 +125,8 @@ unless `JAVV_SESSION_COOKIE_SECURE` is `false` ([http or https](DEPLOYING.md#htt
 The first admin, a new user and a user after a password reset have a temporary password. The user
 must change it ([Sign in from a script](#sign-in-from-a-script), step 3). Until then, the session
 can use only `/auth/*`: show the user, change the password, and sign out. Each other session
-endpoint answers 403 `password change required`, reads included.
+endpoint answers a well-formed request with 403 `password change required`, reads included. A
+body that is not valid JSON gets 422 first.
 
 Each refusal logs a `password change required` warning with the username. It also increments
 `javv_auth_failures_total{reason="must_change"}`.
