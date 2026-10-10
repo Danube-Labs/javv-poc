@@ -60,8 +60,8 @@ export function logUnhandledRejections(target: EventTarget, routePath: () => str
     const reason: unknown = (event as PromiseRejectionEvent).reason
     logger.error('app error', {
       route: routePath(),
-      info: 'unhandled rejection',
       message: errorMessage(reason),
+      info: 'unhandled rejection',
       stack: errorStack(reason),
     })
   })

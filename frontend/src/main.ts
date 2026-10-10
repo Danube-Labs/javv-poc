@@ -22,8 +22,8 @@ app.use(PrimeVue, { theme: themeOptions })
 app.config.errorHandler = (err, _instance, info) => {
   logger.error('app error', {
     route: router.currentRoute.value.path,
-    info,
     message: errorMessage(err),
+    info,
     stack: errorStack(err),
   })
 }

@@ -99,6 +99,9 @@ describe('logUnhandledRejections (issue 749)', () => {
       stack: errorStack(reason),
     })
     expect(errorStack(reason).length).toBeGreaterThan(0)
+    // a console preview shows five keys and the logger puts timestamp, level and event first, so
+    // the message must be one of the first two fields
+    expect(Object.keys(logged.mock.calls[0]![1] as object).slice(0, 2)).toContain('message')
   })
 })
 
@@ -186,6 +189,8 @@ describe('CrashBoundary', () => {
       message: 'click broke',
       stack: expect.any(Array),
     })
+    // the same five-key preview: the message must be one of the first two fields
+    expect(Object.keys(logged.mock.calls[0]![1] as object).slice(0, 2)).toContain('message')
   })
 
   it('"Try again" draws the page again', async () => {

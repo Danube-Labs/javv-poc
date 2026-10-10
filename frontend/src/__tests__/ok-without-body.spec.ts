@@ -4,7 +4,7 @@
  * while `data` is missing. Every reader of `data` relies on this shape, and `okWithoutBody()`
  * copies it for the component specs: if the client changes, this file fails first.
  * An EMPTY body is another case: a 204, or a 200 with nothing in it, gives `data: {}`, which a
- * `!data` guard lets through. The last test pins that, so the gap stays visible.
+ * `!data` guard lets through. The test named for it pins that, so the gap stays visible.
  */
 import { describe, expect, it } from 'vitest'
 

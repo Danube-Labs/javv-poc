@@ -16,7 +16,9 @@ const route = useRoute()
 const router = useRouter()
 
 onErrorCaptured((err, _instance, info) => {
-  const fields = { route: route.path, info, message: errorMessage(err), stack: errorStack(err) }
+  // message before info: a console preview shows only the first five fields, and the message is
+  // the one that says what went wrong
+  const fields = { route: route.path, message: errorMessage(err), info, stack: errorStack(err) }
   if (replacesPage(info)) {
     logger.error('page crashed', fields)
     pageCrashed.value = true
