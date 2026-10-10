@@ -275,7 +275,7 @@ in a scan cycle.
 | GET | `/api/v1/admin/opensearch-runtime` | `can_manage_settings` | Facts about OpenSearch: version, health, nodes, roles, heap, `discovery.type`, `path.repo` and the security plugin. It gives only these fields. |
 | POST | `/api/v1/admin/opensearch/inspect` | `can_inspect_store` | The data inspector. [The data inspector](#the-data-inspector) gives its rules. |
 | GET | `/api/v1/admin/jobs` | `can_inspect_store` | The status of each of the eight background jobs, and of the scheduler ([The jobs list](#the-jobs-list)) |
-| POST | `/api/v1/admin/jobs/{kind}/run` | the permission of the job | Starts a job, and answers 202 `{attempt_id}` ([Start a job](#start-a-job)) |
+| POST | `/api/v1/admin/jobs/{kind}/run` | the permission of the job | Starts a job, and answers 202 `{attempt_id}` ([Start a background job](#start-a-background-job)) |
 
 #### The data inspector
 
@@ -318,7 +318,7 @@ path, and a hash of the query.
 `scheduler` is `{enabled, timezone}`: if this backend runs the schedules, and the time zone of the
 cron expressions.
 
-#### Start a job
+#### Start a background job
 
 `POST /api/v1/admin/jobs/{kind}/run` starts one of three jobs:
 

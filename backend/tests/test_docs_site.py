@@ -12,7 +12,7 @@ links to other files, nor that the tree publishes only operator files. These tes
   rendered as a paragraph;
 - a release publishes its docs as its `major.minor` version and as `latest`;
 - no published page carries an em dash;
-- the rewritten pages carry no engineering references (milestones, decisions, audit ids, issue
+- the pages carry no engineering references (milestones, decisions, audit ids, issue
   numbers), except links to issues that track a limit an operator meets today;
 - every `page.md#heading` link reaches a heading on that page;
 - the publish workflow runs for every published file.
@@ -185,7 +185,6 @@ def test_mermaid_blocks_render_as_diagrams(page: str) -> None:
 # where it tracks a limit an operator meets today, and it is listed here. The release notes keep
 # their links: each entry is a change and its pull request.
 OPEN_LIMIT_ISSUES = {327, 664, 719, 739, 803}
-NOT_YET_REWRITTEN = {"docs/API.md"}
 _REFERENCE = re.compile(
     r"\bissues? \d+|#\d{2,4}\b|\bM\d{1,2}[a-f]?\b|\b(?:D|FR-|NFR-|SEC-)\d+\b"
     r"|\b[A-Z]-[0-9A-Za-z]{1,3}\b|\baudit (?:[A-Z]-|#)|\bslice \d|\bbolt\b",
@@ -202,7 +201,7 @@ def _prose(page: str) -> str:
     return re.sub(r"`[^`\n]*`", "", text)
 
 
-@pytest.mark.parametrize("page", sorted(PAGES - NOT_YET_REWRITTEN - {"CHANGELOG.md"}))
+@pytest.mark.parametrize("page", sorted(PAGES - {"CHANGELOG.md"}))
 def test_published_pages_carry_no_internal_references(page: str) -> None:
     text = _prose(page)
     for shown, target in _ISSUE_LINK.findall(text):
