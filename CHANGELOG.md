@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.7.1](https://github.com/Danube-Labs/javv-poc/compare/v0.7.0...v0.7.1) (2026-10-10)
+
+
+### Bug Fixes
+
+* a cluster or window change waits for the navigation under way ([#810](https://github.com/Danube-Labs/javv-poc/issues/810)) ([9727c39](https://github.com/Danube-Labs/javv-poc/commit/9727c395a365cefb7c52a863c74a2851074befcb))
+* a session with a temporary password reaches only the password change, reads included ([#805](https://github.com/Danube-Labs/javv-poc/issues/805)) ([beb6ef2](https://github.com/Danube-Labs/javv-poc/commit/beb6ef2a692de7947b6eac9ca59a12a83eb00572))
+* every read checks that an ok reply's body arrived, and a lost token value says so ([#813](https://github.com/Danube-Labs/javv-poc/issues/813)) ([5eec52e](https://github.com/Danube-Labs/javv-poc/commit/5eec52e7bd01095048ec944d76c074860b1995c8))
+* overview reads survive an ok reply with no body, and logged errors say where they threw ([#812](https://github.com/Danube-Labs/javv-poc/issues/812)) ([4f36248](https://github.com/Danube-Labs/javv-poc/commit/4f3624854075b53aef5ef82b6622ec5510415fca))
+* the rig login helpers read with the session the password change returns ([#808](https://github.com/Danube-Labs/javv-poc/issues/808)) ([a58e788](https://github.com/Danube-Labs/javv-poc/commit/a58e78810817b3a97e1ae7252293270b0b06e8e6))
+
 ## [0.7.0](https://github.com/Danube-Labs/javv-poc/compare/v0.6.3...v0.7.0) (2026-10-09)
 
 
