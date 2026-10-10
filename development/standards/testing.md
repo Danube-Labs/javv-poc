@@ -62,7 +62,8 @@ the grid value actions' layout rules, which jsdom cannot judge (`value-actions.s
 client-events beacon end to end: a real `logger.warn` in the built app, flushed by `pagehide`,
 must appear as a `client.<name>` line in the backend's log (`beacon.spec.ts`; the job writes
 backend stdout to `development/e2e/logs/backend.log` for it) · a slow cluster list, where the
-Findings loading row must not pass for a data row (`slow-cluster-list.spec.ts`). Selectors and
+Findings loading row must not pass for a data row, and a click whose page is still loading when
+the list lands must still open it (`slow-cluster-list.spec.ts`, issues 786 and 669). Selectors and
 login come from `scripts/walk.mjs` (still the one owner).
 
 **As built (audit F-14/#383, CI job `frontend-smoke`):**

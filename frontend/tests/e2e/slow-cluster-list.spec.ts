@@ -31,6 +31,25 @@ test('while the cluster list loads, the loading row is not a data row', async ({
   await expect(page.locator(DATA_ROW).first()).toBeVisible({ timeout: 20_000 })
 })
 
+// issue 669: the cluster list lands while the click's page is still loading. The stamp used to
+// start a replace then, and the router cancelled the click: the page stayed put.
+test('a click whose page is still loading when the cluster list lands still opens it', async ({ page }) => {
+  let held = 0
+  await page.route(
+    (url) => /\/assets\/OverviewView-[^/]*\.js$/.test(url.pathname),
+    async (route) => {
+      held++
+      await new Promise((resolve) => setTimeout(resolve, 3_000))
+      await route.continue()
+    },
+  )
+  await page.goto(`${BASE}/no-such-page`)
+  await page.getByRole('heading', { name: 'Page not found' }).waitFor()
+  await page.getByRole('button', { name: 'Back to Overview' }).click()
+  await expect(page).toHaveURL(/\/overview\?(.*&)?cluster=/, { timeout: 10_000 })
+  expect(held, 'the Overview page code was not held, so the race was not set up').toBe(1)
+})
+
 for (const [list, ready] of [
   ['/findings', '.detail-head'],
   ['/images', '.back-btn'],
