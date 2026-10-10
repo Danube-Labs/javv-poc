@@ -145,7 +145,8 @@ async def _login(http: httpx.AsyncClient) -> dict[str, str]:
         json={"current_password": ADMIN_PW_INIT, "new_password": ADMIN_PW},
     )
     r.raise_for_status()
-    return hdr
+    # the change revoked the session above; the reply carries its replacement
+    return _session_header(r)
 
 
 async def _cycle(
