@@ -126,8 +126,8 @@ async function fetchQueue() {
       warn_days: EXPIRY_WARN_DAYS,
     } as never,
   })
-  failed.value = !response.response?.ok
-  if (!failed.value && response.data) {
+  failed.value = !response.response?.ok || !response.data
+  if (!failed.value) {
     const data = response.data as {
       approvals: ApprovalRow[]
       total: number

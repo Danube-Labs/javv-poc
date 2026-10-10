@@ -53,7 +53,7 @@ watch(
         query: { ...base, state: [...TRIAGED_STATES] } as FacetFindingsApiV1FindingsFacetsGetData['query'],
       }),
     ])
-    failed.value = !all.response?.ok || !triaged.response?.ok
+    failed.value = !all.response?.ok || !triaged.response?.ok || !all.data || !triaged.data
     if (failed.value) {
       logger.warn('triage_progress_failed', {
         totals: all.response?.status,

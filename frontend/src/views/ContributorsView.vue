@@ -76,7 +76,7 @@ watch(
     const response = await contributorsApiV1ContributorsGet({
       query: q as ContributorsApiV1ContributorsGetData['query'],
     })
-    failed.value = !response.response?.ok
+    failed.value = !response.response?.ok || !response.data
     if (failed.value) {
       logger.warn('contributors_load_failed', { status: response.response?.status })
     } else {

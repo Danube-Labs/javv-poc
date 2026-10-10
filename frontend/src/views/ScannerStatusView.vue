@@ -56,7 +56,7 @@ watch(
       }),
     ])
     loading.value = false
-    failed.value = !fresh.response?.ok || !prov.response?.ok
+    failed.value = !fresh.response?.ok || !prov.response?.ok || !fresh.data || !prov.data
     if (failed.value) {
       logger.warn('scanner_status_failed', {
         freshness: fresh.response?.status,

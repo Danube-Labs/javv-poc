@@ -56,7 +56,7 @@ watch(
         window_days: Math.min(365, Math.max(1, Math.ceil(days))),
       } as never,
     })
-    failed.value = !response.response?.ok
+    failed.value = !response.response?.ok || !response.data
     if (failed.value) {
       logger.warn('audit_lens_failed', { status: response.response?.status })
       rows.value = []

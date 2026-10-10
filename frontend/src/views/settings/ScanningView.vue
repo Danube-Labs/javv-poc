@@ -67,7 +67,7 @@ watch(
       }),
     ])
     loading.value = false
-    failed.value = !timers.response?.ok
+    failed.value = !timers.response?.ok || !timers.data
     if (failed.value) {
       logger.warn('staleness_load_failed', { status: timers.response?.status })
       return
@@ -81,7 +81,7 @@ watch(
     draftN.value = String(body.staleness.freshness_days)
     draftM.value = String(body.staleness.scanner_down_days)
     // the cards are display-only — a failed read just renders none (scanner-status owns health)
-    scanners.value = prov.response?.ok
+    scanners.value = prov.response?.ok && prov.data
       ? ((prov.data as { scanners: ProvenanceCardRow[] }).scanners ?? [])
       : []
   },

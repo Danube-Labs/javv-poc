@@ -53,7 +53,7 @@ watch(
       query: { cluster_id: id },
     })
     loading.value = false
-    failed.value = !response?.ok
+    failed.value = !response?.ok || !data
     if (failed.value) {
       logger.warn('scan_scope_load_failed', { status: response?.status })
       return

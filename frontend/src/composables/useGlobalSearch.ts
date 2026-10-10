@@ -59,7 +59,7 @@ export function useGlobalSearch(clusterId: () => string | null) {
     )
     if (mine !== seq) return // a newer keystroke owns the state now
     searching.value = false
-    if (settled.some((r) => !r.response?.ok)) {
+    if (settled.some((r) => !r.response?.ok || !r.data)) {
       failed.value = true
       results.value = EMPTY
       logger.warn('global_search_failed', {

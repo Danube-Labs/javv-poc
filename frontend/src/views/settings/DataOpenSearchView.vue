@@ -67,8 +67,8 @@ async function loadSettings(clusterId: string) {
     query: { cluster_id: clusterId },
   })
   loading.value = false
-  failed.value = !response?.ok
-  if (failed.value || !data) {
+  failed.value = !response?.ok || !data
+  if (failed.value) {
     logger.warn('data_settings_load_failed', { status: response?.status })
     return
   }

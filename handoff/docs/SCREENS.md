@@ -553,6 +553,9 @@ to the Decisions queue (screen 9) — decisions carry scope/justification/expiry
 Retired clusters (issue 765, `GET /api/v1/clusters?include_retired=true`) are named in the table
 and listed apart in the mint picker under **Retired**; picking one says its first scan on the new
 token brings it back to the cluster list (operator ruling 2026-10-07).
+If a mint or rotate succeeds but its reply arrives with a body that could not be read, the token
+exists and its value is lost. An error toast then says: *The token was created, but its value did
+not reach this page. Rotate it to get a value you can copy.* (operator ruling 2026-10-10, issue 749).
 
 ### 13.6 Users & roles — editable (shipped)
 **Data:** `GET/POST /api/v1/admin/users`, `PATCH …/{username}/role` (revokes their sessions —
