@@ -68,7 +68,7 @@ refusal, not a warning. JAVV refuses the envelope with `422` in these conditions
 - **`schema_version`** is not 3 or 4. Version 4 added `ptype`. Version 3 findings have no `ptype`.
 - **A time has no time zone.**
 
-[`API.md`](API.md#post-apiv1ingestscan-the-hardened-surface) has the full list of errors for
+[`API.md`](API.md#ingest-a-scan) has the full list of errors for
 `POST /ingest/scan`: 400, 401, 403, 413, 422, 429 and 503, gzip and the size limits. On success,
 JAVV replies `202` with `{accepted, findings, commit}`. JAVV makes the same document IDs from the
 same data. Thus you can send a failed cycle again with no risk.

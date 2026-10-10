@@ -217,7 +217,7 @@ list all indices as `unchanged`.
   add a field to a setting. If you saved that setting, the older release ignores the new field. The
   backend logs `stored setting has unknown keys` one time for each setting. It counts each of these
   reads in `javv_stored_setting_unknown_fields_total`
-  ([`API.md` § Metrics](API.md#metrics-metrics-prometheus)). If you **save** that setting while the
+  ([`API.md` § Metrics](API.md#metrics)). If you **save** that setting while the
   older release runs, the older release saves only the fields that it knows. After you upgrade
   again, the new field has its default value. This is true when you go back to 0.4.8 or later.
 - **Go back with the scanners first** when the report format changed between the two releases.
