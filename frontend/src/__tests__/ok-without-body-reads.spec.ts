@@ -78,7 +78,7 @@ afterEach(() => {
   process.off('unhandledRejection', onRejection)
 })
 
-describe('a component whose read arrives OK with no body shows its failure copy', () => {
+describe('a component whose OK reply has a body that could not be read shows its failure copy', () => {
   it.each([
     ['ActivityFeed', ActivityFeed, { query }, 'Recent activity unavailable.'],
     ['ProgressPanel', ProgressPanel, { query }, 'Triage progress unavailable.'],
@@ -105,8 +105,8 @@ describe('a component whose read arrives OK with no body shows its failure copy'
   })
 })
 
-// a guard over two replies needs each half: here only one of them arrives with no body
-describe('a component with two reads, only one of which arrives OK with no body', () => {
+// a guard over two replies needs each half: here only one of them has a body that could not be read
+describe('a component with two reads, only one of which has a body that could not be read', () => {
   const ok = (data: unknown) => ({ data, response: { ok: true, status: 200 } }) as never
   const sdk = () => import('@/api/generated')
 
@@ -143,7 +143,7 @@ describe('a component with two reads, only one of which arrives OK with no body'
     expect(w.text()).toContain('User list unavailable.')
   })
 
-  it('ScanningView, with the timers whole: the scanner cards stay empty, the page works', async () => {
+  it('ScanningView, with the timers whole: the page loads its timers', async () => {
     const s = await sdk()
     vi.mocked(s.getStalenessApiV1SettingsStalenessGet).mockResolvedValue(
       ok({ staleness: { freshness_days: 7, scanner_down_days: 3 }, per_cluster_override: false }),
@@ -157,7 +157,7 @@ describe('a component with two reads, only one of which arrives OK with no body'
   })
 })
 
-describe('a composable whose read arrives OK with no body reports a failure', () => {
+describe('a composable whose OK reply has a body that could not be read reports a failure', () => {
   it('useFleetClusters', async () => {
     const fleet = useFleetClusters()
     await fleet.load()
@@ -187,7 +187,7 @@ describe('a composable whose read arrives OK with no body reports a failure', ()
 })
 
 // ruling 3 on the issue: the token exists, but its value never reached the page
-describe('a mint or rotate whose reply arrives OK with no body', () => {
+describe('a mint or rotate whose OK reply has a body that could not be read', () => {
   const LOST = 'The token was created, but its value did not reach this page. Rotate it to get a value you can copy.'
   const ROW = { id: 't-1', cluster_id: CLUSTER, scanner: 'trivy', enabled: true, created_at: null, expires_at: null, last_used_at: null }
 
