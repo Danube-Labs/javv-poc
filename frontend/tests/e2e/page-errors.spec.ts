@@ -1,13 +1,14 @@
 /**
  * The e2e suite fails a test whose page logs a code error (issue 749, `helpers.ts`). This spec
  * proves the catching: it causes each kind on purpose, checks the fixture saw it, then empties
- * the list so the fixture lets the test pass. It also holds every spec to the helpers' `test`,
- * since one taken from Playwright directly would skip the check without a word.
+ * the list so the fixture lets the test pass. It also holds every spec (in this folder, not
+ * below it) to the helpers' `test`, since one taken from Playwright directly would skip the
+ * check without a word.
  */
 import { readdirSync, readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { ABOUT_FILE, BASE, codeErrorLine, expect, login, test } from './helpers'
+import { ABOUT_FILE, BASE, codeErrorEventInText, codeErrorLine, expect, login, test } from './helpers'
 
 test('a page error, an app error and an uncaught rejection are each caught', async ({ page, codeErrors }) => {
   await login(page)
@@ -35,8 +36,23 @@ test('a page error, an app error and an uncaught rejection are each caught', asy
   codeErrors.length = 0 // they were caused on purpose
 })
 
+test('a code error logged as the page leaves is still caught', async ({ page, codeErrors }) => {
+  // issue 749's own case: the error lands as the spec moves on, so the object behind the console
+  // line is gone before the fixture can read it, and only the line's text is left
+  await page.goto(`${BASE}/login`)
+  await page.evaluate(() => {
+    console.error({ timestamp: 't', level: 'error', event: 'page error', route: '/overview', info: 'watcher callback', message: 'left as the page went' })
+    location.href = '/login?again'
+  })
+  await page.waitForURL(/again/)
+  await expect.poll(() => codeErrors.length, { timeout: 10_000 }).toBe(1)
+  expect(codeErrors[0]).toMatch(/^page error/)
+  codeErrors.length = 0 // caused on purpose
+})
+
 test('a code error left in place fails the test', async ({ page, codeErrors }) => {
-  // the fixture's own check, after the body: the body passes, so only that check can fail it
+  // the fixture's own check, after the body. test.fail() is also met if the body itself fails, so
+  // the poll below proves the error was caught first; deleting the check turns this test red
   test.fail()
   await page.goto(`${BASE}/login`)
   await page.evaluate(() => {
@@ -54,12 +70,23 @@ test('only the code-error events count', () => {
   }
   expect(codeErrorLine('Failed to load resource: the server responded with a status of 503')).toBeNull()
   expect(codeErrorLine(null)).toBeNull()
+
+  // the same decision from the console text, which is all that is left after a navigation
+  expect(codeErrorEventInText('{timestamp: t, level: error, event: page error, route: /overview, info: x}')).toBe('page error')
+  expect(codeErrorEventInText('{timestamp: t, level: error, event: app error, route: /about}')).toBe('app error')
+  expect(codeErrorEventInText('{timestamp: t, level: error, event: page crashed, route: /about}')).toBeNull()
+  expect(codeErrorEventInText('{timestamp: t, level: error, event: page error message}')).toBeNull()
+  expect(codeErrorEventInText('Failed to load resource: the server responded with a status of 503')).toBeNull()
 })
 
 test('every spec takes test and expect from the helpers', () => {
   const dir = fileURLToPath(new URL('.', import.meta.url))
   const direct = readdirSync(dir)
     .filter((name) => name.endsWith('.spec.ts'))
-    .filter((name) => /import \{[^}]*\b(test|expect)\b[^}]*\} from '@playwright\/test'/.test(readFileSync(dir + name, 'utf8')))
+    .filter((name) =>
+      /import (\{[^}]*\b(test|expect)\b[^}]*\}|\* as \w+) from ['"]@playwright\/test['"]/.test(
+        readFileSync(dir + name, 'utf8'),
+      ),
+    )
   expect(direct).toEqual([])
 })

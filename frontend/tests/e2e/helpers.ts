@@ -51,10 +51,20 @@ export function codeErrorLine(entry: unknown): string | null {
   return `${event} on ${String(route)} (${String(info)}): ${String(message)}`
 }
 
+/** The code-error event named in a console line's text, or null. Chromium prints the logger's
+ *  object as `{timestamp: …, level: error, event: page error, …}`, and that text outlives the page,
+ *  while the object behind it is gone once the page navigates: issue 749's own case, a spec leaving
+ *  Overview while a read was still landing. */
+export function codeErrorEventInText(text: string): string | null {
+  const event = /(?:^|[{,]\s*)event: ([^,}]+)/.exec(text)?.[1]?.trim()
+  return event !== undefined && CODE_ERROR_EVENTS.includes(event) ? event : null
+}
+
 async function consoleCodeError(msg: ConsoleMessage): Promise<string | null> {
   if (msg.type() !== 'error') return null
-  const first = msg.args()[0]
-  return first ? codeErrorLine(await first.jsonValue().catch(() => null)) : null
+  const fromText = codeErrorEventInText(msg.text())
+  const detail = codeErrorLine(await msg.args()[0]?.jsonValue().catch(() => null))
+  return detail ?? (fromText === null ? null : `${fromText}, logged as the page left: ${msg.text()}`)
 }
 
 export const test = base.extend<{ codeErrors: string[] }>({
