@@ -1953,14 +1953,13 @@ unless <code>JAVV_SESSION_COOKIE_SECURE</code> is <code>false</code> (<a href=".
   gets 415.</li>
 </ul>
 <h3 id="a-temporary-password">A temporary password<a class="headerlink" href="#a-temporary-password" title="Permanent link">&para;</a></h3>
-<p>A new user, and a user after a password reset, has a temporary password. The user must change it.
-Until then, the session gets 403 <code>password change required</code> from these endpoints:</p>
-<ul>
-<li>each endpoint that needs a permission</li>
-<li>the writes to saved views, reports and client events.</li>
-</ul>
-<p>The other session endpoints answer as for any session. Thus the session can read data. This is
-not the planned behavior (<a href="https://github.com/Danube-Labs/javv-poc/issues/803">issue 803</a>).</p>
+<p>The first admin, a new user and a user after a password reset have a temporary password. The user
+must change it (<a href="#sign-in-from-a-script">Sign in from a script</a>, step 3). Until then, the session
+can use only <code>/auth/*</code>: show the user, change the password, and sign out. Each other session
+endpoint answers a well-formed request with 403 <code>password change required</code>, reads included. A
+body that is not valid JSON gets 422 first.</p>
+<p>Each refusal logs a <code>password change required</code> warning with the username. It also increments
+<code>javv_auth_failures_total{reason="must_change"}</code>.</p>
 <h2 id="roles-and-permissions">Roles and permissions<a class="headerlink" href="#roles-and-permissions" title="Permanent link">&para;</a></h2>
 <p>Some endpoints need a permission. The tables in <a href="#endpoints">Endpoints</a> name it. A user gets the
 permissions of its role. The web app uses the <code>capabilities</code> from <code>GET /auth/me</code> to show or hide
@@ -3202,7 +3201,7 @@ it logs <code>ingest failure not recorded</code> with the <code>failure_id</code
 <td><code>javv_auth_failures_total</code></td>
 <td>counter</td>
 <td><code>reason</code></td>
-<td><code>bad_credentials</code>, <code>locked_out</code>, <code>expired_session</code> or <code>missing_capability</code>. The labels never show a username.</td>
+<td><code>bad_credentials</code>, <code>locked_out</code>, <code>expired_session</code>, <code>missing_capability</code> or <code>must_change</code> (a session with a temporary password). The labels never show a username.</td>
 </tr>
 <tr>
 <td><code>javv_config_warnings_total</code></td>
