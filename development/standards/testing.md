@@ -52,8 +52,8 @@ drives the same browser interactively during dev (authoring/debugging these spec
 
 **As built — the spec suite (M9f slice 5, same CI job):** `frontend/playwright.config.ts` +
 `frontend/tests/e2e/*.spec.ts` (`npm run test:e2e`), run right after the route walk against the
-same built FE + seeded backend. Seven spec files, one worker, zero retries: login round-trip incl.
-the bad-password path (`app.spec.ts`) · the core triage persist-and-revert loop
+same built FE + seeded backend. Fourteen spec files, one worker, zero retries; among them: login
+round-trip incl. the bad-password path (`app.spec.ts`) · the core triage persist-and-revert loop
 (`triage-loop.spec.ts`) · the degraded banner via a `/readyz` route intercept — the mount-time
 health check makes it deterministic, no 30s poll wait (`degraded-banner.spec.ts`) · grid
 paging/filtering asserted on the NETWORK — cursor + filter params must ride backend requests
@@ -61,8 +61,9 @@ paging/filtering asserted on the NETWORK — cursor + filter params must ride ba
 the grid value actions' layout rules, which jsdom cannot judge (`value-actions.spec.ts`) · the
 client-events beacon end to end: a real `logger.warn` in the built app, flushed by `pagehide`,
 must appear as a `client.<name>` line in the backend's log (`beacon.spec.ts`; the job writes
-backend stdout to `development/e2e/logs/backend.log` for it). Selectors and login come from
-`scripts/walk.mjs` (still the one owner).
+backend stdout to `development/e2e/logs/backend.log` for it) · a slow cluster list, where the
+Findings loading row must not pass for a data row (`slow-cluster-list.spec.ts`). Selectors and
+login come from `scripts/walk.mjs` (still the one owner).
 
 **As built (audit F-14/#383, CI job `frontend-smoke`):**
 - **One walk, two consumers.** `frontend/scripts/walk.mjs` owns the route matrix (per-route
@@ -71,6 +72,12 @@ backend stdout to `development/e2e/logs/backend.log` for it). Selectors and logi
   (`scripts/ci-smoke.mjs`, run via `npm run smoke`) and the authoring visual rig
   (`scripts/visual-capture.mjs`, screenshots + HTML dumps + forced states, desktop **and** phone)
   both import it — a renamed selector breaks one file, loudly.
+- **A grid row is a data row (issue 786).** The grids render their loading and empty messages as a
+  table body row, and Findings shows "Loading findings…" until the cluster list arrives. A wait for
+  `.tbl tbody tr` takes that message as a row, and a click on it goes nowhere. In the gate (the
+  smoke and the e2e specs), a wait for or click on a grid row that could be such a message uses
+  `DATA_ROW` from `walk.mjs`; `slow-cluster-list.spec.ts` delays the cluster list to hold that in
+  place. The authoring rig (`visual-capture.mjs`) still has its own row waits.
 - **The seed is the golden fixture.** `development/scripts/seed-smoke.sh` logs in as the bootstrap
   admin (rotating `must_change`), mints an ingest token and pushes
   `backend/tests/fixtures/envelope-trivy-golden.json` + the inventory-run commit. When the ingest

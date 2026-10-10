@@ -4,7 +4,7 @@
  */
 import { expect, test } from '@playwright/test'
 
-import { BASE, login } from './helpers'
+import { BASE, DATA_ROW, login } from './helpers'
 
 test('the sidebar opens the Audit log with a removable "not Login" filter', async ({ page }) => {
   await login(page)
@@ -24,5 +24,5 @@ test('the sidebar opens the Audit log with a removable "not Login" filter', asyn
   // removing the chip brings them back, and the address drops the filter
   await chip.locator('.fpill-x').click()
   await expect(page).not.toHaveURL(/action=/)
-  await expect(page.locator('.tbl tbody tr', { hasText: 'Login' }).first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator(DATA_ROW, { hasText: 'Login' }).first()).toBeVisible({ timeout: 20_000 })
 })

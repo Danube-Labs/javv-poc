@@ -14,7 +14,7 @@
  */
 import { expect, test } from '@playwright/test'
 
-import { BASE, login } from './helpers'
+import { BASE, DATA_ROW, login } from './helpers'
 
 /**
  * The FIRST actionable cell in row 1, found rather than assumed. A fixed column index is wrong
@@ -93,7 +93,7 @@ test('the revealed bar lands on the device-pixel grid', async ({ page }) => {
 test('the header travels with row 1, so the inverted-bar proxy stays true', async ({ page }) => {
   await login(page)
   await page.goto(`${BASE}/findings`)
-  await expect(page.locator('.tbl tbody tr').first()).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator(DATA_ROW).first()).toBeVisible({ timeout: 20_000 })
 
   const adjacency = async () =>
     page.evaluate(() => {

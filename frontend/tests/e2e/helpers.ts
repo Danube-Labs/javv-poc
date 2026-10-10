@@ -5,9 +5,11 @@
 import type { Page } from '@playwright/test'
 
 // @ts-expect-error walk.mjs is the untyped shared walk module — the selector owner
-import { login as walkLogin } from '../../scripts/walk.mjs'
+import { DATA_ROW as WALK_DATA_ROW, login as walkLogin } from '../../scripts/walk.mjs'
 
 export const BASE = process.env.JAVV_BASE ?? 'http://localhost:4173'
+/** A grid data row: never the grid's loading or empty message row (issue 786). */
+export const DATA_ROW: string = WALK_DATA_ROW
 export const USER = process.env.JAVV_USER ?? 'admin'
 export const PASS = process.env.JAVV_PASS ?? ''
 

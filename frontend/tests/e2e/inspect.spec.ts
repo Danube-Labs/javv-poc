@@ -1,7 +1,8 @@
 /**
  * The /inspect console (issue 406) at the browser seam — issue 460 §1.
  *
- * The route walk already proves /inspect RENDERS (`walk.mjs:31`, ready `.idx, .load-error`).
+ * The route walk already proves /inspect RENDERS (`walk.mjs`, the `inspect` route, ready
+ * `.idx, .load-error`).
  * What it cannot reach is the two interactive loops, and the backend suites
  * (`test_inspect_route.py`, `test_admin_jobs.py`) already own the contracts underneath. So this
  * file deliberately asserts only what needs a real browser: that a click on the rail reaches the
@@ -14,7 +15,7 @@
  */
 import { expect, test, type Page } from '@playwright/test'
 
-import { BASE, login, loginViewer } from './helpers'
+import { BASE, DATA_ROW, login, loginViewer } from './helpers'
 
 /** A repair row found by its LABEL, never by index: the rows come from the backend's job list,
  *  so their order is the API's to change (the fixed-column-index lesson from value-actions). */
@@ -143,7 +144,7 @@ test('the repair card triggers a job that settles to done with counts, and it la
   expect(await auditTriggerTotal(page)).toBe(triggersBefore + 1)
   // and it is rendered: the newest row (the read's default order is desc) names the job kind.
   // NB the action column renders humanized — "job trigger", not the raw `job_trigger` filtered on
-  await expect(page.locator('.tbl tbody tr').first()).toContainText('staleness_sweep', {
+  await expect(page.locator(DATA_ROW).first()).toContainText('staleness_sweep', {
     timeout: 20_000,
   })
 })

@@ -897,6 +897,19 @@ jobs:
         if: failure() && steps.detect.outputs.present == 'true'
         run: tail -100 development/e2e/logs/backend.log
 
+      # the record of a failed run (issue 786): the smoke's trace, the e2e suite's traces and the
+      # whole backend log, whose last 100 lines above can miss the moment of the failure
+      - name: Upload the failure record
+        if: failure() && steps.detect.outputs.present == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: frontend-smoke-failure
+          path: |
+            development/e2e/logs/
+            frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
   docs-site:
     # Issue 639: the operator docs site builds with --strict, which fails on a link to a page the
     # site doesn't publish. Always runs, like every job here, so it can be a required check.

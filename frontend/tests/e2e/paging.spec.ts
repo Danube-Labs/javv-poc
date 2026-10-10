@@ -6,7 +6,7 @@
  */
 import { expect, test } from '@playwright/test'
 
-import { BASE, login } from './helpers'
+import { BASE, DATA_ROW, login } from './helpers'
 
 test('grid paging and filtering go through backend queries', async ({ page }) => {
   const findingsCalls: string[] = []
@@ -16,9 +16,7 @@ test('grid paging and filtering go through backend queries', async ({ page }) =>
   })
   await login(page)
   await page.goto(`${BASE}/findings`)
-  await expect(page.locator('.tbl tbody tr').first()).toBeVisible({ timeout: 20_000 })
-  // POLL, never snapshot: skeleton rows are visible before the cluster registry resolves,
-  // so on a slow boot the grid's first query can land after first row-visibility (CI flake)
+  await expect(page.locator(DATA_ROW).first()).toBeVisible({ timeout: 20_000 })
   await expect
     .poll(() => findingsCalls.length, { timeout: 15_000 })
     .toBeGreaterThan(0) // the rows came from the backend
