@@ -22,6 +22,7 @@
  * Deliberately shallow: dialogs, forced states and screenshots live in the authoring rig
  * (visual-capture.mjs), which imports the same walk — keep deep interactions out of the gate.
  */
+import { rm } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 
 import { chromium } from 'playwright'
@@ -171,6 +172,7 @@ async function oneClick(page, issues) {
 }
 
 async function main() {
+  await rm(TRACE, { force: true }) // a trace in logs/ is always the last run's
   const browser = await chromium.launch({ headless: true })
   const issues = []
 
@@ -182,10 +184,17 @@ async function main() {
     await walk(page, issues)
     failed = issues.length > 0
   } finally {
-    await context.tracing.stop(failed ? { path: TRACE } : {})
+    // a trace that cannot be written must not hide the smoke's own result
+    const saved = await context.tracing.stop(failed ? { path: TRACE } : {}).then(
+      () => failed,
+      (e) => {
+        console.error(`trace not saved: ${e.message}`)
+        return false
+      },
+    )
+    if (saved) console.error(`trace of the failed run: ${TRACE}`)
     await browser.close()
   }
-  if (failed) console.error(`trace of the failed run: ${TRACE}`)
   if (issues.length) {
     console.error(`SMOKE FAILED — ${issues.length} issue(s):\n  ${issues.join('\n  ')}`)
     process.exit(1)

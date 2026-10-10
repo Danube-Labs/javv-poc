@@ -16,7 +16,8 @@ export const VIEWPORTS = {
 
 // A row of grid data. The grid's loading and empty messages are a body row too, and the Findings
 // grid shows "Loading findings…" until the cluster list arrives: a click there goes nowhere
-// (issue 786). Every wait for, or click on, a grid row uses this, never `.tbl tbody tr`.
+// (issue 786). In the gate (this smoke and the e2e specs), a wait for or click on a grid row
+// that could be such a message uses this, never `.tbl tbody tr`.
 export const DATA_ROW = '.tbl tbody tr:not(.p-datatable-empty-message)'
 
 // Row-click detail routes are walked by clickDetail(), not listed here (their URLs carry

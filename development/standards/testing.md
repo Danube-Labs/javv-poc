@@ -74,9 +74,10 @@ login come from `scripts/walk.mjs` (still the one owner).
   both import it — a renamed selector breaks one file, loudly.
 - **A grid row is a data row (issue 786).** The grids render their loading and empty messages as a
   table body row, and Findings shows "Loading findings…" until the cluster list arrives. A wait for
-  `.tbl tbody tr` takes that message as a row, and a click on it goes nowhere. Every wait for, or
-  click on, a grid row uses `DATA_ROW` from `walk.mjs`; `slow-cluster-list.spec.ts` delays the
-  cluster list to hold that in place.
+  `.tbl tbody tr` takes that message as a row, and a click on it goes nowhere. In the gate (the
+  smoke and the e2e specs), a wait for or click on a grid row that could be such a message uses
+  `DATA_ROW` from `walk.mjs`; `slow-cluster-list.spec.ts` delays the cluster list to hold that in
+  place. The authoring rig (`visual-capture.mjs`) still has its own row waits.
 - **The seed is the golden fixture.** `development/scripts/seed-smoke.sh` logs in as the bootstrap
   admin (rotating `must_change`), mints an ingest token and pushes
   `backend/tests/fixtures/envelope-trivy-golden.json` + the inventory-run commit. When the ingest
