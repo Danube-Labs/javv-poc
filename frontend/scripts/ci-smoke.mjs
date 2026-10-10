@@ -32,7 +32,8 @@ const BASE = process.env.JAVV_BASE ?? 'http://localhost:4173'
 const USER = process.env.JAVV_USER
 const PASS = process.env.JAVV_PASS
 const CORE_LOOP = process.argv.includes('--core-loop')
-// a failed run leaves its recording (screens, DOM, console, network) where CI uploads it (issue 786)
+// a failed run leaves its recording (the DOM at every step, console, network) where CI uploads it
+// (issue 786). No screen frames: they cost about 3 s a run, and the DOM alone showed that failure.
 const TRACE = fileURLToPath(new URL('../../development/e2e/logs/ci-smoke-trace.zip', import.meta.url))
 if (!USER || !PASS) {
   console.error('set JAVV_USER and JAVV_PASS')
@@ -174,7 +175,7 @@ async function main() {
   const issues = []
 
   const context = await browser.newContext({ viewport: VIEWPORTS.desktop })
-  await context.tracing.start({ screenshots: true, snapshots: true })
+  await context.tracing.start({ screenshots: false, snapshots: true })
   const page = await context.newPage()
   let failed = true
   try {
