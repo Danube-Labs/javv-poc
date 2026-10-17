@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.4](https://github.com/Danube-Labs/javv-poc/compare/v0.8.3...v0.8.4) (2026-10-17)
+
+
+### Features
+
+* a loading bar in the top bar, and page code that loads early ([#904](https://github.com/Danube-Labs/javv-poc/issues/904)) ([a944b39](https://github.com/Danube-Labs/javv-poc/commit/a944b3946c11e8e31bef02e304cf82c474285223))
+* pages and their data come in with a short fade, and the header card stretches ([#905](https://github.com/Danube-Labs/javv-poc/issues/905)) ([72e6bbe](https://github.com/Danube-Labs/javv-poc/commit/72e6bbebb12e7b41a886edff24a955aaa39da3c4))
+
 ## [0.8.3](https://github.com/Danube-Labs/javv-poc/compare/v0.8.2...v0.8.3) (2026-10-17)
 
 
