@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.8.9](https://github.com/Danube-Labs/javv-poc/compare/v0.8.8...v0.8.9) (2026-10-24)
+
+
+### Features
+
+* export controls stay visible but disabled, with the reason, for a role without can_export ([#995](https://github.com/Danube-Labs/javv-poc/issues/995)) ([230ac3b](https://github.com/Danube-Labs/javv-poc/commit/230ac3b782d4491457fb904b0d36a7aaa1375c4f))
+* the export files need the can_export permission ([#994](https://github.com/Danube-Labs/javv-poc/issues/994)) ([268e778](https://github.com/Danube-Labs/javv-poc/commit/268e77854c7b514a9a1079d683763f9470725897))
+* the roles card is a table of each permission and the roles that have it ([#993](https://github.com/Danube-Labs/javv-poc/issues/993)) ([9713f1a](https://github.com/Danube-Labs/javv-poc/commit/9713f1af1ea5bb57172f0bc8e4d3637d0722bac0)), closes [#990](https://github.com/Danube-Labs/javv-poc/issues/990)
+* the roles route lists each permission with a name and what it allows ([#991](https://github.com/Danube-Labs/javv-poc/issues/991)) ([651ba95](https://github.com/Danube-Labs/javv-poc/commit/651ba95a75b31570df8c6eff20cbb7631acd0f20)), closes [#990](https://github.com/Danube-Labs/javv-poc/issues/990)
+
 ## [0.8.8](https://github.com/Danube-Labs/javv-poc/compare/v0.8.7...v0.8.8) (2026-10-23)
 
 
